@@ -1,12 +1,6 @@
-// TARGETS — the full surface × slot × colourway × composition × output-path matrix (024 contract §3).
-//
-// Every surface carries the ONE `tile` colourway: the same "e." icon everywhere.
-//
-// ⚠ Every path below is fixed BY THE CONSUMING PLATFORM. Xcode asset catalogs, Gradle resource
-// merging and Next.js file-convention metadata each discover these by convention. Moving one
-// somewhere "tidier" does not fail loudly — it produces a build with no icon.
-//
-// ⚠ RULE T4 — no two targets may write the same path. Enforced below.
+// Targets: surface × slot × colourway × composition × output path. Every surface carries the one `tile`
+// colourway. Every path is fixed by its consuming platform's conventions: moving one produces a build
+// with no icon. No two targets may write the same path (enforced below).
 
 import { COLOURWAYS } from "./colourways.mjs"
 
@@ -27,10 +21,7 @@ const ANDROID_MIPMAP = [
   ["xxxhdpi", 192],
 ]
 
-/**
- * The standalone SVGs — the logo in both appearances and the icon — for use outside the apps
- * (a deck, a store listing, an email signature). Written by the generator like everything else.
- */
+/** The standalone SVGs (logo in both appearances, and the icon) for use outside the apps. */
 export const EXPORT_DIR = "packages/brand/svg"
 export const EXPORTS = {
   logoLight: `${EXPORT_DIR}/effy-logo-light.svg`,
@@ -44,7 +35,7 @@ function mobileTargets(app, surface, colourway) {
   const xc = `apps/${app}/iosApp/iosApp/Assets.xcassets`
   const t = []
 
-  // ── Android: vector layers (API 26+) ──────────────────────────────────────────────────────────
+  // Android: vector layers (API 26+)
   t.push({
     surface,
     slot: "android-adaptive-foreground",
@@ -60,7 +51,7 @@ function mobileTargets(app, surface, colourway) {
     colourway,
     composition: "android-fg",
     kind: KIND.VD_SOLID,
-    // The adaptive BACKGROUND layer is the tile the mark sits on.
+    // The adaptive background layer is the tile.
     solid: COLOURWAYS[colourway].ground,
     sizeDp: 108,
     path: `${res}/drawable/ic_launcher_background.xml`,
@@ -70,7 +61,7 @@ function mobileTargets(app, surface, colourway) {
     slot: "android-adaptive-monochrome",
     colourway,
     composition: "android-mono",
-    // Android re-tints this layer itself, so the authored colour only has to be opaque.
+    // Android re-tints this layer, so the colour only has to be opaque.
     mono: "#09090b",
     kind: KIND.VD,
     sizeDp: 108,
@@ -86,7 +77,7 @@ function mobileTargets(app, surface, colourway) {
     path: `${res}/drawable/ic_splash_logo.xml`,
   })
 
-  // ── Android: legacy raster mipmaps — API 24–25 ONLY (predate adaptive icons) ───────────────────
+  // Android: raster mipmaps, API 24–25 only
   for (const [density, px] of ANDROID_MIPMAP) {
     for (const name of ["ic_launcher", "ic_launcher_round"]) {
       t.push({
@@ -101,7 +92,7 @@ function mobileTargets(app, surface, colourway) {
     }
   }
 
-  // ── iOS: the three appearances. All strip alpha (rule P2). ────────────────────────────────────
+  // iOS: the three appearances, all without alpha
   t.push({
     surface,
     slot: "ios-app-icon",
@@ -131,7 +122,7 @@ function mobileTargets(app, surface, colourway) {
     path: `${xc}/AppIcon.appiconset/app-icon-1024-tinted.png`,
   })
 
-  // ── iOS: launch screen assets ─────────────────────────────────────────────────────────────────
+  // iOS: launch screen
   for (const [suffix, px] of [["", 192], ["@2x", 384], ["@3x", 576]]) {
     t.push({
       surface,
@@ -148,19 +139,13 @@ function mobileTargets(app, surface, colourway) {
 }
 
 /** Favicon set for a Vite SPA (public/ + explicit <link> tags in index.html). */
-/**
- * @param {boolean} [pwa] 059 — also emit the four manifest icons. Default false, so back-office is
- *   byte-identical and only the surface that declares a manifest carries icons for one.
- */
+/** @param {boolean} [pwa] also emit the four manifest icons (shop-web only). */
 function viteWebTargets(app, surface, colourway, pwa = false) {
   const pub = `apps/${app}/public`
   const pwaTargets = !pwa
     ? []
     : [
-        // ⚠ BOTH PURPOSES, MIRRORING customer-web's SET EXACTLY. customer-web's own comment records
-        // why: declaring only `maskable` makes a launcher that expects an unmasked icon show a
-        // visibly over-zoomed mark, because the maskable composition already contains the safe-zone
-        // padding the launcher is about to add again.
+        // Both purposes: with only `maskable`, launchers expecting an unmasked icon show an over-zoomed mark.
         {
           surface,
           slot: "pwa-192",
@@ -197,10 +182,7 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
           sizes: [512],
           path: `${pub}/web-app-icon-512.png`,
         },
-        // ⚠ THE NOTIFICATION BADGE — a separate asset, not a resized icon. Android renders
-        // `badge` as a MONOCHROME silhouette in the status bar: every non-transparent pixel becomes
-        // white and everything else is dropped. A full-colour icon used here arrives as a solid
-        // white blob — so this is the mark alone, in one colour, on nothing.
+        // The notification badge: Android renders it as a white silhouette, so it is the mark alone in one colour.
         {
           surface,
           slot: "pwa-badge",
@@ -244,7 +226,7 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
 }
 
 export const TARGETS = [
-  // ── customer-web — Next.js App Router file conventions ────────────────────────────────────────
+  // customer-web: Next.js App Router file conventions
   {
     surface: "customer-web",
     slot: "favicon-svg",
@@ -289,9 +271,7 @@ export const TARGETS = [
     sizes: [512],
     path: "apps/customer-web/public/web-app-manifest-512x512.png",
   },
-  // A non-maskable pair, so the manifest can declare BOTH purposes. Declaring only `maskable`
-  // (which is what shipped before this feature) makes launchers that expect an unmasked icon show a
-  // visibly over-zoomed mark.
+  // A non-maskable pair, so the manifest can declare both purposes.
   {
     surface: "customer-web",
     slot: "pwa-any-192",
@@ -311,20 +291,17 @@ export const TARGETS = [
     path: "apps/customer-web/public/web-app-icon-512.png",
   },
 
-  // ── shop-web · back-office ────────────────────────────────────────────────────────────────────
-  // ⚠ 059 — shop-web is the platform's first installable console, so it is the only Vite surface
-  // that takes the manifest icons.
+  // shop-web (installable, so it takes the manifest icons) and back-office
   ...viteWebTargets("shop-web", "shop-web", "tile", true),
   ...viteWebTargets("back-office", "back-office", "tile"),
 
-  // ── mobile ────────────────────────────────────────────────────────────────────────────────────
+  // mobile
   ...mobileTargets("customer-mobile", "customer-mobile", "tile"),
-  // 092 — the driver app gets the same set of icons and splash as the customer app (out of scope before).
-  // 092 — its own mark: the "e." whose full stop is a blue steering wheel (src/logo-driver.svg).
+  // The driver app's own mark: the full stop is a blue steering wheel (src/logo-driver.svg).
   ...mobileTargets("driver-mobile", "driver-mobile", "driver").map((t) => ({ ...t, mark: "driver" })),
 ]
 
-// ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.
+// Collisions would mean silent overwrite ordering: fail at import time.
 {
   const seen = new Set()
   for (const t of TARGETS) {
@@ -333,21 +310,9 @@ export const TARGETS = [
   }
 }
 
-/** Directories the drift check treats as managed — an undeclared file here is an orphan. */
 /**
- * Directories the generator OWNS. Anything inside one of these that no target declares is an ORPHAN
- * — a left-behind asset that still ships and that nobody maintains.
- *
- * ⚠ Only ASSET-ONLY directories may be listed. A directory that mixes generated assets with
- * hand-written source (notably `apps/customer-web/app/`, where the Next.js App Router file
- * conventions put icon.svg / favicon.ico / apple-icon.png alongside every route file) cannot go here:
- * walking it would report every page.tsx as an orphan. That gap is real and recorded in
- * `orphanCoverage()` below rather than left implicit.
- *
- * ⚠ 026 widened this list. The mipmap and AppIcon directories were NOT watched, so a stale legacy
- * mipmap or a leftover app icon could survive a colourway change indefinitely — which is exactly the
- * failure mode 024 wrote this check for. Found by deliberately planting an orphan and watching the
- * check pass.
+ * Directories the generator owns: an undeclared file inside one is an orphan. Only asset-only
+ * directories: `apps/customer-web/app/` mixes icons with route files, a gap recorded in `orphanCoverage`.
  */
 export const MANAGED_DIRS = [
   EXPORT_DIR,
@@ -364,35 +329,16 @@ export const MANAGED_DIRS = [
   ]),
 ]
 
-/**
- * Files inside a managed directory that the generator does NOT write but that legitimately live
- * there: platform sidecars the toolchain owns. Listing them is narrower — and far more honest — than
- * silently not watching their directory.
- *
- * ⚠ `robots.txt` was added by 048, which put a disallow-all `robots.txt` in each internal console's
- * `public/` (shop-web and back-office are login-gated and must not be indexed) and did NOT exempt it
- * here — so `brand-check` reported both as ORPHANED and `pnpm -r test` aborted at `packages/brand`
- * before most of the workspace had run. Same class as 039's hero photograph: a file the brand
- * generator neither writes nor could have an opinion about. Found by 052's baseline sweep; it is not
- * 052's file and not 052's defect.
- */
+/** Files the toolchain owns inside managed directories (platform sidecars, the consoles' `robots.txt`). */
 export const MANAGED_DIR_EXEMPT = ["Contents.json", ".gitkeep", "robots.txt"]
 
 /**
- * Directories INSIDE a managed directory that hold editorial CONTENT rather than generated assets.
- *
- * ⚠ Added by 039, which put an operator-supplied hero photograph in `apps/customer-web/public/hero/`
- * and immediately failed this check as an "orphaned brand asset". It is not one: the brand generator
- * neither writes it nor could, because it is a photograph somebody chose, not a rendering of the mark.
- *
- * ⚠ Exempting the SUBDIRECTORY rather than stopping watching `public/` is the point. `public/` is
- * exactly where a stale favicon or a hand-edited icon would hide, and that is what this check exists
- * to catch. Anything added here must be content the generator has no opinion about — if a future
- * entry is really a generated asset, it belongs in a target, not in this list.
+ * Subdirectories holding editorial content rather than generated assets (the customer-web hero photo).
+ * Exempted by subdirectory so `public/` itself stays watched.
  */
 export const MANAGED_SUBDIR_EXEMPT = ["apps/customer-web/public/hero"]
 
-/** Asset locations this check knowingly does NOT cover, so the limitation is greppable. */
+/** Asset locations this check knowingly does not cover, so the limitation is greppable. */
 export function orphanCoverage() {
   return {
     unwatched: ["apps/customer-web/app"],

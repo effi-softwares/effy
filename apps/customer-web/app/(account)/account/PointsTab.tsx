@@ -11,24 +11,15 @@ import { PointsViewed } from "./PointsViewed"
 const money = (amount: string) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", currencyDisplay: "narrowSymbol" }).format(Number(amount))
 const pts = (n: number) => Math.abs(n).toLocaleString("en-AU")
-/** "8 Oct 2027" — a Melbourne date, read at noon so no zone moves it to another day. */
+/** "8 Oct 2027": a Melbourne date, read at noon so no zone moves it. */
 const day = (ymd: string) =>
   new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: "Australia/Melbourne" }).format(new Date(`${ymd}T12:00:00+10:00`))
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeZone: "Australia/Melbourne" }).format(new Date(iso))
 
 /**
- * Effy points (074 US1) — the balance and every change to it.
- *
- * ⚠ SERVER-RENDERED, LIKE EVERY OTHER TAB: the balance is read from the platform, and `LiveRefresh`
- * re-renders the page when the platform says the customer's points changed (071). Nothing here holds
- * a copy of the balance.
- *
- * ⚠ A FAILED READ IS NOT A ZERO BALANCE. "You have no points" said to someone who has some is a false
- * statement about their own account (the payment-methods tab's rule), so a failure says so instead.
- *
- * ⚠ A LIST, NOT CARDS (Principle V). Older lines are reached by `?cursor=`, a real URL, so paging is
- * server-rendered too.
+ * Effy points: the balance and every change. Server-rendered, re-rendered by `LiveRefresh` when the
+ * balance changes. A failed read says so, never "you have no points". A list, paged by `?cursor=`.
  */
 export async function PointsTab({ cursor }: { cursor?: string }) {
   const session = await getSession()

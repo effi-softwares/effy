@@ -20,10 +20,7 @@ beforeEach(() => {
   sent.changes = [];
 });
 
-/**
- * 073 (S3) — A HUB CHECK-IN TELLS THE SHOPS. Until 073 it told back-office only, so every shop
- * console whose packages had just reached the hub kept showing them as it last read them.
- */
+/** A hub check-in tells the shops whose packages arrived. */
 describe("announceCheckedIn", () => {
   it("tells back-office and every shop whose packages were on the round — and nobody else", async () => {
     rows.value = [{ shop_id: "shop-a" }, { shop_id: "shop-b" }];
@@ -36,7 +33,7 @@ describe("announceCheckedIn", () => {
     ]);
   });
 
-  // The customer's one-word stage does not change at a check-in.
+  // The customer's stage does not change at a check-in.
   it("never tells a customer", async () => {
     rows.value = [{ shop_id: "shop-a" }];
     await announceCheckedIn("round-1");

@@ -21,9 +21,9 @@ const ORDER = {
 
 describe("⚠ P5 — a malformed payload still produces something showable (FR-029)", () => {
   /**
-   * iOS REVOKES notification permission from a service worker that receives a push and displays
-   * nothing. So a parse failure would not cost one notification — it would cost that device EVERY
-   * FUTURE notification, permanently, with nothing reported anywhere.
+   * iOS revokes notification permission from a service worker that receives a push and displays
+   * nothing. So a parse failure would not cost one notification — it would cost that device every
+   * future notification, permanently, with nothing reported anywhere.
    */
   it.each([null, undefined, 42, "a string", [], { type: 1, webPath: {} }])(
     "never throws and always yields a title for %p",
@@ -43,7 +43,7 @@ describe("⚠ P5 — a malformed payload still produces something showable (FR-0
   })
 
   it("the push handler wraps everything in waitUntil and cannot fall through silent", () => {
-    // ⚠ Without `waitUntil` the worker may be terminated before showNotification resolves — the
+    // Without `waitUntil` the worker may be terminated before showNotification resolves — the
     // same silent permission loss by another route. And a `push` handler with no fallback
     // showNotification is the failure this whole block exists to prevent.
     expect(SW_CODE).toMatch(/addEventListener\("push"[\s\S]{0,200}event\.waitUntil/)
@@ -137,12 +137,12 @@ describe("⚠ P8 — twenty orders in a minute are one banner that says twenty (
   it("collapses attention separately from orders", () => {
     const attn = { ...ORDER, group: "attention", tag: "shop-attention" }
     expect(planNotification(attn, 2).title).toBe("3 things need attention")
-    // ⚠ Separate tags, or "3 new orders" and "3 things need attention" overwrite each other's banner.
+    // Separate tags, or "3 new orders" and "3 things need attention" overwrite each other's banner.
     expect(planNotification(attn, 2).tag).not.toBe(planNotification(ORDER, 2).tag)
   })
 
   it("⚠ sets BOTH tag and renotify — each is useless without the other", () => {
-    // `tag` alone replaces the banner SILENTLY, so orders two through twenty arrive with no alert
+    // `tag` alone replaces the banner silently, so orders two through twenty arrive with no alert
     // at all. `renotify` without `tag` is ignored entirely. Both failures are invisible to a test
     // that only checks the notification was requested.
     expect(SW_CODE).toMatch(/tag:\s*plan\.tag/)
@@ -175,15 +175,15 @@ describe("⚠ P9/P10 — a click reuses the open console (FR-014)", () => {
   })
 
   it("⚠ passes includeUncontrolled to matchAll, in BOTH handlers", () => {
-    // A window loaded before this worker took control is not controlled by it, and is INVISIBLE to
-    // matchAll without the flag — so the worker opens a SECOND console beside the one already open.
+    // A window loaded before this worker took control is not controlled by it, and is invisible to
+    // matchAll without the flag — so the worker opens a second console beside the one already open.
     const calls = SW_CODE.match(/matchAll\(\{[^}]*\}\)/g) ?? []
     expect(calls.length).toBeGreaterThanOrEqual(2)
     for (const c of calls) expect(c).toMatch(/includeUncontrolled:\s*true/)
   })
 
   it("⚠ navigates an existing client by postMessage, never client.navigate()", () => {
-    // `client.navigate()` is a full document load: it throws away the Query cache, the scroll
+    // `client.navigate` is a full document load: it throws away the Query cache, the scroll
     // position, and whatever the operator was half-way through.
     expect(SW_CODE).toMatch(/postMessage\(\{\s*type:\s*"NAVIGATE"/)
     expect(SW_CODE).not.toMatch(/\.navigate\(/)

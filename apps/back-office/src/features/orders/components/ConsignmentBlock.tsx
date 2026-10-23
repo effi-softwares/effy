@@ -40,13 +40,13 @@ const STEP_LABEL: Record<ConsignmentEventInput["kind"], string> = {
 };
 
 /**
- * One courier parcel's consignment, on the order page (080 US1, US5).
+ * One courier parcel's consignment, on the order page.
  *
- * ⚠ ROWS, NOT A CARD (Principle V): what was booked, where it is, and the steps — then the controls.
+ * Rows, not a card (Principle V): what was booked, where it is, and the steps — then the controls.
  * Booking is manual in this feature: staff book with the courier outside the platform and record the
  * service, reference, tracking link and label here.
  *
- * ⚠ The label carries the customer's address. It is uploaded straight to private storage and read
+ * The label carries the customer's address. It is uploaded straight to private storage and read
  * back only through a short-lived link.
  */
 export function ConsignmentBlock({ orderId, pkg, canRecord, collection }: {

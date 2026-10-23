@@ -22,7 +22,7 @@ import type { ShopDetail } from "../model";
 import { shopMutationError } from "../errorText";
 import { useUpdateShop } from "../queries";
 
-// Edit mutable shop details (PATCH /admin/v1/shops/{id}). The code is immutable (A9), shown
+// Edit mutable shop details (PATCH /admin/v1/shops/{id}). The code is immutable, shown
 // read-only. Emits shop_updated on success.
 export interface EditShopDialogProps {
   shop: ShopDetail;
@@ -39,7 +39,7 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
       name: shop.name,
       contactPhone: shop.contactPhone ?? "",
       notes: shop.notes ?? "",
-      // ⚠ 061: where a driver is told to collect from. Address only — no coordinates (FR-031).
+      // Where a driver is told to collect from. Address only — no coordinates.
       addressLine1: shop.address?.addressLine1 ?? "",
       addressLine2: shop.address?.addressLine2 ?? "",
       suburb: shop.address?.suburb ?? "",
@@ -53,8 +53,8 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
           name: value.name.trim(),
           contactPhone: value.contactPhone.trim() || null,
           notes: value.notes.trim() || null,
-          // ⚠ An empty box means CLEAR, so `null` is sent rather than the key being dropped. The
-          // service reads the PRESENCE of a key — 056's lesson, where COALESCE collapsed "leave
+          // An empty box means clear, so `null` is sent rather than the key being dropped. The
+          // service reads the presence of a key — 056's lesson, where COALESCE collapsed "leave
           // alone" and "clear" into one and a zone once assigned could never be un-assigned.
           addressLine1: value.addressLine1.trim() || null,
           addressLine2: value.addressLine2.trim() || null,
@@ -130,8 +130,8 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
               </div>
             )}
           </form.Field>
-          {/* ⚠ 061 — where the shop physically is, so a driver can be told where to collect from.
-              A customer NEVER sees this: hidden fulfilment is a platform invariant, guarded by a
+          {/* Where the shop physically is, so a driver can be told where to collect from.
+              A customer never sees this: hidden fulfilment is a platform invariant, guarded by a
               source test in the admin service. */}
           <form.Field name="addressLine1">
             {(field) => (

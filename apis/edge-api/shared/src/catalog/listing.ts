@@ -1,20 +1,15 @@
-// The listing summary on `public.product` (098, research R4) — and its ONE writer.
-//
-// A listing sorts, filters and pages by price with a keyset on (price, id). A variant aggregate per
-// row would defeat that index and put 029's timeout back, so the product carries a summary:
-//   list_price_amount       the lowest CUSTOMER price among ACTIVE variants
-//   list_compare_at_amount  that variant's "was" price
-//   price_varies            active variants' prices differ → the storefront says "From"
-//
-// ⚠ ACTIVE, NOT IN-STOCK (spec FR-013): selling out never moves the summary, so the stock deduction at
-// payment — the hottest write on the platform — never touches it. Prices and states change only at
-// approval, on a margin change and through the variant state route, and every one of those calls
-// `refreshListing` in the same transaction. `catalog.guard.test.ts` fails any other writer.
+// The listing summary on `public.product` and its one writer. Listings page by price with a keyset on
+// (price, id), so the product carries:
+//  list_price_amount the lowest customer price among active variants
+//  list_compare_at_amount that variant's "was" price
+//  price_varies active variants' prices differ → the storefront says "From"
+// active, not in stock, so the stock deduction at payment never touches it. Every price or state
+// change calls `refreshListing` in the same transaction (`catalog.guard.test.ts`).
 
 import type { Queryable } from "../lib/db";
 import { emitMetric, metricNamespace } from "../lib/metrics";
 
-/** Recompute product `productId`'s listing summary from its variants. Call inside the writing transaction. */
+/** Call inside the writing transaction. */
 export async function refreshListing(tx: Queryable, productId: string): Promise<void> {
   await tx.query(
     `UPDATE public.product p
@@ -36,6 +31,5 @@ export async function refreshListing(tx: Queryable, productId: string): Promise<
       WHERE p.id = k.product_id`,
     [productId],
   );
-  // How often listings are recomputed (approval, margin, a size on or off sale) — never per sale.
   emitMetric(metricNamespace(), "ListingRefreshed", 1);
 }

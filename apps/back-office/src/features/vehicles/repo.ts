@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 
 import type { VehicleListParams } from "./model";
 
-// The data layer for the back-office vehicle register (061). Screens never touch the api client
+// The data layer for the back-office vehicle register. Screens never touch the api client
 // directly (Principle VI). Every endpoint lives on the `fleet` cold-path service behind the shared
 // gateway — see specs/061-fleet-foundations/contracts/fleet-vehicles.contract.md.
 
@@ -43,7 +43,7 @@ export async function createVehicle(body: VehicleCreateRequest): Promise<Vehicle
 }
 
 /**
- * ⚠ The body is sent EXACTLY as the form built it. A key present with `null` clears the field; a key
+ * The body is sent exactly as the form built it. A key present with `null` clears the field; a key
  * absent leaves it alone. Do not "clean" this object — dropping nulls here silently restores the
  * defect 056 fixed on drivers, where a zone once assigned could never be un-assigned.
  */

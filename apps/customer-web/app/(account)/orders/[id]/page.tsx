@@ -33,19 +33,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/**
- * Order detail (019 US5) — THE SAME DOCUMENT as the checkout receipt, reached from history.
- *
- * ⚠ It shares `ReceiptDocument`/`ArrivalPanel`/`DocumentStatusNote` with `/checkout/complete` and uses
- * the SAME `container` column (052 FR-018a, research R12). Before this it rendered a bespoke,
- * thinner version of the same facts at `max-w-2xl`, so one document had two appearances depending on
- * how the customer arrived at it. Both pages move together or neither does.
- */
+/** Order detail: the same document as the checkout receipt (shared components and column), reached from history. */
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div>
-      {/* 071 — when this order changes, the page re-reads it; no timer, and nothing to do by hand.
-          Outside the Suspense boundary so it is not remounted on each re-render. */}
+      {/* Re-reads when this order changes; outside Suspense so it is not remounted on each render. */}
       <LiveRefresh />
       <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-lg bg-muted" />}>
         <OrderDetail params={params} />
@@ -57,12 +49,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 const PLACED = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeStyle: "short", timeZone: "Australia/Melbourne" })
 const TONE = { outline: "outline", default: "default", brand: "brand", secondary: "secondary" } as const
 
-/**
- * One order (reference: Orders · Order — confirmed / on the way / delivered / moved to courier).
- *
- * Where it is and when it is coming, first; then the receipt, which is the record; beside them, what
- * has been refunded and the way to say something is wrong.
- */
+/** One order: where it is and when it is coming, then the receipt; beside them, refunds and reporting a problem. */
 async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   await requireCustomer(`/orders/${id}`)
@@ -80,7 +67,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!dto) notFound()
 
   const paid = dto.status === "paid"
-  // 096 — the delivery note, once everything has arrived (409 until then: shown as "not yet").
+  // The delivery note, once everything has arrived (409 until then, shown as "not yet").
   let note: DeliveryNoteDTO | null = null
   if (paid && session?.accessToken) {
     try {
@@ -91,7 +78,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   }
   const shortfalls = paid ? shortfallsFrom(dto.fulfillments) : []
   const itemCount = dto.items.reduce((n, i) => n + i.quantity, 0)
-  // The same words the order list uses for this order — one definition (lib/order-summary.ts).
+  // The order list's words for this order (lib/order-summary.ts).
   const words = orderRowWords({
     id: dto.id, orderNumber: dto.orderNumber, status: dto.status, placedAt: dto.placedAt, itemCount,
     grandTotalAmount: dto.grandTotalAmount, currency: dto.currency,
@@ -129,9 +116,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="grid items-start gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
-          {/* ⚠ THE STAGE COMES FROM THE SERVER, read as-is. It summarises the whole order in one
-              word and says nothing about how it was fulfilled (052 FR-008). Only a paid order is
-              anywhere: one that never went through has nothing to track. */}
+          {/* The stage is the server's, as-is. Only a paid order has one. */}
           {paid && <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />}
 
           {shortfalls.length > 0 ? <Unavailable shortfalls={shortfalls} /> : null}
@@ -152,8 +137,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         </div>
 
         <div className="flex flex-col gap-6 print:hidden">
-          {/* 055 — what has happened to the shopper's money. Absent when nothing has, so an
-              unrefunded order renders exactly as it did before 055 (SC-011). */}
+          {/* What has happened to the shopper's money; absent when nothing has. */}
           {dto.refunds?.length ? (
             <RefundBlock
               refunds={dto.refunds}
@@ -171,8 +155,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
               <p className="text-sm text-muted-foreground">Tell us what happened and we&apos;ll sort it out.</p>
             </div>
             <div className="flex flex-col items-stretch gap-2">
-              {/* ⚠ Only a PAID order can be reported on here: there is nothing to put right on one
-                  that never went through, and the request would sit in the queue with no outcome. */}
+              {/* Only a paid order can be reported on. */}
               {paid ? (
                 <RequestRefund
                   orderId={dto.id}
@@ -188,8 +171,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
                   Get help
                 </Link>
               )}
-              {/* 055 — the server's verdict, never recomputed here. It is absent, not disabled, when
-                  the order cannot be cancelled: staff still can, and that is what reporting is for. */}
+              {/* The server's verdict; absent, not disabled, when it cannot be cancelled (staff still can). */}
               {dto.cancellable ? <CancelOrder orderId={dto.id} /> : null}
             </div>
           </section>
@@ -199,12 +181,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   )
 }
 
-/**
- * What a shop could not supply, told once it is settled (020 SC-017).
- *
- * ⚠ The refund is promised in the FUTURE tense because that is what is true when this shows: the
- * item is not coming, and the money follows.
- */
+/** What a shop could not supply, told once settled. The refund is in the future tense: the money follows. */
 function Unavailable({ shortfalls }: { shortfalls: { productName: string; quantity: number }[] }) {
   const one = shortfalls.length === 1
   return (

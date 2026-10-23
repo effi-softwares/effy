@@ -1,8 +1,7 @@
 import type { ProblemJSON } from "@effy/shared-types";
 import { toDomainError, type DomainError } from "./errors";
 
-/** Returns a fresh access token (or null if signed out). Injected so this package never depends
- *  on the auth library directly — Clean-Architecture direction (contracts/back-office-web §3). */
+/** Returns a fresh access token, or null if signed out. Injected so this package never depends on the auth library. */
 export type TokenProvider = () => Promise<string | null>;
 
 export interface ApiClientConfig {
@@ -10,9 +9,8 @@ export interface ApiClientConfig {
   getToken: TokenProvider;
 }
 
-/** The one authed fetch wrapper for every web surface: attaches the Bearer ACCESS token, parses
- *  problem+json, and rejects with a DomainError on non-2xx. Returns server data as-is; each
- *  feature's repo maps DTO→domain (never leaking wire shapes to screens). */
+/** The authed fetch wrapper for every web surface: attaches the Bearer access token, parses
+ *  problem+json and rejects with a DomainError on non-2xx. Each feature's repo maps DTO to domain. */
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
@@ -24,8 +22,7 @@ export class ApiClient {
     return this.request<T>("POST", path, body);
   }
 
-  /** Replace a resource wholesale. Distinct from PATCH on purpose: 027's order-rules row is a
-   *  singleton whose write is idempotent — a PUT says so, and a retry cannot mean something else. */
+  /** Replaces a resource wholesale: an idempotent write, so a retry cannot mean something else. */
   put<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>("PUT", path, body);
   }
@@ -52,7 +49,7 @@ export class ApiClient {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch {
-      // Network failure / CORS / offline → uniform "unavailable" (never a raw throw to the UI).
+      // Network failure, CORS or offline: a uniform "unavailable".
       throw toDomainError(0);
     }
 
@@ -68,7 +65,7 @@ async function problemFrom(res: Response): Promise<DomainError> {
     const ct = res.headers.get("content-type") ?? "";
     if (ct.includes("json")) problem = (await res.json()) as Partial<ProblemJSON>;
   } catch {
-    /* non-JSON error body — fall back to status-only mapping */
+    /* non-JSON error body: status-only mapping */
   }
   return toDomainError(res.status, problem);
 }

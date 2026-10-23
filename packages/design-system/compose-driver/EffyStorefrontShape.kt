@@ -1,6 +1,5 @@
 // GENERATED FROM packages/design-system/src/storefront/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
-// The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).
 package com.effyshopping.driver.mobile.design
 
 import androidx.compose.foundation.shape.RoundedCornerShape

@@ -4,11 +4,11 @@ import { getSession } from "@/lib/dal"
 import { edgeApiBaseUrl } from "@/lib/config"
 
 /**
- * The delivery note as a PDF (096 US7), downloaded through the storefront's own server so the session
- * never leaves its cookies (084). The JSON client cannot carry bytes, so this one call is a plain
+ * The delivery note as a PDF, downloaded through the storefront's own server so the session
+ * never leaves its cookies. The JSON client cannot carry bytes, so this one call is a plain
  * fetch with the same credential `edgeApi` sends.
  *
- * ⚠ A refusal is relayed as its status only — 404 for not-yours, 409 before delivery — never the
+ * A refusal is relayed as its status only — 404 for not-yours, 409 before delivery — never the
  * service's prose.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

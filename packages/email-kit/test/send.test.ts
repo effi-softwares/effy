@@ -52,12 +52,10 @@ afterEach(() => {
 
 describe("MAIL_ENV_KEYS", () => {
   it("⚠ names EXACTLY the environment variables the mail path reads — self-check, so it cannot drift", async () => {
-    // The edge services' config-contract tests trust this list; this keeps it honest against the
-    // real source, which is what makes trusting it safe (035's defect was a list that lied).
+    // The services' config-contract tests trust this list; this keeps it honest against the source.
     const { MAIL_ENV_KEYS } = await import("../src/send.js");
     const here = dirname(fileURLToPath(import.meta.url));
-    // ⚠ Scans BOTH files that read the mail environment: config.ts (identity) and send.ts (the
-    // configuration set). A regex that saw only one file would pass a list that lies (035's defect).
+    // Both files that read the mail environment: config.ts (identity) and send.ts (configuration set).
     const read = new Set<string>();
     for (const file of ["../src/config.ts", "../src/send.ts"]) {
       const src = readFileSync(resolve(here, file), "utf8");
@@ -126,7 +124,7 @@ describe("sendEmail", () => {
         { isFirstPassword: false },
         { to: "person@example.com", audience: "customer" },
       );
-      expect(result.outcome).toBe("failed"); // recorded, not thrown
+      expect(result.outcome).toBe("failed");
     });
   });
 
@@ -163,9 +161,8 @@ describe("sendEmail", () => {
   });
 
   it("⚠ refuses to send a Cognito-owned message through this path (it would double-deliver)", async () => {
-    // No Cognito-sent template exists yet, so this is proven at the seam: a hand-built entry with
-    // sentBy:"cognito" would be rejected. The guard is the `entry.sentBy !== "platform"` check.
-    // Here we assert the two shipping templates ARE platform-sent, so the path accepts them.
+    // No Cognito-sent template is sent this way: the `entry.sentBy !== "platform"` check rejects one.
+    // This asserts the shipping templates are platform-sent.
     const { sendEmail } = await loadSend();
     await expect(
       sendEmail(

@@ -29,17 +29,13 @@ sealed interface SavedUiState {
     data object Error : SavedUiState
 }
 
-/** A removal the shopper can still undo (FR-017). */
+/** A removal the shopper can still undo. */
 data class PendingUndo(val item: SavedItem, val savedAt: String, val listId: String)
 
 /**
- * One of the shopper's lists, on screen (033; 068 made it any list rather than the only one).
- *
- * [selected] is the list being shown: [DEFAULT_LIST_ID] for "Saved", or a named list's id. Everything
- * a row does is scoped to it — a product removed here stays in every other list it is in.
- *
- * [lists] is empty for a guest and when the lists read fails; the screen then shows "Saved" alone,
- * exactly as it did before 068, so a stale backend costs named lists and never saved items.
+ * One of the shopper's lists on screen. [selected] is the list shown ([DEFAULT_LIST_ID] for "Saved", or a
+ * named list's id); everything a row does is scoped to it. [lists] is empty for a guest and when the lists
+ * read fails, and the screen shows "Saved" alone.
  */
 class SavedViewModel(
     private val listSaved: ListSaved,
@@ -73,7 +69,7 @@ class SavedViewModel(
         }
     }
 
-    /** Pull-to-refresh: re-read WITHOUT clearing what is on screen (FR-068). */
+    /** Pull-to-refresh: re-read without clearing what is on screen. */
     suspend fun refresh() = fetch()
 
     fun retry() = load()
@@ -113,7 +109,7 @@ class SavedViewModel(
     }
 
     /**
-     * ⚠ REMOVES FROM THE SELECTED LIST ONLY (068 FR-024). This used to be the heart's un-save, which
+     * Removes from the selected list only. This used to be the heart's un-save, which
      * the platform now refuses for a product in a named list; from a list's own screen the shopper
      * has said exactly which list they mean, so there is nothing to refuse.
      */
@@ -136,7 +132,7 @@ class SavedViewModel(
         }
     }
 
-    /** Undo returns the product to the position it held IN THAT LIST, not the top (FR-018). */
+    /** Undo returns the product to the position it held in that list, not the top. */
     fun undoRemoval() {
         val pending = _undo.value ?: return
         _undo.value = null

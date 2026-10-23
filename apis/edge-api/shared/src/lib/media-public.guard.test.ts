@@ -8,24 +8,17 @@ import { PROOF_MEDIA_PREFIX } from "./proof-prefix";
 import { EDGE_API_DIR, INFRA_DEV_DIR } from "./serverless-stacks";
 
 /**
- * ⚠ WHAT THE CDN MAY SERVE IS STATED TWICE, AND THIS IS WHAT HOLDS THE TWO TOGETHER (086 FR-015).
- *
- * `PUBLIC_MEDIA_PREFIXES` decides which keys the services give a public address. The bucket policy
- * in `infra/envs/dev/media.tf`, built from `local.public_media_prefixes`, decides which keys the CDN
- * can actually read. If they disagree, either pictures the storefront names answer 403 (code only),
- * or objects nobody meant to publish become fetchable (Terraform only). The bucket also holds courier
- * labels — a customer's name and address — and proof-of-delivery photos.
+ * The CDN-public prefixes are stated in code (`PUBLIC_MEDIA_PREFIXES`) and in media.tf; they must agree,
+ * or pictures 403 or private objects (courier labels, proof photos) become fetchable.
  */
 const mediaTf = readFileSync(resolve(INFRA_DEV_DIR, "media.tf"), "utf8");
 
-/** The value of `public_media_prefixes = [ … ]` in media.tf. */
 function terraformPublicPrefixes(): string[] {
   const m = /public_media_prefixes\s*=\s*\[([^\]]*)\]/.exec(mediaTf);
   expect(m, "media.tf has no local.public_media_prefixes").not.toBeNull();
   return [...(m?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((x) => x[1] ?? "");
 }
 
-/** One resource's block, by its exact header. */
 function block(header: string): string {
   const start = mediaTf.indexOf(header);
   expect(start, `media.tf has no ${header}`).toBeGreaterThan(-1);
@@ -52,7 +45,7 @@ describe("the public picture set ↔ the bucket policy (086)", () => {
     const policy = block('data "aws_iam_policy_document" "product_media"');
     expect(policy).toMatch(/for p in local\.public_media_prefixes/);
     expect(policy).toMatch(/actions\s*=\s*\["s3:GetObject"\]/);
-    // A missing key must answer 403 like a refused one, and nothing may be listed (FR-016, FR-017).
+    // A missing key answers 403 like a refused one, and nothing may be listed.
     expect(policy).not.toMatch(/ListBucket/);
     expect(policy).toMatch(/AWS:SourceArn/);
   });
@@ -71,7 +64,6 @@ describe("the public picture set ↔ the bucket policy (086)", () => {
   });
 });
 
-/** Every non-test TypeScript source under a service's `src/`. */
 function sources(service: string): { file: string; text: string }[] {
   const out: { file: string; text: string }[] = [];
   const walk = (dir: string) => {
@@ -86,10 +78,7 @@ function sources(service: string): { file: string; text: string }[] {
 }
 
 describe("who may build a public address (086 FR-014)", () => {
-  /**
-   * ⚠ The services that read labels and proof never call `publicImageUrl` on a line that names one.
-   * The function would refuse the key anyway; this keeps anyone from trying.
-   */
+  /** Services that read labels and proof never call `publicImageUrl` on a line naming one. */
   it.each(["orders", "shop", "driver", "fleet"])("%s gives no label or proof a public address", (service) => {
     const offences = sources(service).flatMap(({ file, text }) =>
       text
@@ -110,11 +99,10 @@ describe("who may build a public address (086 FR-014)", () => {
         return sources(s)
           .filter(({ text }) => /\bpublicImageUrl\b/.test(text))
           .map(({ file }) => file)
-          // 095 — back-office shows a promotion's pictures at the address shoppers get (they are under the
-          // public `promotions/` prefix by definition), so the skin previews are what shoppers see.
+          // Back-office previews a promotion's pictures at the shopper address (public `promotions/` prefix).
           .filter((file) => !file.endsWith("admin/src/promotions/images.ts"));
       } catch {
-        return []; // a directory with no src/
+        return [];
       }
     });
     expect(offences).toEqual([]);

@@ -1,31 +1,11 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * The account surface's refusals, at the level Playwright can HONESTLY reach (012).
- *
- * ⚠⚠ READ THIS BEFORE ADDING A TEST HERE. ⚠⚠
- *
- * The first draft of this file "proved" SC-004 by firing crafted requests at
- * `PUT /api/customer/v1/password` and asserting the response was not a 200.
- *
- * **There is no such route in this app.** The password API lives on the external edge-api gateway;
- * the storefront reaches it from Server Actions, server-side. So every one of those requests hit
- * Next's 404 handler, every assertion (`status >= 400`) passed — and the file would have reported
- * that the account-takeover primitive was closed while testing precisely nothing. A green test that
- * cannot fail is worse than no test: it is a false statement with a tick next to it.
- *
- * So the proofs live where they can actually run:
- *
- *   • SC-004 (a session alone cannot set a password) and SC-005 (no current password, no change) are
- *     proven in `apis/edge-api/customer/src/password/service.test.ts` — the code is verified BEFORE
- *     the password is written, nothing is written when the code is refused, and each mode is refused
- *     on the wrong account state. The mismatched-token attack is proven in `identity.test.ts`.
- *
- *   • They are then proven LIVE, adversarially, against the dev pool in
- *     `specs/012-customer-profile-management/quickstart.md` § "The proofs that matter" — which is an
- *     operator step, because it needs a real inbox and a real Cognito user.
- *
- * What remains testable from a browser is below, and it is genuinely worth having.
+ * The account surface's refusals, as far as Playwright can reach. The password API is on the edge
+ * gateway, reached from Server Actions, so there is no route here to attack: "a session alone cannot
+ * set a password" and "no current password, no change" are proven in
+ * `apis/edge-api/customer/src/password/service.test.ts` (and `identity.test.ts`), and live in an
+ * operator walk with a real inbox.
  */
 
 test.describe("the account page is not reachable without a session", () => {
@@ -36,7 +16,7 @@ test.describe("the account page is not reachable without a session", () => {
   }) => {
     await page.goto("/account")
 
-    // FR-020 — authenticating must never cost the customer their place.
+    // Authenticating must never cost the customer their place.
     await expect(page).toHaveURL(/\/sign-in\?next=%2Faccount/)
   })
 
@@ -46,24 +26,18 @@ test.describe("the account page is not reachable without a session", () => {
   })
 })
 
-/**
- * Sign-out (012 FR-028 … FR-031).
- *
- * These ARE reachable from a browser, because sign-out is a real route handler in this app —
- * deliberately, so that the header can reach it by URL instead of by import and never acquire a path
- * to the auth SDK (research R3).
- */
+/** Sign-out: reachable from a browser, since it is a real route handler (the header reaches it by URL). */
 test.describe("sign-out refuses the obvious abuses", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  // ⚠ A GET sign-out is triggerable by any `<img src="https://effy/sign-out">` on any page anywhere
+  // A GET sign-out is triggerable by any `<img src="https://effy/sign-out">` on any page anywhere
   // on the internet — a drive-by CSRF logout. The route exports POST only, so Next answers 405.
   test("a GET to /sign-out does not end a session", async ({ request }) => {
     const res = await request.get("/sign-out", { failOnStatusCode: false })
     expect(res.status()).toBe(405)
   })
 
-  // FR-031 — the destination is a constant in the route handler, never taken from the request. An
+  // The destination is a constant in the route handler, never taken from the request. An
   // open redirect here would bounce a customer to a lookalike sign-in page at the exact moment they
   // expect to be asked for their credentials.
   test("sign-out ignores any destination supplied by the caller", async ({ request }) => {

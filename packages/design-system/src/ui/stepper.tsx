@@ -1,18 +1,8 @@
 /**
- * Stepper — the progress rail for a multi-step wizard.
- *
- * The one component in 057's imported design vocabulary that the shared package did not already
- * cover. The other three the plan expected to be missing were already here: {@link ResponsiveModal}
- * is the responsive sheet (dialog on desktop, bottom drawer on mobile), `sonner` is the toast, and
- * {@link Tabs} is the segmented control. Only this was absent.
- *
- * ⚠ IT IS A STATUS DISPLAY, NOT A NAVIGATION CONTROL, unless `onStepSelect` is supplied. A wizard
- * whose rail is always clickable invites a jump into step 4 over a step-2 form that has not
- * validated. The caller decides which steps are reachable by passing `maxReachableStep`.
- *
- * ⚠ COMPLETION IS CARRIED BY A GLYPH AND WEIGHT, NEVER BY COLOUR ALONE (Principle V). The ramp does
- * the work: a completed step gets a ✓ on the accent fill, the current step gets the accent fill and a
- * semibold label, future steps sit muted with a hairline ring. Rendered in greyscale it still reads.
+ * The progress rail for a multi-step wizard. A status display unless `onStepSelect` is given, and then
+ * only up to `maxReachableStep`. Completion shows by glyph and weight, not colour alone: ✓ on the
+ * accent fill when done, the accent fill and a semibold label when current, muted with a hairline ring
+ * when ahead.
  */
 import * as React from "react"
 import { Check } from "lucide-react"
@@ -23,10 +13,7 @@ export interface StepperProps extends React.ComponentProps<"nav"> {
   steps: readonly string[]
   /** Zero-based index of the step being shown. */
   current: number
-  /**
-   * Highest step index the user may jump to. Steps beyond it are inert even when `onStepSelect` is
-   * supplied. Defaults to `current` — i.e. you may go back, never forward.
-   */
+  /** The highest step the user may jump to; defaults to `current` (back, never forward). */
   maxReachableStep?: number
   onStepSelect?: (index: number) => void
 }

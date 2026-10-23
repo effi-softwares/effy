@@ -1,17 +1,6 @@
-// What a driver does next — ONE definition, shared by every surface that shows a round (063).
-//
-// ⚠ WHY THIS IS SHARED RATHER THAN RETYPED. Two surfaces render a round's order: the dispatcher
-// console and the driver app. If they disagree, a dispatcher reorders a round and the driver never
-// sees the new order — and NOTHING FAILS, because both surfaces successfully render something. That
-// is 029's banner target, 033's `available` flag and 052's `summarizeFulfillment`, where two
-// implementations of one rule diverged silently because each half was correct in isolation.
-//
-// ⚠ THERE IS NO GEOMETRY HERE, AND THAT IS THE DESIGN (operator direction, D20). Sequencing is an
-// ORDERING problem, not a routing one: no coordinate, no distance, no travel time, no solver. The
-// sort key below replaces the cost function a router would have used. The trade is real and was
-// accepted deliberately — a driver may zigzag WITHIN a zone, because nothing knows which of two
-// addresses in one suburb is closer. At one metro with fewer than ten drivers that is cheap, and the
-// dispatcher reorders when it matters.
+// What a driver does next: one definition shared by the dispatcher console and the driver app, so a
+// reorder is seen by both. Sequencing is ordering, not routing: no coordinates or travel time. A driver
+// may zigzag within a zone; the dispatcher reorders when it matters.
 
 /** The minimum a stop must expose to be ordered. Callers pass their own richer row. */
 export interface OrderableStop {
@@ -30,8 +19,7 @@ export interface OrderableStop {
 /** What is actionable now sorts above what is finished with. */
 const STATUS_RANK: Record<OrderableStop["status"], number> = {
   pending: 0,
-  // ⚠ 2026-09-30: the in-transit states rank with `arrived` — started, not finished. A Record over the
-  // union is what made adding them a compile error here rather than a silent `undefined` rank.
+  // In-transit states rank with `arrived`: started, not finished.
   out_for_delivery: 1,
   en_route: 1,
   arrived: 1,
@@ -53,23 +41,10 @@ function byNullableId(a: string | null, b: string | null): number {
 }
 
 /**
- * Order a round's stops so that what to do next is first (FR-017).
- *
- * The key, in precedence (FR-018):
- *   1. **status** — actionable before finished
- *   2. **time constraint** — the collection deadline or promised window
- *   3. **zone** — all stops in one area together
- *   4. **shop** — same-shop packages adjacent
- *
- * ⚠ A DISPATCHER'S `seq` BEATS ALL OF IT (FR-031), but only among stops that still have something to
- * do. A person reordering a round is asserting something about the world the sort key cannot know —
- * traffic, a shop that opens late, a customer who called. Letting the derived order win would discard
- * that. Completed stops keep the derived order regardless, so finishing a stop cannot reshuffle the
- * list under the driver's thumb.
- *
- * ⚠ TOTAL AND DETERMINISTIC. The final tie-break is the stop id, so the same set of stops always
- * yields the same order (FR-020, SC-007). An unstable sort here would make a dispatcher's "why did it
- * move?" unanswerable and the whole thing untestable.
+ * Orders a round's stops so what to do next is first, by status, then time constraint, then zone, then
+ * shop. A dispatcher's `seq` beats all of it among stops still to do; completed stops keep the derived
+ * order so finishing one cannot reshuffle the list. The final tie-break is the stop id, so the order is
+ * total and deterministic.
  */
 export function orderRoundStops<T extends OrderableStop>(stops: readonly T[]): T[] {
   return [...stops].sort((a, b) => {
@@ -77,8 +52,7 @@ export function orderRoundStops<T extends OrderableStop>(stops: readonly T[]): T
     const sb = STATUS_RANK[b.status];
     if (sa !== sb) return sa - sb;
 
-    // A manual order applies only among stops still to be done, and only when BOTH carry one —
-    // otherwise a single manually-placed stop would have nothing meaningful to compare against.
+    // Only when both carry a manual position; otherwise there is nothing to compare against.
     const actionable = sa <= STATUS_RANK.arrived;
     if (actionable && a.seq !== null && b.seq !== null && a.seq !== b.seq) {
       return a.seq - b.seq;

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { catalogMutationError } from "./errorText";
 
-// Maps DomainError → safe, non-leaking copy. Never surfaces raw `detail`; conflicts (409) take the
+// Maps DomainError → safe, non-leaking copy. Never surfaces raw `detail`; conflicts take the
 // caller's specific message (e.g. the FR-006 in-use guard), everything else falls to a generic line.
 function domainError(over: Partial<DomainError>): DomainError {
   return { kind: "unknown", status: 500, title: "x", ...over };

@@ -15,7 +15,7 @@ const policy = (minimumSubtotalCents: number): CartPolicy => ({ ...defaultCartPo
 describe("minimum spend", () => {
   it("a zero minimum is NOT a minimum in force — the cart shows nothing about one", () => {
     expect(hasMinimum(defaultCartPolicy())).toBe(false);
-    expect(hasMinimum(policy(1))).toBe(true); // one cent is a minimum
+    expect(hasMinimum(policy(1))).toBe(true);
   });
 
   it.each([
@@ -25,7 +25,7 @@ describe("minimum spend", () => {
     ["above", 9999, 0, true],
     ["empty cart is below", 0, 2500, false],
   ])("%s", (_name, payable, want, meets) => {
-    const p = policy(2500); // $25.00
+    const p = policy(2500);
     expect(remainingToMinimum(p, payable)).toBe(want);
     expect(meetsMinimum(p, payable)).toBe(meets);
   });

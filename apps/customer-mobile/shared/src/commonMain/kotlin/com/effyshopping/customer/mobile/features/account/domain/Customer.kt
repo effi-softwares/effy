@@ -1,6 +1,6 @@
 package com.effyshopping.customer.mobile.features.account.domain
 
-/** A customer's standing with Effy. PLATFORM-OWNED — never derived from a token claim (013 FR-033). */
+/** A customer's standing with Effy. Platform-owned — never derived from a token claim. */
 enum class CustomerStanding { ACTIVE, BARRED }
 
 /**
@@ -12,13 +12,8 @@ data class Customer(
     val email: String,
     val name: CustomerName,
     /**
-     * A self-asserted contact phone (034 FR-060).
-     *
-     * ⚠ NEVER VERIFIED by this feature — FR-060a bars any confirmation indicator on it and bars it
-     * from every identity and recovery path. There is deliberately no `phoneVerified` companion: a
-     * field whose only honest value is `false` eventually gets rendered as a badge by someone.
-     *
-     * ⚠ Distinct from a delivery address's phone, which is what a driver actually calls (FR-060b).
+     * A self-asserted contact phone: never verified, never on an identity or recovery path, and with no
+     * `phoneVerified` companion. Distinct from a delivery address's phone, which a driver calls.
      */
     val phone: String?,
     val standing: CustomerStanding,
@@ -28,7 +23,7 @@ data class Customer(
 ) {
     val isBarred: Boolean get() = standing == CustomerStanding.BARRED
 
-    /** Which password journey the account page offers — derived ONLY from [hasPassword] (FR-024/FR-025). */
+    /** Which password journey the account page offers — derived only from [hasPassword]. */
     val passwordJourney: PasswordJourney
         get() = if (hasPassword) PasswordJourney.CHANGE else PasswordJourney.SET
 }
@@ -37,7 +32,7 @@ enum class PasswordJourney { SET, CHANGE }
 
 /**
  * A customer's name, and the two derived display values. Two nullable parts because a federated
- * identity may assert neither, and the platform must not invent a name it was never given (FR-022).
+ * identity may assert neither, and the platform must not invent a name it was never given.
  */
 data class CustomerName(
     val given: String?,
@@ -48,6 +43,6 @@ data class CustomerName(
         get() = listOfNotNull(given?.trim()?.ifBlank { null }, family?.trim()?.ifBlank { null })
             .joinToString(" ")
 
-    /** The initials for the avatar. See [initials] — the ONE place initials are derived (SC-013). */
+    /** The initials for the avatar. See [initials] — the one place initials are derived. */
     val initials: String get() = initialsFor(given, family)
 }

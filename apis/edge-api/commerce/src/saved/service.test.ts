@@ -61,7 +61,7 @@ describe("list", () => {
     expect(item).toEqual({
       id: id(1), name: "P1", brand: null, imageUrl: null, priceAmount: "4.50", currency: "AUD", compareAtAmount: null,
       badges: [], savedAt: "2026-10-01T02:03:04Z", savedPriceAmount: "4.50", verdict: "purchasable",
-      // 098 — one size and none remembered: "Add to cart" adds that size.
+      // One size and none remembered: "Add to cart" adds that size.
       variantId: id(1), variantLabel: null, variantCount: 1, unitPrice: null,
     });
     expect(item).not.toHaveProperty("priceDropped");

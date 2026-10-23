@@ -1,13 +1,6 @@
-// 096 US8 — the GST arithmetic of a tax invoice (research R15). PURE: every number on an invoice comes
-// from here, and `gst.test.ts` holds each rule to worked examples.
-//
-// ⚠ ALL MONEY IS INTEGER CENTS. Prices are GST-inclusive (Australian practice), so the GST in a taxable
-// amount is one eleventh of it, rounded half up ONCE over the invoice's taxable total — per-line
-// rounding is allowed but drifts from the total. Fees are taxed as the business's fee treatment says.
-// Points are a way of PAYING (074): they appear under payments and change no GST.
-//
-// ⚠ The fee treatment and the rounding approach are to be confirmed by Effy's accountant; both are
-// configuration, not code (spec Assumptions).
+// The GST arithmetic of a tax invoice, pure, in integer cents. Prices are GST-inclusive, so GST is one
+// eleventh, rounded half up once over the taxable total. Fees follow the business's fee treatment.
+// Points are payment and change no GST. Fee treatment and rounding are configuration, pending the accountant.
 import type { GstStatus } from "@effy/shared-types";
 
 /** round(x / 11), half up, for x ≥ 0 cents. */
@@ -19,7 +12,7 @@ export const money = (cents: number): string => `${cents < 0 ? "-" : ""}${Math.f
 export interface InvoiceLineInput {
   name: string;
   quantity: number;
-  /** What the line was sold for, after promotions: unit × quantity − its discount. */
+  /** After promotions: unit × quantity − its discount. */
   amountCents: number;
   taxable: boolean;
 }
@@ -49,14 +42,11 @@ export function invoiceTotals(lines: readonly InvoiceLineInput[], fees: readonly
 
 export interface RefundInput {
   amountCents: number;
-  /** The lines an itemised refund covered; absent for an amount-only (goodwill) refund. */
+  /** Absent for an amount-only (goodwill) refund. */
   lines?: Array<{ amountCents: number; taxable: boolean }>;
 }
 
-/**
- * The GST a refund returns. An itemised refund: its taxable lines, and anything beyond the lines (a
- * delivery fee refunded with them) taxed as fees are. An amount-only refund: the invoice's own GST share.
- */
+/** Itemised: its taxable lines plus anything beyond them taxed as fees. Amount-only: the invoice's own GST share. */
 export function adjustmentGst(refund: RefundInput, invoice: { gstCents: number; totalCents: number }, feeTreatment: GstStatus): number {
   if (refund.lines && refund.lines.length > 0) {
     const linesCents = refund.lines.reduce((a, l) => a + l.amountCents, 0);
@@ -68,7 +58,7 @@ export function adjustmentGst(refund: RefundInput, invoice: { gstCents: number; 
   return Math.floor((2 * refund.amountCents * invoice.gstCents + invoice.totalCents) / (2 * invoice.totalCents));
 }
 
-/** The ABN's own checksum (ABR): first digit less one, weighted sum divisible by 89. */
+/** First digit less one, weighted sum divisible by 89. */
 export function isValidAbn(abn: string): boolean {
   const digits = abn.replace(/\s+/g, "");
   if (!/^\d{11}$/.test(digits)) return false;

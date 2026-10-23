@@ -7,15 +7,7 @@ import {
   readImageDimensions,
 } from "./image-dimensions";
 
-/**
- * 029 T010 — the header reader.
- *
- * Every fixture below is built byte by byte rather than loaded from a file, so each test states
- * exactly which bytes it is asserting about. The two that matter most are the **WebP sub-formats**
- * (two of the three are 1-based, and getting that wrong yields dimensions one pixel short — which
- * looks right and fails an exact-size check) and the **beyond-buffer** case (a valid photo whose
- * dimensions sit past a short prefix, which must be retried rather than rejected).
- */
+/** Fixtures are built byte by byte. Two WebP sub-formats are 1-based, and a JPEG sof past the prefix must be retried, not rejected. */
 
 function png(width: number, height: number): Buffer {
   const b = Buffer.alloc(24);
@@ -26,14 +18,14 @@ function png(width: number, height: number): Buffer {
   return b;
 }
 
-/** A JPEG with `padBytes` of filler segments in front of the SOF, standing in for EXIF or a thumbnail. */
+/** `padBytes` of filler segments before the SOF, standing in for exif or a thumbnail. */
 function jpeg(width: number, height: number, padBytes = 0): Buffer {
   const parts: Buffer[] = [Buffer.from([0xff, 0xd8])];
 
   if (padBytes > 0) {
     const segment = Buffer.alloc(padBytes + 4);
     segment.writeUInt8(0xff, 0);
-    segment.writeUInt8(0xe1, 1); // APP1 — where EXIF actually lives
+    segment.writeUInt8(0xe1, 1); // APP1 — where exif actually lives
     segment.writeUInt16BE(padBytes + 2, 2);
     parts.push(segment);
   }
@@ -65,7 +57,7 @@ function webpLossless(width: number, height: number): Buffer {
   b.write("RIFF", 0, "ascii");
   b.write("WEBP", 8, "ascii");
   b.write("VP8L", 12, "ascii");
-  // ⚠ 1-BASED and bit-packed: 14 bits of (width-1), then 14 bits of (height-1).
+  // 1-based and bit-packed: 14 bits of (width-1), then 14 bits of (height-1).
   b.writeUInt32LE(((height - 1) << 14) | (width - 1), 21);
   return b;
 }
@@ -75,7 +67,7 @@ function webpExtended(width: number, height: number): Buffer {
   b.write("RIFF", 0, "ascii");
   b.write("WEBP", 8, "ascii");
   b.write("VP8X", 12, "ascii");
-  b.writeUIntLE(width - 1, 24, 3); // ⚠ also 1-based
+  b.writeUIntLE(width - 1, 24, 3);
   b.writeUIntLE(height - 1, 27, 3);
   return b;
 }
@@ -90,7 +82,7 @@ describe("readImageDimensions", () => {
   });
 
   it("walks past EXIF-sized padding to find the JPEG SOF", () => {
-    // The ordinary case for a photo off a phone: the dimensions are nowhere near the start.
+    // The usual photo: the dimensions are nowhere near the start.
     expect(readImageDimensions(jpeg(1200, 600, 4000))).toEqual({
       width: 1200,
       height: 600,
@@ -98,14 +90,12 @@ describe("readImageDimensions", () => {
     });
   });
 
-  // ── The three WebP encodings ──────────────────────────────────────────────────────────────────
-
   it("reads a lossy WebP (VP8 )", () => {
     expect(readImageDimensions(webpLossy(1200, 600))).toEqual({ width: 1200, height: 600, format: "webp" });
   });
 
   it("reads a lossless WebP (VP8L) — bit-packed and 1-based", () => {
-    // ⚠ Off-by-one here produces 1199×599: plausible-looking, and fatal to an exact-size check.
+    // Off-by-one would give 1199×599.
     expect(readImageDimensions(webpLossless(1200, 600))).toEqual({
       width: 1200,
       height: 600,
@@ -121,12 +111,8 @@ describe("readImageDimensions", () => {
     });
   });
 
-  // ── Failure modes, kept distinguishable ───────────────────────────────────────────────────────
-
   it("distinguishes 'need more bytes' from 'not an image'", () => {
-    // ⚠ THE DISTINCTION THAT MATTERS. A JPEG whose SOF sits past the fetched prefix is a perfectly
-    // good file; refusing it would blame an operator for artwork that is fine. The caller retries with
-    // a larger range instead.
+    // A JPEG whose SOF is past the fetched prefix is fine: the caller retries with a larger range.
     const truncated = jpeg(1200, 600, 4000).subarray(0, 500);
 
     expect(() => readImageDimensions(truncated)).toThrow(DimensionsBeyondBufferError);
@@ -144,10 +130,7 @@ describe("readImageDimensions", () => {
   });
 
   it("reads a MINIMAL jpeg — the smallest valid one, with no padding at all", () => {
-    // ⚠ Regression. A single shared 16-byte minimum was applied before format detection, so this
-    // 13-byte file — entirely valid — was reported as "not an image" rather than read. The formats
-    // identify at wildly different lengths (JPEG in 2 bytes, WebP in 12); one minimum is always wrong
-    // for something.
+    // A 13-byte valid file must be read: formats identify at very different lengths (JPEG 2, WebP 12).
     const minimal = jpeg(1200, 600);
     expect(minimal.length).toBeLessThan(16);
     expect(readImageDimensions(minimal)).toEqual({ width: 1200, height: 600, format: "jpeg" });

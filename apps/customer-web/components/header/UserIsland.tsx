@@ -9,11 +9,11 @@ import { getSession } from "@/lib/session"
 /**
  * The personalized corner of the header — a streamed server island.
  *
- * ⚠ This is the ONLY place the header reads the session, and it MUST stay inside a <Suspense>
+ * This is the only place the header reads the session, and it must stay inside a <Suspense>
  * boundary (see app/layout.tsx rule 1): reading cookies above one defers the whole app to request
  * time and every page loses its static shell.
  *
- * The points balance rides the same island. ⚠ A failed read is `null`, never zero — the trigger then
+ * The points balance rides the same island. A failed read is `null`, never zero — the trigger then
  * shows the name alone rather than telling a customer with points that they have none.
  */
 export async function UserIsland() {

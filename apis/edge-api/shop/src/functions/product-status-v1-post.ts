@@ -1,5 +1,4 @@
-// POST /shop/v1/products/{id}/status — lifecycle transition. Publish (→active) re-validates all
-// mandatory fields (FR-010); archive is the default "remove".
+// Archive is the default "remove".
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

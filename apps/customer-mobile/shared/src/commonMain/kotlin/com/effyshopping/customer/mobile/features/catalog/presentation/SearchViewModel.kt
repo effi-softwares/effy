@@ -19,13 +19,13 @@ data class SearchUiState(
     val query: String = "",
     val saleOnly: Boolean = false,
     val categoryKey: String? = null,
-    /** Selected brands — OR within (043 FR-003). */
+    /** Selected brands — OR within. */
     val brands: List<String> = emptyList(),
-    /** Selected attribute values, keyed by attribute key — OR within a key, AND across (043 FR-003). */
+    /** Selected attribute values, keyed by attribute key — OR within a key, and across. */
     val attributes: Map<String, List<String>> = emptyMap(),
     val minPrice: String? = null,
     val maxPrice: String? = null,
-    /** The ordering the SERVER applied — may differ from the request (see [applySort]). */
+    /** The ordering the server applied — may differ from the request (see [applySort]). */
     val sort: ProductSortOption = ProductSortOption.NEWEST,
     val items: List<ProductCard> = emptyList(),
     /** Total matching the refinements, ignoring pagination. Null until the first page lands. */
@@ -34,11 +34,11 @@ data class SearchUiState(
     val loading: Boolean = false,
     val exhausted: Boolean = false,
     val failed: Boolean = false,
-    /** The available facets + counts for the current refinements (043 US2). Null until first load. */
+    /** The available facets + counts for the current refinements. Null until first load. */
     val facetSet: FacetSet? = null,
     val facetsLoading: Boolean = false,
 ) {
-    /** How many filters are applied — drives the filter icon's badge (043 FR-014). */
+    /** How many filters are applied — drives the filter icon's badge. */
     val activeFilterCount: Int
         get() = (if (categoryKey != null) 1 else 0) +
             (if (saleOnly) 1 else 0) +
@@ -48,19 +48,14 @@ data class SearchUiState(
 }
 
 /**
- * Search ViewModel (019 US4, extended by 025 US1).
- *
- * Debounced query, keyset infinite scroll, plus a caller-chosen ordering and a result count.
- *
- * ⚠ Every refinement change RESTARTS from the first page and drops the cursor. That is not a
- * convenience — a cursor is minted under one ordering and the server rejects it under another with
- * 400 `cursor_sort_mismatch` (FR-016b), because honouring it would compare a price against a timestamp
- * and silently drop and repeat products.
+ * Search ViewModel: debounced query, keyset infinite scroll, a chosen ordering and a result count. Every
+ * refinement change restarts from the first page: a cursor minted under one ordering is refused under
+ * another (400 `cursor_sort_mismatch`).
  */
 class SearchViewModel(
     private val search: SearchProducts,
     // Optional so existing tests that only exercise search construct the VM with one argument. When
-    // absent, the filter sheet simply shows no facets (043).
+    // absent, the filter sheet simply shows no facets.
     private val getFacets: GetFacets? = null,
 ) : ViewModel() {
 
@@ -72,7 +67,7 @@ class SearchViewModel(
 
     init {
         // Load facets for the whole catalogue up front, so opening the filter sheet before typing shows
-        // real options + counts (043 US1).
+        // real options + counts.
         refreshFacets(_state.value)
     }
 
@@ -91,7 +86,7 @@ class SearchViewModel(
         reload()
     }
 
-    /** 087 — the retry on the failed state (it had none): run the same search again. */
+    /** The retry on the failed state (it had none): run the same search again. */
     fun retry() = reload()
 
     fun toggleSale() {
@@ -102,7 +97,7 @@ class SearchViewModel(
     /**
      * Set the sale refinement to an explicit value.
      *
-     * ⚠ Distinct from [toggleSale] because the caller is entry navigation, not a tap: the Home
+     * Distinct from [toggleSale] because the caller is entry navigation, not a tap: the Home
      * screen's "See all" on the on-sale rail arrives already knowing what it wants. Toggling from
      * there would clear the filter whenever the shopper came back to a Search tab that already had
      * it on — the classic bug where a link means the opposite of itself on second use.
@@ -126,7 +121,7 @@ class SearchViewModel(
         reload()
     }
 
-    /** Toggle one attribute value under [key] (OR within, AND across — 043 FR-003). */
+    /** Toggle one attribute value under [key] (OR within, and across — 043 FR-003). */
     fun toggleAttribute(key: String, value: String) {
         val current = _state.value.attributes[key].orEmpty()
         val nextValues = if (value in current) current - value else current + value
@@ -167,7 +162,7 @@ class SearchViewModel(
     private fun reload() {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
-            delay(250) // debounce — a burst of ticks becomes ONE refresh (043 FR-025)
+            delay(250) // debounce — a burst of ticks becomes one refresh
             _state.value = _state.value.copy(
                 loading = true,
                 failed = false,
@@ -181,7 +176,7 @@ class SearchViewModel(
             // never on paginate ([loadMore] does not call this).
             refreshFacets(s)
             try {
-                // ⚠ NAMED arguments, deliberately. `SearchProducts` takes several nullable-ish
+                // Named arguments, deliberately. `SearchProducts` takes several nullable-ish
                 // parameters in a row, and passing the cursor positionally once bound it to
                 // `categoryKey` — same type, no compile error, pagination silently broken. The test
                 // caught it; naming them means the next person cannot reintroduce it.
@@ -199,7 +194,7 @@ class SearchViewModel(
                 _state.value = _state.value.copy(
                     items = page.items,
                     total = page.total,
-                    // The ordering the server ACTUALLY applied. Rendering the requested one would let
+                    // The ordering the server actually applied. Rendering the requested one would let
                     // the sort control misdescribe the list beneath it.
                     sort = page.sort,
                     cursor = page.nextCursor,
@@ -214,7 +209,7 @@ class SearchViewModel(
         }
     }
 
-    /** Recompute the facets for the given refinements (043 US2). A no-op when no facets use case is wired. */
+    /** Recompute the facets for the given refinements. A no-op when no facets use case is wired. */
     private fun refreshFacets(s: SearchUiState) {
         val getFacets = getFacets ?: return
         facetsJob?.cancel()
@@ -251,7 +246,7 @@ class SearchViewModel(
                     categoryKey = s.categoryKey,
                     sort = s.sort,
                     cursor = s.cursor,
-                    // ⚠ The next page must carry the SAME filters, or paging silently widens the set.
+                    // The next page must carry the same filters, or paging silently widens the set.
                     brands = s.brands,
                     attributes = s.attributes,
                     minPrice = s.minPrice,

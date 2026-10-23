@@ -21,7 +21,7 @@ class HttpErrorsTest {
         assertIs<AppError.Validation>(appErrorFor(422, null))
     }
 
-    /** 093 — out of turn: the server's sentence, never "pull to refresh". */
+    /** Out of turn: the server's sentence, never "pull to refresh". */
     @Test fun an_out_of_turn_refusal_says_what_to_do_first() {
         val error = appErrorFor(409, ProblemJSON(status = 409.0, title = "Not yet", type = "run_not_loaded", detail = "Load the van first."))
         assertIs<AppError.OutOfTurn>(error)

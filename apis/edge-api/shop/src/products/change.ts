@@ -1,16 +1,6 @@
-// A shop's pending change to an APPROVED product — 067-product-approval-margin.
-//
-// ⚠ THE LIVE PRODUCT IS NEVER WRITTEN FROM THIS FILE. Once Effy has approved a product, what
-// customers see — `public.product`, its attribute values, its media — is the last approved version
-// and stays that way until Effy approves the next one. A shop's edit lands HERE, in
-// `product_change` and `product_change_media`, where no customer read ever looks.
-//
-// The alternative (a `pending` flag on the live rows) would need `AND NOT pending` on every
-// storefront read, and missing one shows customers an unapproved photo with nothing failing.
-//
-// ⚠ ONE open change per product — the table's own UNIQUE (product_id). A second edit updates it.
-// ⚠ A proposal that no longer differs from the live product is DELETED, not stored (FR-022): an
-// empty row in Effy's queue is a review of nothing.
+// A shop's pending change to an approved product. The live product is never written here: edits land
+// in `product_change` / `product_change_media`, which no customer read sees, until Effy approves.
+// One open change per product (unique product_id); a proposal that no longer differs is deleted.
 
 import type { PoolClient } from "pg";
 
@@ -25,9 +15,7 @@ import type {
   ProductMedia,
 } from "./types";
 
-// ── The diff (pure) ────────────────────────────────────────────────────────────────────────────
-
-/** What the shop wants the product to be, after merging its edit over what it already proposed. */
+/** After merging this edit over what was already proposed. */
 export interface TargetValues {
   name: string;
   productTypeId: string;
@@ -35,21 +23,16 @@ export interface TargetValues {
   brand: string | null;
   shortDescription: string;
   longDescription: string | null;
-  /** 096 */
   gstStatus: GstStatus | null;
-  /** 098 */
   unitBasis: UnitBasis | null;
-  /** 098 — the COMPLETE target sets (live, overlaid with what is proposed, overlaid with this edit). */
+  /** The complete target sets: live, overlaid with the proposal, overlaid with this edit. */
   options: OptionInputDTO[];
   variants: VariantInputDTO[];
 }
 
-// ── 098 — variant sets as inputs, and comparing them ───────────────────────────────────────────
-
 /**
- * The live options and variants in the shape a shop sends them — the base every edit to an approved
- * product is laid over. Removed variants are history, not part of the set. An assumed weight is sent
- * as "not supplied" so a proposal never turns it into a measured one by accident.
+ * The live options and variants as a shop sends them: the base an edit is laid over. Removed variants
+ * are excluded; an assumed weight is sent as "not supplied" so it never becomes a measured one.
  */
 export function liveVariantInputs(live: ProductDetail): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
   return {
@@ -72,7 +55,7 @@ const money = (a: string | null | undefined) => (a === null || a === undefined |
 const text = (a: string | null | undefined) => (a === null || a === undefined || a.trim() === "" ? null : a.trim());
 const qty = (a: string | number | null | undefined) => (a === null || a === undefined || a === "" ? null : String(Number(a)));
 
-/** A canonical form, so a set re-sent with "4.5" for "4.50" or in another order is not a change. */
+/** Canonical, so "4.5" vs "4.50" or a different order is not a change. */
 function canonicalSet(options: readonly OptionInputDTO[], variants: readonly VariantInputDTO[]): string {
   return JSON.stringify({
     options: [...options]
@@ -106,10 +89,7 @@ function sameAttribute(live: ProductAttributeValue | undefined, next: AttributeV
   );
 }
 
-/**
- * Only what DIFFERS from the live product. An empty result means the shop has proposed nothing —
- * including the case where it changed something and then changed it back.
- */
+/** Only what differs from live; empty means nothing proposed (including a change undone). */
 export function diffProposal(
   live: ProductDetail,
   target: TargetValues,
@@ -124,7 +104,7 @@ export function diffProposal(
   if (target.productTypeId !== live.productTypeId) out.productTypeId = target.productTypeId;
   if (target.gstStatus !== null && target.gstStatus !== live.gstStatus) out.gstStatus = target.gstStatus;
   if ((target.unitBasis ?? null) !== (live.unitBasis ?? null)) out.unitBasis = target.unitBasis;
-  // 098 — the option and variant sets travel WHOLE, and together, or not at all.
+  // The option and variant sets travel whole, together, or not at all.
   if (!sameVariantSet(target, liveVariantInputs(live))) {
     out.options = target.options;
     out.variants = target.variants;
@@ -136,7 +116,7 @@ export function diffProposal(
   return out;
 }
 
-/** The live product with an existing proposal laid over it — the base a further edit patches. */
+/** The base a further edit patches. */
 export function overlay(live: ProductDetail, proposed: ProductChangeProposal | null): ProductDetail {
   if (!proposed) return live;
   return {
@@ -149,12 +129,11 @@ export function overlay(live: ProductDetail, proposed: ProductChangeProposal | n
     productTypeId: proposed.productTypeId ?? live.productTypeId,
     gstStatus: proposed.gstStatus ?? live.gstStatus,
     unitBasis: "unitBasis" in proposed ? (proposed.unitBasis ?? null) : live.unitBasis,
-    // 098 — the variant sets are NOT overlaid here (live rows carry stock and state a proposal has
-    // not got); `proposedVariantInputs` gives the base an edit is laid over.
+    // Variant sets are not overlaid here (live rows carry stock and state); see `proposedVariantInputs`.
   };
 }
 
-/** 098 — the option/variant set an edit to an approved product starts from: proposed, else live. */
+/** Proposed, else live. */
 export function proposedVariantInputs(
   live: ProductDetail,
   proposed: ProductChangeProposal | null,
@@ -163,7 +142,6 @@ export function proposedVariantInputs(
   return liveVariantInputs(live);
 }
 
-/** Earlier proposed attribute values, with this edit's laid over them by attribute. */
 export function mergeAttributes(
   earlier: readonly AttributeValueInput[] | undefined,
   next: readonly AttributeValueInput[],
@@ -172,8 +150,6 @@ export function mergeAttributes(
   for (const a of next) byId.set(a.attributeId, a);
   return [...byId.values()];
 }
-
-// ── Rows ───────────────────────────────────────────────────────────────────────────────────────
 
 export interface ChangeRow {
   id: string;
@@ -212,14 +188,14 @@ const toChange = (r: ChangeDbRow): ChangeRow => ({
 
 const toMedia = (m: ChangeMediaRow): ProductMedia => ({
   id: m.id,
-  url: m.storage_key, // the service replaces this with a presigned url
+  url: m.storage_key,
   storageKey: m.storage_key,
   isPrimary: m.is_primary,
   displayOrder: m.display_order,
   altText: m.alt_text,
 });
 
-/** The open change on one of THIS shop's products, or null. */
+/** On one of this shop's products, or null. */
 export async function readChange(shopId: string, productId: string): Promise<ChangeRow | null> {
   const res = await query<ChangeDbRow>(
     `SELECT pc.id, pc.proposed, pc.media_changed, pc.state, pc.reason, pc.submitted_at
@@ -240,12 +216,7 @@ export async function readChangeMedia(changeId: string): Promise<ProductMedia[]>
   return res.rows.map(toMedia);
 }
 
-// ── Proposing details ──────────────────────────────────────────────────────────────────────────
-
-/**
- * Drop a change that proposes nothing: no differing detail and no image change.
- * Runs after every write to a change, so "changed it and changed it back" leaves no row behind.
- */
+/** Drops a change that proposes nothing, after every write. */
 async function dropIfEmpty(client: PoolClient, productId: string): Promise<void> {
   await client.query(
     `DELETE FROM public.product_change
@@ -255,13 +226,8 @@ async function dropIfEmpty(client: PoolClient, productId: string): Promise<void>
 }
 
 /**
- * Save the shop's proposal for an approved product.
- *
- * ⚠ The INSERT's own WHERE refuses a product that is not this shop's or has never been approved —
- * a never-approved product is edited in place, and a proposal for one would be a review item for
- * something Effy has not seen at all.
- *
- * A change Effy sent back returns to the queue when the shop edits it again, as a fresh submission.
+ * The insert's where refuses another shop's product or one never approved (that is edited in place).
+ * A change Effy sent back returns to the queue when edited again.
  */
 export async function saveProposal(
   shopId: string,
@@ -289,7 +255,7 @@ export async function saveProposal(
   });
 }
 
-/** Discard the pending change. The live product was never touched, so there is nothing to undo. */
+/** The live product was never touched, so there is nothing to undo. */
 export async function withdrawChange(shopId: string, productId: string): Promise<boolean> {
   const res = await query(
     `DELETE FROM public.product_change WHERE product_id = $1 AND shop_id = $2`,
@@ -298,15 +264,7 @@ export async function withdrawChange(shopId: string, productId: string): Promise
   return (res.rowCount ?? 0) > 0;
 }
 
-// ── Proposing images ───────────────────────────────────────────────────────────────────────────
-
-/**
- * Make sure an approved product has a change carrying a PROPOSED IMAGE SET, and return its id.
- *
- * The first image edit copies the live images into `product_change_media` (each remembering the live
- * row it came from), so the proposal is always the COMPLETE set — a reviewer sees exactly what the
- * product would look like, and approval can replace the live set in one statement.
- */
+/** The first image edit copies the live set, so a proposal is always the complete image set. */
 async function ensureMediaChange(client: PoolClient, shopId: string, productId: string): Promise<string | null> {
   const ins = await client.query<{ id: string; media_changed: boolean }>(
     `INSERT INTO public.product_change (product_id, shop_id, proposed)
@@ -337,10 +295,7 @@ async function ensureMediaChange(client: PoolClient, shopId: string, productId: 
   return row.id;
 }
 
-/**
- * If the proposed image set has ended up identical to the live one, the images are not being
- * changed after all: forget the proposed set, and the change itself if nothing else is in it.
- */
+/** A proposed set identical to live is forgotten, with the change if nothing else is in it. */
 async function settleMedia(client: PoolClient, changeId: string, productId: string): Promise<void> {
   const same = await client.query<{ same: boolean }>(
     `SELECT NOT EXISTS (
@@ -388,11 +343,7 @@ export async function registerChangeMedia(
   });
 }
 
-/**
- * ⚠ `mediaId` MAY NAME EITHER SIDE. Before the first image edit the client holds the LIVE image
- * ids; afterwards it holds the proposed ones. Both resolve to the same proposed row, so a client
- * that has not refetched yet still edits the image it meant.
- */
+/** `mediaId` may name a live or a proposed image; both resolve to the same proposed row. */
 const RESOLVE_MEDIA = `(id = $2 OR source_media_id = $2)`;
 
 export async function updateChangeMedia(
@@ -455,7 +406,7 @@ export async function deleteChangeMedia(
       `SELECT count(*) AS n FROM public.product_change_media WHERE change_id = $1`,
       [changeId],
     );
-    // An approved product must keep a primary image — in what it PROPOSES as much as in what is live.
+    // An approved product must keep a primary image in what it proposes too.
     if (row.is_primary || Number(count.rows[0]!.n) <= 1) {
       await settleMedia(client, changeId, productId);
       return "blocked";

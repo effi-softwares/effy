@@ -1,13 +1,10 @@
-// Repository for delivery fee plans v2 (077). SQL only — no HTTP, no validation (Principle VI).
-//
-// ⚠ Two rules live in the DATABASE and are only asked for here: whether a plan is complete
-// (`public.delivery_plan_gaps`) and the one way a plan goes live (`public.delivery_plan_activate`).
-// A third is held HERE: an activated plan is never changed (`savePlan`) and never deleted (nothing
-// here can). Every write records an audit row in the SAME transaction (009 pattern).
+// The database decides completeness (`public.delivery_plan_gaps`) and activation
+// (`public.delivery_plan_activate`). An activated plan is never changed (`savePlan`) or deleted.
+// Every write records its audit row in the same transaction.
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import type { FeePlanInput, FeePlanKind, FeePlanDTO, PlanGapDTO, SlotPremiumDTO } from "@effy/shared-types";
 
-/** A refusal the console tells apart — `code` becomes the problem's type. */
+/** `code` becomes the problem's type. */
 export class PricingError extends Error {
   constructor(
     public readonly status: 400 | 404 | 409 | 422,
@@ -98,7 +95,7 @@ async function hydrate(q: Queryable, r: PlanRow): Promise<FeePlanDTO> {
   };
 }
 
-/** Every plan of a kind: the active one first, then drafts, then retired — newest first within each. */
+/** Active first, then drafts, then retired; newest first within each. */
 export async function listPlans(kind: FeePlanKind): Promise<FeePlanDTO[]> {
   const res = await query<PlanRow>(
     `SELECT ${COLS} FROM public.delivery_fee_plan WHERE kind = $1
@@ -113,12 +110,12 @@ export async function readPlan(id: string): Promise<FeePlanDTO | null> {
   return r ? hydrate({ query } as Queryable, r) : null;
 }
 
-/** The ids of every delivery window that exists, switched on or off. */
+/** Switched on or off. */
 export async function slotIds(): Promise<Set<string>> {
   return new Set((await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot`)).rows.map((r) => r.id));
 }
 
-/** 085 — the "Any time" window is never priced as a window (FR-017), so it can carry no surcharge. */
+/** The Any-time window is never priced as a window, so it carries no surcharge. */
 export async function anyTimeSlotIds(): Promise<Set<string>> {
   return new Set((await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot WHERE any_time`)).rows.map((r) => r.id));
 }
@@ -127,12 +124,7 @@ export async function activePlanId(kind: FeePlanKind): Promise<string | null> {
   return (await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_fee_plan WHERE is_active AND kind = $1`, [kind])).rows[0]?.id ?? null;
 }
 
-/**
- * Create a draft (`id` null) or replace one whole. ⚠ Replacing a plan that has ever been active is
- * refused HERE, under the plan's row lock — this is the one place FR-016 is held (a database trigger
- * was tried and withdrawn: triggers may only mark analytics buckets, 058 R6). There is no function
- * that deletes a plan, by design.
- */
+/** `id` null creates a draft. Replacing a plan that was ever active is refused here, under its row lock. */
 export async function savePlan(id: string | null, input: FeePlanInput, actorSub: string): Promise<string> {
   try {
     return await withTransaction(async (tx) => {
@@ -192,7 +184,7 @@ export async function savePlan(id: string | null, input: FeePlanInput, actorSub:
   }
 }
 
-/** What a plan WAS, for the audit row — its values, not its derived state. */
+/** Its values, for the audit row. */
 function strip(p: FeePlanDTO): Omit<FeePlanDTO, "gaps" | "state" | "createdBy" | "createdAt" | "activatedBy" | "activatedAt"> {
   const { gaps: _g, state: _s, createdBy: _c, createdAt: _ca, activatedBy: _a, activatedAt: _aa, ...rest } = p;
   return rest;
@@ -206,7 +198,7 @@ const ACTIVATION_REFUSALS: Record<string, [409 | 404, string]> = {
   zero_floor_unconfirmed: [409, "the minimum fee is $0 — confirm that delivery may be free without the free-delivery amount"],
 };
 
-/** Make a plan the one in force, through the one function that may. Returns the plan it retired. */
+/** Through the one function that may. Returns the plan it retired. */
 export async function activatePlan(id: string, actorSub: string, confirmZeroFloor: boolean): Promise<string | null> {
   try {
     return await withTransaction(async (tx) => {

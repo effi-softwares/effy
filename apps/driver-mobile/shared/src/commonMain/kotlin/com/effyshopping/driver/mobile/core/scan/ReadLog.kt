@@ -9,12 +9,9 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 /**
- * 096 — every read the driver makes, accepted or refused, kept until the next step's request carries it
- * (`reads`). Until 096 a refused scan stopped the driver on screen and was never heard of again.
- *
- * Each read has its own id (an offline replay records it once) and the time it happened on the phone,
- * however late it is sent. [drain] is called when a step's request is BUILT, so a request queued with no
- * signal carries its reads with it.
+ * Every read the driver makes, accepted or refused, kept until the next step's request carries it (`reads`).
+ * Each has its own id (an offline replay records it once) and the phone's time. [drain] runs when a step's
+ * request is built, so a queued request carries its reads.
  */
 @OptIn(ExperimentalAtomicApi::class)
 object ReadLog {

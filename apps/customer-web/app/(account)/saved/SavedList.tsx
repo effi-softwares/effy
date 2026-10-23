@@ -30,53 +30,36 @@ import { isPurchasable, verdictNote } from "@/lib/saved-display"
 import { UnitPrice } from "@/app/(shop)/_components/UnitPrice"
 
 /**
- * The saved list (033) — a watchlist, so every row says what CHANGED.
- *
- * ⚠ A LIST, not a grid of cards. Principle V bars card-style containers for laying out content, and
- * this is account content — the address book presents the same way.
- *
- * ⚠ 068: THIS RENDERS ANY ONE OF THE SHOPPER'S LISTS. `listId` is `default` for "Saved" or a named
- * list's id. Everything a row does — add to cart, remove, add-all — is scoped to THIS list; a product
- * removed here stays in every other list it is in.
+ * A saved list, as a watchlist: every row says what changed. Renders any of the shopper's lists
+ * (`listId` is `default` or a named list); every row action is scoped to this list.
  */
 export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: SavedItemDTO[]; listId?: string }) {
   const [items, setItems] = useState(initial)
   const isDefault = listId === DEFAULT_LIST_ID
   const cart = useCart()
-  // The one most recent removal, so it can be undone back into the place it held (FR-024).
+  // The most recent removal, so it can be undone into the place it held.
   const [removed, setRemoved] = useState<{ item: SavedItemDTO; index: number } | null>(null)
 
-  // ⚠ The server render could not know the delivery location (it is device-local, deliberately not a
-  // cookie), so it answered "not yet determined" for everything. Re-read with the postcode so the
-  // shopper sees real verdicts. FR-039 also requires this to re-run when they change location.
+  // The server render cannot know the device-local delivery location, so verdicts are re-read with the postcode (and again when it changes).
   const [merged, setMerged] = useState(0)
-  // ⚠ `added` is the LIST OF PRODUCT IDS that went in, not a count (`SavedAddToCartResultDTO`). This
-  // was typed `number` and rendered directly, so the shopper was told "9f2c…,1a7b… items added to
-  // your cart" — a row of ids where a number belonged. 068's test for the per-list add-all found it.
+  // `added` is the list of product ids that went in, not a count.
   const [bulk, setBulk] = useState<SavedAddToCartResultDTO | null>(null)
   const [busy, setBusy] = useState(false)
-  // ⚠ CLIENT-SIDE (FR-056). The set is capped at 200 and already in memory, so a server round trip
-  // per sort would be latency for nothing — and at ~135 ms to Sydney it would be latency the shopper
-  // feels on every tap of a control that should feel instant.
+  // Sorted client-side: at most 200 items, already in memory.
   const [order, setOrder] = useState<"recent" | "available" | "aisle">("recent")
 
   useEffect(() => {
     void refreshSaved()
-    // ⚠ FR-032: tell the shopper what joined from this device. Read-once — saying it twice would
-    // imply it happened twice.
+    // Tell the shopper what joined from this device, once.
     setMerged(takeMergeNotice())
   }, [])
 
-  /**
-   * ⚠ NOTHING IS SILENTLY OMITTED (FR-052). The response names every item that did not go in, and it
-   * is rendered — a bulk add that quietly drops what it could not take leaves the shopper believing
-   * they bought something they did not.
-   */
+  /** Nothing is silently omitted: every item that did not go in is named. */
   async function addAll() {
     if (busy) return
     setBusy(true)
     try {
-      // ⚠ THIS list only (068 FR-028). Nothing from another list goes in.
+      // This list only.
       const res = await fetch(`/api/lists/${encodeURIComponent(listId)}/add-to-cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,7 +68,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
       if (res.ok) {
         const result = (await res.json()) as SavedAddToCartResultDTO
         setBulk(result)
-        // Counts and the kind of list. Never which list, and never its name (FR-040).
+        // Counts and the kind of list; never which list or its name.
         capture({
           name: "saved_list_add_all",
           props: {
@@ -96,30 +79,26 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
         })
       }
     } catch {
-      /* transient — the cart is unchanged and the shopper can retry */
+      /* transient: the cart is unchanged and the shopper can retry */
     } finally {
       setBusy(false)
     }
   }
 
-  /**
-   * ⚠ REMOVES FROM THIS LIST ONLY (068 FR-024). It used to be the heart's un-save, which since 068
-   * is refused for a product in a named list — and from a list's own page the shopper has said
-   * exactly which list they mean, so there is nothing to refuse.
-   */
+  /** Removes from this list only (the shopper said which list they mean). */
   async function remove(item: SavedItemDTO) {
     const index = items.findIndex((i) => i.id === item.id)
     setItems((prev) => prev.filter((i) => i.id !== item.id))
     setRemoved({ item, index })
     const result = await removeFromList(listId, item.id)
     if (!result.ok) {
-      // It did not stick: put it back and withdraw the offer to undo something that never happened.
+      // It did not stick: put it back and withdraw the undo.
       setItems((prev) => insertAt(prev, item, index))
       setRemoved(null)
     }
   }
 
-  /** Undo returns the product to the position it held, not the top (033 FR-018, per list). */
+  /** Undo returns the product to the position it held, not the top. */
   async function undo() {
     if (!removed) return
     const { item, index } = removed
@@ -129,7 +108,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
     if (!result.ok) setItems((prev) => prev.filter((i) => i.id !== item.id))
   }
 
-  /** The chooser can take a product out of this very list, so the rows are re-read when it closes. */
+  /** The chooser can take a product out of this list, so the rows are re-read when it closes. */
   function chooseLists(productId: string) {
     openListChooser(productId, () => {
       void fetchListItems(listId).then((result) => {
@@ -138,7 +117,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
     })
   }
 
-  // The one most recent removal, offered back at the foot of the list it left.
+  // The most recent removal, offered back at the foot of the list.
   const undoNotice = removed && (
     <p role="status" className="flex flex-wrap items-center gap-x-6 gap-y-1 bg-muted px-4 py-6 text-sm">
       <span>
@@ -166,8 +145,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
             action={{ label: "Start shopping", href: "/search" }}
           />
         ) : (
-          // ⚠ A DIFFERENT message from the one above (068 FR-026). "Nothing saved yet" on an empty
-          // named list would tell a shopper with a full "Saved" list that they had lost everything.
+          // Not "Nothing saved yet": that would tell a shopper with a full "Saved" list they had lost everything.
           <EmptyState
             icon={ListPlus}
             className="py-16"
@@ -180,9 +158,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
     )
   }
 
-  // ⚠ A NOTICE, not a replacement for the list. When nothing can be delivered the items still show,
-  // each with its own note: a withdrawn product must not silently vanish (FR-041), and a full list
-  // must never look like a lost one.
+  // A notice, not a replacement: the items still show, each with its note, so a withdrawn product never silently vanishes.
   return (
     <div className="space-y-6">
       {merged > 0 && isDefault && (
@@ -195,8 +171,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
               : `${merged} items you saved before signing in were added to your saved items.`
           }
         >
-          {/* ⚠ Individually removable, which is what makes an automatic join acceptable on a shared
-              device: it is visible and reversible rather than confirmed-in-advance. */}
+          {/* Individually removable, which keeps an automatic join on a shared device visible and reversible. */}
           You can remove anything you don&apos;t want below.
         </Alert>
       )}
@@ -263,12 +238,12 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                 <div className="min-w-[200px] flex-1 space-y-1">
                   <Link href={savedHref(item)} className="font-medium hover:underline">
                     {item.name}
-                    {/* 098 — the size remembered with the save. */}
+                    {/* The size remembered with the save. */}
                     {item.variantLabel ? <span className="font-normal text-muted-foreground"> · {item.variantLabel}</span> : null}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold tabular-nums">{formatMoney(item.priceAmount, item.currency)}</span>
-                    {/* The watchlist's whole reason for existing: what changed since it was saved. */}
+                    {/* What changed since it was saved. */}
                     {item.priceDropped && (
                       <>
                         <span className="text-muted-foreground tabular-nums line-through">
@@ -286,15 +261,13 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* 033 FR-050a: adding to the cart keeps the product in the list, so a row that went
-                      on saying "Add to cart" would invite a second tap that is NOT a no-op — it raises
-                      the quantity. Say what is already there, and how many. */}
+                  {/* Adding to the cart keeps it in the list; a second "Add to cart" would raise the quantity, so say what is there. */}
                   {quantity > 0 ? (
                     <Button asChild variant="link" size="sm">
                       <Link href="/cart">{quantity === 1 ? "In your cart" : `${quantity} in your cart`}</Link>
                     </Button>
                   ) : available && item.variantId === null ? (
-                    // 098 — sold in several sizes and none remembered: the shopper chooses (never a guess).
+                    // Several sizes and none remembered: the shopper chooses.
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/product/${item.id}`}>Choose size</Link>
                     </Button>
@@ -348,7 +321,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
   )
 }
 
-/** Whether it can be bought right now — said with a mark as well as a colour. */
+/** Whether it can be bought now, said with a mark as well as a colour. */
 function VerdictLine({ verdict }: { verdict: SavedVerdict }) {
   const Icon = verdict === "purchasable" ? CircleCheck : verdict === "no_longer_sold" ? CircleX : Clock
   return (
@@ -359,7 +332,6 @@ function VerdictLine({ verdict }: { verdict: SavedVerdict }) {
   )
 }
 
-
 function insertAt(items: SavedItemDTO[], item: SavedItemDTO, index: number): SavedItemDTO[] {
   if (items.some((i) => i.id === item.id)) return items
   const next = [...items]
@@ -367,7 +339,7 @@ function insertAt(items: SavedItemDTO[], item: SavedItemDTO, index: number): Sav
   return next
 }
 
-/** The product page, on the remembered size when the product is sold in several (098). */
+/** The product page, on the remembered size. */
 const savedHref = (item: SavedItemDTO) =>
   item.variantId && item.variantCount > 1 ? `/product/${item.id}?variant=${item.variantId}` : `/product/${item.id}`
 
@@ -375,11 +347,7 @@ function inCart(lines: readonly { productId: string; quantity: number }[], produ
   return lines.reduce((n, l) => (l.productId === productId ? n + l.quantity : n), 0)
 }
 
-/**
- * ⚠ A skip reason is either one of the verdicts (so the bulk add and the list can never explain
- * the same item differently) or one of the cart's own refusals, which mean different things and must
- * not be flattened into "couldn't add".
- */
+/** A skip reason is a verdict (so list and bulk add agree) or one of the cart's own refusals, never flattened. */
 function skipReason(reason: string): string {
   switch (reason) {
     case "cart_full":
@@ -388,7 +356,7 @@ function skipReason(reason: string): string {
       return "no longer available"
     case "unavailable":
       return "couldn't be added right now"
-    // 098 — sold in several sizes and none remembered: never a guessed size.
+    // Several sizes and none remembered: never a guessed size.
     case "choose_variant":
       return "choose a size on its page"
     default:
@@ -397,19 +365,14 @@ function skipReason(reason: string): string {
 }
 
 /**
- * Order the saved list (FR-056).
- *
- * ⚠ `sort` is given a COPY. Array.prototype.sort mutates in place, and `items` is React state — sorting
- * it directly would mutate state outside a setter and make the next render's diff a lie.
- *
- * "By aisle" is grocery-native: a shopper walking a list thinks in categories, not in save order. Items
- * with no category sink to the end rather than forming a phantom group.
+ * Orders the saved list. `sort` gets a copy (`items` is React state). "By aisle" groups by category;
+ * items with none sink to the end.
  */
 function sortSaved(items: SavedItemDTO[], order: "recent" | "available" | "aisle"): SavedItemDTO[] {
   const copy = [...items]
   switch (order) {
     case "available":
-      // Stable within each group, so "available first" still reads newest-first inside it.
+      // Stable within each group, so "available first" stays newest-first inside it.
       return copy.sort(
         (a, b) => Number(isPurchasable(b.verdict)) - Number(isPurchasable(a.verdict)),
       )
@@ -419,7 +382,7 @@ function sortSaved(items: SavedItemDTO[], order: "recent" | "available" | "aisle
       )
     case "recent":
     default:
-      // The server already returns newest-first; this is the identity order and stays cheap.
+      // The server returns newest-first already.
       return copy
   }
 }

@@ -8,14 +8,9 @@ import { X } from "lucide-react"
 import { ActionButton, btnClass, iconBtnClass } from "@/components/storefront/actions"
 
 /**
- * The advanced filter controls (043 US1) — one presentational component rendered in BOTH the desktop
- * side panel (lg+) and the mobile/tablet filter sheet, so the two surfaces are the same controls.
- *
- * ⚠ CODE-SPLIT ON PURPOSE. `/search` is the one fully-client storefront route and sits ~2 KB under the
- * 174 KB guest budget (bundle-budget.mjs). This whole tree is loaded via `next/dynamic` from
- * SearchExperience, so it never enters the route's first-load chunk. That is also why it uses native
- * inputs rather than the design-system `drawer`/`checkbox` (vaul + radix): the budget doctrine (025
- * FR-007, 033) forbids raising the limit, and the lightest control that does the job wins.
+ * The advanced filter controls, shared by the desktop side panel and the phone filter sheet. Loaded via
+ * `next/dynamic` from SearchExperience, off the first-load chunk, and built from native inputs (the
+ * design-system drawer and checkbox bring vaul and radix) to stay inside the guest budget.
  */
 
 export interface SelectedFilters {
@@ -148,11 +143,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-/** How many options a facet shows before "Show more" (043 US2 / FR-011). */
+/** How many options a facet shows before "Show more". */
 const FACET_COLLAPSE_LIMIT = 8
 
 /** A multi-select facet as a checkbox list, each option showing its count. Large facets collapse to
- *  the top options behind a "Show more" affordance (FR-011). A selected option below the fold is
+ *  the top options behind a "Show more" affordance. A selected option below the fold is
  *  always shown, so it can be seen and unticked. */
 function FacetSection({
   facet,
@@ -170,7 +165,7 @@ function FacetSection({
   const visible =
     !overflow || expanded
       ? facet.options
-      : // Keep the top options AND any selected option that would otherwise be hidden.
+      : // Keep the top options and any selected option that would otherwise be hidden.
         facet.options.filter((o, i) => i < FACET_COLLAPSE_LIMIT || selectedValues.includes(o.value))
 
   return (
@@ -232,7 +227,7 @@ function PriceRange({
         e.preventDefault()
         let a = lo.trim()
         let b = hi.trim()
-        // FR-004: correct an inverted range rather than sending it (which would return nothing).
+        // Correct an inverted range rather than sending it (which would return nothing).
         if (a !== "" && b !== "" && Number(a) > Number(b)) {
           ;[a, b] = [b, a]
           setLo(a)

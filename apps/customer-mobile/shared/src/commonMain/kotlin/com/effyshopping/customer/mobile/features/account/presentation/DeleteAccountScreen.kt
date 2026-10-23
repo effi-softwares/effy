@@ -61,9 +61,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 
 /**
- * Account deletion (034 US3) — the mobile half.
+ * Account deletion — the mobile half.
  *
- * ⚠ THE WORD IS "DELETE", AND THERE IS NO ALTERNATIVE ON OFFER (FR-037/SC-009). No screen here says
+ * The word is "DELETE", and there is no alternative on offer. No screen here says
  * deactivate, disable, freeze or pause, and no such state exists to reach. Both documented App Review
  * rejections in this area were deactivation flows with a support agent in the loop — the difference
  * between shipping and being rejected is that erasure runs automatically once requested.
@@ -91,7 +91,7 @@ class DeleteAccountViewModel(
     fun load() = launch {
         val preview = previewUseCase()
         _state.value = _state.value.copy(preview = preview)
-        // ⚠ 034 FR-041a — this is the ONE place the client can learn that a closure is already live.
+        // This is the one place the client can learn that a closure is already live.
         // The backend's 403 is deliberately uniform and does not disclose whether an account is barred
         // or closing, so the session cannot infer it from a refusal. Promoting it here is what lets the
         // app root offer a way back instead of stranding the customer.
@@ -107,7 +107,7 @@ class DeleteAccountViewModel(
     /**
      * Step 2 — verify the code and close.
      *
-     * ⚠ On success every session is dead, including this one, so the app returns to the signed-out
+     * On success every session is dead, including this one, so the app returns to the signed-out
      * storefront. There is nothing to navigate back TO: the account this screen belonged to is gone.
      */
     fun confirm(code: String) = launch {
@@ -116,8 +116,8 @@ class DeleteAccountViewModel(
         // Every session is dead, including this one. Back to the signed-out storefront — there is
         // nothing to navigate back TO, because the account this screen belonged to is closed.
         session.signOutLocally()
-        // ⚠ Home, not this tab's root — the Account tab has no guest page to return to, and a closed
-        // account least of all. Both stacks are cleared: `resetToRoot()` acts on the active tab only.
+        // Home, not this tab's root — the Account tab has no guest page to return to, and a closed
+        // account least of all. Both stacks are cleared: `resetToRoot` acts on the active tab only.
         navigator.resetToRoot()
         navigator.selectTab(CustomerNavKey.Home)
         navigator.resetToRoot()
@@ -185,9 +185,9 @@ fun DeleteAccountScreen(container: AppContainer) {
                 return@Column
             }
 
-            // ── The blockers (FR-042) ─────────────────────────────────────────────────────────
+            // The blockers
             //
-            // ⚠ Each names WHICH obligation, offers a route to it, and says WHEN IT CLEARS. A
+            // Each names which obligation, offers a route to it, and says when it clears. A
             // refusal with no way forward is the dead end this requirement forbids, and it is what
             // Apple's "unnecessarily difficult" clause catches.
             if (preview.blockers.isNotEmpty()) {
@@ -208,7 +208,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                 return@Column
             }
 
-            // ── What deletion does (FR-040) — 087 (Delete account board): cards, a table, pinned actions.
+            // What deletion does — 087 (Delete account board): cards, a table, pinned actions.
             EffyCard {
                 Text("What happens when you delete", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -220,7 +220,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                     modifier = Modifier.padding(top = EffySpacing.xs),
                 )
             }
-            // 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose.
+            // Said before they confirm. Absent when there is nothing to lose.
             preview.pointsHeld?.let { held ->
                 EffyCard {
                     Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md), verticalAlignment = Alignment.Top) {
@@ -241,7 +241,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                 }
             }
 
-            // ⚠ The category is its own column rather than a lead-in joined by a dash, matching the web
+            // The category is its own column rather than a lead-in joined by a dash, matching the web
             // surface: a label and a sentence do different jobs. A two-column table (board).
             if (preview.retained.isNotEmpty()) {
                 EffyCard(padding = EffySpacing.lg) {
@@ -256,9 +256,9 @@ fun DeleteAccountScreen(container: AppContainer) {
                 }
             }
 
-            // ── Proof of control (FR-043) ─────────────────────────────────────────────────────
+            // Proof of control
             //
-            // ⚠ A valid session is NOT sufficient. The code goes to the account's verified email —
+            // A valid session is not sufficient. The code goes to the account's verified email
             // which is precisely why this works for a customer whose only credential is Google. A
             // password prompt here would be an unresolvable dead end for that entire cohort.
             EffyCard(padding = EffySpacing.lg) {
@@ -276,7 +276,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = EffySpacing.md),
                     )
-                    // ⚠ 036 FR-001 — the SHARED code field: digits only, autofill, six cells.
+                    // The shared code field: digits only, autofill, six cells.
                     OtpInput(
                         value = code,
                         onValueChange = { code = it },
@@ -290,7 +290,7 @@ fun DeleteAccountScreen(container: AppContainer) {
             state.error?.let { EffyInlineError(it) }
         }
 
-        // 087 — the decision is PINNED: the one irreversible action, and "Keep my account" beneath it
+        // The decision is pinned: the one irreversible action, and "Keep my account" beneath it
         // (board). Nothing is offered while a blocker stands — the page itself says what to do.
         val preview = state.preview
         if (preview != null && preview.blockers.isEmpty()) {
@@ -301,7 +301,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                     EffyPrimaryButton(
                         label = "Delete my account",
                         onClick = { vm.confirm(code) },
-                        // ⚠ Exactly six digits — a wrong-length value is refused, not reshaped.
+                        // Exactly six digits — a wrong-length value is refused, not reshaped.
                         enabled = !state.loading && isCompleteOtp(code),
                         loading = state.loading,
                         destructive = true,

@@ -1,9 +1,5 @@
-// 096 US8 — Effy's tax identity and the switch that turns tax invoices on (FR-084).
-//
-// ⚠ REAL-WORLD IDENTIFIERS ARE ENTERED, NEVER INFERRED. The legal name and ABN are the operator's to
-// type; the ABN is checked against its own checksum, and there is no default. Invoices can be turned on
-// only when the name, the ABN and the fee treatment are set AND no live product is unclassified — a
-// missing piece is refused (`tax_setup_incomplete`) with the list of what is missing.
+// Effy's tax identity is entered, never inferred, and the ABN checksum is verified. Invoices turn on
+// only when name, ABN and fee treatment are set and no live product is unclassified.
 import { query, withTransaction } from "@effy/edge-shared";
 import { isGstStatus, isValidAbn } from "@effy/edge-shared/documents";
 import type { TaxSettingsDTO } from "@effy/shared-types";

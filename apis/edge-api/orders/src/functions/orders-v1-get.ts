@@ -10,12 +10,7 @@ import { VALIDATION_FAILED } from "../lib/problems";
 import { parseBaseFilters } from "../orders/filters";
 import { DEFAULT_LIMIT, listOrders, MAX_LIMIT } from "../orders/service";
 
-/**
- * GET /orders/v1/orders — the back-office order list (053 US1).
- *
- * Read gate is ANY active staff including `csa` (FR-015): triage is a CSA's work, and until this
- * feature they could not see a single order they were being asked about.
- */
+/** Any active staff. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -24,9 +19,7 @@ export const handler = async (
   if (!guard.ok) return guard.response;
 
   const qs = event.queryStringParameters ?? {};
-  // ⚠ VALIDATED AGAINST THE SHARED CONST, never a list restated here. A hand-written copy is how a
-  // new value gets added to the type and silently REJECTED by the route — the same trap the shop
-  // service's `REQUESTABLE` was carrying (055 T073).
+  // Validated against the shared const, never a restated list.
   const awaiting =
     typeof qs.awaiting === "string" && (ORDER_AWAITING as readonly string[]).includes(qs.awaiting)
       ? (qs.awaiting as OrderAwaiting)
@@ -44,7 +37,6 @@ export const handler = async (
     const result = await listOrders({
       ...base.filters,
       awaiting,
-      // 073 — "Needs a driver".
       needsDriver: qs.needsDriver === "true",
       cursor: qs.cursor || undefined,
       limit,

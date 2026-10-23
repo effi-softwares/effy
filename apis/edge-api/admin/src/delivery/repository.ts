@@ -1,6 +1,4 @@
-// Repository for the delivery settings and collection runs (047; fee plans moved to pricing.repository.ts in 077). SQL only — no HTTP, no validation
-// (Principle VI). ⚠ Every mutation writes an admin.audit_log row inside the SAME transaction as the
-// change (009 pattern), so attribution can never be missing for the change that mattered.
+// Every mutation writes its audit row in the same transaction.
 import { query, withTransaction } from "@effy/edge-shared";
 
 import type { Settings } from "./types";
@@ -15,16 +13,8 @@ export async function readSettings(): Promise<Settings | null> {
 }
 
 /**
- * Saves the settings and, when the HUB MOVED, recalculates the coverage list's distances in the same
- * transaction (076 FR-012).
- *
- * ⚠ ONE TRANSACTION, deliberately. Distance is measured from the hub; a saved hub with yesterday's
- * distances is a list that is wrong until some later job runs — and the next feature prices
- * delivery on these numbers.
- *
- * ⚠ ONLY worked-out distances move. A hand-entered one is a person's statement, not a calculation;
- * it is left exactly as it was and flagged for that person to look at again. A worked-out distance
- * whose place has since lost its location is kept too — it is never blanked.
+ * When the hub moves, recalculates the list's computed distances in the same transaction. Hand-entered
+ * distances are kept and flagged for review; a distance whose place lost its location is kept too.
  */
 export async function upsertSettings(input: Settings, actorSub: string): Promise<Settings> {
   const distances = await withTransaction(async (client) => {
@@ -53,7 +43,7 @@ export async function upsertSettings(input: Settings, actorSub: string): Promise
         `SELECT hub_latitude::text, hub_longitude::text FROM public.delivery_settings WHERE id = 1`,
       )
     ).rows[0]!;
-    // Compared as the database stores them, so "-37.8136" and "-37.813600" are the same hub.
+    // Compared as stored, so "-37.8136" and "-37.813600" are the same hub.
     const moved = !before || before.hub_latitude !== after.hub_latitude || before.hub_longitude !== after.hub_longitude;
     if (!moved) return undefined;
 
@@ -83,8 +73,6 @@ export async function upsertSettings(input: Settings, actorSub: string): Promise
   const saved = (await readSettings())!;
   return distances ? { ...saved, distances } : saved;
 }
-
-// ── Collection runs (047 US2) ────────────────────────────────────────────
 
 interface RunRow { id: string; run_time: string; label: string | null; status: string }
 

@@ -1,7 +1,4 @@
-// PATCH /shop/v1/team/{staffId}/role — change a colleague's role (057 US7).
-//
-// ⚠ Demoting the LAST active manager is refused: a shop with no manager cannot invite, cannot change a
-// role and cannot refund — it locks itself out permanently and only back-office can undo it.
+// Demoting the last active manager is refused: the shop would lock itself out.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -1,19 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * Today's SQL, against real PostgreSQL 16 and THE REAL MIGRATIONS (058).
- *
- * ⚠ WHY THIS FILE EXISTS. Every query in `repository.ts` is raw SQL across seven tables that five
- * slices own. A wrong column name TYPECHECKS PERFECTLY and passes every mocked test — 056 caught two
- * that way and only here — and an aggregate that joins one row too many produces a number that looks
- * entirely plausible on screen. The schema is applied from `db/migrations`, so a fixture cannot
- * agree with the code instead of with the platform (027 R13's failure mode).
- */
+/** Today's SQL against the real migrations: a join one row too many produces a plausible wrong number. */
 
 const holder: { pool: Pool | null } = { pool: null };
 vi.mock("@effy/edge-shared", async () => {
@@ -24,21 +14,6 @@ vi.mock("@effy/edge-shared", async () => {
 import { readBacklog, readClock, readLiveOrders, readStockAttention } from "./repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
-
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
 
 const CUST = "11111111-1111-4111-8111-111111111111";
 const SHOP = "33333333-3333-4333-8333-333333333333";
@@ -52,7 +27,7 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -111,15 +86,15 @@ SELECT id FROM p`,
     const total = opts.total ?? 30;
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-         delivery_fee_amount, grand_total_amount, delivery_address, placed_at)
+         delivery_fee_amount, grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
        VALUES ($1,$2,'paid',$3,0,$4,'{"recipientName":"Ada Lovelace"}'::jsonb,
-               now() - make_interval(mins => $5)) RETURNING id`,
+               now() - make_interval(mins => $5), 'effy', 'in_coverage') RETURNING id`,
       [CUST, opts.number, total, total, opts.minutesAgo ?? 10],
     );
     const orderId = o.rows[0]!.id;
     const productId = opts.productId ?? (await product({ name: `P-${opts.number}`, shop }));
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5)`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5, 10, $5)`,
       [orderId, productId, shop, qty, qty * 10],
     );
     const f = await pool.query<{ id: string }>(
@@ -134,7 +109,7 @@ SELECT id FROM p`,
     it("counts awaiting-pick portions and THIS shop's units on them", async () => {
       await paidOrder({ number: "EFY-1", status: "pending", qty: 4 });
       await paidOrder({ number: "EFY-2", status: "received", qty: 7 });
-      await paidOrder({ number: "EFY-3", status: "picking", qty: 5 }); // started — not awaiting
+      await paidOrder({ number: "EFY-3", status: "picking", qty: 5 });
       await paidOrder({ number: "EFY-4", status: "ready_for_pickup", qty: 2 });
 
       const backlog = await readBacklog(SHOP);
@@ -169,7 +144,7 @@ SELECT id FROM p`,
       await product({ name: "Empty", onHand: 0 });
       await product({ name: "Thin", onHand: 3, threshold: 5 });
       await product({ name: "Fine", onHand: 40, threshold: 5 });
-      await product({ name: "No opinion", onHand: 2 }); // tracked, no threshold, not empty
+      await product({ name: "No opinion", onHand: 2 });
       await product({ name: "Untracked", onHand: 0, tracked: false });
       await product({ name: "Archived", onHand: 0, status: "archived" });
 
@@ -212,7 +187,7 @@ SELECT id FROM p`,
         [id, SHOP],
       );
       const [row] = await readStockAttention(SHOP, 8);
-      // A write-off is not appetite, and last month's sales are not this week's demand.
+      // A write-off is not demand, and last month's sales are not this week's.
       expect(row!.soldLast7Days).toBe(2);
     });
 
@@ -243,8 +218,8 @@ SELECT id FROM p`,
     it("never shows an unpaid order, and never another shop's", async () => {
       await pool.query(
         `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-           delivery_fee_amount, grand_total_amount, delivery_address)
-         VALUES ($1,'EFY-UNPAID','pending_payment',10,0,10,'{"recipientName":"X"}'::jsonb)`,
+           delivery_fee_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1,'EFY-UNPAID','pending_payment',10,0,10,'{"recipientName":"X"}'::jsonb, 'effy', 'in_coverage')`,
         [CUST],
       );
       await paidOrder({ number: "EFY-THEIRS", shop: OTHER_SHOP });

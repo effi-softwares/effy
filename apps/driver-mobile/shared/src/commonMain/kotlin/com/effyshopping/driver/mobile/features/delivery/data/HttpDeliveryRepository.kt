@@ -73,7 +73,7 @@ class HttpDeliveryRepository(
         run.copy(drops = run.drops.map { if (proofs.isPending(it.dropId)) it.copy(status = DropStatus.DELIVERED) else it })
     }
 
-    /** 065 FR-024 — a drop the driver has already seen stays readable with no connection. */
+    /** A drop the driver has already seen stays readable with no connection. */
     private val lastDrops = LastRead<String, Drop> { it.copy(stale = true) }
 
     override suspend fun getDrop(dropId: String): Drop = lastDrops.fetch(dropId) {
@@ -83,7 +83,7 @@ class HttpDeliveryRepository(
     }.let { if (proofs.isPending(dropId)) it.copy(status = DropStatus.DELIVERED) else it }
 
     override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome {
-        // 093 — out for delivery is the van being loaded ([load]); a drop is only moved on from there.
+        // Out for delivery is the van being loaded ([load]); a drop is only moved on from there.
         val toEnum = when (to) {
             "en_route" -> To.EnRoute
             else -> To.Arrived
@@ -99,7 +99,7 @@ class HttpDeliveryRepository(
     }
 
     /**
-     * Presign → upload → submit (064). ⚠ WITH NO SIGNAL THE PROOF IS KEPT, NOT LOST (backlog B3): the
+     * Presign → upload → submit. With no signal the proof is kept, not lost (backlog B3): the
      * image is saved on the phone and sent by [flushProofs] under the same changeId, and the drop
      * reads as delivered here meanwhile. It used to be a dead end at a doorstep with no signal.
      */
@@ -157,7 +157,7 @@ class HttpDeliveryRepository(
             }.ensureSuccess().body<ProofPresignResponse>()
         }
         val uploaded = uploadBytes(presign.uploadURL, bytes, contentType)
-        // ⚠ FR-006 — the drop is NOT completed if the image did not land. The submission below carries
+        // The drop is not completed if the image did not land. The submission below carries
         // a key to something already stored, so a delivery can never be marked against proof that
         // failed to upload. A failed upload is treated as no signal: the proof waits in the outbox.
         if (!uploaded) {
@@ -165,13 +165,7 @@ class HttpDeliveryRepository(
             throw AppException(AppError.Network)
         }
 
-        // ⚠ THIS WAS `if (method == PHOTO) Photo else Signature`, AND IT WAS A LATENT DEFECT. Any
-        // method that was not PHOTO became a SIGNATURE — harmless while only two methods reached
-        // here, and silently wrong the moment CONTACTLESS did (064 routes it through this path, since
-        // an unattended drop must be photographed). The backend would have ACCEPTED it: signature +
-        // mediaKey is a valid proof. Every "left at the door" would have been recorded as a customer
-        // signature, with nothing failing anywhere. An exhaustive `when` makes the next method a
-        // compile error instead.
+        // Exhaustive, so a new method is a compile error rather than silently recorded as a signature.
         val dtoMethod = when (method) {
             ProofMethod.PHOTO -> DtoProofMethod.Photo
             ProofMethod.SIGNATURE -> DtoProofMethod.Signature
@@ -195,7 +189,7 @@ class HttpDeliveryRepository(
         }
     }
 
-    /** 088 — saved and sent later with no signal, like every other driver write. */
+    /** Saved and sent later with no signal, like every other driver write. */
     override suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/return"
         val body = ParcelReturnRequest(changeID = changeId, parcels = handed.toWire(), reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain())
@@ -207,10 +201,10 @@ class HttpDeliveryRepository(
         }
     }
 
-    /** 090 — saved and sent later with no signal, like every other driver write. */
+    /** Saved and sent later with no signal, like every other driver write. */
     override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, notLoaded: List<NotLoaded>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/load"
-        // 096 — every bag on the run: loaded (and how), or declared not loaded with a reason.
+        // Every bag on the run: loaded (and how), or declared not loaded with a reason.
         val body = LoadRequest(
             changeID = changeId,
             parcels = handed.toWire(),
@@ -241,7 +235,6 @@ class HttpDeliveryRepository(
         }
 }
 
-
 private const val PROOF_LABEL = "Proof of delivery"
 private const val MAX_PROOF_ATTEMPTS = 5
 
@@ -268,7 +261,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     drops = drops.map {
         DropSummary(
             it.dropID, it.sequence.toInt(), it.orderRef, it.customerSuburb, it.packageCount.toInt(), dropStatus(it.status), it.summary.toDomain(),
-            // 069 — ⚠ `window` (the label) existed on this DTO since 049 and was never mapped, because
+            // `window` (the label) existed on this DTO since 049 and was never mapped, because
             // it was always null. It is real now, and so are the instants beside it.
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
             bags = it.parcels.map { b -> b.toDomain() },
@@ -285,7 +278,6 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     stageLabel = stageLabel?.takeIf { it.isNotBlank() },
 )
 
-
 /** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
 internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(
     runID, count.toInt(), orders,
@@ -300,7 +292,7 @@ internal fun DeliveryFailureReason.toDomain(): FailureReason = when (this) {
     DeliveryFailureReason.Other -> FailureReason.OTHER
 }
 
-/** A code proof does not exist on this platform (064); it reads as no method. */
+/** A code proof does not exist on this platform; it reads as no method. */
 internal fun DtoProofMethod.toDomain(): ProofMethod? = when (this) {
     DtoProofMethod.Photo -> ProofMethod.PHOTO
     DtoProofMethod.Signature -> ProofMethod.SIGNATURE
@@ -317,7 +309,7 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode, bags = p.parcels.map { b -> b.toDomain() }) },
     status = dropStatus(status),
     summary = summary.toDomain(),
-    // 066 — exhaustive on purpose: a third preference on the wire must fail to compile here.
+    // Exhaustive on purpose: a third preference on the wire must fail to compile here.
     handover = when (handover) {
         HandoverPreference.LeaveAtDoor -> Handover.LeaveAtDoor
         HandoverPreference.MeetAtDoor -> Handover.MeetAtDoor

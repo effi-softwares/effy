@@ -18,10 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** The label presets (022 FR-006a). Home/Work store the literal string; Other → the free-text field. */
+/** The label presets. Home/Work store the literal string; Other → the free-text field. */
 enum class LabelChip { NONE, HOME, WORK, OTHER }
 
-/** The add/edit form fields. Held in the ViewModel so validation errors survive with the input (FR-009). */
+/** The add/edit form fields. Held in the ViewModel so validation errors survive with the input. */
 data class AddressForm(
     val labelChip: LabelChip = LabelChip.NONE,
     val otherLabel: String = "",
@@ -32,11 +32,11 @@ data class AddressForm(
     val city: String = "",
     val region: String = "",
     val postalCode: String = "",
-    /** 066 — the address's default delivery instructions, edited with the same control as checkout. */
+    /** The address's default delivery instructions, edited with the same control as checkout. */
     val instructions: InstructionsDraft = InstructionsDraft(),
 )
 
-/** The open add/edit sheet. [editingId] null = add; non-null = edit that address (FR-017). */
+/** The open add/edit sheet. [editingId] null = add; non-null = edit that address. */
 data class FormSheet(
     val editingId: String?,
     val form: AddressForm,
@@ -49,19 +49,16 @@ data class AddressBookUiState(
     val addresses: List<SavedAddress> = emptyList(),
     val error: String? = null,
     val sheet: FormSheet? = null,
-    /** The address a confirm-delete dialog is pending on (US4). */
+    /** The address a confirm-delete dialog is pending on. */
     val pendingDeleteId: String? = null,
-    /** True once a delete-default was blocked server-side (409) — show the "set another default" prompt. */
+    /** True once a delete-default was blocked server-side — show the "set another default" prompt. */
     val reassignPrompt: Boolean = false,
 )
 
 /**
- * Address book ViewModel (022, MVVM). Immutable [AddressBookUiState] over a `MutableStateFlow`; the View
- * calls its functions and never mutates. The form lives here (not in Compose `remember`) so a validation
- * failure keeps the customer's input (FR-009) and dismissing the sheet saves nothing (SC-009).
- *
- * [scope] is the coroutine test seam: production passes null → [viewModelScope]; tests pass their own
- * `TestScope` (mirrors the ViewModel-test idiom used across this app, driven by `Dispatchers.setMain`).
+ * Address book ViewModel: immutable [AddressBookUiState] over a `MutableStateFlow`. The form lives here,
+ * so a validation failure keeps the input and dismissing the sheet saves nothing. [scope] is the test seam
+ * (null → [viewModelScope]).
  */
 class AddressBookViewModel(
     private val listAddresses: ListAddresses,
@@ -94,21 +91,21 @@ class AddressBookViewModel(
         }
     }
 
-    // ── the add/edit sheet ────────────────────────────────────────────────────────────────────────────
+    // the add/edit sheet
 
-    /** US2: raise the empty add form (from the FAB). */
+    /** Raise the empty add form (from the FAB). */
     fun openAdd() {
         _state.value = _state.value.copy(sheet = FormSheet(editingId = null, form = AddressForm()))
     }
 
-    /** US5: open the sheet pre-filled from an existing address (row-body tap; controls do NOT call this). */
+    /** Open the sheet pre-filled from an existing address (row-body tap; controls do not call this). */
     fun openEdit(id: String) {
         val address = _state.value.addresses.firstOrNull { it.id == id } ?: return
         _state.value = _state.value.copy(sheet = FormSheet(editingId = id, form = address.toForm()))
     }
     // `toForm`/`validate`/`toDraft` are the shared AddressFormLogic extensions (reused by Checkout, 023).
 
-    /** SC-009: dismissing the sheet mid-entry discards everything — nothing is saved. */
+    /** Dismissing the sheet mid-entry discards everything — nothing is saved. */
     fun dismissSheet() {
         _state.value = _state.value.copy(sheet = null)
     }
@@ -119,7 +116,7 @@ class AddressBookViewModel(
         _state.value = _state.value.copy(sheet = sheet.copy(form = form, fieldErrors = emptyMap()))
     }
 
-    /** US2/US5: validate, then create or update. Invalid → field errors, input preserved (FR-009). */
+    /** Validate, then create or update. Invalid → field errors, input preserved. */
     fun submit() {
         val sheet = _state.value.sheet ?: return
         val errors = sheet.form.validate()
@@ -144,11 +141,11 @@ class AddressBookViewModel(
         }
     }
 
-    // ── set-default (US3) ───────────────────────────────────────────────────────────────────────────────
+    // set-default
 
-    /** FR-011/FR-014: make [id] the default. Idempotent — the backend clears the prior default atomically. */
+    /** Make [id] the default. Idempotent — the backend clears the prior default atomically. */
     fun makeDefault(id: String) {
-        if (_state.value.addresses.firstOrNull { it.id == id }?.isDefault == true) return // no-op (FR-014)
+        if (_state.value.addresses.firstOrNull { it.id == id }?.isDefault == true) return // no-op
         scope.launch {
             try {
                 setDefault(id)
@@ -161,9 +158,9 @@ class AddressBookViewModel(
         }
     }
 
-    // ── delete (US4) ────────────────────────────────────────────────────────────────────────────────────
+    // delete
 
-    /** Ask to confirm before removing (FR-015). */
+    /** Ask to confirm before removing. */
     fun askDelete(id: String) {
         _state.value = _state.value.copy(pendingDeleteId = id)
     }
@@ -176,7 +173,7 @@ class AddressBookViewModel(
         _state.value = _state.value.copy(reassignPrompt = false)
     }
 
-    /** Confirmed delete. A blocked default (409) raises the reassign prompt rather than an error (FR-016a). */
+    /** Confirmed delete. A blocked default raises the reassign prompt rather than an error. */
     fun confirmDelete() {
         val id = _state.value.pendingDeleteId ?: return
         _state.value = _state.value.copy(pendingDeleteId = null)

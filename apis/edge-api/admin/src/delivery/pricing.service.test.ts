@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The repository and the live channel are mocked at the module boundary: this proves the service's
-// value rules and the simulator's wording without a database. The SQL — gaps, activation, the
-// immutability trigger — is proven against the real migrations in pricing.container.test.ts.
+// Repository and live channel mocked; the SQL is proven in pricing.container.test.ts.
 const repo = vi.hoisted(() => ({
   listPlans: vi.fn(),
   readPlan: vi.fn(),

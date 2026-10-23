@@ -1,4 +1,3 @@
-// GET /admin/v1/promotion-groups — display groups (094 US2). Read: any active staff, incl. csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

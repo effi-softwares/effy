@@ -13,25 +13,11 @@ import { ErrorNote, InlineAction, StepShell, Submit } from "./AuthKit"
 import { CodeField } from "@/components/storefront/CodeField"
 
 /**
- * What the platform told us about a submitted code.
- *
- * ⚠ THIS VOCABULARY IS DELIBERATELY SMALL, AND THE OMISSIONS ARE THE POINT (036 FR-011, R10).
- *
- * There is no `expired`, no `superseded` and no `never_sent` on the sign-in route, because the
- * platform genuinely cannot distinguish them: `VerifyAuthChallenge` computes a reason
- * (`malformed | expired | mismatch | no-envelope`) and then DISCARDS it, returning only a boolean,
- * so that the response cannot be used to tell whether an account exists (FR-024). Inventing those
- * values here would put a fiction on the screen and then into the analytics.
- *
- * ⚠ `rejected` covers attempts 1 and 2, and it arrives WITHOUT AN EXCEPTION — Cognito simply
- * re-issues the challenge. That is the shape of the defect this component fixes: `SignInForm`
- * discarded `confirmSignIn`'s result and treated a re-issued challenge as success, navigating a
- * still-signed-out shopper away with nothing on screen.
+ * What the platform said about a submitted code. Small on purpose: the sign-in trigger discards why a
+ * code failed (so the response cannot reveal whether an account exists), so there is no `expired` or
+ * `never_sent` here. `rejected` (attempts 1 and 2) arrives as a re-issued challenge, not an exception.
  */
-/**
- * `failed` — the code was fine and something AFTER it went wrong (the session could not be started).
- * The journey owns the message (`parentError`); this step must not blame the code for it.
- */
+/** `failed`: the code was fine and something after it went wrong; the journey owns the message (`parentError`). */
 export type CodeOutcome = "accepted" | "rejected" | "exhausted" | "stale" | "failed"
 
 export function CodeStep({
@@ -48,21 +34,13 @@ export function CodeStep({
   parentError = null,
   children,
 }: {
-  /** Why the code was sent, when the journey has a reason to say — " to confirm it is yours". */
+  /** Why the code was sent, when the journey has a reason to say (" to confirm it is yours"). */
   purpose?: string
   /** The opposite-journey link at the foot of the step. */
   footer?: React.ReactNode
-  /**
-   * A message owned by the surrounding journey — a network failure, a stale session.
-   *
-   * ⚠ 044 FR-017 — IT IS PASSED IN RATHER THAN RENDERED OUTSIDE. `SignInForm`, `SignUpForm` and
-   * `ResetPasswordForm` each used to render their own `<ErrorNote>` ABOVE `<CodeStep>`, which put it
-   * outside the step shell entirely — above the back control, detached from the layout — while the
-   * step rendered a second one inside. Two regions, both `role="alert"`, both able to be true at
-   * once, both announced (defect D-05).
-   */
+  /** A message owned by the journey (a network failure, a stale session), shown in this step's one error region. */
   parentError?: string | null
-  /** The address the code went to — masked by Cognito where it gives us a mask (FR-006). */
+  /** Where the code went, masked by Cognito where it gives a mask. */
   destination: string
   submitLabel: string
   submitTestId: string
@@ -71,12 +49,7 @@ export function CodeStep({
   onChangeEmail: () => void
   /** Which journey this step belongs to — telemetry only. */
   flow: "sign_in" | "sign_up" | "reset"
-  /**
-   * ⚠ Sign-UP confirmation and password reset run Cognito's MANAGED flow, which emits real
-   * `CodeMismatchException` / `ExpiredCodeException` / `LimitExceededException`. There the cause is
-   * genuine and the caller supplies a specific message. On the sign-IN route it is not, and this
-   * component must not imply otherwise.
-   */
+  /** Sign-up confirmation and reset use Cognito's managed flow, with real mismatch/expiry/limit exceptions; the caller supplies the message. Not so on sign-in. */
   distinguishableRefusals?: boolean
   /** Extra fields submitted alongside the code — password reset sets the new password here. */
   children?: React.ReactNode
@@ -87,18 +60,11 @@ export function CodeStep({
   const [pending, setPending] = React.useState(false)
   const [resendNote, setResendNote] = React.useState<string | null>(null)
   const [attempts, setAttempts] = React.useState(0)
-  /**
-   * What is still missing, said only once the shopper has asked for the action (044 FR-020).
-   *
-   * ⚠ NOT AN ERROR, and deliberately not in the error region. "You've typed four of six digits" is
-   * information about an unfinished task, not a refusal — dressing it in the destructive treatment
-   * would teach shoppers that the error colour means nothing much.
-   */
+  /** What is still missing, said once the shopper asked for the action. Information, not an error. */
   const [shortfall, setShortfall] = React.useState<string | null>(null)
-  /** Whether the shopper has pressed the (unavailable) restart action while at the send ceiling. */
+  /** Whether the shopper pressed the unavailable restart at the send ceiling. */
   const [ceilingNoticed, setCeilingNoticed] = React.useState(false)
-  // ⚠ A ref, not `resend.sends`: that would reference `resend` inside its own `onSend` closure, before
-  // the const is declared. The code that got us to this step is the first send.
+  // A ref, not `resend.sends` (that would reference `resend` in its own `onSend`). The first send got us here.
   const sendOrdinal = React.useRef(1)
 
   const resend = useCodeResend({
@@ -112,43 +78,31 @@ export function CodeStep({
       setCode("")
       setError(null)
       setExhausted(false)
-      // ⚠ Point at the NEWEST email, explicitly. Two codes can arrive out of order, and the older one
-      // no longer works — a shopper reading their inbox top-down has no way to know which is which.
+      // Point at the newest email: codes can arrive out of order and the older one no longer works.
       setResendNote("New code sent. Use the most recent email — the older code no longer works.")
     },
   })
 
-  // ⚠ Digits only, and NEVER truncated (FR-004). A longer value is kept, shown in full, and blocks
-  // submission — because a code that is not six digits did not come from us, and quietly reshaping it
-  // into something submittable is the exact defect 035 existed to fix.
+  // Digits only, never truncated: a longer value is shown and blocks submission.
   const onCodeChange = (raw: string) => {
     setCode(raw.replace(/\D/g, ""))
     setResendNote(null)
-    // ⚠ Clears as soon as the shopper acts on it (FR-013). A "you're two digits short" message that
-    // outlives the two digits is noise, and noise is how people learn to stop reading messages.
+    // Clears as soon as the shopper acts on it.
     setShortfall(null)
   }
 
   const tooLong = code.length > OTP_LENGTH
   const complete = code.length === OTP_LENGTH
 
-  /**
-   * The single message this step shows (044 FR-017).
-   *
-   * The step's own refusal wins over the journey's: if both are true, the one about the code the
-   * shopper just typed is the more actionable of the two.
-   */
+  /** The one message this step shows; the step's own refusal wins over the journey's. */
   const message = error ?? parentError
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    // ⚠ NO AUTO-SUBMIT ANYWHERE IN THIS COMPONENT. Codes die after three wrong attempts and most
-    // customers have no password to fall back on, so a mistyped last digit that submits itself spends
-    // an attempt the shopper never chose to spend (FR-005).
+    // No auto-submit: codes die after three wrong attempts, and most customers have no password.
     if (pending) return
     if (!complete) {
-      // ⚠ FR-020 — an action that cannot commit must SAY what is missing. Enter in the field lands
-      // here without touching the button.
+      // An action that cannot commit says what is missing; Enter in the field lands here.
       if (code.length === 0) setShortfall(`Enter the ${OTP_LENGTH}-digit code we emailed you.`)
       return
     }
@@ -171,8 +125,7 @@ export function CodeStep({
         setAttempts((n) => n + 1)
       }
       if (outcome === "rejected") {
-        // ⚠ The digits STAY. Clearing the field on a refusal makes the shopper retype five correct
-        // characters to fix one wrong one (FR-010, SC-002).
+        // The digits stay, so one wrong character is fixed without retyping five.
         setError(
           distinguishableRefusals
             ? "That code isn't right. Check it and try again."
@@ -181,16 +134,13 @@ export function CodeStep({
       } else if (outcome === "exhausted") {
         setExhausted(true)
       }
-      // "accepted" and "stale" are the caller's to act on — it navigates.
+      // "accepted" and "stale" are the caller's to act on.
     } finally {
       setPending(false)
     }
   }
 
-  // ── The attempt is over (FR-013, SC-019; reference: Code expired) ────────────────────────────────
-  //
-  // ⚠ A step, not a toast. The Cognito session really is finished, so leaving the shopper on a form
-  // that still looks usable would invite them to keep typing into nothing.
+  // The attempt is over: a step, not a toast, since the Cognito session really is finished.
   if (exhausted) {
     return (
       <StepShell
@@ -206,8 +156,7 @@ export function CodeStep({
             void resend.resend()
           }}
         >
-          {/* ⚠ `aria-disabled` rather than `disabled` (044 FR-019/FR-020). At the send ceiling this is
-              the ONE control that can explain why nothing is happening — an inert button cannot. */}
+          {/* `aria-disabled`: at the send ceiling this is the one control that can explain why nothing happens. */}
           <Submit
             pending={resend.sending}
             label="Send a new code"
@@ -233,8 +182,7 @@ export function CodeStep({
     )
   }
 
-  // The count is shown WHILE they type (reference: "That's 3 of 6 digits."), so the unavailable
-  // action below it is never a mystery.
+  // The count is shown while they type ("That's 3 of 6 digits."), so the unavailable action is no mystery.
   const hint =
     code.length > 0 && !complete ? `That's ${code.length} of ${OTP_LENGTH} digits.` : shortfall
 
@@ -250,9 +198,7 @@ export function CodeStep({
       footer={footer}
     >
       <form className="space-y-4" onSubmit={submit} noValidate>
-        {/* ⚠ ONE ERROR REGION, and it is here — inside the shell, above the field it concerns
-            (FR-017). The journey's own message arrives as `parentError` rather than being rendered
-            outside this component by the caller (defect D-05). */}
+        {/* The one error region, inside the shell above the field; the journey's message arrives as `parentError`. */}
         {message && <ErrorNote>{message}</ErrorNote>}
 
         <div className="flex flex-col gap-2">
@@ -274,8 +220,7 @@ export function CodeStep({
             </p>
           ) : (
             hint && (
-              // ⚠ NOT AN ERROR, and deliberately not in the error treatment: it is information about
-              // an unfinished task, not a refusal.
+              // Information about an unfinished task, not a refusal.
               <p
                 id="code-shortfall"
                 role="status"
@@ -297,13 +242,7 @@ export function CodeStep({
   )
 }
 
-/**
- * The two ways out of a code that is not arriving, as one quiet line under the action (reference:
- * "Didn't get it? Resend · Wrong email? Change it").
- *
- * ⚠ SUBORDINATE, AND ONE LINE (044 US1 AC-9 / defect D-06). Countdown, resend, note and change-email
- * used to be separately-weighted lines that together out-massed the input they were advising about.
- */
+/** The ways out of a code that is not arriving, as one quiet line ("Didn't get it? Resend · Wrong email? Change it"). */
 function ResendLine({
   resend,
   note,
@@ -315,8 +254,7 @@ function ResendLine({
 }) {
   return (
     <div className="space-y-1.5 text-sm text-muted-foreground">
-      {/* ⚠ `aria-live="polite"`: announcing the countdown must never move focus off the code field
-          (FR-015). A shopper mid-typing is not interrupted. */}
+      {/* `aria-live="polite"`: the countdown is announced without moving focus off the field. */}
       <p aria-live="polite">
         {resend.atCeiling ? (
           <CeilingNote />
@@ -325,7 +263,7 @@ function ResendLine({
         ) : (
           <>
             Didn&apos;t get it?{" "}
-            {/* ⚠ `aria-disabled`, not `disabled` (044 FR-019), handled by `InlineAction`. */}
+            {/* `aria-disabled`, handled by `InlineAction`. */}
             <InlineAction
               testId="resend-code"
               blocked={!resend.canResend}
@@ -346,16 +284,9 @@ function ResendLine({
 }
 
 /**
- * ⚠ The per-address hourly ceiling, said out loud (FR-009, R11).
- *
- * The platform allows five sends per address per clock hour. The SIXTH is refused by the trigger,
- * which then returns a NORMAL challenge carrying a masked destination — so without this the screen
- * would cheerfully announce "we sent a code" for an email that does not exist, and the shopper would
- * discover it only after burning three guesses.
- *
- * ⚠ What this cannot know: the counter is per-flow. A budget already spent in another tab, on another
- * device, or twenty minutes ago is invisible to us — the trigger computes a retry-after and discards
- * it deliberately, so that the response cannot answer "does this account exist?".
+ * The hourly send ceiling (five per address), said out loud: the sixth is refused but still returns a
+ * normal-looking challenge. This flow cannot see sends from another tab or device (the trigger discards
+ * the retry-after, so the response reveals nothing about the account).
  */
 function CeilingNote() {
   return (

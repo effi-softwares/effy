@@ -22,12 +22,7 @@ import { ProductDeliveryNote, ProductDeliveryNoteFallback } from "../../_compone
 import { MoreFromBrand, RelatedProducts } from "../../_components/RelatedProducts"
 import { VariantBuyBox } from "../../_components/VariantBuyBox"
 
-/**
- * The fields of a product page that stock, pricing or a size going on or off sale can change. They are
- * stripped from the KEPT content before anything is kept, so no render can reach a cached one; the
- * page reads them live (`getProductLive`). 098 — sizes are live too: each carries its own price and
- * availability, and a size taken off sale must vanish from the selector at once.
- */
+/** The fields stock, pricing or a size's sale state can change: stripped from the kept content and read live (`getProductLive`), so a size taken off sale vanishes at once. */
 const LIVE_FIELDS = [
   "priceAmount", "compareAtAmount", "currency", "available", "badges", "offer",
   "priceVaries", "variantId", "variantCount", "unitPrice", "options", "variants", "defaultVariantId",
@@ -36,17 +31,14 @@ const LIVE_FIELDS = [
 /** What a product page says that stock and pricing cannot change: its words, pictures, attributes and aisle. */
 type ProductContent = Omit<StorefrontProductDetailDTO, (typeof LIVE_FIELDS)[number]>
 
-/** The part of a product page that must be current: read live on every view (054 FR-015a). */
+/** The part of a product page that must be current: read live on every view. */
 type ProductLive = Pick<StorefrontProductDetailDTO, (typeof LIVE_FIELDS)[number]>
 
 /**
- * The product's content — SHARED between requests for minutes (PERF-07, 054 FR-015a as amended).
- *
- * ⚠ An unknown product is kept only as long as a listing (`listing`): a product staff have just
- * approved must not 404 for a quarter of an hour. A failure is thrown, and a thrown read is not kept.
- * ⚠ A presigned picture address expires in 15 minutes, so a payload still carrying one (a backend
- * from before 086) is kept no longer than a listing either — `catalogue` would outlive its links.
- * ⚠ No writer revalidates the tag (lib/cache-life.ts says why); the lifetime is the contract.
+ * The product's content, shared between requests for minutes. An unknown product is kept only as long as
+ * a listing (a newly approved one must not 404 for long); a failure is thrown and not kept; a payload
+ * still carrying a presigned picture (15-minute links) is kept no longer than a listing. Nothing
+ * revalidates the tag (lib/cache-life.ts); the lifetime is the contract.
  */
 async function readProductContent(id: string): Promise<ProductContent | null> {
   "use cache"
@@ -59,7 +51,7 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
     cacheLife(CACHE_LIFE.listing)
     return null
   }
-  // 094 — the offer changes with promotions, so it is live, never kept with the content.
+  // The offer changes with promotions, so it is live, never kept with the content.
   const kept: Partial<StorefrontProductDetailDTO> = { ...detail }
   for (const k of LIVE_FIELDS) delete kept[k]
   const content = kept as ProductContent
@@ -72,7 +64,7 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
 const getProductContent = cache(readProductContent)
 
 /**
- * The prices, sizes and availability, LIVE — the product read itself, uncached (098: a card read
+ * The prices, sizes and availability, live — the product read itself, uncached (098: a card read
  * carries one price, and the selector needs every size's). Null when the product has stopped being
  * sold since its content was kept.
  */
@@ -107,28 +99,15 @@ function excerpt(text: string): string {
 }
 
 /**
- * Product detail (US2), laid out from the reference template (025 UI refresh).
- *
- * The reference's composition, top to bottom: breadcrumb → gallery beside a buy column (display-caps
- * title, price row, description, rules between blocks, quantity + add) → a TABBED section → "YOU
- * MIGHT ALSO LIKE".
- *
- * Two substitutions, both driven by what Effy is rather than by what looks good:
- *
- *  - The reference's buy column has SIZE and COLOUR pickers. 098 gave Effy sizes and flavours, so the
- *    selector is drawn from the product's own options — and only when it has some: a product sold one
- *    way shows no picker, because a disabled or invented one is worse than none.
- *  - Its tab strip is Product Details / Rating & Reviews / FAQs. Effy has no reviews and no
- *    per-product FAQs, so the section carries only what exists — Description and Details. A tab bar
- *    managing one panel is furniture.
- *
- * Attributes remain SECTIONED DETAIL ROWS, never cards (Principle V / DOCTRINE-2). Guest-first:
- * add-to-cart needs no account; saving prompts it.
+ * Product detail: breadcrumb, the gallery beside the buy column, a details section, then "You might also
+ * like". The selector comes from the product's own options (none when it is sold one way). The details
+ * section has Description and Details only (no reviews or FAQs). Attributes are sectioned rows, never
+ * cards. Adding to the cart needs no account; saving prompts for one.
  */
 type SearchParams = Promise<{ variant?: string | string[] }>
 
 export default function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
-  // Do NOT await params here — reading it outside <Suspense> makes the whole route blocking under
+  // Do not await params here — reading it outside <Suspense> makes the whole route blocking under
   // cacheComponents. Pass the promise in and await it inside the boundary.
   return (
     <Suspense fallback={<ProductSkeleton />}>
@@ -162,7 +141,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
           {product.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
 
-          {/* ⚠ THE CURRENT TIER (054 FR-015a): prices, sizes and availability stream in from a live read
+          {/* The current tier: prices, sizes and availability stream in from a live read
               beside the kept content — one request per render. */}
           <Suspense fallback={<PriceSkeleton />}>
             <LiveBuy product={product} searchParams={searchParams} />
@@ -198,7 +177,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
 
 /**
  * Price, sizes, "Available now" and the add / save / list controls — read live, and the structured data
- * from the SAME read, so what a search engine is told matches what the page shows (`lib/json-ld.tsx`).
+ * from the same read, so what a search engine is told matches what the page shows (`lib/json-ld.tsx`).
  * A product that has stopped being sold since its content was kept offers no control; a failed read
  * offers none either — the cart would refuse a price this page could not confirm.
  */
@@ -251,9 +230,9 @@ function PriceSkeleton() {
 }
 
 /**
- * Everything below the buy box, on ONE page with no tabs (reference: Product detail — single page).
+ * Everything below the buy box, on one page with no tabs (reference: Product detail — single page).
  *
- * ⚠ A section with nothing to show is ABSENT, never an empty heading: Description needs a
+ * A section with nothing to show is absent, never an empty heading: Description needs a
  * description; Item specifics needs attributes; the Nutrition table appears only when the product
  * carries an attribute group by that name. The allergen notice is always shown — it is advice about
  * the label, not a fact about this product.

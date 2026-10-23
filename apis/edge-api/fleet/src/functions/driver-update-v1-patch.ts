@@ -1,9 +1,4 @@
-// PATCH /fleet/v1/drivers/{driverId} — edit the profile (056 US1, FR-009/FR-010/FR-012).
-// Write = admin/manager.
-//
-// ⚠ The body is passed through as parsed JSON rather than being rebuilt field by field, because the
-// PRESENCE of a key is the signal: absent means "leave alone", null means "clear" (FR-010). Copying
-// it into a typed object with `??` defaults would erase exactly that distinction.
+// Admin/manager. The body is passed through as parsed: a key's presence is the signal (absent leaves alone, null clears).
 import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -24,7 +19,6 @@ export const handler = async (
   try {
     const body = parseBody<AdminDriverUpdateRequest>(event.body);
     const updated = await updateDriver(event.pathParameters?.driverId ?? "", body, g.sub, scope);
-    // 071 — committed. The roster shows the change; the driver's own app shows their zone/vehicle.
     await announceDispatch([event.pathParameters?.driverId]);
     return json(200, updated, scope);
   } catch (err) {

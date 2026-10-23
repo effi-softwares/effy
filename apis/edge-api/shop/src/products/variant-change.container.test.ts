@@ -40,18 +40,12 @@ vi.mock("./media", () => ({
   presignUpload: async () => ({ uploadUrl: "u", storageKey: "k" }),
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { createProduct, getProduct, setVariantState, updateProduct } from "./service";
 import { isProductError } from "./types";
 
-/**
- * 098 US6 — changing a LIVE product's sizes (task T068).
- *
- * ⚠ The two halves of the rule are both SQL facts: a new size or a new price waits for Effy's review
- * (the live rows a shopper reads do not move), and taking a size off sale does NOT wait (the live
- * row moves at once, and the pending proposal is left alone — or, on removal, loses that size).
- */
+/** A new size or price waits for review; taking a size off sale does not (and a removal drops it from the proposal). */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -76,7 +70,7 @@ function variant(position: number, valueId: string, shopPriceAmount: string, id 
   };
 }
 
-/** What a shopper is sold right now: every not-removed variant, its state and its customer price. */
+/** Every not-removed variant, its state and customer price. */
 const liveRows = async (productId: string) =>
   (await pool.query(
     `SELECT id::text, state, price_amount::text AS price, shop_price_amount::text AS shop
@@ -91,7 +85,7 @@ const proposedVariantIds = async (productId: string): Promise<string[] | null> =
   return r.rowCount === 0 ? null : r.rows[0]!.ids ?? [];
 };
 
-/** A live, approved product sold in two sizes at 10% over the shop's price. */
+/** Live and approved, in two sizes at 10% over the shop's price. */
 async function liveProduct(): Promise<{ id: string; options: OptionInputDTO[]; small: VariantInputDTO; large: VariantInputDTO; values: string[] }> {
   const ids = (await pool.query<{ t: string; c: string }>(
     `SELECT (SELECT id FROM public.product_type LIMIT 1) AS t, (SELECT id FROM public.category WHERE status = 'active' LIMIT 1) AS c`,
@@ -147,7 +141,7 @@ d("098 US6 — a live product's sizes against real PostgreSQL", () => {
     expect(await proposedVariantIds(p.id)).toEqual([p.small.id, p.large.id, twoKg.id]);
     const shown = await getProduct(shopId, p.id);
     expect(shown.reviewState).toBe("live_change_pending");
-    expect(shown.variants.map((v) => v.shopPriceAmount)).toEqual(["3.00", "5.00"]); // the live ones
+    expect(shown.variants.map((v) => v.shopPriceAmount)).toEqual(["3.00", "5.00"]);
 
     // Changing it back proposes nothing.
     await updateProduct(shopId, p.id, { options: p.options, variants: [p.small, p.large] }, "sub-sam");

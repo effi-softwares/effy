@@ -1,27 +1,11 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The attention evaluator's SQL, against real PostgreSQL 16 and THE REAL MIGRATIONS (059, A11).
- *
- * ⚠ WHY THIS FILE EXISTS, AND WHY IT IS NOT OPTIONAL. Three of this slice's load-bearing guarantees
- * are DATABASE CONSTRAINTS, not code — and a mocked test can only ever assert that the code believes
- * them:
- *
- *   1. `UNIQUE (shop_id, kind, subject_key)` is what makes "notify once per occurrence" true. A fake
- *      that reimplements it agrees with my reading of the schema, not with the schema.
- *   2. `subject_key NOT NULL` is what stops the per-shop backlog row inserting on every run — the
- *      failure where NULL <> NULL makes the UNIQUE index useless and the console interrupts an
- *      operator every five minutes forever, behind a green suite.
- *   3. `notification_request.dedupe_key` UNIQUE is what makes a re-run a no-op.
- *
- * 056 found two wrong column names ONLY here — both typecheck perfectly and fail at runtime. 058's
- * container tests, run late because Docker was down, found three defects its whole green suite had
- * missed, including one that only the SECOND recompute of a day would ever show.
+ * Against real Postgres and migrations: `UNIQUE (shop_id, kind, subject_key)`, `subject_key NOT NULL`
+ * and the unique `notification_request.dedupe_key` are the guarantees, and a fake can only assume them.
  */
 
 const holder: { pool: Pool | null } = { pool: null };
@@ -59,23 +43,6 @@ import {
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
-
 const SHOP = "33333333-3333-4333-8333-333333333333";
 const OTHER = "33333333-3333-4333-8333-000000000000";
 
@@ -96,7 +63,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -116,7 +83,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
   });
 
   it("⚠ the migration really did widen device_token.platform to accept 'web'", async () => {
-    // The whole slice rests on this one line. A CHECK that did not widen fails here and nowhere else.
+    // A check that did not widen fails here and nowhere else.
     await expect(
       pool.query(
         `INSERT INTO public.device_token (subject_sub, audience, platform, fcm_token)
@@ -163,9 +130,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
   });
 
   it("⚠ A8 — the per-shop backlog key inserts ONCE, not on every run", async () => {
-    // The `NOT NULL text` decision, tested against the index that enforces it. With a nullable uuid
-    // this returns a new id every time, because NULL is never equal to itself in a UNIQUE index —
-    // and the console then notifies about the backlog every five minutes, forever.
+    // With a nullable key this would return a new id every time (null is never equal to itself).
     const first = await tx((c) => insertOccurrence(c, SHOP, "awaiting_pick", ""));
     const second = await tx((c) => insertOccurrence(c, SHOP, "awaiting_pick", ""));
     const third = await tx((c) => insertOccurrence(c, SHOP, "awaiting_pick", ""));
@@ -193,7 +158,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
     const second = await tx((c) => insertOccurrence(c, SHOP, "out_of_stock", "p1"));
 
     expect(second).toBeTruthy();
-    // ⚠ A DIFFERENT ID, which is what gives the recurrence a dedupe key the outbox has never seen.
+    // A different id: the recurrence gets a dedupe key the outbox has never seen.
     expect(second).not.toBe(first);
   });
 
@@ -233,8 +198,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
   });
 
   it("⚠ concurrent runs over the same condition produce one occurrence and one intent", async () => {
-    // Two overlapping schedule invocations are ordinary, not exotic. Both see the condition; only
-    // one may announce it.
+    // Overlapping invocations are ordinary: both see the condition, one announces it.
     const results = await Promise.all([
       tx((c) => insertOccurrence(c, SHOP, "low_stock", "p9")),
       tx((c) => insertOccurrence(c, SHOP, "low_stock", "p9")),
@@ -252,7 +216,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
   });
 
   it("⚠ resolves recipients and their manager flag from the PLATFORM RECORD", async () => {
-    // ⚠ Column names are only checked here: a wrong one typechecks and fails at runtime.
+    // A wrong column name typechecks and fails only at runtime.
     const staff = await pool.query<{ id: string }>(
       `INSERT INTO public.shop_staff (shop_id, cognito_sub, email, status)
        VALUES ($1,'sub-boss','boss@example.test','active'), ($1,'sub-pick','pick@example.test','active'),
@@ -268,7 +232,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
 
     expect(bySub["sub-boss"]).toBe(true);
     expect(bySub["sub-pick"]).toBe(false);
-    // ⚠ FR-016 — a stood-down operator is not told to go and pick.
+    // A stood-down operator is not told to go and pick.
     expect(bySub["sub-gone"]).toBeUndefined();
   });
 });

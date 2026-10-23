@@ -1,11 +1,7 @@
 /**
- * Motion (motion.dev) for the storefront's carousels and the All aisles menu — its mini `animate`, loaded ON DEMAND.
- *
- * ⚠ NEVER IMPORT `motion` STATICALLY ON A GUEST ROUTE. Imported at the top of a client component it
- * cost 2.9 KB gzipped on EVERY guest route (measured 2026-10-12: the All aisles menu is in the chrome),
- * and the guest bundle gate counts first-load script. Nothing animates on first paint, so the library
- * is fetched after the page is interactive and is simply ready by the first slide change. If it has
- * not arrived, or the browser has no Web Animations API, the slide still changes — unanimated.
+ * Motion's mini `animate` for the carousels and the All aisles menu, loaded on demand: a static import
+ * cost 2.9 KB gzipped on every guest route. Nothing animates on first paint; without it (or without the
+ * Web Animations API) the slide still changes, unanimated.
  */
 type Animate = (typeof import("motion/mini"))["animate"]
 

@@ -14,10 +14,10 @@ const item = "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left te
  * The trigger is the avatar, the customer's first name and their points; the menu is the one list
  * in `account-links.ts` plus sign-out.
  *
- * ⚠ A `<details>`, not a scripted menu: it opens without JavaScript, and `AccountMenuAutoClose` adds
+ * A `<details>`, not a scripted menu: it opens without JavaScript, and `AccountMenuAutoClose` adds
  * only the three behaviours a native disclosure lacks (outside press, Escape, following a link).
  *
- * ⚠ `points` is null when the balance could not be read. The trigger then shows the name alone — it
+ * `points` is null when the balance could not be read. The trigger then shows the name alone — it
  * never shows "0 pts" for a customer who may have some.
  */
 export function AccountMenu({
@@ -36,7 +36,7 @@ export function AccountMenu({
   return (
     <details className="group relative" data-testid="account-menu" data-menu="account">
       <AccountMenuAutoClose />
-      {/* ⚠ No aria-label: the name is the visible text (+ the family name, hidden), so what a voice
+      {/* No aria-label: the name is the visible text (+ the family name, hidden), so what a voice
           user reads off the button is in its name (WCAG 2.5.3). */}
       <summary
         data-testid="account-menu-trigger"

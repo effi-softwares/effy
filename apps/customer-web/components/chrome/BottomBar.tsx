@@ -14,7 +14,7 @@ const ITEMS = [
 /**
  * The phone's bottom bar: Home, Aisles, Saved, Orders, Account.
  *
- * Sticky to the bottom of the viewport below `lg`, absent above it. ⚠ It pads for the home-indicator
+ * Sticky to the bottom of the viewport below `lg`, absent above it. It pads for the home-indicator
  * inset, and each target is 48 tall — the bar is the phone's primary navigation, not a decoration.
  *
  * Orders and Account are signed-in pages; a guest who taps one is taken to sign-in and returned, by
@@ -34,7 +34,7 @@ export function BottomBar() {
           </>
         )
         return (
-          // ⚠ `usePathname` suspends while a dynamic route prerenders, so each link has a fallback
+          // `usePathname` suspends while a dynamic route prerenders, so each link has a fallback
           // that is the same link without the "current" mark — the bar is never missing.
           <Suspense key={href} fallback={<BottomBarLinkFallback href={href}>{inner}</BottomBarLinkFallback>}>
             <BottomBarLink href={href} exact={exact} prefixes={prefixes}>

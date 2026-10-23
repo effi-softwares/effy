@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * The delivery-outcome consumer's decisions.
- *
- * ⚠ WHAT THESE TESTS ARE ACTUALLY PROTECTING. Every one of them guards a way this feature could
- * ship looking correct and be wrong in a way nobody notices for months — a duplicate that
- * double-counts, a stale event that resurrects a dead address, an unclassifiable bounce that locks
- * someone out on a guess, or a log line with an address in it.
- */
+/** Duplicates must not double-count, stale events must not resurrect, unknown bounces must not lock out. */
 
 const sesSend = vi.fn()
 
@@ -74,8 +67,7 @@ describe("stateFor", () => {
   })
 
   it("⚠ Undetermined is treated as TRANSIENT — never lock someone out on a guess", () => {
-    // The bias is deliberately toward under-reporting. A missed lockout is found when the person
-    // contacts support; a FALSE lockout is found by nobody, because the person simply leaves.
+    // Biased toward under-reporting: a false lockout is found by nobody.
     expect(stateFor({ eventType: "bounce", subType: "Undetermined" } as any)).toBe("soft_failing")
     expect(stateFor({ eventType: "bounce", subType: null } as any)).toBe("soft_failing")
   })
@@ -97,20 +89,18 @@ describe("parseOutcome", () => {
   it("normalises a hard bounce, preserving the address's ORIGINAL case", () => {
     const [e] = parseOutcome(BOUNCE)
     expect(e).toBeDefined()
-    // ⚠ Both forms are carried: lower-cased for lookup, exact bytes for the suppression API, which
-    // is case-sensitive. Losing the raw form is how a repair silently fails to repair anything.
+    // Lower-cased for lookup, exact bytes for the case-sensitive suppression API.
     expect(e!.address).toBe("person@example.com")
     expect(e!.rawAddress).toBe("Person@Example.com")
     expect(e!.subType).toBe("Permanent/General")
     expect(e!.diagnostic).toContain("550 5.1.1")
     expect(e!.messageId).toBe("0100018f-aaaa")
-    // ⚠ 038: no `effy-template` tag on this fixture → NULL, meaning "Cognito-sent, or pre-038".
+    // No `effy-template` tag → null: Cognito-sent.
     expect(e!.templateId).toBeNull()
   })
 
   it("⚠ 038: attributes an outcome to its template from the SES `effy-template` tag", () => {
-    // This is how "which message is bouncing?" becomes answerable. SES `mail.tags` is a map of
-    // string→string[]; the platform sets exactly one value.
+    // SES `mail.tags` is string→string[]; the platform sets one value.
     const [e] = parseOutcome({
       ...BOUNCE,
       mail: { ...BOUNCE.mail, tags: { "effy-template": ["auth-sign-in-code"] } },
@@ -124,8 +114,7 @@ describe("parseOutcome", () => {
   })
 
   it("⚠ fans out one message naming several recipients into several events", () => {
-    // This platform sends one code to one address — but the contract does not guarantee that, and
-    // a consumer that assumes it silently drops everyone after the first.
+    // One message may name several recipients.
     const events = parseOutcome({
       ...BOUNCE,
       bounce: {
@@ -145,8 +134,7 @@ describe("parseOutcome", () => {
   })
 
   it("⚠ returns [] for an unknown event type rather than throwing", () => {
-    // Throwing makes the delivery retry forever, turning one unrecognised event into an outage of
-    // the whole consumer — and the consumer is the only thing that can see a lockout.
+    // Throwing would retry forever and stall the only consumer that sees lockouts.
     expect(parseOutcome({ eventType: "Open", mail: { messageId: "x" } })).toEqual([])
   })
 
@@ -154,7 +142,7 @@ describe("parseOutcome", () => {
     expect(parseOutcome(null)).toEqual([])
     expect(parseOutcome("not an object")).toEqual([])
     expect(parseOutcome({})).toEqual([])
-    expect(parseOutcome({ eventType: "Bounce" })).toEqual([]) // no messageId
+    expect(parseOutcome({ eventType: "Bounce" })).toEqual([])
   })
 
   it("parses a complaint and a delivery delay", () => {
@@ -191,9 +179,7 @@ describe("recordOutcome", () => {
   })
 
   it("⚠ does NOT advance the status when the event was a duplicate", async () => {
-    // Outcome publication is at-least-once and unordered. If a redelivered bounce advanced the
-    // status, bounce_count would double — and an operator reads that number to decide whether an
-    // address is worth repairing.
+    // A redelivered bounce must not double bounce_count.
     repo.insertEvent.mockResolvedValue(false)
 
     const [e] = parseOutcome(BOUNCE)
@@ -238,8 +224,7 @@ describe("repair", () => {
   })
 
   it("⚠ calls the mail service with raw_address VERBATIM, case intact", async () => {
-    // The suppression API is case-sensitive. A repair that lowercases silently fails to remove an
-    // entry that demonstrably exists, and the operator leaves believing the person is unlocked.
+    // The suppression API is case-sensitive.
     await repair("PERSON@EXAMPLE.COM", "staff-sub", "mailbox restored")
 
     const cmd = sesSend.mock.calls.find((c) => "EmailAddress" in (c[0] as any).input)
@@ -247,8 +232,7 @@ describe("repair", () => {
   })
 
   it("⚠ writes NOTHING to the database when the mail service call fails", async () => {
-    // Mail service first, database second. The reverse order could commit "repaired" while the
-    // address is still blocked — which is the worst outcome available, because it LOOKS fixed.
+    // Mail service first, database second, so "repaired" is never committed while still blocked.
     sesSend.mockRejectedValueOnce(Object.assign(new Error("boom"), { name: "TooManyRequestsException" }))
 
     await expect(repair("person@example.com", "staff-sub", "note")).rejects.toThrow()
@@ -256,8 +240,7 @@ describe("repair", () => {
   })
 
   it("⚠ treats NotFoundException as SUCCESS — the platform's half still needs clearing", async () => {
-    // The common case is a soft_failing address with no suppression entry at all. Treating "not
-    // found" as an error would make exactly that case permanently unrepairable.
+    // "Not found" is success: most soft-failing addresses have no suppression entry.
     sesSend.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NotFoundException" }))
 
     await repair("person@example.com", "staff-sub", "note")

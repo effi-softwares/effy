@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 /**
- * CHECKOUT (US3) — where Effy finally needs an identity (FR-020). Lives OUTSIDE the `(shop)` quarantine
+ * Checkout — where Effy finally needs an identity. Lives outside the `(shop)` quarantine
  * so it may read the session and call the backend with the customer's token. The gate + data read are
  * inside <Suspense> (request-time data outside a boundary is a cacheComponents build error); the static
  * shell prerenders.
@@ -51,7 +51,7 @@ async function CheckoutGate() {
   let addresses: AddressDTO[] = []
   if (session?.idToken) {
     try {
-      // Address management is on the COLD path (edge-api/customer, 022); checkout READS it to
+      // Address management is on the cold path (edge-api/customer, 022); checkout reads it to
       // pre-select a delivery address. cache: "no-store" — per-customer, never cached.
       addresses = await edgeApi(session).get<AddressDTO[]>("/customer/v1/addresses", { cache: "no-store" })
     } catch {

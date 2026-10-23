@@ -1,13 +1,7 @@
 /**
- * The driver-surface wire contract, as a single aggregator (049).
- *
- * So the KMP driver mobile app can generate its Kotlin DTOs from EXACTLY the types it consumes.
- * `driver.ts` remains the single source of truth (Principle II); this file only aggregates, and it is
- * the input to `driver-contract:gen`.
- *
- * The `DriverContract` aggregator forces every referenced type into the schema under `--expose all`
- * (a bare `-t '*'` silently drops types). The admin provisioning DTOs are deliberately NOT here — the
- * mobile app never calls /admin/*.
+ * The driver-surface wire contract: the aggregator the driver app's Kotlin DTOs are generated from
+ * (`driver-contract:gen`). `DriverContract` forces every referenced type into the schema under
+ * `--expose all`. No admin provisioning DTOs: the app never calls /admin/*.
  */
 import type {
   DriverMeDTO,
@@ -66,7 +60,7 @@ import type {
 import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 import type { ProblemJSON } from "./problem";
 
-/** Aggregator — codegen entry only. Every field forces a type into the schema. */
+/** Codegen entry only. Every field forces a type into the schema. */
 export interface DriverContract {
   me: DriverMeDTO;
   dutyRequest: DutyRequest;

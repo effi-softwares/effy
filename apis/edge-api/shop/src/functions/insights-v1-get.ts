@@ -1,13 +1,5 @@
-// GET /shop/v1/insights?range=today|7d|30d — the shop console's analytics (058, US3).
-//
-// ⚠ IT READS ONLY THE ROLLUPS (FR-026). Opening this screen must never start an aggregate over the
-// shop's order history: at 500k orders a month that is the difference between a page that answers in
-// milliseconds and one that gets slower every month it exists. A guard reads the repository and
-// fails if it so much as names the order tables.
-//
-// ⚠ AWAITING PICK AND UNFULFILLED UNITS ARE NOT IN THIS PAYLOAD. They appear on this screen, but
-// they are LIVE operational figures and the client takes them from /shop/v1/today — the same cache
-// entry Today renders from, so the two screens cannot disagree (FR-006/FR-017).
+// Reads only the rollups, never the order tables (a guard checks). Awaiting pick and unfulfilled
+// units come from /shop/v1/today, the cache entry Today renders from, so the screens agree.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -30,7 +22,7 @@ export const handler = async (
     const range = parseRange(event.queryStringParameters?.range);
     const clock = await readClock(g.actor.shopId);
     if (clock.timezone === null && clock.rawTimezone !== "") {
-      // Recorded, not silently absorbed: every bucket boundary on this screen hangs off the zone.
+      // Every bucket boundary depends on the zone.
       scope.log.warn(
         { shopId: g.actor.shopId, timezone: clock.rawTimezone },
         "insights: unrecognised shop timezone, using the platform default",

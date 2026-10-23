@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.core.error
 
 /**
- * A CLOSED set of failures the UI can act on (013). Backend `application/problem+json` and transport
+ * A closed set of failures the UI can act on. Backend `application/problem+json` and transport
  * failures both map to one of these; the raw SDK/HTTP text is never surfaced.
  */
 sealed interface AppError {
@@ -14,40 +14,40 @@ sealed interface AppError {
     /** Wrong current password specifically — distinct from a lost session so the UI can say so. */
     data object WrongPassword : AppError
 
-    /** Barred, or an account that cannot be used. A valid credential is not permission (FR-033). */
+    /** Barred, or an account that cannot be used. A valid credential is not permission. */
     data object Forbidden : AppError
 
     /** The wrong password journey was attempted (set on an account with one; change on one without). */
     data object WrongPasswordMode : AppError
 
     /**
-     * The captured delivery quote is stale (021 FR-011a): the validity window expired, a package became
-     * unavailable, or its same-day lapsed past cutoff. The customer MUST re-quote and see the new amounts
+     * The captured delivery quote is stale: the validity window expired, a package became
+     * unavailable, or its same-day lapsed past cutoff. The customer must re-quote and see the new amounts
      * before being charged. Distinct from a generic 409 so the checkout can re-quote silently.
      */
     data object RequoteRequired : AppError
 
     /**
-     * The customer tried to delete their DEFAULT address while other addresses remain (022 FR-016a).
-     * The delete endpoint refuses it server-side (409); the address book surfaces the "set another
+     * The customer tried to delete their default address while other addresses remain.
+     * The delete endpoint refuses it server-side; the address book surfaces the "set another
      * default first" prompt. Distinct from the generic 409 so the UI can reassign rather than error.
      */
     data object DefaultDeleteBlocked : AppError
 
-    /** Throttled. [retryAfterSeconds] is shown; the app explains the wait, never loops (FR-017). */
+    /** Throttled. [retryAfterSeconds] is shown; the app explains the wait, never loops. */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
     /**
      * The thing asked for is not there — 404.
      *
-     * ⚠ Added because 404 was landing in [Unexpected], which reads to the shopper as "something broke"
+     * Added because 404 was landing in [Unexpected], which reads to the shopper as "something broke"
      * and invites a retry that can never succeed. A promotion that expired or was fully claimed while
-     * Home sat on screen is a NORMAL outcome with a true thing to say ("this offer has ended"), and it
+     * Home sat on screen is a normal outcome with a true thing to say ("this offer has ended"), and it
      * is only distinguishable from a real fault if the error set distinguishes it.
      */
     data object NotFound : AppError
 
-    /** No network / backend unreachable — recoverable; lose nothing the customer typed (FR-008). */
+    /** No network / backend unreachable — recoverable; lose nothing the customer typed. */
     data object Network : AppError
 
     /** The backend is up but failing. */

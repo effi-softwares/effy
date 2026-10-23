@@ -1,4 +1,4 @@
-// DELETE /shop/v1/products/{id} — hard delete only an unreferenced draft; else 409 (archive) (R8).
+// Hard delete only an unreferenced draft; otherwise 409 (archive).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

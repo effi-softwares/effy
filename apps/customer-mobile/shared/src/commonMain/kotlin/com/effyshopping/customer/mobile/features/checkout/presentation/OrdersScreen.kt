@@ -77,7 +77,7 @@ private sealed interface OrdersUiState {
 
 private class OrdersViewModel(
     private val listOrders: ListOrders,
-    /** 071 — "your orders changed, or the channel just (re)connected: read now". */
+    /** "your orders changed, or the channel just (re)connected: read now". */
     private val liveChanges: Flow<Unit>,
 ) : ViewModel() {
     private val _state = MutableStateFlow<OrdersUiState>(OrdersUiState.Loading)
@@ -85,16 +85,16 @@ private class OrdersViewModel(
 
     init {
         load()
-        // 071 — the same quiet re-read a pull-to-refresh does: what is on screen stays on screen.
+        // The same quiet re-read a pull-to-refresh does: what is on screen stays on screen.
         viewModelScope.launch { liveChanges.collect { refresh() } }
     }
 
-    /** 026: extracted from `init` so the error state can offer a retry (FR-021). */
+    /** Extracted from `init` so the error state can offer a retry. */
     /**
-     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs.
+     * Reload without clearing the screen — what a pull-to-refresh needs.
      *
-     * ⚠ [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
-     * right on first open and wrong on a refresh: the shopper is LOOKING at this content and asking for a
+     * [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
+     * right on first open and wrong on a refresh: the shopper is looking at this content and asking for a
      * newer version of it, not asking for it to disappear. A failure here keeps what is on screen for the
      * same reason — "we could not check" must never read as "there is nothing here".
      */
@@ -122,12 +122,12 @@ private class OrdersViewModel(
     }
 }
 
-/** Order history (019 US5). Most-recent-first; tap a row to open its receipt. Signed-in only. */
+/** Order history. Most-recent-first; tap a row to open its receipt. Signed-in only. */
 @Composable
 fun OrdersScreen(
     container: AppContainer,
     onOpen: (String) -> Unit,
-    /** FR-044: an empty order list offers a route back into the catalogue. */
+    /** An empty order list offers a route back into the catalogue. */
     onBrowse: () -> Unit = {},
     /** 087 (Orders board) — the reorder snackbar's "View cart". */
     onViewCart: () -> Unit = {},
@@ -138,9 +138,9 @@ fun OrdersScreen(
     val snackbarHost = remember { SnackbarHostState() }
 
     /**
-     * Put a past order back in the cart, and TELL the shopper what could not come (FR-035).
+     * Put a past order back in the cart, and tell the shopper what could not come.
      *
-     * ⚠ The report is the point. Silently adding a subset is the one outcome they cannot detect for
+     * The report is the point. Silently adding a subset is the one outcome they cannot detect for
      * themselves — they would go to the cart believing they had reordered. It names no shop, only counts.
      */
     fun reorder(orderId: String) {
@@ -162,9 +162,9 @@ fun OrdersScreen(
         }
     }
 
-    // 026: the source design's Ongoing / Completed segmented toggle. "Ongoing" is everything that has
+    // The source design's Ongoing / Completed segmented toggle. "Ongoing" is everything that has
     // not reached a terminal state; "Completed" is what has. The split is derived from the order's own
-    // status, so no new server capability is needed (FR-002).
+    // status, so no new server capability is needed.
     var tab by remember { mutableStateOf(OrdersTab.Ongoing) }
 
     val collapse = rememberEffyCollapse()
@@ -191,7 +191,7 @@ fun OrdersScreen(
             is OrdersUiState.Ready -> {
                 val shown = s.orders.filter { isOngoing(it.status) == (tab == OrdersTab.Ongoing) }
                 if (shown.isEmpty()) {
-                    // FR-044: an empty order list offers a route back into the catalogue.
+                    // An empty order list offers a route back into the catalogue.
                     EffyEmptyState(
                         title = if (tab == OrdersTab.Ongoing) "No orders in progress" else "No completed orders",
                         icon = Res.drawable.lucide_package,
@@ -228,20 +228,17 @@ fun OrdersScreen(
 private enum class OrdersTab(val label: String) { Ongoing("Ongoing"), Completed("Completed") }
 
 /**
- * Is this order still in progress from the CUSTOMER's point of view?
+ * Is this order still in progress from the customer's point of view?
  *
- * ⚠ Deliberately conservative: anything not known to be finished counts as ongoing, so a status this
+ * Deliberately conservative: anything not known to be finished counts as ongoing, so a status this
  * app has not seen before shows up under "Ongoing" rather than silently vanishing from both tabs.
  */
 private fun isOngoing(status: String): Boolean = status !in setOf("delivered", "cancelled", "refunded")
 
 /**
- * One order (Orders board, 087 FR-034): number and stage pill, the arrival it was sold, up to four
- * pictures with "+N", items and total, and "Buy again".
- *
- * ⚠ The arrival is said ONLY through the receipt's wording ([arrivalLabel] over `DeliveryWindowText`,
- * `DeliveryTypeWords.courierLines` for a courier) — the pinned twins (FR-025). A courier order states
- * its estimate as an estimate; an order with no promise shows no arrival line rather than a guess.
+ * One order: number and stage pill, the arrival it was sold, up to four pictures with "+N", items and total,
+ * and "Buy again". The arrival is said only through the receipt's wording ([arrivalLabel] over
+ * `DeliveryWindowText`, `DeliveryTypeWords.courierLines` for a courier); with no promise, no arrival line.
  */
 @Composable
 private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -257,7 +254,7 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
         Text(
             listOfNotNull(
                 order.placedAt?.let { placed -> DeliveryWindowText.epochMillisOrNull(placed)?.let { "Placed ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } },
-                // 079 — who delivers it, in the same two names as everywhere else.
+                // Who delivers it, in the same two names as everywhere else.
                 if (order.delivery.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY,
             ).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
@@ -285,10 +282,10 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
                 style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                 modifier = Modifier.weight(1f),
             )
-            // FR-034: "buy again" — re-finding fifteen items is work nobody does.
+            // "buy again" — re-finding fifteen items is work nobody does.
             EffyTextLink("Buy again", onClick = { onReorder(order.id) })
             // 087 (Orders board) — "Track order" while it is on its way, else "View order". The card
-            // opens it too; this names what the tap is for. ⚠ The stage is the server's.
+            // opens it too; this names what the tap is for. The stage is the server's.
             EffyTextLink(
                 if (order.stage == OrderStage.OnTheWay) "Track order" else "View order",
                 onClick = { onOpen(order.id) },

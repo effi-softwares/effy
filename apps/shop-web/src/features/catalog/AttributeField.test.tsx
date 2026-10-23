@@ -21,7 +21,7 @@ function attr(over: Partial<ProductTypeAttribute>): ProductTypeAttribute {
   };
 }
 
-// T049: the renderer maps each AttributeDataType to the right control (input/textarea/number/switch/
+// The renderer maps each AttributeDataType to the right control (input/textarea/number/switch/
 // select/checkbox-group), from the schema alone.
 describe("AttributeField data-type → control mapping", () => {
   const noop = vi.fn();

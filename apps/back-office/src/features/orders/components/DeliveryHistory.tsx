@@ -20,11 +20,11 @@ export function compensationSummary(m: AdminDeliveryMoveDTO): string {
 }
 
 /**
- * Every move of this order by back-office (081 US4) — who, when, why, from what to what, the window
+ * Every move of this order by back-office — who, when, why, from what to what, the window
  * given up or taken, the money, and what the customer received. Visible to every role, including
  * customer-service agents, who answer "why is my order coming by courier?".
  *
- * ⚠ Rows, not a card or a timeline (Principle V). Oldest first, as the server keeps it.
+ * Rows, not a card or a timeline (Principle V). Oldest first, as the server keeps it.
  */
 export function DeliveryHistory({ moves, formatDateTime }: { moves: AdminDeliveryMoveDTO[]; formatDateTime: (iso: string) => string }) {
   if (moves.length === 0) return null;

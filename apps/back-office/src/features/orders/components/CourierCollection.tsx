@@ -13,11 +13,11 @@ const MODE_HELP = {
 } as const;
 
 /**
- * How this courier order's parcels reach the courier (080 US3) — and the switch, until the first parcel
+ * How this courier order's parcels reach the courier — and the switch, until the first parcel
  * leaves Effy's or a supplier's hands. The server refuses after that (`collection_locked`), and refuses
  * a switch to the supplier while a driver is assigned to collect (`collection_assigned`).
  *
- * ⚠ Rows, not a card (Principle V). The history is oldest first, as the server keeps it.
+ * Rows, not a card (Principle V). The history is oldest first, as the server keeps it.
  */
 type Props = {
   order: Pick<AdminOrderDetailDTO, "id" | "courierCollection" | "courierCollectionHistory">;

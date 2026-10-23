@@ -117,7 +117,7 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     // Opens on Today.
     expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument()
-    // The fixture's figures were computed two minutes ago, and the subtitle says exactly that —
+    // The fixture's figures were computed two minutes ago, and the subtitle says exactly that
     // "a moment ago" over two-minute-old numbers would be a small, constant lie.
     expect(
       screen.getByText(/compared with the same day last week · updated 2 minutes ago/),
@@ -138,7 +138,7 @@ describe("Insights (US3)", () => {
     await screen.findByText("Awaiting pick")
 
     // The same live figures Today shows — a minute-old backlog would send someone to a shelf for an
-    // order already packed (FR-006/FR-025).
+    // order already packed.
     const strip = screen.getByText("Awaiting pick").closest("div")!.parentElement!
     expect(within(strip).getByText("4")).toBeInTheDocument()
     expect(within(strip).getByText("11")).toBeInTheDocument()
@@ -152,7 +152,7 @@ describe("Insights (US3)", () => {
     expect(await screen.findByRole("heading", { name: "Last 30 days" })).toBeInTheDocument()
     expect(screen.getByText(/By week · Goods · AUD/)).toBeInTheDocument()
     expect(screen.getByText(/By week · paid orders/)).toBeInTheDocument()
-    // ⚠ A PERIOD label, never the chart's bucket label.
+    // A period label, never the chart's bucket label.
     expect(screen.getByText("By revenue, last 30 days")).toBeInTheDocument()
   })
 
@@ -160,7 +160,7 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Revenue today")
 
-    // The design said "SEK incl. VAT". Per-item GST is unmodelled (052 R13), so any tax claim here
+    // The design said "SEK incl. VAT". Per-item GST is unmodelled, so any tax claim here
     // would be invented — and "Goods" is what stops this being read as the order totals elsewhere.
     expect(screen.queryByText(/VAT/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/incl\. GST/i)).not.toBeInTheDocument()

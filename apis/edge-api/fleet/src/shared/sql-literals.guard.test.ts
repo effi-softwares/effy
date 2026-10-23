@@ -4,20 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ A BACKTICK INSIDE A SQL TEMPLATE LITERAL CLOSES IT, AND THIS HAS NOW HAPPENED THREE TIMES.
- *
- * Writing an explanatory SQL comment that quotes an identifier in Markdown style terminates the
- * surrounding JavaScript template literal. The remaining SQL becomes JavaScript, and `tsc` reports a
- * syntax error several lines away from the fault, pointing at whatever token happened to follow.
- *
- * It is 059's `--chart-*` defect in another language: a glob written inside a CSS comment closed the
- * comment, the remaining prose became stylesheet source, every guard passed, and only the production
- * build failed — quoting a phrase nowhere near the mistake.
- *
- * ⚠ THIS GUARD ITSELF HIT THE BUG WHILE BEING WRITTEN. The first draft matched literals with a regex
- * containing backticks, which esbuild refused. It now counts a character code and never types one.
- *
- * The rule: **a SQL comment uses plain words, never a backtick.**
+ * A backtick inside a SQL template literal closes it and `tsc` reports the error far away. A SQL
+ * comment uses plain words, never a backtick. This guard counts the character code, never types one.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +20,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Split on the backtick character. Odd segment indexes are inside a template literal. */
+/** Odd segment indexes are inside a template literal. */
 function templateBodies(src: string): string[] {
   const parts = src.split(BACKTICK);
   return parts.filter((_, i) => i % 2 === 1);
@@ -46,15 +34,11 @@ describe("SQL template literals contain no stray backticks", () => {
       const src = readFileSync(file, "utf8");
       const rel = file.replace(srcRoot, "");
 
-      // An odd count means at least one literal does not close where its author thought it did.
+      // An odd count means a literal does not close where its author thought.
       const count = src.split(BACKTICK).length - 1;
       if (count % 2 !== 0) offenders.push(`${rel}: ODD number of backticks (${count})`);
 
-      // ⚠ SCANNED OVER THE WHOLE FILE, NOT OVER PARSED LITERAL BODIES — and the first draft of this
-      // guard got that wrong and FAILED ITS OWN NEGATIVE PROOF. Adding a PAIR of backticks keeps the
-      // total even and merely re-splits the segments, so a body-based scan looks right and sees
-      // nothing. A line beginning `--` is a SQL comment wherever it appears in this codebase, so the
-      // honest test is the simple one.
+      // Over the whole file, not parsed bodies: a pair of backticks keeps the count even. A line starting `--` is a SQL comment.
       for (const line of src.split("\n")) {
         if (line.trimStart().startsWith("--") && line.includes(BACKTICK)) {
           offenders.push(`${rel}: backtick inside a SQL comment — ${line.trim().slice(0, 60)}`);
@@ -66,7 +50,7 @@ describe("SQL template literals contain no stray backticks", () => {
   });
 
   it("⚠ the guard is reading real files, so a pass means something", () => {
-    // 033 shipped a test that passed VACUOUSLY once the list it checked emptied.
+    // A guard that scans nothing passes forever.
     const withSql = sourceFiles(srcRoot).filter((f) =>
       templateBodies(readFileSync(f, "utf8")).some((b) => /\bSELECT\b/i.test(b)),
     );

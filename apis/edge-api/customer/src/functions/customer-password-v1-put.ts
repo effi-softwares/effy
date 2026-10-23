@@ -21,18 +21,8 @@ import {
 } from "../password/service"
 
 /**
- * PUT /customer/v1/password — set OR change (012 FR-016 / FR-017).
- *
- * One route, two modes, because they are two flows for two different people and the platform must
- * refuse the one that does not apply — even if the caller contrives to submit it directly, bypassing
- * a UI that would never have offered it.
- *
- * The security argument lives in `password/service.ts`. This file parses, and translates failures
- * into HTTP.
- *
- * ⚠ NOTHING IN THIS FILE MAY LOG THE BODY. It contains a password, and possibly a step-up code
- * (FR-039 / SC-013). There is no "just while debugging" exception — a password in CloudWatch is a
- * password in CloudWatch.
+ * Set or change: the platform refuses the mode that does not apply, even when submitted directly.
+ * The security argument is in `password/service.ts`. Nothing here may log the body (it holds a password).
  */
 export const handler = async (
   event: AuthedEvent,
@@ -82,7 +72,7 @@ export const handler = async (
   }
 }
 
-/** Discriminate the union, and REJECT anything that is neither. Never guess a mode. */
+/** Rejects anything that is neither mode; never guesses. */
 function readWrite(body: Record<string, unknown>): PasswordWriteDTO | null {
   const newPassword = body.newPassword
   if (typeof newPassword !== "string" || newPassword.length === 0) return null
@@ -115,13 +105,12 @@ function mapError(
   mode: "set" | "change",
   scope: ReturnType<typeof preamble>,
 ): APIGatewayProxyStructuredResultV2 {
-  // FR-022 — too short, breached, or the breach service is down (fail-closed). All actionable.
+  // Too short, breached, or the breach service is down (fail-closed).
   if (err instanceof PasswordPolicyError) {
     return badRequest(scope, err.message)
   }
 
-  // FR-014 — the wrong flow for this account's state. The platform refuses it even though no UI
-  // would have offered it, because a Server Action is a public endpoint and so is this.
+  // The wrong flow for this account: refused even though no UI offers it.
   if (err instanceof WrongModeError) {
     return problem(409, ProblemType.ValidationFailed, "Not applicable", err.message, scope)
   }
@@ -133,8 +122,7 @@ function mapError(
 
   const name = (err as { name?: string })?.name
 
-  // FR-018 — the step-up code was wrong, expired, or already used. A session that cannot produce a
-  // valid code NEVER reaches the password write. This branch IS SC-004.
+  // The step-up code was wrong, expired or used; the password write is never reached.
   if (name === "CodeMismatchException") {
     scope.log.warn({ sub }, "set-password: refused — bad step-up code")
     return badRequest(scope, "That code isn't right. Check it and try again.")
@@ -144,8 +132,7 @@ function mapError(
     return badRequest(scope, "That code has expired. Ask for a new one.")
   }
 
-  // FR-016 — the current password was wrong. NAME THE FIELD (FR-027): the customer can act on
-  // "your current password is wrong" and cannot act on "something went wrong".
+  // Names the field: "your current password is wrong".
   if (name === "NotAuthorizedException") {
     scope.log.warn({ sub, mode }, "change-password: refused — wrong current password")
     return problem(
@@ -157,8 +144,7 @@ function mapError(
     )
   }
 
-  // Cognito's own policy (length) — should be unreachable, since our own check is stricter and runs
-  // first. If it ever fires, the pool policy and PASSWORD_MIN_LENGTH have drifted apart.
+  // Should be unreachable (our check is stricter); firing means the pool policy and PASSWORD_MIN_LENGTH drifted.
   if (name === "InvalidPasswordException") {
     return badRequest(scope, "That password doesn't meet the requirements.")
   }
@@ -177,7 +163,7 @@ function mapError(
     )
   }
 
-  // ⚠ `err` here, and the log line below, MUST NOT carry the body. See the file header.
+  // Never the body.
   scope.log.error({ err, sub, mode }, "password write failed")
   return unavailable(scope)
 }

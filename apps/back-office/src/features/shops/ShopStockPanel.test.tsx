@@ -55,12 +55,12 @@ describe("the restock list", () => {
     ]);
     renderPanel();
 
-    // ⚠ Asserting the WORDS. 041 removed the last non-monochrome warning colour from these consoles,
+    // Asserting the words. 041 removed the last non-monochrome warning colour from these consoles,
     // and a state carried only by a tint is invisible to a colour-blind operator and to every
     // assertion. If this ever becomes colour-only, this test fails.
     expect(await screen.findByText("Out of stock")).toBeInTheDocument();
     expect(screen.getByText("Low")).toBeInTheDocument();
-    // 098 — stock is per size, and the size is named on its row.
+    // Stock is per size, and the size is named on its row.
     expect(screen.getByText(/2 L/)).toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe("the write tier (FR-025, FR-028)", () => {
   it("offers no settings control to a csa — reading stays open, writing does not", async () => {
     renderPanel(false);
     await screen.findByText("Milk");
-    // ⚠ A courtesy, not the gate. The server refuses a csa write from `admin.staff` regardless; this
+    // A courtesy, not the gate. The server refuses a csa write from `admin.staff` regardless; this
     // only stops the UI dangling a control that would fail.
     expect(screen.queryByLabelText(/^threshold$/i)).not.toBeInTheDocument();
   });
@@ -102,7 +102,7 @@ describe("the shop default threshold", () => {
     renderPanel();
     await userEvent.click(await screen.findByRole("button", { name: /save/i }));
 
-    // ⚠ Zero would mean "warn me at zero", making every product permanently low. Blank means "I have
+    // Zero would mean "warn me at zero", making every product permanently low. Blank means "I have
     // no opinion" — a different instruction, and FR-005a depends on the difference.
     await waitFor(() =>
       expect(setShopStockSettings).toHaveBeenCalledWith("shop-1", { defaultThreshold: null }),
@@ -119,9 +119,9 @@ describe("the shop default threshold", () => {
     );
   });
 
-  // ⚠ 053's defect, checked on a new surface: the order console collapsed EVERY refusal to one
-  // generic sentence because it tested `e instanceof Error` while the api client throws a PLAIN
-  // OBJECT. Nothing about that bug was visible in a passing suite.
+  // 053's defect, checked on a new surface: the order console collapsed every refusal to one
+  // generic sentence because it tested `e instanceof Error` while the api client throws a plain
+  // object. Nothing about that bug was visible in a passing suite.
   it("reads a refusal off the plain object the api client actually throws", async () => {
     setShopStockSettings.mockRejectedValue({
       kind: "validation",

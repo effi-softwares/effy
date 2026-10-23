@@ -1,22 +1,11 @@
-# The STAFF gateway — back-office's own front door (075-staff-gateway).
+# The staff gateway: back-office's own front door. An HTTP API holds at most 300 integrations (one per
+# function; not raised by quota), the shared gateway filled, and back-office was nearly half of it with one
+# client, so it moved. Still one backend: the same `apis/edge-api/` services attach here; a third gateway
+# needs a constitution amendment.
 #
-# ⚠ WHY THERE ARE TWO GATEWAYS. An HTTP API holds at most 300 routes and 300 integrations. The route
-# limit can be raised by a quota request; the INTEGRATION limit cannot, and this platform creates
-# one integration per function. On 2026-10-08 the shared gateway held 300 of each and a deployment
-# was refused (074) — it could only be completed by merging two routes into one. Back-office is 142
-# of those 300, is where the platform grows most, and is called by exactly one client, so it moved.
-#
-# ⚠ ONE BACKEND STILL (constitution v3.2.0, Principle III). A gateway is a managed, pay-per-request
-# entry point: it runs none of our code and costs nothing while idle. The services behind this one
-# are the same `apis/edge-api/` services, attached here instead of there. A THIRD gateway needs a
-# constitution amendment first.
-#
-# ⚠ EXACTLY ONE AUTHORIZER, deliberately. A customer, shop or driver token presented here has no
-# authorizer that could accept it — the refusal does not depend on any route being configured
-# correctly. `gateway-placement.contract.test.ts` fails if a second one is declared in this file.
-#
-# What attaches: admin, fleet, orders, catalog, inventory-staff. Which service goes where, and what
-# to do when either gateway nears its ceiling: docs/api/path-assignment.md.
+# Exactly one authorizer: a customer, shop or driver token has nothing here that could accept it,
+# whatever a route says. `gateway-placement.contract.test.ts` fails a second. What attaches: admin, fleet,
+# orders, catalog, inventory-staff (docs/api/path-assignment.md).
 
 locals {
   staff_api_domain = "${var.staff_api_subdomain}.${module.dns.zone_name}" # staff-api.dev.effyshopping.com
@@ -28,10 +17,10 @@ resource "aws_apigatewayv2_api" "staff" {
   protocol_type = "HTTP"
   description   = "Effy staff HTTP API - back-office services only (075)"
 
-  # ⚠ disable_execute_api_endpoint stays false, as on the shared gateway (010 FR-011): the raw URL
+  # disable_execute_api_endpoint stays false, as on the shared gateway: the raw URL
   # is the break-glass fallback, published at /effy/<env>/staff/api_default_endpoint.
 
-  # ⚠ ONLY the back-office origins — tighter than the shared gateway's list, which serves every
+  # only the back-office origins — tighter than the shared gateway's list, which serves every
   # browser surface. A page on the storefront or the shop console has no reason to call a staff
   # route, so it is not given the CORS grant to try. Methods and headers match the shared gateway:
   # the same client library makes the calls.
@@ -68,10 +57,10 @@ resource "aws_apigatewayv2_authorizer" "staff_back_office" {
 
 # ── The platform-owned address ───────────────────────────────────────────────────────────────────
 #
-# Its own hostname, not a path on the shared one. Several APIs CAN be mapped to one domain by path,
+# Its own hostname, not a path on the shared one. Several APIs can be mapped to one domain by path,
 # but the provider's documentation does not say whether the mapping key is removed before the API
 # matches its routes — and every route here begins with its service's name. A design should not rest
-# on that (075 research R2). One more label under the zone is covered by the wildcard certificate.
+# on that. One more label under the zone is covered by the wildcard certificate.
 resource "aws_apigatewayv2_domain_name" "staff" {
   domain_name = local.staff_api_domain
 

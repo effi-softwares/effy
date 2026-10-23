@@ -1,5 +1,4 @@
-// POST /fleet/v1/vehicles/{vehicleId}/status — active ↔ off_road ↔ retired (061 US1, FR-008).
-// Mutate = admin/manager only.
+// Admin/manager. active ↔ off_road ↔ retired.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -8,16 +8,15 @@ import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
 import com.effyshopping.driver.mobile.features.manifest.domain.TemperatureClass
 
 /**
- * Wire → domain for the manifest (065). One mapper for both the pickup and the drop.
+ * Wire → domain for the manifest. One mapper for both the pickup and the drop.
  *
- * ⚠ The `when` is EXHAUSTIVE WITH NO `else`. A fifth class on the wire must fail to compile here
+ * The `when` is exhaustive with no `else`. A fifth class on the wire must fail to compile here
  * rather than fall through to Normal.
  */
 internal fun TemperatureClassDto.toDomain(): TemperatureClass = when (this) {
     TemperatureClassDto.Frozen -> TemperatureClass.Frozen
     TemperatureClassDto.Chilled -> TemperatureClass.Chilled
     TemperatureClassDto.Normal -> TemperatureClass.Normal
-    TemperatureClassDto.NotRecorded -> TemperatureClass.NotRecorded
 }
 
 internal fun ManifestLineDto.toDomain() = ManifestLine(
@@ -32,5 +31,4 @@ internal fun ClassSummaryDto.toDomain() = ClassSummary(
     frozen = frozen.toInt(),
     chilled = chilled.toInt(),
     normal = normal.toInt(),
-    notRecorded = notRecorded.toInt(),
 )

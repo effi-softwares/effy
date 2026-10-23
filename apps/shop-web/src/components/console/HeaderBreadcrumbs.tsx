@@ -24,16 +24,9 @@ export interface Crumb {
 }
 
 /**
- * The trail for a path (design revision 2026-09-10).
- *
- * ⚠ ONE TRAIL, IN THE HEADER, INSTEAD OF A ROW PER SCREEN. Each detail screen used to render its own
- * `Catalog / <name>` row in the page body, under a header that already said "Catalog" — the same place
- * named twice, three pixels apart. Screens with no hierarchy show just their own name.
- *
- * ⚠ THE NAMES ARE OPTIONAL, AND THE FALLBACK IS A NOUN, NOT "Loading…". The header renders before the
- * detail read lands and stays up if it fails; a trail ending in "Product" is true in both cases.
- *
- * Pure so the mapping is testable without a router.
+ * The header's trail for a path; screens with no hierarchy show just their name. Names are optional and
+ * fall back to a noun ("Product"), not "Loading…": the header renders before the detail read lands and
+ * stays up if it fails. Pure, so it is testable without a router.
  */
 export function crumbsFor(
   pathname: string,
@@ -61,13 +54,13 @@ export function crumbsFor(
  * The header's breadcrumb. Parents are links back to their list; the final crumb is the page's
  * heading — non-interactive, in the primary foreground at a heavier weight.
  *
- * ⚠ THE NAMES COME FROM THE SAME CACHED READS THE SCREENS MAKE, under the same query keys, so the
+ * The names come from the same cached reads the screens make, under the same query keys, so the
  * header adds no request and cannot disagree with the page beneath it.
  */
 export function HeaderBreadcrumbs() {
   const { pathname } = useLocation()
   const params = useParams({ strict: false }) as { fulfillmentId?: string; productId?: string }
-  // ⚠ On an order, the "Orders" crumb returns to the list it was opened FROM — same tab, filters and
+  // On an order, the "Orders" crumb returns to the list it was opened from — same tab, filters and
   // page — so going back up the trail does not throw away the operator's place.
   const search = useSearch({ strict: false }) as Record<string, unknown>
 
@@ -98,8 +91,8 @@ export function HeaderBreadcrumbs() {
               ) : null}
               <BreadcrumbItem className="min-w-0">
                 {last ? (
-                  // ⚠ Not `BreadcrumbPage`: shadcn gives it role="link", so the one crumb that is
-                  // deliberately NOT interactive would be announced as a (disabled) link.
+                  // Not `BreadcrumbPage`: shadcn gives it role="link", so the one crumb that is
+                  // deliberately not interactive would be announced as a (disabled) link.
                   <h1 className="min-w-0">
                     <span
                       aria-current="page"

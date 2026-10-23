@@ -35,12 +35,12 @@ function countsOf(parcels: readonly ShopParcelLabelDTO[]): Record<ParcelZone, nu
 }
 
 /**
- * 096 — "Bags & labels" (spec US1, US2, US4, US10): say how many bags of each temperature the portion was
+ * "Bags & labels": say how many bags of each temperature the portion was
  * packed in, print one label per bag, and scan each label as it goes on its bag.
  *
- * ⚠ A label that is printed must stay true: once any is printed, only the LAST bag can be removed, and a
+ * A label that is printed must stay true: once any is printed, only the last bag can be removed, and a
  * new count means printing every label again (the server enforces both; this only offers what it allows).
- * The order cannot be marked ready until every bag's label is printed (FR-016).
+ * The order cannot be marked ready until every bag's label is printed.
  */
 export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
   const queryClient = useQueryClient();
@@ -277,7 +277,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
         </table>
         {previewSvg ? (
           <figure className="grid justify-items-center gap-1.5">
-            {/* The label exactly as it prints (FR-012b); the SVG is our own renderer's, black and white. */}
+            {/* The label exactly as it prints; the SVG is our own renderer's, black and white. */}
             <div
               className="border-border w-[220px] overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
               dangerouslySetInnerHTML={{ __html: previewSvg }}

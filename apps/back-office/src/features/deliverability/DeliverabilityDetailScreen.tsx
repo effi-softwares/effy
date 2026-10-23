@@ -16,9 +16,9 @@ import { STATE_MEANING } from "./model";
 import { deliverabilityDetailQuery } from "./queries";
 
 /**
- * One address's delivery history, and the repair (037 FR-033/FR-034).
+ * One address's delivery history, and the repair.
  *
- * ⚠ NO CARDS (Principle V) — detail rows and a table, which is what an operator reading a history
+ * No cards (Principle V) — detail rows and a table, which is what an operator reading a history
  * actually wants.
  */
 export function DeliverabilityDetailScreen({ address }: { address: string }) {
@@ -72,7 +72,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
                 <td className="whitespace-nowrap">{moment(e.occurredAt)}</td>
                 <td>{e.eventType.replace("_", " ")}</td>
                 <td className="font-mono text-xs">{e.subType ?? "—"}</td>
-                {/* ⚠ A null template is an ANSWER, not a gap: Cognito sends cannot be tagged. */}
+                {/* A null template is an answer, not a gap: Cognito sends cannot be tagged. */}
                 <td className="font-mono text-xs">{e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}</td>
                 <td className="font-mono text-xs text-muted-foreground">{e.messageId}</td>
               </tr>
@@ -95,7 +95,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
               <span className="text-muted-foreground">({data.subject.kind.replace("_", " ")})</span>
             </>
           ) : (
-            // ⚠ The honest answer. See the list screen's note — the driver audience has no platform
+            // The honest answer. See the list screen's note — the driver audience has no platform
             // record at all, so this is expected rather than broken.
             <span className="text-muted-foreground">
               No platform record owns this address
@@ -106,14 +106,14 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
           <span className="font-mono text-xs">{data.reason ?? "—"}</span>
         </Row>
         <Row label="Server said">
-          {/* ⚠ Operator-only, and never shown to the account owner. "smtp;550 5.1.1 user unknown" is
+          {/* Operator-only, and never shown to the account owner. "smtp;550 5.1.1 user unknown" is
               written for a postmaster; on an account page it is noise at best. */}
           <span className="font-mono text-xs text-muted-foreground">{data.diagnostic ?? "—"}</span>
         </Row>
         <Row label="Blocked by the mail service">
-          {/* ⚠ Read LIVE on every request, never stored — two stored sources of truth for one fact
+          {/* Read live on every request, never stored — two stored sources of truth for one fact
               disagree eventually, and then nobody can tell which is lying. `null` means the check
-              FAILED; it must never render as "no", which reads as "fine" and stops the search. */}
+              Failed; it must never render as "no", which reads as "fine" and stops the search. */}
           {data.suppressedInSes === null ? (
             <span className="text-muted-foreground">Couldn&apos;t check just now</span>
           ) : data.suppressedInSes ? (

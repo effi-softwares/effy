@@ -4,21 +4,10 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * ⚠ P3 — every shop notification opens a route this console actually declares.
- *
- * A notification that opens a 404 is worse than no notification: the operator learns the feature
- * lies, and stops tapping the ones that work. And nothing else would catch it — the destination is
- * decided in `apis/edge-api/notifications/src/worker/copy.ts`, the routes are declared here, and no
- * compiler sees both.
- *
- * ⚠ READS BOTH SOURCES, rather than restating either. A fixture listing the expected paths would
- * agree with whichever side it was copied from and prove nothing (027's R13). This reads the copy
- * catalogue and the route directory and compares them.
- *
- * ⚠ SHOP TYPES ONLY. `order_*` opens customer-web and `run_assigned` opens the driver app; their
- * `webPath`s are other surfaces' routes and are not this console's to satisfy. The discriminator is
- * the `group` field, which exists for coalescing and happens to say exactly which surface owns the
- * destination.
+ * Every shop notification opens a route this console declares. The destination is decided in
+ * `apis/edge-api/notifications/src/worker/copy.ts` and the routes here, and no compiler sees both, so this
+ * reads both. Shop types only (by the `group` field): `order_*` opens customer-web and `run_assigned` the
+ * driver app.
  */
 
 const COPY_SRC = join(
@@ -41,7 +30,7 @@ const ROUTES_DIR = join(__dirname, "..", "..", "routes")
 function declaredDestinations(): Array<{ webPath: string; group: string }> {
   const src = readFileSync(COPY_SRC, "utf8")
   const entries: Array<{ webPath: string; group: string }> = []
-  // Each COPY entry is a small object literal; capture webPath and the group that follows it.
+  // Each copy entry is a small object literal; capture webPath and the group that follows it.
   const re = /webPath:\s*"([^"]+)"[\s\S]{0,200}?group:\s*"([^"]+)"/g
   let m: RegExpExecArray | null
   while ((m = re.exec(src)) !== null) entries.push({ webPath: m[1]!, group: m[2]! })
@@ -64,7 +53,7 @@ function declaredRouteRoots(): Set<string> {
 
 describe("⚠ P3 — no shop notification opens a 404", () => {
   it("found the copy catalogue and parsed destinations from it", () => {
-    // ⚠ Guards the guard. If the catalogue moves or its shape changes, this test would otherwise
+    // Guards the guard. If the catalogue moves or its shape changes, this test would otherwise
     // pass vacuously over an empty list — which is how 054 found `TestRailsCarryOnlyAvailable
     // Products` passing with nothing in it.
     const all = declaredDestinations()

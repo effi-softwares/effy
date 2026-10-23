@@ -1,5 +1,4 @@
-// POST /admin/v1/delivery/plans/{planId}/activate — make a plan the one in force for its kind (077).
-// ⚠ 409 plan_incomplete carries every blocking gap; a $0 minimum needs { confirmZeroFloor: true }.
+// Plan_incomplete carries every blocking gap; a $0 minimum needs { confirmZeroFloor: true }.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

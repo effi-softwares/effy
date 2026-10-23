@@ -1,18 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * The pre-sign-up trigger's NATIVE sign-up branch (035 T101).
- *
- * The federated branch's decision logic is already covered by `lib/account-linking.test.ts`; this
- * file exists for the auto-confirm flag 035 added, and for one property that matters more than the
- * flag itself.
- *
- * ⚠ `autoVerifyEmail` MUST NEVER BE SET — under any flag, on any branch. Setting it would mark an
- * address verified that nobody has proved control of, and constitution Principle IV makes federated
- * linking depend on exactly that field: "linking MUST require a provider-asserted verified email …
- * linking on an unverified email is an account-takeover primitive, and is forbidden". Auto-verifying
- * at sign-up would hand an attacker a verified email on an address they merely typed.
- */
+/** `autoVerifyEmail` must never be set: federated linking trusts that field. */
 
 vi.mock("../lib/cognito", () => ({ cognitoAdmin: () => ({}) }));
 
@@ -48,8 +36,7 @@ afterEach(() => {
 
 describe("pre-sign-up — native sign-up", () => {
   it("⚠ does NOT auto-confirm by default", async () => {
-    // The flag is off until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the
-    // custom-auth triggers fire. Auto-confirming early buys an email-squatting risk for no benefit.
+    // Off: auto-confirming buys an email-squatting risk until it is shown to be needed.
     delete process.env.AUTO_CONFIRM_SIGNUP;
     const { handler } = await import("./pre-sign-up.js");
     const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
@@ -66,8 +53,7 @@ describe("pre-sign-up — native sign-up", () => {
   });
 
   it("treats any value other than the exact string 'true' as off", async () => {
-    // A rate-limit-shaped mistake: "1", "yes", "TRUE" must not silently enable a security-relevant
-    // behaviour. Only the literal string counts.
+    // Only the literal string enables it.
     for (const value of ["1", "yes", "TRUE", "", "false"]) {
       vi.resetModules();
       process.env.AUTO_CONFIRM_SIGNUP = value;
@@ -86,8 +72,7 @@ describe("pre-sign-up — native sign-up", () => {
     const out = await handler(nativeSignUp(), {} as never, (() => {}) as never);
 
     const response = (out as { response: { autoVerifyEmail: boolean } }).response;
-    // Confirmed ≠ verified. The account can sign in; the ADDRESS is only marked verified once a
-    // code sent to it has actually been answered (035 FR-020, in the post-authentication trigger).
+    // Confirmed is not verified: the address is verified only once a code sent to it is answered.
     expect(response.autoVerifyEmail).toBe(false);
   });
 });

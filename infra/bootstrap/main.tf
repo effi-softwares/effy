@@ -1,4 +1,4 @@
-# One-time bootstrap: the hardened S3 bucket that holds ALL environments' Terraform
+# One-time bootstrap: the hardened S3 bucket that holds all environments' Terraform
 # state (one bucket, one key per env — research.md D2). Locking is the S3-native
 # lockfile (`use_lockfile = true` in each env's backend.tf); there is NO DynamoDB table.
 
@@ -41,7 +41,7 @@ resource "aws_s3_bucket_versioning" "tfstate" {
 # Default server-side encryption at rest. SSE-S3 is the sanctioned choice for this bucket
 # (research.md D2 / data-model.md E2: "SSE-S3 or SSE-KMS") — state holds no secrets beyond
 # resource ids, and a CMK would add KMS cost/IAM surface with no requirement behind it.
-#trivy:ignore:avd-aws-0132
+# trivy:ignore:avd-aws-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 

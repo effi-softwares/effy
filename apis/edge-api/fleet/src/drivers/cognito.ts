@@ -1,21 +1,7 @@
-// Driver-pool Cognito Admin adapter (056; moved from apis/edge-api/admin/src/drivers/cognito.ts).
-//
-// A back-office-authenticated caller provisions identities in the DRIVER pool — an authorized
-// server-side provisioning write, NOT cross-pool authentication (049 research R3/R9; the routes
-// still carry the back-office authorizer). Mirrors the 006/009 pattern: AdminCreateUser with no
-// password, SUPPRESS invite, email_verified — so the driver lands CONFIRMED on a passwordless pool.
-//
-// ⚠ Unlike shops, the DRIVER pool defines NO RBAC groups (Principle IV) — there is no group step.
-// A driver's status and zone live entirely in the platform `public.driver` record.
-//
-// ⚠ THIS IS NOT A VERBATIM MOVE. The 049 original exported one function, `ensureDriverUser`, which
-// swallowed UsernameExistsException, RE-ENABLED a disabled account, and returned the existing sub —
-// and the repository layered an `ON CONFLICT (cognito_sub) DO UPDATE` on top of it. Together those
-// two "helpful" behaviours meant that creating a driver with an email already in use silently EDITED
-// that person's record (name, zone, vehicle) and REACTIVATED the sign-in of someone who had been
-// deliberately stood down. It reported success. FR-014 requires a refusal instead, so the
-// idempotent-ensure is split into an operation that CREATES and fails loudly on a duplicate, and
-// separate operations that enable and disable.
+// Provisions driver-pool identities (AdminCreateUser, no password, invite suppressed, so the driver
+// lands confirmed). The driver pool has no groups: status and zones live in `public.driver`. Creating
+// fails loudly on a duplicate; enabling and disabling are separate operations, so "add a driver" can
+// never edit or reactivate an existing one.
 import {
   AdminCreateUserCommand,
   AdminDisableUserCommand,
@@ -46,7 +32,7 @@ function subFromAttrs(attrs: AttributeType[] | undefined): string {
   return sub;
 }
 
-/** Raised when the driver pool already holds an account for this address. NOT swallowed. */
+/** Not swallowed. */
 export class DriverUserExistsError extends Error {
   constructor(readonly email: string) {
     super(`a driver-pool account already exists for ${email}`);
@@ -54,13 +40,7 @@ export class DriverUserExistsError extends Error {
   }
 }
 
-/**
- * Create a driver-pool account, returning the stable `sub` (the DB join key).
- *
- * ⚠ NOT idempotent, on purpose. A duplicate address throws `DriverUserExistsError`, which the service
- * turns into FR-014's named 409. The old idempotent form is what let "add a new driver" quietly
- * become "overwrite an existing one".
- */
+/** Returns the stable `sub`. Not idempotent: a duplicate throws `DriverUserExistsError` (a named 409). */
 export async function createDriverUser(email: string, name: string): Promise<string> {
   try {
     const created = await getClient().send(
@@ -73,7 +53,7 @@ export async function createDriverUser(email: string, name: string): Promise<str
           { Name: "email_verified", Value: "true" },
           { Name: "name", Value: name },
         ],
-        // No TemporaryPassword — required to land CONFIRMED on a passwordless pool.
+        // No TemporaryPassword, so the driver lands confirmed.
       }),
     );
     return subFromAttrs(created.User?.Attributes);
@@ -83,8 +63,7 @@ export async function createDriverUser(email: string, name: string): Promise<str
   }
 }
 
-/** Does the driver pool hold an account for this address, and is it enabled? `null` = no account.
- *  Used to compute `accountState` so a half-provisioned driver SHOWS the discrepancy (FR-006). */
+/** `null` when there is no account; a half-provisioned driver shows the discrepancy. */
 export async function lookupDriverUser(
   email: string,
 ): Promise<{ sub: string; enabled: boolean } | null> {
@@ -99,8 +78,7 @@ export async function lookupDriverUser(
   }
 }
 
-/** Disable the identity account — defence in depth. The record check already refuses a non-active
- *  driver, but disabling means no session can be obtained even if that check were bypassed. */
+/** Defence in depth: no session can be obtained even if the record check were bypassed. */
 export async function disableDriverUser(email: string): Promise<void> {
   await getClient().send(new AdminDisableUserCommand({ UserPoolId: poolId(), Username: email }));
 }

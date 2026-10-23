@@ -8,16 +8,16 @@ import { jwtExpiry, SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-
 /**
  * Runs before a request is rendered. Two jobs, both about the session cookies.
  *
- * ⚠ This file is `proxy.ts`, not `middleware.ts` — Next 16 renamed it. The runtime is Node.js.
+ * This file is `proxy.ts`, not `middleware.ts` — Next 16 renamed it. The runtime is Node.js.
  *
- * 1. KEEP THE SESSION FRESH. Id and access tokens last an hour. This is the one place that swaps
- *    expired ones for new ones, because it is the one place that can both write the new cookies to
- *    the browser AND hand them to the render that is about to happen. A guest has no session cookie
- *    and costs one cookie lookup; a signed-in customer costs one call to Cognito an hour.
+ * 1. Keep the session fresh. Id and access tokens last an hour. This is the one place that swaps
+ *  expired ones for new ones, because it is the one place that can both write the new cookies to
+ *  the browser and hand them to the render that is about to happen. A guest has no session cookie
+ *  and costs one cookie lookup; a signed-in customer costs one call to Cognito an hour.
  *
- * 2. SEND A GUEST TO SIGN-IN EARLY on the pages that need an account, keeping where they were going.
+ * 2. Send a guest to sign-in early on the pages that need an account, keeping where they were going.
  *
- * ⚠⚠ THIS IS NOT THE AUTHORIZATION GATE. It never verifies a token. Every protected page and Server
+ * This is not the authorization gate. It never verifies a token. Every protected page and Server
  * Action checks the session itself (`lib/dal.ts`, `lib/session.ts`) and the backend checks it again.
  */
 /** Refresh a little early, so a token cannot expire between here and the backend. */
@@ -35,13 +35,13 @@ export async function proxy(request: NextRequest) {
     try {
       fresh = await refreshTokens(refreshToken)
     } catch (err) {
-      // ⚠ Cognito could not be reached. The session may be fine, so nothing is cleared; the page
+      // Cognito could not be reached. The session may be fine, so nothing is cleared; the page
       // decides what to show.
       console.error("[session] could not refresh:", (err as Error).message)
       return NextResponse.next()
     }
     if (fresh) {
-      // On the request, so THIS render sees them; on the response, so the browser keeps them.
+      // On the request, so this render sees them; on the response, so the browser keeps them.
       request.cookies.set(SESSION_COOKIES.id, fresh.idToken)
       request.cookies.set(SESSION_COOKIES.access, fresh.accessToken)
       const response = NextResponse.next({ request })

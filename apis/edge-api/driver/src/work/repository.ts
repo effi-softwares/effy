@@ -1,5 +1,3 @@
-// The driver's own work — data layer (063). Rows are mapped to the wire contract here and never leak.
-
 import { query } from "@effy/edge-shared";
 import { formatMoment, type RoundOpening } from "@effy/shared-types";
 
@@ -46,12 +44,11 @@ export interface StopRow {
   destination_line2: string | null;
   destination_postcode: string | null;
   destination_state: string | null;
-  /** 069 — the customer's delivery window. Null unless this is a drop for a windowed order. */
+  /** Null unless this is a drop for a windowed order. */
   window_start: Date | null;
   window_end: Date | null;
-  /** 085 — sold a day with no time. */
+  /** Sold a day with no time. */
   any_time?: boolean;
-  /** 066 — how the customer asked for it to be handed over. */
   handover?: "leave_at_door" | "meet_at_door" | null;
 }
 
@@ -60,43 +57,37 @@ export interface PackageRow {
   stop_id: string;
   state: string;
   package_id: string;
-  /** 089 — the code printed on the package's label. */
+  /** Printed on the package's label. */
   package_code: string;
   order_number: string;
   delivered_by: "effy" | "courier";
   window_start: Date | null;
   window_end: Date | null;
-  /** 085 — sold a day with no time. */
+  /** Sold a day with no time. */
   any_time?: boolean;
   destination_suburb: string | null;
 }
 
-
-/** ⚠ One line a driver can read and hand to their maps app (D7). Never a coordinate. */
+/** One line for the driver's maps app. Never a coordinate. */
 export function addressLine(parts: ReadonlyArray<string | null>): string | null {
   const line = parts.filter((p): p is string => typeof p === "string" && p.trim() !== "").join(", ");
   return line === "" ? null : line;
 }
 
-/** A round with what the driver's home needs to say about it (072). */
 export interface OpenRoundRow extends RoundRow {
-  /** Null once the round is open — decided by the database's clock, never the phone's. */
+  /** Null once open, by the database's clock. */
   opens_at: Date | null;
   stop_count: number;
   package_count: number;
 }
 
-/** Every unfinished round the driver holds, the current one first (072). */
+/** The current one first. */
 export async function openRounds(driverId: string): Promise<OpenRoundRow[]> {
   const res = await query<OpenRoundRow>(OPEN_ROUNDS, [driverId]);
   return res.rows;
 }
 
-/**
- * When a round opens, as the wire says it (072): the instant and the same moment in words, or null
- * once the round is open. ⚠ THE LABEL IS WRITTEN HERE, in Melbourne time — the driver app has no
- * timezone database and never formats a time (see `DeliveryWindow.kt`).
- */
+/** The instant and its Melbourne label, or null once open. The app never formats a time. */
 export function openingOf(opensAt: Date | null, now: Date = new Date()): RoundOpening | null {
   return opensAt ? { at: opensAt.toISOString(), label: formatMoment(opensAt, now) } : null;
 }
@@ -117,13 +108,12 @@ function toTimes(r: { deadline_at: Date; opens_at: Date | null } | undefined): R
   };
 }
 
-/** When one of the driver's rounds opens and is due; null when it is not theirs (FR-038). */
+/** Null when the round is not theirs. */
 export async function roundTimes(roundId: string, driverId: string): Promise<RoundTimes | null> {
   const res = await query<{ deadline_at: Date; opens_at: Date | null }>(ROUND_TIMES, [roundId, driverId]);
   return toTimes(res.rows[0]);
 }
 
-/** The same, from one of the round's stops. */
 export async function stopRoundTimes(stopId: string, driverId: string): Promise<RoundTimes | null> {
   const res = await query<{ deadline_at: Date; opens_at: Date | null }>(STOP_ROUND_TIMES, [stopId, driverId]);
   return toTimes(res.rows[0]);
@@ -134,7 +124,7 @@ export async function completedToday(driverId: string): Promise<RoundRow[]> {
   return res.rows;
 }
 
-/** ⚠ Both ids are required — the round must belong to the caller (FR-038). */
+/** Both ids are required: the round must belong to the caller. */
 export async function roundStops(roundId: string, driverId: string): Promise<StopRow[]> {
   const res = await query<StopRow>(ROUND_STOPS, [roundId, driverId]);
   return res.rows;
@@ -145,7 +135,7 @@ export async function roundPackages(roundId: string, driverId: string): Promise<
   return res.rows;
 }
 
-/** 092 rev 2 — how each finished drop on a round ended: its proof method, or why it failed. */
+/** Each finished drop's proof method, or why it failed. */
 export async function stopOutcomes(roundId: string): Promise<Map<string, { method: string | null; reason: string | null }>> {
   const res = await query<{ stop_id: string; method: string | null; reason: string | null }>(
     `SELECT rs.id AS stop_id,
@@ -164,13 +154,12 @@ export async function packageItems(packageIds: string[]): Promise<ManifestRow[]>
   return res.rows;
 }
 
-/** The package ids at one stop, in the stable order the app labels by position (065). */
+/** In the stable order the app labels by position. */
 export async function stopPackageIds(stopId: string, driverId: string): Promise<string[]> {
   const res = await query<{ package_id: string }>(STOP_PACKAGES, [stopId, driverId]);
   return res.rows.map((r) => r.package_id);
 }
 
-/** 089 — the label codes of the given packages, by package id. */
 export async function packageCodes(packageIds: string[]): Promise<Map<string, string>> {
   if (packageIds.length === 0) return new Map();
   const res = await query<{ id: string; package_code: string }>(

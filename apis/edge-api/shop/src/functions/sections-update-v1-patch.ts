@@ -1,4 +1,3 @@
-// PATCH /shop/v1/sections/{id} — rename / reorder a section (US5).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

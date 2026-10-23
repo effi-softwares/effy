@@ -1,16 +1,7 @@
-# ---------------------------------------------------------------------------------------------
-# Shop Insights — 058-shop-today-insights (Principle VII).
-#
-# Three alarms, all routed to the existing alerts SNS topic (alerts.tf). The rollup job emits its
-# metrics as CloudWatch EMF on stdout (the 035/050 pattern — no SDK call, no metric-filter/log-group
-# ordering dependency), so these are plain alarms on emitted metrics.
-#
-# ⚠ NO NEW INFRASTRUCTURE OTHERWISE. This feature adds no queue, no cache, no realtime service and no
-# vendor: the analytics are Postgres rollup tables. (058 also streamed live updates from a standing
-# server; 070 retired that server and the stream with it — Today re-reads every 30 seconds.)
-# ---------------------------------------------------------------------------------------------
+# Shop Insights: three alarms on the rollup job's EMF metrics, to the alerts topic. The analytics are
+# Postgres rollup tables.
 
-# ⚠ THE AGE OF THE BACKLOG, NOT ITS SIZE. A queue of 400 buckets drained every minute is healthy; one
+# the age of the backlog, not its size. A queue of 400 buckets drained every minute is healthy; one
 # bucket that has sat for twenty minutes means an operator is reading twenty-minute-old figures and
 # nothing is fixing it. SC-004 promises the figures are never more than five minutes behind, so the
 # alarm fires at four — before the promise is broken, not after.
@@ -29,8 +20,8 @@ resource "aws_cloudwatch_metric_alarm" "insights_backlog_stale" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-# ⚠ THRESHOLD ZERO, AND THAT IS DELIBERATE. Every other alarm on this platform tolerates a baseline.
-# A reconciliation correction means a figure changed WITHOUT its bucket being marked dirty — so a
+# threshold zero, and that is deliberate. Every other alarm on this platform tolerates a baseline.
+# A reconciliation correction means a figure changed without its bucket being marked dirty — so a
 # writer is reaching these tables in a way the triggers do not see. The nightly repair is cheap; the
 # hole it implies is what needs a person, and it will not announce itself any other way.
 resource "aws_cloudwatch_metric_alarm" "insights_reconcile_corrections" {
@@ -48,7 +39,7 @@ resource "aws_cloudwatch_metric_alarm" "insights_reconcile_corrections" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-# The rollup Lambda failing outright. The dirty table is the queue, so a failed run loses nothing —
+# The rollup Lambda failing outright. The dirty table is the queue, so a failed run loses nothing
 # but a run that fails every minute means the figures stop moving, silently.
 resource "aws_cloudwatch_metric_alarm" "insights_rollup_errors" {
   alarm_name          = "${module.shared.name_prefix}-insights-rollup-errors"

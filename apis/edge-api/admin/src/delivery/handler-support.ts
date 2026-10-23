@@ -1,6 +1,3 @@
-// Shared handler support for the delivery slice (047): the back-office guard, DeliveryError → problem+json,
-// and the error mappers. Thin handlers own their own parse/authorize/map flow (no middleware
-// framework, per ARCHITECTURE).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -11,10 +8,7 @@ import { CoverageError } from "./coverage.service";
 import { PricingError } from "./pricing.repository";
 import { DeliveryError } from "./types";
 
-/**
- * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on infra error.
- * `read` = any active staff incl. csa; `mutate` = admin/manager only (FR-046).
- */
+/** 401, 403 from the staff record, 503 on infra error. `read`: any staff; `mutate`: admin/manager. */
 export async function guard(
   event: AuthedEvent,
   scope: RequestScope,
@@ -37,7 +31,7 @@ export async function guard(
   return { sub };
 }
 
-/** Map a DeliveryError to problem+json; unknown errors become 503 with the cause logged only. */
+/** Unknown errors become 503 with the cause logged only. */
 export function mapDeliveryError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (err instanceof DeliveryError) {
     const status =
@@ -51,18 +45,14 @@ export function mapDeliveryError(err: unknown, scope: RequestScope): APIGatewayP
   return unavailable(scope);
 }
 
-/**
- * Map a CoverageError (076) to problem+json. The `code` becomes the problem's type and any extra
- * (the postcodes that need a distance, a driver count of zero) rides beside it — the console keys
- * its own wording off the code, never off this text.
- */
+/** `code` becomes the type, with extras beside it; the console words it from the code. */
 export function mapCoverageError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (err instanceof CoverageError) return refused(scope, err.status, err.code, err.message, { code: err.code, ...err.extra });
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "coverage op failed");
   return unavailable(scope);
 }
 
-/** Map a PricingError (077) to problem+json; the console keys its words off `code`, never this text. */
+/** The console words it from `code`. */
 export function mapPricingError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (err instanceof PricingError) return refused(scope, err.status, err.code, err.message, { code: err.code, ...err.extra });
   if (err instanceof SyntaxError) return refused(scope, 400, "invalid_request", "the request body is not JSON", { code: "invalid_request" });

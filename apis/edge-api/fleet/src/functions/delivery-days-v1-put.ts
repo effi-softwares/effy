@@ -1,4 +1,4 @@
-// PUT /fleet/v1/delivery-days — save the calendar settings (069 US6, FR-041/042). Mutate = admin/manager.
+// Admin/manager.
 import { announceSlots } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -18,7 +18,7 @@ export const handler = async (
   if (denied(g)) return g.deny;
   try {
     const days = await putDeliveryDays(parseBody<DeliveryDaysInput>(event.body), g.sub, scope);
-    await announceSlots(); // 071 — committed; the calendar the slot screen is drawn on changed
+    await announceSlots();
     return json(200, days, scope);
   } catch (err) {
     return mapFleetError(err, scope);

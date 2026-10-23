@@ -1,13 +1,13 @@
 /**
- * Help answers — authored content (084 research D10).
+ * Help answers — authored content.
  *
- * ⚠ OPERATOR REVIEW REQUIRED BEFORE LAUNCH, like other authored prose (045). These were written from
+ * Operator review required before launch, like other authored prose. These were written from
  * how the platform behaves, and each says only what the platform can be seen to do:
- *   - who delivers is said in the pinned words ("Delivered by Effy", "Courier delivery");
- *   - a courier arrival is always "an estimate", never a date;
- *   - points are "a way of paying", never a discount;
- *   - nothing promises a timeframe, a fee amount, or a refund outcome — those are in the linked
- *     policies and on the order itself.
+ *  - who delivers is said in the pinned words ("Delivered by Effy", "Courier delivery");
+ *  - a courier arrival is always "an estimate", never a date;
+ *  - points are "a way of paying", never a discount;
+ *  - nothing promises a timeframe, a fee amount, or a refund outcome — those are in the linked
+ *  policies and on the order itself.
  * An answer that needs a number or a promise belongs in a legal document, not here.
  */
 export type HelpTopic = "Orders & delivery" | "Payments & refunds" | "Effy points" | "Your account"

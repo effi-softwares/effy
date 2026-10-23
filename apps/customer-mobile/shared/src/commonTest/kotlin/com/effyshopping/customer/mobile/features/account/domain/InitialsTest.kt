@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.features.account.domain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** SC-013 — the avatar must render for EVERY name shape, and never guess from the email. */
+/** The avatar must render for every name shape, and never guess from the email. */
 class InitialsTest {
 
     @Test fun twoNames() = assertEquals("AL", initialsFor("Ada", "Lovelace"))

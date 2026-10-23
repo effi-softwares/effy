@@ -10,7 +10,7 @@ const { SkinnedPromotion } = await import("./SkinnedPromotion")
 const { isDesigned } = await import("./skin-designed")
 const { PromoHero } = await import("./PromoHero")
 
-/** 095 — a promotion wears its place's skin; Classic (or no skin) keeps the pre-095 drawing. */
+/** A promotion wears its place's skin; Classic (or no skin) keeps the pre-095 drawing. */
 const banner = (over: Partial<Banner> & Record<string, unknown> = {}) => ({
   key: "p1",
   title: "10% off the winter shop",

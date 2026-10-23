@@ -35,7 +35,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * THE SNACKBAR HOST — one per screen, at the BOTTOM, above the tab bar or pinned bar (Patterns board:
+ * The snackbar host — one per screen, at the bottom, above the tab bar or pinned bar (Patterns board:
  * "one action at most, above the tab bar"). Place it last in a `Box` with `Alignment.BottomCenter`.
  *
  * The snackbar is the storefront toast: white, hairline border, soft shadow, a check icon, the message,
@@ -43,7 +43,7 @@ import org.jetbrains.compose.resources.painterResource
  */
 @Composable
 fun EffySnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
-    // ⚠ The padding belongs to the SNACKBAR, never the host: an empty host must take no space. With
+    // The padding belongs to the snackbar, never the host: an empty host must take no space. With
     // the padding on the host it reserved 24dp under every header even with no message showing.
     SnackbarHost(hostState = hostState, modifier = modifier.fillMaxWidth()) { data ->
         Box(Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md)) { EffySnackbar(data) }

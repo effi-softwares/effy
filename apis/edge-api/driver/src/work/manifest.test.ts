@@ -17,16 +17,6 @@ describe("065 — temperature class", () => {
     expect(toTemperatureClass("chilled")).toBe("chilled");
     expect(toTemperatureClass("ambient")).toBe("normal");
   });
-
-  /** ⚠ SC-008. A line sold before 065 must never be presented as Normal. */
-  it("⚠ NULL is not_recorded, never normal", () => {
-    expect(toTemperatureClass(null)).toBe("not_recorded");
-  });
-
-  it("an unrecognised stored value asserts no class", () => {
-    expect(toTemperatureClass("room_temperature")).toBe("not_recorded");
-    expect(toTemperatureClass("")).toBe("not_recorded");
-  });
 });
 
 describe("065 — what is in the bag (research R3)", () => {
@@ -66,22 +56,21 @@ describe("065 — per-package grouping and ordering", () => {
 
   it("a package with no rows has an empty manifest, not a missing one", () => {
     const m = manifestsByPackage(["p1"], []);
-    expect(m.get("p1")).toEqual({ items: [], summary: { frozen: 0, chilled: 0, normal: 0, notRecorded: 0 } });
+    expect(m.get("p1")).toEqual({ items: [], summary: { frozen: 0, chilled: 0, normal: 0 } });
   });
 
-  it("orders frozen, chilled, normal, not recorded; in the bag before not; then by name", () => {
+  it("orders frozen, chilled, normal; in the bag before not; then by name", () => {
     const items = manifestsByPackage(
       ["p1"],
       [
         row({ name: "Rice", storage_class: "ambient" }),
-        row({ name: "Old tin", storage_class: null }),
         row({ name: "Milk", storage_class: "chilled" }),
         row({ name: "Peas", storage_class: "frozen" }),
         row({ name: "Ice cream", storage_class: "frozen", gathered_qty: 0 }),
         row({ name: "Chips", storage_class: "frozen" }),
       ],
     ).get("p1")!.items;
-    expect(items.map((i) => i.name)).toEqual(["Chips", "Peas", "Ice cream", "Milk", "Rice", "Old tin"]);
+    expect(items.map((i) => i.name)).toEqual(["Chips", "Peas", "Ice cream", "Milk", "Rice"]);
   });
 });
 
@@ -93,27 +82,25 @@ describe("065 — class summary", () => {
         row({ name: "Peas", storage_class: "frozen", ordered_qty: 2 }),
         row({ name: "Milk", storage_class: "chilled", ordered_qty: 3, gathered_qty: 1 }),
         row({ name: "Rice", storage_class: "ambient", ordered_qty: 6 }),
-        row({ name: "Old tin", storage_class: null, ordered_qty: 1 }),
       ],
     ).get("p1")!;
-    expect(summarize(items)).toEqual({ frozen: 2, chilled: 1, normal: 6, notRecorded: 1 });
+    expect(summarize(items)).toEqual({ frozen: 2, chilled: 1, normal: 6 });
   });
 
-  /** FR-016 — a line the shop did not supply is in no bucket. */
   it("⚠ excludes lines that are not included", () => {
     const { summary } = manifestsByPackage(
       ["p1"],
       [row({ storage_class: "frozen", ordered_qty: 4, gathered_qty: 0 })],
     ).get("p1")!;
-    expect(summary).toEqual({ frozen: 0, chilled: 0, normal: 0, notRecorded: 0 });
+    expect(summary).toEqual({ frozen: 0, chilled: 0, normal: 0 });
   });
 
   it("a drop's summary is the sum of its packages'", () => {
     expect(
       addSummaries([
-        { frozen: 1, chilled: 0, normal: 2, notRecorded: 0 },
-        { frozen: 0, chilled: 3, normal: 1, notRecorded: 1 },
+        { frozen: 1, chilled: 0, normal: 2 },
+        { frozen: 0, chilled: 3, normal: 1 },
       ]),
-    ).toEqual({ frozen: 1, chilled: 3, normal: 3, notRecorded: 1 });
+    ).toEqual({ frozen: 1, chilled: 3, normal: 3 });
   });
 });

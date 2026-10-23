@@ -3,68 +3,33 @@ import { balanceSummary } from "@effy/edge-shared/points"
 
 import { CUSTOMER_COLUMNS, type CustomerRow } from "../customer/model"
 
-/**
- * The account-closure repository (034 US3). Raw SQL, no ORM (Principle VI).
- *
- * Every statement is scoped by the resolved INTERNAL customer id (`public.customer.id`), never a
- * client-supplied value — the caller's `sub` is resolved to that id by the service first.
- */
-
-// ── The blocking predicate (FR-042) ───────────────────────────────────────────────────────────
+/** Every statement is scoped by the resolved internal customer id. */
 
 /**
- * How long a PAID order keeps blocking closure.
- *
- * ⚠ THIS NUMBER HAS BEEN WRONG TWICE, AND IT IS NOT THE GRACE PERIOD. Read before changing it.
- *
- *   Attempt 1 — "block until the order reaches a terminal state". An order's only terminal state is
- *   every `shop_fulfillment` reaching `collected`, and feature 020 shipped that transition behind a
- *   DEV-ONLY STUB WITH NO ROUTE IN ANY ENVIRONMENT (its removal trigger is the driver slice, which
- *   does not exist). So in production nothing ever became terminal, and EVERY customer who had ever
- *   paid for an order would have been permanently undeletable.
- *
- *   Attempt 2 — "bound it at 30 days, matching the grace period". Same dead end in disguise: Effy is
- *   a WEEKLY-RE-BUY grocery platform, so a customer who shops every week is always within 30 days of
- *   an order. The platform's most engaged customers still could never delete.
- *
- * 7 days is the bound because it answers "how long might goods still be in transit?" — a grocery
- * delivery completes in hours. The GRACE PERIOD (30 days) answers a completely different question,
- * "how long may they change their mind?", and the two must not be unified again.
- *
- * ⚠ This is a BACKSTOP, not the primary exit. The fulfilment term below is what should normally
- * clear the block; once the delivery lifecycle can report completion, almost every order will clear
- * in hours and this bound will rarely be reached.
+ * How long a paid order blocks closure: how long goods may still be in transit (hours for groceries,
+ * 7 days as a backstop). Not the 30-day grace period, which answers a different question; a longer
+ * bound would stop weekly shoppers from ever deleting.
  */
 export const IN_TRANSIT_BLOCK_DAYS = 7
 
 export interface BlockingOrderRow {
   id: string
-  /** ⚠ `public."order"` calls this `order_number` — the human-facing `EFY-…` reference. */
+  /** The `EFY-…` reference. */
   order_number: string
   status: string
   created_at: Date
   clears_at: Date
 }
 
-/**
- * Orders that block closure, with the facts FR-042 requires the customer to be told.
- *
- * ⚠ THIS READS THE ORDERS TABLE FROM THE ACCOUNT SERVICE — a table `commerce` owns. It is one
- * narrow, owned predicate ("does this customer have an order that blocks closure?") and it projects
- * no order data into the account domain. When this was written it crossed two backends and was a
- * recorded exception; with one backend (070) it is an ordinary read, kept narrow for the same reason.
- *
- * ⚠ `clears_at` is computed IN SQL and is NEVER NULL — FR-042 forbids a block that cannot state its
- * own end, and the DTO's non-nullable field makes such a blocker unrepresentable.
- */
+/** Projects no order data into the account domain. `clears_at` is computed in SQL and never null: a block must state its end. */
 export async function findBlockingOrders(customerId: string): Promise<BlockingOrderRow[]> {
   const res = await query<BlockingOrderRow>(
     `SELECT o.id,
             o.order_number,
             o.status,
             o.created_at,
-            -- ⚠ NEVER NULL. FR-042 forbids a block that cannot state when it ends, and the DTO's
-            -- non-nullable field makes such a blocker unrepresentable. Both kinds age out on the
+            -- ⚠ NEVER NULL: a block must state when it ends, and the DTO's non-nullable field makes
+            -- any other blocker unrepresentable. Both kinds age out on the
             -- same bound; an awaiting-payment order is additionally clearable by the customer.
             o.created_at + ($2 || ' days')::interval AS clears_at
        FROM public."order" o
@@ -74,30 +39,9 @@ export async function findBlockingOrders(customerId: string): Promise<BlockingOr
            OR (
                 o.status = 'paid'
                 AND o.created_at > now() - ($2 || ' days')::interval
-                -- The fulfilment term: an order blocks while ANY package is not yet delivered.
-                --
-                -- ⚠ THIS WAS WRONG IN BOTH DIRECTIONS UNTIL 053, and the way it went wrong is worth
-                -- keeping. It was written as "f.status <> 'collected'" with a comment saying it
-                -- would "become correct automatically when the delivery lifecycle lands". The
-                -- lifecycle landed in 049 — with 'delivered' as the terminal state, not 'collected'.
-                -- Nothing failed, because a predicate pinned to a specific VALUE has no way to
-                -- notice that the vocabulary moved. The result:
-                --
-                --   * a DELIVERED package satisfied it, so an arrived order BLOCKED closure until
-                --     the 7-day backstop expired;
-                --   * a COLLECTED package did not satisfy it, so an order genuinely in transit did
-                --     NOT block — which is the case the term exists for.
-                --
-                -- Exactly the customers it should have released were held, and the ones it should
-                -- have held were released. Both fixed by naming the real terminal state.
-                --
-                -- ⚠ 055 NAMES THE TERMINAL STATES POSITIVELY, WHICH IS THE ACTUAL LESSON. 053 fixed
-                -- the value and kept the shape: a NEGATION against one name still cannot notice the
-                -- vocabulary moving, and it moved again — 'unfulfillable' (a shop that cannot supply)
-                -- and 'withdrawn' (a cancelled order) are both finished, and both would have
-                -- satisfied a negation of 'delivered' and BLOCKED closure for seven days over a package
-                -- nobody is carrying. Listing what is DONE means a new working state blocks (safe,
-                -- and correct by default) while a new terminal one must be added here deliberately.
+                -- The fulfilment term: an order blocks while ANY package is not yet finished.
+                -- ⚠ The finished states are LISTED, so a new working state blocks (safe by default)
+                -- while a new finished one must be added here deliberately.
                 AND EXISTS (
                       SELECT 1
                         FROM public.shop_fulfillment f
@@ -112,9 +56,7 @@ export async function findBlockingOrders(customerId: string): Promise<BlockingOr
   return res.rows
 }
 
-// ── The closure request ───────────────────────────────────────────────────────────────────────
-
-/** How long a closed account can still be recovered. ⚠ NOT the order-block window — see above. */
+/** How long a closed account can be recovered; not the order-block window. */
 export const GRACE_PERIOD_DAYS = 30
 
 export interface ClosureRequestRow {
@@ -127,7 +69,7 @@ export interface ClosureRequestRow {
   cancelled_reason: string | null
 }
 
-/** The live (uncancelled) request for a customer, or null. */
+/** null when there is none. */
 export async function findLiveRequest(customerId: string): Promise<ClosureRequestRow | null> {
   const res = await query<ClosureRequestRow>(
     `SELECT id, customer_id, requested_at, erase_after, verification_method,
@@ -141,14 +83,8 @@ export async function findLiveRequest(customerId: string): Promise<ClosureReques
 }
 
 /**
- * Close the account. ONE TRANSACTION — the request row and the state flip must not be separable.
- *
- * ⚠ The blocker re-check belongs in the SERVICE and runs inside this transaction's caller, because
- * an order can be placed between the preview and the confirmation.
- *
- * ⚠ `erase_after` is STORED, not derived. That date is DISCLOSED to the customer (FR-040), and
- * SC-010 requires every claim in the disclosure to be true — deriving it would retroactively move
- * the deadline for people already told a different one if the window is ever changed.
+ * One transaction. The service re-checks blockers inside it (an order can arrive after the preview).
+ * `erase_after` is stored, not derived: the customer was told that date.
  */
 export async function closeAccount(input: {
   customerId: string
@@ -178,18 +114,8 @@ export async function closeAccount(input: {
 }
 
 /**
- * Cancel a live closure request and reopen the account (FR-041a).
- *
- * ⚠ THIS IS THE ONLY WAY OUT OF THE WINDOW, AND IT IS DELIBERATELY AN EXPLICIT CALL.
- *
- * An earlier design had signing in restore the account implicitly. That is unimplementable — the
- * refusal and the restore run through the SAME identity lookup, so the gate refuses the very request
- * meant to restore — and it is unsafe: anyone holding the customer's token during the window would
- * silently un-delete the account merely by opening the app. Signing in SURFACES the choice; it does
- * not make it.
- *
- * Returns null when there was no live request to cancel, so the service can answer 409 rather than
- * pretending something happened.
+ * The only way out of the window, and an explicit call: signing in shows the choice but never makes
+ * it, or anyone holding the token could un-delete the account. null when there was nothing to cancel.
  */
 export async function restoreAccount(input: {
   customerId: string
@@ -220,14 +146,7 @@ export async function restoreAccount(input: {
   })
 }
 
-// ── Points (074 FR-024) ───────────────────────────────────────────────────────────────────────
-
-/**
- * The points a customer would lose if closure became final, and their value in cents.
- *
- * ⚠ The figure is @effy/edge-shared/points's — the same one the account page shows — never a second
- * computation here. Nothing is forfeited by READING it: forfeiture happens when closure becomes final.
- */
+/** From @effy/edge-shared/points, as the account page shows. Nothing is forfeited by reading it. */
 export async function findPointsHeld(customerId: string): Promise<{ points: number; valueCents: number }> {
   const s = await balanceSummary(pooled, customerId, new Date())
   return { points: s.usable, valueCents: s.valueCents }

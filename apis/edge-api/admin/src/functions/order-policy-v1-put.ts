@@ -1,5 +1,4 @@
-// PUT /admin/v1/order-policy — set the minimum spend and the ceilings (027 FR-053). Idempotent: there is
-// exactly one policy row, enforced by the schema.
+// Idempotent: the schema allows exactly one policy row.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

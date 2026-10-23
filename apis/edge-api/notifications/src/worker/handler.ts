@@ -1,8 +1,4 @@
-// The scheduled notifications-drain worker. 050-observability-push-foundation (research R6).
-//
-// Off every user path. Idempotent (drain.ts + the outbox's dedupe_key/status). Fail-open: an
-// unconfigured FCM sender leaves rows pending and returns cleanly (FR-027). A thrown error surfaces to
-// the send-failure alarm (Principle VII / T056); the next tick retries.
+// The scheduled notifications drain. Idempotent and fail-open; thrown errors reach the alarm.
 import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
@@ -15,12 +11,7 @@ import { repositoryDeps } from "./repository";
 const MAX_ATTEMPTS = Number(process.env.NOTIF_MAX_ATTEMPTS ?? "5");
 const BATCH_SIZE = Number(process.env.NOTIF_BATCH_SIZE ?? "100");
 
-/**
- * Emit a CloudWatch EMF metric on stdout (Principle VII; the same stdout-EMF pattern the 035 auth
- * triggers use — no SDK call, no metric-filter/log-group ordering dependency). CloudWatch auto-extracts
- * `NotificationSendFailed` into the `Effy/Notifications` namespace, which the alarm in notifications.tf
- * pages on. Emitted every run (0 included) so the alarm has a continuous signal.
- */
+/** EMF for the `NotificationSendFailed` alarm, emitted every run including 0. */
 function emitFailureMetric(
   failed: number,
   pruned: number,
@@ -38,8 +29,7 @@ function emitFailureMetric(
             Metrics: [
               { Name: "NotificationSendFailed", Unit: "Count" },
               { Name: "DeviceTokenPruned", Unit: "Count" },
-              // 053 — split out so the alarm can say WHICH channel broke. An email failure is the
-              // only signal that a web-only shopper was not told their order arrived.
+              // Split so the alarm says which channel broke.
               { Name: "NotificationEmailSendFailed", Unit: "Count" },
               { Name: "NotificationEmailSent", Unit: "Count" },
             ],
@@ -55,20 +45,8 @@ function emitFailureMetric(
 }
 
 /**
- * 059 — push outcomes per platform, as a SEPARATE EMF record.
- *
- * ⚠ SEPARATE ON PURPOSE. In CloudWatch a dimensioned metric is a different metric from an
- * undimensioned one, so adding `platform` to the block above would leave the alarm in
- * `notifications.tf` — which queries no dimensions — reading a series nothing publishes any more.
- * It would not error. It would go blind. 054 recorded that exact shape.
- *
- * ⚠ THREE VALUES, SO THE CARDINALITY IS BOUNDED (Principle VII: metric labels stay low-cardinality).
- * The dimension is the platform enum, never a token, a subject or a shop id.
- *
- * ⚠ DELIBERATELY NOT ALARMED ON. A browser push subscription expiring is normal and expected — an
- * alarm that fires every week on healthy behaviour is an alarm that gets muted, and then the real
- * one is muted with it. This exists to be looked at when someone asks "is web push working", which
- * before 059 had no answer at all.
+ * Push outcomes per platform (android | ios | web), as a separate record so the undimensioned alarm
+ * keeps its series. Not alarmed: browser subscriptions expire normally.
  */
 function emitPlatformMetrics(byPlatform: Record<string, { sent: number; failed: number }>): void {
   for (const [platform, counts] of Object.entries(byPlatform)) {
@@ -99,11 +77,6 @@ export const handler: ScheduledHandler = async () => {
   const log = logger.child({ worker: "notification-drain" });
   try {
     const sender = await createSender();
-    // ⚠ 053 REMOVED THE EARLY RETURN HERE. It used to skip the whole drain when FCM was
-    // unconfigured. With the email channel on the same outbox that would mean a missing FCM service
-    // account silently suppresses the ONLY message a web-only shopper gets about their delivery —
-    // one channel's misconfiguration taking out an unrelated one. `drainOnce` now fails push open
-    // per row and drains email regardless.
     if (!sender.configured) {
       log.warn("fcm not configured — push rows remain pending; email still drains");
     }
@@ -118,14 +91,12 @@ export const handler: ScheduledHandler = async () => {
         send: sender.send,
         senderConfigured: sender.configured,
         sendEmail: emailSender.send,
-        // 059 — so a failed send says WHY, in the log, at the moment it happens.
         log,
       },
       { maxAttempts: MAX_ATTEMPTS, batchSize: BATCH_SIZE },
     );
     const summary = await drainOnce(deps);
 
-    // Structured log for triage + an EMF metric the send-failure alarm pages on (Principle VII).
     log.info({ metric: "notification_drain", ...summary }, "notification drain complete");
     emitFailureMetric(summary.failed, summary.pruned, summary.emailFailed, summary.emailSent);
     emitPlatformMetrics(summary.byPlatform);

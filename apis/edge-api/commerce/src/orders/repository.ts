@@ -1,5 +1,4 @@
-// The customer's order history and receipt: SQL only. Every read is scoped to the order's owner
-// at the first statement; nothing here selects a shop.
+// Every read is scoped to the owner at the first statement; nothing here selects a shop.
 import { pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
 import type { DeliveryPromise } from "@effy/shared-types";
 
@@ -11,26 +10,16 @@ export interface SummaryRow {
   item_count: number;
   grand_total_amount: string;
   currency: string;
-  /** 079 — who delivers the order, and a courier's timeframe as sold. */
   delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
+  /** Null for a courier order. */
   delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
-  /**
-   * 084 — what the order list shows beside the totals. All optional, so a fake (or a row from a
-   * query written before 084) still type-checks and simply produces a summary without them.
-   */
-  /** Every package's status — the input to the one stage word. Never sent to a client. */
+  /** Input to the stage word; never sent to a client. */
   portion_statuses?: string[] | null;
-  /**
-   * The primary picture of the first four lines — its key (null where a line has none) and its ready
-   * copies (086). ⚠ ONE subquery for both, so a key and its widths can never be paired across lines.
-   */
+  /** The first four lines' pictures, keys and widths from one subquery so they cannot mispair. */
   image_refs?: { key: string | null; widths: number[] | null }[] | null;
-  /** The promises the order was sold, in the receipt's own order. */
   arrivals?: ArrivalRow[] | null;
-  /** When the last package arrived. Only meaningful once every package has. */
   delivered_at?: string | null;
   refunds?: Pick<RefundRow, "amount" | "status" | "settled_at">[] | null;
 }
@@ -42,50 +31,34 @@ export interface OrderRow {
   placed_at: string | null;
   delivery_address: Record<string, unknown> | null;
   billing_address: Record<string, unknown> | null;
-  // 066 — columns on the order, deliberately NOT keys in the address snapshot.
   delivery_handover: string | null;
   delivery_note: string | null;
   item_subtotal_amount: string;
   discount_amount: string;
   promo_code: string | null;
-  /** 094 — what delivery promotions took off, and each promotion as sold. */
   delivery_discount_amount: string;
   promotions: { headline: string | null; name: string; code: string | null; goods: string; delivery: string }[] | null;
   delivery_fee_amount: string;
-  /**
-   * 077 — the delivery charge as the lines the customer was sold. ⚠ `delivery_fee_breakdown->'lines'`
-   * and NOTHING else from that column: the rest holds a distance and the plan's prices, which a
-   * customer must never be sent (FR-032).
-   */
+  /** Only `->'lines'`: the rest holds distance and plan prices a customer must never see. */
   delivery_fee_lines: { kind: string; amount: string }[];
   grand_total_amount: string;
   currency: string;
   payment_status: string | null;
-  /** 074 — points the order was part-paid with (0 = none), their value, and what the card paid. */
   points_used?: number;
   points_value_amount?: string;
   card_paid_amount?: string | null;
-  /**
-   * 079 — who delivers the order, and a courier's timeframe as it was SOLD. ⚠ Never the reason: a
-   * customer is told who delivers, not why (076 FR-023).
-   */
+  /** Never the reason: a customer is told who delivers, not why. */
   delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
+  /** Null for a courier order. */
   delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
-  /**
-   * 080 — what tracking a customer may be shown: how many parcels the order is, how many have gone
-   * to a courier, and — only when exactly one has — its link and courier. Never per parcel.
-   */
+  /** Tracking: a link and courier only when exactly one parcel has gone. Never per parcel. */
   parcel_count?: number;
   consignments_out?: number;
   only_tracking_url?: string | null;
   only_courier_name?: string | null;
-  /**
-   * 081 — the LATEST move by back-office, if any: where to, when, and what the customer received.
-   * ⚠ Never the staff reason, the courier fee or the difference — the SELECT does not name them.
-   */
+  /** The latest staff move, without its reason, fee or difference. */
   moved_to?: "effy" | "courier" | null;
   moved_at?: string | null;
   moved_compensation?: string | null;
@@ -96,23 +69,20 @@ export interface OrderRow {
 export interface ItemRow {
   order_item_id: string;
   product_id: string;
-  /** 098 */
   variant_id: string;
   product_name: string;
-  /** 098 — the label AS SOLD (snapshot). */
+  /** As sold. */
   variant_label: string | null;
   unit_price_amount: string;
   quantity: number;
   line_subtotal_amount: string;
-  /** 094 — what promotions took off this line, as sold. */
   discount_amount: string;
   image_key: string | null;
-  /** 086 — the line picture's ready copies; NULL for none. */
   image_widths: number[] | null;
 }
 
 export interface FulfillmentRow {
-  /** Used ONLY to attach shortfalls. Not a shop id, and never reaches the wire. */
+  /** Only to attach shortfalls; never reaches the wire. */
   id: string;
   status: string;
   item_count: number;
@@ -139,12 +109,11 @@ export interface MethodRow {
   method_last4: string | null;
 }
 
-/** ⚠ NO `failure_reason`: the provider's words are staff information, so they are not selected at all. */
+/** No `failure_reason`: the provider's words are for staff. */
 export interface RefundRow {
   amount: string;
   status: string;
   settled_at: string | null;
-  /** 074 — optional so a fake built before 074 still type-checks; the SQL always selects them. */
   card_amount?: string;
   points_returned?: number;
 }
@@ -173,7 +142,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
        o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
        o.delivery_promise AS delivery_promise, o.asap_estimate AS asap_estimate,
-       -- 084 — the order list's pictures, stage and status line. ⚠ Each is the SAME read the receipt
+       -- The order list's pictures, stage and status line. ⚠ Each is the SAME read the receipt
        -- makes (same tables, same order), gathered per order; nothing here selects a shop.
        ARRAY(SELECT sf.status FROM public.shop_fulfillment sf WHERE sf.order_id = o.id) AS portion_statuses,
        (SELECT json_agg(json_build_object('key', x.k, 'widths', x.w))
@@ -223,7 +192,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount,
        o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
        o.delivery_promise AS delivery_promise, o.asap_estimate AS asap_estimate,
-       -- 080 — the parcels still on their way to the customer (a withdrawn or unsupplied portion is not one).
+       -- The parcels still on their way to the customer (a withdrawn or unsupplied portion is not one).
        (SELECT count(*) FROM public.shop_fulfillment sf
          WHERE sf.order_id = o.id AND sf.status NOT IN ('withdrawn', 'unfulfillable'))::int AS parcel_count,
        out.n AS consignments_out,
@@ -240,7 +209,7 @@ CROSS JOIN LATERAL (
     JOIN public.courier_service cs ON cs.id = cc.courier_service_id
    WHERE sf.order_id = o.id AND cc.state NOT IN ('booked', 'cancelled')
 ) out
--- 081 — the latest move by back-office. ⚠ Only these five columns: never the reason, the fee or the difference.
+-- The latest move by back-office. ⚠ Only these five columns: never the reason, the fee or the difference.
 LEFT JOIN LATERAL (
   SELECT x.to_type, x.created_at, x.compensation, x.amount_cents, x.points
     FROM public.delivery_override x
@@ -255,10 +224,8 @@ WHERE o.id = $1 AND o.customer_id = $2`,
       );
     },
 
-    // The line image comes from the LIVE catalogue while every other column is the order's own
-    // immutable snapshot: a renamed or re-priced product must still show what was bought, but a
-    // photograph is decoration and the current one is the useful one.
-    // ⚠ LEFT JOIN, never INNER: a product with no primary image must still produce its line.
+    // The picture comes from the live catalogue while everything else is the order's snapshot. Left
+    // join: a product without a picture still produces its line.
     items: (orderId) =>
       rows<ItemRow>(
         `
@@ -284,14 +251,12 @@ FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at ASC`,
         [orderId],
       ),
 
-    // ⚠ THE TERMINAL-STATUS PREDICATE IS THE WHOLE POINT, and it is in the SQL: a shop may flag an
-    // item unavailable and un-flag it when it turns up, and a customer watching live would see it
-    // vanish and reappear. They are told a settled fact, per portion, or nothing (020 SC-017).
+    // Only settled shortfalls, so an item flagged and un-flagged never flickers for the customer.
     shortfalls: (orderId) =>
       rows<ShortfallRow>(
         `
 SELECT fi.shop_fulfillment_id::text AS shop_fulfillment_id,
-       -- 098 — a shortfall names what was SOLD, label included ("Basmati Rice — 1 kg").
+       -- A shortfall names what was SOLD, label included ("Basmati Rice — 1 kg").
        CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
        fi.unavailable_quantity      AS quantity
 FROM public.fulfillment_item fi
@@ -304,8 +269,7 @@ ORDER BY oi.product_name ASC`,
         [orderId],
       ),
 
-    // ⚠ `shop_id` is neither selected nor ordered by. The rows are ordered by the promise itself, so
-    // the output is stable and says nothing about internal grouping (052 FR-009).
+    // Ordered by the promise, not the shop, so the output says nothing about grouping.
     arrivals: (orderId) =>
       rows<ArrivalRow>(
         `
@@ -330,15 +294,14 @@ ORDER BY promised_from ASC NULLS LAST, window_start ASC NULLS LAST, promised_to 
       );
     },
 
-    // ⚠ `submitting` IS INCLUDED here, unlike in the ceiling: this asks "what has happened to your
-    // money", and a refund asked for and not yet confirmed is something the shopper should see.
+    // Includes `submitting`, unlike the ceiling: a requested refund is something the shopper sees.
     refunds: (orderId) =>
       rows<RefundRow>(
         `
 SELECT amount::text        AS amount,
        status              AS status,
        settled_at::text    AS settled_at,
-       -- 074 — how it was made up. NULL card_amount (a pre-074 row) means all of it went to the card.
+       -- How it was made up. NULL card_amount (a refund issued outside Effy) went entirely to the card.
        COALESCE(card_amount, amount)::text AS card_amount,
        points_returned     AS points_returned
 FROM public.refund

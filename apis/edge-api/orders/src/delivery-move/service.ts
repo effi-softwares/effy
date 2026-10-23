@@ -1,8 +1,5 @@
-// Moving an order between Effy and courier delivery, for back-office (081).
-//
-// ⚠ EVERY WRITE IS @effy/edge-shared/delivery override.ts — this file validates the request, opens
-// the transaction, maps refusals, and does what must happen AFTER the commit: tell the screens, tell
-// the drivers who lost work, send a refund that was recorded, count it. It never writes SQL.
+// Every write goes through @effy/edge-shared/delivery override.ts. This validates, maps refusals and,
+// after the commit, tells the screens and affected drivers and sends any recorded refund.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { emitMetric, logger, pooled, refused, withTransaction, type RequestScope } from "@effy/edge-shared";
@@ -15,14 +12,12 @@ import type { DeliveryCompensationKind, DeliveryMovePreviewDTO, DeliveryMoveResp
 
 import { refundService } from "../lib/money";
 
-/** The orders service's metric namespace (one per service). */
 const NAMESPACE = "Effy/Orders";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_REASON = 500;
 
-/** A request a person must fix, field by field. */
 export class DeliveryMoveInputError extends Error {
   constructor(readonly fields: { field: string; message: string }[]) {
     super("check the move");
@@ -31,7 +26,7 @@ export class DeliveryMoveInputError extends Error {
 
 const REFUSAL_STATUS: Record<string, 404 | 409> = { not_found: 404 };
 
-/** Map a refusal or an input error to its response; null for anything else. */
+/** null for anything that is not a refusal or input error. */
 export function deliveryMoveError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 | null {
   if (err instanceof DeliveryMoveError) {
     return refused(scope, REFUSAL_STATUS[err.code] ?? 409, err.code, err.message, { code: err.code, ...(err.preview ? { preview: err.preview } : {}) });
@@ -46,7 +41,7 @@ export function parseTo(v: unknown): DeliveryType | null {
   return v === "courier" || v === "effy" ? v : null;
 }
 
-/** `POST …/delivery-window` (085) — give an Effy order another window or day; see `changeEffyWindow`. */
+/** Gives an Effy order another window or day; see `changeEffyWindow`. */
 export async function changeWindow(
   orderId: string,
   body: Record<string, unknown>,
@@ -68,7 +63,6 @@ export async function changeWindow(
   const result = await withTransaction((tx) =>
     changeEffyWindow(tx, { orderId, actorSub, reason, window: { slotId: w!.slotId as string, date: w!.date as string }, expectedUpdatedAt }),
   );
-  // ── After the commit (071): the order page, the drivers whose work was taken back, the windows screen.
   emitMetric(NAMESPACE, "DeliveryWindowChanges", 1, { promise: result.promise });
   await announceOrder(orderId, { slots: true, drivers: true });
   await announceDispatch(result.driverIds);
@@ -76,7 +70,6 @@ export async function changeWindow(
   return { orderId, promise: result.promise };
 }
 
-/** `GET …/delivery-move?to=` */
 export async function preview(orderId: string, to: DeliveryType): Promise<DeliveryMovePreviewDTO> {
   if (!UUID.test(orderId)) throw new DeliveryMoveError("not_found");
   return previewMove(pooled, orderId, to);
@@ -84,7 +77,7 @@ export async function preview(orderId: string, to: DeliveryType): Promise<Delive
 
 const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
-/** `POST …/delivery-move` — both directions. */
+/** Both directions. */
 export async function move(orderId: string, body: Record<string, unknown>, actorSub: string): Promise<DeliveryMoveResponse> {
   if (!UUID.test(orderId)) throw new DeliveryMoveError("not_found");
   const fields: { field: string; message: string }[] = [];
@@ -129,10 +122,9 @@ export async function move(orderId: string, body: Record<string, unknown>, actor
       : moveToEffy(tx, { orderId, actorSub, reason, window: window!, expectedUpdatedAt }),
   );
 
-  // ── After the commit. None of these may un-say the move. ─────────────────────────────────────
+  // After the commit; none of these may undo the move.
   emitMetric(NAMESPACE, "DeliveryOverrides", 1, { to: to! });
   if (to === "courier") emitMetric(NAMESPACE, "DeliveryCompensation", 1, { kind: result.compensation });
-  // 071 — the order page (customer, shops, back-office), the drivers who lost it, the slot screen.
   await announceOrder(orderId, { slots: true, drivers: true });
   await announceDispatch(result.driverIds);
   await announceSlots();
@@ -142,7 +134,7 @@ export async function move(orderId: string, body: Record<string, unknown>, actor
     try {
       refund = await refundService.submitRecorded(result.refundToSubmit);
     } catch (err) {
-      // The refund is recorded and the reconciler will send it; the move happened.
+      // The refund is recorded and the reconciler will send it.
       logger.error({ err, orderId }, "orders: a move's refund could not be submitted; the reconciler will retry");
       refund = { status: "submitting", stalled: true };
     }

@@ -21,9 +21,9 @@ import { useDebitPoints } from "../queries";
 import { formatPointsValue, parsePoints } from "./points-format";
 
 /**
- * Remove points to correct a balance (074 US5) — admin and manager only, and the server says so too.
+ * Remove points to correct a balance — admin and manager only, and the server says so too.
  *
- * ⚠ NOTHING IS EDITED OR DELETED. A debit is a new line in the history beside the credit it corrects;
+ * Nothing is edited or deleted. A debit is a new line in the history beside the credit it corrects;
  * the customer sees "Balance correction".
  */
 export function DebitPointsSheet({

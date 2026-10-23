@@ -1,22 +1,6 @@
-# edge-admin-promotions — the PROMOTION half of the admin service (094 promotions, 095 skins & pictures).
-#
-# ⚠ THE SAME SERVICE AS `serverless.yml`, DEPLOYED AS A SECOND STACK. Same directory, same `src/`,
-# same handlers and repositories — nothing is copied (constitution Principle III; the shape
-# `inventory` / `inventory-staff` took in 075).
-#
-# WHY. CloudFormation allows 500 resources per stack and that limit is not raised. The admin stack
-# had already spent `versionFunctions: false` (049) and moved driver management to `fleet` (056); 095's
-# ten routes took it to 533 and its deploy was refused. Promotions are the largest self-contained
-# group of its routes, so they live here.
-#
-# ⚠ ONLY ROUTES. No schedule, queue or alarm lives in this stack. The routes keep their paths
-# (/admin/v1/promotions…, /admin/v1/promotion-groups…, /admin/v1/promotion-skins…) and the same
-# back-office authorizer on the STAFF gateway — back-office sees no difference.
-#
-# ⚠ DEPLOY ORDER: `make edge-deploy SERVICE=admin` FIRST (it drops these routes), THEN
-# `SERVICE=admin-promotions`. A route key may exist once per gateway; the other order is refused.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# The promotion routes of the admin service: the same src/ deployed as a second stack, because the
+# admin stack passed CloudFormation's 500-resource limit. Same paths, same back-office authorizer.
+# Deploy `service=admin` first, then `SERVICE=admin-promotions`: a route key may exist once per gateway.
 service: effy-edge-admin-promotions
 frameworkVersion: "3"
 
@@ -27,7 +11,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -41,7 +24,7 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # Every integration invokes $LATEST; per-deploy Versions would only spend resources (see serverless.yml).
+  # Every integration invokes $latest, so per-deploy Versions would only spend resources.
   versionFunctions: false
   tags:
     project: effy
@@ -59,7 +42,6 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Promotion pictures live under the media bucket's public `promotions/` prefix (095).
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
     MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
   iam:
@@ -68,19 +50,18 @@ provider:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # Picture uploads: presigned PUTs and reads, the media bucket's objects only — never a wildcard.
+        # Presigned PUTs and reads on the media bucket's objects only.
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
-        # 071 — a promotion change tells an open Promotions screen to re-read.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — as serverless.yml (dev posture, infra/envs/README.md).
+  # No provider.vpc (dev only).
 
 custom:
   esbuild:
@@ -98,8 +79,7 @@ package:
   individually: true
 
 functions:
-  # ── Promotions (094) and how they look (095). Back-office authorizer; read = any active staff
-  #    (support answers "is this code live?"), mutate = admin/manager. Every mutation audits. ──
+  # Promotions, groups and skins. Read: any active staff; mutate: admin/manager. Every mutation audits.
   promotionsListV1:
     handler: src/functions/promotions-list-v1-get.handler
     description: List promotions (paged; state, kind, trigger, group; counts per state) — 094

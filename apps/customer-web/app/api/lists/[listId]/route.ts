@@ -2,7 +2,7 @@ import { proxyToEdge } from "@/lib/api/proxy"
 
 type Ctx = { params: Promise<{ listId: string }> }
 
-/** Rename one of the shopper's own lists (068). The default list answers `default_list`. */
+/** Rename one of the shopper's own lists. The default list answers `default_list`. */
 export async function PATCH(req: Request, { params }: Ctx) {
   const { listId } = await params
   const body = await req.json().catch(() => ({}))

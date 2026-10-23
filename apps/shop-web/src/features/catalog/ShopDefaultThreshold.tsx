@@ -17,9 +17,9 @@ import { stockErrorText } from "./stockErrorText";
 import { stockSettingsQuery, useSetStockSettings } from "./stockQueries";
 
 /**
- * The shop-wide default low-stock threshold (054 FR-005).
+ * The shop-wide default low-stock threshold.
  *
- * ⚠ WHY A SHOP-WIDE DEFAULT EXISTS AT ALL. A shop with hundreds of products would have to set a
+ * Why a shop-wide default exists at all. A shop with hundreds of products would have to set a
  * threshold one product at a time, so in practice nothing would be reported as running low for a long
  * while after shipping — precision nobody has time to enter is the same as no feature. One number, set
  * once, with a per-product override for the items that genuinely need their own.
@@ -58,8 +58,8 @@ export function ShopDefaultThresholdControl() {
           variant="outline"
           disabled={setSettings.isPending}
           onClick={() =>
-            // ⚠ Blank clears to NULL, never zero. Zero would mean "warn me at zero", which would make
-            // every product permanently low — a different instruction entirely (FR-005a).
+            // Blank clears to null, never zero. Zero would mean "warn me at zero", which would make
+            // every product permanently low — a different instruction entirely.
             setSettings.mutate({ defaultThreshold: value.trim() === "" ? null : Number(value) })
           }
         >
@@ -76,13 +76,8 @@ export function ShopDefaultThresholdControl() {
 }
 
 /**
- * The catalog's stock settings, opened from the catalog toolbar beside "Manage sections".
- *
- * ⚠ IT LIVES IN CATALOG, NOT MANAGEMENT, although the design's "Shop settings" list is on Management.
- * Management is manager-only in the nav, and this setting is not: both shop roles manage stock (054
- * FR-010, A7) and the backend admits both. Putting it behind the manager rail would hide a control
- * from the people the backend says may use it. It used to sit on the Restock screen, which the
- * 2026-09-10 design revision removed; inventory management stays in Catalog.
+ * The catalog's stock settings, opened from the catalog toolbar. In Catalog, not Management (which is
+ * manager-only), because both shop roles manage stock.
  */
 export function StockSettingsDialog({
   open,

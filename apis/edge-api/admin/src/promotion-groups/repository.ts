@@ -1,4 +1,4 @@
-// Display groups (094 US2; 095 skins) — SQL only. Every write audits in the same transaction.
+// Every write audits in the same transaction.
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import {
   hiddenBecause,
@@ -69,7 +69,7 @@ async function audit(tx: Queryable, actor: string, action: string, id: string, d
 const doesNotFit = (field: string, layout: string, size: GroupSize) =>
   new PromoError(422, "skin_does_not_fit", `A ${layout.replace("_", " ")} skin doesn't fit a ${size} place.`, [{ field, message: `doesn't fit a ${size} place` }]);
 
-/** The layouts of the given skins; a missing one is refused. */
+/** A missing skin is refused. */
 async function layoutsOf(db: Queryable, ids: readonly string[], field: string): Promise<Map<string, SkinLayout>> {
   const wanted = [...new Set(ids)];
   if (wanted.length === 0) return new Map();
@@ -154,10 +154,7 @@ export interface GroupChange {
   defaultCodeSkinId?: string | null;
 }
 
-/**
- * Update a group. A new size keeps only the members whose skin still fits (the rest go back to the
- * default — returned, so the editor can say which); the defaults must fit the size the group ends with.
- */
+/** A new size keeps only members whose skin fits (the rest revert to the default and are returned). */
 export async function updateGroup(id: string, input: GroupChange, actor: string): Promise<{ reset: string[] }> {
   return withTransaction(async (tx) => {
     const cur = (
@@ -210,34 +207,21 @@ export async function deleteGroup(id: string, actor: string): Promise<void> {
 
 export interface MemberInput {
   promotionId: string;
-  /** undefined = keep this member's current choice (094's body). */
-  skinId: string | null | undefined;
-  imageId: string | null | undefined;
+  skinId: string | null;
+  imageId: string | null;
 }
 
-/** Replace the members, in the order given, each with its skin and picture (095). */
-export async function putMembers(id: string, input: MemberInput[], actor: string): Promise<void> {
-  let members = input;
+/** In the order given. */
+export async function putMembers(id: string, members: MemberInput[], actor: string): Promise<void> {
   try {
     await withTransaction(async (tx) => {
       const g = (await tx.query<{ size: GroupSize }>(`SELECT size FROM public.promotion_group WHERE id = $1 FOR UPDATE`, [id])).rows[0];
       if (!g) throw new PromoError(404, "not_found", "group not found");
       const promotionIds = members.map((m) => m.promotionId);
-      const had = new Map(
-        (await tx.query<{ promotion_id: string; skin_id: string | null; image_id: string | null }>(
-          `SELECT promotion_id::text, skin_id::text, image_id::text FROM public.promotion_group_member WHERE group_id = $1`,
-          [id],
-        )).rows.map((r) => [r.promotion_id, r]),
-      );
-      members = members.map((m) => ({
-        promotionId: m.promotionId,
-        skinId: m.skinId === undefined ? (had.get(m.promotionId)?.skin_id ?? null) : m.skinId,
-        imageId: m.imageId === undefined ? (had.get(m.promotionId)?.image_id ?? null) : m.imageId,
-      }));
-      // FR-024 — a promotion is shown only with words a shopper can read.
+      // Shown only with words a shopper can read.
       const missing = await tx.query(`SELECT 1 FROM public.promotion WHERE id = ANY($1::uuid[]) AND headline IS NULL`, [promotionIds]);
       if ((missing.rowCount ?? 0) > 0) throw new PromoError(422, "headline_required", "A promotion needs a headline before it can be shown in a group.");
-      // 095 — a member's skin fits the group's size, and its picture is its own promotion's.
+      // The skin fits the group's size, and the picture is its own promotion's.
       const layouts = await layoutsOf(tx, members.flatMap((m) => (m.skinId ? [m.skinId] : [])), "members.skinId");
       for (const m of members) {
         if (m.skinId && !layoutFits(layouts.get(m.skinId)!, g.size)) throw doesNotFit("members.skinId", layouts.get(m.skinId)!, g.size);
@@ -269,7 +253,7 @@ export async function putMembers(id: string, input: MemberInput[], actor: string
   }
 }
 
-/** What a signed-out shopper sees in this group now — in the skins they would see — and why each other member is hidden (FR-025). */
+/** In the skins a signed-out shopper would see, and why each other member is hidden. */
 export async function previewGroup(id: string, now: Date): Promise<AdminPromotionGroupPreviewDTO> {
   const rows = (
     await query<{ promotion_id: string; size: string; member_skin_id: string | null; default_skin_id: string; default_code_skin_id: string | null; image_id: string | null }>(

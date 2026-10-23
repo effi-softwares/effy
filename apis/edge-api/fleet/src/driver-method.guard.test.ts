@@ -5,14 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 082 P12 — driver work no longer knows a delivery METHOD, which every behavioural test would go on
- * passing without:
- *
- *   1. Nothing in fleet names a clearance's method. A clearance is (function, area), and since 083
- *      the column does not exist — a reader that came back would fail at run time, in production.
- *   2. Nothing in fleet or the orders console decides driver work from `delivery_method = 'same_day'`.
- *      Who delivers a parcel is 079's one definition (`package_delivered_by`); since 078 a later-day
- *      window is sold as `standard`, and a method test gives it no delivery round at all.
+ * Driver work knows no delivery method: no clearance method in fleet, and nothing in fleet or the
+ * orders console decides work from `delivery_method = 'same_day'` (a later-day window is `standard`).
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../..");

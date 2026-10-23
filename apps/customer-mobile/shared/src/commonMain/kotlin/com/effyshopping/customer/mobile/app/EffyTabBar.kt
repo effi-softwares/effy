@@ -64,15 +64,10 @@ internal fun tabIcon(tab: CustomerNavKey): DrawableResource = when (tab) {
 }
 
 /**
- * THE TAB BAR — five generous tabs: Home · Search · Cart · Orders · Account (Tab bar board; 087 FR-006).
- *
- * Operator direction: "bottom navbar should have good space and size, do not make it small". Each cell
- * is a full fifth of the width and at least 58dp tall (above the home indicator, which the app root's
- * inset already adds), with a 27dp Lucide icon and a 12sp label. The current tab is Effy blue, its label
- * semibold, with a 3dp blue bar under it that SLIDES between tabs — three signals, never colour alone.
- * The cart carries its item count, which bumps when something is added.
- *
- * The bar is hidden on pages opened on top (the shell's rule, unchanged).
+ * The tab bar: Home · Search · Cart · Orders · Account. Each cell is a fifth of the width and at least
+ * 58dp tall (above the home indicator), with a 27dp Lucide icon and a 12sp label. The current tab is Effy
+ * blue, semibold, with a 3dp bar that slides between tabs: three signals, never colour alone. The cart
+ * carries its count, which bumps on add. Hidden on pages opened on top.
  */
 @Composable
 internal fun EffyTabBar(
@@ -84,7 +79,7 @@ internal fun EffyTabBar(
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        // ⚠ A FIXED height, never "fill". The navigation layout measures the bar with the whole screen
+        // A fixed height, never "fill". The navigation layout measures the bar with the whole screen
         // as its maximum, so anything that fills (fillMaxHeight, an unbounded BoxWithConstraints)
         // becomes a full-screen tab bar with the page squeezed out — the first 087 build did exactly that.
         BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(TabBarHeight)) {

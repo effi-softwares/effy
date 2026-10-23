@@ -1,19 +1,8 @@
--- 084 storefront redesign — dev catalogue seed: the grocery aisles the storefront's menu is built
--- around, and enough products that every aisle has something in it. Dev only; never run in production.
+-- Dev catalogue seed: The grocery aisles the storefront's menu is built around, three levels deep (aisles,
+-- groups, leaves), as the header's All-aisles menu shows them. Upserted by key, so re-running is safe.
+-- Run before 098_variant_catalogue_dev.sql. Dev only.
 --
 --     psql "$DSN" -f db/seeds/084_storefront_catalogue_dev.sql
---
--- What it does, in one transaction:
---   1. THE AISLES. Eleven top-level aisles, their groups and their leaves — three levels, as the
---      header's All-aisles menu shows them. Upserted BY KEY, so the nine categories dev already has
---      (`pantry`, `bakery`, `cleaning`, …) are kept, renamed and moved rather than duplicated.
---      ⚠ `food` and `grocery` — dev's old top levels — are RETIRED once nothing is filed in them.
---   2. THE PRODUCTS DEV ALREADY HAS are re-filed under the leaf they belong to, by name. A product
---      whose name matches nothing stays exactly where it is.
---   3. Products are no longer seeded here (098): see db/seeds/098_variant_catalogue_dev.sql, run
---      after this file.
---
--- Idempotent: categories upsert by key.
 
 \set ON_ERROR_STOP on
 
@@ -208,50 +197,6 @@ JOIN public.category p ON p.key = s.parent_key
 ON CONFLICT (key) DO UPDATE
    SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id, display_order = EXCLUDED.display_order,
        status = 'active', updated_at = now();
-
--- ── 2. Re-file the products dev already has ─────────────────────────────────────────────────────
-
-UPDATE public.product p
-   SET primary_category_id = c.id, updated_at = now()
-FROM (VALUES
-    ('%Juice%', 'juice_fruit_juice'),
-    ('%Laundry Powder%', 'cleaning_laundry'),
-    ('%Bin Liners%', 'kitchen_bags_bin_liners'),
-    ('%Long Grain%Rice%', 'pasta_rice_rice'),
-    ('%Diced Tomatoes%', 'canned_tomatoes'),
-    ('%Spaghetti%', 'pasta_rice_pasta'),
-    ('%Olive Oil%', 'oils_sauces_oils'),
-    ('%Paper Towel%', 'paper_goods_paper_towel'),
-    ('%Spray n%', 'cleaning_surface_cleaners'),
-    ('%Toilet Tissue%', 'paper_goods_toilet_paper'),
-    ('%White Sugar%', 'baking_sugar'),
-    ('%Rolled Oats%', 'breakfast_oats_and_muesli'),
-    ('%Dishwashing%', 'cleaning_dishwashing'),
-    ('%Cold Brew%', 'coffee_tea_cold_coffee'),
-    ('%Cereal%', 'breakfast_cereal'),
-    ('%Kombucha%', 'soft_drinks_kombucha'),
-    ('%Biscuits%', 'biscuits_sweet_biscuits'),
-    ('%Toastie%', 'sandwiches_toasties'),
-    ('%Sushi%', 'ready_meals_sushi'),
-    ('%Chips%', 'chips_potato_chips'),
-    ('%Baked Beans%', 'canned_beans_and_legumes')
-) AS m (pattern, category_key)
-JOIN public.category c ON c.key = m.category_key
-WHERE p.name ILIKE m.pattern
-  AND p.primary_category_id <> c.id;
-
--- Dev's old top levels, once nothing is filed in them and nothing active hangs under them.
-UPDATE public.category c
-   SET status = 'retired', updated_at = now()
-WHERE c.key IN ('food', 'grocery')
-  AND NOT EXISTS (SELECT 1 FROM public.product p WHERE p.primary_category_id = c.id)
-  AND NOT EXISTS (SELECT 1 FROM public.category k WHERE k.parent_id = c.id AND k.status = 'active');
-
--- ── 3. Products ─────────────────────────────────────────────────────────────────────────────────
--- ⚠ MOVED TO db/seeds/098_variant_catalogue_dev.sql (098-product-variants). A product's price, stock
--- code and stock now live on its variants, and the catalogue was reset to start fresh, so the
--- products this seed used to insert are seeded there — as products with variants — after the aisles
--- above exist. Run this file first, then 098's.
 
 COMMIT;
 

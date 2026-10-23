@@ -3,14 +3,9 @@ import type { ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@effy/design-system/ui";
 
 /**
- * The shared operator-console overview landing (feature 041). Adopts the shadcn `dashboard-01`
- * shape: a row of summary cards, an optional chart region, and a table/detail region below.
- *
- * ⚠ Principle V normally biases AWAY from metric cards. The internal operator consoles are the
- * recorded exception (specs/041-monochrome-console-redesign/plan.md § "card-layout justification"):
- * an at-a-glance operator overview is the demonstrably-right use of a summary layout, and it does
- * NOT extend to customer-facing surfaces. Everything variable is a prop, so both consoles use one
- * scaffold rather than two copies (Principle II).
+ * The operator-console overview (shadcn `dashboard-01`): summary cards, an optional chart region and a
+ * table region. Summary cards are justified for an internal at-a-glance overview, never for customer
+ * surfaces.
  */
 export interface OverviewStat {
   /** Short caption above the figure, e.g. "Orders to pick". */

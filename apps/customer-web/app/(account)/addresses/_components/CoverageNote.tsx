@@ -2,11 +2,8 @@ import { CircleX, Package, Truck } from "lucide-react"
 import { COVERAGE_LABEL, COVERAGE_REFUSAL_SENTENCE, type CoverageKind } from "@effy/shared-types"
 
 /**
- * Who delivers to an address, in the platform's own words (076): "Delivered by Effy" in green,
- * "Courier delivery" in blue, or the ONE refusal sentence.
- *
- * ⚠ The refusal is black with a glyph, not a hue — there is no red on the storefront. The words are
- * never retyped here: they come from `@effy/shared-types`, where a test pins them.
+ * Who delivers to an address: "Delivered by Effy" (green), "Courier delivery" (blue), or the refusal
+ * sentence (black with a glyph; no red). The words come from `@effy/shared-types`.
  */
 export function CoverageNote({ coverage, className = "" }: { coverage: CoverageKind | undefined; className?: string }) {
   if (!coverage) return null

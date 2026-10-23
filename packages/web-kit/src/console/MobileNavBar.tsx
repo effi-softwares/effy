@@ -5,20 +5,9 @@ import { cn } from "@effy/design-system";
 import { visibleNav, type NavItem } from "./nav";
 
 /**
- * The narrow-viewport navigation: the sidebar becomes a bottom bar of the FIRST FIVE destinations
- * below 1100px (theme-adoption-prompt.md, Phase 3 §Console shell).
- *
- * ⚠ FIVE, AND THE REST ARE NOT LOST — they stay reachable through the sidebar sheet the shell's
- * trigger opens. Six or more targets in a 360px bar gives each one under 60px, which is below the
- * 44px hit target once the label is accounted for.
- *
- * ⚠ THE BREAKPOINT IS 1100px, NOT A TAILWIND STEP. The rail is 224px and the console's tables need
- * roughly 880px before columns start colliding; `lg` (1024px) leaves the first screen that matters —
- * the orders table — horizontally scrolling. It is expressed as an arbitrary variant rather than
- * being rounded to `xl` so the number stays the measured one.
- *
- * ⚠ `pb-[env(safe-area-inset-bottom)]` is not decoration: on an iPad in landscape the home indicator
- * sits exactly where this bar's touch targets are.
+ * Below 1100px the sidebar becomes a bottom bar of the first five destinations (the rest stay in the
+ * sidebar sheet): six would give each under 60px. 1100px is measured (the 224px rail plus ~880px of
+ * table), not a Tailwind step. The safe-area padding keeps targets clear of an iPad's home indicator.
  */
 export interface MobileNavBarProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
@@ -42,7 +31,7 @@ export function MobileNavBar<TRole extends string>({ nav, roles }: MobileNavBarP
             to={item.to}
             aria-current={active ? "page" : undefined}
             className={cn(
-              // 56px + the safe-area padding clears the 44px minimum with room for the label.
+              // 56px plus the safe area clears the 44px minimum with room for the label.
               "flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] transition-colors",
               active ? "font-medium text-brand" : "text-muted-foreground"
             )}

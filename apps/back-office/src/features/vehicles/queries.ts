@@ -11,8 +11,8 @@ import type {
 import type { VehicleListParams } from "./model";
 import * as repo from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
-// component state. Mutations INVALIDATE rather than patch.
+// Server state lives only in the TanStack Query cache (Principle VI) — never hand-cached in
+// component state. Mutations invalidate rather than patch.
 
 export const vehicleKeys = {
   all: ["vehicles"] as const,
@@ -26,9 +26,9 @@ export const vehiclesListQuery = (p: VehicleListParams) =>
 export const vehicleDetailQuery = (id: string) =>
   queryOptions({ queryKey: vehicleKeys.detail(id), queryFn: () => repo.getVehicle(id) });
 
-// ── Mutations ────────────────────────────────────────────────────────────────────────────────────
+// Mutations
 //
-// ⚠ Each invalidates `vehicleKeys.all` AND the driver keys. Issuing a vehicle changes what a DRIVER
+// Each invalidates `vehicleKeys.all` and the driver keys. Issuing a vehicle changes what a driver
 // holds and can change whether they are blocked from work — two screens read that, and a stale one
 // would show a driver as unable to work seconds after the operator fixed it.
 

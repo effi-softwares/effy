@@ -25,7 +25,7 @@ import { useClearVehicleCheck, useResolveHold } from "./queries";
 import { ReasonDialog } from "./ReasonDialog";
 
 /**
- * 093 — what else needs a dispatcher: runs whose next step is overdue, packages declared missing, and
+ * What else needs a dispatcher: runs whose next step is overdue, packages declared missing, and
  * vehicles found unsafe. Each is its own panel (redesign, board "Exceptions — open").
  */
 export function sequenceActionError(err: unknown): string {
@@ -125,7 +125,7 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                 <tr key={h.holdId}>
                   <td data-m="primary">
                     <span className="bo-code font-medium">{h.orderNumber}</span>
-                    {/* 096 — one bag held, or the whole package. */}
+                    {/* One bag held, or the whole package. */}
                     <span className="bo-sub">{h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}</span>
                   </td>
                   <td data-m="meta">{h.shopName}</td>
@@ -287,7 +287,7 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
   );
 }
 
-/** 096 — where a driver declared it missing: any step can, now that every bag is accounted for. */
+/** Where a driver declared it missing: any step can, now that every bag is accounted for. */
 const HOLD_STEP_WORDS: Record<HeldPackageDTO["step"], string> = {
   collect: "Not at the shop at collection",
   checkin: "Not in the van at check-in",

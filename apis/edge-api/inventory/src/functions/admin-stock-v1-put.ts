@@ -1,10 +1,4 @@
-// PUT /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock — set a count on the shop's behalf (054 US4, FR-026).
-//
-// ⚠ WRITE is admin/manager only (FR-026/FR-028) — this changes another organisation's records on
-// their behalf, which is the same tier 046 set for an outward reply and 053 for recording an arrival.
-// ⚠ And it runs the SAME service as the shop's own route: only the gate and how the shop is resolved
-// differ. Two copies of "what a valid stock change is" would drift, and the drift would show up as
-// back-office being able to write something a shop cannot (research R6).
+// Admin/manager only. The same service as the shop's route; only the gate differs.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -8,35 +8,12 @@ import { Button } from "@/components/ui/button"
 import { FieldEditor } from "./FieldEditor"
 import { updateProfile } from "./actions"
 
-/**
- * Personal info as DETAIL ROWS (034 US1) — label, current value, chevron. No inputs on the screen.
- *
- * This replaces 012's inline two-field form. The old form put the values behind a load and offered a
- * Save for both names at once; a row shows the current value at rest and edits exactly one thing.
- *
- * ⚠ EMAIL IS SHOWN AND IS NOT EDITABLE (FR-022), and activating it EXPLAINS why rather than doing
- * nothing. A row that silently ignores a tap is indistinguishable from a broken one — the customer
- * taps twice, then reports a bug. Changing an email is an identity operation: someone who can rewrite
- * their own email can point it at a victim's address.
- *
- * ⚠ PHONE CARRIES NO VERIFIED INDICATOR (FR-060a). It is self-asserted and this feature never
- * verifies it, so a tick would be a claim the platform cannot support — and one the customer would
- * reasonably rely on.
- */
 type Editing = "name" | "phone" | null
 
 /**
- * Personal info (reference: Account · Personal info): what Effy calls the customer and how to reach
- * them, each on a row with its own way to change it.
- *
- * ⚠ THE NAME IS ONE THING TO THE CUSTOMER, so it is one row and one dialog — first and last name
- * are saved together.
- *
- * ⚠ THE PHONE CARRIES NO "VERIFIED" MARK (034 FR-060a). It is what the customer typed; the platform
- * has never checked it, and a tick would be a claim it cannot support.
- *
- * ⚠ THE EMAIL SAYS WHY IT HAS NO BUTTON (FR-022). It is how the customer signs in; a row that simply
- * could not be changed would read as broken.
+ * Personal info as detail rows (label, value, chevron), each with its own way to change it; no inputs on
+ * the screen. The name is one row and one dialog. The phone carries no "VERIFIED" mark (it is never
+ * checked). The email is not editable, since changing it is an identity operation, and its row says why.
  */
 export function PersonalInfo({
   givenName,
@@ -55,7 +32,7 @@ export function PersonalInfo({
     const res = await updateProfile({
       givenName: patch.givenName !== undefined ? patch.givenName : givenName,
       familyName: patch.familyName !== undefined ? patch.familyName : familyName,
-      // ⚠ "" clears the phone; `null` would mean "leave it" to the action.
+      // "" clears the phone; `null` would mean "leave it".
       phone: patch.phone !== undefined ? patch.phone : (phone ?? ""),
     })
     return res.ok ? null : res.error

@@ -9,7 +9,6 @@ They are not infrastructure (`infra/scripts/` holds the Terraform/DB plumbing: `
 | Script | `make` target | Proves |
 |---|---|---|
 | `verify-cross-pool.sh` | `shop-verify-isolation` | SC-004 — a credential is usable only against its own audience, **both directions** |
-| `token-claims.sh` | `shop-token-claims` | research R6 — whether a Cognito access token carries `email`, and whether `username` is an address or a UUID |
 
 ## Maintenance
 

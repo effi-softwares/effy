@@ -34,7 +34,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The list chooser (068): what a shopper sees and what one tick or one "Create" sends.
+ * The list chooser: what a shopper sees and what one tick or one "Create" sends.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ListChooserViewModelTest {
@@ -49,7 +49,7 @@ class ListChooserViewModelTest {
         const val WEEKLY = "5d1e"
     }
 
-    /** A small in-memory platform: lists, and which of them hold [PRODUCT]. */
+    /** A small in-memory platform: lists, and which of them hold [product]. */
     private class FakeLists : ListRepository {
         val names = linkedMapOf<String, String?>("default" to null, WEEKLY to "Weekly Items")
         val holding = mutableSetOf("default")
@@ -193,7 +193,7 @@ class ListChooserViewModelTest {
         assertEquals(listOf("Saved"), ready(vm).lists.map { it.label })
     }
 
-    /** FR-037: named lists need an account. A guest is told so, and nothing is asked of the platform. */
+    /** Named lists need an account. A guest is told so, and nothing is asked of the platform. */
     @Test
     fun `a guest is told lists need an account`() = runTest(dispatcher) {
         val lists = FakeLists().apply { failLists = true }
@@ -227,7 +227,7 @@ class ListChooserViewModelTest {
         assertEquals(-1, listNameRemaining("🥚".repeat(41)))
     }
 
-    /** Word for word what customer-web says (FR-006, FR-041). */
+    /** Word for word what customer-web says. */
     @Test
     fun `the delete confirmation states both numbers`() {
         assertEquals("This list is empty.", deleteSummary(0, 0))

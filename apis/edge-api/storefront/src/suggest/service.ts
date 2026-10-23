@@ -1,5 +1,3 @@
-// Search suggestions (084): a handful of things to search for and a few products, for a few typed
-// characters. No HTTP, no SQL.
 import type { SearchPhraseDTO, SuggestionsDTO } from "@effy/shared-types";
 
 import { toCards, type ImageAddress } from "../lib/cards";
@@ -14,12 +12,7 @@ const EMPTY: SuggestionsDTO = { phrases: [], products: [] };
 
 export function createSuggestService(repo: SuggestRepository, imageAddress?: ImageAddress) {
   return {
-    /**
-     * `q` is already trimmed and within the length limit (the handler refuses longer).
-     *
-     * The phrases, in the order a shopper reads them: the text completed from the catalogue, the
-     * same text inside the aisle that holds most of it, then an aisle whose own name matches.
-     */
+    /** `q` is trimmed and within the limit. Phrases: the completion, it inside its main aisle, then a matching aisle. */
     async suggest(q: string): Promise<SuggestionsDTO> {
       if (q.length < SUGGEST_MIN_CHARS) return EMPTY;
 
@@ -32,9 +25,8 @@ export function createSuggestService(repo: SuggestRepository, imageAddress?: Ima
 
       const phrases: SearchPhraseDTO[] = [
         ...completions.map((c) => ({ text: c.phrase })),
-        // "oat milk in Dairy & eggs" — the typed text, searched inside one aisle.
         ...holding.map((a) => ({ text: q, categorySlug: a.key, categoryName: a.name })),
-        // An aisle by name. `text` IS its name: the client opens the aisle rather than searching.
+        // `text` is the aisle's name: the client opens the aisle.
         ...named.map((a) => ({ text: a.name, categorySlug: a.key, categoryName: a.name })),
       ];
 

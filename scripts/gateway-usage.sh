@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 #
-# How full is each API gateway? Read-only. (075 FR-016, SC-007.)
+# How full is each API gateway? Read-only. An HTTP API holds at most 300 routes and 300 integrations (the
+# integration limit cannot be raised); this counts what is deployed now. What the tree would deploy:
+# `pnpm --filter @effy/edge-shared test` (gateway-capacity).
 #
-# An HTTP API holds at most 300 routes and 300 integrations. The route limit can be raised by a
-# quota request; the INTEGRATION limit cannot. On 2026-10-08 the shared gateway reached both and a
-# deployment was refused — nothing had been counting. This counts what is DEPLOYED right now.
-# (What the tree is ABOUT to deploy: `pnpm --filter @effy/edge-shared test`, gateway-capacity.)
+# usage: make gateway-usage ENV=dev both gateways
+# make gateway-usage ENV=dev BY=1 …and routes per service prefix
 #
-#   usage: make gateway-usage ENV=dev            both gateways
-#          make gateway-usage ENV=dev BY=1       …and routes per service prefix
-#
-# Exits non-zero when either gateway is at or above 90% — the "stop adding" line
-# (docs/api/path-assignment.md, "When a gateway nears its ceiling").
+# Exits non-zero at or above 90%, the "stop adding" line (docs/api/path-assignment.md).
 set -euo pipefail
 
 ENV="${ENV:?ENV not set}"
@@ -20,7 +16,7 @@ BY_SERVICE="${BY_SERVICE:-}"
 CEILING=300
 
 param() { aws ssm get-parameter --region "${REGION}" --query Parameter.Value --output text --name "$1" 2>/dev/null || true; }
-# ⚠ The CLI follows NextToken itself but applies --query to EACH PAGE, so `length(Items)` prints one
+# The CLI follows NextToken itself but applies --query to each page, so `length(Items)` prints one
 # number per page (25, 25, … 24), not a total. Print one id per item across all pages and count them.
 count() { # <get-routes|get-integrations> <id field> <api id>
   aws apigatewayv2 "$1" --region "${REGION}" --api-id "$3" --query "Items[].$2" --output text | tr '\t' '\n' | grep -c . || true

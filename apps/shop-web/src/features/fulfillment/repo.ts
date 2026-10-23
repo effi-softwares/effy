@@ -15,24 +15,24 @@ import { api } from "@/lib/api";
 
 import type { FulfillmentDetail, FulfillmentQueue, FulfillmentQueueState } from "./model";
 
-// The data layer for shop-web fulfillment (020). The ONLY file in this slice that imports the api
+// The data layer for shop-web fulfillment. The only file in this slice that imports the api
 // client — screens read through `queries.ts` and never touch transport (Principle VI).
 //
-// NOTHING here sends a shop identifier. The caller's shop is resolved server-side from their
-// `shop_staff` record, so cross-shop access is un-representable on the wire (FR-019, SC-007). A
-// portion that is missing OR another shop's returns the SAME uniform 403 — there is no 404 to
+// Nothing here sends a shop identifier. The caller's shop is resolved server-side from their
+// `shop_staff` record, so cross-shop access is un-representable on the wire. A
+// portion that is missing OR another shop's returns the same uniform 403 — there is no 404 to
 // distinguish them, by design, so no client-side ownership check exists or is needed.
 
-/** The queue (US1/US4). `active` = pending|received|picking; `completed` = ready_for_pickup|collected. */
+/** The queue. `active` = pending|received|picking; `completed` = ready_for_pickup|collected. */
 export async function listFulfillments(state: FulfillmentQueueState): Promise<FulfillmentQueue> {
   return api.get<FulfillmentQueueDTO>(`/shop/v1/fulfillments?state=${state}`);
 }
 
 /**
- * The pick screen (US2).
+ * The pick screen.
  *
- * ⚠ This read has a SIDE EFFECT by contract: a `pending` portion transitions to `received` —
- * opening it IS the acknowledgement (FR-011a). That is why the queue is invalidated after a detail
+ * This read has a side effect by contract: a `pending` portion transitions to `received`
+ * opening it IS the acknowledgement. That is why the queue is invalidated after a detail
  * read lands rather than being left to the poll.
  */
 export async function getFulfillment(id: string): Promise<FulfillmentDetail> {
@@ -40,7 +40,7 @@ export async function getFulfillment(id: string): Promise<FulfillmentDetail> {
 }
 
 /**
- * Advance or reverse the portion (US3). Only `picking` and `ready_for_pickup` are requestable.
+ * Advance or reverse the portion. Only `picking` and `ready_for_pickup` are requestable.
  * An illegal transition from the current state is a 409 — the portion moved under us.
  */
 export async function transitionFulfillment(
@@ -51,13 +51,13 @@ export async function transitionFulfillment(
 }
 
 /**
- * Refund part of this shop's portion of an order (057 US5).
+ * Refund part of this shop's portion of an order.
  *
- * It settles through the platform's ONE refund state machine — the same one back-office uses. The
+ * It settles through the platform's one refund state machine — the same one back-office uses. The
  * shop service only decides who may ask (an active manager, for their own shop's lines).
  *
- * ⚠ IT SENDS LINES AND QUANTITIES, NEVER AN AMOUNT. The server prices the refund from the receipt and
- * REFUSES a client-supplied amount, so the two can never disagree about what was covered.
+ * It sends lines and quantities, never an amount. The server prices the refund from the receipt and
+ * refuses a client-supplied amount, so the two can never disagree about what was covered.
  */
 export async function issueShopRefund(
   orderId: string,
@@ -66,10 +66,10 @@ export async function issueShopRefund(
   return api.post(`/shop/v1/orders/${orderId}/refunds`, body);
 }
 
-// ── 057 Amendment A3 — the ORDER CONSOLE (`/shop/v1/orders…`) ────────────────────────────────────
+// 057 Amendment A3 — the order console (`/shop/v1/orders…`)
 //
 // A sibling of the pick routes above, read by shop-web's Orders list and order detail. These carry the
-// order's money by operator decision (A3); the pick routes still do not, and shop-mobile still reads
+// order's money by operator decision; the pick routes still do not, and shop-mobile still reads
 // only those. Same rule as everything above: no shop identifier is ever sent.
 
 /** The list. Search, filters, sort and paging are server-side, so the tab counts cover every state. */
@@ -82,7 +82,7 @@ export async function listOrders(q: ShopOrderListQuery): Promise<ShopOrderListDT
   return api.get<ShopOrderListDTO>(`/shop/v1/orders${qs ? `?${qs}` : ""}`);
 }
 
-/** One order. ⚠ Like the pick read, opening it acknowledges a `pending` portion (020 FR-011a). */
+/** One order. Like the pick read, opening it acknowledges a `pending` portion. */
 export async function getOrder(id: string): Promise<ShopOrderDetailDTO> {
   return api.get<ShopOrderDetailDTO>(`/shop/v1/orders/${id}`);
 }
@@ -92,7 +92,7 @@ export async function getOrderActivity(id: string): Promise<ShopOrderActivityDTO
   return api.get<ShopOrderActivityDTO>(`/shop/v1/orders/${id}/activity`);
 }
 
-/** Replace the tag set. ABSOLUTE, so a retried save lands the same result. */
+/** Replace the tag set. Absolute, so a retried save lands the same result. */
 export async function setOrderTags(id: string, tags: string[]): Promise<ShopOrderDetailDTO> {
   return api.put<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/tags`, { tags });
 }
@@ -104,9 +104,9 @@ export async function addOrderNote(id: string, body: string): Promise<ShopOrderD
 
 /**
  * Item-level picking (A3 revision 2): one line for a tick or an Adjust, every line for Select all.
- * ⚠ Ticking a received order starts picking server-side — the tick is the start.
+ * Ticking a received order starts picking server-side — the tick is the start.
  */
-/** 080 — the courier collected this parcel from the shop. Booked pickups only; a repeat is the same answer. */
+/** The courier collected this parcel from the shop. Booked pickups only; a repeat is the same answer. */
 export async function courierHandover(id: string): Promise<FulfillmentDetail> {
   return api.post<FulfillmentDetail>(`/shop/v1/fulfillments/${id}/courier-handover`, {});
 }
@@ -115,9 +115,9 @@ export async function setOrderPicks(id: string, body: ShopOrderPicksRequest): Pr
   return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body);
 }
 
-// ── 096 — bags ───────────────────────────────────────────────────────────────────────────────────────
+// Bags
 
-/** Set how many bags of each zone were packed. A cold zone the lines need must have a bag (422). */
+/** Set how many bags of each zone were packed. A cold zone the lines need must have a bag. */
 export async function declareParcels(
   id: string,
   counts: { ambient: number; chilled: number; frozen: number },
@@ -130,7 +130,7 @@ export async function voidParcel(id: string, parcelId: string): Promise<ShopOrde
   return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/${parcelId}/void`, { changeId: crypto.randomUUID() });
 }
 
-/** Record that these bags' labels were SENT to a printer — called only after they were. */
+/** Record that these bags' labels were sent to a printer — called only after they were. */
 export async function recordParcelPrints(body: {
   changeId: string;
   parcelIds: string[];

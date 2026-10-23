@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
  * The Android implementation of [AuthDriver], over Amplify Android (Kotlin coroutines facade).
  *
  * Amplify must be configured before this is used (done at app startup from the in-code config string,
- * D12). NOTE the interface's deliberate absences: no password write, no global sign-out, no escape
- * hatch (013 D8) — those go to the backend, and the build guard forbids the escape hatch.
+ * D12). Note the interface's deliberate absences: no password write, no global sign-out, no escape
+ * hatch — those go to the backend, and the build guard forbids the escape hatch.
  */
 class AmplifyAuthDriver : AuthDriver {
 
@@ -50,23 +50,11 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     /**
-     * ⚠ THIS RECONCILES; it does not merely read. Kept identical to the iOS bridge's `fetchSession`.
-     *
-     * A session that reports `isSignedIn` but cannot produce a token — an expired refresh token, or on
-     * iOS a Keychain entry that outlived the install that made it — used to be reported as simply "no
-     * session". That left Amplify holding a signed-in user while the app showed a guest, and every
-     * subsequent `signIn` failed with *"There is already a user in signedIn state"*.
-     *
-     * ⚠ This is NOT the only way the two stores diverge, and probably not the common one.
-     * `SessionManager` deliberately falls back to Guest when the customer record cannot be read at
-     * launch — a backend outage should not log anyone out, and its own comment says "the Amplify
-     * session survives for a relaunch". That path produces the same standoff with a session that is
-     * perfectly VALID, so this method cannot see it; [signInRecoveringFromStaleSession] is what
-     * actually covers it.
-     *
-     * ⚠ Reported on **iOS**, fixed on both. Android's credential store goes with the app data, which
-     * hides the reinstall half of the problem rather than fixing it — but the SessionManager half is
-     * platform-neutral and bites here identically.
+     * Reconciles, not merely reads (identical to the iOS bridge's `fetchSession`): a session that reports
+     * `isSignedIn` but cannot produce a token (an expired refresh token; on iOS a Keychain entry that outlived
+     * its install) is signed out, or Amplify keeps a user the app shows as a guest and every `signIn` fails
+     * with "There is already a user in signedIn state". The other divergence (SessionManager falling back to
+     * Guest with a valid session) is covered by [signInRecoveringFromStaleSession].
      */
     override suspend fun currentSession(forceRefresh: Boolean): Session? = try {
         val options = AuthFetchSessionOptions.builder().forceRefresh(forceRefresh).build()
@@ -98,7 +86,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     override suspend fun signUpPasswordless(email: String): AuthStep =
         step {
-            // No password parameter — Cognito creates a genuinely passwordless user (D7).
+            // No password parameter — Cognito creates a genuinely passwordless user.
             val result = Amplify.Auth.signUp(email, null, signUpOptions(email))
             if (result.isSignUpComplete) autoSignIn() else AuthStep.NeedsSignUpConfirmation(email)
         }
@@ -114,12 +102,12 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
-        // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP
+        // The platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP
         // (whose length is not configurable by any setting on any object).
-        // ⚠ WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
-        // returning DONE from the first signIn — issuing tokens without presenting the challenge
+        // WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
+        // returning done from the first signIn — issuing tokens without presenting the challenge
         // (amplify-android #2331/#2566, fixed twice, reported recurring).
-        // ⚠ This is the CODE route only. The password route above keeps USER_SRP_AUTH — the customer
+        // This is the code route only. The password route above keeps USER_SRP_AUTH — the customer
         // audience is the one audience that may hold a password (constitution v1.7.0).
         val options = AWSCognitoAuthSignInOptions.builder()
             .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
@@ -132,13 +120,13 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun resendSignUpCode(email: String): AuthStep = step {
-        // Cognito's MANAGED resend — a real API, unlike the sign-in code (see `resendSignInCode`).
+        // Cognito's managed resend — a real API, unlike the sign-in code (see `resendSignInCode`).
         val details = Amplify.Auth.resendSignUpCode(email)
         AuthStep.NeedsSignUpConfirmation(details.destination ?: email)
     }
 
     /**
-     * ⚠ NOT A RESEND — a fresh sign-in. See the note on `AuthDriver.resendSignInCode`: the custom
+     * Not a resend — a fresh sign-in. See the note on `AuthDriver.resendSignInCode`: the custom
      * challenge has no resend API, `CreateAuthChallenge` reuses its envelope on a re-challenge and
      * sends no email, so only a brand-new `InitiateAuth` produces one.
      */
@@ -146,7 +134,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     override suspend fun startPasswordReset(email: String): AuthStep = step {
         Amplify.Auth.resetPassword(email)
-        AuthStep.NeedsOtp(email) // the code is emailed; recovery FINISHES at the backend, not the SDK
+        AuthStep.NeedsOtp(email) // the code is emailed; recovery finishes at the backend, not the SDK
     }
 
     override suspend fun signOut() {
@@ -154,7 +142,7 @@ class AmplifyAuthDriver : AuthDriver {
         runCatching { Amplify.Auth.signOut() }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────────────────────────
+    // helpers
 
     /** Sign out only if Amplify still believes someone is signed in. */
     private suspend fun clearStaleSessionIfAny() {
@@ -168,11 +156,11 @@ class AmplifyAuthDriver : AuthDriver {
      *
      * This is Amplify's own documented recovery ("SignOut the user first before calling signIn"), and
      * it belongs at the driver rather than in a use case: a stale SDK session is an SDK concern. The
-     * closed [AuthError] set (FR-016) has no member for it and should not grow one — the domain has no
+     * closed [AuthError] set has no member for it and should not grow one — the domain has no
      * decision to make here, and the customer certainly does not.
      *
-     * ⚠ Retried EXACTLY once. A second failure is reported, so a genuine invalid-state bug surfaces
-     * instead of spinning. `SignedInException` is matched by TYPE, never by message text — and it is the
+     * Retried exactly once. A second failure is reported, so a genuine invalid-state bug surfaces
+     * instead of spinning. `SignedInException` is matched by type, never by message text — and it is the
      * precise subtype, not its `InvalidStateException` parent, so unrelated invalid states are not
      * retried on the strength of sharing a base class.
      */
@@ -186,7 +174,7 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     /**
-     * ⚠ 036 FR-032 — the NAME attributes are gone. They are optional on the pool (no `schema {}`
+     * The name attributes are gone. They are optional on the pool (no `schema {}`
      * block), so registration is unaffected; the name is written after the account exists.
      */
     private fun signUpOptions(email: String): AuthSignUpOptions =
@@ -195,31 +183,22 @@ class AmplifyAuthDriver : AuthDriver {
             .build()
 
     /**
-     * ⚠ 036 R6 — THIS DEAD-ENDED ON ANDROID WHILE iOS HANDLED IT CORRECTLY.
-     *
-     * It used to read `if (result.isSignedIn) sessionOrFail() else AuthStep.Failed(Unexpected)`. So a
-     * `CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE` — which `autoSignIn` MAY return now that custom-auth
-     * triggers are attached to this pool — became a hard "something went wrong": the shopper was
-     * confirmed but not signed in, shown a generic error, with no route forward. iOS ran the same
-     * result through `mapSignIn` and would have rendered the code screen.
-     *
-     * ⚠ Whether the challenge actually occurs is 035's still-open T003 / 036's SPIKE-2, and AWS
-     * documents it nowhere. Routing through `mapSignIn` makes the answer stop mattering for
-     * correctness: whatever step comes back is handled the same way it is everywhere else.
+     * Routed through `mapSignIn`, like iOS: `autoSignIn` may return `CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE`
+     * on this pool, which must render the code screen rather than fail.
      */
     private suspend fun autoSignIn(): AuthStep = mapSignIn(Amplify.Auth.autoSignIn())
 
-    // ⚠ THE `else` BELOW IS A SILENT-FAILURE HAZARD. Kotlin does not require this `when` to be
+    // The `else` below is a silent-failure hazard. Kotlin does not require this `when` to be
     // exhaustive once an `else` exists, so an unhandled Cognito step compiles cleanly and dies at
-    // RUNTIME as an "Unexpected" dead end — no build error, no test failure, just a shopper stuck.
+    // runtime as an "Unexpected" dead end — no build error, no test failure, just a shopper stuck.
     // Every step this app accepts is named explicitly.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
-        // 035 — the platform's own 6-digit code.
+        // The platform's own 6-digit code.
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
-        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
-        // change above (FR-033) and an in-flight managed-factor session still completes (FR-034).
+        // Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above and an in-flight managed-factor session still completes.
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_OTP ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
         AuthSignInStep.CONFIRM_SIGN_UP ->
@@ -238,7 +217,7 @@ class AmplifyAuthDriver : AuthDriver {
         }
 
     /** Map Amplify exceptions to the closed [AuthError] — matching by simple name to avoid a fragile
-     *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value (FR-016). */
+     *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value. */
     private fun mapError(e: Throwable): AuthError = when (e::class.simpleName) {
         "UserNotFoundException", "NotAuthorizedException", "UserNotConfirmedException" -> AuthError.InvalidCredentials
         "CodeMismatchException" -> AuthError.CodeIncorrect

@@ -11,8 +11,7 @@ const NAV: NavItem<Role>[] = [
   { label: "Management", to: "/manager", icon, requiredRole: "shop_manager" },
 ];
 
-// Role-aware nav reflects the authoritative backend gate. Hiding a link is a courtesy, not a
-// guard — the backend refuses the same request regardless (FR-007).
+// Hiding a link is a courtesy; the backend refuses the same request regardless.
 describe("visibleNav", () => {
   it("always shows the ungated item", () => {
     for (const roles of [["shop_manager"], ["shop_staff"], []] as Role[][]) {

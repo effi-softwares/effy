@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { planWave, type AssignInput } from "./assign";
 import type { BucketRound, PlannablePackage, PlannerCandidate } from "./types";
 
-const NOW = new Date("2026-07-15T02:00:00Z"); // midday Melbourne
-const DEADLINE = new Date("2026-07-15T03:00:00Z"); // 13:00 Melbourne
+const NOW = new Date("2026-07-15T02:00:00Z");
+const DEADLINE = new Date("2026-07-15T03:00:00Z");
 
 function pkg(p: Partial<PlannablePackage> & { packageId: string }): PlannablePackage {
   return {
@@ -63,7 +63,7 @@ describe("planWave — placing work (US1)", () => {
     expect(out.considered).toBe(1);
   });
 
-  // ⚠ FR-015 / SC-003 — the engine may fail to assign; it may never fail quietly.
+  // The engine may fail to assign; it may never fail quietly.
   it("leaves work unassigned WITH A REASON when nobody is cleared for it", () => {
     const out = plan({ packages: [pkg({ packageId: "p1", zoneId: "zone-9" })] });
     expect(out.unassigned.map((p) => p.packageId)).toEqual(["p1"]);
@@ -89,7 +89,6 @@ describe("planWave — placing work (US1)", () => {
     }
   });
 
-  // ⚠ FR-014 / SC-007a — the operator's decision, made testable.
   it("gives the next package to the driver carrying the fewest today", () => {
     const out = plan({
       candidates: [
@@ -101,7 +100,7 @@ describe("planWave — placing work (US1)", () => {
     expect(out.assignments.has("busy")).toBe(false);
   });
 
-  // ⚠ Without counting the wave's own assignments, one driver takes everything in a single pass.
+  // Without counting the wave's own assignments, one driver takes everything.
   it("counts work placed earlier in the SAME wave when balancing", () => {
     const out = plan({
       packages: [pkg({ packageId: "p1" }), pkg({ packageId: "p2" }), pkg({ packageId: "p3", shopId: "shop-2" })],
@@ -133,7 +132,7 @@ describe("planWave — placing work (US1)", () => {
     expect(out.assignments.has("warm")).toBe(false);
   });
 
-  // ⚠ 062 FR-011 — a clearance for "everywhere" must survive a zone created afterwards.
+  // A clearance for everywhere must cover a zone created afterwards.
   it("treats a null-zone clearance as every zone, including a brand-new one", () => {
     const everywhere = driver({
       driverId: "d1",
@@ -151,7 +150,7 @@ describe("planWave — placing work (US1)", () => {
       ],
       candidates: [driver({ driverId: "d1" })],
     });
-    // The gather query orders by readiness; the planner must not reshuffle it.
+    // The gather orders by readiness; the planner must not reshuffle it.
     expect(out.assignments.get("d1")?.map((p) => p.packageId)).toEqual(["newest", "oldest"]);
   });
 });
@@ -172,14 +171,14 @@ describe("planWave — a package that becomes ready mid-round (FR-004a)", () => 
     expect(out.assignments.size).toBe(0);
   });
 
-  // ⚠ A locked round is never LOADED (the query excludes it), so the planner is simply not shown it.
+  // A locked round is never loaded, so the planner never sees it.
   it("does NOT join a round a dispatcher has locked — it is never shown one", () => {
     const out = plan({ rounds: [] });
     expect(out.additions.size).toBe(0);
     expect(out.assignments.has("d1")).toBe(true);
   });
 
-  // ⚠ FR-004c — the fix for one problem must not create another.
+  // The fix for one problem must not create another.
   it("refuses the late join when it would breach capacity, and records why", () => {
     const out = plan({
       packages: [pkg({ packageId: "heavy", weightGrams: 900_001 })],
@@ -229,8 +228,7 @@ describe("planWave — one round per driver per run (072, US3)", () => {
     expect(out.additions.get("r1")?.map((p) => p.packageId)).toEqual(["p1"]);
   });
 
-  // ⚠ FR-017 — capacity is judged over the WHOLE round. Without the seed a van filled across six
-  // passes passes the gate six times.
+  // Capacity is judged over the whole round, or a van filled across six passes passes six times.
   it("counts what the round already weighs", () => {
     const out = plan({
       packages: [pkg({ packageId: "p2", shopId: "shop-2", weightGrams: 2000 })],
@@ -288,10 +286,10 @@ describe("planWave — work that cannot be started yet (072, FR-005)", () => {
   const shops = (n: number) =>
     Array.from({ length: n }, (_, i) => pkg({ packageId: `p${i}`, shopId: `shop-${i}` }));
 
-  // ⚠ Without `opensAt`, five hours of planning lead looks like five hours of working time: 25 stops.
+  // Without `opensAt`, five hours of planning lead looks like five hours of work.
   it("allows no more stops than fit between OPENING and the deadline", () => {
     const out = plan({ packages: shops(5), deadlineAt: far, opensAt });
-    expect(out.assignments.get("d1")).toHaveLength(3); // 45 min ÷ 12 min
+    expect(out.assignments.get("d1")).toHaveLength(3);
     expect(out.unassigned).toHaveLength(2);
     expect(out.exclusions.every((e) => e.reason === "cannot_meet_deadline")).toBe(true);
   });
@@ -353,8 +351,7 @@ describe("planWave — how it was assigned, in one line (073)", () => {
   });
 });
 
-
-// ── 093 — one trip: the collector delivers what they brought to the hub ─────────────────────────
+// One trip: the collector delivers what they brought to the hub.
 
 describe("planWave — the collector is preferred for delivery (093 US3)", () => {
   const deliveryDriver = (driverId: string, packagesAssignedToday = 0, over: Partial<PlannerCandidate> = {}) =>

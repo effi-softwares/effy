@@ -1,9 +1,7 @@
 import { authorizeShopRefund, upsertOnContact } from "./repository";
 import type { ShopStaffRecord } from "./types";
 
-// Orchestration only: no HTTP, no SQL (constitution Principle VI).
-
-/** Meet the operator, record them, hand back the platform's record of them. */
+/** Records the operator and returns the platform's record. */
 export async function recordAndLoad(
   sub: string,
   email: string | null,
@@ -14,13 +12,7 @@ export async function recordAndLoad(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * May this operator refund part of this order — and if so, as which shop?
- *
- * Returns the shop id, or null for "no". ⚠ A lookup failure THROWS rather than answering null:
- * "we could not check" and "you may not" are different facts, and only one of them should make a
- * manager stop trying. An id that is not an order id cannot be this shop's order.
- */
+/** The shop id, or null for "no". A lookup failure throws: "could not check" is not "may not". */
 export async function shopMayRefundOrder(sub: string, orderId: string): Promise<string | null> {
   if (!UUID.test(orderId)) return null;
   return authorizeShopRefund(sub, orderId);

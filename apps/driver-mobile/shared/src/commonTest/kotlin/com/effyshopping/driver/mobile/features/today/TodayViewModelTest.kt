@@ -23,7 +23,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 092 T013 — the states Today draws: off duty, loading failed, offline over a held copy, a run, idle. */
+/** The states Today draws: off duty, loading failed, offline over a held copy, a run, idle. */
 class TodayViewModelTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
@@ -56,7 +56,7 @@ class TodayViewModelTest {
         TodayViewModel(initialDuty = duty, getToday = GetToday(repo), setDuty = SetDuty(drivers), newChangeId = { "c" }, now = { 42L })
 
     /**
-     * 092 rev 2 — the reported defect: a driver collected the first shop, came back, and Today still
+     * Rev 2 — the reported defect: a driver collected the first shop, came back, and Today still
      * said "Next · stop 1". Their own change is never announced back to them, so coming back is when
      * Today must re-read — quietly, with no spinner over the run already on screen.
      */

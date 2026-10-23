@@ -3,7 +3,7 @@ package com.effyshopping.driver.mobile.core.presentation
 import com.effyshopping.driver.mobile.core.error.AppError
 
 /**
- * The single mapping from a closed [AppError] to user-facing copy (049). Kept out of the ViewModels so
+ * The single mapping from a closed [AppError] to user-facing copy. Kept out of the ViewModels so
  * every screen speaks with one voice, and no raw SDK/HTTP text ever reaches a driver.
  */
 fun AppError.userMessage(): String = when (this) {

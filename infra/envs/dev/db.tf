@@ -1,6 +1,6 @@
-# The dev operational database (002-dev-database) at the COST FLOOR: db.t4g.micro,
-# 20 GB gp3, single-AZ, every separately-billed option OFF — ≈ US$22/mo. Every choice
-# here is a reversible tfvars lever (quickstart runbook). Backups are OFF: dev data is
+# The dev operational database (002-dev-database) at the cost floor: db.t4g.micro,
+# 20 GB gp3, single-AZ, every separately-billed option off — ≈ US$22/mo. Every choice
+# here is a reversible tfvars lever (quickstart runbook). Backups are off: dev data is
 # disposable by decision; flip db_backup_retention_days before any real data appears.
 
 module "db" {

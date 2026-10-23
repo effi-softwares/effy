@@ -21,7 +21,7 @@ const ADDRESS: AddressDTO = {
   city: "Melbourne", region: "VIC", postalCode: "3000", country: "AU", isDefault: true,
 }
 /**
- * ⚠ A COURIER quote on purpose: it has one fee ($6.00) and NOTHING TO CHOOSE, so these tests can go
+ * A courier quote on purpose: it has one fee ($6.00) and nothing to choose, so these tests can go
  * straight to paying — they are about the points split, not about picking a delivery window.
  */
 const QUOTE = (usable: number): DeliveryQuoteDTO => ({
@@ -40,7 +40,7 @@ beforeEach(() => {
   quote = QUOTE(1000)
   intentBodies = []
   intentReply = () => jsonRes({ orderId: "o1", orderNumber: "E-1", clientSecret: "cs", publishableKey: "pk", grandTotalAmount: "16.00", currency: "AUD", pointsUsed: 1000, pointsAmount: "10.00", cardAmount: "6.00", paidWithPoints: false })
-  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  // A cart line is a size (variant); seeded through the store, never its storage key.
   resetCart()
   addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal("location", { ...window.location, assign })

@@ -51,7 +51,7 @@ describe("DeliveryDaysPanel", () => {
     renderPanel();
     await screen.findByLabelText(/hub turnaround/i);
     expect(screen.getAllByText(/^Estimate — not yet timed/)).toHaveLength(1);
-    // 083 — the settings that only served the old checkout are gone.
+    // The settings that only served the old checkout are gone.
     expect(screen.queryByLabelText(/carrier lead time/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/days a customer can choose from/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Standard delivery days")).not.toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("DeliveryDaysPanel", () => {
     await waitFor(() =>
       expect(repo.putDeliveryDays).toHaveBeenCalledWith({
         effyLookaheadDays: 5, noDeliveryWeekdays: [6, 7], slotHoldMin: 10, hubTurnaroundMin: 60, asapEstimate: "usually within 2–3 days",
-        // 093 — kept as they were read (the fixture carries none: the defaults).
+        // Kept as they were read (the fixture carries none: the defaults).
         loadOverdueMin: 20, checkinOverdueMin: 30, vehicleCheckRequired: false,
       }),
     );

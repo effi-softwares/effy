@@ -1,4 +1,3 @@
-// Readiness use-cases (056 US6). Three independent reads, run together.
 import type { FleetReadinessResponse } from "@effy/shared-types";
 
 import * as repo from "./repository";

@@ -33,13 +33,8 @@ import com.effyshopping.customer.mobile.features.saved.domain.listNameRemaining
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The shopper's lists, in one place (068 FR-027): "Saved" first, each with its count.
- *
- * A row of chips over one list of rows (087, Saved board). The row SCROLLS rather than squeezing, so
- * twenty lists stay one line and each chip keeps a full 48dp target.
- *
- * Rename and delete sit under the row and only for a list the shopper made: "Saved" cannot be
- * renamed or deleted, so neither is offered for it (FR-003).
+ * The shopper's lists in one place: "Saved" first, each with its count, as a scrolling row of chips (each a
+ * full 48dp target). Rename and delete sit under the row, only for a list the shopper made.
  */
 @Composable
 fun SavedListsBar(
@@ -89,7 +84,7 @@ fun ListNameDialog(
     var busy by remember { mutableStateOf(false) }
     val remaining = listNameRemaining(name)
 
-    // 087 — a sheet, not a dialog: the field above, the action pinned below it and above the keyboard.
+    // A sheet, not a dialog: the field above, the action pinned below it and above the keyboard.
     EffySheet(
         title = title,
         onDismiss = onDismiss,
@@ -123,7 +118,7 @@ fun ListNameDialog(
 }
 
 /**
- * ⚠ BOTH NUMBERS, BEFORE ANYTHING IS DELETED (FR-006): what is in the list, and how much of it lives
+ * Both numbers, before anything is deleted: what is in the list, and how much of it lives
  * nowhere else. The second is what the shopper actually loses — the delete un-saves exactly that many.
  */
 @Composable

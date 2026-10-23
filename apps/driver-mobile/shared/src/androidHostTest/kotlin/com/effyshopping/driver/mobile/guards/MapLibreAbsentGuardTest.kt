@@ -5,20 +5,9 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * MapLibre must not come back (060, replacing `MapLibreImportGuardTest`).
- *
- * ⚠ **It was adopted, shipped, and removed on operator decision.** MapLibre Compose rendered real
- * OpenStreetMap cartography and worked at runtime, but **aborted the app under Xcode's debug
- * build** — `SIGABRT` on its own render thread, in the pre-1.0 handoff between native render
- * callbacks and the Kotlin/Native runtime. Not fixable from here, and an app that cannot be Run
- * from Xcode cannot be developed.
- *
- * ⚠ **Re-adding it is an easy mistake to make**: the map screen looks like it wants a real map, the
- * dependency is one line, and the crash only appears under a debug build with the Map tab open —
- * so someone could re-introduce it, see it work, and ship. This test is the memory of that.
- *
- * ⚠ It also keeps `tile.openstreetmap.org` out. OSM's Tile Usage Policy **forbids distributing an
- * app that uses it**, and that remains true for any future map attempt.
+ * MapLibre must not come back: it aborted the app under Xcode's debug build (SIGABRT on its own render
+ * thread), which only shows with a debug build and the map open. It also keeps `tile.openstreetmap.org`
+ * out: OSM's Tile Usage Policy forbids distributing an app that uses it.
  */
 class MapLibreAbsentGuardTest {
 

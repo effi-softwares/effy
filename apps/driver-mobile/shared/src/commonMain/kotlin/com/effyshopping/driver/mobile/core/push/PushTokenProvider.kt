@@ -1,13 +1,9 @@
 package com.effyshopping.driver.mobile.core.push
 
 /**
- * Device push-token access (050 US3; ARCHITECTURE.md §Push). FCM behind a platform boundary, like the
- * auth/analytics drivers: one interface in commonMain, a real implementation per target (Android =
- * firebase-messaging; iOS = APNs↔FCM via a Swift bridge). Wired into
- * [com.effyshopping.driver.mobile.app.AppContainer]; the app registers the token with the cold-path
- * `/customer/v1/devices` endpoint and clears it on sign-out (FR-012/FR-020).
- *
- * ⚠ NO push without OS permission (FR-019). The token is opaque — no PII.
+ * Device push-token access: FCM behind a platform boundary (Android firebase-messaging; iOS APNs↔FCM via a
+ * Swift bridge), wired in [com.effyshopping.driver.mobile.app.AppContainer]. The app registers the token at
+ * `/driver/v1/devices` and clears it on sign-out. No push without OS permission; the token is opaque.
  */
 interface PushTokenProvider {
     /** The current FCM token, or null if none/permission not granted. */

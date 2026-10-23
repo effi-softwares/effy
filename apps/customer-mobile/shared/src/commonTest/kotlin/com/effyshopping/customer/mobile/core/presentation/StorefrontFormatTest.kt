@@ -7,7 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 025 — the storefront's display formatting, consolidated from six copy-pasted private helpers.
+ * The storefront's display formatting, consolidated from six copy-pasted private helpers.
  *
  * These exist because the rules they encode are the ones a storefront gets quietly wrong: a
  * struck-through price that is not actually higher, a "-0%" chip, and a discount percentage that
@@ -52,7 +52,7 @@ class StorefrontFormatTest {
     }
 
     @Test fun percentRoundsRatherThanTruncating() {
-        // ⚠ This is the assertion that fails if someone "simplifies" roundToInt() back to toInt().
+        // This is the assertion that fails if someone "simplifies" roundToInt back to toInt.
         //
         // $10.00 → $6.55 is a saving of 34.5%. Truncation calls that 34; rounding calls it 35, and
         // `ProductCard.tsx` uses Math.round — so truncating here would put the two customer surfaces

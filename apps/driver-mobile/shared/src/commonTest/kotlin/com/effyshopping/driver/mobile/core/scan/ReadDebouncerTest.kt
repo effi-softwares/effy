@@ -3,7 +3,7 @@ package com.effyshopping.driver.mobile.core.scan
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 090 — a label held in view is reported once per two seconds (quickstart P3). */
+/** A label held in view is reported once per two seconds. */
 class ReadDebouncerTest {
     @Test fun the_same_code_within_two_seconds_is_dropped_another_code_is_not() {
         val d = ReadDebouncer(windowMillis = 2_000)

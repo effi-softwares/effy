@@ -16,12 +16,12 @@ import { getTaxSettings, putTaxSettings } from "./repo";
 const KEY = ["settings", "tax"] as const;
 
 /**
- * 096 US8 — Settings → Tax: Effy's legal name and ABN as printed on every tax invoice, how delivery fees
- * are taxed, and the switch that turns tax invoices on (FR-084).
+ * Settings → Tax: Effy's legal name and ABN as printed on every tax invoice, how delivery fees
+ * are taxed, and the switch that turns tax invoices on.
  *
- * ⚠ REAL-WORLD IDENTIFIERS ARE TYPED HERE BY THE OPERATOR — nothing is pre-filled or guessed. Invoices
+ * Real-world identifiers are typed here by the operator — nothing is pre-filled or guessed. Invoices
  * turn on only when all of it is set and every live product has a GST status; until then customers are
- * told invoices are not available yet. ⚠ The fee treatment is to be confirmed by Effy's accountant.
+ * told invoices are not available yet. The fee treatment is to be confirmed by Effy's accountant.
  */
 export function TaxSettingsScreen() {
   const queryClient = useQueryClient();

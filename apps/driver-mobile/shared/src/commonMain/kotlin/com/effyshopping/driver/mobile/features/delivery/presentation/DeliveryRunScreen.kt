@@ -91,7 +91,7 @@ private fun runWindow(run: DeliveryRun): String? = run.drops.firstNotNullOfOrNul
 
 /**
  * A delivery run (redesign `06 Delivery run / 01`): its window, progress, the van, the map and the drops
- * in order, with the next drop pinned at the bottom. Loading the van (S3) and the parcels coming back
+ * in order, with the next drop pinned at the bottom. Loading the van and the parcels coming back
  * open from here.
  */
 @Composable
@@ -101,7 +101,7 @@ fun DeliveryRunScreen(
     onBack: () -> Unit,
     onOpenDrop: (String) -> Unit,
     onRefresh: () -> Unit,
-    /** 093 — what was handed over, and what could not be loaded (each with a reason). */
+    /** What was handed over, and what could not be loaded (each with a reason). */
     onLoadVan: (List<HandedOver>, List<NotLoaded>) -> Unit,
     onOpenReturn: (scan: Boolean) -> Unit,
 ) {
@@ -110,7 +110,7 @@ fun DeliveryRunScreen(
     val next = run?.drops?.filter { !it.status.isClosed }?.minByOrNull { it.sequence }
     val staged = run?.drops?.count { it.status == DropStatus.STAGED } ?: 0
     var loading by rememberSaveable { mutableStateOf(false) }
-    // 093 — the fallback asks about every package not scanned; this is what WAS scanned meanwhile.
+    // The fallback asks about every package not scanned; this is what was scanned meanwhile.
     var accounting by remember { mutableStateOf<List<HandedOver>?>(null) }
     if (run != null && staged > 0) {
         accounting?.let { scanned ->
@@ -353,7 +353,7 @@ private fun DropRow(d: DropSummary, isNext: Boolean, now: Long, last: Boolean, o
     )
 }
 
-// ── Return to hub ─────────────────────────────────────────────────────────────────────────────────
+// Return to hub
 
 /**
  * The parcels from failed drops, coming back (redesign `06 / 11 Return parcels to the hub`, S5). Scan them
@@ -372,7 +372,7 @@ fun ReturnHubScreen(
     val ret = state.run?.toReturn
     var scanning by rememberSaveable { mutableStateOf(startScanning) }
     if (ret != null && scanning && ret.bagCodes.isNotEmpty()) {
-        // 096 — one row per bag coming back.
+        // One row per bag coming back.
         val rows = ret.parcels.flatMap { p -> p.bags.map { b -> p to b } }
         ScanPanel(
             title = "Return to hub", backLabel = backLabel,
@@ -454,7 +454,7 @@ fun ReturnHubScreen(
 }
 
 /**
- * 096 — a drop's bags with the words each row shows. The server sends them package by package, each
+ * A drop's bags with the words each row shows. The server sends them package by package, each
  * numbered from 1, so a drop of two packages reads "Package 2 · Bag 1 of 3". An older server sends no
  * bags: each package code stands for its one bag.
  */

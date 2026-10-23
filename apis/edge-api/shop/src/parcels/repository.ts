@@ -1,6 +1,4 @@
-// 096 — a package's bags, as the shop declares, voids, prints and pack-scans them (research R3, R4).
-// Raw SQL, no ORM. Every write runs under the package row's lock, so two operators at one order
-// cannot interleave a declaration with a print or a void.
+// Every write runs under the package row's lock, so declarations, prints and voids cannot interleave.
 
 import type pg from "pg";
 
@@ -24,13 +22,13 @@ interface LiveRow {
   zone: ParcelZone;
 }
 
-/** A refusal with its machine-readable name. */
+/** With its machine-readable name. */
 const refuse = (kind: "conflict" | "unprocessable", code: string, sentence: string) =>
   new FulfillmentError(kind, sentence, undefined, code);
 
 const notFound = () => new FulfillmentError("not_found", "order not found");
 
-/** Lock this shop's package; refuse when it is not theirs. */
+/** Refuses when the package is not this shop's. */
 async function lockPackage(c: pg.PoolClient, fulfillmentId: string, shopId: string): Promise<{ status: string }> {
   const res = await c.query<{ status: string }>(
     `SELECT status FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
@@ -40,10 +38,7 @@ async function lockPackage(c: pg.PoolClient, fulfillmentId: string, shopId: stri
   return res.rows[0]!;
 }
 
-/**
- * ⚠ NOTHING CHANGES ONCE A BAG HAS LEFT THE SHOP — with a driver (`collect`), or with a courier
- * (`courier_handover`, `shop_pickup`). The labels are on bags in somebody else's hands by then.
- */
+/** Nothing changes once a bag has left the shop (with a driver or a courier). */
 async function assertAtShop(c: pg.PoolClient, fulfillmentId: string): Promise<void> {
   const left = await c.query(
     `SELECT 1 FROM public.package_handover
@@ -73,7 +68,7 @@ async function anyPrinted(c: pg.PoolClient, fulfillmentId: string): Promise<bool
   return (res.rowCount ?? 0) > 0;
 }
 
-/** Which cold zones this package's lines need a bag for (065's line snapshot). */
+/** From the line snapshot. */
 async function zonesNeeded(c: pg.PoolClient, fulfillmentId: string): Promise<Set<ParcelZone>> {
   const res = await c.query<{ storage_class: string }>(
     `SELECT DISTINCT oi.storage_class
@@ -86,9 +81,8 @@ async function zonesNeeded(c: pg.PoolClient, fulfillmentId: string): Promise<Set
 }
 
 /**
- * Renumber the live bags 1..N in their current order. Ascending, so each bag moves down into a slot
- * already vacated — the live (package, seq) index is never violated mid-way. Bag 1 is always first.
- * With [stamp], bags whose number or zone changed (every bag when [bumpAll]) need printing again.
+ * Renumbers live bags 1..N ascending, so each moves into a vacated slot and the (package, seq) index
+ * holds throughout. With [stamp], bags whose number or zone changed (all with [bumpAll]) need reprinting.
  */
 async function renumber(c: pg.PoolClient, fulfillmentId: string, bumpAll: boolean, changed: Set<string>, stamp = true): Promise<void> {
   const rows = await liveRows(c, fulfillmentId);
@@ -107,9 +101,8 @@ async function renumber(c: pg.PoolClient, fulfillmentId: string, bumpAll: boolea
 }
 
 /**
- * Set the package's bags to these counts per zone (R4). Existing bags are kept where they fit, the rest
- * are voided (never bag 1, which is moved to a zone that has room), and new bags are added. A count that
- * changes the package's total makes every label need printing again.
+ * Sets the bags to these counts per zone: kept where they fit, the rest voided (never bag 1, which moves
+ * to a zone with room), new ones added. A change in total means every label must be reprinted.
  */
 export async function declareParcels(fulfillmentId: string, shopId: string, counts: ZoneCounts): Promise<void> {
   await withTransaction(async (c) => {
@@ -131,7 +124,7 @@ export async function declareParcels(fulfillmentId: string, shopId: string, coun
     const keep = new Map<string, ParcelZone>();
     const changed = new Set<string>();
 
-    // Bag 1 first: it is never voided, so it takes a place in its own zone or moves to one with room.
+    // Bag 1 first: never voided, it keeps or moves to a zone with room.
     const first = live[0]!;
     const firstZone = room[first.zone] > 0 ? first.zone : ZONES.find((z) => room[z] > 0)!;
     keep.set(first.id, firstZone);
@@ -152,7 +145,7 @@ export async function declareParcels(fulfillmentId: string, shopId: string, coun
     if (toVoid.length > 0) {
       await c.query(`UPDATE public.package_parcel SET voided_at = now() WHERE id = ANY($1::uuid[])`, [toVoid]);
     }
-    // Close the gaps the voids left first, so new bags are numbered straight after (and within 1..50).
+    // Close the gaps first, so new bags number straight after (within 1..50).
     await renumber(c, fulfillmentId, false, changed, false);
     let next = keep.size + 1;
     for (const zone of ZONES) {
@@ -175,10 +168,7 @@ export async function declareParcels(fulfillmentId: string, shopId: string, coun
   });
 }
 
-/**
- * Void one bag. Bag 1 never; once any label of the package is printed, only the last bag — voiding one
- * in the middle would leave a stuck label whose number matches no reprint (spec FR-006, R4).
- */
+/** Bag 1 never; once any label is printed, only the last (a middle void would strand a label). */
 export async function voidParcel(fulfillmentId: string, shopId: string, parcelId: string, staffId: string | null): Promise<void> {
   await withTransaction(async (c) => {
     await lockPackage(c, fulfillmentId, shopId);
@@ -188,7 +178,7 @@ export async function voidParcel(fulfillmentId: string, shopId: string, parcelId
     );
     const row = target.rows[0];
     if (!row) throw notFound();
-    if (row.voided) return; // already voided — a retry
+    if (row.voided) return;
     await assertAtShop(c, fulfillmentId);
     if (Number(row.seq) === 1) {
       throw refuse("conflict", "first_bag_not_voidable", "Bag 1 can't be removed. Change the number of bags instead.");
@@ -208,7 +198,7 @@ export async function voidParcel(fulfillmentId: string, shopId: string, parcelId
   });
 }
 
-/** Record prints of these bags (FR-015). The whole call is refused if any bag is not this shop's. */
+/** The whole call is refused if any bag is not this shop's. */
 export async function recordPrints(
   shopId: string,
   staffId: string | null,
@@ -235,10 +225,7 @@ export async function recordPrints(
   });
 }
 
-/**
- * Pack confirmation (FR-020): each read of THIS package's label marks that bag packed and records a
- * `pack` hand-over; a label of another package is refused with a sentence and recorded.
- */
+/** Each read of this package's label marks the bag packed (a `pack` hand-over); another package's label is refused and recorded. */
 export async function packScan(
   fulfillmentId: string,
   shopId: string,
@@ -263,7 +250,7 @@ export async function packScan(
       judge: (bag) => {
         if (!liveIds.has(bag.parcelId)) return "not_on_this_work";
         if (packed.has(bag.parcelId)) return "already_counted";
-        packed.add(bag.parcelId); // the same label twice in one request counts once
+        packed.add(bag.parcelId);
         return "accepted";
       },
     });
@@ -288,10 +275,7 @@ export async function packScan(
   });
 }
 
-/**
- * The ready gate (FR-016, FR-022, R4), inside the transition's own transaction so a print recorded at
- * the same moment is seen. Throws the named refusal; returns quietly when the portion may be ready.
- */
+/** Inside the transition's transaction, so a print recorded at the same moment is seen. Throws the named refusal. */
 export async function assertReadyForPickup(c: pg.PoolClient, fulfillmentId: string): Promise<void> {
   const res = await c.query<{ live: number; unprinted: number; unpacked: number; declared: boolean; scan_required: boolean }>(
     `SELECT count(*)::int AS live,

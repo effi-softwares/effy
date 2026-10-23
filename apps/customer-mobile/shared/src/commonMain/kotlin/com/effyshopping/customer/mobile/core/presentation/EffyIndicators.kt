@@ -189,7 +189,7 @@ fun EffyStatusPill(text: String, kind: EffyStatusKind, modifier: Modifier = Modi
 }
 
 /**
- * A storefront CARD — white, 1dp hairline, 8dp corners, the hairline `shadow-xs` (constitution
+ * A storefront card — white, 1dp hairline, 8dp corners, the hairline `shadow-xs` (constitution
  * v3.3.0: on the storefront, card layouts are the pattern — an address, a delivery choice, a summary).
  * [selected] draws the blue edge and light-blue tint of a chosen card.
  */
@@ -288,7 +288,7 @@ fun EffyNotice(
 }
 
 /**
- * The success tick on Order confirmed (Motion board): a green circle whose check DRAWS itself over
+ * The success tick on Order confirmed (Motion board): a green circle whose check draws itself over
  * 600ms, with a success haptic. Under reduced motion the tick is simply there.
  */
 @Composable

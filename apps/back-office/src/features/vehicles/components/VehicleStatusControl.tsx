@@ -17,7 +17,7 @@ import { STATUS_MEANING } from "../model";
 import { vehicleActionError, vehicleFieldErrors } from "../errorText";
 import { useSetVehicleStatus } from "../queries";
 
-/** Where each status can go. ⚠ Retired is TERMINAL — there is no transition out of it. */
+/** Where each status can go. Retired is terminal — there is no transition out of it. */
 const TRANSITIONS: Record<VehicleStatus, VehicleStatus[]> = {
   active: ["off_road", "retired"],
   off_road: ["active", "retired"],
@@ -80,7 +80,7 @@ export function VehicleStatusControl({ vehicle }: { vehicle: VehicleDetail }) {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* ⚠ Retiring a vehicle that is still OUT is refused by the service, and the refusal
+            {/* Retiring a vehicle that is still out is refused by the service, and the refusal
                 names the holder. The van is in a carpark somewhere; retiring it would take it off
                 the fleet while a person physically has it, and nothing would say so — 056's
                 stranded-work shape, which was in no register because nobody knew. */}

@@ -1,15 +1,7 @@
 import { query } from "@effy/edge-shared"
 import type { FeedbackCategory, FeedbackPlatform, FeedbackSource } from "@effy/shared-types"
 
-/**
- * The feedback repository (046 US1). Raw SQL, no ORM (Principle VI).
- *
- * ⚠ THE RATE LIMIT AND THE INSERT ARE ONE STATEMENT. A `COUNT` followed by an `INSERT` is a
- * read-then-write race — two rapid submissions from one source would each see a count below the cap
- * and both write. The conditional `INSERT … SELECT … WHERE (SELECT count …) < $max` decides atomically
- * (the newsletter `ON CONFLICT` lesson applied to a table with no natural conflict key): zero rows
- * RETURNED means the cap was hit, which is a normal outcome, not an error.
- */
+/** The rate limit and the insert are one statement; zero rows returned means the cap was hit. */
 
 export interface InsertSubmissionInput {
   referenceCode: string
@@ -22,7 +14,7 @@ export interface InsertSubmissionInput {
   customerId: string | null
   source: FeedbackSource
   platform: FeedbackPlatform
-  /** The hashed rate-limit source (never the raw IP). */
+  /** Never the raw IP. */
   sourceKey: string
   windowMinutes: number
   maxPerWindow: number
@@ -63,13 +55,12 @@ export async function insertSubmission(input: InsertSubmissionInput): Promise<In
     ],
   )
 
-  // ⚠ Zero rows is the rate-limit outcome, not a failure — the WHERE simply refused to insert.
   return res.rows.length > 0
     ? { status: "ok", referenceCode: res.rows[0]!.reference_code }
     : { status: "rate_limited" }
 }
 
-/** The trusted identity for a signed-in submitter — used to link the row and take the verified email. */
+/** Links the row and supplies the verified email. */
 export interface CustomerIdentity {
   id: string
   email: string

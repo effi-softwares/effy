@@ -13,18 +13,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Payment methods (051 US6) — `ViewModel → UseCase → Repository` (Principle VI).
+ * Payment methods — `ViewModel → UseCase → Repository` (Principle VI).
  *
- * ⚠ THREE STATES, NOT TWO. Loading, "you have no cards", and "we could not ask" are all different, and
+ * Three states, not two. Loading, "you have no cards", and "we could not ask" are all different, and
  * the last two are the pair that matters: a list rendered empty after a failed read tells a shopper
- * with saved cards something FALSE about their own account (FR-036). `loadFailed` is what keeps them
- * apart, and `catch { cards = emptyList() }` is the mistake it exists to prevent — which looks like
+ * with saved cards something false about their own account. `loadFailed` is what keeps them
+ * apart, and `catch { cards = emptyList }` is the mistake it exists to prevent — which looks like
  * sensible defensive code, and is why it is easy to ship.
  */
 data class PaymentMethodsUiState(
     val loading: Boolean = true,
     val cards: List<KeptCard> = emptyList(),
-    /** The read failed. NOT the same as having no cards. */
+    /** The read failed. Not the same as having no cards. */
     val loadFailed: Boolean = false,
     /** A card currently being removed, so its row can show progress and refuse a second press. */
     val removing: String? = null,
@@ -50,7 +50,7 @@ class PaymentMethodsViewModel(
             try {
                 _state.value = _state.value.copy(loading = false, cards = listPaymentMethods())
             } catch (e: AppException) {
-                // ⚠ NOT an empty list. See the class note.
+                // Not an empty list. See the class note.
                 _state.value = _state.value.copy(loading = false, loadFailed = true)
             }
         }
@@ -67,7 +67,7 @@ class PaymentMethodsViewModel(
                     cards = _state.value.cards.filterNot { it.id == id },
                 )
             } catch (e: AppException) {
-                // ⚠ The card STAYS in the list. Dropping it optimistically after a failed removal would
+                // The card stays in the list. Dropping it optimistically after a failed removal would
                 // show the shopper a card that still exists at the provider and can still be charged.
                 _state.value = _state.value.copy(removing = null, error = message(e.error))
             }
@@ -78,7 +78,7 @@ class PaymentMethodsViewModel(
         _state.value = _state.value.copy(error = null)
     }
 
-    /** Every message names what did NOT happen: the shopper's cards are unchanged (FR-036). */
+    /** Every message names what did not happen: the shopper's cards are unchanged. */
     private fun message(e: AppError): String = when (e) {
         AppError.Network -> "No connection. Your cards are unchanged — try again in a moment."
         AppError.Unavailable -> "We're having trouble right now. Your cards are unchanged — try again shortly."

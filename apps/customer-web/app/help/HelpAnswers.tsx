@@ -7,9 +7,9 @@ import { ChevronDown, Search } from "lucide-react"
 import { HELP_ANSWERS, HELP_TOPICS } from "./answers"
 
 /**
- * The answers, grouped by topic, with a search that narrows them on the page (FR-030).
+ * The answers, grouped by topic, with a search that narrows them on the page.
  *
- * ⚠ No request is made: the answers are content shipped with the page, so searching is filtering.
+ * No request is made: the answers are content shipped with the page, so searching is filtering.
  * Each answer is a native `<details>` — it opens without script, and every answer is in the HTML for
  * a crawler and for find-in-page.
  *

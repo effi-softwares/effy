@@ -21,15 +21,12 @@ internal val effyJson = Json {
 }
 
 /**
- * ⚠ The SHOP token protocol (014 D2s): a SINGLE access token as the bearer.
- *
- * Unlike `edge-api/customer` (two-token), the shop service reads identity only from the gateway-verified
- * access-token claims and never calls Cognito — so `Authorization: Bearer <access token>` and **no**
- * `X-Effy-Access-Token`. The ID token is used client-side (display email) only, never sent here.
- * A signed-out caller sends no auth header. Amplify OWNS refresh (013 D21).
+ * The bearer is the access token alone: the driver service reads identity from the gateway-verified claims
+ * and never calls Cognito, so no `X-Effy-Access-Token`. A signed-out caller sends no auth header; Amplify
+ * owns refresh.
  */
-private fun shopBearer(sessionProvider: suspend () -> Session?) =
-    createClientPlugin("ShopBearer") {
+private fun driverBearer(sessionProvider: suspend () -> Session?) =
+    createClientPlugin("DriverBearer") {
         onRequest { request, _ ->
             val session = sessionProvider() ?: return@onRequest
             request.header(HttpHeaders.Authorization, "Bearer ${session.accessToken}")
@@ -37,7 +34,7 @@ private fun shopBearer(sessionProvider: suspend () -> Session?) =
     }
 
 /**
- * Every 401 and 403 is reported to [onRejected]. The driver service answers 403 only from its guard —
+ * Every 401 and 403 is reported to [onRejected]. The driver service answers 403 only from its guard
  * a driver who is disabled or not provisioned — so either status means the session is over.
  */
 private fun rejectionHook(onRejected: () -> Unit) =
@@ -49,7 +46,7 @@ private fun rejectionHook(onRejected: () -> Unit) =
 
 /**
  * The one client, for `DRIVER_API_BASE_URL` (cross-pool isolation, FR-029). [debug] gates request
- * logging — NEVER `BODY` in release, and the Authorization header is redacted even in debug (SC-013):
+ * logging — never `BODY` in release, and the Authorization header is redacted even in debug:
  * no code or credential reaches a log.
  */
 fun createHttpClient(
@@ -72,7 +69,7 @@ fun createHttpClient(
         connectTimeoutMillis = 10_000
     }
 
-    install(shopBearer(sessionProvider))
+    install(driverBearer(sessionProvider))
     install(rejectionHook(onRejected))
 
     defaultRequest {

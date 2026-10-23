@@ -20,18 +20,17 @@ describe("assertRoundOpen (072)", () => {
     await expect(assertRoundOpen(db({ opens_at: OPENS, closed: false }) as never, "r1")).resolves.toBeUndefined();
   });
 
-  // A delivery round with no window has no opening time at all.
+  // A delivery round with no window has no opening time.
   it("passes a round with no opening time", async () => {
     await expect(assertRoundOpen(db({ opens_at: null, closed: false }) as never, "r1")).resolves.toBeUndefined();
   });
 
-  // ⚠ Not found is NOT refused here: the caller's own "not found" must be the answer that stands,
-  // or "not open yet" becomes a way to learn that somebody else's round exists.
+  // Not found is not refused here: the caller's own not-found answer stands.
   it("does not refuse a round it cannot find", async () => {
     await expect(assertRoundOpen(db() as never, "nope")).resolves.toBeUndefined();
   });
 
-  // ⚠ The decision is the DATABASE's: this function compares nothing to its own clock.
+  // The database decides; this function compares nothing to its own clock.
   it("reads the opening time through the database's one definition, against its clock", async () => {
     const d = db({ opens_at: OPENS, closed: false });
     await assertRoundOpen(d as never, "r1");
@@ -66,7 +65,6 @@ describe("roundNotOpenProblem", () => {
     const body = JSON.parse(String(res.body));
     expect(body.type).toBe("round_not_open");
     expect(body.errors[0]).toEqual({ field: "opensAt", message: "2026-10-08T05:15:00.000Z" });
-    // In words, in Melbourne time — the driver app never formats a time itself.
     expect(body.errors[1].field).toBe("opensLabel");
     expect(body.errors[1].message).toMatch(/4:15 pm$/);
     expect(body.detail).toContain("4:15 pm");

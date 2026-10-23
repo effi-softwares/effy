@@ -1,10 +1,10 @@
 package com.effyshopping.driver.mobile.core.platform
 
 /**
- * A moment in the PHONE's own time zone and words: "2:35 pm", or "Mon 12 Oct, 2:35 pm" with the day.
+ * A moment in the phone's own time zone and words: "2:35 pm", or "Mon 12 Oct, 2:35 pm" with the day.
  *
- * `expect/actual` because the time-zone database lives in the platform, not in this module. ⚠ For
- * RECORDS only — when something happened. A delivery window is still said in the server's words
+ * `expect/actual` because the time-zone database lives in the platform, not in this module. For
+ * records only — when something happened. A delivery window is still said in the server's words
  * (`DeliveryWindow.label`), never re-worded here.
  */
 expect fun localTimeText(epochMillis: Long, withDay: Boolean): String

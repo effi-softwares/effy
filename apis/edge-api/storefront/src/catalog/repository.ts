@@ -1,4 +1,3 @@
-// The category tree and the product detail page. SQL only.
 import { pooled, productAvailableSql, renditionWidthsSql, type Queryable, variantPurchasableSql } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { PackUnit, UnitBasis } from "@effy/shared-types";
@@ -12,11 +11,9 @@ export interface CategoryRow {
   parent_key: string | null;
   product_count: number;
   image_key: string | null;
-  /** 086 — the representative picture's ready copies; NULL for none. */
   image_widths: number[] | null;
 }
 
-/** The detail projection: the card fields plus the long description and the primary category. */
 export interface DetailRow {
   id: string;
   name: string;
@@ -28,15 +25,13 @@ export interface DetailRow {
   short_description: string;
   long_description: string | null;
   primary_category_id: string;
-  /** Drives the related-products rail (025 FR-026); `categoryPath` carries names, not keys. */
+  /** For the related-products rail; carries names, not keys. */
   primary_category_key: string;
   is_new: boolean;
   available: boolean;
-  /** 098 */
   unit_basis: UnitBasis | null;
 }
 
-/** 098 — one ACTIVE variant on the product page. */
 export interface VariantPageRow {
   id: string;
   option1: string | null;
@@ -51,7 +46,7 @@ export interface VariantPageRow {
   image_widths: number[] | null;
 }
 
-/** 098 — one option with the values ACTIVE variants use, in the shop's order. */
+/** The values active variants use, in the shop's order. */
 export interface OptionPageRow {
   id: string;
   position: number;
@@ -62,11 +57,9 @@ export interface OptionPageRow {
 export interface MediaRow {
   storage_key: string;
   alt_text: string | null;
-  /** 086 — this picture's ready copies; NULL for none. */
   image_widths: number[] | null;
 }
 
-/** One typed attribute value with its definition's label, data type and unit. */
 export interface AttrRow {
   label: string;
   data_type: string;
@@ -78,44 +71,27 @@ export interface AttrRow {
   group_label: string;
 }
 
-/** The whole product page: the detail row with its gallery, attributes and aisle path beside it. */
 export interface ProductPageRow extends DetailRow {
-  /** Primary first, then display order. */
   media: MediaRow[];
-  /** Grouped and ordered by the product type's link metadata ("Details" when there is none). */
+  /** Grouped by the product type's link metadata ("Details" when none). */
   attributes: AttrRow[];
-  /** The primary category's path, root → leaf, as names. */
+  /** Root → leaf, as names. */
   category_path: string[];
-  /** 098 — active variants in display order. */
   variants: VariantPageRow[];
   options: OptionPageRow[];
 }
 
 export interface CatalogRepository {
   categories(): Promise<CategoryRow[]>;
-  /**
-   * One active product's page in ONE statement (PERF-12); null when absent or not active. `id` MUST
-   * be a uuid.
-   *
-   * ⚠ ONE STATEMENT BECAUSE THE POOL IS ONE CONNECTION (`max: 1`, shared/src/lib/db.ts): the detail,
-   * gallery, attributes and path were four round trips in series, whatever `Promise.all` suggested.
-   */
+  /** One statement, because the pool is one connection; null when absent or inactive. `id` must be a uuid. */
   productPage(id: string): Promise<ProductPageRow | null>;
 }
 
 export function createCatalogRepository(db: Queryable = pooled): CatalogRepository {
   return {
     /**
-     * The active category tree, each with its parent key, its purchasable-product count, and a
-     * representative image key.
-     *
-     * ⚠ The image is DERIVED, not stored — public.category has no image column and 025 FR-001
-     * forbids adding one. The choice is deterministic (oldest active product in the category that
-     * has media) because an arbitrary pick would make a category change its face between loads.
-     *
-     * ⚠ ONE WALK OF THE TAXONOMY (PERF-13). It used to walk each category's subtree twice in
-     * correlated subqueries — and scan the products twice per category — so its cost grew with
-     * categories × products. The closure is built once; the counts and pictures are one aggregate each.
+     * The active tree with each category's parent, purchasable count and a derived picture (the oldest
+     * active product with media, so it is stable). One walk of the taxonomy for all categories.
      */
     async categories() {
       return (
@@ -131,7 +107,7 @@ counts AS (
 pictures AS (
     SELECT DISTINCT ON (tree.root_id) tree.root_id, m.storage_key
     FROM tree
-    -- availability-exempt: public.product, DELIBERATELY status ONLY (054). This picks a
+    -- availability-exempt: public.product, DELIBERATELY status ONLY. This picks a
     -- category's representative PICTURE, not something to buy. Letting stock choose it would
     -- make a category change its face as units come and go, and a thumbnail makes no claim
     -- that the product behind it is purchasable.
@@ -150,7 +126,7 @@ SELECT c.key AS key,
        pc.key AS parent_key,
        COALESCE(counts.n, 0) AS product_count,
        pictures.storage_key AS image_key,
-       -- 086: the representative picture's ready copies.
+       -- The representative picture's ready copies.
        ${renditionWidthsSql("pictures.storage_key")} AS image_widths
 FROM public.category c
 LEFT JOIN public.category pc ON pc.id = c.parent_id
@@ -174,18 +150,18 @@ SELECT p.id::text                  AS id,
        p.currency                  AS currency,
        p.list_compare_at_amount::text AS compare_at_amount,
        p.unit_basis                AS unit_basis,
-       -- 094 — an item or buy-X-get-Y offer open to everyone that covers this product (R11).
+       -- An item or buy-X-get-Y offer open to everyone that covers this product.
        ${PRODUCT_OFFER_SQL("p", "now()")} AS offer,
        p.short_description         AS short_description,
        p.long_description          AS long_description,
        p.primary_category_id::text AS primary_category_id,
        (SELECT c.key FROM public.category c WHERE c.id = p.primary_category_id) AS primary_category_key,
        (p.created_at >= now() - interval '14 days') AS is_new,
-       -- ⚠ 054: PROJECTED, not filtered. A product page that 404'd the moment stock ran out would
+       -- ⚠ PROJECTED, not filtered. A product page that 404'd the moment stock ran out would
        -- break every shared link and every saved item, and would tell a shopper "gone" when the
        -- truth is "back soon".
        (${productAvailableSql("p")}) AS available,
-       -- 098 — the ACTIVE variants (inactive and removed are never sent to a shopper), each with its
+       -- The ACTIVE variants (inactive and removed are never sent to a shopper), each with its
        -- own purchasability, in the shop's order.
        COALESCE((
          SELECT json_agg(json_build_object(
@@ -205,7 +181,7 @@ SELECT p.id::text                  AS id,
          LEFT JOIN public.product_media vm ON vm.id = v.media_id
          -- availability-exempt: product_variant — a VISIBILITY filter; purchasability is 'available'.
          WHERE v.product_id = p.id AND v.state = 'active'), '[]'::json) AS variants,
-       -- 098 — the options, with only the values some active variant uses.
+       -- The options, with only the values some active variant uses.
        COALESCE((
          SELECT json_agg(json_build_object(
                   'id', o.id, 'position', o.position, 'name', o.name,

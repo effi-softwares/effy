@@ -1,30 +1,18 @@
-// Builds src/generated/theme.mjml — the head fragment EVERY template includes.
-//
-// ⚠ Three things are emitted here from ONE token map, so they cannot drift (spec FR-025):
-//   1. the light palette, which MJML then writes INLINE onto every element,
-//   2. the `@media (prefers-color-scheme: dark)` restatement, and
-//   3. the `[data-ogsc]` / `[data-ogsb]` mirror of the same rules, for Outlook.com and the
-//      Outlook apps, which stash the original value in an attribute and overwrite the live style.
-//
-// ⚠ (2) and (3) are STYLESHEET-DEPENDENT and therefore dead in the Gmail app configured with a
-// non-Google address, and dead in the Word engine. That is acceptable ONLY because the inline light
-// palette is a complete, correct design on its own — which is what `email-check`'s inline-only rule
-// enforces, and what the third contrast pass proves survives forced inversion.
+// Builds src/generated/theme.mjml, the head fragment every template includes. One token map produces
+// the light palette (inlined by MJML), the `prefers-color-scheme: dark` restatement, and the
+// `[data-ogsc]` / `[data-ogsb]` mirror for Outlook. The inline light palette must be correct on its own:
+// the dark mechanisms are stylesheet-dependent and absent in some clients.
 
 import { TYPE, LAYOUT } from "./tokens.mjs";
 
-/**
- * The dark-mode class set. ⚠ ONE definition, consumed by BOTH dark mechanisms below — a class that
- * appears in the media query but not the attribute mirror (or vice versa) is a drift bug that shows
- * up only in Outlook.com, which is exactly where nobody looks.
- */
+/** The dark-mode class set, used by both dark mechanisms so they cannot drift. */
 const DARK_RULES = [
   { cls: "e-bg-page", prop: "background-color", role: "pageGround" },
   { cls: "e-bg-canvas", prop: "background-color", role: "canvas" },
   { cls: "e-bg-code", prop: "background-color", role: "codeSurface" },
   { cls: "e-ink", prop: "color", role: "ink" },
   { cls: "e-muted", prop: "color", role: "mutedInk" },
-  // ⚠ border-top-color, not background-color: MJML draws the hairline as a <p> border.
+  // border-top-color: MJML draws the hairline as a <p> border.
   { cls: "e-rule", prop: "border-top-color", role: "hairline" },
   { cls: "e-btn-bg", prop: "background-color", role: "actionFill" },
   { cls: "e-btn-fg", prop: "color", role: "actionLabel" },
@@ -32,17 +20,8 @@ const DARK_RULES = [
 ];
 
 /**
- * ⚠ THE SELECTOR MUST REACH THE ELEMENT THAT ACTUALLY CARRIES THE INLINE STYLE, NOT THE ONE THE
- * CLASS LANDS ON. This was a live defect, found by reading the compiled output rather than by
- * reasoning about it:
- *
- *   MJML puts `css-class` on the <td>, but writes `color` on an inner <div>, and the divider's
- *   `border-top` on an inner <p>. A rule like `.e-muted { color: … !important }` therefore targets
- *   the td, loses to the div's own inline colour, and the dark restatement silently does nothing.
- *   Every text colour in dark mode would have stayed light-mode grey — visible only in a real
- *   dark-mode client, which is exactly where nobody looks.
- *
- * So colour rules are emitted with descendants, and the divider is targeted at its <p>.
+ * Selectors must reach the element carrying the inline style: MJML puts `css-class` on the <td> but
+ * writes `color` on an inner <div> and the divider's border on an inner <p>.
  */
 function targetsFor(cls, prop) {
   if (prop === "color") {
@@ -52,12 +31,7 @@ function targetsFor(cls, prop) {
   if (prop === "border-top-color") {
     return [`.${cls} p`];
   }
-  // ⚠ THE BUTTON FILL IS A NESTED CELL. MJML puts css-class on the button's OUTER padding <td>, but
-  // the fill (`background:#1a1a1a`) is on an INNER <td>. Targeting `.e-btn-bg` alone would recolour
-  // the transparent padding cell and leave the fill dark — so in dark mode the button would be a
-  // dark fill under a dark-inverted label (invisible), and on a dark canvas it would blend in
-  // entirely. Reaching `.e-btn-bg td` inverts the actual fill. Found by reading the compiled output,
-  // the same way the text-colour nesting defect was.
+  // The button fill is on an inner <td>; `.e-btn-bg td` inverts the fill, not the padding cell.
   if (cls === "e-btn-bg") {
     return [`.${cls} td`];
   }
@@ -93,24 +67,12 @@ export function buildThemeMjml(tokens) {
     (r) => `    ${ogscSelectors(r.cls, r.prop)} { ${r.prop}: ${D[r.role]} !important; }`,
   ).join("\n");
 
-  // ⚠ THE EMITTED theme.mjml CONTAINS NO LOOSE HTML COMMENTS (`<!-- -->`) IN mj-head.
+  // theme.mjml has no loose HTML comments in mj-head: under `keepComments: false` MJML strips them and
+  // can drop the mj-raw block that follows. Rationale lives here instead.
   //
-  // Under `keepComments: false` (which we require — it is what stops internal notes and the Google
-  // Fonts import from shipping), MJML strips a head-level HTML comment AND, when that comment sits
-  // between two `<mj-raw>` blocks, drops the raw block that follows it — silently deleting the
-  // color-scheme meta tags and the MSO Times-New-Roman override. A guard catches the loss, but the
-  // durable fix is to keep ALL rationale here, in the GENERATOR'S JavaScript comments, which never
-  // reach the output. CSS `/* */` comments inside <mj-style> are fine and are used sparingly.
-  //
-  // mj-attributes below: every text-bearing element declares its own font stack (nothing inherits —
-  // the Word engine gives unstyled elements defaults nobody wants), and each building block is an
-  // mj-class recipe so a template selects one and never writes a size or colour of its own (FR-016).
-  //
-  // ⚠ THE FINAL mj-raw IS THE TIMES-NEW-ROMAN OVERRIDE. If the first family in a stack is one the
-  // Word engine lacks, it does NOT walk the rest — it falls back to Times New Roman. 'General Sans'
-  // is unknown to it, so the `[if mso]` block forces Arial on every element. No @font-face ships at
-  // all (General Sans is self-hosted in the web bundles with no stable public URL), so the design is
-  // built to be correct in Arial — which ~three-quarters of opens see regardless.
+  // Every text element declares its own font stack, and each building block is an mj-class recipe, so
+  // a template never writes a size or colour. The final mj-raw forces Arial for the Word engine, which
+  // falls back to Times New Roman when the first family is unknown; no @font-face ships.
   return `<mj-attributes>
   <mj-all font-family="${TYPE.stack}" />
 

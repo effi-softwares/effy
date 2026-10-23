@@ -3,12 +3,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * 081 — back-office's move of an order between Effy and courier delivery, through its two routes,
- * against the REAL schema: who may move (P8), what is refused and how it is said (P6, P7), what
- * happens after the commit (the screens, the drivers, a refund sent), and the order page's history.
- *
- * The behaviour of the move itself is proved in `@effy/edge-shared/delivery` override.container.test.ts;
- * this is the route around it. ⚠ The courier service is fictional; real ones are the operator's to enter.
+ * The routes around the Effy/courier move (the move itself is tested in edge-shared's
+ * override.container.test.ts). The courier service is fictional.
  */
 const holder = vi.hoisted(() => ({
   pool: null as Pool | null,
@@ -27,7 +23,7 @@ vi.mock("@effy/edge-shared", async () => {
     withTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
       (actual.transactorFor as (p: Pool) => (f: typeof fn) => Promise<unknown>)(holder.pool!)(fn),
     proposedRefunds: async () => [],
-    // The staff record decides; here it is a map. Write = admin|manager, read = any active.
+    // Write: admin|manager; read: any active.
     isActiveStaff: async (sub: string) => holder.roles.has(sub),
     hasStaffRole: async (sub: string, roles: readonly string[]) => roles.includes(holder.roles.get(sub) ?? ""),
   };
@@ -41,7 +37,7 @@ vi.mock("../lib/money", () => ({
   refundService: { submitRecorded: async (id: string) => { holder.submitted.push(id); return { status: "submitted" }; } },
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { handler as getMove } from "../functions/order-delivery-move-v1-get";
 import { handler as postMove } from "../functions/order-delivery-move-v1-post";
@@ -57,7 +53,7 @@ let n = 0;
 
 const one = async <T>(sql: string, args: unknown[] = []) => (await pool.query(sql, args)).rows[0] as T;
 
-/** A paid Effy order, $9.00 delivery, in a later-day window (no clock games: tomorrow is always open). */
+/** A paid Effy order, $9.00 delivery, in a later-day window. */
 async function effyOrder() {
   n += 1;
   const tag = `dm-${n}`;
@@ -138,7 +134,6 @@ d("081 — the delivery-move routes", () => {
     });
     expect(refused.status).toBe(403);
     expect((await one<{ t: string }>(`SELECT delivery_type AS t FROM public."order" WHERE id = $1`, [o.order])).t).toBe("effy");
-    // Nobody signed in at all.
     expect((await preview("", o.order)).status).toBe(401);
   });
 
@@ -153,7 +148,6 @@ d("081 — the delivery-move routes", () => {
     expect(res.body.refund).toBeUndefined();
     expect(holder.announced).toEqual([o.order]);
     expect(holder.dispatched).toEqual([[]]);
-    // The order page carries the history, for every role.
     const detail = await getOrder(o.order);
     expect(detail?.deliveryMoves).toEqual([expect.objectContaining({ to: "courier", actor: expect.objectContaining({ sub: "sub-manager" }) })]);
   });

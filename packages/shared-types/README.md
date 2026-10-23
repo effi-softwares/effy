@@ -1,10 +1,18 @@
 # `@effy/shared-types`
 
-The single source of truth for web-facing **wire types** (constitution Principle II): the RFC 9457
-`ProblemJSON` shape and the back-office DTOs/domain types (`BackOfficeRole`, `StaffRecord`,
-`StaffRecordDTO`, `BackOfficePingDTO`, `BackOfficeAdminPingDTO`, `AdminPingResult`). Every web
-surface imports these — never re-declares them per surface.
+The wire contracts every surface and the backend share: DTOs, closed vocabularies, and the pure rules
+both ends must agree on (delivery wording, unit pricing, the scan rule, variant validation). Internal
+package: it exports TypeScript source; nothing redeclares these per surface.
 
-These mirror the backend contracts in `docs/api/` and `specs/005-back-office-web/contracts/`
-(documents-as-contracts, since Go/TS backends can't share a package). Internal package: exports
-TypeScript source.
+The mobile apps cannot import TypeScript, so their Kotlin DTOs are generated from the contract
+aggregators and committed:
+
+| Script | Entry | Output |
+|---|---|---|
+| `contract:gen` | `src/customer-contract.ts` | `contract/Dto.kt` |
+| `commerce-contract:gen` | `src/customer-commerce-contract.ts` | `contract/CommerceDto.kt` |
+| `driver-contract:gen` | `src/driver-contract.ts` | `contract-driver/DriverDto.kt` |
+
+Each `*:check` script regenerates and fails on any difference. Rules the apps implement in Kotlin
+(delivery words, windows, unit prices, the scan rule, package codes) are pinned to the shared
+`*.fixtures.json` files by tests on both sides.

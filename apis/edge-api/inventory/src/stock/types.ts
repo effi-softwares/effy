@@ -1,39 +1,21 @@
-/**
- * Domain types and refusal vocabulary for stock (054). No HTTP, no SQL.
- *
- * The wire DTOs live in `@effy/shared-types` (Principle II) — this file holds only what the service
- * reasons about internally, plus the errors the handlers map to problem responses.
- */
-
 import type { StockMovementReason } from "@effy/shared-types";
 
-/** Who is acting. Resolved by the gate, never read from a request body. */
+/** Resolved by the gate, never read from a request body. */
 export interface Actor {
   sub: string;
-  /**
-   * ⚠ Resolved from the platform's own record — the caller's active shop for a shop actor, or the
-   * shop named in the path for a back-office actor. NEVER taken from a shop route's client input:
-   * that would make every shop's stock writable by any shop operator who could guess an id.
-   */
+  /** The caller's active shop, or the path's for back-office; never a shop route's input. */
   shopId: string;
   kind: "shop" | "back_office";
 }
 
-/**
- * ⚠ `notFound` covers BOTH "no such product" and "that product is another shop's".
- *
- * Distinguishing them would make this route an oracle for which product ids exist and who owns them,
- * which is the disclosure 007 has refused since the shop audience was built and 052 re-established
- * for the receipt resend. The two refusals must be byte-identical, not merely similar — a difference
- * in wording is a difference an attacker can read.
- */
+/** Covers "no such product" and "another shop's" with byte-identical refusals. */
 export type StockErrorKind = "not_found" | "validation" | "conflict";
 
 export class StockError extends Error {
   constructor(
     readonly kind: StockErrorKind,
     message: string,
-    /** Per-field detail for a validation refusal, so the console can point at the input. */
+    /** Per-field detail, so the console can point at the input. */
     readonly fields?: Record<string, string>,
   ) {
     super(message);
@@ -44,7 +26,6 @@ export class StockError extends Error {
 export const notFound = (): StockError =>
   new StockError("not_found", "no such variant");
 
-/** The state of one VARIANT's stock (098), before mapping to a DTO. */
 export interface StockRow {
   productId: string;
   variantId: string;

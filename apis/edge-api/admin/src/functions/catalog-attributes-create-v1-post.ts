@@ -1,4 +1,3 @@
-// POST /admin/v1/catalog/attributes — create an attribute definition (+ allowed values). Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

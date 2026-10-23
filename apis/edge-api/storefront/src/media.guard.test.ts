@@ -5,12 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ A SHOPPER'S PICTURE HAS ONE ADDRESS, AND THIS SERVICE ONLY EVER BUILDS THAT ONE (086).
- *
- * Every picture this service sends goes through `publicImageUrl` / `publicImageAddress`
- * (@effy/edge-shared), which answers only for the public set. A presigned link here would bring back
- * the address that changes on every request — the browser could never keep the picture — and
- * `imageUrlOrNull` is the PRIVATE reader that courier labels go through. Neither belongs here.
+ * Pictures go through `publicImageUrl` / `publicImageAddress` only: a presigned link changes on every
+ * request, and `imageUrlOrNull` is the private reader for courier labels.
  */
 const src = dirname(fileURLToPath(import.meta.url));
 

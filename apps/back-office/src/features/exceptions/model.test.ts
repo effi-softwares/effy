@@ -29,7 +29,7 @@ describe("reason labels", () => {
   });
 
   it("falls back to the raw value rather than rendering nothing", () => {
-    // ⚠ A widened enum must degrade to something legible, not to a blank cell. 053, 056, 057 and 059
+    // A widened enum must degrade to something legible, not to a blank cell. 053, 056, 057 and 059
     // each shipped a defect through an enum widening; an empty label is how this screen would.
     expect(reasonLabel("delivered_to_neighbour" as never)).toBe("delivered_to_neighbour");
   });
@@ -39,7 +39,7 @@ describe("⚠ FR-020 — where the package actually is", () => {
   it("distinguishes a van from the hub", () => {
     expect(locationLabel(row({ packageLocation: "with_driver" }))).toBe(`With ${row().driverName} — to return`);
     expect(locationLabel(row({ packageLocation: "at_hub" }))).toBe("At hub");
-    // 088 — a recorded return says so.
+    // A recorded return says so.
     expect(locationLabel(row({ packageLocation: "at_hub", returnedAt: "2026-10-16T05:00:00.000Z" }))).toMatch(/^Returned /);
   });
 });
@@ -69,8 +69,8 @@ describe("triage order", () => {
 });
 
 /**
- * ⚠ BOTH DIRECTIONS. A gate tested only for who it lets through is half a gate — 056 found
- * `requireDriver` reading `=== "disabled"`, so widening the enum let a SUSPENDED driver satisfy its
+ * Both directions. A gate tested only for who it lets through is half a gate — 056 found
+ * `requireDriver` reading `=== "disabled"`, so widening the enum let a suspended driver satisfy its
  * negation and keep a working session, with nothing failing.
  */
 describe("who may close an exception (FR-021)", () => {

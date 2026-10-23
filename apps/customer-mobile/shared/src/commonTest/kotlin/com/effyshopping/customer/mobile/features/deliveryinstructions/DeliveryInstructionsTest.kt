@@ -17,10 +17,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 066 — the draft a shopper edits, the limit, and what actually goes on the wire. */
+/** The draft a shopper edits, the limit, and what actually goes on the wire. */
 class DeliveryInstructionsTest {
 
-    /** ⚠ Must equal DELIVERY_NOTE_MAX in packages/shared-types/src/delivery-instructions.ts. */
+    /** Must equal DELIVERY_NOTE_MAX in packages/shared-types/src/delivery-instructions.ts. */
     @Test
     fun `the limit is the platform's 250`() {
         assertEquals(250, NOTE_MAX)

@@ -3,14 +3,7 @@ import { describe, expect, it } from "vitest"
 import { bulkCandidates, summarise, withTag } from "../bulk"
 import type { FulfillmentSummary } from "../model"
 
-/**
- * US2 (T024) — bulk state-advance.
- *
- * ⚠ THE SUMMARY IS THE POINT. 033 shipped a bulk control that reported "0 items added to your cart"
- * while every item had failed for a reason the shopper was never shown — the count was true and
- * useless. These pin that a bulk run names what refused, and never claims success for work that did
- * not happen.
- */
+/** Bulk state-advance: the summary names what refused, and never claims success for work that did not happen. */
 
 function row(over: Partial<FulfillmentSummary> = {}): FulfillmentSummary {
   return {
@@ -47,10 +40,8 @@ describe("bulkCandidates", () => {
   })
 
   /**
-   * ⚠ THE MOST IMPORTANT ASSERTION IN THIS FILE. `nextTransition` may one day return
-   * `unfulfillable`, and that decision tells Effy to REFUND A CUSTOMER (055 FR-031). It requires a
-   * typed reason and must never ride a control where one click covers rows the operator did not read
-   * individually. This is the 053/056 enum-widening shape caught before it can happen.
+   * `unfulfillable` tells Effy to refund a customer, so it needs a typed reason and must never ride a
+   * control where one click covers rows the operator did not read.
    */
   it("never offers 'unfulfillable' in a bulk run, whatever nextTransition returns", () => {
     const every: FulfillmentSummary["status"][] = [
@@ -98,7 +89,7 @@ describe("summarise", () => {
   it("reports rows that had nothing to advance separately from failures", () => {
     const msg = summarise({ succeeded: [], failed: [], skipped: 3 })
     expect(msg).toBe("3 had nothing to advance.")
-    // ⚠ Must not read as a failure — nothing went wrong, there was simply no work.
+    // Must not read as a failure — nothing went wrong, there was simply no work.
     expect(msg).not.toMatch(/refused|failed|error/i)
   })
 
@@ -117,7 +108,7 @@ describe("summarise", () => {
 })
 
 /**
- * 057 A3 — "Add tag" in bulk. ⚠ The tag route takes an ABSOLUTE set, so each row must be sent its own
+ * 057 A3 — "Add tag" in bulk. The tag route takes an absolute set, so each row must be sent its own
  * tags plus the new one — sending just the new tag would erase every tag the row already had.
  */
 describe("withTag", () => {

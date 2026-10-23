@@ -1,14 +1,7 @@
-// Saved items and lists (033, 068): SQL only.
-//
-// ⚠ THE INVARIANT: a customer_saved_item row exists IF AND ONLY IF the product is in at least one
-// of that customer's lists. The entry's foreign key enforces "entry ⇒ saved row". The other
-// direction has no trigger; it is SWEEP_ORPHANS, run inside every transaction that removes an entry
-// or a list.
-//
-// ⚠ EVERY WRITER TAKES THE PER-CUSTOMER LOCK FIRST. Without it the cap is not a cap: two concurrent
-// saves at 199 can each count 199 under READ COMMITTED and both commit, landing the shopper at 201.
-// It is scoped to one customer, so it never contends across shoppers, and it is transaction-scoped,
-// so it is released by COMMIT or ROLLBACK with nothing to forget.
+// Invariant: a customer_saved_item row exists iff the product is in at least one of the customer's
+// lists. The entry's foreign key gives one direction; SWEEP_ORPHANS, run in every removing
+// transaction, gives the other. Every writer takes the per-customer transaction lock first, or two
+// concurrent saves could both pass the cap.
 import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import { DEFAULT_LIST_ID, type PackUnit, type UnitBasis } from "@effy/shared-types";
@@ -16,30 +9,23 @@ import { DEFAULT_LIST_ID, type PackUnit, type UnitBasis } from "@effy/shared-typ
 import { isUuid } from "../lib/ids";
 import { ListNameTakenError } from "./list-name";
 
-/**
- * The list id the wire uses for the default list — no client needs the default's real id. Taken
- * from the shared contract, so the clients and the backend cannot spell it two ways.
- */
 export const DEFAULT_LIST_REF = DEFAULT_LIST_ID;
 
-/** You cannot watch a product that does not exist. */
 export class ProductNotFoundError extends Error {}
-/** At the cap. ⚠ Refused, NEVER resolved by evicting something the shopper deliberately saved. */
+/** Refused; never resolved by evicting something saved. */
 export class CapReachedError extends Error {}
-/** No such list for THIS shopper — the same answer whether it is unknown or someone else's. */
+/** Unknown or someone else's, alike. */
 export class ListNotFoundError extends Error {}
-/** At the limit of named lists. Nothing is removed to make room. */
 export class ListLimitError extends Error {}
-/** The default list cannot be renamed or deleted. */
 export class DefaultListError extends Error {}
 /** The heart's un-save, refused because the product is in a named list. */
 export class InNamedListsError extends Error {}
 
 export interface ListRow {
   product_id: string;
-  /** 098 — the remembered variant, NULL when none (or it was removed). */
+  /** Null when none, or it was removed. */
   variant_id: string | null;
-  /** The variant the listing price is from — what is added when the product has only one. */
+  /** The listing price's variant: what is added when the product has only one. */
   shown_variant_id: string | null;
   variant_label: string | null;
   variant_count: number;
@@ -52,7 +38,6 @@ export interface ListRow {
   currency: string;
   compare_at_amount: string | null;
   storage_key: string | null;
-  /** 086 — the picture's ready copies; NULL for none. */
   image_widths: number[] | null;
   saved_at: Date;
   saved_price_amount: string;
@@ -73,9 +58,9 @@ export interface ListSummaryRow {
 
 export interface MergeItem {
   productId: string;
-  /** 098 — the variant the device remembered; ignored unless it is one of the product's live variants. */
+  /** Ignored unless it is one of the product's live variants. */
   variantId: string | null;
-  /** Null when the device never observed a price: the product's current price is the baseline. */
+  /** Null when the device never saw a price: the current price is the baseline. */
   savedPriceAmount: string | null;
   savedCurrency: string | null;
   savedAt: Date;
@@ -92,11 +77,8 @@ FROM public.customer_saved_item
 WHERE customer_id = $1
 ORDER BY saved_at DESC`;
 
-// ⚠ `saved_at` here is the ENTRY's added_at: when the product joined THIS list (068).
-//
-// 098 — an entry is still ONE PER PRODUCT, but remembers a variant (rv). Price, picture and verdict
-// are that variant's when one is remembered and still sold; otherwise the product's listing price and
-// "can any variant be bought" (sv, the first sellable variant).
+// `saved_at` is the entry's added_at. An entry is one per product but remembers a variant (rv):
+// price, picture and verdict are that variant's while it is sold, else the listing's (sv).
 const LIST = `
 SELECT s.product_id::text                        AS product_id,
        rv.id::text                               AS variant_id,
@@ -123,7 +105,7 @@ SELECT s.product_id::text                        AS product_id,
        -- availability-exempt: public.product / product_variant, and deliberately. This CASE does not
        -- decide WHETHER something is purchasable — it classifies WHY it is not, into the two answers a
        -- shopper can act on differently ("wait" vs "give up"). The predicate collapses both into one
-       -- boolean, which is exactly the distinction 054 FR-014 exists to preserve.
+       -- boolean, which loses exactly this distinction.
        CASE
          WHEN p.status = 'archived' THEN 'no_longer_sold'
          WHEN p.status <> 'active'  THEN 'temporarily_unavailable'
@@ -163,8 +145,7 @@ const PRODUCT_EXISTS = `SELECT EXISTS (SELECT 1 FROM public.product WHERE id = $
 const ALREADY_SAVED = `SELECT EXISTS (SELECT 1 FROM public.customer_saved_item WHERE customer_id = $1 AND product_id = $2) AS yes`;
 const COUNT_SAVED = `SELECT count(*)::int AS n FROM public.customer_saved_item WHERE customer_id = $1`;
 
-// ⚠ saved_price_amount is taken IN THE SAME STATEMENT, so the baseline is the price that actually
-// existed at the moment of saving — the remembered variant's (098), else the product's listing price.
+// Taken in the same statement, so the baseline is the price at the moment of saving.
 const INSERT_SAVED = `
 INSERT INTO public.customer_saved_item (customer_id, product_id, variant_id, saved_price_amount, saved_currency, saved_at)
 SELECT $1, p.id, v.id, COALESCE(v.price_amount, p.list_price_amount, 0), p.currency, COALESCE($3::timestamptz, now())
@@ -173,8 +154,7 @@ LEFT JOIN public.product_variant v ON v.id = $4::uuid AND v.product_id = p.id AN
 WHERE p.id = $2
 ON CONFLICT (customer_id, product_id) DO NOTHING`;
 
-// 098 — saving again with another variant selected moves the remembered choice (FR-015a). The
-// baseline price and time are NOT touched: they describe when the PRODUCT was saved.
+// Saving with another variant moves the remembered choice; baseline price and time stay.
 const REMEMBER_VARIANT = `
 UPDATE public.customer_saved_item s SET variant_id = v.id, updated_at = now()
   FROM public.product_variant v
@@ -193,8 +173,7 @@ LEFT JOIN public.product_variant v ON v.id = $6::uuid AND v.product_id = p.id AN
 WHERE p.id = $2
 ON CONFLICT (customer_id, product_id) DO NOTHING`;
 
-// ⚠ ONE STATEMENT THAT BOTH CREATES AND RETURNS. The no-op DO UPDATE is what lets RETURNING answer
-// on the conflict path too; DO NOTHING returns no row.
+// The no-op do UPDATE lets RETURNING answer on the conflict path too.
 const ENSURE_DEFAULT = `
 INSERT INTO public.customer_list (customer_id, is_default)
 VALUES ($1, true)
@@ -204,7 +183,7 @@ RETURNING id::text AS id`;
 const DEFAULT_LIST_ID_SQL = `SELECT id::text AS id FROM public.customer_list WHERE customer_id = $1 AND is_default`;
 const OWNED_LIST = `SELECT is_default FROM public.customer_list WHERE id = $2 AND customer_id = $1`;
 
-// added_at is writable: undo restores the position the entry held.
+// Writable: undo restores the entry's position.
 const INSERT_ENTRY = `
 INSERT INTO public.customer_list_entry (list_id, product_id, customer_id, added_at)
 VALUES ($1, $2, $3, COALESCE($4::timestamptz, now()))
@@ -219,8 +198,7 @@ SELECT EXISTS (
     JOIN public.customer_list l ON l.id = e.list_id
     WHERE e.customer_id = $1 AND e.product_id = $2 AND NOT l.is_default) AS yes`;
 
-// ⚠ THE OTHER HALF OF THE INVARIANT. A product that has just left its last list is no longer saved:
-// its heart empties and its remembered price is forgotten (068 FR-032).
+// The other half of the invariant: a product that left its last list is no longer saved.
 const SWEEP_ORPHANS = `
 DELETE FROM public.customer_saved_item s
 WHERE s.customer_id = $1
@@ -234,11 +212,8 @@ FROM public.customer_list_entry e
 JOIN public.customer_list l ON l.id = e.list_id
 WHERE e.customer_id = $1 AND NOT l.is_default`;
 
-// ⚠ ONE STATEMENT FOR EVERY LIST, its count, and how much of it lives nowhere else. Bounded by 21
-// lists and 200 products, so the correlated NOT EXISTS is cheap.
-//
-// $2 is the product the chooser is asking about, or NULL: `e.product_id = NULL` is NULL, bool_or of
-// NULLs is NULL, and COALESCE turns that into false.
+// Bounded by 21 lists and 200 products, so the correlated not exists is cheap. $2 may be null:
+// bool_or of NULLs is null, and COALESCE makes it false.
 const LISTS = `
 SELECT l.id::text AS id,
        l.is_default,
@@ -259,10 +234,7 @@ const INSERT_LIST = `INSERT INTO public.customer_list (customer_id, name) VALUES
 const RENAME_LIST = `UPDATE public.customer_list SET name = $3, updated_at = now() WHERE id = $2 AND customer_id = $1 AND NOT is_default`;
 const DELETE_LIST = `DELETE FROM public.customer_list WHERE id = $2 AND customer_id = $1 AND NOT is_default`;
 
-/**
- * The unique index IS the name check: there is no read-then-insert to race. Only THIS constraint
- * is translated; any other unique violation is an unexpected error and stays one.
- */
+/** The unique index is the name check; only this constraint is translated. */
 function isNameTaken(err: unknown): boolean {
   const e = err as { code?: string; constraint?: string } | null;
   return e?.code === "23505" && e.constraint === "customer_list_name_uq";
@@ -281,16 +253,13 @@ export interface SavedRepository {
   createList(customerId: string, name: string, productId: string | null, listLimit: number, cap: number, variantId?: string | null): Promise<string>;
   renameList(customerId: string, listRef: string, name: string): Promise<void>;
   deleteList(customerId: string, listRef: string): Promise<void>;
-  /** 098 — `variantId`, when given, becomes the product's remembered variant. */
+  /** `variantId`, when given, becomes the remembered variant. */
   addEntry(customerId: string, listRef: string, productId: string, at: Date | null, cap: number, variantId?: string | null): Promise<void>;
   removeEntry(customerId: string, listRef: string, productId: string): Promise<void>;
 }
 
 export function createSavedRepository(db: Queryable = pooled, transact: Transactor = withTransaction): SavedRepository {
-  /**
-   * A list reference → its id. "default" resolves to the shopper's default list, or `null` when it
-   * has never been written to (a read never creates it). Anything else must be a uuid they own.
-   */
+  /** "default" resolves to the default list, or null if never written (a read never creates it). */
   async function resolveList(q: Queryable, customerId: string, listRef: string): Promise<string | null> {
     if (listRef === DEFAULT_LIST_REF) {
       return (await q.query<{ id: string }>(DEFAULT_LIST_ID_SQL, [customerId])).rows[0]?.id ?? null;
@@ -301,21 +270,19 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
     return listRef;
   }
 
-  /** Put a product in a list inside the caller's transaction. The caller holds the lock. */
+  /** Inside the caller's transaction; the caller holds the lock. */
   async function addEntryTx(tx: Queryable, customerId: string, listId: string, productId: string, at: Date | null, cap: number, variantId: string | null = null) {
-    // A malformed variant id is simply not remembered — a save never fails over the choice.
+    // A malformed variant id is not remembered; the save still succeeds.
     const variant = variantId && isUuid(variantId) ? variantId : null;
     if (!(await yes(tx, PRODUCT_EXISTS, [productId]))) throw new ProductNotFoundError();
 
-    // ⚠ The cap counts DISTINCT SAVED PRODUCTS (068 FR-033). Placing an already-saved product in
-    // another list adds nothing to it and must never trip it.
+    // The cap counts distinct saved products, so placing one in another list never trips it.
     if (!(await yes(tx, ALREADY_SAVED, [customerId, productId]))) {
       const n = (await tx.query<{ n: number }>(COUNT_SAVED, [customerId])).rows[0]?.n ?? 0;
       if (n >= cap) throw new CapReachedError();
     }
 
-    // The saved row first: the entry's foreign key needs it. ON CONFLICT DO NOTHING keeps the
-    // ORIGINAL price and time when the product is already saved through another list.
+    // The saved row first (the entry's FK needs it); do nothing keeps the original price and time.
     await tx.query(INSERT_SAVED, [customerId, productId, iso(at), variant]);
     if (variant) await tx.query(REMEMBER_VARIANT, [customerId, productId, variant]);
     await tx.query(INSERT_ENTRY, [listId, productId, customerId, iso(at)]);
@@ -328,49 +295,37 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
     });
 
   return {
-    /** Which products this shopper has saved, newest first. An index-only scan: no joins. */
+    /** An index-only scan. */
     async membershipIds(customerId) {
       return (await db.query<{ product_id: string }>(MEMBERSHIP, [customerId])).rows.map((r) => r.product_id);
     },
 
-    /** The products held in at least one NAMED list. */
     async namedProductIds(customerId) {
       return (await db.query<{ product_id: string }>(NAMED_PRODUCT_IDS, [customerId])).rows.map((r) => r.product_id);
     },
 
-    /** One list's rows, newest-added first. A default list never written to is empty. */
     async list(customerId, listRef) {
       const listId = await resolveList(db, customerId, listRef);
       if (!listId) return [];
       return (await db.query<ListRow>(LIST, [customerId, listId])).rows;
     },
 
-    /**
-     * The heart's un-save: take the product out of "Saved".
-     *
-     * ⚠ REFUSED, not carried out, when the product is in a named list (068 FR-020). A client that
-     * predates lists believes the product is in exactly one list; carrying this out would leave it
-     * saved elsewhere while that client draws it as un-saved. Removing an absent product is a no-op.
-     */
+    /** Refused when the product is in a named list; removing an absent product is a no-op. */
     remove: (customerId, productId) =>
       locked(customerId, async (tx) => {
         if (await yes(tx, IN_NAMED_LIST, [customerId, productId])) throw new InNamedListsError();
-        // The entry's foreign key cascades, so the default-list entry goes with the saved row.
+        // The entry's foreign key cascades.
         await tx.query(DELETE_SAVED, [customerId, productId]);
       }),
 
-    /**
-     * Fold a device's saved items into the account, in ONE transaction. `items` arrive newest
-     * first, so when the cap bites it is the newest that are kept.
-     */
+    /** One transaction. `items` arrive newest first, so the cap keeps the newest. */
     merge: (customerId, items, cap) =>
       locked(customerId, async (tx) => {
         let n = (await tx.query<{ n: number }>(COUNT_SAVED, [customerId])).rows[0]?.n ?? 0;
         let added = 0;
         const skipped: Skip[] = [];
 
-        // ⚠ Device saves join "Saved" (068 FR-038). The default list is created only when there
-        // is something to place in it.
+        // Device saves join "Saved", created only when there is something to place.
         let defaultId: string | null = null;
         const place = async (productId: string, at: Date) => {
           defaultId ??= (await tx.query<{ id: string }>(ENSURE_DEFAULT, [customerId])).rows[0]!.id;
@@ -383,15 +338,12 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
             continue;
           }
           if (await yes(tx, ALREADY_SAVED, [customerId, it.productId])) {
-            // Present already — the account's row and its price stand untouched. It still joins
-            // "Saved": the shopper tapped its heart on this device, and it may so far be held only
-            // in a named list. A no-op when it is already there.
+            // Already saved: the account's row stands, but it still joins "Saved".
             await place(it.productId, it.savedAt);
             continue;
           }
           if (!(await yes(tx, PRODUCT_EXISTS, [it.productId]))) {
-            // ⚠ Skipped, never fatal. A merge must not fail wholesale because one product was
-            // removed while the guest's list sat on their device.
+            // Skipped, never fatal: a product may have been removed meanwhile.
             skipped.push({ productId: it.productId, reason: "not_found" });
             continue;
           }
@@ -412,12 +364,10 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
         return { added, skipped, productIds };
       }),
 
-    /** Every list the shopper has, default first. A shopper with nothing saved has none. */
     async lists(customerId, productId) {
       return (await db.query<ListSummaryRow>(LISTS, [customerId, productId])).rows;
     },
 
-    /** Create a named list and, when `productId` is given, place that product in it — atomically. */
     createList: (customerId, name, productId, listLimit, cap, variantId = null) =>
       locked(customerId, async (tx) => {
         const n = (await tx.query<{ n: number }>(COUNT_NAMED_LISTS, [customerId])).rows[0]?.n ?? 0;
@@ -434,7 +384,7 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
         return id;
       }),
 
-    /** Rename a named list. The default list is refused, never treated as "not found". */
+    /** The default list is refused, never treated as "not found". */
     async renameList(customerId, listRef, name) {
       if (listRef === DEFAULT_LIST_REF) throw new DefaultListError();
       if (!isUuid(listRef)) throw new ListNotFoundError();
@@ -448,14 +398,10 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
         if (isNameTaken(err)) throw new ListNameTakenError();
         throw err;
       }
-      // Deleted on another device between the read and the write.
       if (changed === 0) throw new ListNotFoundError();
     },
 
-    /**
-     * Delete a named list and un-save whatever it alone held. Idempotent: a list that does not
-     * exist — or belongs to someone else — ends in the state the caller asked for.
-     */
+    /** Idempotent: a missing or foreign list ends in the requested state. */
     async deleteList(customerId, listRef) {
       if (listRef === DEFAULT_LIST_REF) throw new DefaultListError();
       if (!isUuid(listRef)) return;
@@ -468,29 +414,28 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
       });
     },
 
-    /** Place a product in a list. Idempotent: an entry that exists is left exactly as it was. */
+    /** Idempotent: an existing entry is left as it was. */
     addEntry: (customerId, listRef, productId, at, cap, variantId = null) =>
       locked(customerId, async (tx) => {
         const listId =
           listRef === DEFAULT_LIST_REF
-            ? // The one place the default list comes into being, apart from the merge.
+            ?
               (await tx.query<{ id: string }>(ENSURE_DEFAULT, [customerId])).rows[0]!.id
             : (await resolveList(tx, customerId, listRef))!;
         await addEntryTx(tx, customerId, listId, productId, at, cap, variantId);
       }),
 
-    /** Take a product out of one list; un-save it if that was its last. Always succeeds. */
+    /** Un-saves the product if this was its last list. */
     removeEntry: (customerId, listRef, productId) =>
       locked(customerId, async (tx) => {
         let listId: string | null;
         try {
           listId = await resolveList(tx, customerId, listRef);
         } catch (err) {
-          // The list is gone, so the product is not in it. Same end state.
           if (err instanceof ListNotFoundError) return;
           throw err;
         }
-        if (!listId) return; // a default list that has never held anything
+        if (!listId) return;
         await tx.query(DELETE_ENTRY, [listId, productId, customerId]);
         await tx.query(SWEEP_ORPHANS, [customerId]);
       }),

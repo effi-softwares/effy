@@ -2,14 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 065 — the driver's item manifest, against the REAL migrations.
- *
- * ⚠ THESE CANNOT BE UNIT TESTS. Everything that can be wrong here is a join: which lines belong to
- * which package, whether the class comes from the order line or the live product, whether a pick row
- * is found. A mocked repository returns whatever the test author believes the query returns — 063
- * recorded six column names that typechecked perfectly and failed only against PostgreSQL.
- */
+/** Against the real schema: everything that can be wrong here is a join. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -18,7 +11,6 @@ vi.mock("@effy/edge-shared", async () => {
   return {
     ...actual,
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
-    // 090 — collecting runs in a transaction; the same shape the other driver container tests use.
     withTransaction: async (fn: (c: unknown) => unknown) => {
       const client = await holder.pool!.connect();
       try {
@@ -36,7 +28,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { deliveryDrop } from "./delivery";
@@ -76,7 +68,7 @@ SELECT id FROM p`,
   )).id;
 }
 
-/** Sets the product's LIVE storage attribute — what a shop edits, as opposed to the order's snapshot. */
+/** The live storage attribute a shop edits, as opposed to the order's snapshot. */
 async function setLiveStorage(productId: string, value: string): Promise<void> {
   await pool.query(
     `DELETE FROM public.product_attribute_value
@@ -91,18 +83,19 @@ async function setLiveStorage(productId: string, value: string): Promise<void> {
   );
 }
 
-async function makeOrder(number: string): Promise<string> {
+async function makeOrder(number: string, type: "effy" | "courier" = "effy"): Promise<string> {
   const cust = await one<{ id: string }>(
     `INSERT INTO public.customer (cognito_sub, email)
      VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
   );
   return (await one<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount,
-                                 delivery_address, status)
+                                 delivery_address, status, delivery_type, delivery_type_reason, courier_estimate)
      VALUES ($1, $2, 10, 12,
              '{"recipientName":"Pat","line1":"1 Test St","city":"Carlton","postalCode":"3053","region":"VIC"}'::jsonb,
-             'paid') RETURNING id`,
-    [cust.id, number],
+             'paid', $3::text, CASE $3::text WHEN 'effy' THEN 'in_coverage' ELSE 'out_of_coverage' END,
+             CASE $3::text WHEN 'courier' THEN '2–4 business days' END) RETURNING id`,
+    [cust.id, number, type],
   )).id;
 }
 
@@ -115,9 +108,9 @@ async function makePackage(orderId: string, shopId: string, method: "same_day" |
 }
 
 interface LineOpts {
-  storage: string | null;
+  storage: string;
   qty?: number;
-  /** undefined → no pick row at all; a number → a pick row with that many gathered. */
+  /** undefined: no pick row; a number: that many gathered. */
   gathered?: number;
 }
 
@@ -125,8 +118,8 @@ async function addLine(orderId: string, shopId: string, packageId: string, name:
   const productId = await makeProduct(shopId, name);
   const qty = o.qty ?? 1;
   const { id } = await one<{ id: string }>(
-    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class)
-     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, 4.50, $5::int, 4.50 * $5::int, $6) RETURNING id`,
+    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class, shop_unit_price_amount, shop_line_subtotal_amount)
+     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, 4.50, $5::int, 4.50 * $5::int, $6, 4.50, 4.50 * $5::int) RETURNING id`,
     [orderId, productId, shopId, name, qty, o.storage],
   );
   if (o.gathered !== undefined) {
@@ -153,8 +146,7 @@ async function makeRound(driverId: string, kind: "collection" | "delivery"): Pro
 }
 
 async function attach(stopId: string, packageId: string, offsetMs: number): Promise<void> {
-  // ⚠ Distinct created_at values, because "Package 1 of 2" is ordered by creation and two rows
-  // inserted in one statement batch can share a timestamp.
+  // Distinct created_at values: "Package 1 of 2" is ordered by creation.
   await pool.query(
     `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, created_at)
      VALUES ($1, $2, now() + ($3 || ' milliseconds')::interval)`,
@@ -190,8 +182,6 @@ d("065 — driver item manifest", () => {
     await pool.query("DELETE FROM public.driver");
   });
 
-  // ── US1 — pickup ────────────────────────────────────────────────────────────────────────────────
-
   async function pickupFixture() {
     const driverId = await makeDriver("c");
     const shop = await makeShop("SA");
@@ -206,7 +196,7 @@ d("065 — driver item manifest", () => {
     await addLine(o1, shop, p1, "Peas", { storage: "frozen" });
     await addLine(o1, shop, p1, "Milk", { storage: "chilled" });
 
-    const o2 = await makeOrder("EFY-PICK02");
+    const o2 = await makeOrder("EFY-PICK02", "courier");
     const p2 = await makePackage(o2, shop, "standard");
     await addLine(o2, shop, p2, "Rice", { storage: "ambient", qty: 3 });
     await addLine(o2, shop, p2, "Pasta", { storage: "ambient", qty: 2 });
@@ -216,7 +206,6 @@ d("065 — driver item manifest", () => {
     return { driverId, roundId, stopId };
   }
 
-  /** ⚠ research R2 — before 065 both packages returned all four lines. */
   it("⚠ each package at a stop carries ONLY its own lines and its own summary", async () => {
     const { driverId, roundId, stopId } = await pickupFixture();
     const stop = await collectionStop(roundId, stopId, driverId);
@@ -225,19 +214,18 @@ d("065 — driver item manifest", () => {
     const second = stop.packages.find((p) => p.ref === "EFY-PICK02")!;
     expect(first.items.map((i) => i.name)).toEqual(["Peas", "Milk"]);
     expect(second.items.map((i) => i.name).sort()).toEqual(["Pasta", "Rice"]);
-    expect(first.summary).toEqual({ frozen: 1, chilled: 1, normal: 0, notRecorded: 0 });
-    expect(second.summary).toEqual({ frozen: 0, chilled: 0, normal: 5, notRecorded: 0 });
-    // 089 — each package carries its own label code, and the run's stop lists them.
+    expect(first.summary).toEqual({ frozen: 1, chilled: 1, normal: 0 });
+    expect(second.summary).toEqual({ frozen: 0, chilled: 0, normal: 5 });
     expect(first.packageCode).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
     expect(first.packageCode).not.toBe(second.packageCode);
+    await createFirstParcels(pool, { packageIds: [first.packageId!, second.packageId!] });
     const run = await collectionRun(roundId, driverId);
     expect(run.stops.find((st) => st.stopId === stopId)?.parcels.map((b) => b.code).sort()).toEqual([first.packageCode, second.packageCode].sort());
-    // 090 — and each carries its hub instruction, in the platform's words.
     expect(run.hubSort?.map((h) => h.packageCode).sort()).toEqual([first.packageCode, second.packageCode].sort());
     for (const h of run.hubSort ?? []) expect(["load_now", "shelve", "courier_bay"]).toContain(h.kind);
   });
 
-  /** 090 — collecting at a counter records how each package was handed over (quickstart P4). */
+  /** Collecting at a counter records how each package was handed over. */
   it("090/096 — a collect records each bag's method; a package left at the shop records none", async () => {
     const { driverId, roundId, stopId } = await pickupFixture();
     const stop = await collectionStop(roundId, stopId, driverId);
@@ -265,15 +253,13 @@ d("065 — driver item manifest", () => {
     expect(new Set(second.items.map((i) => i.temperatureClass))).toEqual(new Set(["normal"]));
   });
 
-  /** FR-004 — a standard package the driver only carries to the hub has the same list. */
+  /** A package only carried to the hub has the same list. */
   it("a standard package carries its manifest too", async () => {
     const { driverId, roundId, stopId } = await pickupFixture();
     const stop = await collectionStop(roundId, stopId, driverId);
     const standard = stop.packages.find((p) => p.deliveredBy === "courier")!;
     expect(standard.items).toHaveLength(2);
   });
-
-  // ── US2 — the drop ──────────────────────────────────────────────────────────────────────────────
 
   async function dropFixture() {
     const driverId = await makeDriver("d");
@@ -312,7 +298,7 @@ d("065 — driver item manifest", () => {
   it("the drop summary is the sum of its packages, and the run list carries the same", async () => {
     const f = await dropFixture();
     const drop = await deliveryDrop(f.dropId, f.driverId);
-    expect(drop.summary).toEqual({ frozen: 2, chilled: 1, normal: 1, notRecorded: 0 });
+    expect(drop.summary).toEqual({ frozen: 2, chilled: 1, normal: 1 });
 
     const run = await deliveryRun(f.roundId, f.driverId);
     expect(run.drops[0]!.summary).toEqual(drop.summary);
@@ -325,11 +311,7 @@ d("065 — driver item manifest", () => {
     await expect(deliveryDrop(crypto.randomUUID(), f.driverId)).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  /**
-   * ⚠ FR-020 / FR-021 / SC-007. `order_item` is a receipt line with a price on it and a `shop_id`
-   * beside it, one column away from the ones this slice selects. The check is over the SERIALISED
-   * payload, keys and values, so it catches a leak however it got there.
-   */
+  /** No price or shop id anywhere in the serialised payload. */
   it("⚠ no driver payload carries money, and the drop names no shop", async () => {
     const f = await dropFixture();
     const drop = JSON.stringify(await deliveryDrop(f.dropId, f.driverId));
@@ -363,8 +345,6 @@ d("065 — driver item manifest", () => {
     return { roundId, stopId };
   }
 
-  // ── US3 — the list matches the bag ──────────────────────────────────────────────────────────────
-
   it("an unavailable line is not included and is in no summary bucket", async () => {
     const driverId = await makeDriver("b");
     const shop = await makeShop("SA");
@@ -385,7 +365,7 @@ d("065 — driver item manifest", () => {
     expect(byName.Peas).toMatchObject({ included: false, qty: 0, orderedQty: 2 });
     expect(byName.Milk).toMatchObject({ included: true, qty: 1, orderedQty: 4 });
     expect(byName.Rice).toMatchObject({ included: true, qty: 3, orderedQty: 3 });
-    expect(items.summary).toEqual({ frozen: 0, chilled: 1, normal: 3, notRecorded: 0 });
+    expect(items.summary).toEqual({ frozen: 0, chilled: 1, normal: 3 });
   });
 
   it("a package in which nothing was supplied still lists its lines, all not included", async () => {
@@ -404,15 +384,10 @@ d("065 — driver item manifest", () => {
     const p = (await deliveryDrop(dropId, driverId)).packages[0]!;
     expect(p.items).toHaveLength(1);
     expect(p.items[0]!.included).toBe(false);
-    expect(p.summary).toEqual({ frozen: 0, chilled: 0, normal: 0, notRecorded: 0 });
+    expect(p.summary).toEqual({ frozen: 0, chilled: 0, normal: 0 });
   });
 
-  // ── US4 — fixed at purchase ─────────────────────────────────────────────────────────────────────
-
-  /**
-   * ⚠ FR-009 / SC-006. The product is CHILLED when sold and AMBIENT by the time the driver reads it.
-   * A query that joined the live attribute would say Normal — about goods already in the bag.
-   */
+  /** Chilled when sold, ambient now: the class is the order's snapshot. */
   it("⚠ a later product edit does not change what the driver is told", async () => {
     const driverId = await makeDriver("s");
     const shop = await makeShop("SA");
@@ -430,26 +405,5 @@ d("065 — driver item manifest", () => {
 
     const line = (await deliveryDrop(dropId, driverId)).packages[0]!.items[0]!;
     expect(line.temperatureClass).toBe("chilled");
-  });
-
-  /** ⚠ FR-010 / SC-008 — and the live product IS frozen, to prove nothing is read from it. */
-  it("⚠ a line sold before 065 is not_recorded, never normal and never guessed from the product", async () => {
-    const driverId = await makeDriver("s");
-    const shop = await makeShop("SA");
-    const orderId = await makeOrder("EFY-OLD01");
-    const pkg = await makePackage(orderId, shop, "same_day");
-    const productId = await addLine(orderId, shop, pkg, "Old stock", { storage: null });
-    await setLiveStorage(productId, "frozen");
-
-    const roundId = await makeRound(driverId, "delivery");
-    const dropId = (await one<{ id: string }>(
-      `INSERT INTO public.round_stop (round_id, kind, order_id) VALUES ($1, 'customer_drop', $2) RETURNING id`,
-      [roundId, orderId],
-    )).id;
-    await attach(dropId, pkg, 0);
-
-    const p = (await deliveryDrop(dropId, driverId)).packages[0]!;
-    expect(p.items[0]!.temperatureClass).toBe("not_recorded");
-    expect(p.summary).toEqual({ frozen: 0, chilled: 0, normal: 0, notRecorded: 1 });
   });
 });

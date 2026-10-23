@@ -5,10 +5,10 @@ import { canHandOver, courierPickupLine, pickupWhen } from "../courierPickup"
 import { useCourierHandover } from "../queries"
 
 /**
- * 080 US2 — a courier collects this parcel from the shop: who comes, when, the label to attach, and
+ * A courier collects this parcel from the shop: who comes, when, the label to attach, and
  * "Handed over to courier" once they have it.
  *
- * ⚠ ROWS, NOT A CARD (Principle V), in the "Customer and delivery" section. The shop prepares and
+ * Rows, not a card (Principle V), in the "Customer and delivery" section. The shop prepares and
  * marks the parcel ready exactly as before; the handover is the only new step.
  */
 export function CourierPickup({ fulfillmentId, status, pickup }: { fulfillmentId: string; status: string; pickup: CourierPickupDTO }) {

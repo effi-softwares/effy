@@ -8,15 +8,8 @@ import { ProgressTrack } from "@/components/receipt/ProgressTrack"
 import { TrackingLink } from "@/components/receipt/TrackingLink"
 
 /**
- * When the order arrives, and how far along it is (052 FR-007 / FR-008).
- *
- * ⚠ A TIME ONLY WHEN A WINDOW WAS SOLD (069). 052 corrected a designed "Today, 5:00 – 8:00 pm" down
- * to a date because the business had not made that promise. It has now: a same-day order carries the
- * window the customer chose, and this panel says it. A day sold with no time shows the day and nothing
- * finer. Nothing is derived here.
- *
- * ⚠ More than one estimate means the order arrives in more than one delivery. That is a fact about
- * the CUSTOMER'S experience — it names no shop and implies no fulfilment structure (FR-009).
+ * When the order arrives, and how far along it is. A time only when a window was sold; a day sold with
+ * no time shows the day only. Nothing is derived here.
  */
 export function ArrivalPanel({
   stage,
@@ -27,7 +20,7 @@ export function ArrivalPanel({
   arrivals: ArrivalEstimateDTO[]
   delivery?: OrderDeliveryDTO | null
 }) {
-  // ── A courier order: who carries it and an ESTIMATE — never a window, never a promised day ──────
+  // A courier order: who carries it and an estimate — never a window, never a promised day
   if (delivery?.type === "courier" && delivery.courierEstimate) {
     const [partner, estimate] = courierLines(delivery.courierEstimate)
     return (
@@ -39,7 +32,7 @@ export function ArrivalPanel({
           </p>
           <p className="text-2xl font-semibold tracking-tight">{partner}</p>
           <p className="text-sm text-muted-foreground">{estimate}</p>
-          {/* 080 — ONE link, or "by email" once several parcels are with the courier. ⚠ Never a count. */}
+          {/* One link, or "by email" once several parcels are with the courier. Never a count. */}
           {delivery.tracking?.kind === "link" ? (
             <TrackingLink url={delivery.tracking.url} courierName={delivery.tracking.courierName} />
           ) : delivery.tracking?.kind === "email" ? (
@@ -54,7 +47,7 @@ export function ArrivalPanel({
     )
   }
 
-  // ── 085 — "as soon as possible": the estimate it was sold, said as one. Never a day. ─────────────
+  // "as soon as possible": the estimate it was sold, said as one. Never a day.
   if (delivery?.type === "effy" && delivery.promise === "asap" && delivery.asapEstimate) {
     return (
       <section className="rounded-lg border bg-card shadow-xs">
@@ -76,7 +69,7 @@ export function ArrivalPanel({
 
   // "Delivered by Effy" on an order that says so; an order from before delivery types just "Arriving".
   const label = delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : "Arriving"
-  // 085 — a day with no time: say that the missing hours ARE the promise.
+  // A day with no time: say that the missing hours are the promise.
   const anyTime = delivery?.type === "effy" && delivery.promise === "day"
   return (
     <section className="rounded-lg border bg-card shadow-xs">
@@ -141,14 +134,7 @@ function methodLabel(method: string): string {
   return "Standard"
 }
 
-/**
- * The arrival, in the plainest words the DATA supports.
- *
- * ⚠ THE WORDING IS `formatArrival`'S (069): the emailed receipt and both apps say it the same way,
- * from the same fixture. This file used to carry its own copy of the date formatting, beside the
- * email's — two implementations of one sentence, which is the shape 052 deleted
- * `summarizeFulfillment` for.
- */
+/** The arrival in `formatArrival`'s words, shared with the emailed receipt and both apps. */
 export function arrivalLabel(a: ArrivalEstimateDTO, now: Date = new Date()): string {
   return formatArrival(a, now)
 }

@@ -1,15 +1,10 @@
-// The facts a run's stage is worked out from (093) — one SQL fragment, read by the driver service
-// (Today, the run reads) and by dispatch (the day, round detail), so the driver and the dispatcher
-// never see two different stages for one run. The words are `runStage` in @effy/shared-types.
+// A run's stage facts, one fragment for the driver service and dispatch; the words are `runStage` in @effy/shared-types.
 
 import { runStage, type RunStage } from "@effy/shared-types";
 
 import { TO_RETURN_SQL } from "./parcel-return";
 
-/**
- * A `LEFT JOIN LATERAL … stage_facts ON TRUE` for the round aliased `dr`. Adds `stage_facts.shops_total`,
- * `shops_settled`, `checked_in`, `drops_total`, `drops_pending`, `drops_finished` and `to_return`.
- */
+/** `LEFT JOIN LATERAL … stage_facts ON TRUE` for round `dr`, adding shops_total, shops_settled, checked_in, drops_total, drops_pending, drops_finished, to_return. */
 export const ROUND_STAGE_LATERAL = `
   LEFT JOIN LATERAL (
     SELECT count(*) FILTER (WHERE sx.kind = 'shop_pickup')::int                                     AS shops_total,
@@ -25,7 +20,6 @@ export const ROUND_STAGE_LATERAL = `
      WHERE sx.round_id = dr.id
   ) stage_facts ON TRUE`;
 
-/** The lateral's columns, as a select list. */
 export const ROUND_STAGE_COLUMNS = `
   stage_facts.shops_total, stage_facts.shops_settled, stage_facts.checked_in,
   stage_facts.drops_total, stage_facts.drops_pending, stage_facts.drops_finished, stage_facts.to_return`;
@@ -40,7 +34,6 @@ export interface RoundStageRow {
   to_return: number | string | null;
 }
 
-/** A round's stage from its kind, status and the lateral's row. */
 export function stageOfRound(kind: string, status: string, r: RoundStageRow): { stage: RunStage; label: string } {
   return runStage({
     kind: kind === "collection" ? "collection" : "delivery",
@@ -55,7 +48,7 @@ export function stageOfRound(kind: string, status: string, r: RoundStageRow): { 
   });
 }
 
-/** One round's stage, read on its own (the driver's Today and run screens). Null when there is no such round. */
+/** Null when there is no such round. */
 export async function readRoundStage(
   db: { query: (text: string, values?: unknown[]) => Promise<{ rows: unknown[] }> },
   roundId: string,

@@ -3,15 +3,10 @@ package com.effyshopping.driver.mobile.core.auth
 import kotlinx.coroutines.flow.Flow
 
 /**
- * The platform auth boundary for shop-mobile (014 contracts/auth-driver.contract.md; per 013 D5).
- *
- * ONE interface in commonMain; `AmplifyAuthDriver` on Android (Amplify Android), a Swift `IosAuthBridge`
- * on iOS wrapped by `IosAuthDriver` (Amplify Swift is unreachable from Kotlin/Native).
- *
- * ── The ABSENCES are the shop audience's rules made structural ──
- * There is NO sign-up (either route), NO password sign-in, NO account recovery, NO password write, and
- * NO global sign-out. Shop operators are admin-provisioned (009) and passwordless (Principle IV). The
- * ONLY credential flow is email → one-time code. Do not add methods here.
+ * The platform auth boundary: `AmplifyAuthDriver` on Android, a Swift `IosAuthBridge` wrapped by
+ * `IosAuthDriver` on iOS (Amplify Swift is unreachable from Kotlin/Native). Drivers are admin-provisioned and
+ * passwordless: no sign-up, password sign-in, recovery, password write or global sign-out. The only flow is
+ * email → one-time code. Do not add methods here.
  */
 interface AuthDriver {
     /** Emits when the SDK drops the session without the app asking (Amplify Android Keystore failure — 013 D11). */
@@ -20,16 +15,16 @@ interface AuthDriver {
     suspend fun currentSession(forceRefresh: Boolean = false): Session?
 
     /**
-     * Whether this device holds a sign-in, answered WITHOUT the network (backlog C3). With no signal,
+     * Whether this device holds a sign-in, answered without the network (backlog C3). With no signal,
      * [currentSession] is null for a signed-in driver whose token needs refreshing; this tells that
      * apart from a device nobody has signed in on.
      */
     suspend fun holdsSignIn(): Boolean = currentSession() != null
 
-    /** The ONLY credential flow: email → code. */
+    /** The only credential flow: email → code. */
     suspend fun signInWithEmailOtp(email: String): AuthStep   // → NeedsOtp(destination)
     suspend fun confirmOtp(code: String): AuthStep            // → Done(session)
 
-    /** LOCAL sign-out — purge this device's tokens. */
+    /** Local sign-out — purge this device's tokens. */
     suspend fun signOut()
 }

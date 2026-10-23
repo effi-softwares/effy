@@ -4,16 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * FR-050, mechanically — a driver's contact details must not reach a log line, a metric label, or an
- * analytics payload.
- *
- * ⚠ WHY THIS IS A SOURCE SWEEP AND NOT A RUNTIME ASSERTION. A leak of this kind happens ONCE, in one
- * `log.info({ driver })` somebody adds while debugging, and it is invisible forever afterwards
- * because logs are not read in tests. The only guard that catches it is one that reads the source
- * every time the suite runs.
- *
- * ⚠ The emergency contact is a THIRD PARTY'S details — someone who never dealt with Effy at all and
- * has no relationship with the platform to consent to anything.
+ * A driver's contact details (including the emergency contact, a third party) never reach a log line,
+ * metric label or analytics payload. A source sweep, because a leak is one debugging line nobody reads.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +36,6 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-/** Every logging call in the file, with the file it came from. */
 function logCalls(source: string): string[] {
   // scope.log.<level>( … ) up to the closing paren of the first argument object.
   return [...source.matchAll(/log\.(?:info|warn|error|debug)\(([\s\S]{0,400}?)\)\s*[;,]/g)].map(
@@ -59,8 +50,7 @@ const FILES = sourceFiles(SRC).map((path) => ({
 
 describe("FR-050 — no driver PII in logs or metrics", () => {
   it("has source files to check", () => {
-    // ⚠ A guard over a file list must assert the list is non-empty, or it silently stops guarding.
-    // 054 found a test passing VACUOUSLY once the collection it looped over emptied.
+    // The file list must be non-empty, or the guard silently stops guarding.
     expect(FILES.length).toBeGreaterThan(10);
   });
 
@@ -75,19 +65,13 @@ describe("FR-050 — no driver PII in logs or metrics", () => {
   });
 
   it("⚠ never logs a whole driver object, which would carry PII by accident", () => {
-    // `log.error({ driver })` is the realistic leak: nobody types the phone number, they shorthand
-    // the object that contains it.
-    //
-    // ⚠ THE FIRST VERSION OF THIS ASSERTION DID NOT CATCH IT. It matched only the SHORTHAND form
-    // `{ driver }` — and the leak I injected to prove the guard was `{ driver: row }`, which sailed
-    // straight through. The guard was tested by breaking it, the break was not caught, and that is
-    // the only reason this now covers both forms. A guard nobody tries to defeat is decoration.
+    // The realistic leak is the object containing the phone, in any form:
     const WHOLE_OBJECT = [
       // shorthand: { driver }, { profile, x }
       /[{,]\s*(?:driver|profile|record|row|entity)\s*[,}]/,
       // explicit: { driver: row }, { d: profile }, { anything: driver }
       /[{,]\s*[A-Za-z_$][\w$]*\s*:\s*(?:driver|profile|record|row|entity|d)\b/,
-      // spread: { ...driver }
+      // spread: {...driver }
       /\.\.\.\s*(?:driver|profile|record|row|entity)\b/,
     ];
     for (const { path, source } of FILES) {
@@ -102,8 +86,7 @@ describe("FR-050 — no driver PII in logs or metrics", () => {
   });
 
   it("⚠ keeps metric labels low-cardinality — no driver id as a label (Principle VII)", () => {
-    // A per-driver metric series is a cardinality explosion in Prometheus and an identifier in a
-    // place with no retention policy.
+    // No per-driver metric series: an identifier with no retention policy.
     const metricLines = FILES.flatMap(({ path, source }) =>
       [...source.matchAll(/"fleet\.[a-z_]+"/g)].map(() => ({ path, source })),
     );
@@ -111,7 +94,7 @@ describe("FR-050 — no driver PII in logs or metrics", () => {
     for (const { path, source } of FILES) {
       for (const call of logCalls(source)) {
         if (!/fleet\./.test(source)) continue;
-        // A metric log line may carry a count; it must not carry an identity.
+        // A count, never an identity.
         if (call.includes("driverId") && /"fleet\./.test(source)) {
           expect(
             call.includes("stage") || call.includes("released"),

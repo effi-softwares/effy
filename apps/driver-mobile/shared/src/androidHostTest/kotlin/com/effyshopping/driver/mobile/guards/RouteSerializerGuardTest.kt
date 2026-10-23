@@ -5,32 +5,21 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * Every `AppNavKey` in the driver app MUST be registered in `driverNavJson`'s serializers module
- * (060 T022).
- *
- * ⚠ **Why this needs a guard at all.** Omitting a route from the module is **not** a compile error.
- * `AppNavKey` is a plain interface, not a sealed one, so nothing forces exhaustiveness. The failure
- * appears only at runtime, only after process death, and only on the tab whose back stack held the
- * unregistered route — which is to say, almost never in development and reliably on a driver's phone
- * when Android reclaims the app mid-shift. 060 adds four routes at once, which is exactly when one
- * gets missed.
- *
- * ⚠ **This is a SOURCE guard, and it lives in `androidHostTest` rather than `commonTest` for a
- * reason**: it reads the file, and `commonMain` has no filesystem. The repo has this shape already —
- * 054's availability guard greps the shopper-facing services, 058's rollup guard reads the repository file. A
- * guard that reads source is a dev-time tool, so it belongs in the JVM source set.
+ * Every `AppNavKey` is registered in `driverNavJson`'s serializers module. `AppNavKey` is not sealed, so a
+ * missing one is not a compile error: it fails only after process death, on the tab holding it. A source
+ * guard, so it lives in `androidHostTest` (commonMain has no filesystem).
  */
 class RouteSerializerGuardTest {
 
     @Test
     fun `every AppNavKey is registered in driverNavJson`() {
         val source = findRoutesFile()
-        // ⚠ Strip comments FIRST. 057 recorded a guard defeated because it matched commented-out
+        // Strip comments first. 057 recorded a guard defeated because it matched commented-out
         // text; the reverse trap is a route named only in a comment counting as declared.
         val text = stripComments(source.readText())
 
         val declared = Regex(
-            // ⚠ The parameter list may itself contain a colon (`data class X(val id: String)`),
+            // The parameter list may itself contain a colon (`data class X(val id: String)`),
             // so it is matched explicitly rather than with a "anything but a colon" wildcard. The
             // first draft used `[^:\n]*` and the guard failed on its own repository — every
             // parameterised route read as undeclared.

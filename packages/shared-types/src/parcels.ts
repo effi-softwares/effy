@@ -1,8 +1,6 @@
-// 096 — parcels: one physical bag or box of a package, and how each is read and handed over.
-//
-// A PACKAGE is one shop's share of one order (089). A PARCEL is one bag of it. Parcel 1's code is the
-// package's own 089 code, so a label printed before 096 is simply bag 1 (research R1). Every surface
-// counts, scans and records PARCELS; "Bag n of N" counts this package's live bags only.
+// Parcels: one bag or box of a package (one shop's share of an order), and how each is read and handed
+// over. Bag 1's code is the package's own code. Every surface counts, scans and records parcels; "Bag n
+// of N" counts this package's live bags only.
 
 import type { WireInt } from "./cart";
 import type { HandoverMethod } from "./driver";
@@ -12,7 +10,7 @@ export type ParcelZone = "ambient" | "chilled" | "frozen";
 /** How a read was made. A bag ticked by hand is not a read: it is a hand-over with method `manual`. */
 export type ReadMethod = "scan" | "typed";
 
-/** What a read means, everywhere (FR-052). `not_found` is decided by the server only. */
+/** What a read means, everywhere. `not_found` is decided by the server only. */
 export type ReadOutcome =
   | "accepted"
   | "already_counted"
@@ -80,7 +78,7 @@ export const PARCEL_ZONE_WORDS: Record<ParcelZone, string> = {
   frozen: "Frozen",
 };
 
-/** Where a bag is, as a shop may be told: never a driver's name (073). */
+/** Where a bag is, as a shop may be told: never a driver's name. */
 export type ParcelCustody = "at_shop" | "packed" | "with_driver" | "with_courier" | "beyond";
 
 export const PARCEL_CUSTODY_WORDS: Record<ParcelCustody, string> = {
@@ -91,13 +89,10 @@ export const PARCEL_CUSTODY_WORDS: Record<ParcelCustody, string> = {
   beyond: "Left the shop",
 };
 
-/** The hard limit on bags per package (research R3). */
+/** The hard limit on bags per package. */
 export const MAX_PARCELS = 50;
 
-/**
- * 096 — where a bag is, from its latest recorded hand-over step. ONE mapping for the shop console and
- * back-office: never a driver's name, never past "beyond" (the shop's view ends when the bag leaves).
- */
+/** Where a bag is, from its latest hand-over step, for the shop console and back-office: never a driver's name, never past "beyond". */
 export function parcelCustodyOf(lastStep: string | null): ParcelCustody {
   if (lastStep === null) return "at_shop"
   if (lastStep === "pack") return "packed"
@@ -106,28 +101,25 @@ export function parcelCustodyOf(lastStep: string | null): ParcelCustody {
   return "beyond"
 }
 
-/**
- * 096 US5 — `GET /orders/v1/admin/lookup?q=`: what a scanned label, a typed code or an order number
- * names, so back-office opens that order with the bag (or package) highlighted.
- */
+/** `GET /orders/v1/admin/lookup?q=`: what a scanned label, typed code or order number names, so back-office opens that order with it highlighted. */
 export interface AdminLookupDTO {
   orderId: string
   orderNumber: string
   /** The package (shop portion) the bag belongs to; absent for an order-number match. */
   fulfillmentId?: string
   parcelId?: string
-  /** A voided or withdrawn bag is still found — staff need to see why it no longer scans. */
+  /** A voided or withdrawn bag is still found, so staff see why it no longer scans. */
   voided?: boolean
   cancelled?: boolean
 }
 
-/** 096 US5 — where a bag goes once it is in the hub (the same words the driver's hub scan shows). */
+/** Where a bag goes once in the hub (the words the driver's hub scan shows). */
 export interface HubSortDTO {
   kind: "load_now" | "shelve" | "courier_bay"
   label: string
 }
 
-/** 096 US5 — one bag the hub expects from a collection run. */
+/** One bag the hub expects from a collection run. */
 export interface HubBagDTO {
   parcelId: string
   code: string
@@ -139,12 +131,12 @@ export interface HubBagDTO {
   sort: HubSortDTO
 }
 
-/** 096 US5 — `GET /fleet/v1/hub/expected`: the collection runs whose bags are on their way in. */
+/** `GET /fleet/v1/hub/expected`: the collection runs whose bags are on their way in. */
 export interface HubExpectedDTO {
   runs: Array<{ runId: string; driverName: string; bags: HubBagDTO[] }>
 }
 
-/** 096 US5 — `POST /fleet/v1/hub/checkins` → each read's result, in the scan rule's words. */
+/** `POST /fleet/v1/hub/checkins`: each read's result, in the scan rule's words. */
 export interface HubCheckinResultDTO {
   clientReadId: string
   outcome: ReadOutcome
@@ -154,7 +146,7 @@ export interface HubCheckinResultDTO {
   sort?: HubSortDTO
   orderNumber?: string
   zone?: ParcelZone
-  /** The scan of this bag completed its run: the run is checked in and closed. */
+  /** This scan completed its run: the run is checked in and closed. */
   runClosed: boolean
 }
 
@@ -162,7 +154,7 @@ export interface HubCheckinsResponseDTO {
   results: HubCheckinResultDTO[]
 }
 
-/** 096 US6 — how hand-overs were made in a period. */
+/** How hand-overs were made in a period. */
 export interface HandoverMixDTO {
   scan: number
   typed: number
@@ -170,11 +162,9 @@ export interface HandoverMixDTO {
 }
 
 /**
- * 096 US6 — `GET /fleet/v1/reports/handovers?from&to` (Melbourne dates, inclusive): how bags were
- * handed over and what went wrong. Staff only; never shown to a shop or a customer (FR-064).
- *
- * ⚠ AN EXCEPTION is a refused read (a repeat scan — "already counted" — is not one) or a bag declared
- * missing. `exceptionsPer1000` is exceptions per 1,000 hand-overs; null when there were none.
+ * `GET /fleet/v1/reports/handovers?from&to` (Melbourne dates, inclusive): how bags were handed over and
+ * what went wrong. Staff only. An exception is a refused read (a repeat scan is not one) or a bag
+ * declared missing; `exceptionsPer1000` is per 1,000 hand-overs, null when there were none.
  */
 export interface HandoverReportDTO {
   from: string
@@ -188,6 +178,6 @@ export interface HandoverReportDTO {
   missing: Array<{ reason: ParcelMissingReason; count: number }>
   exceptions: number
   exceptionsPer1000: number | null
-  /** Reads the phone judged one way and the server another (a bag voided while it was offline). */
+  /** Reads the phone judged one way and the server another (a bag voided while offline). */
   disagreements: number
 }

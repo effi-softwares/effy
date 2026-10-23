@@ -17,9 +17,9 @@ import {
 } from "../model";
 
 /**
- * One row per package — a detail row, NOT a card (Principle V).
+ * One row per package — a detail row, not a card (Principle V).
  *
- * ⚠ THE CARD INSTINCT IS STRONGEST HERE. Each package has a shop, a status, a count, a subtotal, a
+ * The card instinct is strongest here. Each package has a shop, a status, a count, a subtotal, a
  * handover and an arrival — six facts that beg to be tiled in a bordered box. Rows keep them
  * scannable down a column, which is what an operator comparing three packages actually does.
  */
@@ -31,7 +31,7 @@ function formatDate(iso: string | null | undefined): string {
   );
 }
 
-/** 073 — the Assign to… / Unassign controls for one stage of one package; absent for a CSA. */
+/** The Assign to… / Unassign controls for one stage of one package; absent for a CSA. */
 export type AssignmentActions = (
   pkg: OrderPackage,
   stage: "collection" | "delivery",
@@ -39,7 +39,7 @@ export type AssignmentActions = (
 ) => React.ReactNode;
 
 interface Props {
-  /** 080 — the order, and how its courier parcels reach the courier (null unless a courier delivers). */
+  /** The order, and how its courier parcels reach the courier (null unless a courier delivers). */
   orderId?: string;
   courierCollection?: "hub" | "supplier" | null;
   renderActions?: AssignmentActions;
@@ -48,7 +48,7 @@ interface Props {
   busy: boolean;
   onHandoff(fulfillmentId: string, reference: string, carrierName: string): void;
   onArrival(fulfillmentId: string): void;
-  /** 096 — what a scan opened this order for: that bag (or package) is highlighted. */
+  /** What a scan opened this order for: that bag (or package) is highlighted. */
   highlight?: { parcelId?: string; packageId?: string };
 }
 
@@ -121,7 +121,7 @@ function PackageRow({
           <div className="min-w-0">
             <div className="font-semibold">{pkg.shopName}</div>
             <div className="bo-sub">
-              {/* 089 — the code on the package's label; what a driver will scan. */}
+              {/* The code on the package's label; what a driver will scan. */}
               {pkg.packageCode ? (
                 <>
                   <span className="bo-code" aria-label="Package code">
@@ -134,12 +134,12 @@ function PackageRow({
             </div>
           </div>
         </div>
-        {/* 073 — where it REALLY is, from the shared derivation; the old guess from the shop's status
+        {/* Where it really is, from the shared derivation; the old guess from the shop's status
             said "At hub" the moment a driver picked a package up. */}
         {pkg.statusView ? <PackageStatusPill view={pkg.statusView} icons /> : null}
       </div>
 
-      {/* 073 — who has it. One row per stage; nothing when the stage has nothing to say yet. */}
+      {/* Who has it. One row per stage; nothing when the stage has nothing to say yet. */}
       {pkg.collect || pkg.deliver ? (
         <div className="divide-y divide-border rounded-lg border border-border">
           {pkg.collect ? (
@@ -151,13 +151,13 @@ function PackageRow({
         </div>
       ) : null}
 
-      {/* 096 — the package's bags: each has its own label, and each is handed over on its own. */}
+      {/* The package's bags: each has its own label, and each is handed over on its own. */}
       {bags.length > 0 ? <BagTable bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
       {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
         <div className="grid gap-4 md:grid-cols-2">
           {/*
-            069 — what the customer was promised. ⚠ Rendered ONLY when there is a promise: an order
+            What the customer was promised. Rendered only when there is a promise: an order
             placed before 069 was promised no day, and a "Promised: —" row would read as data that went
             missing rather than data that never existed.
           */}
@@ -176,7 +176,7 @@ function PackageRow({
               {flags.length > 0 ? (
                 <div className="bo-dl__row">
                   <dt>Note</dt>
-                  {/* ⚠ WORDS, never colour alone. */}
+                  {/* Words, never colour alone. */}
                   <dd className="flex flex-wrap gap-x-3">
                     {flags.map((f) => (
                       <span key={f} className={f === "on_time" ? "text-muted-foreground" : "font-medium"}>
@@ -190,7 +190,7 @@ function PackageRow({
           ) : (
             <div />
           )}
-          {/* 091 — how it was handed over at each step, as recorded. Nothing is shown — never "by hand"
+          {/* How it was handed over at each step, as recorded. Nothing is shown — never "by hand"
               by assumption — when nothing was recorded. */}
           {pkg.handovers && pkg.handovers.length > 0 ? (
             <div>
@@ -234,9 +234,9 @@ function PackageRow({
             </>
           ) : null}
           {/*
-            ⚠ FR-003 / SC-009. When there is NO reference, this block renders NOTHING — no row, no
+            FR-003 / SC-009. When there is NO reference, this block renders nothing — no row, no
             dash, no "(not recorded)", no warning styling. Effy has no carrier contract, so most
-            handovers genuinely have none, and a handover without one is a COMPLETE record. An empty
+            handovers genuinely have none, and a handover without one is a complete record. An empty
             state that looks like missing data is how an operator starts chasing a number that was
             never going to exist.
           */}
@@ -264,7 +264,7 @@ function PackageRow({
         </dl>
       ) : null}
 
-      {/* 080 — when it is due out by its courier service's next pickup, and whether that has gone. */}
+      {/* When it is due out by its courier service's next pickup, and whether that has gone. */}
       {pkg.dueOut || pkg.late ? (
         <p className={`text-sm ${pkg.late ? "text-warning" : "text-muted-foreground"}`}>
           {pkg.dueOut
@@ -274,7 +274,7 @@ function PackageRow({
         </p>
       ) : null}
 
-      {/* 080 — a courier order sold since courier services: its consignment. */}
+      {/* A courier order sold since courier services: its consignment. */}
       {orderId && pkg.deliveredBy === "courier" && (courierCollection !== null || pkg.consignment) ? (
         <ConsignmentBlock orderId={orderId} pkg={pkg} canRecord={canRecord} collection={courierCollection} />
       ) : null}
@@ -291,7 +291,7 @@ function PackageRow({
             />
           </label>
           <label className="space-y-1 text-sm">
-            {/* ⚠ Labelled OPTIONAL in the UI, not merely permitted by the API. */}
+            {/* Labelled optional in the UI, not merely permitted by the API. */}
             <span className="text-muted-foreground">Consignment reference (optional)</span>
             <Input
               value={reference}
@@ -323,7 +323,7 @@ function PackageRow({
   );
 }
 
-/** 096 — the bags, one row each; a voided bag is listed struck through so a stray label can be explained. */
+/** The bags, one row each; a voided bag is listed struck through so a stray label can be explained. */
 function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
   return (
     <div>
@@ -365,14 +365,14 @@ function bagWord(bags: AdminParcelDTO[], code: string): string {
   return b ? `Bag ${b.seq}` : code;
 }
 
-/** Who made a hand-over: a driver by name; shop and hub staff by role (096). */
+/** Who made a hand-over: a driver by name; shop and hub staff by role. */
 function byWords(h: AdminPackageHandoverDTO): string {
   if (h.actor === "shop_staff") return "Shop staff";
   if (h.actor === "admin_staff") return "Hub staff";
   return h.driverName ?? "Driver";
 }
 
-/** 091 — the hand-over's step and method, in staff words. */
+/** The hand-over's step and method, in staff words. */
 function StepIcon({ step }: { step: RecordedHandoverStep }) {
   const Icon = step === "deliver" ? CircleCheck : step === "checkin" ? Warehouse : step === "load" ? Truck : step === "return" ? Undo2 : step === "pack" ? PackageCheck : Package;
   return <Icon />;

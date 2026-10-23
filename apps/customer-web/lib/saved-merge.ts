@@ -1,9 +1,9 @@
 "use client"
 
 /**
- * The guest → account join, and its disclosure (033 FR-028/FR-032).
+ * The guest → account join, and its disclosure.
  *
- * ⚠ ITS OWN MODULE, FOR BYTES. `SaveControl` imports `saved-actions`, and `saved-actions` is
+ * Its own module, for bytes. `SaveControl` imports `saved-actions`, and `saved-actions` is
  * therefore on `/` and `/product/[id]`. When this code lived there it pushed `/` to
  * exactly 174.0 KB against a 174 KB budget — zero headroom. Nothing here is needed by a tile: the
  * merge runs on the auth pages and the disclosure is read by the saved list, none of which are
@@ -11,13 +11,13 @@
  */
 import { adoptSaved, readSavedIds } from "./saved-store"
 
-/** Where the join's disclosure waits until a surface can show it (FR-032). */
+/** Where the join's disclosure waits until a surface can show it. */
 export const MERGE_NOTICE_KEY = "effy:saved:merged"
 
 /**
  * Read and clear the pending join disclosure.
  *
- * ⚠ Returns 0 when there is nothing to say. It is read-once by design: telling the shopper twice that
+ * Returns 0 when there is nothing to say. It is read-once by design: telling the shopper twice that
  * items joined would imply it happened twice.
  */
 export function takeMergeNotice(): number {
@@ -31,7 +31,7 @@ export function takeMergeNotice(): number {
   }
 }
 
-/* ── The guest → account join (FR-028) ─────────────────────────────────────────────────────────── */
+/* The guest → account join */
 
 interface GuestEntry {
   productId: string
@@ -41,15 +41,8 @@ interface GuestEntry {
 }
 
 /**
- * Fold the device-held list into the account on sign-in.
- *
- * ⚠ THE LOCAL LIST IS CLEARED ONLY AFTER THE PLATFORM ACKNOWLEDGES. `cart-actions.ts` records why in
- * one line: "clearing first and merging second is how 019's Option B lost carts."
- *
- * ⚠ Idempotent, so it is safe on EVERY sign-in — including a repeat on a device that already merged.
- *
- * Returns how many items joined, so the caller can DISCLOSE it (FR-032) rather than silently
- * absorbing someone else's saves on a shared device.
+ * Fold the device-held list into the account on sign-in. Idempotent; the local list is cleared only after
+ * the platform acknowledges. Returns how many items joined, so the caller can say so on a shared device.
  */
 async function adoptMembership(): Promise<void> {
   try {
@@ -64,11 +57,11 @@ async function adoptMembership(): Promise<void> {
 
 export async function mergeSavedAfterSignIn(): Promise<number> {
   const ids = readSavedIds()
-  // ⚠ Even an EMPTY device list still calls through: the account's own saved items have to reach the
+  // Even an empty device list still calls through: the account's own saved items have to reach the
   // mirror, or every heart renders unsaved until the next page load.
   const items: GuestEntry[] = ids.map((productId) => ({
     productId,
-    // ⚠ null, not "0". The web store keeps ids only, so the device never observed a price — the
+    // null, not "0". The web store keeps ids only, so the device never observed a price — the
     // platform then uses the product's current price as the baseline instead of reporting the item as
     // having fallen from nothing.
     savedPriceAmount: null,
@@ -85,12 +78,12 @@ export async function mergeSavedAfterSignIn(): Promise<number> {
     if (!res.ok) return 0
     const body = (await res.json()) as { added?: number; productIds?: string[] }
     if (Array.isArray(body.productIds)) adoptSaved(body.productIds)
-    // ⚠ 068: the merge answer does not say which products are in NAMED lists, and a shopper who
+    // The merge answer does not say which products are in named lists, and a shopper who
     // has just signed in may own several. Without this the first tap on one of those hearts would
     // flip off, be refused, and flip back. This runs on the auth pages, never the guest path.
     void adoptMembership()
     const added = body.added ?? 0
-    // ⚠ FR-032: the join is DISCLOSED, never silent. Parked in sessionStorage because sign-in
+    // The join is disclosed, never silent. Parked in sessionStorage because sign-in
     // navigates away and an in-memory toast would not survive it — a shared device would otherwise
     // absorb the previous person's saves with nothing said. Read and cleared by the saved list.
     if (added > 0) {

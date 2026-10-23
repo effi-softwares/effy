@@ -3,15 +3,8 @@ package com.effyshopping.customer.mobile.features.saved.domain
 import com.effyshopping.customer.mobile.core.error.AppException
 
 /**
- * Saved-items use cases (033).
- *
- * ⚠ THE ONE SHAPE EVERY MUTATION HAS, inherited from 027's cart:
- *
- *   1. apply to the mirror (synchronously, so the control responds instantly)
- *   2. send to the platform
- *
- * In that order, always. A control that waits for the network before moving feels broken on a slow
- * connection, and a control that moves and never reverts lies about what was recorded.
+ * Saved-items use cases. Every mutation applies to the mirror first (the control responds at once), then
+ * sends to the platform, reverting on refusal.
  */
 
 /** What a tap on the heart came to. */
@@ -23,7 +16,7 @@ enum class ToggleOutcome {
     GUEST_CAP,
 
     /**
-     * ⚠ 068 FR-020: the product is in a list the shopper named, so the tap removed NOTHING and the
+     * The product is in a list the shopper named, so the tap removed nothing and the
      * caller must open the list chooser. One tap on a heart never takes a product out of a list.
      */
     OPEN_CHOOSER,
@@ -31,10 +24,10 @@ enum class ToggleOutcome {
 
 /**
  * The heart. Optimistic: the mirror moves first and the platform is told second; a refusal puts it
- * back (FR-012).
+ * back.
  *
- * Takes the DESIRED end state rather than "flip whatever is there", so two fast taps cannot settle on
- * the wrong value (FR-014).
+ * Takes the desired end state rather than "flip whatever is there", so two fast taps cannot settle on
+ * the wrong value.
  */
 class ToggleSaved(
     private val repo: SavedRepository,
@@ -47,14 +40,14 @@ class ToggleSaved(
         saved: Boolean,
         priceAmount: String? = null,
         currency: String? = null,
-        /** 098 — the size on screen, remembered with the save (signed in only). */
+        /** The size on screen, remembered with the save (signed in only). */
         variantId: String? = null,
     ): ToggleOutcome {
         val previous = store.isSaved(productId)
         if (previous == saved) return ToggleOutcome.DONE // nothing to do — and nothing to revert if it fails
 
         if (!isSignedIn()) {
-            // ⚠ A guest has no named lists, so a guest's filled heart always un-saves.
+            // A guest has no named lists, so a guest's filled heart always un-saves.
             if (saved && store.guestCount() >= GUEST_CAP) return ToggleOutcome.GUEST_CAP
             store.applyGuest(productId, saved, priceAmount, currency, now())
             return ToggleOutcome.DONE
@@ -80,12 +73,11 @@ class ToggleSaved(
     }
 }
 
-
 /**
- * How many a device-held guest list may hold (FR-046).
+ * How many a device-held guest list may hold.
  *
- * ⚠ Smaller than the account cap because a device-held list has no account behind it. Reaching it
- * REFUSES the save; nothing already saved is ever evicted to make room (FR-047). Mirrors
+ * Smaller than the account cap because a device-held list has no account behind it. Reaching it
+ * refuses the save; nothing already saved is ever evicted to make room. Mirrors
  * the saved-items guest cap on the server.
  */
 const val GUEST_CAP = 50
@@ -93,7 +85,7 @@ const val GUEST_CAP = 50
 /**
  * Load the shopper's membership into the mirror.
  *
- * ⚠ On failure the mirror is LEFT ALONE rather than emptied. Emptying it would render every heart
+ * On failure the mirror is left alone rather than emptied. Emptying it would render every heart
  * unsaved, which invites exactly the destructive second tap this feature exists to remove — so a
  * failed refresh degrades to stale-but-plausible instead of confidently wrong.
  */
@@ -112,24 +104,18 @@ class ListSaved(private val repo: SavedRepository) {
 }
 
 /**
- * Fold the device-held guest list into the account on sign-in (FR-028).
- *
- * ⚠ THE DEVICE LIST IS CLEARED ONLY AFTER THE PLATFORM ACKNOWLEDGES. `cart-actions.ts` records why:
- * "clearing first and merging second is how 019's Option B lost carts." Here `adopt()` does the
- * clearing, and it only runs on a successful response.
- *
- * ⚠ Idempotent, so it is safe on EVERY sign-in — including the second one on a device that already
- * merged (FR-029).
+ * Fold the device-held guest list into the account on sign-in. Idempotent; the device list is cleared only
+ * by `adopt` on a successful response.
  */
 class MergeSavedOnSignIn(
     private val merge: SavedMergeRepository,
     private val store: SavedStore,
 ) {
-    /** Returns how many items joined, so the surface can DISCLOSE it (FR-032). */
+    /** Returns how many items joined, so the surface can disclose it. */
     suspend operator fun invoke(): Int {
         val entries = store.guestEntries()
         val outcome = merge.merge(entries)
-        // ⚠ 068: the merge answer does not say which products are in NAMED lists, so the named set
+        // The merge answer does not say which products are in named lists, so the named set
         // the store already holds is carried over rather than wiped. The next membership read
         // (every screen with hearts does one) brings the platform's own answer.
         store.adopt(SavedMembership(outcome.productIds, store.named.value intersect outcome.productIds))
@@ -137,17 +123,16 @@ class MergeSavedOnSignIn(
     }
 }
 
-
-/** Adds every purchasable product in ONE list to the cart — the weekly-shop action (068 FR-028). */
+/** Adds every purchasable product in one list to the cart — the weekly-shop action. */
 class AddAllSavedToCart(private val repo: SavedCartRepository) {
     suspend operator fun invoke(listId: String, changeId: String): SavedAddToCartOutcome =
         repo.addAllToCart(listId, changeId)
 }
 
-/* ── 068: lists ──────────────────────────────────────────────────────────────────────────────── */
+/* Lists */
 
 /**
- * ⚠ EVERY CHANGE BELOW RE-READS THE MEMBERSHIP rather than patching the mirror. Whether a product is
+ * Every change below re-reads the membership rather than patching the mirror. Whether a product is
  * still saved, and whether it is still in a named list, depends on every list it is in — a rule the
  * platform owns. A failed re-read is swallowed: the change itself succeeded, and the next screen
  * with hearts reads again.

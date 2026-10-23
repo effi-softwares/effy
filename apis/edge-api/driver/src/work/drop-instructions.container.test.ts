@@ -2,14 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 066 — the driver reads what the customer said, against the REAL migrations.
- *
- * `DeliveryDropDTO.instructions` has existed since 049 and three screens render it; the service
- * returned a hard-coded null because nothing stored the text. This proves the value now comes from
- * the ORDER, reaches only the driver the drop is assigned to, and is still null when the customer
- * wrote nothing.
- */
+/** The note comes from the order, reaches only the assigned driver, and is null when none was written. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -21,7 +14,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { deliveryDrop } from "./delivery";
 import { NotFoundError } from "./service";
@@ -50,10 +43,10 @@ async function makeDrop(driverId: string, handover: string | null, note: string 
   );
   const order = await one<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount,
-                                 delivery_address, status, delivery_handover, delivery_note)
+                                 delivery_address, status, delivery_handover, delivery_note, delivery_type, delivery_type_reason)
      VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 10, 12,
              '{"recipientName":"Pat","line1":"1 Test St","city":"Carlton","postalCode":"3053","region":"VIC"}'::jsonb,
-             'paid', $2, $3) RETURNING id`,
+             'paid', $2, $3, 'effy', 'in_coverage') RETURNING id`,
     [cust.id, handover, note],
   );
   const shop = await one<{ id: string }>(
@@ -123,7 +116,6 @@ d("066 — delivery instructions on the driver's drop", () => {
     expect(b).toMatchObject({ instructions: null, handover: "meet_at_door" });
   });
 
-  /** SC-003 — and every order placed before 066. */
   it("an order with no instructions returns null for both — nothing is invented", async () => {
     const driverId = await makeDriver();
     const drop = await deliveryDrop(await makeDrop(driverId, null, null), driverId);
@@ -131,7 +123,7 @@ d("066 — delivery instructions on the driver's drop", () => {
     expect(drop.handover).toBeNull();
   });
 
-  /** FR-022 / SC-008 — a note may hold a gate code. */
+  /** A note may hold a gate code. */
   it("092 — the customer's phone is sent while the drop is open, and never once it is settled", async () => {
     const driverId = await makeDriver();
     const dropId = await makeDrop(driverId, null, null);

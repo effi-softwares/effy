@@ -7,16 +7,9 @@ import { formatMoney } from "@/lib/money"
 import { getSession } from "@/lib/session"
 
 /**
- * The signed-in shortcuts under the home banner (reference: Home — signed in; FR-020).
- *
- * ⚠ EACH SHORTCUT IS SHOWN ONLY WHEN IT HAS SOMETHING TRUE TO SAY. No points → no points tile; no
- * saved item that dropped in price → no saved tile; no past order → no "buy again". A customer with
- * none of them gets no row at all, never a row of zeroes.
- *
- * ⚠ Every read fails ALONE. Three independent reads feed three tiles; one that errors removes its own
- * tile and nothing else. A guest renders nothing and costs no request.
- *
- * Points are said as what they are worth, never as a discount (they are a way of paying).
+ * The signed-in shortcuts under the home banner, each shown only when it has something true to say
+ * (points, a saved price drop, a past order); none means no row. Each read fails alone; a guest renders
+ * nothing. Points are said as what they are worth, never as a discount.
  */
 export async function HomeShortcuts() {
   const session = await getSession()

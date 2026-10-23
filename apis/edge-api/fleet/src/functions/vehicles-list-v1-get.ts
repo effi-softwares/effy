@@ -1,5 +1,3 @@
-// GET /fleet/v1/vehicles — the register (061 US1, FR-001/FR-009).
-// Read = any active back-office staff, including csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

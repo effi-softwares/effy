@@ -1,20 +1,16 @@
 /**
- * ResponsiveModal — one overlay API that renders a centered {@link Dialog} at/above the mobile
- * breakpoint and a bottom {@link Drawer} below it (the shadcn responsive pattern). Both surfaces need
- * exactly this for the address add/edit form, so it lives in the design-system once (Principle II)
- * rather than being hand-rolled per app. Breakpoint detection reuses the existing `useIsMobile` hook.
- *
- * Usage mirrors Dialog/Drawer:
- *   <ResponsiveModal open={open} onOpenChange={setOpen}>
- *     <ResponsiveModalContent>
- *       <ResponsiveModalHeader>
- *         <ResponsiveModalTitle>…</ResponsiveModalTitle>
- *         <ResponsiveModalDescription>…</ResponsiveModalDescription>
- *       </ResponsiveModalHeader>
- *       … form …
- *       <ResponsiveModalFooter>…</ResponsiveModalFooter>
- *     </ResponsiveModalContent>
- *   </ResponsiveModal>
+ * One overlay API: a centred {@link Dialog} at or above the mobile breakpoint and a bottom
+ * {@link Drawer} below it. Usage mirrors Dialog/Drawer:
+ *  <ResponsiveModal open={open} onOpenChange={setOpen}>
+ *  <ResponsiveModalContent>
+ *  <ResponsiveModalHeader>
+ *  <ResponsiveModalTitle>…</ResponsiveModalTitle>
+ *  <ResponsiveModalDescription>…</ResponsiveModalDescription>
+ *  </ResponsiveModalHeader>
+ *  … form …
+ *  <ResponsiveModalFooter>…</ResponsiveModalFooter>
+ *  </ResponsiveModalContent>
+ *  </ResponsiveModal>
  */
 import * as React from "react"
 

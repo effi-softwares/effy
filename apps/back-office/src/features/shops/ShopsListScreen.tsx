@@ -181,7 +181,7 @@ function ShopRow({ shop: s }: { shop: ShopListItem }) {
         </Link>
       </td>
       <td data-m="meta">{s.name}</td>
-      {/* ⚠ 061 FR-030 — a missing address is a NAMED GAP, not a blank cell. */}
+      {/* A missing address is a named gap, not a blank cell. */}
       <td data-m="meta" data-label="Address">
         {s.hasAddress ? <span className="text-muted-foreground">Recorded</span> : <span className="font-medium">Not recorded</span>}
       </td>

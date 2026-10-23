@@ -1,10 +1,7 @@
 /**
- * 095 — the renderer's layout geometry, as one stylesheet both apps receive through React 19's
- * `<style href precedence>` (hoisted and de-duplicated, so a page of twenty skins carries it once).
- *
- * ⚠ NO TOKEN, NO TAILWIND. A skin's colours are its own (constitution v3.6.0); everything that is a colour
- * is an inline style from the skin's settings. This file is shape only, so the skin looks the same in
- * back-office (console identity) and on the website (storefront identity). `PromoSkin.test.tsx` holds it.
+ * The renderer's layout geometry, one stylesheet via React 19's `<style href precedence>` (hoisted and
+ * de-duplicated). Shape only: every colour is an inline style from the skin, so it looks the same under
+ * either identity.
  */
 export const PROMO_SKIN_CSS = `
 .eps{position:relative;isolation:isolate;overflow:hidden;display:flex;width:100%;box-sizing:border-box;container-type:inline-size;text-align:start}

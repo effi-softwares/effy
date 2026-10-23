@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { customerCompensationOf, overrideAmounts, pointsFor } from "./override";
 
-/** 081 P1 — what each way of making it right gives, before any database is involved. */
+/** What each way of making it right gives. */
 describe("overrideAmounts (081 P1)", () => {
   const base = { centsPerPoint: 1, refundableCents: 100_00 };
 

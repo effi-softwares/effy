@@ -1,5 +1,3 @@
-// GET /inventory/v1/variants/{variantId}/stock — a product's stock, its effective threshold and its
-// recent movements (054 US1, FR-009).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

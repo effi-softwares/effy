@@ -1,4 +1,4 @@
-// DELETE /shop/v1/sections/{id} — remove a section (products unassign via cascade) (US5).
+// Products unassign via cascade.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

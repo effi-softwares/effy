@@ -19,7 +19,7 @@ describe("NewsletterForm — validation before any request (FR-030)", () => {
     expect(field.hasAttribute("required")).toBe(true)
   })
 
-  /** ⚠ `noValidate` would disable exactly the check FR-030 asks for. */
+  /** `noValidate` would disable exactly the check FR-030 asks for. */
   it("does not disable native validation on the form", () => {
     const { container } = render(<NewsletterForm />)
 
@@ -42,7 +42,7 @@ describe("NewsletterForm — validation before any request (FR-030)", () => {
 
 describe("NewsletterForm — no unbacked claim (FR-034)", () => {
   /**
-   * ⚠ The reference storefront's newsletter band promises "Get 20% Off On Your First Purchase". Effy
+   * The reference storefront's newsletter band promises "Get 20% Off On Your First Purchase". Effy
    * has no such promotion. An incentive claim on a signup form is a contract with the reader.
    */
   it("promises no discount or incentive", () => {
@@ -55,13 +55,8 @@ describe("NewsletterForm — no unbacked claim (FR-034)", () => {
 })
 
 /**
- * ⚠ THREE STATES, NOT FOUR — and the fourth is the one that matters. An "already subscribed" message
- * would rebuild in the UI exactly the subscriber-enumeration oracle FR-032 removes from the API: type
- * an address, read the response, learn whether that person is on the list.
- *
- * The messages are asserted against the SOURCE rather than by driving `useActionState` through a real
- * submission, which in jsdom would exercise React's action plumbing rather than this component's
- * decisions. What is being pinned here is the set of things it can say.
+ * Three states, never "already subscribed" (that would reveal who is on the list). Asserted against the
+ * source, since driving `useActionState` in jsdom tests React's plumbing, not this component.
  */
 describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
   it("has wording for exactly the three statuses the contract defines", () => {
@@ -69,7 +64,7 @@ describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
   })
 
   /**
-   * ⚠ THE STATE THAT MUST NOT EXIST. An "already subscribed" message would rebuild in the UI exactly
+   * The state that must not exist. An "already subscribed" message would rebuild in the UI exactly
    * the subscriber-enumeration oracle FR-032 removes from the API: type an address, read the response,
    * learn whether that person is on the list.
    */
@@ -86,7 +81,7 @@ describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
     expect(NEWSLETTER_MESSAGES.error).toMatch(/try again/i)
   })
 
-  /** ⚠ The failure message must not imply the address was at fault — the service was. */
+  /** The failure message must not imply the address was at fault — the service was. */
   it("blames the failure on us, not on the visitor's address", () => {
     expect(NEWSLETTER_MESSAGES.error.toLowerCase()).toMatch(/we (couldn't|could not)/)
     expect(NEWSLETTER_MESSAGES.error.toLowerCase()).toContain("still here")
@@ -94,7 +89,7 @@ describe("NewsletterForm — the states it can render (FR-032/FR-033)", () => {
 })
 
 /**
- * ⚠ These two ARE source assertions, deliberately — they pin structural choices that have no
+ * These two are source assertions, deliberately — they pin structural choices that have no
  * observable output in jsdom. Comments are stripped first, because the first version of this suite
  * failed on its own explanatory prose, which is a fair warning about grepping source at all.
  */
@@ -104,9 +99,9 @@ describe("NewsletterForm — structural guarantees", () => {
     .replace(/^\s*\/\/.*$/gm, "")
 
   /**
-   * FR-033 — the requirement that forced the client boundary in the first place.
+   * The requirement that forced the client boundary in the first place.
    *
-   * ⚠ THE FIELD MUST BE CONTROLLED. React resets an UNCONTROLLED form automatically once its action
+   * The field must be controlled. React resets an uncontrolled form automatically once its action
    * completes, so the first implementation — uncontrolled, cleared only on success — actually cleared
    * it on every outcome, including the failure whose whole point is that the address survives. Nothing
    * in the source hinted at it, because the reset is React's behaviour rather than this component's.

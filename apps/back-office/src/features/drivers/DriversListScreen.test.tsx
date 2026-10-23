@@ -65,7 +65,7 @@ describe("DriversListScreen — the register", () => {
     renderScreen();
     expect(await screen.findByText("Sam Rivers")).toBeInTheDocument();
     expect(screen.getByText("sam@effyshopping.com")).toBeInTheDocument();
-    // ⚠ 062 — the register shows BREADTH OF CLEARANCE, not a single assigned zone. One zone could
+    // The register shows breadth of clearance, not a single assigned zone. One zone could
     // never express "same-day delivery here, standard collection everywhere".
     expect(screen.getByText(/Collect \+ deliver/)).toBeInTheDocument();
     expect(screen.getByText("Off duty")).toBeInTheDocument();
@@ -87,12 +87,6 @@ describe("DriversListScreen — the register", () => {
     ).toBeInTheDocument();
   });
 
-  /**
-   * ⚠ FR-032'S OUTSTANDING-REPORT COUNT WAS ASSERTED HERE, both that it appears as a sentence
-   * leading somewhere rather than a metric tile, and that it stays silent at zero because a
-   * permanent "0 unresolved" trains people to skip the row it lives on. It counted
-   * `delivery_failure` and `collection_task_issue`, dropped with the work model.
-   */
   it("explains the empty register instead of showing a bare empty table", async () => {
     listDrivers.mockResolvedValue({ items: [], nextCursor: null });
     renderScreen();
@@ -163,7 +157,7 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
     renderScreen();
     expect(await screen.findByText(/waiting to be picked up/)).toBeInTheDocument();
     expect(screen.queryByText(/Nobody is on duty/)).not.toBeInTheDocument();
-    // ⚠ Two "Sam Rivers" render on this screen — one in the duty panel, one in the register below
+    // Two "Sam Rivers" render on this screen — one in the duty panel, one in the register below
     // it — so the assertion names the pair that matters rather than a bare text match.
     expect(screen.getAllByText("Sam Rivers").length).toBeGreaterThan(1);
     expect(screen.getByText(/Idle — nothing is assigned/)).toBeInTheDocument();
@@ -176,13 +170,13 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
 });
 
 /**
- * ⚠ THE STRANDED-WORK PANEL'S TESTS WERE REMOVED HERE, and what they covered is the most important
- * thing in this file to rebuild. They asserted that stranded work NAMES the driver, the order and how
+ * The stranded-work panel's tests were removed here, and what they covered is the most important
+ * thing in this file to rebuild. They asserted that stranded work names the driver, the order and how
  * long it has been stuck, says it "will not come back on their own", renders nothing at all when
  * there is none, and gives a csa no release control.
  *
- * 056 found that condition with nothing in any register: standing a driver down could strand physical
+ * Found that condition with nothing in any register: standing a driver down could strand physical
  * goods permanently and invisibly, because the release sweep correctly never yanked picked-up work
- * and UNIQUE(shop_fulfillment_id) then kept those packages claimed forever. It cannot arise while
+ * and unique(shop_fulfillment_id) then kept those packages claimed forever. It cannot arise while
  * nothing assigns work — and it arises again the moment something does.
  */

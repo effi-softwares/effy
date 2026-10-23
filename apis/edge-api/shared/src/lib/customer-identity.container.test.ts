@@ -6,13 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AuthedEvent } from "./claims";
 import { CUSTOMER_BY_SUB, resolveCustomer, type CustomerRow } from "./customer-identity";
 import { preamble } from "./http";
-import { migrationSql } from "./load-migrations";
+import { migrationSql } from "../testing/migrations";
 
-/**
- * 070 — the customer gate against the REAL schema. The unit test proves the branching; this proves
- * the statement: that `status` and `closure_state` are the columns the migrations actually define,
- * and that the values the gate compares against are values the CHECK constraints actually allow.
- */
+/** The customer gate's statement against the real schema and its check values. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 

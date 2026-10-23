@@ -84,7 +84,7 @@ function decode(widths: number[]): string {
     i += len
   }
   expect(values[values.length - 1]).toBe(STOP)
-  const data = values.slice(1, -2) // drop START, checksum, STOP
+  const data = values.slice(1, -2) // drop start, checksum, stop
   const checksum = values[values.length - 2]!
   expect([values[0]!, ...data].reduce((s, v, i) => s + v * (i === 0 ? 1 : i), 0) % 103).toBe(checksum)
   return String.fromCharCode(...data.map((v) => v + 32))
@@ -177,7 +177,7 @@ describe("bag labels (096, spec US10)", () => {
   })
 
   /**
-   * ⚠ Hidden fulfilment and the 079 rule: no shop name, price, billing address or email but the approved
+   * Hidden fulfilment and the 079 rule: no shop name, price, billing address or email but the approved
    * contact, and no window, day or estimate. The document type carries none of them — this proves a renderer
    * change cannot add one through a field that happens to be nearby. (The recipient's phone IS printed.)
    */

@@ -3,11 +3,8 @@ package com.effyshopping.mobile.kit.live
 import kotlinx.serialization.Serializable
 
 /**
- * What `GET /{audience}/v1/live` answers (071): where the channel is and which one is this
- * person's. Mirrors `LiveDescriptor` in `packages/shared-types/src/live.ts`.
- *
- * `channelPrefix` is opaque — the client appends `/{epoch}` and nothing else, and never builds a
- * channel from an id it holds.
+ * What `GET /{audience}/v1/live` answers, mirroring `LiveDescriptor` in shared-types. `channelPrefix` is
+ * opaque: the client appends `/{epoch}` and nothing else.
  */
 @Serializable
 data class LiveDescriptor(

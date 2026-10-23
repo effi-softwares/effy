@@ -43,7 +43,7 @@ class LegalCatalogueTest {
 
     @Test
     fun termsAndPrivacyAreDistinctDocuments() {
-        // Regression: a prior mobile build wired BOTH the Terms and Privacy rows to the Privacy screen.
+        // Regression: a prior mobile build wired both the Terms and Privacy rows to the Privacy screen.
         val terms = LEGAL_DOCUMENTS.first { it.slug == "terms-of-service" }
         val privacy = LEGAL_DOCUMENTS.first { it.slug == "privacy-policy" }
         assertTrue(terms.body != privacy.body, "Terms and Privacy must be different documents")

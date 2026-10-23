@@ -43,7 +43,7 @@ describe("the amount is computed, never typed (FR-003 / A7a)", () => {
     await waitFor(() => expect(issueRefund).toHaveBeenCalled());
     const body = issueRefund.mock.calls[0]![1];
     expect(body.lines).toEqual([{ orderItemId: "oi1", quantity: 1 }]);
-    // ⚠ If an amount travelled beside the lines the two could disagree, and the record would claim a
+    // If an amount travelled beside the lines the two could disagree, and the record would claim a
     // refund covered items it did not. The server rejects one; the client must not send one.
     expect(body).not.toHaveProperty("amount");
   });
@@ -52,7 +52,7 @@ describe("the amount is computed, never typed (FR-003 / A7a)", () => {
     renderPanel();
     await userEvent.click(await screen.findByLabelText(/milk/i));
     expect(await screen.findByText("10.00")).toBeInTheDocument();
-    // The only editable number for a line is its QUANTITY — never the money.
+    // The only editable number for a line is its quantity — never the money.
     expect(screen.queryByLabelText(/^amount$/i)).not.toBeInTheDocument();
   });
 
@@ -62,7 +62,7 @@ describe("the amount is computed, never typed (FR-003 / A7a)", () => {
   });
 });
 
-// ⚠ T031. This is the only control in the console that moves money, and refunding is irreversible.
+// T031. This is the only control in the console that moves money, and refunding is irreversible.
 describe("confirmation", () => {
   it("does NOT issue on the first click — it asks, naming the amount", async () => {
     renderPanel();
@@ -94,14 +94,14 @@ describe("goodwill", () => {
     expect(submit).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText(/^amount$/i), "5.00");
-    expect(submit).toBeDisabled(); // ⚠ still — an amount with no explanation is unaccountable
+    expect(submit).toBeDisabled(); // still — an amount with no explanation is unaccountable
     await userEvent.type(screen.getByLabelText(/^why$/i), "delivered late");
     await waitFor(() => expect(submit).toBeEnabled());
   });
 });
 
 describe("what the operator is told", () => {
-  // ⚠ FR-007. "Refunded" would make staff stop watching a refund the bank can still reject.
+  // FR-007. "Refunded" would make staff stop watching a refund the bank can still reject.
   it("says the money is ON ITS WAY, never that it has been refunded", async () => {
     renderPanel();
     await userEvent.click(await screen.findByLabelText(/milk/i));
@@ -119,8 +119,8 @@ describe("what the operator is told", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/24\.50 remains refundable/i);
   });
 
-  // ⚠ 053's defect, checked on the screen it happened on: every refusal collapsed to one sentence
-  // because the code tested `e instanceof Error` while the api client throws a PLAIN OBJECT.
+  // 053's defect, checked on the screen it happened on: every refusal collapsed to one sentence
+  // because the code tested `e instanceof Error` while the api client throws a plain object.
   it("reads a refusal off the plain object the api client actually throws", async () => {
     issueRefund.mockRejectedValue({
       kind: "validation", status: 400, title: "Request validation failed",
@@ -133,7 +133,7 @@ describe("what the operator is told", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/only 4\.50 remains refundable/i);
   });
 
-  // ⚠ THE MOST IMPORTANT PIECE OF COPY IN THIS COMPONENT. On an ambiguous failure the refund may
+  // The most important piece of copy in this component. On an ambiguous failure the refund may
   // already have reached the provider; telling an operator to "try again" is how a customer gets
   // refunded twice.
   it("on an unreachable service, tells the operator to CHECK — not to retry", async () => {

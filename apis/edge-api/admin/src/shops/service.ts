@@ -1,7 +1,3 @@
-// Service layer for shop management — validation, the Cognito-first provisioning orchestration
-// (research R4), lifecycle-transition rules, and the identity↔record consistency rules (R5). No
-// HTTP and no SQL (Principle VI). Dependencies are wired by explicit module imports (no DI
-// framework); tests mock ./cognito and ./repository at the module boundary.
 import * as cognito from "./cognito";
 import * as repo from "./repository";
 import {
@@ -31,8 +27,6 @@ function requireText(value: unknown, field: string, fields: { field: string; mes
 function optionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
-
-// ── Reads ──────────────────────────────────────────────────────────────────────────────────
 
 export async function listShops(params: {
   page?: number;
@@ -66,8 +60,6 @@ export async function getShopHistory(
   return repo.listShopHistory(shopId, p, ps);
 }
 
-// ── Create shop + primary manager (Cognito-first, then DB — R4) ────────────────────────────────
-
 export async function createShop(
   input: {
     code?: unknown;
@@ -99,7 +91,7 @@ export async function createShop(
     throw new ShopError("conflict", "this email already belongs to a shop user");
   }
 
-  // Cognito-first: the returned sub is the DB join key (R4). Idempotent on retry.
+  // Cognito first: the returned sub is the DB key. Idempotent on retry.
   const sub = await cognito.ensureShopUser(email, contactName, "shop_manager");
 
   return repo.createShopWithManager(
@@ -114,20 +106,11 @@ export async function createShop(
   );
 }
 
-// ── Address (061) ──────────────────────────────────────────────────────────────────────────
-
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 /**
- * Validate the five address fields and return only the keys the caller actually sent.
- *
- * ⚠ PRESENCE, NOT VALUE — a key present with null CLEARS, a key absent leaves alone. The same rule
- * 056 established for drivers, where COALESCE collapsed the two and a zone once assigned could never
- * be un-assigned.
- *
- * ⚠ THE POSTCODE RULE IS NOT COSMETIC. Slice C matches this value against `delivery_zone_postcode`.
- * A malformed postcode there matches NO zone, silently — producing a shop nobody can be sent to, with
- * nothing failing anywhere. Refusing it here is the cheapest place to catch it.
+ * Returns only the keys the caller sent: null clears, absent leaves alone. The postcode is checked
+ * strictly: a malformed one would match no coverage, silently.
  */
 function addressPatch(patch: Record<string, unknown>): Record<string, string | null> {
   const out: Record<string, string | null> = {};
@@ -157,8 +140,6 @@ function addressPatch(patch: Record<string, unknown>): Record<string, string | n
   if (fields.length > 0) throw new ShopError("validation", "invalid shop address", fields);
   return out;
 }
-
-// ── Edit details ───────────────────────────────────────────────────────────────────────────
 
 export async function editShop(
   shopId: string,
@@ -196,8 +177,6 @@ export async function editShop(
   );
 }
 
-// ── Lifecycle ────────────────────────────────────────────────────────────────────────────────
-
 export async function changeShopStatus(
   shopId: string,
   to: unknown,
@@ -217,8 +196,6 @@ export async function changeShopStatus(
 export async function removeShop(shopId: string, actorSub: string): Promise<void> {
   await repo.deleteShop(shopId, actorSub);
 }
-
-// ── Roster ─────────────────────────────────────────────────────────────────────────────────
 
 export async function addShopUser(
   shopId: string,
@@ -270,7 +247,7 @@ export async function updateShopUser(
       ]);
     }
     if (!target.email) throw new ShopError("validation", "user has no email on record", []);
-    // Touch Cognito (the ORIGIN the shop service reconciles from) AND the DB record (R5).
+    // Cognito (the origin the shop service reconciles from) and the DB record.
     await cognito.setUserGroups(target.email, [role as ShopRole]);
     result = await repo.setShopUserRole(userId, role as ShopRole, actorSub);
   }
@@ -283,7 +260,7 @@ export async function updateShopUser(
       ]);
     }
     if (!target.email) throw new ShopError("validation", "user has no email on record", []);
-    // Disabling a user also disables the identity account (defense in depth, Q1).
+    // Disabling a user also disables the identity account.
     if (status === "disabled") await cognito.disableUser(target.email);
     else await cognito.enableUser(target.email);
     result = await repo.setShopUserStatus(userId, status as ShopStaffStatus, actorSub);

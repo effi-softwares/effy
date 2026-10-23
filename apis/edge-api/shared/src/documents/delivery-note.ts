@@ -1,8 +1,5 @@
-// 096 US7 — the delivery note (FR-070–FR-073): what the customer was supplied, line by line, once the
-// order has arrived. Digital only — on the order page and in the app, as data and as a PDF.
-//
-// ⚠ HIDDEN FULFILMENT. Lines are MERGED BY PRODUCT across the order's packages, so neither the note nor
-// its PDF says how many suppliers (or bags) filled the order. No price, no shop name, ever.
+// The delivery note: what the customer was supplied, once the order has arrived. Lines are merged by
+// product across packages, so it never shows how many suppliers or bags filled the order; no price or shop.
 import { DELIVERY_NOTE_LINE_WORDS, DOCUMENT_CONTACT, type DeliveryNoteDTO, type DeliveryNoteLineStatus } from "@effy/shared-types";
 
 import { A4, MARGIN, ensureRoom, finish, newDocument, rule, text, wordmark, wrap } from "./pdf";
@@ -15,11 +12,7 @@ export class NotDelivered extends Error {
   }
 }
 
-/**
- * The note for an order, or `NotDelivered` while any package that is coming is still on its way. A
- * package the shop could not supply (or one withdrawn) is not waited for — its lines say unavailable.
- * Returns null when the order does not exist.
- */
+/** `NotDelivered` while a package is still coming (unsupplied or withdrawn ones are not waited for); null when the order does not exist. */
 export async function buildDeliveryNote(db: Db, orderId: string): Promise<DeliveryNoteDTO | null> {
   const head = await db.query(
     `SELECT o.order_number, o.placed_at, o.created_at,
@@ -37,10 +30,9 @@ export async function buildDeliveryNote(db: Db, orderId: string): Promise<Delive
   if (!h) return null;
   if (h.still_coming || !h.delivered_at) throw new NotDelivered();
 
-  // One row per order line: ordered, and what its package could not supply. A withdrawn or
-  // unfulfillable package supplied nothing.
+  // One row per order line: ordered, and what its package could not supply.
   const lines = await db.query(
-    // 098 — named with its variant, so two sizes of one product stay two lines.
+    // Named with its variant, so two sizes stay two lines.
     `SELECT oi.product_id, CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, oi.quantity AS ordered,
             CASE WHEN sf.status IN ('withdrawn', 'unfulfillable') THEN oi.quantity
                  ELSE COALESCE(fi.unavailable_quantity, 0) END AS unavailable
@@ -53,8 +45,7 @@ export async function buildDeliveryNote(db: Db, orderId: string): Promise<Delive
   );
   const merged = new Map<string, { name: string; ordered: number; supplied: number }>();
   for (const r of lines.rows as Array<{ product_id: string; product_name: string; ordered: number; unavailable: number }>) {
-    // ⚠ By the NAME the customer bought, not the product row: two shops' listings of the same thing are
-    // two rows, and keeping them apart would say two suppliers filled the order.
+    // By the name bought, not the product row: two shops' listings would otherwise show two suppliers.
     const key = r.product_name.trim().toLowerCase();
     const m = merged.get(key) ?? { name: r.product_name, ordered: 0, supplied: 0 };
     m.ordered += Number(r.ordered);
@@ -79,7 +70,7 @@ function statusOf(ordered: number, supplied: number): DeliveryNoteLineStatus {
 const day = (iso: string) =>
   new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" }).format(new Date(iso));
 
-/** The note as an A4 PDF: the wordmark, the order, a table of lines, the contact. */
+/** A4: the wordmark, the order, a table of lines, the contact. */
 export async function renderDeliveryNotePdf(note: DeliveryNoteDTO): Promise<Uint8Array> {
   const startedAt = Date.now();
   const doc = await newDocument(`Delivery note ${note.orderNumber}`);

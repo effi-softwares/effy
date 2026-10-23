@@ -2,12 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * 074 US1 — the customer's own balance and history, against the REAL migrations.
- *
- * Proves what the customer is shown: expired lots and live holds do not count, history lines carry
- * the customer's words and never the staff note, and a barred account is refused.
- */
+/** Expired lots and live holds do not count, history carries the customer's words never the staff note, barred is refused. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
@@ -15,7 +10,8 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
 }));
 
-import { migrationSql, transactorFor } from "@effy/edge-shared";
+import { transactorFor } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { credit, hold, updateSettings } from "@effy/edge-shared/points";
 
 import { CustomerBarredError } from "../customer/service";
@@ -58,8 +54,8 @@ describe.skipIf(!RUN)("074 — the customer's points", () => {
     await transact((tx) => credit(tx, { customerId: id, points: 700, kind: "staff_credit", reason: "goodwill", author: { kind: "staff", sub: "s" }, now }));
     const orderId = (
       await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-         VALUES ($1, 'EFY-CP0001', 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, 'EFY-CP0001', 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [id],
       )
     ).rows[0]!.id;
@@ -70,7 +66,7 @@ describe.skipIf(!RUN)("074 — the customer's points", () => {
     expect(balance).toMatchObject({ points: 900, valueAmount: "9.00", centsPerPoint: 1 });
     expect(balance.nextExpiry?.points).toBe(300);
 
-    // A month and a bit later the 300 have expired with no sweep run.
+    // A month later the 300 have expired with no sweep run.
     const later = createPointsService({ db: pool, now: () => new Date(now.getTime() + 40 * 86_400_000) });
     expect((await later.overview(sub, undefined, 10)).points).toBe(700);
 

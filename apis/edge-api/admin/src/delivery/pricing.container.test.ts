@@ -6,13 +6,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 077 — the pricing console against the REAL schema: drafts, gaps, the one way a plan goes live,
- * the record an active plan becomes, the simulator, and the audit row every change leaves.
- *
- * Only the module pool and the live channel are replaced; the SQL, the migrations and the gap and
- * activation functions are real.
- */
+/** Against the real schema; only the module pool and the live channel are replaced. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null, announced: [] as unknown[] }));
 
 vi.mock("@effy/edge-shared", async (importOriginal) => {
@@ -42,7 +36,7 @@ vi.mock("@effy/edge-shared/live", () => ({
     holder.announced.push(...changes);
   },
 }));
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { quote } from "@effy/edge-shared/delivery";
 
 import * as coverage from "./coverage.service";
@@ -261,8 +255,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
 
     // With the evening window today: the today premium and the window's own.
     const today = await svc.simulate({ planId: null, postcode: "3121", grams: 500, basketAmount: "50.00", slotId: slotEvening, windowIsToday: true });
-    // ⚠ $3 base is held up to the $4 minimum; with $5 of surcharges it is $8. The window ADDED $4,
-    // and that is the line — never a nominal $5 that would make the lines sum to more than is charged.
+    // $3 base is held up to the $4 minimum; with $5 of surcharges it is $8. The window line is the $4 it added.
     expect(today.fee).toEqual({ lines: [{ kind: "delivery", amount: "4.00" }, { kind: "window_surcharge", amount: "4.00" }], totalAmount: "8.00" });
     expect(today.steps.map((s) => s.label)).toEqual(["Base", "Distance", "Weight", "Window surcharge", "Total"]);
   });
@@ -317,16 +310,16 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     await svc.activatePlan(c.id, {}, SUB);
     // A price, and no courier service to tell the customer a timeframe from.
     expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_service_missing" });
-    expect((await coverage.list({})).courier).toMatchObject({ blockedBy: ["no_service"], canBeOffered: false, defaultService: null });
+    expect((await coverage.list({})).courier).toMatchObject({ blockedBy: ["no_service"], defaultService: null });
 
     const service = await services.create({
       courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", maxBusinessDays: 4,
       pickupWeekdays: [1, 2, 3, 4, 5], pickupCutoff: "14:00", collectsFromSupplier: true, isDefault: true,
     }, SUB);
     expect(await coverage.setCourier({ offered: true }, SUB)).toMatchObject({ offered: true });
-    // ⚠ ON AND READY IS OFFERED (083): there is one delivery model, so nothing is "pending" on a switch.
+    // On and ready is offered: nothing waits on a switch.
     expect((await coverage.list({})).courier).toMatchObject({
-      offered: true, blockedBy: [], canBeOffered: true, pending: false,
+      offered: true, blockedBy: [],
       defaultService: { id: service.id, label: "Test Courier · Parcel", estimateText: "2–4 business days" },
     });
     expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
@@ -335,13 +328,8 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
   });
 });
 
-/**
- * P23 — who may do what (FR-022). `guard()` decides from the `admin.staff` record: "read" admits a
- * customer-service agent, "mutate" only an admin or a manager. What can go wrong is a write route
- * asking for "read" — so every plan handler's level is held to its verb. ⚠ The simulator is a POST
- * that changes nothing, and is the one POST a csa may use.
- */
-/** P9 — nothing in the admin service can delete a fee plan, or change one but through `savePlan`. */
+/** Each plan handler's guard level matches its verb; the simulator is the one POST a csa may use. */
+/** Nothing can delete a fee plan, or change one except through `savePlan`. */
 describe("077 — P9: an activated plan is changed or deleted by nothing", () => {
   const dir = dirname(fileURLToPath(import.meta.url));
   const src = ["pricing.repository.ts", "pricing.service.ts", "repository.ts", "service.ts", "coverage.repository.ts"]
@@ -350,7 +338,7 @@ describe("077 — P9: an activated plan is changed or deleted by nothing", () =>
   it("no statement deletes a plan or its bands except the draft replace", () => {
     expect(src).not.toMatch(/DELETE FROM public\.delivery_fee_plan/);
     const bandDeletes = src.match(/DELETE FROM public\.delivery_(distance|weight)_band/g) ?? [];
-    expect(bandDeletes).toHaveLength(2); // savePlan's replace of a DRAFT, after its activated_at check
+    expect(bandDeletes).toHaveLength(2);
   });
 
   it("the one UPDATE of a plan's prices sits behind the activated check", () => {

@@ -2,7 +2,6 @@ import type { AuthedEvent } from "@effy/edge-shared";
 import type { Context } from "aws-lambda";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Authorize from the platform record — mock the membership predicate at the module boundary.
 const authorizeShopMember = vi.hoisted(() => vi.fn());
 vi.mock("../products/authz", () => ({ authorizeShopMember }));
 
@@ -44,7 +43,7 @@ describe("shop product handlers — gate + shop-scope + no leakage", () => {
   it("scopes the list to the RESOLVED shop id (not client input)", async () => {
     authorizeShopMember.mockResolvedValue("shop-authoritative");
     service.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-    // A client trying to inject a different shopId in the query string must be ignored.
+    // An injected shopId in the query string is ignored.
     await listHandler(event("sub-1", undefined, { shopId: "shop-attacker" }), ctx);
     expect(service.listProducts.mock.calls[0]![0]).toBe("shop-authoritative");
   });

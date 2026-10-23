@@ -1,12 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-/**
- * US3 — the store asks who you are only when it matters (FR-018 … FR-022, SC-008, SC-009).
- *
- * This is the rule that makes guest-first browsing real rather than nominal. A store that lets you
- * browse and then throws away your context at the login screen has simply moved the sign-in wall to
- * a more expensive place.
- */
+/** The store asks who you are only when it matters, keeping the shopper's context through sign-in. */
 
 test.describe("the sign-in demand is deferred to the point of ordering", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
@@ -23,7 +17,7 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
 
     await expect(page).toHaveURL(/\/sign-in/)
 
-    // And it explains WHY it is asking now. The customer was browsing happily a second ago.
+    // And it explains why it is asking now. The customer was browsing happily a second ago.
     await expect(page.getByTestId("deferred-reason")).toBeVisible()
   })
 
@@ -56,10 +50,10 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
 })
 
 /**
- * ⚠ THE OPEN-REDIRECT REFUSALS.
+ * The open-redirect refusals.
  *
  * `?next=` is attacker-controlled: anyone can craft `/sign-in?next=https://evil.example` and send
- * it to a customer. If we honoured it, they would see a REAL Effy sign-in page and then land on a
+ * it to a customer. If we honoured it, they would see a real Effy sign-in page and then land on a
  * convincing fake — with our own referrer vouching for it. This is the classic vulnerability in
  * exactly this feature, so it is tested at the boundary as well as in the unit tests.
  */
@@ -84,37 +78,14 @@ test.describe("the return destination cannot be weaponised", () => {
 })
 
 /**
- * The credential routes on offer (FR-010).
- *
- * ⚠ GOOGLE IS BUILT BUT PARKED (operator decision, 2026-07-14). The code, the Terraform, the linking
- * trigger and the callback all exist and are dormant behind `customer_google_enabled`. With no
- * Cognito hosted domain configured there is no federation — and no button, because offering one
- * would be offering a door with no room behind it.
- *
- * These tests therefore assert the CURRENT capability set, and assert that the parked route is
- * genuinely absent rather than present-and-broken. When Google is un-parked, the domain lands in the
- * environment and these expectations flip — the test below is where you will notice.
- *
- * ⚠ We assert routes are OFFERED, not that they COMPLETE. Completing them needs a live Cognito pool
- * and a real inbox, which is an operator step (quickstart § 7). Mocking Cognito and calling that
- * proof would be exactly the dishonest green this slice has been careful to avoid.
+ * The credential routes on offer. Google is built but parked (`customer_google_enabled`), so its button is
+ * absent; these expectations flip when it is enabled. Routes are asserted offered, not completed (that
+ * needs a live pool and inbox).
  */
 test.describe("the credential routes on offer", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  /**
-   * ⚠ 044 ADDED THE EMAIL TO BOTH OF THESE, AND THE ADDITION IS THE BEHAVIOUR CHANGE.
-   *
-   * These used to toggle straight to the password step with the email field empty. That worked, and
-   * it was the shape of a real defect: the email input is deliberately still mounted on the password
-   * step (FR-040 — password managers pair it with the password to fill and, more fragilely, to save)
-   * but inside a hidden container, so a step reached without an address could refuse and could not
-   * explain. Measured on the shipped build, submitting there produced "Something went wrong. Please
-   * try again." about an address the shopper had never typed (BASELINE.md, D-11).
-   *
-   * Identifier-first now means what it says: the address comes first. What these tests are really
-   * about — that a password route is on offer at all — is unchanged.
-   */
+  /** Both toggles fill the email first: the password step without an address can refuse but not explain. */
   test("sign-in offers email code and password", async ({ page }) => {
     await page.goto("/sign-in")
 
@@ -140,10 +111,10 @@ test.describe("the credential routes on offer", () => {
   test("⚠ NO screen before the account exists asks for a name (036 FR-027, SC-005)", async ({
     page,
   }) => {
-    // ⚠ THIS ASSERTION IS THE INVERSE OF THE ONE IT REPLACES. 011's FR-009a put First name and Last
-    // name ABOVE the email field, so the very first thing a stranger was asked for was personal data,
+    // This assertion is the inverse of the one it replaces. 011's FR-009a put First name and Last
+    // name above the email field, so the very first thing a stranger was asked for was personal data,
     // before they had any reason to trust the form. 036 FR-032 supersedes it: the name is now the
-    // LAST step, asked once the account exists and the customer is signed in.
+    // last step, asked once the account exists and the customer is signed in.
     await page.goto("/sign-up")
 
     await expect(page.getByLabel("First name")).toHaveCount(0)
@@ -158,8 +129,8 @@ test.describe("the credential routes on offer", () => {
   test("⚠ the password step asks for the password ONCE, with a reveal (036 FR-030)", async ({
     page,
   }) => {
-    // ⚠ REPLACES a test that asserted a "confirm password" field and a mismatch guard. 012's FR-023
-    // states the platform MUST NOT ask for a re-typed confirmation — the reveal toggle replaces it,
+    // Replaces a test that asserted a "confirm password" field and a mismatch guard. 012's FR-023
+    // states the platform must not ask for a re-typed confirmation — the reveal toggle replaces it,
     // which is GOV.UK's published reasoning and what the account page already did. Web sign-up was
     // the one surface still disagreeing; mobile never had a confirm field.
     await page.goto("/sign-up")
@@ -176,8 +147,8 @@ test.describe("the credential routes on offer", () => {
   test("⚠ the stated password rule matches the rule the platform enforces (036 FR-029)", async ({
     page,
   }) => {
-    // ⚠ The old copy promised "at least 8 characters, with upper and lower case letters and a
-    // number" — BOTH too short and falsely restrictive, since the real policy is 12 with no
+    // The old copy promised "at least 8 characters, with upper and lower case letters and a
+    // number" — both too short and falsely restrictive, since the real policy is 12 with no
     // composition rules. A rule stated wrongly is worse than none: it rejects valid passwords.
     await page.goto("/sign-up")
     await page.getByTestId("toggle-route").click()
@@ -189,7 +160,7 @@ test.describe("the credential routes on offer", () => {
   test("⚠ Google is OFFERED, and says honestly that it is not ready (036 FR-038, FR-039)", async ({
     page,
   }) => {
-    // ⚠ INVERTS the old assertion of `toHaveCount(0)`. The operator asked for the control to ship now
+    // Inverts the old assertion of `toHaveCount(0)`. The operator asked for the control to ship now
     // and the capability later. The mitigation for an unbacked button is FR-039: a specific,
     // non-alarming refusal — never the generic "Something went wrong", which would be a lie, because
     // nothing went wrong.
@@ -205,9 +176,9 @@ test.describe("the credential routes on offer", () => {
   test("⚠ an unknown address produces an IDENTICAL sequence of screens (FR-024, SC-012)", async ({
     page,
   }) => {
-    // ⚠ WHAT THIS CAN AND CANNOT PROVE, STATED PLAINLY. It cannot prove the SERVER answers identically
+    // What this can and cannot prove, stated plainly. It cannot prove the server answers identically
     // — that is a live property, and quickstart §3.7 is where a person checks it against a real pool.
-    // What it CAN prove, and what no live walk would reliably catch, is that OUR CLIENT contains no
+    // What it can prove, and what no live walk would reliably catch, is that our client contains no
     // existence-dependent branch: given the same response, two different addresses must produce the
     // same screen, the same controls and the same words.
     //

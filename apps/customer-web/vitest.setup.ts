@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest"
 
 // jsdom omits a few browser APIs that Radix Dialog / AlertDialog and vaul Drawer touch on mount.
-// Polyfilling them here (once) keeps the overlay components — used by the address book (022) — testable.
+// Polyfilling them here (once) keeps the overlay components — used by the address book — testable.
 if (typeof window !== "undefined") {
   if (!window.matchMedia) {
     window.matchMedia = (query: string) =>
@@ -27,7 +27,7 @@ if (typeof window !== "undefined") {
   }
 
   // jsdom has no <dialog> behaviour. The storefront's dialogs are native ones opened with
-  // `showModal()`, so tests get the part of it they can observe: open, and closed again.
+  // `showModal`, so tests get the part of it they can observe: open, and closed again.
   const dialog = window.HTMLDialogElement?.prototype
   if (dialog && !dialog.showModal) {
     dialog.showModal = function (this: HTMLDialogElement) {

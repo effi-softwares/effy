@@ -1,9 +1,4 @@
-// GET /admin/v1/deliverability — addresses the platform currently cannot reach (037 FR-033).
-// Read access: any active back-office staff including csa — a CSA is exactly who is on the phone to
-// the person who cannot sign in.
-//
-// ⚠ Defaults to PROBLEMS ONLY. A list of every address ever delivered to answers no question anyone
-// has, and it would bury the handful that matter.
+// Any active staff. Problems only by default.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

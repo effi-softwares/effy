@@ -4,10 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ 080 — THE COURIER ALARMS WATCH WHAT THE SWEEP EMITS, AND THE SWEEP RUNS. An alarm on a metric
- * name, namespace or dimension value nobody writes is green forever (070 FR-031).
- */
+/** The courier alarms watch what the sweep emits, and the sweep runs. */
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../..");
 const tf = readFileSync(resolve(repoRoot, "infra/envs/dev/courier-alarms.tf"), "utf8");

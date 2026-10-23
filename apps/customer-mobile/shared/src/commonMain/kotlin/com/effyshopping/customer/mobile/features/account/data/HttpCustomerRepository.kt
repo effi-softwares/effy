@@ -27,7 +27,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * The account repository over the edge API (013 US4/US5). [edge] is the client built for
+ * The account repository over the edge API. [edge] is the client built for
  * `EDGE_API_BASE_URL`, carrying the two-token protocol. Every call funnels through [request] so a
  * transport failure becomes `AppError.Network` rather than an opaque exception, and a mapped HTTP
  * error ([ensureSuccess]) propagates as an `AppException`.
@@ -42,7 +42,7 @@ class HttpCustomerRepository(private val edge: HttpClient) : CustomerRepository 
 
     override suspend fun updateProfile(given: String?, family: String?, phone: String?): Customer = request {
         edge.patch("customer/v1/me") {
-            // ⚠ `""` clears; `null` would be DROPPED by `explicitNulls = false` and the clear would
+            // `""` clears; `null` would be dropped by `explicitNulls = false` and the clear would
             // silently no-op. The callers pass "" for a cleared field, never null.
             setBody(UpdateCustomerDTO(familyName = family, givenName = given, phone = phone))
         }.ensureSuccess().body<CustomerDTO>().toDomain()

@@ -1,5 +1,4 @@
-// make load-localities ENV=dev [CSVREL=path] — load the AU locality reference data into
-// public.locality. Idempotent: running it again changes nothing.
+// make load-localities ENV=dev [CSVREL=path]. Idempotent.
 import { readFileSync } from "node:fs";
 
 import { parseFlags, runTool, withDatabase } from "./db";

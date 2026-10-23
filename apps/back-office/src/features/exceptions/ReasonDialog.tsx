@@ -23,7 +23,7 @@ interface Props {
 }
 
 /**
- * 093 — a staff action that needs a few words of why (waive the order of work for a run, clear an unsafe
+ * A staff action that needs a few words of why (waive the order of work for a run, clear an unsafe
  * vehicle). The words are kept with the action; the server refuses fewer than 3 characters.
  */
 export function ReasonDialog({ label, title, description, fieldLabel, confirmLabel, onConfirm }: Props) {

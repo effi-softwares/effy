@@ -1,17 +1,12 @@
-// GUARD — the back-office identity (src/backoffice/tokens.css; the "Effy Back-Office Redesign" canvas).
-//
-// The back-office wears the storefront/driver identity but still renders the console's shared
-// primitives and kit, so its file is held to BOTH:
-//
-//   1. every --color-* the console file declares, this file declares too — a console name the
-//      back-office renders through a shared primitive must resolve, or Tailwind emits no rule;
-//   2. :root and .dark carry the same colour keys;
-//   3. five values: every colour is a grey, the blue or the green. No red, no orange;
-//   4. --destructive and --warning ARE the foreground (a problem is black with an icon);
-//   5. --primary = --brand = --ring (one action colour; the console name keeps its console meaning);
-//   6. WCAG AA on every text pair in each appearance, and every ratio written in a comment is real.
-//
-// Run: node scripts/check-backoffice-tokens.mjs (part of `pnpm --filter @effy/design-system test`).
+// Guard for the back-office identity (src/backoffice/tokens.css). It renders the console's shared
+// primitives, so it is held to:
+//  1. every --color-* the console file declares is declared here too (or Tailwind emits no rule);
+//  2.:root and.dark carry the same colour keys;
+//  3. every colour is a grey, the blue or the green;
+//  4. --destructive and --warning are the foreground (a problem is black with an icon);
+//  5. --primary = --brand = --ring;
+//  6. WCAG aa on every text pair, and every ratio written in a comment is real.
+// Part of `pnpm --filter @effy/design-system test`.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -23,7 +18,7 @@ const consoleCss = readFileSync(resolve(here, "../src/tokens.css"), "utf8").repl
 
 const fail = [];
 
-// The FIRST :root and .dark blocks are the colour blocks; the later ones carry shape and motion.
+// The first:root and.dark blocks are the colour blocks; the later ones carry shape and motion.
 function block(selector) {
   const body = css.match(new RegExp(`${selector}\\s*\\{([\\s\\S]*?)\\}`))?.[1];
   if (!body) {
@@ -37,7 +32,7 @@ function block(selector) {
 const light = block(":root");
 const dark = block("\\.dark");
 
-// 1 — the console vocabulary resolves here.
+// 1. The console vocabulary resolves here.
 const declared = (src) => new Set([...src.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
 const ours = declared(css);
 for (const name of declared(consoleCss)) {
@@ -47,7 +42,7 @@ for (const name of ours) {
   if (!(name in light)) fail.push(`--color-${name} points at --${name}, which :root does not declare`);
 }
 
-// 2 — one key set per appearance.
+// 2. One key set per appearance.
 for (const k of Object.keys(light)) if (!(k in dark)) fail.push(`.dark: missing --${k}`);
 for (const k of Object.keys(dark)) if (!(k in light) && k !== "color-scheme") fail.push(`:root: missing --${k}`);
 
@@ -65,7 +60,7 @@ const ratio = (a, b) => {
 };
 
 function checkAppearance(vars, label) {
-  // 3 — a grey when the channels sit within 6 of each other; else the blue or the green family.
+  // 3. A grey when the channels sit within 6 of each other; else the blue or green family.
   for (const [k, v] of Object.entries(vars)) {
     if (!/^#[0-9a-f]{6}$/.test(v)) continue;
     const [r, g, b] = rgb(v);
@@ -82,7 +77,7 @@ function checkAppearance(vars, label) {
   if (vars.brand !== vars.primary) fail.push(label + "--brand must equal --primary (the console's action-colour name)");
   if (vars.ring !== vars.primary) fail.push(label + "--ring must equal --primary");
 
-  // 6 — [text, ground, minimum]
+  // 6. [text, ground, minimum]
   const PAIRS = [
     ["foreground", "background", 4.5],
     ["foreground", "card", 4.5],
@@ -106,7 +101,7 @@ function checkAppearance(vars, label) {
     ["sidebar-muted", "sidebar", 4.5],
     ["sidebar-accent-foreground", "sidebar-accent", 4.5],
     ["foreground", "row-selected", 4.5],
-    ["ring", "background", 3], // WCAG 1.4.11 — a focus ring nobody can see is not one
+    ["ring", "background", 3],
   ];
   for (const [fg, bg, min] of PAIRS) {
     if (!vars[fg] || !vars[bg]) {

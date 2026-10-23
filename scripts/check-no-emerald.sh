@@ -1,29 +1,23 @@
 #!/usr/bin/env bash
-# No-Emerald sweep (026 FR-011 / SC-001): the retired Effy Emerald brand values MUST NOT appear in any
-# live source/asset once feature 026 lands the monochrome identity. Sibling of check-no-jade.sh.
+# No-Emerald sweep: the retired Effy Emerald brand values must not appear in any live source or asset.
+# Sibling of check-no-jade.sh, with two differences:
 #
-# ⚠ TWO DELIBERATE DIFFERENCES FROM check-no-jade.sh, both load-bearing (026 research R13):
+# 1. It scans *.mjs and *.xml too, where the brand also lived outside tokens.css:
+# - packages/brand/src/{colourways,compositions}.mjs (mark colourways + SPLASH_GROUND)
+# - apps/*/androidApp/src/main/res/values{,-night}/colors.xml (splash grounds, hand-maintained)
+# 2. It excludes packages/brand/src/colourways.mjs, where RETIRED_EMERALD names these values to forbid them.
 #
-#   1. It scans *.mjs and *.xml as well. The Jade script covers only css/ts/tsx/kt/svg, which CANNOT
-#      SEE the two places the retired brand actually lives outside tokens.css:
-#        - packages/brand/src/{colourways,compositions}.mjs  (mark colourways + SPLASH_GROUND)
-#        - apps/*/androidApp/src/main/res/values{,-night}/colors.xml  (splash grounds, hand-maintained)
-#      A guard that misses those would report clean while the brand survived in the shipped APK.
-#
-#   2. It excludes packages/brand/src/colourways.mjs, where RETIRED_EMERALD legitimately names these
-#      values in order to forbid them (the same reason the Jade script excludes *.test.ts).
-#
-# The values, and why each is here:
-#   065f46  emerald-800 — the accent (light + dark)
-#   10b981  emerald-500 — the dark-mode focus ring + the brand mark's bag body
-#   d0735a  terracotta as supplied
-#   bf5540  terracotta AA-tuned for light
-#   dd8368  terracotta lifted for dark
-#   69b08b  the emerald tint used on dark surfaces
-#   0ea5e9  sky-500 — the 024 shop mark body
-#   075985  sky-800 — the 024 shop mark fold
-#   4ade80  green-400 — the 024 customer splash ground
-#   3b82f6  blue-500  — the 024 shop splash ground
+# The values:
+# 065f46 emerald-800 — the accent (light + dark)
+# 10b981 emerald-500 — the dark-mode focus ring + the brand mark's bag body
+# d0735a terracotta as supplied
+# bf5540 terracotta AA-tuned for light
+# dd8368 terracotta lifted for dark
+# 69b08b the emerald tint used on dark surfaces
+# 0ea5e9 sky-500 — the old shop mark body
+# 075985 sky-800 — the old shop mark fold
+# 4ade80 green-400 — the old customer splash ground
+# 3b82f6 blue-500 — the old shop splash ground
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

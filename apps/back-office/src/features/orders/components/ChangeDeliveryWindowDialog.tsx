@@ -11,10 +11,10 @@ import { deliveryMovePreviewQuery, useChangeDeliveryWindow } from "../queries";
 const key = (w: { slotId: string; date: string }) => `${w.slotId}|${w.date}`;
 
 /**
- * "Change day or time…" (085) — give an order Effy delivers another window, or a day with no time
+ * "Change day or time…" — give an order Effy delivers another window, or a day with no time
  * (the "Any time" entries).
  *
- * ⚠ ONLY WHAT THE ORDER COULD BE SOLD NOW — the same server list as "Deliver by Effy". ⚠ No money
+ * Only what the order could be sold now — the same server list as "Deliver by Effy". No money
  * moves and who delivers does not change.
  */
 export function ChangeDeliveryWindowDialog({ orderId, open, onOpenChange }: { orderId: string; open: boolean; onOpenChange: (open: boolean) => void }) {

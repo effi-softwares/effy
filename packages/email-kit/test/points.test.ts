@@ -9,11 +9,8 @@ import { CATALOG } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
 /**
- * points-credited / points-expiring (074) — store credit, said as store credit.
- *
- * ⚠ WHAT THEY MUST NOT SAY is the point of these tests: never "refund" (a customer who reads it goes
- * looking at their bank statement), and never anything a staff member typed — the catalogue gives
- * neither message a var for the internal note.
+ * Store credit, said as store credit: never "refund", and nothing a staff member typed (there is no var
+ * for the internal note).
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

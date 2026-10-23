@@ -1,6 +1,3 @@
-// Unit tests for the staff repository — the SQL orchestration + row→domain mapping, with the db
-// seam mocked (the codebase pattern; live DB behavior is verified by the operator quickstart §US4,
-// T038). Covers: authorizeAdmin (status+role), and the JIT upsert's idempotency + role reconcile.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
@@ -43,18 +40,15 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
     expect(record).toEqual({
       subject: "sub-1",
       email: "op@effy.test",
-      roles: ["admin"], // unknown role filtered out
+      roles: ["admin"],
       status: "active",
       lastSeenAt: "2026-07-08T00:00:00.000Z",
     });
-    // Idempotency guarantee is the ON CONFLICT upsert.
     expect(lastQueries.some((q) => q.includes("ON CONFLICT (cognito_sub)"))).toBe(true);
-    // Reconcile removes roles not desired.
     expect(lastQueries.some((q) => q.includes("DELETE FROM admin.staff_role"))).toBe(true);
   });
 });
 
-// A fake pool client that answers each statement of upsertOnContact by SQL shape.
 const lastQueries: string[] = [];
 function fakeClient() {
   lastQueries.length = 0;

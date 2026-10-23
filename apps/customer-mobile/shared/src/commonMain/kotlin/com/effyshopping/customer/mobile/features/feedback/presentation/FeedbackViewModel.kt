@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * The feedback form's UI state — one immutable observable object (Principle VI's MVVM rule). The View
  * renders it and calls the functions below; state flows down, events flow up.
  *
- * ⚠ `signedIn` is read at SUBMIT time via the injected lambda, not cached at construction — a sign-in
+ * `signedIn` is read at submit time via the injected lambda, not cached at construction — a sign-in
  * between opening the screen and sending is respected. A signed-in shopper's email field is hidden
  * (the authed route uses the verified profile email); a guest gets an optional email.
  */
@@ -65,7 +65,7 @@ class FeedbackViewModel(
                 source = FeedbackSource.GENERAL,
             )
             val result = submitFeedback(draft, authenticated)
-            // ⚠ On failure the fields are LEFT INTACT so the shopper's words survive (the web FR-033 analog).
+            // On failure the fields are left intact so the shopper's words survive (the web FR-033 analog).
             _state.value = _state.value.copy(submitting = false, result = result)
         }
     }

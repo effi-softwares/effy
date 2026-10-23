@@ -25,7 +25,7 @@ import type {
 } from "@effy/shared-types";
 
 /**
- * Domain shapes for shop-web catalog (016, US2/US3).
+ * Domain shapes for shop-web catalog.
  *
  * The wire DTOs (already written in @effy/shared-types) double as the domain shapes here — they
  * carry no wire-only encoding to strip. Reads/writes still route through the repo layer
@@ -73,7 +73,7 @@ export interface ProductListParams {
   category?: string;
   section?: string;
   status?: ProductStatus;
-  /** 067 — only products at this point in Effy's review. */
+  /** Only products at this point in Effy's review. */
   reviewState?: ShopReviewState;
   priceMin?: string;
   priceMax?: string;

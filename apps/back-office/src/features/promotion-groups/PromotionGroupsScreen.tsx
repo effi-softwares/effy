@@ -16,7 +16,7 @@ import { promotionMutationError } from "@/features/promotions/errorText";
 import { promotionGroupsQuery, useCreateGroup } from "./queries";
 
 /**
- * Display groups (094 US2): the places promotions are shown. The customer website and app ask for a
+ * Display groups: the places promotions are shown. The customer website and app ask for a
  * group by its KEY, which never changes once created; a promotion may be in several.
  */
 export function PromotionGroupsScreen() {

@@ -1,8 +1,4 @@
-// Domain types for order rules management (027 US10) and the errors promotions share. Money is a decimal string here, as
-// everywhere on the wire; the commerce service converts to integer cents when it computes a discount.
-//
-// ⚠ These are the OPERATOR's view. The customer half of a promotional code — applying it, and the
-// discount — lives in the commerce service, with the cart and the charge it applies to.
+// Order-rule types and the errors promotions share. Money is a decimal string, as on the wire.
 
 export interface OrderPolicy {
   minimumSubtotalAmount: string;
@@ -35,11 +31,7 @@ export interface FieldIssue {
   message: string;
 }
 
-/**
- * A refusal the operator must be able to act on. `code` is the wire reason (contract §5) — each is a
- * different fix: a duplicate needs a new code, an inverted window needs different dates, and an attempt
- * to rewrite a USED code needs the operator to understand why that is refused at all.
- */
+/** `code` is the wire reason; each needs a different fix. */
 export class PromoError extends Error {
   constructor(
     readonly status: number,

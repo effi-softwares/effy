@@ -1,14 +1,10 @@
-// RASTER — resvg renders, sharp performs the two operations resvg cannot (024 research R1/R3).
-//
-// Determinism (SC-009) is the constraint that chose this toolchain. Both libraries were measured
-// byte-identical across runs, and NEITHER writes a PNG `tIME` chunk — a timestamp chunk would make
-// output differ by the DAY, which would defeat the drift check without anyone noticing.
+// resvg renders; sharp does the two operations resvg cannot. Both are byte-identical across runs and write no PNG `tIME` chunk.
 
 import { Resvg } from "@resvg/resvg-js"
 import sharp from "sharp"
 import { withExplicitSize } from "./compose.mjs"
 
-/** PNG IHDR colour-type byte. 2 = RGB (no alpha), 6 = RGBA. */
+/** PNG ihdr colour-type byte. 2 = RGB (no alpha), 6 = rgba. */
 export function pngColourType(buf) {
   if (buf.length < 26 || buf.readUInt32BE(0) !== 0x89504e47) throw new Error("not a PNG")
   return buf.readUInt8(25)
@@ -19,14 +15,7 @@ export function renderPng(svg, size) {
   return new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng()
 }
 
-/**
- * Render and apply the alpha policy.
- *
- * ⚠ RULE T3 — for `strip`, the colour type of the WRITTEN BYTES is asserted, not merely requested.
- * An iOS icon carrying an alpha channel is rejected at App Store Connect days after the build is
- * otherwise finished (research R3). Asserting here makes SC-006 provable before submission, and
- * makes it impossible for the generator to emit a rejectable icon at all.
- */
+/** Renders and applies the alpha policy. For `strip` the written colour type is asserted: App Store Connect rejects an icon with an alpha channel. */
 export async function renderWithAlphaPolicy(svg, size, alpha) {
   const raw = renderPng(svg, size)
 
@@ -34,8 +23,7 @@ export async function renderWithAlphaPolicy(svg, size, alpha) {
     if (pngColourType(raw) !== 6) {
       throw new Error(`raster: expected RGBA for alpha=preserve, got colour-type ${pngColourType(raw)}`)
     }
-    // Re-encode through sharp so preserve/strip share one encoder — mixing encoders across the
-    // matrix would make byte-comparison meaningless.
+    // One encoder for preserve and strip, so byte comparison stays meaningful.
     return await sharp(raw).png({ compressionLevel: 9 }).toBuffer()
   }
 
@@ -54,13 +42,7 @@ export async function renderWithAlphaPolicy(svg, size, alpha) {
   throw new Error(`raster: unknown alpha policy '${alpha}'`)
 }
 
-/**
- * ⚠ RULE V2 — measure the content bounding box; never hard-code it.
- *
- * Render large, scan the alpha channel, and convert back to viewBox units. If the artwork is ever
- * redrawn, a stale hand-counted bbox would silently mis-centre every asset on every surface, and
- * nothing would fail.
- */
+/** Measures the content bounding box (render large, scan alpha, convert to viewBox units); never hard-coded. */
 export async function measureBBox(markSvg, viewBoxSize = 500, sampleAt = 2000) {
   const sized = withExplicitSize(markSvg, viewBoxSize, viewBoxSize)
   const png = renderPng(sized, sampleAt)

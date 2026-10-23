@@ -9,7 +9,7 @@ vi.mock("./repository", () => repo);
 import { writeOrderPolicy } from "./service";
 import { isPromoError } from "./types";
 
-/** The wire refusal code, or a marker — so a test asserts WHICH refusal, not merely that one happened. */
+/** The refusal code, so a test asserts which refusal happened. */
 async function codeOf(p: Promise<unknown>): Promise<string> {
   try {
     await p;
@@ -41,11 +41,4 @@ describe("writeOrderPolicy", () => {
     expect(repo.writeOrderPolicy).not.toHaveBeenCalled();
   });
 });
-
-// ── The advertising facet (028 T049) ────────────────────────────────────────────────────────────
-//
-// ⚠ These prove the SERVICE's half only. The guarantee that an advertised promotion always has a
-// headline is `promo_code_banner_copy_chk` in the database, which no unit test can exercise — the
-// service check exists so an operator gets a field-level message instead of a 500, not instead of the
-// constraint.
 

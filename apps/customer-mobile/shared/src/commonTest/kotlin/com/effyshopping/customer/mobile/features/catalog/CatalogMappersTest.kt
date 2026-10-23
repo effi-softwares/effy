@@ -107,7 +107,7 @@ class CatalogMappersTest {
     @Test
     fun aMalformedTargetCostsOneTapNotTheStorefront() {
         // The generator flattens the TS discriminated union into a kind + optional fields, so a
-        // `category` with no categoryKey is REPRESENTABLE on the wire and meaningless here.
+        // `category` with no categoryKey is representable on the wire and meaningless here.
         assertNull(
             BannerTargetDTO(kind = Kind.Category, categoryKey = null).toDomain(),
             "a malformed target must render the banner non-tappable, not throw and take Home with it",

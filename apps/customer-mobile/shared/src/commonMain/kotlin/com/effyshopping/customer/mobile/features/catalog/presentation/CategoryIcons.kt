@@ -19,14 +19,10 @@ import com.effyshopping.customer.mobile.resources.lucide_wheat
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * An aisle's glyph (087 T057) — THE SAME RULES as the website's `aisleIcon`
- * (`apps/customer-web/components/chrome/aisle-icon.tsx`), in the same order, over the same Lucide set,
- * so an aisle looks the same on both customer surfaces.
- *
- * ⚠ RULES, NOT A KEY TABLE. The table this replaced knew twelve keys from the 2026-07 taxonomy; 084
- * re-seeded the catalogue with keys like `dairy_eggs` and `fruit_veg`, and every one of them fell
- * through to the fallback glyph. A word rule ("milk", "fruit", "clean") survives a re-seed; a key
- * table does not. First matching rule wins; nothing matching is the neutral package glyph.
+ * An aisle's glyph, by the same rules in the same order as the website's `aisleIcon`
+ * (`apps/customer-web/components/chrome/aisle-icon.tsx`), over the same Lucide set. Word rules ("milk",
+ * "fruit", "clean"), not a key table, so a re-seeded taxonomy still matches. First match wins; otherwise
+ * the neutral package glyph.
  */
 private val RULES: List<Pair<Regex, DrawableResource>> = listOf(
     Regex("fruit|veg|produce|fresh", RegexOption.IGNORE_CASE) to Res.drawable.lucide_apple,

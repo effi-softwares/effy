@@ -9,10 +9,10 @@ import { formatMoney } from "@/lib/money"
 import { maxPointsFor } from "./points"
 
 /**
- * "Use points" at checkout (074 US2).
+ * "Use points" at checkout.
  *
- * ⚠ SHOWN ONLY WHEN THE QUOTE SAYS THE CUSTOMER HAS POINTS — no dead control for everyone else.
- * ⚠ The default is the most they can use (FR-012); the field lets them use fewer. The split shown is
+ * Shown only when the quote says the customer has points — no dead control for everyone else.
+ * The default is the most they can use; the field lets them use fewer. The split shown is
  * the one the order is settled at: the server re-decides it and refuses rather than changes it.
  */
 export function PointsControl({

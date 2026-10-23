@@ -17,13 +17,7 @@ import type {
   UpdateProductTypeRequest,
 } from "@effy/shared-types";
 
-/**
- * Domain shapes for the back-office catalog schema authority (016, US1).
- *
- * The wire DTOs (specs/016 contracts, already in @effy/shared-types) double as the domain shapes
- * here — they carry no wire-only encoding to strip. We still route every read/write through the
- * repo layer (Principle VI), so if a DTO and its domain model ever diverge, only the repo changes.
- */
+/** Domain shapes for the catalog schema: the `@effy/shared-types` DTOs double as them, read through the repo layer. */
 export type ProductType = ProductTypeDTO;
 export type ProductTypeAttribute = ProductTypeAttributeDTO;
 export type AttributeDefinition = AttributeDefinitionDTO;
@@ -44,6 +38,6 @@ export type {
   UpdateProductTypeRequest,
 };
 
-/** Client-side filter for the schema tables (the catalog list endpoints are unpaginated arrays —
+/** Client-side filter for the schema tables (the catalog list endpoints are unpaginated arrays
  *  the contract lists no query params — so status filtering happens in the browser). */
 export type SchemaStatusFilter = SchemaStatus | "all";

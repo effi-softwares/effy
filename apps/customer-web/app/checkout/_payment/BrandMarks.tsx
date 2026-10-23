@@ -1,24 +1,7 @@
 /**
- * Payment network marks (051 FR-031/FR-032).
- *
- * ⚠ CURRENTLY MONOCHROME, AND DELIBERATELY SO. Principle V's third-party exception is scoped, verbatim,
- * to "a third-party **sign-in** mark whose provider's brand guidelines require its own colours". A
- * payment network mark is the same asset ROLE and is governed by the same kind of brand rules, but it is
- * not a sign-in mark — so shipping these in Visa blue today would be a violation dressed as an
- * exception, not an exception.
- *
- * Widening that clause to third-party marks generally is a MINOR constitution amendment, tracked as 051
- * T002 (research R13). Until it moves, these stay neutral.
- *
- * ⚠ WHEN IT DOES MOVE, the colour goes HERE and nowhere else — component-local constants, the way 039's
- * coloured panels were bounded (FR-005a). No design token, no `tokens.css` entry, no Compose theme.
- * `tokens:check` passing unchanged is the mechanical proof the colour never entered the design system,
- * and deleting this one file is the whole revert.
- *
- * ⚠ AND THE ARTWORK MUST BE REPLACED, not recoloured. These are simplified stand-ins. Visa, Mastercard
- * and American Express each publish mandatory usage rules — clear space, minimum size, permitted
- * backgrounds, permitted variants — and a redrawn mark breaches all of them. T003 obtains the real
- * asset kits.
+ * Payment network marks, monochrome stand-ins: the constitution's third-party colour exception covers
+ * sign-in marks only. Coloured marks would be the official artwork (each network has usage rules), as
+ * component-local constants here, never design tokens.
  */
 
 const CHIP =
@@ -36,7 +19,7 @@ export function NetworkMark({ label }: { label: string }) {
 /**
  * The networks Effy accepts, shown together.
  *
- * ⚠ `aria-hidden` throughout: these repeat what the row's own text already says ("Visa, Mastercard,
+ * `aria-hidden` throughout: these repeat what the row's own text already says ("Visa, Mastercard,
  * American Express"), and announcing both would read the list twice to a screen reader.
  */
 export function AcceptedNetworks({ className }: { className?: string }) {

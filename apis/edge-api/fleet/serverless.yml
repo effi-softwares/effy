@@ -1,29 +1,6 @@
-# edge-fleet — Effy fleet service (056-driver-management).
-#
-# Attaches to the Terraform-owned STAFF HTTP API (075; docs/api/shared-gateway.md): NO API/stage/CORS/
-# authorizers created here (those live in infra/envs/<env>/staff-gateway.tf). Routes live under
-# /fleet/. Every authenticated route uses the Terraform-owned BACK-OFFICE JWT authorizer (by id from
-# SSM) — an ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
-#
-# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R1, measured):
-#   $ grep -c "^    handler:" apis/edge-api/admin/serverless.yml   → 77 before this slice
-# `effy-edge-admin` packaged to 434 of CloudFormation's hard 500 resources, and its OWN header
-# records that the DRIVER routes are what tipped it to 511 in the first place — `versionFunctions:
-# false` was the emergency recovery and is already spent. ~18 routes at ~5 resources each does not
-# fit at any price that stack can pay. 053 (orders) and 054 (inventory) each hit the same wall and
-# made the same call; this is the third application of a settled pattern.
-#
-# ⚠ AND NOT INSIDE edge-driver EITHER, which would have been structurally sound — API Gateway
-# authorizers are per-ROUTE, and 054 carries two audiences in one service on exactly that basis. The
-# reason is the asymmetry of the failure: a mis-wired route in the DRIVER service would hand a driver
-# the ability to edit driver records, including their own employment status. A separate service makes
-# that mistake unreachable rather than merely unlikely.
-#
-# ⚠ THE FIVE 049 ROUTES MOVED HERE from edge-admin rather than being duplicated, so there is exactly
-# one driver-management implementation. Deploy THIS service BEFORE re-deploying admin, or there is a
-# window in which driver management answers nothing.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# Fleet: drivers, vehicles, clearances, slots, dispatch and the planner, on the staff gateway behind the
+# back-office authorizer. Kept out of the driver service so a mis-wired route can never let a driver
+# edit driver records.
 service: effy-edge-fleet
 frameworkVersion: "3"
 
@@ -34,7 +11,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -48,9 +24,6 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # ⚠ Set from the START, not when it is needed. admin reached the CFN limit before anyone noticed
-  # and had to add this under pressure (049). Nothing here publishes aliases or uses provisioned
-  # concurrency, and every httpApi integration invokes the unqualified ($LATEST) ARN.
   versionFunctions: false
   tags:
     project: effy
@@ -61,39 +34,28 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Driver-pool provisioning: the pool this service creates driver sign-ins in. Resolved from the
-    # auth contract at deploy time — never hard-coded. The driver pool defines NO RBAC groups.
+    # The driver pool; it defines no rbac groups.
     DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
-    # ⚠ Operational thresholds (research R11). BOTH are read by src/shared/config.ts, and
-    # config.contract.test.ts reads THIS FILE to assert each one is declared. That guard exists
-    # because 035 read four env vars its serverless.yml never declared — every pool resolved
-    # "unknown", no email was ever sent, and 100 passing tests missed it because the tests set those
-    # vars themselves.
+    # Operational thresholds read by src/shared/config.ts; config.contract.test.ts checks they are declared.
     FLEET_DUTY_OVERDUE_HOURS: "14"
     FLEET_EXPIRY_WARNING_DAYS: "30"
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # Driver provisioning: scoped Admin actions on the DRIVER pool ARN ONLY. This is an
-        # authorized server-side provisioning write by an authenticated BACK-OFFICE operator, not
-        # cross-pool authentication (049 research R3/R9) — the routes still carry the back-office
-        # authorizer. ⚠ No AddUserToGroup: the driver pool defines no RBAC groups (Principle IV).
-        # Moved here verbatim from edge-admin; not widened.
+        # Admin actions on the driver pool ARN only; no AddUserToGroup (the pool has no groups).
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -103,9 +65,7 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
-  # edge-shop/admin/driver/orders: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and
-  # the dev DB is reachable on its public endpoint. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -139,7 +99,7 @@ functions:
           method: GET
           path: /fleet/readyz
 
-  # ── US1 — the register and the profile of record ────────────────────────────────────────────────
+  # Driver register and profile
   driversListV1:
     handler: src/functions/drivers-list-v1-get.handler
     description: Driver register — search, filter, keyset paging (056 FR-001…FR-005). Read = any active staff incl. csa.
@@ -173,7 +133,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── US2 — onboarding, lifecycle, offboarding ────────────────────────────────────────────────────
+  # Onboarding, lifecycle, offboarding
   driverCreateV1:
     handler: src/functions/driver-create-v1-post.handler
     description: Provision a driver — record + driver-pool sign-in together; a duplicate work email is REFUSED (056 FR-013/FR-014). Write = admin/manager.
@@ -273,12 +233,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 061 — the vehicle register. A vehicle is Effy property, not a driver's attribute. ───────────
-  # ── 069-delivery-slots-dates: same-day slots and the standard-delivery calendar ──────────────────
-  # ⚠ HERE, NOT IN edge-admin, although the screens are tabs in the Delivery console: that stack is at
-  # CloudFormation's resource ceiling (see the header of this file). Slots are delivery CAPACITY, and
-  # the planner that must respect them lives in this service. Measured before adding: 171 of 500.
-  # ⚠ There is no DELETE route for a slot. A booking references it; it is switched off, never removed.
+  # Vehicle register: a vehicle is Effy property, not a driver's attribute.
+  # Delivery slots and calendar: capacity the planner here respects. No DELETE for a slot (bookings reference it).
   deliverySlotsListV1:
     handler: src/functions/delivery-slots-v1-get.handler
     description: Same-day delivery slots with today's load (069 US5). Read = any active staff.
@@ -433,7 +389,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 062 — clearances: who may do what work, where. Assigns nothing. ─────────────────────────────
+  # Clearances: who may do what work, where.
   driverCapabilitiesV1:
     handler: src/functions/driver-capabilities-v1-get.handler
     description: Everything a driver is cleared for (062 FR-007). Read = any active staff.
@@ -469,12 +425,7 @@ functions:
 
   planWavesScheduled:
     handler: src/functions/plan-waves-scheduled.handler
-    # ⚠ EVERY TICK ASSIGNS (072). Until 072 this woke every 5 minutes and planned rarely — only once a
-    # collection run was within its lead time. It now gives every package a driver can take to a
-    # driver on every pass; what a driver may not do early is decided by the round's opening time, in
-    # the driver service. The rate is unchanged.
-    # (Kept as a comment: Lambda's Description property is capped at 256 characters, and a 328-char
-    # one fails CloudFormation EARLY VALIDATION with no hint as to which property is wrong.)
+    # Every tick assigns; what a driver may do early is decided by the round's opening time. (A comment: Description is capped at 256 characters.)
     description: >-
       063/072 — the planner. Every pass gives ready packages to drivers as collection rounds, and
       same-day packages at the hub as delivery rounds.
@@ -680,15 +631,8 @@ functions:
 resources:
   Resources:
 
-    # ⚠ THE ONE ALARM THAT IS NOT A GENERIC LAMBDA-ERROR ALARM, and the only state in this feature
-    # an operator cannot repair from the console.
-    #
-    # Provisioning a driver writes to TWO systems — the identity pool, then the platform record — and
-    # cannot be atomic. If the second write fails, a sign-in account exists for someone who is not a
-    # driver. The console shows it (`accountState: identity_only`) but cannot fix it: creating the
-    # driver again is refused, correctly, because the address is in use.
-    #
-    # The service logs the exact string this filter selects at both failure points.
+    # The one state an operator cannot repair: a sign-in account with no driver record (provisioning cannot
+    # be atomic). The service logs the exact string this filter selects.
     DriverProvisionFailedMetricFilter:
       Type: AWS::Logs::MetricFilter
       Properties:
@@ -720,7 +664,4 @@ resources:
         AlarmActions:
           - ${ssm:/effy/${sls:stage}/alerts/topic_arn}
 
-    # ⚠ THERE IS DELIBERATELY NO ALARM ON OUTSTANDING EXCEPTIONS. That number is WORKLOAD, not
-    # health — it goes up when drivers report problems, which is the system working. Alarming on
-    # workload is how a team learns to ignore alarms, and this platform's alerts topic is the same
-    # one that carries "sending reputation is about to be suspended".
+    # No alarm on outstanding exceptions: that is workload, not health.

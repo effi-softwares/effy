@@ -17,18 +17,13 @@ import com.effyshopping.customer.mobile.design.effyTypography
 val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
- * The app's theme — the STOREFRONT identity (constitution Principle V; 087), LIGHT AND DARK.
+ * The app's theme: the storefront identity, light and dark. Colours, type and shapes come only from files
+ * generated from `packages/design-system/src/storefront/tokens.css` (`:root` for light, `.dark` for dark),
+ * guarded by `tokens:check`; never hardcode a colour. [dark] comes from the shopper's [AppearanceMode].
  *
- * Colours, type and shapes come ONLY from files GENERATED from
- * `packages/design-system/src/storefront/tokens.css` — its `:root` (the website's, and the app's light)
- * and its `.dark` block (the app's dark, v3.4.0) — diff-guarded by `tokens:check`. Never hardcode a
- * colour here or in a screen.
- *
- * [dark] is decided by the caller from the shopper's [AppearanceMode] (Match my phone / Light / Dark).
- *
- * Material 3's shape slots are overridden so no library default radius leaks in:
- * extraSmall 4 (checkboxes) · small 6 (buttons, fields, chips) · medium 8 (cards, image wells) ·
- * large 12 (banners) · extraLarge 16 (the top of a bottom sheet).
+ * Material 3's shape slots are overridden so no library radius leaks in: extraSmall 4 (checkboxes) ·
+ * small 6 (buttons, fields, chips) · medium 8 (cards, image wells) · large 12 (banners) · extraLarge 16
+ * (the top of a bottom sheet).
  */
 @Composable
 fun EffyTheme(dark: Boolean, content: @Composable () -> Unit) {
@@ -53,13 +48,13 @@ fun EffyTheme(dark: Boolean, content: @Composable () -> Unit) {
  * the appearance.
  *
  * - [brand] Effy green: the wordmark's full stop, Sale, savings, "Delivered by Effy", paid, progress.
- *   ⚠ NEVER an action (buttons, links and selection are `colorScheme.primary`).
+ *  never an action (buttons, links and selection are `colorScheme.primary`).
  * - [brandMuted] the green tint a brand word sits on; [brandForeground] ink ON the green.
  * - [primaryMuted] the blue tint: a selected tile, an info panel.
  * - [scrim] the backdrop behind a sheet.
- * - [promoGround] / [promoBlue] the grounds of promotional panels, which carry WHITE type: they are the
- *   LIGHT palette's green and blue in BOTH appearances (the dark palette's are pale, for text on dark —
- *   white type would not read on them). "Promo grounds — banner artwork only, white type" (Foundations).
+ * - [promoGround] / [promoBlue] the grounds of promotional panels, which carry white type: they are the
+ *  light palette's green and blue in both appearances (the dark palette's are pale, for text on dark
+ *  white type would not read on them). "Promo grounds — banner artwork only, white type" (Foundations).
  */
 object EffyRoles {
     val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)

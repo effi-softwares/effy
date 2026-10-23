@@ -6,12 +6,7 @@ import { RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { reorderPastOrder } from "@/lib/cart-actions"
 
-/**
- * Buy again: put a past order's items back in the cart.
- *
- * ⚠ IT SAYS WHAT DID NOT GO IN. Some of an old order may no longer be sold or in stock; adding the
- * rest silently would leave the shopper believing the whole order was in their cart.
- */
+/** Buy again: puts a past order's items back in the cart, and says what did not go in. */
 export function ReorderButton({ orderId }: { orderId: string }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)

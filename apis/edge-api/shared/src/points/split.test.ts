@@ -33,7 +33,7 @@ const base: Omit<SplitInput, "amountCents"> = {
 
 describe("074 — splitRefund (P1)", () => {
   it("splits one refund in the proportion the order was paid", () => {
-    // $40.00 paid as $30.00 card + $10.00 points; an $8.00 refund → $6.00 card + 200 points (spec Story 3).
+    // $40.00 paid as $30.00 card + $10.00 points; an $8.00 refund is $6.00 card + 200 points.
     expect(splitRefund({ ...base, amountCents: 800 })).toEqual({ cardCents: 600, points: 200, pointsValueCents: 200 });
   });
 
@@ -84,9 +84,7 @@ describe("074 — splitRefund (P1)", () => {
         steps.push(s);
         left -= s;
       }
-      // At one cent a point every refund splits. Above it a sub-point amount with too little card left
-      // CANNOT split exactly (FR-019 forbids rounding), and refusing it is the correct outcome — the
-      // ceilings inside refundInSteps have held for every refund before it.
+      // Above one cent a point, a sub-point amount with too little card left cannot split exactly, and is refused.
       let out: ReturnType<typeof refundInSteps>;
       try {
         out = refundInSteps(cardPaid, pointsValue, cpp, steps);

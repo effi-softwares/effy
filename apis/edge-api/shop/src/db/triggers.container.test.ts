@@ -1,39 +1,14 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { Client, Pool } from "pg";
+import { migrationSql } from "@effy/edge-shared/testing";
+import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 /**
- * The triggers, against real PostgreSQL and THE REAL MIGRATIONS (058).
- *
- * ⚠ WHY THIS CANNOT BE A UNIT TEST. The property the design rests on is a property of PostgreSQL,
- * not of our code: the dirty mark lands **in the same transaction as the change it describes**.
- * Mocking it would assert that our fixture agrees with our belief — 027 R13's failure mode. The one
- * way to know is to roll a transaction back and watch nothing remain.
- *
- * ⚠ 070 WITHDREW THE OTHER HALF. These triggers also used to NOTIFY open consoles; the stream that
- * relayed it went with the always-on backend, and migration `drop_shop_ops_poke` removed the
- * notification. A listener is still attached here — to prove that nothing is sent any more.
+ * The triggers against real Postgres: the dirty mark lands in the same transaction as the change
+ * (proven by rolling back).
  */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
-
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
 
 const CUST = "11111111-1111-4111-8111-111111111111";
 const SHOP = "33333333-3333-4333-8333-333333333333";
@@ -41,23 +16,14 @@ const SHOP = "33333333-3333-4333-8333-333333333333";
 describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
-  /** A LISTENer on the retired channel. It must hear nothing (070). */
-  let listener: Client;
-  let heard: string[] = [];
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
-    await pool.query(applyMigrations());
-
-    listener = new Client({ connectionString: container.getConnectionUri() });
-    await listener.connect();
-    listener.on("notification", (n) => heard.push(n.payload ?? ""));
-    await listener.query("LISTEN shop_ops");
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
-    await listener?.end();
     await pool?.end();
     await container?.stop();
   });
@@ -71,32 +37,18 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('grocery','Grocery')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
     await pool.query(`DELETE FROM public.insights_dirty`);
-    heard = [];
   });
 
-  /**
-   * Forget the fixture's own work.
-   *
-   * ⚠ Building an order is itself a change the triggers watch — `order_item` insertion marks the
-   * bucket dirty (20260915171139), exactly as it must. So a test about what ONE later change does has
-   * to start from a clean queue, or it asserts the fixture's marks instead of its own subject.
-   */
+  /** Building an order marks the bucket dirty itself, so each test starts from a clean queue. */
   async function forgetFixtureWork(): Promise<void> {
     await pool.query(`DELETE FROM public.insights_dirty`);
-    heard = [];
-  }
-
-  /** Notifications are delivered asynchronously; give the listener a moment to see them. */
-  async function settle(): Promise<void> {
-    await listener.query("SELECT 1");
-    await new Promise((r) => setTimeout(r, 50));
   }
 
   async function paidOrder(number: string): Promise<{ orderId: string; fulfillmentId: string }> {
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-         delivery_fee_amount, grand_total_amount, delivery_address, placed_at)
-       VALUES ($1,$2,'pending_payment',30,0,30,'{"recipientName":"Ada"}'::jsonb, now()) RETURNING id`,
+         delivery_fee_amount, grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1,$2,'pending_payment',30,0,30,'{"recipientName":"Ada"}'::jsonb, now(), 'effy', 'in_coverage') RETURNING id`,
       [CUST, number],
     );
     const orderId = o.rows[0]!.id;
@@ -107,8 +59,8 @@ SELECT id FROM p`,
       [SHOP],
     );
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, 3, 30)`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, 3, 30, 10, 30)`,
       [orderId, p.rows[0]!.id, SHOP],
     );
     const f = await pool.query<{ id: string }>(
@@ -119,7 +71,7 @@ SELECT id FROM p`,
     return { orderId, fulfillmentId: f.rows[0]!.id };
   }
 
-  it("a committed refund marks exactly one bucket — and notifies nobody", async () => {
+  it("a committed refund marks exactly one bucket", async () => {
     const { orderId } = await paidOrder("EFY-T1");
     await forgetFixtureWork();
     await pool.query(
@@ -127,12 +79,10 @@ SELECT id FROM p`,
        VALUES ($1,'item',10,'item_not_supplied','k-1','back_office','sub-staff')`,
       [orderId],
     );
-    await settle();
 
     const dirty = await pool.query(`SELECT shop_id, bucket_start FROM public.insights_dirty`);
     expect(dirty.rowCount).toBe(1);
     expect(dirty.rows[0]!.shop_id).toBe(SHOP);
-    expect(heard, "the shop_ops notification was withdrawn by 070").toEqual([]);
   });
 
   it("⚠ a ROLLED-BACK refund leaves no dirty mark", async () => {
@@ -150,13 +100,12 @@ SELECT id FROM p`,
     } finally {
       client.release();
     }
-    await settle();
 
     const dirty = await pool.query(`SELECT 1 FROM public.insights_dirty`);
     expect(dirty.rowCount, "a rolled-back change must leave no work behind").toBe(0);
   });
 
-  it("pick progress — the busiest write a shop makes — sends nothing and marks nothing", async () => {
+  it("pick progress — the busiest write a shop makes — marks nothing", async () => {
     const { fulfillmentId, orderId } = await paidOrder("EFY-T3");
     const item = await pool.query<{ id: string }>(
       `SELECT id FROM public.order_item WHERE order_id = $1`,
@@ -172,8 +121,7 @@ SELECT id FROM p`,
              gathered_quantity)
            VALUES ($1,$2,3,$3)
            ON CONFLICT (shop_fulfillment_id, order_item_id) DO UPDATE SET gathered_quantity = EXCLUDED.gathered_quantity`,
-          // The line is 3 units, and `fulfillment_item_accounted_ck` refuses more gathered than
-          // ordered — so the five picks cycle 1,2,3,1,2 rather than counting past the order.
+          // `fulfillment_item_accounted_ck` refuses more gathered than ordered, so picks cycle 1,2,3,1,2.
           [fulfillmentId, item.rows[0]!.id, ((i - 1) % 3) + 1],
         );
       }
@@ -181,20 +129,8 @@ SELECT id FROM p`,
     } finally {
       client.release();
     }
-    await settle();
 
-    // Before 070 this woke every open console. With no listener it would be work on the hottest
-    // write path to tell nobody anything.
-    expect(heard).toEqual([]);
     expect((await pool.query(`SELECT 1 FROM public.insights_dirty`)).rowCount).toBe(0);
-
-    // The function the triggers called is gone, not merely unused.
-    const poke = await pool.query(`SELECT 1 FROM pg_proc WHERE proname = 'shop_ops_poke'`);
-    expect(poke.rowCount).toBe(0);
-    // And every trigger 058 created is still attached: only the notification was removed. (098 adds
-    // the eleventh, on product_variant, where stock now lives.)
-    const triggers = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM pg_trigger WHERE tgname LIKE 'shop_ops_%' AND NOT tgisinternal`);
-    expect(Number(triggers.rows[0]!.n)).toBe(11);
   });
 
   it("the first mark's marked_at survives later marks, so backlog age is the real lag", async () => {

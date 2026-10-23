@@ -16,7 +16,7 @@ import { exportCodes } from "../repo";
 const STATE = { unused: { word: "Unused", tone: "quiet" }, held: { word: "In a checkout", tone: "info" }, used: { word: "Used", tone: "done" } } as const;
 
 /**
- * Single-use codes (094 US7): generate a batch for a partner, a newsletter or a service apology; see
+ * Single-use codes: generate a batch for a partner, a newsletter or a service apology; see
  * which are used; download them all. Each works once, for anyone.
  */
 export function CodesPanel({ promotionId, canManage }: { promotionId: string; canManage: boolean }) {

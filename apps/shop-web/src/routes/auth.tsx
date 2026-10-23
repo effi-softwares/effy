@@ -5,30 +5,30 @@ import { SignInScreen } from "@/features/auth/SignInScreen";
 import { rootRoute } from "./__root";
 
 /**
- * The adopted design's SPLIT sign-in: a flat `--brand` panel beside a 360px form column.
+ * The adopted design's split sign-in: a flat `--brand` panel beside a 360px form column.
  *
- * ⚠ THE PANEL IS A FLAT FILL, NOT A GRADIENT. The whole platform is flat; a gradient here would be
+ * The panel is a flat fill, not a gradient. The whole platform is flat; a gradient here would be
  * the single largest coloured surface in the product and the only one that breaks the rule.
  *
- * ⚠ IT FILLS WITH `--primary`, NOT `--brand`, AND THAT IS A CORRECTION TO THE REFERENCE. The
+ * It fills with `--primary`, not `--brand`, and that is a correction to the reference. The
  * reference draws `background:var(--brand); color:#fff`. The bug is the hardcoded `#fff`, not the
- * token: the dark brand fill is LIGHT, so white on it was measured at 1.90:1 — an unreadable
+ * token: the dark brand fill is light, so white on it was measured at 1.90:1 — an unreadable
  * headline across half the screen, on the one page that has to establish trust before a credential
  * is typed. `--primary`/`--primary-foreground` is the pair check-tokens.mjs already holds to 4.5:1
- * in BOTH appearances (6.70:1 light, 7.05:1 dark), so the panel cannot regress without the build
+ * in both appearances (6.70:1 light, 7.05:1 dark), so the panel cannot regress without the build
  * failing.
  *
- * ⚠ --brand AND --primary NOW RESOLVE EQUAL IN BOTH APPEARANCES (the neutral-grey dark rebase
+ * --brand and --primary now resolve equal in both appearances (the neutral-grey dark rebase
  * removed the one-step split the navy ground had needed), so today the two spellings would render
- * identically. That is NOT a reason to switch to `--brand`: what makes this panel safe is the
- * GUARDED PAIR, and only --primary has one. If the values ever diverge again, this stays correct.
+ * identically. That is not a reason to switch to `--brand`: what makes this panel safe is the
+ * guarded pair, and only --primary has one. If the values ever diverge again, this stays correct.
  *
- * ⚠ THE PANEL COLLAPSES BELOW THE FORM on narrow viewports (`flex-wrap`, form column first in the
+ * The panel collapses below the form on narrow viewports (`flex-wrap`, form column first in the
  * DOM at narrow widths via `order`). On a phone the form is what the operator came for — a
  * full-height marketing panel above it would push it below the fold.
  *
- * ⚠ THE REFERENCE'S BOTTOM STAT ROW IS DELIBERATELY ABSENT. It shows "678 orders last 30 days ·
- * 486 210 kr revenue · 3 locations". A signed-OUT page has no session and no shop, so it cannot know
+ * The reference's bottom stat row is deliberately absent. It shows "678 orders last 30 days ·
+ * 486 210 kr revenue · 3 locations". A signed-out page has no session and no shop, so it cannot know
  * any of those; rendering them would mean inventing three numbers on the one screen whose entire job
  * is to establish trust before a credential is typed. An empty region is better than a padded one.
  */
@@ -52,7 +52,7 @@ export const authLayoutRoute = createRoute({
           <h2 className="text-[clamp(26px,4vw,34px)] font-semibold leading-[1.15] tracking-[-.03em]">
             Every order, every shelf, one console.
           </h2>
-          {/* ⚠ EACH LINE NAMES A CAPABILITY THIS CONSOLE ACTUALLY HAS. The reference's own three
+          {/* Each line names a capability this console actually has. The reference's own three
               promise margin, restock alerts, "every channel" and payout reconciliation — Effy has no
               unit cost or margin (057 A2 refused it), no purchasing (A1 deferred it), exactly one
               sales channel, and no payouts feature at all. Copying them would put four lies on the

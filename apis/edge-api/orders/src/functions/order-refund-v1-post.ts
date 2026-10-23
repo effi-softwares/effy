@@ -8,16 +8,8 @@ import { requireWriter } from "../lib/guard";
 import { refundService } from "../lib/money";
 
 /**
- * POST /orders/v1/orders/{orderId}/refunds — back-office issues a refund (055 US1).
- *
- * ⚠ WRITE GATE: an ACTIVE staff record holding admin|manager, read from `admin.staff` — never from
- * the token's claim. "Could not check" is 503; "checked, and no" is 403.
- *
- * ⚠ THE REFUND IS RECORDED FIRST, under the ceiling lock, and only then sent to the provider. The
- * response never says "refunded": the provider has it, and the bank may still refuse.
- *
- * ⚠ `amount` is read ONLY so an item-derived request that sends one can be REFUSED rather than
- * silently ignored.
+ * Admin/manager from `admin.staff`. The refund is recorded under the ceiling lock before it is sent,
+ * so the answer never says "refunded". `amount` is read only to refuse it on an item-derived request.
  */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireWriter(event, context);
@@ -41,7 +33,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     return json(200, await refundService.issue({
       orderId: event.pathParameters?.orderId ?? "", kind, reason, note, amount, lines,
       actorSub: guard.sub,
-      // ⚠ Said explicitly at every call site: which organisation is spending the money.
+      // Which organisation is spending the money.
       actorKind: "back_office",
     }), guard.scope);
   } catch (err) {

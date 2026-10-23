@@ -58,7 +58,7 @@ internal val HELP_QUESTIONS: List<Pair<String, String>> = listOf(
 )
 
 /**
- * Help (canvas `Help`). ⚠ The contacts are OPERATOR-SUPPLIED at build time and never sample content: a
+ * Help (canvas `Help`). The contacts are operator-supplied at build time and never sample content: a
  * number a driver would dial is a real-world identifier. One that has not been supplied says so.
  */
 @Composable

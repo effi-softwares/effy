@@ -30,10 +30,10 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * The customer analytics-consent affordance (050 US4, T031). A non-blocking bottom banner shown only
- * when consent is [ConsentState.UNKNOWN]; the shopper can use the app normally behind it.
+ * The customer analytics-consent affordance. A non-blocking bottom banner shown only
+ * when consent is [ConsentState.unknown]; the shopper can use the app normally behind it.
  *
- * ⚠ NO analytics SDK loads until [onAccept] (Principle VII). [onDecline] records the refusal so the
+ * NO analytics SDK loads until [onAccept] (Principle VII). [onDecline] records the refusal so the
  * banner never reappears and nothing is ever collected. Both persist via [ConsentStore] and re-render
  * the shell. Crash reporting is unaffected (Q1). Copy carries no claim beyond "anonymous".
  */
@@ -43,7 +43,7 @@ fun AnalyticsConsentBanner(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 087 (Patterns board): a floating card at the bottom with two EQUAL buttons — declining must be
+    // 087 (Patterns board): a floating card at the bottom with two equal buttons — declining must be
     // as easy as accepting (the old layout made "Allow" full-width and "No thanks" a small text link).
     // It slides up on arrival (fades under reduced motion).
     var shown by remember { mutableStateOf(false) }
@@ -76,7 +76,7 @@ fun AnalyticsConsentBanner(
 }
 
 /**
- * A persistent opt-in/out toggle for the Account screen (FR-023) — the customer's way BACK after a
+ * A persistent opt-in/out toggle for the Account screen — the customer's way back after a
  * decline, and the standing control. Reads/writes the same [ConsentState].
  */
 @Composable

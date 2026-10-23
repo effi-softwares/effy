@@ -11,8 +11,7 @@ import { composeSvg, actualOccupancy, withExplicitSize } from "../scripts/lib/co
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MARK = readFileSync(resolve(PKG, "src/logo.svg"), "utf8")
 
-// The measured bbox (rule V2). Used as a fixture here so the maths is testable without rendering;
-// the generator itself always MEASURES it rather than trusting this constant.
+// The measured bbox as a fixture, so the maths is testable without rendering; the generator always measures.
 const BBOX = { x: 61.8, y: 110, w: 376.5, h: 280 }
 
 describe("padding ↔ occupancy", () => {
@@ -29,7 +28,6 @@ describe("rule P1 — Android adaptive-icon safe zone", () => {
     assert.ok(Math.abs(ANDROID_SAFE_OCCUPANCY - 66 / 108) < 1e-12)
   })
 
-  // This is the single most common adaptive-icon defect and the direct subject of SC-004.
   for (const name of ["android-fg", "android-mono"]) {
     test(`${name} stays inside the safe zone`, () => {
       const occ = actualOccupancy(BBOX, COMPOSITIONS[name])
@@ -51,11 +49,8 @@ describe("rule P4 — composition happens in vector space", () => {
 
     // Square frame.
     assert.equal(vb[2], vb[3])
-    // The content is centred in it — this is what the authored 0 0 500 500 canvas does NOT give us.
-    //
-    // Tolerance is 1e-3 viewBox units, not zero: composeSvg deliberately rounds to 4 decimals so
-    // float-formatting differences cannot break byte-identical regeneration (SC-009). At the largest
-    // size we emit (1024 px from a ~505-unit viewBox) 1e-3 units is ~2e-3 of a pixel.
+    // The content is centred, which the authored 0 0 500 500 canvas does not give. Tolerance 1e-3
+    // viewBox units allows composeSvg's 4-decimal rounding (~2e-3 px at 1024 px).
     const TOL = 1e-3
     assert.ok(Math.abs(ox + side / 2 - (BBOX.x + BBOX.w / 2)) < TOL, "not horizontally centred")
     assert.ok(Math.abs(oy + side / 2 - (BBOX.y + BBOX.h / 2)) < TOL, "not vertically centred")
@@ -80,8 +75,7 @@ describe("rule P4 — composition happens in vector space", () => {
     assert.match(out, new RegExp(`<rect[^>]+fill="${COMPOSITIONS["ios-tinted"].background}"`))
   })
 
-  // A rounded corner is only for files a platform shows as they are. Anything the platform masks
-  // itself must be a full-bleed square, or the mask shows the corner's transparency.
+  // Only files shown as-is get a rounded corner; a masked one must be full-bleed.
   test("only the as-is files round their tile", () => {
     const rounded = Object.entries(COMPOSITIONS).filter(([, c]) => c.radius).map(([n]) => n)
     assert.deepEqual(rounded.sort(), ["android-legacy", "favicon", "web-icon"])
@@ -105,7 +99,7 @@ describe("rule V1 — explicit dimensions", () => {
   })
 
   test("raises loudly if the authored master stops declaring 100%", () => {
-    // A silent zero-size render is the failure mode this guard exists to prevent.
+    // A silent zero-size render.
     assert.throws(() => withExplicitSize('<svg width="500" height="500"></svg>', 1, 1), /rule V1/)
   })
 })

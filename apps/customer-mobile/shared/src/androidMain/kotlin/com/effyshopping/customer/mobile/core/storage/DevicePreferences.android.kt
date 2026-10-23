@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 /**
  * Android's store: `SharedPreferences`, in private mode.
  *
- * ⚠ The Context is injected once from `EffyApp.onCreate` rather than plumbed through every call, for
+ * The Context is injected once from `EffyApp.onCreate` rather than plumbed through every call, for
  * the same reason `AmplifyBootstrap` does it: the shared module's composables have no Context and
  * threading one down purely for a preference read would put an Android type in `commonMain`
  * signatures. `applicationContext` is used so this can never hold an Activity.

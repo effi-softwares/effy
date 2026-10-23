@@ -1,12 +1,6 @@
 /**
- * The refund side of an order, read for back-office (055).
- *
- * ⚠ READS ONLY, plus the one judgement that moves no money (dismissing a proposal). Issuing a
- * refund is NOT written here: the rules are `@effy/edge-shared/payments`, which this service's
- * refund routes call (070). Nothing in this file may grow a second definition of a refund.
- *
- * ⚠ READ IS OPEN TO ANY ACTIVE STAFF INCLUDING `csa` (FR-020). They are the ones being asked about it,
- * and until 053 they could not see a single order they were being asked about.
+ * The refund side of an order, read for back-office by any active staff. Issuing lives in
+ * `@effy/edge-shared/payments`; the only write here is dismissing a proposal, which moves no money.
  */
 
 import { query } from "@effy/edge-shared";
@@ -23,29 +17,14 @@ export interface RefundRow {
   actor_label: string | null;
   created_at: Date;
   settled_at: Date | null;
-  /** 074 — the card part (NULL on a pre-074 row = all of it) and the points that came back. */
+  /** The card part and the points that came back. */
   card_amount?: string | null;
   points_returned?: number;
 }
 
 /**
- * Every refund against an order, newest first.
- *
- * ⚠ `actor_label` resolves a NAME, never an email — an audit read is not a reason to put a staff
- * member's contact details on a screen. It is a LEFT JOIN because `actor_sub` is a snapshot rather
- * than a foreign key, and because a `system`-issued refund has no person behind it at all.
- *
- * ⚠ 057 — IT NOW JOINS BOTH STAFF TABLES, AND IT HAD TO. `actor_sub` is a Cognito subject from
- * WHICHEVER POOL the actor belongs to. This query only ever joined `admin.staff`, which is correct
- * for `back_office` and matches nothing for anyone else — so the moment a shop manager could issue a
- * refund (US5), every shop-issued refund would have come back with a null label and rendered in the
- * back-office audit trail as a bare em-dash. Not an error, not a warning: silently unattributable, in
- * the one table whose own comment says "an unattributable staff refund is the audit gap this table
- * exists to close."
- *
- * ⚠ The two joins are keyed on `actor_kind` as well as the sub, so they cannot both match. Without
- * that predicate a subject that somehow existed in both pools would make COALESCE pick by join order
- * rather than by fact.
+ * Newest first. `actor_label` is a name, never an email. `actor_sub` can be a back-office or shop
+ * subject, so both staff tables are joined, each keyed on `actor_kind` too, so only one can match.
  */
 export async function refunds(orderId: string): Promise<RefundRow[]> {
   const res = await query<RefundRow>(
@@ -77,7 +56,7 @@ export interface RefundLineRow {
 export async function refundLines(orderId: string): Promise<RefundLineRow[]> {
   const res = await query<RefundLineRow>(
     `SELECT rl.refund_id::text, rl.order_item_id::text,
-            -- 098 — the line as sold, with its variant.
+            -- The line as sold, with its variant.
             CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
             rl.quantity, rl.amount::text
        FROM public.refund_line rl
@@ -89,16 +68,7 @@ export async function refundLines(orderId: string): Promise<RefundLineRow[]> {
   return res.rows;
 }
 
-/**
- * ⚠ THE DERIVATION MOVED TO `@effy/edge-shared` (058), it did not change.
- *
- * The shop console became its second reader — Today surfaces a shop's own unresolved shortfalls as
- * "Refund waiting for approval". Two copies of this SQL would be two answers to "what does the
- * platform still owe this customer", and the copy that drifted would fail silently: it is a SELECT,
- * so nothing would error, the two screens would simply disagree. Re-exported here so this module's
- * callers are untouched, and edge-orders' suite passes unmodified — which is the proof the move
- * changed no behaviour (the same proof 028 used when it promoted the presign helper).
- */
+/** The derivation lives in `@effy/edge-shared`, shared with the shop's Today. */
 export type { ProposedRefundRow } from "@effy/edge-shared";
 export { proposedRefunds } from "@effy/edge-shared";
 
@@ -111,7 +81,6 @@ export interface RefundRequestRow {
   decided_at: Date | null;
 }
 
-/** The customer's own ask, in their own words (FR-005r2). */
 export async function refundRequest(orderId: string): Promise<RefundRequestRow | null> {
   const res = await query<RefundRequestRow>(
     `SELECT id::text AS request_id, message, status, outcome_note, created_at, decided_at
@@ -130,7 +99,7 @@ export interface RefundRequestItemRow {
   quantity: number;
 }
 
-/** What the customer named in their request. Empty means they asked about the order as a whole. */
+/** Empty means the whole order. */
 export async function refundRequestItems(requestId: string): Promise<RefundRequestItemRow[]> {
   const res = await query<RefundRequestItemRow>(
     `SELECT ri.order_item_id::text, CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, ri.quantity
@@ -144,18 +113,8 @@ export async function refundRequestItems(requestId: string): Promise<RefundReque
 }
 
 /**
- * Dismiss a proposed refund (FR-004b).
- *
- * ⚠ THE ONLY THING ABOUT A PROPOSAL THAT IS STORED. Everything else is derived on read, because a
- * stored proposal goes stale when a picker corrects a shortfall. A dismissal is the one fact the
- * derivation cannot hold: it is a judgement a person made, not a consequence of other rows.
- *
- * ⚠ NO MONEY MOVES HERE.
- * It records that a human looked and said no — and it records WHO and WHY, because the alternative is
- * a shortfall that silently stops being owed with nobody accountable for the decision.
- *
- * ⚠ Idempotent by primary key. Two operators clearing the same queue must not race into an error;
- * the FIRST dismissal stands, because it is the one that was actually made.
+ * The only stored fact about a proposal (everything else is derived): who said it is not owed, and
+ * why. Idempotent by primary key; the first dismissal stands.
  */
 export async function dismissProposal(input: {
   shopFulfillmentId: string;
@@ -173,12 +132,7 @@ export async function dismissProposal(input: {
   return { created: (res.rowCount ?? 0) > 0 };
 }
 
-/**
- * Which package holds a proposal, so the console need not know about fulfilments.
- *
- * ⚠ The dismissal is keyed on (package, line) rather than (order, line) because a shortfall belongs
- * to a package: the same product short at two shops is two separate judgements.
- */
+/** Keyed on (package, line): the same product short at two shops is two judgements. */
 export async function fulfillmentForProposal(
   orderId: string,
   orderItemId: string,

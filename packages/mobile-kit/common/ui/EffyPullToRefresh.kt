@@ -1,17 +1,5 @@
-// ⚠ PROMOTED from apps/customer-mobile into mobile-kit by 060 (Principle II).
-//
-// It was built by 027 and lived inside the customer app, so the driver app — which the design asks
-// to pull-to-refresh on four screens — inherited none of it. Moving it rather than copying it is the
-// point: a second implementation would drift, and the rules below are exactly the kind that get
-// forgotten in a re-write.
-//
-// ⚠ THE PROOF THIS MOVE CHANGED NOTHING is that customer-mobile's suite passes UNMODIFIED against
-// the count recorded in specs/060-driver-mobile-ui/BASELINE.md (316). An edited test would prove
-// nothing. Same evidence 028 used when it extracted the S3 presign helper.
-//
-// ⚠ This file is source-included (`kotlin.srcDir`) into ALL THREE mobile apps, which do NOT share a
-// toolchain — driver-mobile is on Compose Multiplatform 1.12.0 after 060's bump, customer-mobile and
-// shop-mobile are on 1.11.1. Keep it to APIs that exist in both.
+// Source-included (`kotlin.srcDir`) into both mobile apps, so keep to Compose APIs both apps' toolchains
+// have.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.Box
@@ -29,26 +17,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 /**
- * Pull to refresh — the app's ONE implementation of the gesture.
- *
- * ── Why this is shared rather than repeated ─────────────────────────────────────────────────────
- *
- * Six screens want it. Six copies would drift: one would forget to guard a second pull mid-flight,
- * another would leave the spinner running after a failure, and the elastic follow would exist on some
- * and not others. Here it is decided once.
- *
- * ── The three rules it enforces for every caller ────────────────────────────────────────────────
- *
- *  1. **The spinner tracks the actual work.** [onRefresh] is a `suspend` function and this composable owns
- *     the flag around it, so the indicator cannot lie about whether anything is still happening.
- *  2. **A second pull mid-flight is ignored**, not queued. It is the same request, not a new one.
- *  3. **A failure changes nothing but the spinner.** Callers are expected to keep their content on a failed
- *     refresh — "we could not check" must never read to a shopper as "there is nothing here".
- *
- * ⚠ The elastic follow is the `graphicsLayer` line below, and it is the whole of it. `distanceFraction`
- * already carries Material's own resistance curve — the further you pull the less it gives — so the
- * content follows the finger and rubber-bands back on release without any animation code, spring spec or
- * gesture handling of our own. One line, in one file, for every screen.
+ * Pull to refresh, the one implementation of the gesture. For every caller: the spinner tracks the
+ * actual work ([onRefresh] is `suspend` and this owns the flag), a second pull mid-flight is ignored,
+ * and a failure changes only the spinner, so "we could not check" never reads as "nothing here". The
+ * elastic follow is the `graphicsLayer` line below: `distanceFraction` already carries Material's
+ * resistance curve.
  *
  * @param onRefresh the work to do. Keep the caller's content on failure; do not clear it.
  */
@@ -87,8 +60,5 @@ fun EffyPullToRefresh(
     }
 }
 
-/**
- * How far the content follows the finger at a full pull. Deliberately smaller than the gesture's own
- * threshold: the content should hint that it is being dragged, not slide out from under the shopper.
- */
+/** How far the content follows at a full pull: less than the threshold, a hint rather than a slide. */
 private val ElasticPullDistance = 56.dp

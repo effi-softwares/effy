@@ -1,5 +1,4 @@
-// POST /fleet/v1/delivery-slots — add a same-day slot (069 US5, FR-036). Mutate = admin/manager.
-// ⚠ Live at checkout the moment it is saved.
+// Admin/manager. Live at checkout the moment it is saved.
 import { announceSlots } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -19,7 +18,7 @@ export const handler = async (
   if (denied(g)) return g.deny;
   try {
     const created = await createSlot(parseBody<DeliverySlotInput>(event.body), g.sub, scope);
-    await announceSlots(); // 071 — committed
+    await announceSlots();
     return json(201, created, scope);
   } catch (err) {
     return mapFleetError(err, scope);

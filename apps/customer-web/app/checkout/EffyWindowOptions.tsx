@@ -19,28 +19,13 @@ import { isAsap, windowOf, type DeliveryChoice } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 
 /**
- * When the order arrives, when Effy delivers it (078, 085): ONE choice for the whole order.
- *
- *   Same-day delivery   today's open windows, each with the time to order by;
- *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then
- *                       FIRST in the row, "Standard" with its usual timeframe (as soon as
- *                       possible); BELOW the row, the chosen day's optional "Need a specific time?".
- *
- * ⚠ EVERY WORD HERE IS `effyWindowsView`'S AND `DELIVERY_WINDOW_WORDS`', NOT THIS FILE'S. The
- * customer app renders the same function's Kotlin twin, pinned to the same fixture.
- *
- * ⚠ THIS COMPONENT SELECTS NOTHING. What starts chosen is the checkout's decision (085:
- * "Standard", once per destination); a time or a day is never chosen for the shopper.
- *
- * ⚠ ONE QUESTION, ONE ANSWER. Today's windows, the days and "Standard" are ONE radio group:
- * at most one is ever checked, by the platform's own rules. A time on a day is a refinement of that
- * day — a second, nested group shown only under the chosen day.
- *
- * ⚠ WHAT IS HIGHLIGHTED IS DERIVED FROM `chosen`. The only local state is which day the shopper
- * tapped when that day's room for orders without a time has run out: the choice is then still
- * empty, and the day's windows open by themselves.
- *
- * ⚠ Lists inside a section — no cards (Principle V).
+ * When an Effy-delivered order arrives: one choice for the whole order. "Same-day delivery" lists
+ * today's open windows with their order-by times; "Standard delivery" lists "Standard" (as soon as
+ * possible) and the next delivery days, a day being a complete choice, with an optional "Need a specific
+ * time?" under the chosen day. All one radio group; a time is a nested group under its day. The words are
+ * `effyWindowsView`'s and `DELIVERY_WINDOW_WORDS`' (the app's Kotlin twin uses the same fixture). The
+ * checkout decides the initial choice; the only local state is the day tapped when its untimed room is
+ * gone. Lists, not cards.
  */
 export function EffyWindowOptions({
   windows,
@@ -64,7 +49,7 @@ export function EffyWindowOptions({
 
   // A day the shopper tapped that cannot be bought without a time — nothing is chosen yet.
   const [pendingDay, setPendingDay] = useState<string | null>(null)
-  // "Need a specific time?" opened under a day that CAN be bought without one.
+  // "Need a specific time?" opened under a day that can be bought without one.
   const [timeOpen, setTimeOpen] = useState(false)
 
   const chosenWindow = windowOf(chosen)
@@ -234,13 +219,13 @@ export function EffyWindowOptions({
           <legend className="text-sm font-medium">{view.standardTitle}</legend>
           {/* "Standard" and the three days: one row from tablet width up (two a row on a phone). */}
           <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-            {/* "Standard" is the FIRST tile of the row, named the way most shops name it: the word
+            {/* "Standard" is the first tile of the row, named the way most shops name it: the word
                 and how long it usually takes. The days after it are the same question's other answers. */}
             {view.asap ? (
               <label className={optionClass(isAsap(chosen))}>
                 <input type="radio" name={whenName} value="asap" checked={isAsap(chosen)} onChange={pickAsap} className="sr-only" />
                 <span className="font-medium">{view.asap.title}</span>
-                {/* ⚠ The business's own estimate, as it wrote it — an estimate, never a day. */}
+                {/* The business's own estimate, as it wrote it — an estimate, never a day. */}
                 <span className="text-xs text-muted-foreground">{view.asap.estimate}</span>
               </label>
             ) : null}
@@ -260,7 +245,7 @@ export function EffyWindowOptions({
               )
             })}
           </div>
-          {/* What a chosen day means sits BELOW the row, so the row never moves: its "any time" line
+          {/* What a chosen day means sits below the row, so the row never moves: its "any time" line
               and its optional times. */}
           {activeDay ? dayDetail(activeDay) : null}
         </fieldset>

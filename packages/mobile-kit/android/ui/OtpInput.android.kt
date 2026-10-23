@@ -37,8 +37,7 @@ actual fun OtpInput(
     val shape = RoundedCornerShape(16.dp)
     BasicTextField(
         value = value,
-        // ⚠ `normalizeOtp` strips non-digits and NOTHING ELSE — it does not truncate. See the note
-        // on that function: truncating a longer paste to six is the defect this slice fixes.
+        // `normalizeOtp` strips non-digits and never truncates.
         onValueChange = { onValueChange(normalizeOtp(it)) },
         enabled = enabled,
         singleLine = true,
@@ -48,19 +47,14 @@ actual fun OtpInput(
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = modifier
             .fillMaxWidth()
-            // 56dp clears the constitution's fat-finger minimum of 48dp with room to spare.
-            // ⚠ Stated as a measured fact, not a comment claiming compliance — 033 shipped a 32dp
-            // control under a comment asserting it cleared the minimum.
+            // 56dp, above the 48dp touch minimum.
             .heightIn(min = 56.dp)
             .semantics {
                 contentDescription = "One-time code"
                 if (isError) error("Check the one-time code")
             },
         decorationBox = { inner ->
-            // ⚠ The cells branch does NOT call `inner()`, on purpose. `OtpCells` paints the glyphs
-            // itself from `value`; rendering the inner field as well would draw the real text on top
-            // of the cells. See the note on `OtpCells` for what that costs (caret, selection) and why
-            // it is the right trade here.
+            // The cells branch does not call `inner`: `OtpCells` paints the glyphs from `value` (see its note).
             if (variant == OtpVariant.Cells) {
                 OtpCells(value = value, isError = isError, enabled = enabled)
             } else {

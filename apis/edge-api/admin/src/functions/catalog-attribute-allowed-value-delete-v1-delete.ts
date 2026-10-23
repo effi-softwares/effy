@@ -1,4 +1,3 @@
-// DELETE /admin/v1/catalog/attributes/{id}/allowed-values/{valueId} — remove a value; in-use → 409 (FR-006). Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

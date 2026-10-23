@@ -24,18 +24,11 @@ const ACTION_LABEL: Record<Exclude<RequestableTransition, "unfulfillable">, stri
 };
 
 /**
- * The lifecycle actions in the order header (US3, moved into the header by 057 A3):
- * received → picking → ready_for_pickup, plus the ONE permitted reversal (FR-011d).
- *
- * Two rules are structural rather than left to operator discipline:
- *
- *  1. **Exactly one forward action is ever offered**, derived from the state the server just told us
- *     (`nextTransition`). A portion already marked ready shows no completing action at all, so a
- *     second operator cannot double-apply one (US3 scenario 2). `collected` is terminal and offers
- *     nothing (FR-011f).
- *
- *  2. **A 409 is a RELOAD, never a retry.** The mutation invalidates on failure, so the screen
- *     re-reads the portion and re-derives this very control from the truth. Nothing is re-submitted.
+ * The lifecycle actions in the order header: received → picking → ready_for_pickup, plus the one
+ * permitted reversal.
+ *  1. Exactly one forward action, derived from the server's state (`nextTransition`), so a second
+ *  operator cannot double-apply it. `collected` offers nothing.
+ *  2. A 409 is a reload, never a retry: the mutation invalidates and this control re-derives.
  */
 export function StateActions({ detail }: { detail: { id: string; status: FulfillmentStatus } }) {
   const transition = useTransitionFulfillment(detail.id);
@@ -43,7 +36,7 @@ export function StateActions({ detail }: { detail: { id: string; status: Fulfill
 
   return (
     <>
-      {/* The one permitted reversal — only while not collected (FR-011d/FR-011e). */}
+      {/* The one permitted reversal — only while not collected. */}
       {detail.status === "ready_for_pickup" ? (
         <Button
           variant="outline"
@@ -81,12 +74,12 @@ export function stateNote(status: FulfillmentStatus): string | null {
     case "delivered":
       return "Delivered to the customer.";
     case "unfulfillable":
-      // ⚠ It says what happens NEXT, because the shop has done all they can and the customer is
+      // It says what happens next, because the shop has done all they can and the customer is
       // still out of pocket. "Marked as unsuppliable" alone would leave them wondering whether anyone
       // is dealing with it.
       return "Effy has been told and will refund the customer.";
     case "withdrawn":
-      // ⚠ NOT the shop's doing, and the wording says so — this screen is where they are judged.
+      // Not the shop's doing, and the wording says so — this screen is where they are judged.
       return "The customer cancelled this order. Nothing more to do.";
     default:
       return null;
@@ -108,18 +101,18 @@ const REASONS = [
 ] as const;
 
 /**
- * Declaring orders unsuppliable (055 US6, FR-031) — the design's "Cancel order" / "Cancel selected
+ * Declaring orders unsuppliable — the design's "Cancel order" / "Cancel selected
  * orders?" sheet, for one order from the rail or for a selection from the bulk bar.
  *
- * ⚠ IT IS NOT A CANCELLATION, AND IT DOES NOT SAY IT IS. A shop cannot cancel a customer's order — a
- * two-shop order is one purchase and the other half is still being packed. What a shop CAN say is "we
+ * It is not a cancellation, and it does not say it is. A shop cannot cancel a customer's order — a
+ * two-shop order is one purchase and the other half is still being packed. What a shop can say is "we
  * cannot supply our part", and Effy decides the refund. So the design's two toggles ("Return items to
  * stock", "Refund the payment") are not offered: both are Effy's decision on the refund that follows.
  *
- * ⚠ A REASON IS REQUIRED, here and in the database — back-office decides a refund on the strength of
+ * A reason is required, here and in the database — back-office decides a refund on the strength of
  * it. "Other" asks for the words.
  *
- * ⚠ IN BULK IT NAMES EVERY ORDER IT WILL TOUCH and leaves out, and says it leaves out, any order
+ * In bulk it names every order it will touch and leaves out, and says it leaves out, any order
  * already past the point of no return. Sequential; a failure does not abort the run.
  */
 export function CantSupplyDialog({

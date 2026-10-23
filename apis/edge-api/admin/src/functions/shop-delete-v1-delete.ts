@@ -1,5 +1,4 @@
-// DELETE /admin/v1/shops/{shopId} — guarded removal (US6/FR-006). Mutate access. Dependent-free
-// only; a shop with users returns 409 (disable instead).
+// Only a shop with no users; otherwise 409 (disable instead).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

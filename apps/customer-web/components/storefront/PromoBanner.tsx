@@ -18,15 +18,10 @@ import {
 import { cn } from "@/lib/utils"
 
 /**
- * THE PROMO BANNER — the one drawn ground every promotion on the home page sits on: a flat promo
- * colour, a shared white decoration, and a few icon bubbles. White type goes on top as real text.
- *
- * ⚠ The six colours are for promo banners ONLY and live as `--promo-*` in `app/globals.css`. They are
- * read through `PROMO_COLORS` here and nowhere else — never as a hex in a component.
- *
- * ⚠ THE ICONS AND COLOURS FOLLOW THE SLOT, NOT THE PROMOTION. A promotion has no aisle (084 research
- * D7) and carries no colour, so nothing in the data can choose them; the themes below are the
- * reference's, handed out by position.
+ * The promo banner: the drawn ground every home-page promotion sits on (a flat promo colour, a white
+ * decoration, icon bubbles), with white type as real text. The colours are `--promo-*` in
+ * `app/globals.css`, read through `PROMO_COLORS` only. Icons and colours follow the slot, not the
+ * promotion (which has neither).
  */
 export type PromoColor = "green" | "blue" | "purple" | "orange" | "rose" | "red"
 
@@ -43,7 +38,7 @@ export interface PromoBubble {
   icon: LucideIcon
   /** The bubble's diameter in px; its icon is drawn at half of it. */
   size: number
-  /** The white fill's alpha, .12 – .22. */
+  /** The white fill's alpha,.12 –.22. */
   alpha: number
   /** Where it sits in its positioned ancestor. */
   at: Pick<React.CSSProperties, "left" | "right" | "top" | "bottom">
@@ -153,7 +148,7 @@ export function PromoBubbles({ bubbles }: { bubbles: PromoBubble[] }) {
 /**
  * A promo-coloured ground with its decoration behind whatever is put in it.
  *
- * ⚠ `isolate` + a `-z-10` backdrop: the decoration paints above the colour and BELOW the content, so
+ * `isolate` + a `-z-10` backdrop: the decoration paints above the colour and below the content, so
  * the content needs no positioning of its own and a white button is never drawn under the ring.
  *
  * `imageUrl` swaps the drawn decoration and bubbles for real artwork at the same size (`object-cover`).

@@ -22,7 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** 088 — the "Return to hub" step reaches the app as a field, and Today acts on it. */
+/** The "Return to hub" step reaches the app as a field, and Today acts on it. */
 class ParcelsToReturnTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 

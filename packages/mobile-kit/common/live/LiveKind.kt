@@ -1,14 +1,9 @@
 package com.effyshopping.mobile.kit.live
 
 /**
- * Every kind of thing a live update may name (071). The list is closed.
- *
- * ⚠ A MIRROR of `LIVE_KINDS` in `packages/shared-types/src/live.ts`, which is the source of truth.
- * `packages/shared-types/src/live.test.ts` reads this file and fails if the two lists differ —
- * same names, same order. Add a kind there first.
- *
- * ⚠ An update carries ONLY its kind. No id, no status, no amount: the app re-reads through the
- * routes it already uses. That is what makes a duplicate or late update harmless.
+ * Every kind of thing a live update may name: a closed list mirroring `LIVE_KINDS` in
+ * `packages/shared-types/src/live.ts` (its test fails if the two differ). An update carries only its
+ * kind, so a duplicate or late one is harmless.
  */
 enum class LiveKind(val wire: String) {
     ORDERS("orders"),
@@ -19,20 +14,20 @@ enum class LiveKind(val wire: String) {
     SLOTS("slots"),
     REVIEW("review"),
 
-    /** 074 — the customer's points balance changed. */
+    /** The customer's points balance changed. */
     POINTS("points"),
 
-    /** 076 — where Effy delivers changed. Sent to back-office only; no mobile app subscribes to it. */
+    /** Where Effy delivers changed. Back-office only. */
     COVERAGE("coverage"),
 
-    /** 077 — a delivery fee plan changed. Sent to back-office only; no mobile app subscribes to it. */
+    /** A delivery fee plan changed. Back-office only. */
     PRICING("pricing"),
 
-    /** 094 — a promotion or display group changed. Back-office (ops) only; no app subscribes to it. */
+    /** A promotion or display group changed. Back-office only. */
     PROMOTIONS("promotions");
 
     companion object {
-        /** `null` for a kind this build has never heard of — a newer backend, not an error. */
+        /** `null` for a kind this build has never heard of (a newer backend). */
         fun fromWire(wire: String?): LiveKind? = entries.firstOrNull { it.wire == wire }
     }
 }

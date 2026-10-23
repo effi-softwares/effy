@@ -29,13 +29,13 @@ import {
 } from "./variants";
 
 /**
- * Sizes and prices (098) — the options a product varies by, and one row per variant it is sold as.
+ * Sizes and prices — the options a product varies by, and one row per variant it is sold as.
  *
- * ⚠ A TABLE, NOT CARDS (constitution Principle V). Fifty variants are fifty rows an operator scans
+ * A table, not cards (constitution Principle V). Fifty variants are fifty rows an operator scans
  * down a column at a time — every price, then every stock code — which a stack of cards makes
  * impossible.
  *
- * A product with no options is edited as ONE row with no option columns: "a loaf of bread" is the
+ * A product with no options is edited as one row with no option columns: "a loaf of bread" is the
  * common case and must not look like a spreadsheet.
  */
 export interface VariantEditorProps {
@@ -52,7 +52,7 @@ export interface VariantEditorProps {
 const NONE = "__none__";
 
 export function VariantEditor({ value, onChange, errors, showErrors, media, disabled }: VariantEditorProps) {
-  // A cell's refusal shows once the operator has LEFT that cell, or once they try to continue
+  // A cell's refusal shows once the operator has left that cell, or once they try to continue
   // (`showErrors`) — never on rows they have not reached yet.
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set());
   const leave = (path: string) => () => setLeft((s) => (s.has(path) ? s : new Set(s).add(path)));
@@ -75,7 +75,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
 
   return (
     <div className="grid gap-6">
-      {/* ── Options ───────────────────────────────────────────────────────────────────────────── */}
+      {/* Options */}
       <div className="grid gap-3">
         <div className="grid gap-1">
           <MicroLabel>Options</MicroLabel>
@@ -114,7 +114,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         ) : null}
       </div>
 
-      {/* ── Unit pricing ─────────────────────────────────────────────────────────────────────── */}
+      {/* Unit pricing */}
       <div className="grid max-w-[360px] gap-2">
         <Label htmlFor="v-basis">Unit pricing</Label>
         <Select
@@ -140,7 +140,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         {err("unitBasis") ? <p className="text-destructive text-xs">{err("unitBasis")}</p> : null}
       </div>
 
-      {/* ── Variants ─────────────────────────────────────────────────────────────────────────── */}
+      {/* Variants */}
       <div className="grid gap-2">
         <MicroLabel>{hasOptions ? `Variants (${value.variants.length} of up to ${VARIANT_LIMITS.variants})` : "Price and codes"}</MicroLabel>
         {!hasOptions && value.variants[0]?.code ? (

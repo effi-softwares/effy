@@ -1,10 +1,5 @@
-// DRIFT CHECK — fail when a committed asset no longer matches the authored mark (024 SC-008).
-//
-// Rebuilds every asset IN MEMORY and compares sha256 per file. Hashing, not mtime comparison: that
-// stays reliable in a dirty development worktree and does not depend on git staging state — the same
-// reasoning recorded in design-system/scripts/gen-compose-theme.mjs.
-//
-// MUST NOT modify the working tree. A check that repairs what it finds is not a check.
+// Drift check: fails when a committed asset no longer matches the authored mark. Rebuilds every asset
+// in memory and compares sha256 per file. Never modifies the working tree.
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
 import { resolve, join, relative } from "node:path"
@@ -37,23 +32,20 @@ async function main() {
     if (sha256(readFileSync(dest)) !== sha256(f.bytes)) stale.push(f)
   }
 
-  // Orphans: a file living under a managed directory that no target declares. This is how a
-  // hand-edited or left-behind asset gets caught — without it, deleting a target would silently
-  // strand its output forever.
+  // Orphans: a file under a managed directory that no target declares.
   const declared = new Set(files.map((f) => f.path))
   const orphans = []
   for (const dir of MANAGED_DIRS) {
     for (const abs of walk(resolve(REPO, dir))) {
       const rel = relative(REPO, abs).split("\\").join("/")
       const base = rel.split("/").pop()
-      // ⚠ Content directories are skipped by PATH, not by filename — see MANAGED_SUBDIR_EXEMPT.
+      // Content directories are skipped by path (MANAGED_SUBDIR_EXEMPT).
       if (MANAGED_SUBDIR_EXEMPT.some((d) => rel.startsWith(`${d}/`))) continue
       if (!declared.has(rel) && !MANAGED_DIR_EXEMPT.includes(base)) orphans.push(rel)
     }
   }
 
-  // The manifest itself must describe THIS run (rule M2) — a manifest describing a previous run is
-  // worse than none, because the check would then pass on stale truth.
+  // The manifest must describe this run, or the check would pass on stale truth.
   const expectedManifest = buildManifest(mark, files)
   const manifestStale =
     !existsSync(MANIFEST) || readFileSync(MANIFEST, "utf8") !== expectedManifest
@@ -68,7 +60,7 @@ async function main() {
   const report = (label, list) => {
     if (!list.length) return
     console.error(`  ${label}:`)
-    // Grouped by surface — SC-008 requires naming WHICH surface is stale, not merely that something is.
+    // Grouped by surface, so the failure names which surface is stale.
     const bySurface = new Map()
     for (const f of list) {
       const s = typeof f === "string" ? f.split("/")[1] : f.surface

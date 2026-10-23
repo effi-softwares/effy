@@ -1,7 +1,4 @@
-// 096 — the customer's order documents (spec US7, US8): the delivery note, and the tax invoice.
-//
-// ⚠ OWNER ONLY, AND A REFUSAL NEVER SAYS WHY: an order that does not exist and one that is someone
-// else's are the same 404 (as for the order itself, 070), so an order id is never confirmed.
+// Owner only: a missing order and someone else's are the same 404.
 import { emitMetric, metricNamespace, pooled, withTransaction } from "@effy/edge-shared";
 import {
   BuyerIdentityRequired, InvoiceNotAvailableForOrder, InvoicesUnavailable,
@@ -44,9 +41,8 @@ export async function deliveryNotePdf(customerId: string, orderId: string): Prom
 }
 
 /**
- * 096 US8 — the order's tax invoice and adjustment notes, issued on this first request (FR-080).
- * ⚠ While Effy's tax details are unset, nothing is issued: the customer is told it is not available
- * yet, and the platform is alerted (`TaxInvoiceRequestedWhileDisabled` → an alarm).
+ * Issued on first request. While Effy's tax details are unset nothing is issued, and the
+ * `TaxInvoiceRequestedWhileDisabled` metric alarms.
  */
 export async function taxDocuments(customerId: string, orderId: string): Promise<OrderTaxDocumentsDTO> {
   if (!(await owns(customerId, orderId))) throw new DocumentNotFound();
@@ -63,7 +59,6 @@ export async function taxDocuments(customerId: string, orderId: string): Promise
   }
 }
 
-/** One of the order's documents as a PDF, by its number. */
 export async function taxDocumentPdf(customerId: string, orderId: string, number: string): Promise<{ bytes: Uint8Array; doc: TaxDocumentDTO }> {
   const all = await taxDocuments(customerId, orderId);
   const doc = [all.invoice, ...all.adjustments].find((d) => d?.number === number);
@@ -71,10 +66,7 @@ export async function taxDocumentPdf(customerId: string, orderId: string, number
   return { bytes: await renderTaxDocumentPdf(doc), doc };
 }
 
-/**
- * 096 FR-085 — the customer's own business name and ABN, printed on this order's invoice. Set before
- * the invoice is issued; an issued invoice never changes, so a later change is refused.
- */
+/** Refused once the invoice is issued: an issued invoice never changes. */
 export async function setBusinessIdentity(customerId: string, orderId: string, body: Record<string, unknown>): Promise<void> {
   if (!(await owns(customerId, orderId))) throw new DocumentNotFound();
   const businessName = typeof body.businessName === "string" && body.businessName.trim() !== "" ? body.businessName.trim() : null;

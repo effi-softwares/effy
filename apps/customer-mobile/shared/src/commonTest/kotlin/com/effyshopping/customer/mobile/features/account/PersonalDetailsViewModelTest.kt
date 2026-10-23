@@ -24,17 +24,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * 034 T024 / T030c — the personal-details ViewModel.
- *
- * ⚠ These pin the two behaviours a refactor is most likely to "tidy" away: that every field is sent
- * on every save, and that a FAILED save does not close the editor. Both are invisible in the UI until
- * someone loses work.
- */
+/** The personal-details ViewModel: every field is sent on every save, and a failed save does not close the editor. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PersonalDetailsViewModelTest {
 
-    // ⚠ `save` runs on `viewModelScope`, which dispatches to Main. Without a test Main the coroutine
+    // `save` runs on `viewModelScope`, which dispatches to Main. Without a test Main the coroutine
     // never runs and every assertion below reads state the ViewModel has not reached yet — the tests
     // would pass or fail for reasons unrelated to what they claim to check.
     @BeforeTest fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -52,9 +46,9 @@ class PersonalDetailsViewModelTest {
         createdAtIso = "2026-07-14T00:00:00Z",
     )
 
-    /** Three lines, because the ViewModel depends on the SEAM rather than on SessionManager. */
+    /** Three lines, because the ViewModel depends on the seam rather than on SessionManager. */
     private class FakeSession : SessionWriter {
-        // ⚠ NOT named `authenticated` — a `var authenticated` generates a JVM `setAuthenticated`
+        // Not named `authenticated` — a `var authenticated` generates a JVM `setAuthenticated`
         // setter that clashes with the interface method of the same signature.
         var lastAuthenticated: Customer? = null
         var wasBarred = false
@@ -97,8 +91,8 @@ class PersonalDetailsViewModelTest {
     }
 
     /**
-     * ⚠ EVERY FIELD TRAVELS ON EVERY SAVE. The backend's PATCH writes the columns it names, so
-     * omitting the untouched ones would CLEAR them — editing a first name would silently wipe the
+     * Every field travels on every save. The backend's PATCH writes the columns it names, so
+     * omitting the untouched ones would clear them — editing a first name would silently wipe the
      * phone.
      */
     @Test
@@ -113,7 +107,7 @@ class PersonalDetailsViewModelTest {
         assertEquals("0400 000 000", repo.lastPhone)
     }
 
-    /** ⚠ `""` clears; a null would be dropped by `explicitNulls = false` and the clear would no-op. */
+    /** `""` clears; a null would be dropped by `explicitNulls = false` and the clear would no-op. */
     @Test
     fun `clearing a phone sends an empty string rather than null`() {
         val repo = FakeRepo()
@@ -126,9 +120,9 @@ class PersonalDetailsViewModelTest {
     }
 
     /**
-     * ⚠ T030c — THE ONE THAT PROTECTS TYPED WORK.
+     * The one that protects typed work.
      *
-     * A failed save must NOT signal "done". An expired session is the tempting case to close on and
+     * A failed save must not signal "done". An expired session is the tempting case to close on and
      * bounce to sign-in, which would discard what the shopper typed on the way there.
      */
     @Test
@@ -167,7 +161,7 @@ class PersonalDetailsViewModelTest {
     }
 
     /**
-     * ⚠ T024 — the split's whole point. `AccountViewModel` needed `clearTransient()` on every route
+     * The split's whole point. `AccountViewModel` needed `clearTransient` on every route
      * change because one class carried the errors of five screens. This one's error is its own.
      */
     @Test

@@ -3,32 +3,23 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the delivery console (047) — the 035/038 guard. Reads the ACTUAL
- * `serverless.yml` and asserts every delivery route is declared AND behind the back-office authorizer.
- * A route added to the code but forgotten here (or wired to the wrong pool) would pass every unit test
- * and only fail live; this catches it at build time.
- */
+/** Every delivery route is declared in the real serverless.yml behind the back-office authorizer. */
 
 const here = dirname(fileURLToPath(import.meta.url))
 const serviceRoot = resolve(here, "../..")
 const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
 
-// Every delivery function → its expected path, all under the back-office authorizer.
 const DELIVERY_FUNCTIONS: Record<string, string> = {
-  // 077 — fee plans v2.
   deliveryPlansListV1: "/admin/v1/delivery/plans",
   deliveryPlansCreateV1: "/admin/v1/delivery/plans",
   deliveryPlanUpdateV1: "/admin/v1/delivery/plans/{planId}",
   deliveryPlanActivateV1: "/admin/v1/delivery/plans/{planId}/activate",
   deliveryPlansSimulateV1: "/admin/v1/delivery/plans/simulate",
-  // 047 — kept.
   deliverySettingsGetV1: "/admin/v1/delivery/settings",
   deliverySettingsPutV1: "/admin/v1/delivery/settings",
   deliveryCollectionRunsListV1: "/admin/v1/delivery/collection-runs",
   deliveryCollectionRunsCreateV1: "/admin/v1/delivery/collection-runs",
   deliveryCollectionRunDeleteV1: "/admin/v1/delivery/collection-runs/{runId}",
-  // 076 — coverage: the list, its groups, courier reach.
   deliveryCoverageListV1: "/admin/v1/delivery/coverage",
   deliveryCoveragePlacesV1: "/admin/v1/delivery/coverage/places",
   deliveryCoverageCheckV1: "/admin/v1/delivery/coverage/check",
@@ -43,11 +34,7 @@ const DELIVERY_FUNCTIONS: Record<string, string> = {
   deliveryCoverageCourierExclusionRemoveV1: "/admin/v1/delivery/coverage/courier/exclusions/{postcode}",
 }
 
-/**
- * ⚠ 076 REMOVED THESE, AND THEY MUST STAY REMOVED. Tiers, same-day zones and per-shop same-day
- * exceptions left the console (FR-030): a route that came back would be a control nobody can see,
- * writing settings the spec says are frozen.
- */
+/** Removed routes must stay removed. */
 const REMOVED_BY_076 = [
   "deliveryRingsCreateV1", "deliveryZonesListV1", "deliveryZonesCreateV1", "deliveryZonesPatchV1",
   "deliveryPostcodeCheckV1", "deliveryZonePostcodeAddV1", "deliveryZonePostcodeRemoveV1", "deliveryZoneSuggestRingV1",

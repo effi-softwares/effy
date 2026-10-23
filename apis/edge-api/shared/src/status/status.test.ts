@@ -28,7 +28,6 @@ describe("packageStatus — the nine words (073, S1)", () => {
     expect(at({ shopStatus }).status).toBe(status);
   });
 
-  // ⚠ THE DEFECT. This read "At hub" (standard) and "Out for delivery" (same-day) until 073.
   it("collected, not yet checked in → With driver, naming them", () => {
     expect(at({ shopStatus: "collected", collectionState: "picked_up", collectionDriver: "Ada" })).toEqual({
       status: "with_driver",
@@ -69,7 +68,7 @@ describe("packageStatus — the nine words (073, S1)", () => {
     expect(v.detail).toBe("Delivery attempt failed — nobody home");
   });
 
-  // 088 — still in the van after a failed drop: Problem, naming who has it (quickstart P5).
+  // Still in the van after a failed drop: Problem, naming who has it.
   it("088 — failed and not yet returned → Problem, with the driver named", () => {
     const v = at({ shopStatus: "collected", checkedInAtHub: true, deliveryState: "assigned", deliveryStopStatus: "skipped", deliveryDriver: "Ada", failedReason: "nobody_home" });
     expect(v).toMatchObject({ status: "problem", driverName: "Ada" });
@@ -94,7 +93,7 @@ describe("packageStatus — the nine words (073, S1)", () => {
     expect(at({ shopStatus: "withdrawn" }).status).toBe("cancelled");
   });
 
-  // ⚠ The furthest fact wins, so a known later step is never hidden behind a missing earlier one.
+  // The furthest fact wins.
   it.each<[Partial<PackageFacts>, string]>([
     [{ shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true }, "at_hub"],
     [{ shopStatus: "collected", checkedInAtHub: true, handedToCarrier: true }, "with_carrier"],
@@ -128,13 +127,8 @@ describe("reasonSeverity / reasonWords (073)", () => {
 });
 
 /**
- * 079 P15 — a courier order keeps the same nine words, and its journey never borrows an Effy one.
- *
- * ⚠ NOTHING IN `packageStatus` KNOWS WHO DELIVERS, and nothing needs to: the words follow what
- * HAPPENED. A courier package is collected and checked in like any other, is handed to a carrier
- * (which is what makes it "With carrier"), and is never put on a delivery round (which is the only
- * thing that makes a package "Out for delivery"). These rows hold that as a fact about the function,
- * so a later "tidy-up" that derives a word from the delivery type has something to fail.
+ * A courier order keeps the same nine words, and never borrows an Effy one. `packageStatus` does not
+ * know who delivers: the words follow what happened.
  */
 describe("packageStatus — a courier order's journey (079)", () => {
   const journey: [string, Partial<PackageFacts>, string][] = [
@@ -171,7 +165,7 @@ describe("packageStatus — a courier order's journey (079)", () => {
   });
 });
 
-/** 080 — a courier's problem is a Problem until someone resolves it; the furthest fact still wins. */
+/** A courier problem is a Problem until resolved; the furthest fact still wins. */
 describe("packageStatus — a courier problem (080)", () => {
   const handed = { shopStatus: "collected", checkedInAtHub: true, handedToCarrier: true } as const;
 
@@ -193,7 +187,7 @@ describe("packageStatus — a courier problem (080)", () => {
   });
 });
 
-/** 096 — a bag declared missing is a Problem to staff; delivered still wins. */
+/** A bag declared missing is a Problem to staff; delivered still wins. */
 describe("packageStatus — a held bag (096)", () => {
   const atHub = { shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true } as const;
 

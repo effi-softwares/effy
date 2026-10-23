@@ -1,4 +1,3 @@
-// GET /admin/v1/promotions/products?q= — products a promotion can target, for the editor (094 US3).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

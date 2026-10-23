@@ -1,25 +1,15 @@
-// The rollup job: drain the dirty queue, recompute those buckets FROM SOURCE (058, US3).
-//
-// ⚠ RECOMPUTED, NEVER INCREMENTED (research R5). An incremental `+=` is exact only if every change
-// arrives exactly once and in order. Effy's corrections do neither: 055 is explicit that a submitted
-// refund can be rejected by the bank up to thirty days later, so a figure can move BACKWARDS long
-// after the fact. Recomputing a bucket from the rows that define it is idempotent — running it
-// twice, late, or after a reversal gives the same answer — so there is no drift to reconcile and no
-// "how did this get out of step?" to debug at quarter end.
-//
-// ⚠ THE DIRTY TABLE IS THE QUEUE, so there is no dead-letter queue: a run that fails leaves its rows
-// exactly where they were and the next minute picks them up. What is monitored is the AGE of the
-// oldest row — "how far behind are the figures", which is the only version of the question anyone
-// actually asks.
+// The rollup job: drain the dirty queue and recompute those buckets from source, never increment (a
+// refund can be rejected thirty days later, so figures move backwards). Recomputing is idempotent. The
+// dirty table is the queue; what is monitored is the age of its oldest row.
 import { query, withTransaction } from "@effy/edge-shared";
 
-/** How many buckets one run claims. Bounded so a backlog drains steadily instead of in one long lock. */
+/** Bounded so a backlog drains steadily instead of in one long lock. */
 export const CLAIM_LIMIT = 500;
 
 export interface RollupResult {
   buckets: number;
   shops: number;
-  /** Age of the oldest claimed mark, in ms — the backlog-age alarm's input. */
+  /** The backlog-age alarm's input. */
   oldestBacklogMs: number;
 }
 
@@ -30,13 +20,7 @@ interface DirtyRow {
   timezone: string;
 }
 
-/**
- * Claim work.
- *
- * ⚠ `FOR UPDATE SKIP LOCKED` so two concurrent runs (a slow one still finishing when the next minute
- * fires) never fight over the same bucket or block each other. Recomputation is idempotent, so the
- * worst case of an overlap is wasted work, never a wrong number.
- */
+/** `FOR UPDATE SKIP LOCKED`, so overlapping runs never fight; the worst case is wasted work. */
 const CLAIM = `
 SELECT d.shop_id::text, d.bucket_start, d.marked_at, s.timezone
   FROM public.insights_dirty d
@@ -47,26 +31,13 @@ SELECT d.shop_id::text, d.bucket_start, d.marked_at, s.timezone
 `;
 
 /**
- * Recompute every claimed bucket for ONE shop, in one statement.
- *
- * Each column is derived from the rows that define it, for exactly the hours named in `$2`:
- *
- *   • gross_goods / orders / units — this shop's lines on orders PAID in the bucket. `canceled`
- *     counts as paid here, because a cancelled order WAS paid: its money is returned through a
- *     refund row, which the refunds column picks up on the day it was issued (FR-032).
- *   • refunds — attributed to this shop and issued in the bucket. Two shapes:
- *       – an ITEM refund names lines, so the shop's share is the sum of ITS lines' amounts.
- *       – a CANCELLATION names no lines at all (it covers the whole order, delivery included), so
- *         the shop's share is its goods on that order, less anything already refunded from them.
- *         Floored at zero: a goodwill gesture larger than the goods must not read as negative sales.
- *       – goodwill and external refunds are NOT attributed to any shop. They have no lines, and they
- *         are Effy's gesture rather than this shop's goods; charging them to a shop's revenue would
- *         make a figure the shop cannot explain from anything it did.
- *     Only `submitted` and `succeeded` count — money on its way or gone. `submitting` may never
- *     leave, and `failed`/`refused` never did (055's state machine, read the way it was designed).
- *   • cant_supply / cancelled — read from `fulfillment_event`, which is append-only, rather than
- *     from `shop_fulfillment.status`, which the next transition overwrites. A rollup must be
- *     recomputable from facts that do not move.
+ * Recomputes every claimed bucket for one shop in one statement, for the hours in `$2`:
+ *  • gross_goods / orders / units: this shop's lines on orders paid in the bucket (`canceled` counts:
+ *  it was paid, and its money returns as a refund).
+ *  • refunds: issued in the bucket and attributed to this shop. An item refund is the sum of its
+ *  lines; a cancellation is the shop's goods on the order less what was already refunded, floored at
+ *  zero. Goodwill and external refunds are never a shop's. Only `submitted` and `succeeded` count.
+ *  • cant_supply / cancelled: from the append-only `fulfillment_event`, not the overwritten status.
  */
 const RECOMPUTE = `
 INSERT INTO public.shop_sales_hour AS t (
@@ -85,9 +56,8 @@ SELECT $1::uuid,
        now()
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
-    -- ⚠ 067: a shop's sales are what the SHOP is owed — its own prices — not what customers paid.
-    -- NULL shop columns (a line written before 067, or by an older backend) mean "the same".
-    SELECT SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)) AS gross,
+    -- ⚠ a shop's sales are what the SHOP is owed — its own prices — not what customers paid.
+    SELECT SUM(oi.shop_line_subtotal_amount) AS gross,
            SUM(oi.quantity)::int        AS units,
            COUNT(DISTINCT sf.id)::int   AS orders
       FROM public."order" o
@@ -102,11 +72,11 @@ SELECT $1::uuid,
         SELECT r.order_id,
                CASE WHEN r.kind = 'cancellation'
                     THEN GREATEST(0, (
-                           SELECT COALESCE(SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)), 0)
+                           SELECT COALESCE(SUM(oi.shop_line_subtotal_amount), 0)
                              FROM public.order_item oi
                             WHERE oi.order_id = r.order_id AND oi.shop_id = $1::uuid
                          ) - (
-                           -- 067: what was already refunded from this shop's goods, AT THE SHOP'S
+                           -- What was already refunded from this shop's goods, AT THE SHOP'S
                            -- PRICE. refund_line.amount is customer money (what went back to the
                            -- card); the shop's share of it is the units times its own unit price.
                            SELECT COALESCE(SUM(rl2.quantity * COALESCE(oi2.shop_unit_price_amount, oi2.unit_price_amount)), 0)
@@ -158,17 +128,8 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
 `;
 
 /**
- * Wipe the product rows for the local DATES the recomputed hours fall in.
- *
- * ⚠ A SEPARATE STATEMENT, AND IT HAS TO BE. The first draft did the delete in a data-modifying CTE
- * on the INSERT below — which reads correctly and is wrong: PostgreSQL runs the sub-statements of a
- * WITH concurrently, with the same snapshot, so the INSERT's unique index still sees the rows the
- * DELETE is removing and the whole statement dies on `shop_product_sales_day_pkey`. It only shows up
- * on the SECOND recompute of a day — which is every correction, every reconciliation and every
- * reversed refund — so the container tests are the only thing that could have caught it.
- *
- * The wipe is what lets a product DROP OUT of a day (its only order refunded away, or reassigned):
- * an upsert alone would leave yesterday's row standing with nothing left to justify it.
+ * Wipes the product rows for the local dates being recomputed, so a product can drop out of a day. A
+ * separate statement: as a CTE on the INSERT, both share a snapshot and the insert hits the pkey.
  */
 const WIPE_PRODUCTS = `
 DELETE FROM public.shop_product_sales_day p
@@ -179,7 +140,7 @@ DELETE FROM public.shop_product_sales_day p
  WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
 `;
 
-/** Product-level sales for the local DATES the recomputed hours fall in. */
+/** For the local dates the recomputed hours fall in. */
 const RECOMPUTE_PRODUCTS = `
 WITH days AS (
   SELECT DISTINCT (b.bucket_start AT TIME ZONE $3)::date AS local_date
@@ -190,7 +151,7 @@ SELECT $1::uuid,
        (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date,
        oi.product_id,
        SUM(oi.quantity)::int,
-       SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount))
+       SUM(oi.shop_line_subtotal_amount)
   FROM public."order" o
   JOIN public.order_item oi ON oi.order_id = o.id AND oi.shop_id = $1::uuid
  WHERE o.status IN ('paid', 'canceled')
@@ -210,13 +171,7 @@ VALUES ($1::uuid, $2, now())
 ON CONFLICT (shop_id) DO UPDATE SET timezone = EXCLUDED.timezone, computed_at = EXCLUDED.computed_at
 `;
 
-/**
- * One run: claim, recompute, clear, advance the watermark.
- *
- * ⚠ ALL FOUR IN ONE TRANSACTION, per run. The clear must not commit without the recompute, or a
- * correction is dropped silently — the figure stays wrong and the queue says there is nothing to do,
- * which is the worst of both.
- */
+/** Claim, recompute, clear and advance the watermark in one transaction, or a correction could be lost. */
 export async function runRollup(limit = CLAIM_LIMIT): Promise<RollupResult> {
   return withTransaction(async (tx) => {
     const claimed = await tx.query<DirtyRow>(CLAIM, [limit]);
@@ -249,13 +204,7 @@ export async function runRollup(limit = CLAIM_LIMIT): Promise<RollupResult> {
   });
 }
 
-/**
- * Keep the CURRENT hour fresh for every shop that has had activity in it.
- *
- * ⚠ Without this, a shop whose last order was 40 minutes ago shows figures stamped 40 minutes old
- * and an operator cannot tell "nothing has sold since" from "the figures have stopped updating".
- * The dirty marks cover changes; this covers the passage of time.
- */
+/** Keeps the current hour fresh, so "nothing sold since" is distinguishable from "figures stopped". */
 export async function markCurrentHours(): Promise<number> {
   const res = await query(
     `INSERT INTO public.insights_dirty (shop_id, bucket_start)

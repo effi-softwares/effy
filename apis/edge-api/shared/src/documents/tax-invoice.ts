@@ -1,14 +1,6 @@
-// 096 US8 — tax invoices and adjustment notes (FR-080–FR-085, research R15).
-//
-// ⚠ ISSUED ONCE, NEVER ALTERED. The invoice is created on the first request for a paid order, from a
-// frozen `snapshot` of exactly what the PDF prints, and that snapshot is answered for ever after: a
-// product's GST status changing later, or Effy's details changing, alters no issued document. An
-// adjustment note is issued per settled refund, the same way. `tax_document` is append-only
-// (`labels.guard.test.ts`).
-//
-// ⚠ NOTHING IS ISSUED WHILE THE OPERATOR'S DETAILS ARE UNSET. The legal name and ABN are real-world
-// identifiers the operator enters; with invoices off, every request is refused (`InvoicesUnavailable`)
-// and the platform is alerted — a placeholder is never printed.
+// Tax invoices and adjustment notes, issued once from a frozen `snapshot` of what the PDF prints and
+// never altered (`tax_document` is append-only). Nothing is issued while the operator's legal name and
+// ABN are unset: refused (`InvoicesUnavailable`) and alerted, never a placeholder.
 import type { GstStatus, TaxDocumentDTO } from "@effy/shared-types";
 
 import { adjustmentGst, invoiceTotals, money } from "./gst";
@@ -17,12 +9,11 @@ import { A4, MARGIN, ensureRoom, finish, newDocument, rule, text, wordmark, wrap
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
 
 export class InvoicesUnavailable extends Error {}
-/** An order paid before 096: its lines carry no GST status, so no true invoice can be made. */
+/** Its lines carry no GST status, so no true invoice can be made. */
 export class InvoiceNotAvailableForOrder extends Error {}
-/** $1,000 or more and no buyer name to print (FR-081). */
+/** $1,000 or more and no buyer name to print. */
 export class BuyerIdentityRequired extends Error {}
 
-/** A total of $1,000 or more carries the buyer's identity. */
 export const BUYER_IDENTITY_FROM_CENTS = 100_000;
 
 const cents = (v: string | number | null | undefined) => Math.round(Number(v ?? 0) * 100);
@@ -50,7 +41,7 @@ async function existing(tx: Tx, where: string, id: string): Promise<TaxDocumentD
   return (r.rows[0]?.snapshot as TaxDocumentDTO | undefined) ?? null;
 }
 
-/** The order's invoice: the one already issued, or a new one now. */
+/** The one already issued, or a new one now. */
 export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocumentDTO> {
   const had = await existing(tx, "kind = 'invoice' AND order_id", orderId);
   if (had) return had;
@@ -70,7 +61,7 @@ export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocument
   )).rows[0];
   if (!head) throw new InvoiceNotAvailableForOrder();
   const lines = (await tx.query(
-    // 098 — the line as sold, with its variant.
+    // The line as sold, with its variant.
     `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' — ' || variant_label END AS product_name, quantity, unit_price_amount, discount_amount, gst_status
        FROM public.order_item WHERE order_id = $1 ORDER BY product_name, id`,
     [orderId],
@@ -113,7 +104,7 @@ export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocument
       ...(pointsCents > 0 ? [{ label: "Effy points", amount: money(pointsCents) }] : []),
     ],
   };
-  // ⚠ Two first requests at once: the unique index keeps ONE invoice; the loser answers with it.
+  // Two first requests at once: the unique index keeps one; the loser answers with it.
   const ins = await tx.query(
     `INSERT INTO public.tax_document (kind, order_id, number, snapshot, issuer)
      VALUES ('invoice', $1, $2, $3::jsonb, $4::jsonb)
@@ -124,7 +115,7 @@ export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocument
   return (ins.rows[0]?.snapshot as TaxDocumentDTO | undefined) ?? (await existing(tx, "kind = 'invoice' AND order_id", orderId))!;
 }
 
-/** A settled refund's adjustment note: the one already issued, or a new one (issuing the invoice first). */
+/** The one already issued, or a new one (issuing the invoice first). */
 export async function issueAdjustment(tx: Tx, refundId: string): Promise<TaxDocumentDTO | null> {
   const had = await existing(tx, "kind = 'adjustment' AND refund_id", refundId);
   if (had) return had;
@@ -178,7 +169,7 @@ export async function issueAdjustment(tx: Tx, refundId: string): Promise<TaxDocu
   return (ins.rows[0]?.snapshot as TaxDocumentDTO | undefined) ?? (await existing(tx, "kind = 'adjustment' AND refund_id", refundId));
 }
 
-/** An order's documents: its invoice and one adjustment note per settled refund, oldest first. */
+/** Oldest first. */
 export async function orderTaxDocuments(tx: Tx, orderId: string): Promise<{ invoice: TaxDocumentDTO; adjustments: TaxDocumentDTO[] }> {
   const invoice = await issueInvoice(tx, orderId);
   const refunds = (await tx.query(
@@ -197,7 +188,7 @@ const day = (iso: string) =>
   new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" }).format(new Date(iso));
 const abnWords = (abn: string) => `${abn.slice(0, 2)} ${abn.slice(2, 5)} ${abn.slice(5, 8)} ${abn.slice(8)}`;
 
-/** The document as an A4 PDF, from its snapshot alone. */
+/** From its snapshot alone. */
 export async function renderTaxDocumentPdf(doc: TaxDocumentDTO): Promise<Uint8Array> {
   const startedAt = Date.now();
   const title = doc.kind === "invoice" ? "Tax invoice" : "Adjustment note";

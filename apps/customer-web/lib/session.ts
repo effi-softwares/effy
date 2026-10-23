@@ -11,19 +11,19 @@ import { cognitoConfig } from "@/lib/config"
 import { SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
 
 /**
- * THE customer session, on the server. One read, used by everything.
+ * The customer session, on the server. One read, used by everything.
  *
  * How a session exists at all:
- *   1. the browser signs in with Cognito directly (`app/(auth)`);
- *   2. it hands the tokens to `POST /api/session` once, which verifies them and stores them in
- *      `HttpOnly` cookies — from then on no page script can read them;
- *   3. `proxy.ts` swaps expired tokens for fresh ones before a request is rendered;
- *   4. `getSession()` below verifies the id token and says who the customer is.
+ *  1. the browser signs in with Cognito directly (`app/(auth)`);
+ *  2. it hands the tokens to `POST /api/session` once, which verifies them and stores them in
+ *  `HttpOnly` cookies — from then on no page script can read them;
+ *  3. `proxy.ts` swaps expired tokens for fresh ones before a request is rendered;
+ *  4. `getSession` below verifies the id token and says who the customer is.
  *
- * ⚠ Anything that calls `getSession` becomes REQUEST-TIME. Fine inside a <Suspense> boundary;
+ * Anything that calls `getSession` becomes request-time. Fine inside a <Suspense> boundary;
  * never above one (see app/layout.tsx).
  *
- * ⚠ A token says who you are. Whether you may do something is the backend's decision, made again
+ * A token says who you are. Whether you may do something is the backend's decision, made again
  * on every call with this same token — and `requireCustomer` (lib/dal.ts) for pages.
  */
 export interface Session {
@@ -35,10 +35,10 @@ export interface Session {
   familyName: string | null
 }
 
-/* ── Verification ────────────────────────────────────────────────────────────────────────────── */
+/* Verification */
 
 /**
- * ⚠ THE KEY DOWNLOAD GETS TEN SECONDS, NOT THE LIBRARY'S 1.5. A cold connection to the pool's region
+ * The key download gets ten seconds, not the library's 1.5. A cold connection to the pool's region
  * has been measured at over three seconds from a developer's machine; at 1.5s every signed-in
  * customer was treated as signed out, with nothing logged. Keys are cached for the life of the
  * process, so this is paid once.
@@ -58,7 +58,7 @@ let accessVerifier: ReturnType<typeof verifier> | undefined
 /**
  * Is this failure "we could not check" rather than "this token is bad"?
  *
- * ⚠ THE DISTINCTION IS THE POINT. A bad token means nobody is signed in. Not being able to fetch
+ * The distinction is the point. A bad token means nobody is signed in. Not being able to fetch
  * the pool's keys means we do not know — and that must surface as an error, never as a quiet
  * sign-out.
  */
@@ -80,7 +80,7 @@ async function verify(token: string, use: "id" | "access"): Promise<Claims | nul
   }
 }
 
-/* ── Reading ─────────────────────────────────────────────────────────────────────────────────── */
+/* Reading */
 
 const text = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : null)
 
@@ -103,7 +103,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   }
 })
 
-/* ── Writing (Route Handlers and Server Actions only — a Server Component cannot set cookies) ──── */
+/* Writing (Route Handlers and Server Actions only — a Server Component cannot set cookies) */
 
 /**
  * Start a session from tokens the browser was just issued.
@@ -130,7 +130,7 @@ export async function startSession(tokens: {
 }
 
 /**
- * Fetch new tokens NOW, ahead of their expiry — after a profile change, so the header's greeting
+ * Fetch new tokens now, ahead of their expiry — after a profile change, so the header's greeting
  * (a claim in the id token) is right on the very next render.
  */
 export async function renewSession(): Promise<void> {

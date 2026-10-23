@@ -11,15 +11,11 @@ import {
 import { actorLabel, formatDelta, reasonLabel } from "./stockMovementText";
 
 /**
- * The movement history (054 FR-009) — a TABLE, newest first. Not cards (Principle V).
- *
- * ⚠ IT SAYS WHO, AND WHETHER IT WAS BACK-OFFICE. FR-027 requires a shop to see plainly when someone
- * outside the shop changed their numbers on their behalf; that is why `actorKind` is a separate
- * column from `reason` rather than a reason value. A back-office correction that looked like the
- * shop's own would leave an operator unable to explain their own stock.
+ * The movement history, newest first. `actorKind` is its own column so a back-office correction never
+ * looks like the shop's own change.
  */
 export function StockHistory({ movements }: { movements: StockMovementDTO[] }) {
-  // ⚠ NO HEADING OF ITS OWN (057). It used to carry an "History" h3 with its own hairline; the
+  // No heading of its own. It used to carry an "History" h3 with its own hairline; the
   // Inventory section now supplies the "Stock movements" heading above it, and two headings for one
   // table is the kind of drift that reads as a rendering bug rather than a design.
   return (

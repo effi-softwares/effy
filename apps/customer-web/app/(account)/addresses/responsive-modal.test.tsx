@@ -8,12 +8,7 @@ import {
   ResponsiveModalTitle,
 } from "@effy/design-system/ui"
 
-/**
- * T003 (RELOCATED). This test belongs to the design-system's `ResponsiveModal` (Phase 1), but the
- * design-system package has NO test runner — so per the task it is recorded here, in customer-web's
- * vitest, the first surface that consumes the component. It asserts the responsive switch: a Dialog
- * at/above the 768px breakpoint, a Drawer below it, driven by the `useIsMobile` hook (mocked).
- */
+/** `ResponsiveModal` (design-system has no test runner): a Dialog at or above 768px, a Drawer below, via `useIsMobile`. */
 
 const { mockIsMobile } = vi.hoisted(() => ({ mockIsMobile: { value: false } }))
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({

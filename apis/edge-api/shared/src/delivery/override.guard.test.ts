@@ -7,15 +7,9 @@ import { describe, expect, it } from "vitest";
 import { OPERATOR_REASONS, REASON_COURIER_OVERRIDE } from "../payments/refunds/state";
 
 /**
- * 081 P12 — the courier override's single writers, which every behavioural test would go on passing
- * without:
- *
- *   1. A move is recorded in `override.ts` only, and never rewritten: no UPDATE or DELETE of
- *      `delivery_override` anywhere. A second writer is a second idea of what a customer was given.
- *   2. Taking a package off a driver's round is ONE function (`removeAssignment`), shared by fleet's
- *      Unassign and the move — not a copy in each service.
- *   3. A delivery refund cannot be chosen from the refund dialog: its reason is not an operator's.
- *   4. The customer's view of a move names no reason, fee or difference.
+ * A move is written in `override.ts` only and never rewritten; unassigning is one function
+ * (`removeAssignment`); a delivery refund cannot be chosen from the refund dialog; the customer's view
+ * names no reason, fee or difference.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");

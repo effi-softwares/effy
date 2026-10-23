@@ -12,10 +12,10 @@ import { useCreateCoverageGroup, useRemoveCoverageGroup, useRenameCoverageGroup 
 const drivers = (n: number): string => (n === 0 ? "No driver can deliver here" : `${n} driver${n === 1 ? "" : "s"} can deliver here`);
 
 /**
- * Groups (076 US5): names staff file postcodes under.
+ * Groups: names staff file postcodes under.
  *
- * ⚠ A group changes nothing a customer sees, is offered or pays, and removing one never removes its
- * postcodes. It has ONE operational meaning until the driver-operations feature: a driver is cleared
+ * A group changes nothing a customer sees, is offered or pays, and removing one never removes its
+ * postcodes. It has one operational meaning until the driver-operations feature: a driver is cleared
  * to deliver to a group, or to everywhere. So each line shows how many drivers can deliver there,
  * and postcodes in no group need a driver cleared for everywhere.
  */

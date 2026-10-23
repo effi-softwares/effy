@@ -1,5 +1,4 @@
-// Turning a points refusal into a problem the back-office can tell apart (074, contracts/routes.md).
-// ⚠ `refused` puts the CODE in the problem's type URI; the console maps it to a sentence.
+// `refused` puts the code in the problem's type URI; the console maps it to a sentence.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { ConnectionLimitError, internal, notFound, refused, type RequestScope } from "@effy/edge-shared";
@@ -28,7 +27,6 @@ export function pointsProblem(scope: RequestScope, err: unknown, what: string): 
   return internal(scope);
 }
 
-/** A JSON object body, or null. */
 export function objectBody(raw: string | undefined): Record<string, unknown> | null {
   try {
     const parsed: unknown = JSON.parse(raw ?? "");
@@ -38,7 +36,6 @@ export function objectBody(raw: string | undefined): Record<string, unknown> | n
   }
 }
 
-/** A whole number, or null when the field is absent or not one. */
 export const intField = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) ? v : null);
-/** A string, "" when absent, null when present and not a string. */
+/** "" when absent, null when present and not a string. */
 export const textField = (v: unknown): string | null => (v === undefined || v === null ? "" : typeof v === "string" ? v : null);

@@ -13,7 +13,7 @@ describe("067 — Effy's margin", () => {
     expect(customerPrice("0.99", { kind: "amount", value: "0.01" })).toBe("1.00");
   });
 
-  /** FR-033 — "not set" is not zero, but it prices the same. */
+  /** "Not set" is not zero, but prices the same. */
   it("no margin means the customer pays the shop's price", () => {
     expect(customerPrice("7.25", null)).toBe("7.25");
   });
@@ -23,7 +23,7 @@ describe("067 — Effy's margin", () => {
     expect(customerPrice("7.25", { kind: "amount", value: "0" })).toBe("7.25");
   });
 
-  /** ⚠ The float trap: 9.99 × 1.125 = 11.23875 → 11.24, and must not come out 11.23. */
+  /** The float trap: 9.99 × 1.125 = 11.23875 → 11.24, never 11.23. */
   it("⚠ rounds a percentage half up to the cent, exactly once", () => {
     expect(customerPrice("9.99", { kind: "percent", value: "12.5" })).toBe("11.24");
     expect(customerPrice("0.10", { kind: "percent", value: "5" })).toBe("0.11"); // 0.105 → up
@@ -44,7 +44,6 @@ describe("067 — Effy's margin", () => {
     expect(validateMargin({ kind: "amount", value: "0" }).ok).toBe(true);
   });
 
-  /** FR-029. */
   it("refuses a negative, a non-number, an unknown kind and an absent margin", () => {
     expect(validateMargin({ kind: "percent", value: "-5" })).toEqual({ ok: false, reason: "negative" });
     expect(validateMargin({ kind: "amount", value: "abc" })).toEqual({ ok: false, reason: "invalid" });

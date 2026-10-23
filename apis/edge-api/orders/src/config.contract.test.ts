@@ -4,18 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the orders service — 035's guard, on its fifth outing.
- *
- * 035's fourth defect: the audience map read four env vars `serverless.yml` never declared. Every
- * pool resolved "unknown", NO EMAIL WAS EVER SENT, and a hundred passing tests missed it because the
- * tests set those vars themselves. A unit test that provides its own environment can never catch an
- * environment that is not provisioned — so this reads the ACTUAL `serverless.yml` and asserts what a
- * live invocation needs.
- *
- * It also pins the authorizer. Every /orders/v1/* route carries back-office identity; a route that
- * lost its authorizer would be an unauthenticated read of every customer's order and address.
- */
+/** Reads the real serverless.yml, and pins the back-office authorizer on every /orders/v1/* route. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceRoot = resolve(here, "..");
@@ -43,7 +32,6 @@ function blockFor(fn: string): string {
   return end < 0 ? rest : rest.slice(0, end);
 }
 
-/** Every route that must sit behind the back-office authorizer. */
 const AUTHED = [
   "ordersListV1",
   "orderDetailV1",
@@ -55,28 +43,24 @@ const AUTHED = [
   "refundRequestDeclineV1",
 ] as const;
 
-/** Public by design — liveness/readiness probes touch no customer data. */
 const PUBLIC = ["healthz", "readyz"] as const;
 
 describe("orders service deployment contract", () => {
   const declared = readServerlessEnvKeys();
 
   it("declares every database key the repositories need at runtime", () => {
-    // `@effy/edge-shared`'s db module reads these; none is set by this service's own code.
     const required = ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN"];
     const missing = required.filter((k) => !declared.has(k));
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([]);
   });
 
   it("can reach the payment provider — and holds the secret key ONLY, never the webhook secret (070)", () => {
-    // Back-office refunds are issued here. A function that calls the provider with no ARN to read
-    // fails on its first refund, in production, with every test green.
+    // Refunds are issued here, so the Stripe key ARN must be declared.
     expect(declared.has("STRIPE_SECRET_KEY_ARN")).toBe(true);
     expect(yaml).toMatch(/Resource:\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/db\/master_secret_arn\}\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/stripe\/secret_key_arn\}/);
-    // This service verifies no webhook. Granting it the signing secret would be access nothing uses.
+    // No webhook here, so no signing secret.
     expect(yaml).not.toContain("webhook_secret");
     expect(declared.has("STRIPE_WEBHOOK_SECRET_ARN")).toBe(false);
-    // The value itself never appears in configuration.
     expect(yaml).not.toMatch(/sk_(test|live)_/);
   });
 
@@ -85,8 +69,7 @@ describe("orders service deployment contract", () => {
   });
 
   it("attaches to the STAFF HTTP API (075) rather than creating one", () => {
-    // A3's contract: the gateway, its stage, its CORS and its authorizers are Terraform-owned. A
-    // service that created its own would silently serve on a different hostname with no CORS.
+    // The gateway, stage, CORS and authorizers are Terraform's.
     expect(yaml).toMatch(/httpApi:\s*\n\s+id: \$\{ssm:\/effy\/\$\{sls:stage\}\/staff\/http_api_id\}/);
   });
 
@@ -106,9 +89,7 @@ describe("orders service deployment contract", () => {
     for (const fn of PUBLIC) {
       expect(blockFor(fn)).not.toContain("authorizer:");
     }
-    // Belt and braces: no route outside the health probes may be unauthenticated. Counting means a
-    // route added later without an authorizer fails here rather than shipping open.
-    // 080 — a scheduled function is not a route and takes no authorizer.
+    // No route outside the health probes may be unauthenticated; scheduled functions are not routes.
     const scheduledCount = (yaml.match(/^ {6}- schedule:/gm) ?? []).length;
     const routeCount = (yaml.match(/^ {4}handler:/gm) ?? []).length - scheduledCount;
     const authorizerCount = (yaml.match(/authorizer:/g) ?? []).length;
@@ -116,9 +97,6 @@ describe("orders service deployment contract", () => {
   });
 
   it("disables function versioning from the first deploy", () => {
-    // ⚠ Not cosmetic. admin hit CloudFormation's 500-resource limit in 049 and had to add this under
-    // pressure; measured at 434/500 in 053 T001. Starting with it costs nothing and removes the
-    // failure mode entirely.
     expect(yaml).toMatch(/^ {2}versionFunctions: false$/m);
   });
 });

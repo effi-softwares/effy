@@ -1,8 +1,4 @@
-// DELETE /fleet/v1/drivers/{driverId}/capabilities/{capabilityId} — revoke one (062 FR-003).
-// Mutate = admin/manager only.
-//
-// ⚠ Revoking a clearance the driver does not hold returns 200, NOT a 404 (FR-006). The operator's
-// intent is already true; erroring would make two operators tidying the same record fight.
+// Admin/manager. Not held returns 200, not a 404.
 import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -26,7 +22,7 @@ export const handler = async (
       g.sub,
       scope,
     );
-    await announceDispatch(); // 071 — committed
+    await announceDispatch();
     return json(200, { items }, scope);
   } catch (err) {
     return mapFleetError(err, scope);

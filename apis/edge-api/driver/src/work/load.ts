@@ -1,11 +1,5 @@
-// "The van is loaded" (090, driver backlog H8): every staged drop on a delivery run goes out for
-// delivery together — what actually happens at the hub, once per run. The load scan (S3) completes
-// this; "Mark all loaded" is its fallback.
-//
-// ⚠ 093 — LOADING IS THE ONLY WAY A DROP GOES OUT FOR DELIVERY, and it is accounted package by package.
-// A package the driver could not load is declared with a reason: it comes off the run and is held at the
-// hub for a dispatcher (`package_hold`), and a drop left with nothing comes off the run with it. Nothing
-// is "out for delivery" that was never in the van.
+// "The van is loaded": every staged drop goes out together, package by package. A package not loaded
+// is declared with a reason and held at the hub (`package_hold`); a drop left empty comes off the run.
 
 import { withTransaction } from "@effy/edge-shared";
 import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
@@ -17,19 +11,15 @@ import { assertNothingToHandIn } from "./sequence";
 import { NotFoundError } from "./service";
 
 export interface LoadResult {
-  /** The drops this call moved to out for delivery — the ones whose shops are told. */
+  /** Moved to out for delivery; their shops are told. */
   loadedDropIds: string[];
-  /** 093/096 — bags declared not loaded (each held; a package whose every bag is missing comes off the run). */
+  /** Bags declared not loaded, each held. */
   held: number;
-  /** 093 — drops removed because none of their packages was loaded. */
+  /** Drops removed because none of their packages was loaded. */
   dropsRemoved: number;
 }
 
-/**
- * ⚠ ONLY STAGED DROPS MOVE. A drop the driver already started, is on the way to, or has arrived at
- * keeps its state — never moved backwards (backlog A3) — and a delivered or failed one is finished.
- * Idempotent by state: a second load finds nothing staged and moves nothing.
- */
+/** Only staged drops move; nothing moves backwards. Idempotent by state. */
 export async function loadRun(
   runId: string,
   driverId: string,
@@ -39,8 +29,7 @@ export async function loadRun(
   reads?: LabelReadDTO[],
 ): Promise<LoadResult> {
   return withTransaction(async (tx: any) => {
-    // Taking packages off the run changes driver work outside a planning pass: wait for a pass, never
-    // race one — the lock comes before any row lock (driver-work.ts).
+    // Changes driver work outside a planning pass, so the planner lock comes first (driver-work.ts).
     if (missingParcels.length > 0) await tx.query(PLANNER_PASS_LOCK);
 
     const round = await tx.query(
@@ -49,10 +38,9 @@ export async function loadRun(
     );
     if (round.rowCount === 0) throw new NotFoundError();
 
-    // 072 — the van does not leave before the round opens.
     await assertRoundOpen(tx, runId);
 
-    // A retry: no drop left staged. It answers with what this changeId already did.
+    // A retry: nothing left staged; answer with what this changeId did.
     const pending = await tx.query(
       `SELECT 1 FROM public.round_stop WHERE round_id = $1 AND kind = 'customer_drop' AND status = 'pending' LIMIT 1`,
       [runId],
@@ -62,10 +50,10 @@ export async function loadRun(
       return { loadedDropIds: [], held: Number(prior.rows[0]?.n ?? 0), dropsRemoved: 0 };
     }
 
-    // 093 — the van holds nothing else: collected parcels checked in, failed parcels returned.
+    // The van holds nothing else: collected parcels checked in, failed parcels returned.
     await assertNothingToHandIn(tx, driverId, runId);
 
-    // The packages still to load, on the staged drops — the states the proof path delivers (proof/sql.ts).
+    // Packages still to load, in the states the proof path delivers.
     const staged = await tx.query(
       `SELECT rp.id AS row_id, rp.stop_id, rp.shop_fulfillment_id
          FROM public.round_package rp
@@ -75,15 +63,12 @@ export async function loadRun(
       [runId],
     );
 
-    // ── Packages not loaded ──────────────────────────────────────────────────────────────────────
     type Staged = { row_id: string; stop_id: string; shop_fulfillment_id: string };
     const byId = new Map<string, Staged>();
     const touchedStops = new Set<string>();
     for (const r of staged.rows) byId.set(r.shop_fulfillment_id, r);
 
-    // 096 — every bag of every staged package is loaded, or declared missing with a reason. Some bags
-    // missing: each is held and the package goes out. Every bag missing: the package is held and comes
-    // off the run (093's shape), and a drop left with nothing comes off too.
+    // Every bag is loaded or declared missing. Some missing: held, package goes. All missing: held, off the run.
     const expected = await expectedParcels(tx, { step: "load", packageIds: [...byId.keys()], roundId: runId });
     const accounted = accountFor("load", expected, parcels, missingParcels);
     const holds = await writeParcelHolds(tx, {

@@ -1,19 +1,13 @@
 /**
- * Email deliverability — the platform's record of which addresses it can actually reach
- * (037-platform-email-delivery).
- *
- * WHY THIS EXISTS AT ALL: when an address hard-fails once, the mail service records it and
- * thereafter ACCEPTS every send and delivers nothing — the caller gets a success response and a
- * message id. On a platform where an emailed code is the only credential for three of four
- * audiences, that is a permanent, silent, undetected account lockout. Nothing in the send path can
- * see it; only the per-message outcome stream can.
+ * Which addresses the platform can actually reach. After a hard failure SES accepts every send and
+ * delivers nothing, a silent lockout when an emailed code is the only credential; only the outcome
+ * stream shows it.
  */
 
 import type { EmailDeliveryState } from "@effy/shared-types";
 
 export type { EmailDeliveryState };
 
-/** The outcome kinds the platform subscribes to. See contracts/ses-event.contract.md. */
 export type DeliveryEventType =
   | "bounce"
   | "complaint"
@@ -21,35 +15,23 @@ export type DeliveryEventType =
   | "reject"
   | "delivery_delay";
 
-/**
- * One outcome, for one message, to one address — normalised off the wire.
- *
- * ⚠ `address` and `rawAddress` are BOTH carried, and the distinction is load-bearing. `address` is
- * lower-cased for lookup (matching `public.customer.email`, which is `citext` because Cognito treats
- * email as a case-insensitive sign-in alias). `rawAddress` is the exact bytes the mail service
- * reported, because its suppression-management API is CASE-SENSITIVE: a repair that normalises case
- * silently fails to remove an entry that demonstrably exists, and the operator believes they fixed
- * something they did not (FR-035).
- */
+/** `address` is lower-cased for lookup; `rawAddress` keeps the exact bytes for the case-sensitive suppression API. */
 export interface DeliveryEvent {
   address: string;
   rawAddress: string;
   eventType: DeliveryEventType;
-  /** `Permanent`/`Transient` plus the provider's sub-type, or the complaint feedback type. */
+  /** `Permanent`/`Transient` plus the sub-type, or the complaint feedback type. */
   subType: string | null;
   reason: string | null;
-  /** ⚠ The receiving server's own text. Stored for operators; NEVER logged — it contains the address. */
+  /** The receiving server's text, for operators; never logged (it contains the address). */
   diagnostic: string | null;
   messageId: string;
-  /**
-   * ⚠ The `@effy/email-kit` template id from the SES `effy-template` tag (038). NULL means the
-   * message was sent by Cognito (which cannot be tagged) or predates 038 — data, not a gap.
-   */
+  /** The `effy-template` tag; null for Cognito-sent mail. */
   templateId: string | null;
   occurredAt: string;
 }
 
-/** The current conclusion for one address. One row per address ever heard about. */
+/** One row per address ever heard about. */
 export interface DeliveryStatusRow {
   address: string;
   rawAddress: string;
@@ -64,13 +46,7 @@ export interface DeliveryStatusRow {
   repairedBy: string | null;
 }
 
-/**
- * Who, if anyone, owns this address on the platform.
- *
- * ⚠ NULLABLE, and that is the honest answer rather than a defect. An address can bounce before its
- * account exists, after it is deleted, or for the DRIVER audience — which has a Cognito pool and no
- * platform table at all. Rendering "—" is correct; inventing an owner is not.
- */
+/** null legitimately: before an account exists, after deletion, or a driver (no platform table). */
 export type SubjectKind = "customer" | "shop_staff" | "admin_staff";
 
 export interface DeliverySubject {
@@ -94,24 +70,17 @@ export interface DeliveryEventDTO {
   eventType: DeliveryEventType;
   subType: string | null;
   messageId: string;
-  /** ⚠ NULL = "sent by Cognito, or before 038" — the console must render it as such, not as unknown. */
+  /** Null means sent by Cognito. */
   templateId: string | null;
   occurredAt: string;
 }
 
 export interface DeliveryDetailDTO extends DeliveryListItemDTO {
-  /** ⚠ Operator-only. Not in the list response and never in the customer's own account read. */
+  /** Operator-only: not in the list response or the customer's account read. */
   diagnostic: string | null;
   lastMessageId: string | null;
   repairedBy: string | null;
-  /**
-   * Read LIVE from the mail service on every request — never stored.
-   *
-   * ⚠ `null` means "we could not check", and the console must say so. It must NEVER default to
-   * `false`, which reads as "not suppressed" and is the more dangerous of the two lies. Two stored
-   * sources of truth for one fact disagree eventually, and at that moment nobody can tell which is
-   * lying — the same reasoning that made 027 count redemptions rather than store a counter.
-   */
+  /** Read live, never stored. `null` means "could not check" and must never default to false. */
   suppressedInSes: boolean | null;
   events: DeliveryEventDTO[];
 }
@@ -128,7 +97,6 @@ export interface DeliveryListDTO {
   total: number;
 }
 
-/** Domain failures, mapped to problem+json by handler-support. */
 export type DeliverabilityErrorKind = "not_found" | "validation" | "unavailable";
 
 export class DeliverabilityError extends Error {
@@ -141,5 +109,4 @@ export class DeliverabilityError extends Error {
   }
 }
 
-/** Max length of the operator's repair note. */
 export const REPAIR_NOTE_MAX = 500;

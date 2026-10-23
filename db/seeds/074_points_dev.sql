@@ -1,17 +1,11 @@
--- 074 customer points — dev seed. Gives ONE existing dev customer some points to see and spend.
---
--- ⚠ THE CUSTOMER IS NAMED BY THE OPERATOR, NEVER GUESSED (constitution: Real-World Identifiers). Run:
+-- Points dev seed: Gives one existing dev customer points to see and spend. The customer is named by the
+-- operator, never guessed:
 --
 --     psql "$DSN" -v customer_email='<a dev customer you own>' -f db/seeds/074_points_dev.sql
 --
--- With no -v customer_email it STOPS, having written nothing. So does an email that matches no
--- customer: a seed that silently credits nobody would look like a broken feature.
---
--- Idempotent: every row carries a `seed:074:` dedupe key, so re-running adds nothing.
--- ⚠ Written with plain INSERTs because a seed is not a service — but in the ledger's own shape
---   (credits are lots with an expiry; nothing is updated or deleted). Dev only; never run in production.
---
--- What it creates, relative to today:
+-- With no -v customer_email, or one matching no customer, it stops having written nothing. Idempotent (each
+-- row has a `seed:074:` dedupe key). Plain INSERTs in the ledger's own shape (credits are lots with an
+-- expiry). Dev only. Creates, relative to today:
 --   • 1,500 points  "Sorry your order was late"   — expires in 12 months
 --   •   500 points  "A thank-you from Effy"        — expires in 20 days (inside the 30-day warning)
 

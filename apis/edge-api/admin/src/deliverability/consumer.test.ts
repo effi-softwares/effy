@@ -1,14 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * The consumer's operational behaviour — batch independence, and log hygiene.
- *
- * ⚠ THE LOG TEST IS THE POINT OF THIS FILE. 035 established that SES's own rejection text embeds the
- * recipient, which is why its `logFailure` logs `err.name` and never `err.message`. This feature
- * receives that same text on the way IN, on every bounce, and writes structured logs about it. One
- * careless field and every locked-out customer's address is in CloudWatch forever. A rule that is
- * only written down is a rule that eventually gets broken; this makes it mechanical.
- */
+/** Batch independence, and no address ever in a log line (SES rejection text embeds it). */
 
 const recordOutcome = vi.fn()
 vi.mock("./service", async () => {
@@ -82,7 +74,7 @@ describe("ses event consumer", () => {
     expect(dump).not.toContain("user unknown")
     // Nothing that even looks like an address.
     expect(dump).not.toMatch(/@example\.com/)
-    // But it IS correlatable — a fingerprint, so two lines about one person can be joined up.
+    // But it is correlatable: a fingerprint joins two lines about one person.
     expect(dump).toMatch(/"addr":"[0-9a-f]{12}"/)
   })
 

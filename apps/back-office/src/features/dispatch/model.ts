@@ -7,10 +7,10 @@ import {
 } from "@effy/shared-types";
 import type { ExclusionReasonDTO, UnassignedWorkDTO } from "@effy/shared-types";
 
-// Presentation vocabulary for the dispatcher console (063).
+// Presentation vocabulary for the dispatcher console.
 
 /**
- * ⚠ ONE SENTENCE PER REASON, WRITTEN FOR A PERSON WHO HAS TO FIX IT. FR-015 exists so an unassigned
+ * One sentence per reason, written for a person who has to fix it. FR-015 exists so an unassigned
  * package is explainable; a raw enum on screen ("not_cleared") explains nothing to the operator who
  * has to decide whether to grant a clearance or call somebody in.
  */
@@ -29,7 +29,7 @@ export const REASON_TEXT: Record<ExclusionReasonDTO, string> = {
 };
 
 /**
- * ⚠ AN EMPTY REASON LIST MEANS SOMETHING DIFFERENT, AND THE SCREEN MUST SAY SO. "Nobody is cleared
+ * An empty reason list means something different, and the screen must say so. "Nobody is cleared
  * for this area" is a staffing decision; "everyone cleared failed a condition" is a fixable list.
  * Rendering both as "could not be assigned" would hide which of the two is happening.
  */
@@ -43,9 +43,9 @@ export function roundLabel(kind: string): string {
 }
 
 /**
- * How a drop stands against the window the customer was sold, in words (069 FR-032).
+ * How a drop stands against the window the customer was sold, in words.
  *
- * ⚠ ONLY FOR A STOP THAT IS STILL TO BE DONE. A finished drop is not "late" on this screen — whether
+ * Only for a stop that is still to be done. A finished drop is not "late" on this screen — whether
  * it arrived inside its window is recorded on the order, against the time it actually arrived.
  * "Late" here means "the window has closed and the driver has not been".
  */
@@ -68,15 +68,15 @@ export const WINDOW_STATE_LABEL: Record<DeliveryWindowState | "finished", string
 };
 
 /**
- * Whether a round has opened to its driver, in words (072).
+ * Whether a round has opened to its driver, in words.
  *
- * ⚠ WORK IS NOW ASSIGNED THE MOMENT A DRIVER CAN TAKE IT, so most of what this screen lists in the
+ * Work is now assigned the moment a driver can take it, so most of what this screen lists in the
  * morning cannot be worked yet. A dispatcher looking at an afternoon round with nothing collected
  * must be able to tell "not started" from "cannot start": this is that difference.
  *
  * `opensAt` is the platform's own derived instant — the same one the driver's app is refused
  * against — and `null` means the round has no opening time at all (a delivery with no window).
- * It is judged against the clock HERE because it changes while the screen is open.
+ * It is judged against the clock here because it changes while the screen is open.
  */
 export function roundOpenState(
   round: { opensAt: string | null; status: string },
@@ -95,10 +95,8 @@ export function momentText(at: string, now: Date): string {
 }
 
 /**
- * Where an unassigned package is waiting and what for (072) — "At the shop · next collection 2 pm".
- *
- * ⚠ A HUB-SIDE PACKAGE IS THE MORE URGENT OF THE TWO, and until 072 it was not on this screen at
- * all: a customer has been sold a window for it. The two stages are said in words, never by colour.
+ * Where an unassigned package is waiting and what for ("At the shop · next collection 2 pm"). A hub-side
+ * one is the more urgent (a window has been sold). Said in words, never by colour.
  */
 export function waitingFor(item: Pick<UnassignedWorkDTO, "stage" | "targetAt">, now: Date): string {
   if (item.stage === "delivery") {

@@ -1,5 +1,4 @@
-// POST /commerce/v1/cart/merge — fold a device cart into the account cart at sign-in: a union with
-// the MAXIMUM quantity. Nothing already in the account cart is removed; an empty list is a no-op.
+// Folds a device cart into the account cart at sign-in: a union keeping the larger quantity.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";
@@ -14,7 +13,6 @@ export function lineInputs(v: unknown): LineInput[] | null {
   const out: LineInput[] = [];
   for (const item of v) {
     if (typeof item !== "object" || item === null) return null;
-    // 098 — a line is a variant.
     const variantId = stringField((item as Record<string, unknown>).variantId);
     const quantity = intField((item as Record<string, unknown>).quantity);
     if (variantId === null || quantity === null) return null;

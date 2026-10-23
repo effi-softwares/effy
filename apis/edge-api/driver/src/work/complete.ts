@@ -1,13 +1,5 @@
-// Completing a stop, and checking in at the hub (063, US2; per bag since 096).
-//
-// ⚠ EVERY WRITE HERE IS IDEMPOTENT ON `changeId`. A driver is on a phone in a loading bay; a request
-// that arrives without its response reaching them is ordinary, and the retry must not apply twice
-// (027's changeId-per-action rule). "Simplify the request shape" was never licence to drop that.
-//
-// ⚠ 096 — EVERY BAG IS ACCOUNTED FOR, AND THE SERVER CHECKS. Each step asks `expectedParcels` what it
-// still needs and refuses (409 `parcels_unaccounted`) a request that leaves a live bag neither handed
-// over nor declared missing. Until 096 a package was one scan, so a second bag left on the counter
-// could not be noticed by anyone.
+// Every write is idempotent on `changeId`. Every live bag must be handed over or declared missing,
+// checked against `expectedParcels` (409 `parcels_unaccounted`).
 
 import { bagsToCheckIn, closeRunCheckin, collectedPackages } from "@effy/edge-shared/delivery";
 import { withTransaction } from "@effy/edge-shared";
@@ -26,22 +18,9 @@ export class ConflictError extends Error {
 }
 
 /**
- * Collect a shop's packages (FR-026).
- *
- * ⚠ THE FULFILLMENT STATUS WRITE BELOW IS LOAD-BEARING, AND A CONTAINER TEST EXISTS BECAUSE OF IT.
- * The wave planner's gather query excludes a package by `shop_fulfillment.status <> 'ready_for_pickup'`
- * — the partial unique index only excludes rows still `assigned`. So if this stops advancing the
- * status, EVERY subsequent wave re-collects packages already sitting in a driver's van, and nothing
- * anywhere fails. `planner.container.test.ts` pins it directly.
- *
- * ⚠ A PACKAGE NOT TAKEN IS RECORDED, NEVER OMITTED.
- *
- * ⚠ 093 — ONLY WHAT THE DRIVER NAMED IS SETTLED. A package not named stays `assigned`, the stop stays
- * open, and `remaining` tells the app to show it.
- *
- * ⚠ 096 — PER BAG. A package collected must have every live bag scanned, typed, ticked or declared
- * missing. Some bags missing: each is held and the package is collected. Every bag missing: the shop
- * does not have it — the package is "not available", exactly as if the driver had said so.
+ * Advancing the fulfilment status is what keeps the planner from re-collecting packages already in a
+ * van (`planner.container.test.ts`). A package not taken is recorded, never omitted; only what the
+ * driver named is settled. Some bags missing: held, package collected. All missing: "not available".
  */
 export async function collectStop(
   runId: string,
@@ -60,7 +39,7 @@ export async function collectStop(
     );
     if (stop.rowCount === 0) throw new NotFoundError();
 
-    // ⚠ Idempotent by state, not by a dedupe table: a stop already `done` has nothing left to do.
+    // Idempotent by state: a `done` stop has nothing left to do.
     if (stop.rows[0].status === "done") {
       const prior = await tx.query(
         `SELECT state, count(*)::int AS n FROM public.round_package WHERE stop_id = $1 GROUP BY state`,
@@ -81,7 +60,6 @@ export async function collectStop(
     const declared = new Map((body.packages ?? []).map((p) => [p.packageId, p]));
     const named = (rows.rows as Array<{ id: string; shop_fulfillment_id: string }>).filter((r) => declared.has(r.shop_fulfillment_id));
 
-    // 096 — every bag of every package the driver is taking.
     const taking = named.filter((r) => declared.get(r.shop_fulfillment_id)!.outcome === "picked_up").map((r) => r.shop_fulfillment_id);
     const expected = await expectedParcels(tx, { step: "collect", packageIds: taking, roundId: runId });
     const accounted = accountFor("collect", expected, body.parcels, body.missingParcels);
@@ -102,7 +80,6 @@ export async function collectStop(
 
       if (outcome === "picked_up") {
         collected += 1;
-        // ⚠ See the note above — without this the planner collects it again, forever.
         await tx.query(
           `UPDATE public.shop_fulfillment
               SET status = 'collected', state_changed_at = now()
@@ -111,7 +88,7 @@ export async function collectStop(
         );
       } else {
         notAvailable += 1;
-        // ⚠ The package stays `ready_for_pickup` ON PURPOSE: a later wave should try again.
+        // Stays `ready_for_pickup` on purpose: a later wave tries again.
         await tx.query(`UPDATE public.round_package SET note = $2 WHERE id = $1`, [r.id, note ?? "Not available at collection."]);
       }
     }
@@ -124,7 +101,6 @@ export async function collectStop(
       [runId],
     );
 
-    // 096 — bags missing from a package that is still collected are held, one by one.
     await writeParcelHolds(tx, {
       step: "collect", driverId, roundId: runId, changeId: body.changeId,
       missing: accounted.missing.filter((m) => !noBags.has(m.parcel.packageId)),
@@ -145,13 +121,8 @@ export async function collectStop(
 }
 
 /**
- * Hub check-in (FR-022, FR-023; per bag since 096).
- *
- * ⚠ THE SPLIT IS SHOWN, NEVER DECIDED (079, 082) — `closeRunCheckin` reads who delivers each parcel.
- *
- * ⚠ 096 — the bags the driver hands in are those hub staff have not already checked in at the hub
- * station (`bagsToCheckIn`); a bag not in the van is declared, never assumed. Every bag of a package
- * missing holds the package (093's shape); some missing holds those bags and the package arrives.
+ * The Effy/Courier split is read by `closeRunCheckin`, never decided. The driver hands in the bags hub
+ * staff have not already checked in; all of a package's bags missing holds the package.
  */
 export async function hubCheckin(
   runId: string,
@@ -170,7 +141,7 @@ export async function hubCheckin(
     const already = await tx.query(`SELECT 1 FROM public.hub_checkin WHERE round_id = $1`, [runId]);
     let held = 0;
     if ((already.rowCount ?? 0) === 0) {
-      // 093 — check-in closes the run, so every shop on it must be settled first.
+      // Check-in closes the run, so every shop on it must be settled first.
       await assertStopsSettled(tx, runId);
       const expected = await bagsToCheckIn(tx, runId);
       const accounted = accountFor("checkin", expected, body.parcels, body.missingParcels);
@@ -188,7 +159,7 @@ export async function hubCheckin(
         allowed: new Map(expected.map((p) => [p.parcelId, p.packageId])),
       });
     } else {
-      // A retry: the run was checked in (by this driver, or at the hub station) — answer as checked in.
+      // A retry: already checked in, by this driver or at the hub station.
       const prior = await tx.query(`SELECT count(*)::int AS n FROM public.package_hold WHERE change_id = $1`, [body.changeId]);
       held = Number(prior.rows[0]?.n ?? 0);
     }

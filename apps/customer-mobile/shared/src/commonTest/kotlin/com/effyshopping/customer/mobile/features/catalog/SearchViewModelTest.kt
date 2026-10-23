@@ -101,8 +101,8 @@ class SearchViewModelTest {
     }
 
     /**
-     * The regression this pins: `SearchProducts` takes query, saleOnly, categoryKey, sort, cursor —
-     * and `categoryKey` and `cursor` are BOTH `String?`. Passing the cursor positionally once bound it
+     * The regression this pins: `SearchProducts` takes query, saleOnly, categoryKey, sort, cursor
+     * and `categoryKey` and `cursor` are both `String?`. Passing the cursor positionally once bound it
      * to categoryKey with no compile error, which silently broke pagination and would have filtered
      * every result by a category named after a base64 cursor.
      */

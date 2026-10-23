@@ -1,17 +1,9 @@
-// The ONE writer of a product's options, option values and variants (098, research R6).
-//
-//   applyVariantSet  — make a product's options and variants exactly the given set (shop edits to a
-//                      draft; Effy's approval of a live product's pending change).
-//   priceVariants    — write every variant's CUSTOMER price from its shop price and the product's one
-//                      margin (approval, a margin change).
-//   setVariantState  — activate, deactivate or remove one variant, immediately (never reviewed).
-//
-// Every one of them recomputes the listing summary (`refreshListing`) in the same transaction.
-// ⚠ Stock columns are NOT written here — they belong to the four 054 stock writers, and stock never
-// waits for review. `catalog.guard.test.ts` fails a second writer of anything this file owns.
-//
-// The rules a set must meet are `validateVariantSet` in @effy/shared-types — the SAME function the
-// shop console runs before saving, so the two ends cannot disagree.
+// The one writer of a product's options, values and variants:
+//  applyVariantSet make the options and variants exactly the given set (a draft edit; approval of a live change).
+//  priceVariants write every variant's customer price from its shop price and the product's margin.
+//  setVariantState activate, deactivate or remove one variant, immediately (never reviewed).
+// Each recomputes the listing summary in the same transaction. Stock columns belong to the stock
+// writers. The rules are `validateVariantSet` in @effy/shared-types, the same as the shop console runs.
 
 import {
   validateVariantSet,
@@ -26,7 +18,7 @@ import type { Queryable } from "../lib/db";
 import { customerPrice, type Margin } from "../lib/margin";
 import { refreshListing } from "./listing";
 
-/** The set is refused; every refusal points at one input (`variants[2].sku`, `options[0].name`, …). */
+/** Every refusal points at one input (`variants[2].sku`, `options[0].name`, …). */
 export class VariantSetInvalid extends Error {
   constructor(readonly errors: VariantSetError[]) {
     super(errors.map((e) => `${e.field}: ${e.message}`).join("; "));
@@ -39,22 +31,15 @@ export interface ApplyVariantSetInput {
   shopId: string;
   options: readonly OptionInputDTO[];
   variants: readonly VariantInputDTO[];
-  /** `undefined` leaves the product's basis as it is (and validates pack units against it). */
+  /** `undefined` leaves the basis as it is (and validates pack units against it). */
   unitBasis?: UnitBasis | null;
-  /**
-   * `draft` — the product has never been approved: a variant left out is DELETED (nothing references
-   * it). `live` — approved: a variant left out is REMOVED (state), kept for order and stock history.
-   */
+  /** `draft`: a variant left out is deleted. `live`: it is removed (state), kept for order and stock history. */
   mode: "draft" | "live";
 }
 
 const PG_UNIQUE = "23505";
 
-/**
- * Make product `productId`'s options and variants exactly the given set. Inside the caller's
- * transaction. New ids are the client's (R6); existing ones are updated in place, so a variant keeps
- * its stock, its history and its place in every cart.
- */
+/** Inside the caller's transaction. New ids are the client's; existing ones are updated in place, keeping stock and carts. */
 export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput): Promise<void> {
   const { productId, shopId, options, variants, mode } = input;
 
@@ -66,11 +51,9 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   const basis = input.unitBasis === undefined ? product.rows[0]!.unit_basis : input.unitBasis;
 
   const errors = validateVariantSet(options, variants, basis);
-  // ⚠ Refuse on the pure rules BEFORE asking the database anything: a malformed id would make the
-  // queries below fail, and a failed statement aborts the caller's whole transaction.
+  // The pure rules first: a malformed id would fail a query and abort the caller's transaction.
   if (errors.length > 0) throw new VariantSetInvalid(errors);
 
-  // ── Facts the pure rules cannot see ──
   const optionIds = options.map((o) => o.id);
   const valueIds = options.flatMap((o) => o.values.map((v) => v.id));
   const variantIds = variants.map((v) => v.id);
@@ -85,14 +68,14 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   );
   for (const f of foreign.rows) errors.push({ field: f.kind === "variant" ? "variants" : "options", message: `id ${f.id} belongs to another product` });
 
-  // A removed variant cannot be brought back by naming its id — that is a new variant.
+  // A removed variant cannot be revived by its id: that is a new variant.
   const removed = await tx.query<{ id: string }>(
     `SELECT id::text FROM public.product_variant WHERE product_id = $1 AND state = 'removed' AND id = ANY($2::uuid[])`,
     [productId, variantIds],
   );
   for (const r of removed.rows) errors.push({ field: `variants[${variantIds.indexOf(r.id)}].id`, message: "that variant was removed; add it as a new one" });
 
-  // Stock codes are unique per shop among variants that are not removed.
+  // Stock codes are unique per shop among variants not removed.
   const skus = variants.map((v) => v.sku?.trim().toLowerCase() ?? "").filter((s) => s !== "");
   if (skus.length > 0) {
     const taken = await tx.query<{ sku: string }>(
@@ -125,7 +108,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   try {
     await tx.query(`SET CONSTRAINTS public.product_option_position_uq, public.product_option_value_position_uq DEFERRED`);
 
-    // 1. Variants left out go first — that frees their combinations and stock codes.
+    // 1. Variants left out first, freeing their combinations and stock codes.
     if (mode === "draft") {
       await tx.query(`DELETE FROM public.product_variant WHERE product_id = $1 AND NOT (id = ANY($2::uuid[]))`, [productId, variantIds]);
     } else {
@@ -136,8 +119,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
       );
     }
 
-    // 2. Options and values left out. Only removed variants can still name them (every kept variant
-    //    names values of the new set — validated above); the FK sets theirs to NULL.
+    // 2. Options and values left out; only removed variants can still name them (the FK nulls theirs).
     await tx.query(`DELETE FROM public.product_option WHERE product_id = $1 AND NOT (id = ANY($2::uuid[]))`, [productId, optionIds]);
     await tx.query(
       `DELETE FROM public.product_option_value ov USING public.product_option o
@@ -162,10 +144,8 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
     }
     await tx.query(`SET CONSTRAINTS public.product_option_position_uq, public.product_option_value_position_uq IMMEDIATE`);
 
-    // 4. Variants, upserted by id. A NEW variant starts active and COUNTED AT ZERO — it cannot be bought
-    //    until the shop adds stock (098: tracked by default; a shop may switch counting off per size,
-    //    for made-to-order items, through the stock writers). An existing variant's stock and state are
-    //    never touched here. Its customer price comes from `priceVariants`.
+    // 4. Variants, upserted by id. A new one starts active and counted at zero, so it cannot be bought
+    //  until stock is added. An existing variant's stock and state are never touched here.
     for (const v of variants) {
       const weight = v.weightGrams ?? null;
       await tx.query(
@@ -182,7 +162,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
              gtin                   = EXCLUDED.gtin,
              shop_price_amount      = EXCLUDED.shop_price_amount,
              shop_compare_at_amount = EXCLUDED.shop_compare_at_amount,
-             -- Recording a weight marks it measured (032); leaving it out keeps what was there.
+             -- Recording a weight marks it measured; leaving it out keeps what was there.
              weight_grams           = CASE WHEN $11::int IS NULL THEN public.product_variant.weight_grams ELSE EXCLUDED.weight_grams END,
              weight_is_assumed      = CASE WHEN $11::int IS NULL THEN public.product_variant.weight_is_assumed ELSE false END,
              pack_quantity          = EXCLUDED.pack_quantity,
@@ -203,7 +183,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
       await tx.query(`UPDATE public.product SET unit_basis = $2 WHERE id = $1`, [productId, input.unitBasis]);
     }
   } catch (e) {
-    // The checks above make these unreachable in a single writer; under a race they are the truth.
+    // Unreachable in a single writer; under a race they are the truth.
     if ((e as { code?: string }).code === PG_UNIQUE) {
       const c = (e as { constraint?: string }).constraint ?? "";
       if (c.includes("sku")) throw new VariantSetInvalid([{ field: "variants", message: "a stock code is already used in your shop" }]);
@@ -216,11 +196,7 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   await refreshListing(tx, productId);
 }
 
-/**
- * Write every not-removed variant's customer price (and "was" price) from its shop price and the
- * product's ONE margin (R7) — `customerPrice` in lib/margin.ts is the arithmetic. `null` margin =
- * not set: customers pay the shop price.
- */
+/** From each shop price and the product's one margin (`customerPrice`); a null margin means the shop price. */
 export async function priceVariants(tx: Queryable, productId: string, margin: Margin | null): Promise<void> {
   const rows = await tx.query<{ id: string; shop: string; was: string | null }>(
     `SELECT id::text, shop_price_amount::text AS shop, shop_compare_at_amount::text AS was
@@ -238,12 +214,7 @@ export async function priceVariants(tx: Queryable, productId: string, margin: Ma
 
 export type SetVariantStateOutcome = "ok" | "unchanged" | "not_found" | "last_variant";
 
-/**
- * Activate, deactivate or remove one variant — immediately (spec FR-009: stopping a sale never waits).
- *
- * ⚠ A product always keeps at least one ACTIVE variant (FR-019): the change that would leave none is
- * refused with `last_variant` — the shop makes the PRODUCT unavailable instead. `removed` is terminal.
- */
+/** Immediately; never reviewed. The last active variant cannot go (`last_variant`). `removed` is terminal. */
 export async function setVariantState(
   tx: Queryable,
   args: { productId: string; shopId: string; variantId: string; state: VariantState },

@@ -17,16 +17,16 @@ import type { ProductTypeAttribute } from "./model";
 import type { AttributeDraftValue } from "./draft";
 
 /**
- * Renders ONE back-office-authored attribute as the right input for its data type. Built reusable so
+ * Renders one back-office-authored attribute as the right input for its data type. Built reusable so
  * US4's focused edit can render the same fields. Purely controlled — it owns no state; the parent
  * holds the draft value and receives every change.
  *
- *   short_text   → Input
- *   long_text    → Textarea
- *   number       → Input[type=number] (+ unit suffix)
- *   boolean      → Switch
- *   single_select→ Select (allowedValues)
- *   multi_select → checkbox group (allowedValues)
+ *  short_text → Input
+ *  long_text → Textarea
+ *  number → Input[type=number] (+ unit suffix)
+ *  boolean → Switch
+ *  single_select→ Select (allowedValues)
+ *  multi_select → checkbox group (allowedValues)
  *
  * `unit`, `helpText`, mandatory marker, and `allowedValues` all come from the schema.
  */

@@ -104,31 +104,10 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The customer Home tab — a merchandised, sectioned storefront (028).
- *
- * ── ⚠ THIS REVERSES 026's FR-025a FOR THIS SCREEN ───────────────────────────────────────────────
- *
- * 026 replaced 025's rails with a single flat two-column "Discover" grid, filtered by chips. That
- * was a deliberate decision with a real virtue — product tiles reached the shopper without three
- * screens of chrome first — and it is reversed here on operator direction (028 FR-003).
- *
- * The virtue is NOT abandoned with it. It is now enforced as acceptance criteria the sectioned
- * layout has to meet: **SC-002** (a real product visible without scrolling) and **SC-006** (the last
- * section within four swipes). If either fails on device, this layout is wrong — not the criteria.
- *
- * The chips are gone with the grid. They existed because 026 had no rails to name; sections restore
- * what they were substituting for, and keeping both would leave two competing groupings on one
- * screen.
- *
- * ── The structure ───────────────────────────────────────────────────────────────────────────────
- *
- * Header · delivery bar · search entry, then a [LazyColumn] of blocks resolved by [composeHome]:
- * category shortcuts, then merchandising sections with promotional banners interleaved between
- * them. The interleaving rules live in that PURE function, not in this file — see `HomeBlocks.kt`
- * for why.
- *
- * ⚠ NOT a `LazyVerticalGrid` with spans. A `LazyRow` inside a lazy grid item is measured against an
- * infinite width constraint; a `LazyColumn` has no such interaction (research R3).
+ * The Home tab: a merchandised, sectioned storefront. Header · delivery bar · search entry, then a
+ * [LazyColumn] of blocks from [composeHome] (category shortcuts, then sections with banners between them).
+ * It must show a real product without scrolling and the last section within four swipes. Not a
+ * `LazyVerticalGrid` with spans: a `LazyRow` in a lazy grid item is measured against infinite width.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,21 +121,21 @@ fun HomeScreen(
     onSeeAll: (Rail) -> Unit = {},
     onCategoryClick: (CategoryShortcut) -> Unit = {},
     onBannerClick: (Banner) -> Unit = {},
-    /** 068: where the list chooser sends a guest who wants a named list. */
+    /** Where the list chooser sends a guest who wants a named list. */
     onRequireSignIn: (() -> Unit)? = null,
     /** 087 (Main board): "All products" beside "Shop by aisle". */
     onAllProducts: () -> Unit = {},
-    /** 087: the "Your Effy" shortcuts — the order in progress and the points balance. */
+    /** The "Your Effy" shortcuts — the order in progress and the points balance. */
     onOpenOrder: (String) -> Unit = {},
     onPoints: () -> Unit = {},
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
-    // 033 FR-007/FR-020: ONE membership read for the whole screen, however many rails it renders, and
+    // 033 FR-007/FR-020: One membership read for the whole screen, however many rails it renders, and
     // one mirror every heart on it reads — so two rails carrying the same product cannot disagree.
     val savedTiles = rememberSavedTiles(container, onRequireSignIn)
     val tileCart = rememberTileCart(container)
-    // 087 — the large title collapses as the page scrolls (App bar board, back=false).
+    // The large title collapses as the page scrolls (App bar board, back=false).
     val collapse = rememberEffyCollapse()
     // 087 (Main board, "Your Effy") — signed-in only: the latest order still in progress, and points.
     // Both are best-effort reads; a failure simply leaves the card out (Home must never fail on them).
@@ -177,7 +156,7 @@ fun HomeScreen(
             wordmark = true,
             collapse = collapse,
             search = {
-                // An AFFORDANCE, not an input: one tap opens the Search tab with the keyboard up (028
+                // An affordance, not an input: one tap opens the Search tab with the keyboard up (028
                 // FR-008). A second live field here would be the one without filters, sort or paging.
                 EffySearchField(value = "", placeholder = "Search the store…", onEntryClick = onSearch)
             },
@@ -199,21 +178,21 @@ fun HomeScreen(
                 val blocks = remember(s.home, s.categories) { composeHome(s.home, s.categories) }
 
                 if (blocks.isEmpty()) {
-                    // SC-012: exactly ONE empty state. Never a stack of empty section headings.
+                    // Exactly one empty state. Never a stack of empty section headings.
                     EffyEmptyState(
                         title = "Nothing here yet",
                         body = "Our catalogue is on its way. Check back soon.",
                         icon = Res.drawable.lucide_shopping_basket,
                     )
                 } else {
-                    // 025 FR-033: pull-to-refresh — a store whose stock and prices move needs a way
+                    // Pull-to-refresh — a store whose stock and prices move needs a way
                     // to say "show me that again" that is not "kill the app".
                     //
-                    // ⚠ 027 fixed two things here that must not regress: `isRefreshing` was
-                    // hard-coded `false`, so the indicator NEVER appeared and the gesture looked
-                    // like nothing had happened; and it called `load()`, which blanks the screen to
+                    // Fixed two things here that must not regress: `isRefreshing` was
+                    // hard-coded `false`, so the indicator never appeared and the gesture looked
+                    // like nothing had happened; and it called `load`, which blanks the screen to
                     // a spinner — the shopper asked for a newer version of what they were looking
-                    // at and got it taken away. The shared wrapper owns the flag, and `refresh()`
+                    // at and got it taken away. The shared wrapper owns the flag, and `refresh`
                     // leaves the content in place.
                     EffyPullToRefresh(
                         onRefresh = vm::refresh,
@@ -230,13 +209,7 @@ fun HomeScreen(
     }
 }
 
-/**
- * Home's vertical sequence.
- *
- * ⚠ The gap between blocks is set ONCE, here, by `verticalArrangement`. That is what makes SC-007
- * ("the gap between every adjacent pair of sections is identical") true by construction — there is
- * no per-block padding that could drift, and no call site that could forget.
- */
+/** Home's vertical sequence. The gap between blocks is set once, by `verticalArrangement`, so every gap is identical. */
 @Composable
 private fun HomeBlockList(
     blocks: List<HomeBlock>,
@@ -254,7 +227,7 @@ private fun HomeBlockList(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val widthClass = widthClassFor(maxWidth)
-        // ⚠ Resolved to a concrete Dp HERE, where the constraints are real. A LazyRow measures its
+        // Resolved to a concrete Dp here, where the constraints are real. A LazyRow measures its
         // children with an unbounded main axis, so a fraction computed inside a rail item multiplies
         // infinity and bounds nothing (see EffyRailTile).
         val tileWidth = maxWidth * railTileWidthFraction(widthClass)
@@ -291,9 +264,9 @@ private fun HomeBlockList(
 }
 
 /**
- * THE HERO (Main board) — the store's current offers as a flat green panel at the top of Home, one per
+ * The hero (Main board) — the store's current offers as a flat green panel at the top of Home, one per
  * page, swiped by hand (it never auto-advances: a shopper cannot pause a rotating carousel, Baymard).
- * One offer shows no dots. A bounded, NAMED group for a screen reader (FR-025).
+ * One offer shows no dots. A bounded, named group for a screen reader.
  */
 @Composable
 private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
@@ -309,7 +282,7 @@ private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit
         },
     ) { page ->
         val banner = banners[page]
-        // 095 — a skin staff chose for this place; none (or Classic) keeps the hero as it was.
+        // A skin staff chose for this place; none (or Classic) keeps the hero as it was.
         val look = banner.look?.takeIf { it.settings != null }
         if (look != null) {
             PromoSkinView(
@@ -355,7 +328,7 @@ private fun HeroDots(count: Int, current: Int) {
 }
 
 /**
- * Promotions placed BETWEEN sections (028 US4) — on the Main board an "Offers" row of coloured cards
+ * Promotions placed between sections — on the Main board an "Offers" row of coloured cards
  * that scrolls sideways, alternating Effy blue and Effy green.
  */
 @Composable
@@ -440,18 +413,9 @@ private fun YourEffyRow(data: YourEffy, onOpenOrder: (String) -> Unit, onPoints:
     }
 }
 
-
 /**
- * The category shortcut row (028 US3).
- *
- * ⚠ It SCROLLS and carries every qualifying top-level category — it does not choose a subset. SC-004
- * asks for at least 30–40% of top-level categories, which the research frames as a floor guarding
- * against representing too narrow a slice of the catalogue. A row that scrolls has no reason to
- * choose, so it clears the floor by carrying all of them (research R11).
- *
- * What still needs care is what is visible BEFORE any scroll — that is the impression a first-time
- * shopper forms of what this store sells. Server order governs, so if similar categories cluster at
- * the front, the fix is merchandising in the store, not a client-side reshuffle.
+ * The category shortcut row: it scrolls and carries every qualifying category, in server order (what shows
+ * first is a merchandising decision, not a client reshuffle).
  */
 @Composable
 private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (CategoryShortcut) -> Unit, onAllProducts: () -> Unit) {
@@ -461,7 +425,7 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            // FR-044: one bounded, named group — see SectionBlock for why isTraversalGroup is the
+            // One bounded, named group — see SectionBlock for why isTraversalGroup is the
             // load-bearing half of this.
             .semantics {
                 isTraversalGroup = true
@@ -490,15 +454,9 @@ private fun HomeBlock.blockKey(): String = when (this) {
 }
 
 /**
- * One merchandising section: a title with "see all", above a horizontally scrolling row.
- *
- * ⚠ The row is `LazyRow`, not a scrollable `Row`. With a dozen products a plain Row composes all of
- * them whether or not they are on screen, and the section's images all load at once — which is the
- * fastest way to lose SC-008's one-second image budget.
- *
- * The trailing peek (FR-015) is not drawn — it FALLS OUT of tile width. Each tile takes a fraction
- * of the window that leaves the next one partly visible, so a row with more items than fit shows a
- * sliver and a row that fits exactly does not (research R4).
+ * One merchandising section: a title with "see all" above a `LazyRow` (a plain Row would compose and load
+ * every image at once). The trailing peek falls out of tile width, so only a row with more than fits shows
+ * a sliver.
  */
 @Composable
 private fun SectionBlock(
@@ -510,12 +468,8 @@ private fun SectionBlock(
     onSeeAll: () -> Unit,
 ) {
     Column(
-        // FR-044 / SC-010: a bounded, NAMED group a screen-reader user can step past, rather than
-        // being walked through every product in an unbounded sideways list.
-        //
-        // ⚠ `isTraversalGroup` is the part that does the work. A `contentDescription` alone on a
-        // container that does not merge its descendants just adds one more node to walk through —
-        // it names the row without bounding it, which is the half of FR-044 that actually matters.
+        // A bounded, named group a screen-reader user can step past: `isTraversalGroup` bounds it; a
+        // `contentDescription` alone would only name it.
         modifier = Modifier.semantics {
             isTraversalGroup = true
             contentDescription = "${rail.title}, ${rail.products.size} products"
@@ -529,7 +483,7 @@ private fun SectionBlock(
             contentPadding = PaddingValues(horizontal = EffySpacing.lg),
         ) {
             items(rail.products, key = { it.id }) { product ->
-                // 033 FR-007: the heart on a rail tile. ⚠ Its own `toggleable` consumes the tap, so it
+                // The heart on a rail tile. Its own `toggleable` consumes the tap, so it
                 // does not also fire the tile's navigation — a shopper saving from a rail must not be
                 // thrown onto the product page for their trouble.
                 EffyRailTile(

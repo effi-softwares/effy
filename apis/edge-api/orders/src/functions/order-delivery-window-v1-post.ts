@@ -1,4 +1,3 @@
-// POST /orders/v1/orders/{orderId}/delivery-window — give an Effy order another window or day (085). Write = admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -7,12 +6,7 @@ import { json, unavailable, validationFailed } from "@effy/edge-shared";
 import { changeWindow, deliveryMoveError } from "../delivery-move/service";
 import { requireWriter } from "../lib/guard";
 
-/**
- * ⚠ WRITE GATE: an ACTIVE staff record holding admin|manager, read from `admin.staff` — never from the
- * token. The same gate as moving an order between Effy and courier (081).
- *
- * ⚠ ONE TRANSACTION, through `changeEffyWindow` — the same window rule and lock as checkout's hold.
- */
+/** Admin/manager from `admin.staff`. One transaction through `changeEffyWindow`, checkout's window rule and lock. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireWriter(event, context);
   if (!guard.ok) return guard.response;

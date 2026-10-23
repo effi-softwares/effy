@@ -1,5 +1,3 @@
-// Repository for same-day delivery slots (069). Row shapes stay here and are mapped at the boundary.
-
 import { query, withTransaction } from "@effy/edge-shared";
 import type { DeliverySlotDTO, DeliverySlotLoadDTO } from "@effy/shared-types";
 import type pg from "pg";
@@ -39,7 +37,7 @@ export async function listSlots(): Promise<DeliverySlotDTO[]> {
   return res.rows.map(toDTO);
 }
 
-/** 078 — slot → its load on each of `dates`, in the order given; a day with no booking is zero. */
+/** Slot → its load on each of `dates`, in order; no booking is zero. */
 export async function loadOnDays(dates: readonly string[]): Promise<Map<string, DeliverySlotLoadDTO[]>> {
   const res = await query<{ slot_id: string; delivery_date: string; booked: number; over_capacity: number }>(SLOT_LOAD_ON_DAYS, [dates]);
   const bySlot = new Map<string, Map<string, { booked: number; overCapacity: number }>>();
@@ -54,7 +52,7 @@ export async function loadOnDays(dates: readonly string[]): Promise<Map<string, 
   return out;
 }
 
-/** 078 — the look-ahead and the closed days the Effy calendar is drawn from. Defaults until settings exist. */
+/** The look-ahead and closed days; defaults until settings exist. */
 export async function calendarSettings(): Promise<{ lookaheadDays: number; noWeekdays: number[]; noDates: Set<string> }> {
   const [settings, closed] = await Promise.all([
     query<{ effy_lookahead_days: number; no_weekdays: number[] | null }>(CALENDAR_SETTINGS),
@@ -79,12 +77,12 @@ export interface SlotValues {
   cutoffTime: string;
   /** null = no limit. */
   capacity: number | null;
-  /** 085 — THE "Any time" window. Read only: nothing here sets it. */
+  /** The "Any time" window. Read only. */
   anyTime: boolean;
   status: "active" | "disabled";
 }
 
-/** PostgreSQL's unique-violation code: two slots with the same window. */
+/** Two slots with the same window. */
 export function isDuplicateWindow(err: unknown): boolean {
   return (
     typeof err === "object" && err !== null &&
@@ -107,14 +105,8 @@ export async function insertSlot(
 }
 
 /**
- * Change a slot under its row lock.
- *
- * `decide` is given the slot as it stands and returns what it should become — so the merge of a
- * partial PATCH and the validation of the RESULT happen against the locked row, not against a copy
- * read a moment earlier that someone else may have changed.
- *
- * ⚠ The same row lock checkout takes to hold a place. A capacity change therefore cannot interleave
- * with a customer taking the last place: one of them waits.
+ * `decide` gets the slot as it stands under its row lock (the lock checkout takes to hold a place) and
+ * returns what it should become, so a partial PATCH is merged and validated against the locked row.
  */
 export async function updateSlot(
   id: string,

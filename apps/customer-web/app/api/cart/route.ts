@@ -1,23 +1,16 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * The account cart, re-priced (027).
+ * The account cart, re-priced.
  *
- * Every route under `app/api/cart/` proxies to the CORE api with the SERVER session, so no client module
- * ever reaches `aws-amplify` and the storefront's quarantine guard stays green (011 FR-006 / D11).
+ * Every route under `app/api/cart/` proxies to the core api with the server session, so no client module
+ * ever reaches `aws-amplify` and the storefront's quarantine guard stays green.
  */
 export async function GET() {
   return proxyToEdge((c) => c.get("/commerce/v1/cart"))
 }
 
-/**
- * Empty the payable cart (FR-032). Set-aside items deliberately survive it (FR-030).
- *
- * ⚠ The `PUT` that used to live here is GONE. It was 019 Option B's whole-cart replace, fired once at
- * checkout entry, and it is the one operation that lets a client delete a line it has never heard of. The
- * platform is authoritative now, and the absence of that operation is what makes a stale device
- * structurally harmless (specs/027-customer-cart-sync/research.md R0/R1).
- */
+/** Empties the payable cart; set-aside items survive. There is no whole-cart replace, so a stale device cannot delete a line it never knew. */
 export async function DELETE(req: Request) {
   const changeId = new URL(req.url).searchParams.get("changeId") ?? ""
   return proxyToEdge((c) => c.delete(`/commerce/v1/cart?changeId=${encodeURIComponent(changeId)}`))

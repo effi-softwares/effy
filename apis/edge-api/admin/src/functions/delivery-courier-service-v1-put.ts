@@ -1,4 +1,3 @@
-// PUT /admin/v1/delivery/courier-services/{id} — edit, retire or make default (080). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

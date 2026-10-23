@@ -1,19 +1,7 @@
-// TOKEN-REFERENCE GUARD — added by the platform-wide theme adoption.
-//
-// ⚠ WHAT THIS CATCHES THAT NOTHING ELSE COULD. Tailwind resolves `bg-brand-soft` by looking for
-// `--color-brand-soft` in the `@theme` block. If that variable does not exist — because the utility
-// was mistyped, or because a token was renamed and one call site was missed — Tailwind emits NO RULE
-// AT ALL. There is no error, no warning, and no failing test: the element simply renders with no
-// background, which on a white ground is indistinguishable from a deliberate design choice.
-//
-// That is the exact shape of defect this repository keeps recording (024's VectorDrawable compiled
-// and produced nothing; 058's WriteTimeout passed every test and died only in production): valid,
-// building, tested, wrong only where it runs. The theme adoption introduced fifteen new token names
-// at once, which is the moment that risk is highest.
-//
-// It scans the web surfaces for colour utilities built on the platform's OWN token names and asserts
-// each resolves. It deliberately ignores Tailwind's built-in palette (`bg-white`, `text-black`) and
-// arbitrary values (`bg-[#fff]`) — those are other guards' business.
+// Token reference guard. Tailwind emits no rule at all for a colour utility whose `--color-*` is not
+// in `@theme`, so a mistyped or renamed token renders as nothing with no error. This scans the web
+// surfaces for utilities built on the platform's own token names and asserts each resolves (Tailwind's
+// palette and arbitrary values are ignored).
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -22,7 +10,7 @@ import { dirname, join, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../../..");
 
-// The declared vocabulary: every `--color-*` in tokens.css's @theme block.
+// The declared vocabulary: every `--color-*` in tokens.css's @theme.
 function declaredIn(file) {
   const css = readFileSync(resolve(here, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   return new Set([...css.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
@@ -33,17 +21,14 @@ if (consoleDeclared.size < 20) {
   console.error("check-token-usage: FAILED — only " + consoleDeclared.size + " --color-* vars parsed; the guard is not reading tokens.css");
   process.exit(1);
 }
-// 084 — the storefront identity is a second @theme. customer-web imports IT and not tokens.css, so a
-// console token name used there (bg-brand-soft, text-success, border-warning…) emits no rule at all.
+// customer-web imports the storefront @theme instead, where a console name emits no rule.
 const storefrontDeclared = declaredIn("../src/storefront/tokens.css");
 if (storefrontDeclared.size < 15) {
   console.error("check-token-usage: FAILED — only " + storefrontDeclared.size + " --color-* vars parsed from storefront/tokens.css");
   process.exit(1);
 }
 
-// The back-office identity (the "Effy Back-Office Redesign" canvas). back-office imports IT and not
-// tokens.css; check-backoffice-tokens.mjs holds it to every console name, so the shared kit it renders
-// still resolves, and it adds the redesign's own roles (primary-muted, row-hover, sidebar-muted…).
+// back-office imports its own @theme (held to every console name by check-backoffice-tokens.mjs) with its own roles.
 const backofficeDeclared = declaredIn("../src/backoffice/tokens.css");
 if (backofficeDeclared.size < consoleDeclared.size) {
   console.error("check-token-usage: FAILED — backoffice/tokens.css declares fewer --color-* vars than tokens.css");
@@ -59,7 +44,7 @@ const RE = new RegExp(
   "g",
 );
 
-// Names that are Tailwind's own, not ours. A colour utility resolving to one of these is fine.
+// Tailwind's own names.
 const BUILTIN = new Set([
   "white", "black", "transparent", "current", "inherit", "none", "auto",
   "solid", "dashed", "dotted", "double", "hidden", "px", "0", "full",
@@ -85,8 +70,7 @@ function walk(dir, files) {
   }
 }
 
-// `declared` is the @theme the surface imports; `known` is every token name either identity has, so a
-// name that belongs to the OTHER identity is caught even when its head is not declared here.
+// `declared` is the surface's @theme; `known` is every name in any identity, so another identity's name is caught.
 function scan(label, file, declared, known, roots) {
   const files = [];
   for (const r of roots) walk(resolve(root, r), files);

@@ -3,21 +3,10 @@ import * as React from "react"
 import { cn } from "../cn"
 
 /**
- * THE SPINNER (theme-adoption-prompt.md, Phase 2 §11).
- *
- * An 11px circle: a 1.6px `--brand-mid` ring with a `--brand` top border, turning once every .9s.
- *
- * ⚠ USE IT FOR ANY LIVE OR IN-FLIGHT STATE — NEVER A TEXT-ONLY "Loading…". A sentence does not read
- * as motion, so a stalled request and a finished one look identical; the turning ring is the only
- * thing on the page that distinguishes "still working" from "nothing happened".
- *
- * ⚠ `data-effy-spinner` is not decorative. tokens.css's `prefers-reduced-motion` block flattens every
- * animation on the platform to ~0ms, which would freeze this into a static broken circle — the
- * attribute is what exempts it, slowing it to 1.8s instead of stopping it. Removing the attribute
- * silently costs the one affordance that reduced-motion users still need.
- *
- * ⚠ It is `aria-hidden`: a spinner announces nothing useful to a screen reader. The region it sits in
- * carries `aria-busy` / `aria-live` and the visible label does the announcing.
+ * The spinner: an 11px `--brand-mid` ring with a `--brand` top, turning every.9s. Use it for any
+ * in-flight state rather than a text-only "Loading…". `data-effy-spinner` exempts it from the
+ * reduced-motion flattening (it slows instead of freezing). `aria-hidden`: the region's `aria-busy` /
+ * `aria-live` and the visible label announce.
  */
 function Spinner({
   className,

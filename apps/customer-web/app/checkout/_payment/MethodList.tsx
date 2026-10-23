@@ -11,22 +11,10 @@ import { AcceptedNetworks } from "./BrandMarks"
 export type MethodKind = "card" | "later"
 
 /**
- * The payment-method rows (051 US4).
- *
- * ⚠ EXACTLY ONE ELEMENT IS MOUNTED AT A TIME, and that is a correctness decision rather than a layout
- * one. A Payment Element and split card elements in the same Elements group create a genuine ambiguity
- * for `confirmPayment({elements})` — it collects from everything mounted, so an untouched card form
- * would fail validation while the shopper is trying to pay with Klarna. The docs do not settle whether
- * the combination is supported, and "probably fine" is not a standard for a payment path. Rendering one
- * or the other removes the question instead of betting on it.
- *
- * ⚠ WHY THE PROVIDER STATES THE INSTALMENT TERMS, NOT EFFY. FR-012 requires the number of payments,
- * the amount of each and whether interest applies to be shown before selection — and the Payment
- * Element renders exactly that, authored by Klarna and Zip themselves. Effy restating them would be
- * worse than redundant: instalment terms depend on the provider's own assessment of the shopper, so a
- * hardcoded "4 payments of $3.65, interest free" could be wrong for the person reading it. Under
- * Australian Consumer Law s18 a confident wrong number about credit is exactly the kind of statement
- * that gets a retailer in trouble, and it is not a number Effy controls.
+ * The payment-method rows. Exactly one element is mounted at a time: `confirmPayment({elements})`
+ * collects from everything mounted, so an untouched card form could fail validation during a Klarna
+ * payment. Instalment terms are the provider's own (they depend on its assessment of the shopper); Effy
+ * never restates them.
  */
 export function MethodList({
   selected,
@@ -37,13 +25,7 @@ export function MethodList({
 }: {
   selected: MethodKind
   onSelect: (kind: MethodKind) => void
-  /**
-   * Whether any pay-over-time option can be offered for this basket.
-   *
-   * ⚠ False must mean "genuinely none", not "we didn't check". An option offered and then refused
-   * after the shopper commits is what FR-010 forbids; one omitted with no explanation is what FR-011
-   * forbids. Absent is only correct when the provider reports nothing available at all.
-   */
+  /** Whether any pay-over-time option can be offered for this basket, as the provider reports it (false means none, not unchecked). */
   laterAvailable: boolean
   busy?: boolean
   /** The card fields, rendered by the parent so this file stays free of element wiring. */

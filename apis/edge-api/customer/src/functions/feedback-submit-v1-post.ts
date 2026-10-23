@@ -5,12 +5,7 @@ import { json, preamble, problem, ProblemType, subject } from "@effy/edge-shared
 
 import { submitFeedback } from "../feedback/service"
 
-/**
- * POST /customer/v1/feedback — submit feedback as a SIGNED-IN customer (046 US1).
- *
- * ⚠ AUTHENTICATED sibling of the public route. The verified `sub` links the submission to the customer
- * record and selects the TRUSTED profile email; a body email is ignored on this path (research D2).
- */
+/** Signed-in: linked to the customer, using their verified profile email; a body email is ignored. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

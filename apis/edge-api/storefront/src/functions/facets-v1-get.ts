@@ -1,7 +1,4 @@
-// GET /storefront/v1/facets — the facet set for the current query + filters. Public.
-//
-// Takes the SAME filter parameters as the products route (no sort/cursor/limit), so the counts
-// describe exactly the set the grid shows. A malformed price is the caller's error, not an outage.
+// The products route's filters without paging, so the counts match the grid.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";

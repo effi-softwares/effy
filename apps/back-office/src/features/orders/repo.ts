@@ -12,7 +12,6 @@ import type {
   DeliveryMoveResponse,
   DeliveryType,
   AdminOrderListResponse,
-  HandoverDueFilter,
   HandoverListResponse,
   HandoverRowDTO,
   RecordArrivalRequest,
@@ -26,7 +25,7 @@ import { api } from "@/lib/api";
 
 import type { OrderListParams } from "./model";
 
-// The data layer for the back-office order console (053). Screens never touch the api client
+// The data layer for the back-office order console. Screens never touch the api client
 // directly (Principle VI). Every endpoint lives on the orders cold-path service behind the shared
 // gateway — see specs/053-order-lifecycle-completion/contracts/back-office-orders.contract.md.
 
@@ -61,7 +60,7 @@ export async function getOrdersToday(): Promise<AdminOrdersTodayDTO> {
 }
 
 /**
- * 096 — what a bag label, a typed code or an order number names; null when nothing does. The server
+ * What a bag label, a typed code or an order number names; null when nothing does. The server
  * records every lookup as a read, found or not.
  */
 export async function lookupLabel(q: string, method: "scan" | "typed"): Promise<AdminLookupDTO | null> {
@@ -78,7 +77,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO> {
 }
 
 /**
- * ⚠ `changeId` is minted PER ACTION, not per attempt (027's rule). A retry of the same press reuses
+ * `changeId` is minted per action, not per attempt (027's rule). A retry of the same press reuses
  * it, so a request that arrived without its response reaching us cannot apply twice.
  */
 export async function recordHandoff(
@@ -95,12 +94,7 @@ export async function recordArrival(
   return api.post(`/orders/v1/fulfillments/${fulfillmentId}/arrival`, body);
 }
 
-/** Standard packages to hand to the carrier, by the day each must leave the hub (069 US7). */
-export async function listHandovers(due: HandoverDueFilter): Promise<HandoverRowDTO[]> {
-  return (await api.get<HandoverListResponse>(`/orders/v1/handovers?due=${due}`)).items;
-}
-
-// ── 080 — courier consignments ────────────────────────────────────────────────────────────────────
+// Courier consignments
 
 export function saveConsignment(fulfillmentId: string, body: ConsignmentInput): Promise<{ consignmentId: string; created: boolean }> {
   return api.put(`/orders/v1/fulfillments/${fulfillmentId}/consignment`, body);
@@ -127,22 +121,22 @@ export function changeCourierCollection(orderId: string, body: CourierCollection
   return api.put(`/orders/v1/orders/${orderId}/courier-collection`, body);
 }
 
-/** The Courier tab: one view of the parcels a courier takes that are not finished (080). */
+/** The Courier tab: one view of the parcels a courier takes that are not finished. */
 export async function listCourierParcels(view: CourierView): Promise<HandoverRowDTO[]> {
   return (await api.get<HandoverListResponse>(`/orders/v1/handovers?view=${view}`)).items;
 }
 
-/** 081 — what moving the order to courier (or back to Effy) would do, and whether it may. */
+/** What moving the order to courier (or back to Effy) would do, and whether it may. */
 export function previewDeliveryMove(orderId: string, to: DeliveryType): Promise<DeliveryMovePreviewDTO> {
   return api.get(`/orders/v1/orders/${orderId}/delivery-move?to=${to}`);
 }
 
-/** 081 — move it, with the compensation chosen (to courier) or the window chosen (back to Effy). */
+/** Move it, with the compensation chosen (to courier) or the window chosen (back to Effy). */
 export function moveDelivery(orderId: string, body: DeliveryMoveRequest): Promise<DeliveryMoveResponse> {
   return api.post(`/orders/v1/orders/${orderId}/delivery-move`, body);
 }
 
-/** 085 — give an Effy order another window or day. */
+/** Give an Effy order another window or day. */
 export function changeDeliveryWindow(
   orderId: string,
   body: { window: { slotId: string; date: string }; reason: string; expectedUpdatedAt: string },

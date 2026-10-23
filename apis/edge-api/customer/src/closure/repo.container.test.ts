@@ -1,15 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql"
+import { migrationSql } from "@effy/edge-shared/testing"
 import { Pool } from "pg"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
-/**
- * ⚠ The shared `query` helper forces SSL with the embedded RDS CA bundle, so pointing it at a local
- * container via DB_* env vars cannot work. The transport is replaced here; the SQL is NOT — the
- * statement under test is the real one from `./repo`, executed against real PostgreSQL.
- *
- * `vi.mock` is hoisted above the imports, so the pool is reached through a holder that `beforeAll`
- * fills in. Assigning it directly would run too late.
- */
+/** Only the transport is replaced (the shared query forces RDS TLS); the statement is the real one. The pool is reached through a holder because `vi.mock` is hoisted. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }))
 
 vi.mock("@effy/edge-shared", () => ({
@@ -20,27 +14,8 @@ vi.mock("@effy/edge-shared", () => ({
 import { findBlockingOrders, IN_TRANSIT_BLOCK_DAYS } from "./repo"
 
 /**
- * ⚠ THE LOAD-BEARING TEST OF THIS FEATURE, AGAINST REAL POSTGRESQL 16.
- *
- * The blocking predicate has been WRONG TWICE, and both times a mock would have agreed with the
- * code rather than with the world:
- *
- *   Attempt 1 — "block until the order reaches a terminal state". An order's only terminal state is
- *   every `shop_fulfillment` reaching `collected`, and feature 020 shipped that transition behind a
- *   DEV-ONLY STUB WITH NO ROUTE IN ANY ENVIRONMENT. So in production nothing ever became terminal,
- *   and every customer who had ever paid would have been PERMANENTLY UNDELETABLE.
- *
- *   Attempt 2 — "bound it at 30 days, matching the grace period". Effy is a WEEKLY-RE-BUY grocery
- *   platform, so a customer shopping every week is always within 30 days of an order. Same dead end,
- *   different disguise, and it would have hit the platform's most engaged customers hardest.
- *
- * Both are the shape Apple's "apps that make it unnecessarily difficult for a user to delete their
- * account will not pass review" is written to catch. Raw SQL with no ORM means a mock cannot catch a
- * wrong column, a wrong interval, or a join that quietly excludes the row that should have blocked —
- * so this runs the ACTUAL statement.
- *
- * Gated behind `-short`-equivalent: skipped unless Docker is reachable, so ordinary unit runs stay
- * Docker-free. Mirrors the Go side's `testing.Short()` convention.
+ * The closure-blocking predicate against real Postgres. It must let weekly shoppers delete, must not
+ * block forever on paid orders, and must block only goods genuinely in transit.
  */
 
 const RUN = process.env.CONTAINER_TESTS === "1"
@@ -54,26 +29,8 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() })
     holder.pool = pool
 
-    // The columns the predicate actually reads. Deliberately minimal: if a future migration renames
-    // one, this fails loudly instead of silently matching nothing.
-    await pool.query(`
-      CREATE TABLE public.customer (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid()
-      );
-      CREATE TABLE public."order" (
-        id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        customer_id  uuid NOT NULL REFERENCES public.customer (id),
-        order_number text NOT NULL,
-        status       text NOT NULL,
-        created_at   timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.shop_fulfillment (
-        id       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        order_id uuid NOT NULL REFERENCES public."order" (id) ON DELETE CASCADE,
-        status   text NOT NULL
-      );
-    `)
-
+    await pool.query(migrationSql())
+    await pool.query(`INSERT INTO public.shop (code, name) VALUES ('S1', 'Shop One'), ('S2', 'Shop Two')`)
   }, 120_000)
 
   afterAll(async () => {
@@ -83,7 +40,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
 
   async function seedCustomer(): Promise<string> {
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.customer DEFAULT VALUES RETURNING id`,
+      `INSERT INTO public.customer (cognito_sub, email) VALUES (gen_random_uuid()::text, gen_random_uuid()::text || '@example.test') RETURNING id`,
     )
     return r.rows[0]!.id
   }
@@ -95,25 +52,27 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     fulfillmentStatus: string | null = "picking",
   ): Promise<string> {
     const o = await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, created_at)
-       VALUES ($1, 'EFY-TEST', $2, now() - ($3 || ' days')::interval)
+      `INSERT INTO public."order" (customer_id, order_number, status, created_at, delivery_address, item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, courier_estimate)
+       VALUES ($1, 'EFY-' || substr(gen_random_uuid()::text, 1, 8), $2, now() - ($3 || ' days')::interval, '{}', 10, 10, 'courier', 'out_of_coverage', '2–4 business days')
        RETURNING id`,
       [customerId, status, String(daysAgo)],
     )
     const id = o.rows[0]!.id
     if (fulfillmentStatus) {
       await pool.query(
-        `INSERT INTO public.shop_fulfillment (order_id, status) VALUES ($1, $2)`,
+        `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, unfulfillable_reason)
+         VALUES ($1, (SELECT id FROM public.shop WHERE code = 'S1'), 1, 10, $2::text, CASE WHEN $2::text = 'unfulfillable' THEN 'Out of stock' END)`,
         [id, fulfillmentStatus],
       )
     }
     return id
   }
 
-  /** 055 — a SECOND portion on an existing order, so a rollup can be told from a max. */
+  /** A second portion on an order, so a rollup can be told from a max. */
   async function addPortion(orderId: string, status: string): Promise<void> {
     await pool.query(
-      `INSERT INTO public.shop_fulfillment (order_id, status) VALUES ($1, $2)`,
+      `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, unfulfillable_reason)
+         VALUES ($1, (SELECT id FROM public.shop WHERE code = 'S2'), 1, 10, $2::text, CASE WHEN $2::text = 'unfulfillable' THEN 'Out of stock' END)`,
       [orderId, status],
     )
   }
@@ -127,7 +86,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     const rows = await blockersFor(c)
     expect(rows).toHaveLength(1)
     expect(rows[0]!.status).toBe("pending_payment")
-    // ⚠ FR-042 forbids a block that cannot state its end.
+    // A block must state its end.
     expect(rows[0]!.clears_at).toBeInstanceOf(Date)
   })
 
@@ -140,10 +99,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     expect(rows[0]!.status).toBe("paid")
   })
 
-  /**
-   * ⚠ ATTEMPT 1's DEFECT. Revert the age bound and this fails: with `collected` unreachable in
-   * production, a paid order would block forever.
-   */
+  /** Without the age bound, a paid order would block forever. */
   it("STOPS blocking once a paid order ages past the bound", async () => {
     const c = await seedCustomer()
     await seedOrder(c, "paid", IN_TRANSIT_BLOCK_DAYS + 1, "picking")
@@ -151,12 +107,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     expect(await blockersFor(c)).toHaveLength(0)
   })
 
-  /**
-   * ⚠ ATTEMPT 2's DEFECT, AND THE ONE MOST LIKELY TO COME BACK.
-   *
-   * A shopper who buys every week must still have days on which they can delete. If the bound is
-   * ever widened to the 30-day grace period, this fails — which is the whole point of it existing.
-   */
+  /** Weekly shoppers must have days on which they can delete: the bound must not grow to the grace period. */
   it("leaves a WEEKLY shopper able to delete", async () => {
     const c = await seedCustomer()
     for (const daysAgo of [8, 15, 22, 29]) {
@@ -169,21 +120,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     ).toHaveLength(0)
   })
 
-  /**
-   * ⚠ ATTEMPT 3's DEFECT — and the reason this test is now TWO tests.
-   *
-   * Until 053 the predicate read `f.status <> 'collected'`, written before the delivery lifecycle
-   * existed with a comment promising it would "become correct automatically when the delivery
-   * lifecycle lands". It landed in 049 with `delivered` as the terminal state — a DIFFERENT value —
-   * and the predicate inverted itself in both directions without anything failing:
-   *
-   *   • a DELIVERED package satisfied `<> 'collected'`, so an ARRIVED order kept blocking;
-   *   • a COLLECTED package did not, so an order genuinely IN TRANSIT did not block at all.
-   *
-   * ⚠ And this test asserted the second half of that defect. It seeded `collected` and demanded zero
-   * blockers, which is 029's failure mode exactly: the test agreed with the code instead of with the
-   * world. A test covering only one direction would leave the other live, so both are pinned.
-   */
+  /** Both directions: a delivered package releases, a package in transit blocks. */
   it("does not block once every package has ARRIVED, even inside the window", async () => {
     const c = await seedCustomer()
     await seedOrder(c, "paid", 1, "delivered")
@@ -212,7 +149,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     expect(await blockersFor(c)).toHaveLength(0)
   })
 
-  /** Scoping: one customer's order must never block another's deletion. */
+  /** One customer's order never blocks another's deletion. */
   it("only ever sees the customer's OWN orders", async () => {
     const mine = await seedCustomer()
     const theirs = await seedCustomer()
@@ -226,17 +163,11 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     await seedOrder(c, "pending_payment", 0, null)
 
     const rows = await blockersFor(c)
-    // ⚠ `public."order"` calls this `order_number`, NOT `reference`. The first draft of the repo used
-    // `reference` and would have failed at runtime with a 500 on every deletion attempt.
-    expect(rows[0]!.order_number).toBe("EFY-TEST")
+    // `public."order"` calls it `order_number`, not `reference`.
+    expect(rows[0]!.order_number).toMatch(/^EFY-/)
   })
 
-  // ── 055 ──────────────────────────────────────────────────────────────────────────────────────
-  //
-  // ⚠ THE SAME DEFECT SHAPE, A THIRD TIME. 053 fixed the VALUE and kept the shape: a negation against
-  // one name still cannot notice the vocabulary moving. 055 moved it again, and both new states are
-  // FINISHED — so both would have satisfied `<> 'delivered'` and held a customer for seven days over
-  // a package nobody is carrying.
+  // Finished states must release: the predicate names what blocks, not what does not.
 
   it("does NOT block on a portion the shop said it cannot supply", async () => {
     const c = await seedCustomer()
@@ -258,8 +189,7 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     ).toHaveLength(0)
   })
 
-  // ⚠ A ROLLUP, NOT A MAX: one finished portion does not release an order whose other portion is
-  // genuinely with a driver.
+  // A rollup, not a max: one finished portion does not release an order whose other portion is in transit.
   it("STILL blocks when one portion is finished and another is in transit", async () => {
     const c = await seedCustomer()
     const order = await seedOrder(c, "paid", 1, "unfulfillable")

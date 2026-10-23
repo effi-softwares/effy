@@ -1,16 +1,6 @@
-// Returning work nobody can do (072, research R10).
-//
-// ⚠ 063 REQUIRED THIS AND NOTHING DID IT. FR-035 there says work assigned to a driver who goes off
-// duty returns to the pool; the tasks were ticked; `goOffDuty` ends the duty session and touches
-// nothing else. The gap was narrow while a round existed for the last 45 minutes before it was due.
-// Since 072 a round is assigned the moment a driver can take it — a driver given tomorrow's run at
-// 18:00 goes home, and without this step keeps it, with every query that looks for unassigned work
-// skipping the packages because they ARE assigned.
-//
-// ⚠ IT RUNS IN THE PLANNING PASS, NOT IN THE ROUTES THAT END A SHIFT. There are two of those (the
-// driver's own, and back-office ending a session), plus standing a driver down and offboarding them.
-// Four call sites each remembering to release is four chances to forget; one sweep at the start of
-// every pass covers all of them and is at most one pass late.
+// Returns work nobody can do: a driver given tomorrow's run who goes off duty would otherwise keep it.
+// Runs at the start of every planning pass rather than in the four routes that end a shift, so it
+// cannot be forgotten and is at most one pass late.
 
 import { instantAtLocalTime, localDateParts, type CollectionRun, type Queryable } from "@effy/edge-shared";
 import type pg from "pg";
@@ -19,17 +9,15 @@ import { recordAudit } from "../shared/audit";
 import { PLANNED_COLLECTION_ROUNDS, RELEASE_ASSIGNED, UNWORKABLE_ROUNDS } from "./sql";
 import { enqueueRoundChanged } from "../shared/driver-push";
 
-/** The audit actor for something the platform did by itself. */
 const SYSTEM_ACTOR = "system:planner";
 
 export interface ReleaseResult {
-  /** Packages returned to be assigned again. */
   released: number;
-  /** Drivers whose work changed — their apps are told after the pass commits. */
+  /** Their apps are told after the pass commits. */
   driverIds: string[];
 }
 
-/** Does this instant fall on an active run, on its own local date? */
+/** On its own local date. */
 function isScheduled(deadlineAt: Date, runs: readonly CollectionRun[]): boolean {
   const { year, month, day } = localDateParts(deadlineAt);
   return runs.some((r) => instantAtLocalTime(year, month, day, r.hour, r.minute).getTime() === deadlineAt.getTime());
@@ -44,10 +32,10 @@ async function releaseRound(
   const released = gone.rowCount ?? 0;
 
   if (round.status === "planned") {
-    // Not begun: nothing of it is in anybody's hands, so the round itself is over.
+    // Not begun: nothing is in anyone's hands, so the round is over.
     await tx.query(`UPDATE public.driver_round SET status = 'cancelled', updated_at = now() WHERE id = $1`, [round.id]);
   } else if (released > 0) {
-    // Under way: the driver keeps what they collected and the round goes on to the hub with it.
+    // Under way: the driver keeps what they collected and goes on to the hub.
     await tx.query(
       `UPDATE public.round_stop rs
           SET status = 'skipped', completed_at = now()
@@ -61,7 +49,7 @@ async function releaseRound(
   }
 
   if (released > 0 || round.status === "planned") {
-    // Backlog D2 — ended: "Run removed"; under way and shorter: "Run updated".
+    // Ended: "Run removed"; under way and shorter: "Run updated".
     await enqueueRoundChanged(tx, round.id, round.driver_id);
     await recordAudit(
       {
@@ -77,13 +65,8 @@ async function releaseRound(
 }
 
 /**
- * Take back uncollected work from drivers who cannot do it, and end not-yet-begun rounds for a
- * collection run that no longer exists. Released packages are simply unassigned again; the rest of
- * the same pass reconsiders them.
- *
- * ⚠ A DELIVERY ROUND UNDER WAY IS NEVER TOUCHED EITHER. Its packages read `assigned` until they are
- * delivered, but they left the hub in a van; releasing them would send a second driver to the hub
- * for goods that are not there.
+ * Takes back uncollected work from drivers who cannot do it, and ends unstarted rounds for a run that
+ * no longer exists. A delivery round under way is never touched: its goods left the hub.
  */
 export async function releaseUnworkable(
   tx: Queryable,
@@ -101,8 +84,7 @@ export async function releaseUnworkable(
     driverIds.add(round.driver_id);
   }
 
-  // FR-014 — a round not yet begun follows the schedule as it now stands. Runs are created and
-  // deleted, never edited, so "this round's run is gone" is "its deadline is on no active run".
+  // Runs are created and deleted, never edited, so a gone run is a deadline on no active run.
   const planned = await tx.query<{ id: string; driver_id: string; deadline_at: Date }>(PLANNED_COLLECTION_ROUNDS);
   for (const round of planned.rows) {
     if (handled.has(round.id) || isScheduled(round.deadline_at, runs)) continue;

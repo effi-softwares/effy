@@ -1,4 +1,3 @@
-// GET /admin/v1/delivery/coverage/places?q= — place search for the add dialog, one result per postcode (076). Read.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

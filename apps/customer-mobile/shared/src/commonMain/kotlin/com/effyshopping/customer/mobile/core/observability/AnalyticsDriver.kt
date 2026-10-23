@@ -1,16 +1,10 @@
 package com.effyshopping.customer.mobile.core.observability
 
 /**
- * Product analytics (050 US2; ARCHITECTURE.md §Product analytics). PostHog behind a platform boundary,
- * like [CrashReporter]: one interface in commonMain, a real implementation per target (Android =
- * posthog-android; iOS = a Swift bridge). Wired into [com.effyshopping.customer.mobile.app.AppContainer].
- *
- * ⚠ CONSENT-GATED for this public audience (Principle VII): [init] is called only after the customer
- * consents, and again gated by the platform kill switch. ⚠ NO PII: association is by the auth subject
- * id alone; event props carry ids + bounded enums only.
- *
- * Config (autocapture OFF, screen views emitted manually, identified-only, session replay OFF — R11)
- * lives in the platform implementation, not here.
+ * Product analytics: PostHog behind a platform boundary like [CrashReporter] (Android posthog-android, iOS
+ * a Swift bridge), wired in [com.effyshopping.customer.mobile.app.AppContainer]. [init] is called only
+ * after consent, and gated by the platform kill switch. No PII: the auth subject id alone; props are ids and
+ * bounded enums. Autocapture, screen views, identified-only and replay are configured per platform.
  */
 interface AnalyticsDriver {
     /** Initialise the SDK (idempotent). Called off the main thread on consent (performance, R11). */

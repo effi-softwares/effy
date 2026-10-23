@@ -9,7 +9,7 @@ terraform {
     }
   }
 
-  # Deliberately NO backend block: bootstrap runs on LOCAL state (the chicken-and-egg
+  # Deliberately NO backend block: bootstrap runs on local state (the chicken-and-egg
   # solution, research.md D3). Its tfstate stays on the operator's machine and is
   # git-ignored; everything else stores state in the bucket this root creates.
 }

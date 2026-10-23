@@ -16,7 +16,7 @@ export function SignInScreen({ next }: { next?: string }) {
   const queryClient = useQueryClient();
 
   async function finish() {
-    // ⚠ A FORCED FETCH, NOT invalidate. Nothing on the sign-in page observes the session, so
+    // A forced fetch, not invalidate. Nothing on the sign-in page observes the session, so
     // `invalidateQueries` refetches nothing; the guard's `ensureQueryData` then returned the cached
     // "signed-out" and bounced a freshly-authenticated operator back to sign-in.
     await queryClient.fetchQuery({ ...sessionQuery, staleTime: 0 });

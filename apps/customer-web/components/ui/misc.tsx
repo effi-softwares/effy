@@ -18,7 +18,7 @@ export function Separator({
   )
 }
 
-/** A loading placeholder. ⚠ Decorative: the region it stands in for carries the `aria-busy`. */
+/** A loading placeholder. Decorative: the region it stands in for carries the `aria-busy`. */
 export function Skeleton({ className }: { className?: string }) {
   return <span aria-hidden="true" className={clsx("sf-skeleton", className)} />
 }

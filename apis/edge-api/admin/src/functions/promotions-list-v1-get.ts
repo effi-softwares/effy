@@ -1,5 +1,3 @@
-// GET /admin/v1/promotions — the promotions list (094): filter by state, kind, trigger and group,
-// search by name or code, with counts per state. Read access: any active back-office staff, incl. csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

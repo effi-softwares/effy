@@ -1,10 +1,10 @@
 package com.effyshopping.customer.mobile.features.checkout.domain
 
 /**
- * 096 US7 — the order's delivery note: what the customer was supplied, line by line, once the order has
+ * The order's delivery note: what the customer was supplied, line by line, once the order has
  * arrived. Digital only — there is no paper note in the bag.
  *
- * ⚠ No prices and nothing about how the order was filled: the server merges the lines across packages.
+ * No prices and nothing about how the order was filled: the server merges the lines across packages.
  */
 data class DeliveryNote(val orderNumber: String, val deliveredAt: String, val lines: List<DeliveryNoteLine>)
 
@@ -28,7 +28,7 @@ sealed interface DeliveryNoteResult {
     data object Failed : DeliveryNoteResult
 }
 
-/** 096 US8 — one issued tax document: the invoice or an adjustment note, by its number. */
+/** One issued tax document: the invoice or an adjustment note, by its number. */
 data class TaxDocument(val kind: TaxDocumentKind, val number: String, val issuedAt: String)
 
 enum class TaxDocumentKind { INVOICE, ADJUSTMENT }
@@ -62,11 +62,11 @@ interface OrderDocumentsRepository {
     /** The note as a PDF, or null when it could not be fetched. */
     suspend fun deliveryNotePdf(orderId: String): ByteArray?
 
-    /** ⚠ ISSUES the invoice on the first call (it is on request, never on viewing the order). */
+    /** Issues the invoice on the first call (it is on request, never on viewing the order). */
     suspend fun taxDocuments(orderId: String): TaxDocumentsResult
 
     suspend fun taxDocumentPdf(orderId: String, number: String): ByteArray?
 
-    /** The customer's own business name and ABN, for an invoice not yet issued (FR-085). */
+    /** The customer's own business name and ABN, for an invoice not yet issued. */
     suspend fun setBusinessIdentity(orderId: String, businessName: String?, abn: String?): BusinessIdentityResult
 }

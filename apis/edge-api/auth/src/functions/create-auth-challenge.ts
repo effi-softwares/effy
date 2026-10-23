@@ -1,15 +1,7 @@
 /**
- * Cognito `CreateAuthChallenge` — issue the code (035 FR-001, FR-010, FR-012, FR-016).
- *
- * ⚠ THE TIGHTEST BUDGET IN THE SLICE. Cognito abandons the call at 5 seconds and cannot be
- * configured otherwise. This function does one DynamoDB update and one SES send, possibly on a
- * ~1s cold start. Everything here is arranged to keep that inside the wall.
- *
- * ⚠ IT ALSO RUNS ON EVERY RETRY. When someone mistypes, `DefineAuthChallenge` re-issues
- * CUSTOM_CHALLENGE and Cognito calls this function AGAIN — with an empty response object.
- * Generating a new code there would mail a shopper a fresh code for their own typo, put several
- * live-looking codes in their inbox, and burn their hourly budget on user error. So the first
- * invocation generates; every later one REUSES the envelope carried in `challengeMetadata`.
+ * Cognito `CreateAuthChallenge`: issues the code. Cognito abandons the call at 5 s. It also runs on
+ * every retry after a mistyped code; only the first invocation generates and sends, later ones reuse
+ * the envelope in `challengeMetadata`, so a typo never mails a new code or spends the budget.
  */
 
 import { audienceForPool } from "../lib/audience.js";
@@ -22,10 +14,7 @@ import { envelopeFromSession, generateCode, maskDestination } from "../otp/polic
 import type { CreateAuthChallengeEvent } from "../otp/types.js";
 import { CUSTOM_CHALLENGE } from "../otp/types.js";
 
-/**
- * A stable identity for THIS authentication session, used to make the send counter idempotent
- * across Cognito's own retries. Derived from data every invocation of a given session shares.
- */
+/** Stable per authentication session, so the send counter is idempotent across Cognito retries. */
 function sendMarker(event: CreateAuthChallengeEvent, issuedAt: number): string {
   return `${event.userName}:${issuedAt}`;
 }
@@ -39,22 +28,18 @@ export const handler = async (
   const userNotFound = event.request.userNotFound === true;
   const email = event.request.userAttributes?.["email"] ?? event.userName;
 
-  // ⚠ Set on EVERY path, before anything can go wrong, and identical for a phantom user. This is
-  // the only thing the client sees; it must never distinguish a real account from an unknown one.
+  // Set first on every path and identical for an unknown user: it must not reveal whether an account exists.
   event.response.publicChallengeParameters = { maskedDestination: maskDestination(email) };
 
   const profile = audienceForPool(event.userPoolId);
   if (!profile) {
-    // ⚠ Fail closed on a pool this code was never reviewed against — but WITHOUT throwing.
-    // Cognito relays trigger error text to the client verbatim. An empty envelope means the verify
-    // step can never match, so the sign-in refuses on its own.
+    // Unknown pool: fail closed without throwing (Cognito relays error text). An empty envelope never matches.
     emit("otp_unknown_pool", event.userPoolId);
     event.response.privateChallengeParameters = { digest: "", issuedAt: "0" };
     event.response.challengeMetadata = "";
     return event;
   }
 
-  // ── Retry path: reuse, never regenerate ────────────────────────────────────────────────────
   const existing = envelopeFromSession(session);
   if (existing) {
     event.response.privateChallengeParameters = {
@@ -62,10 +47,9 @@ export const handler = async (
       issuedAt: String(existing.issuedAt),
     };
     event.response.challengeMetadata = encodeEnvelope(existing);
-    return event; // ⚠ No email. No counter increment. Deliberate.
+    return event;
   }
 
-  // ── First invocation: generate, throttle, send ─────────────────────────────────────────────
   const issuedAt = Math.floor(Date.now() / 1000);
   const code = generateCode();
 
@@ -73,8 +57,7 @@ export const handler = async (
   try {
     key = await hmacKey();
   } catch (err) {
-    // Infrastructure failure. Refuse opaquely rather than throwing a message the caller would read.
-    // ⚠ The NAME is logged, never the message — see the note on the SES catch below.
+    // Refuse opaquely. Log the error name only (see logFailure).
     logFailure("hmac-key", err);
     emit("otp_send_failed", event.userPoolId);
     event.response.privateChallengeParameters = { digest: "", issuedAt: "0" };
@@ -82,8 +65,7 @@ export const handler = async (
     return event;
   }
 
-  // ⚠ Reserved for phantom users too — otherwise the row's absence is a second existence oracle,
-  // and unknown addresses get unlimited free probing (FR-016).
+  // Reserved for unknown users too, or the row's absence would reveal existence.
   const verdict = await reserve({
     userPoolId: event.userPoolId,
     email,
@@ -96,18 +78,14 @@ export const handler = async (
 
   if (!verdict.allowed) {
     emit("otp_rate_limited", event.userPoolId);
-    // ⚠ Same shape as a successful issue, minus a usable secret. The shopper is told to wait by
-    // the client's refusal copy; the trigger says nothing that distinguishes this from any other
-    // failure to sign in.
+    // Same shape as a successful issue, minus a usable secret.
     event.response.privateChallengeParameters = { digest: "", issuedAt: "0" };
     event.response.challengeMetadata = "";
     return event;
   }
 
   try {
-    // ⚠ The phantom path STILL CALLS SES (to the mailbox simulator). Skipping the call entirely
-    // would make an unknown address answer measurably faster than a real one, and existence would
-    // leak through latency despite every response body being identical.
+    // Unknown users still call SES (the mailbox simulator), so latency reveals nothing.
     await sendCode({ to: email, code, profile, phantom: userNotFound });
   } catch (err) {
     logFailure("ses-send", err);
@@ -118,8 +96,7 @@ export const handler = async (
   }
 
   const envelope = { issuedAt, digest: digestCode(code, key) };
-  // ⚠ The digest, never the code. `privateChallengeParameters` is server-side, but
-  // `challengeMetadata` round-trips through the client's Session string — see `codec.ts`.
+  // The digest, never the code: `challengeMetadata` round-trips through the client (see `codec.ts`).
   event.response.privateChallengeParameters = {
     digest: envelope.digest,
     issuedAt: String(envelope.issuedAt),
@@ -131,22 +108,9 @@ export const handler = async (
 };
 
 /**
- * Log WHY a send failed, without leaking anything.
- *
- * ⚠ THE ERROR NAME ONLY — NEVER THE MESSAGE. This is not fussiness: SES's own rejection text
- * embeds the recipient, e.g. "Email address is not verified. The following identities failed the
- * check in region AP-SOUTHEAST-2: someone@example.com". Logging `err.message` would put a customer's
- * address in CloudWatch on every failed send and break FR-014 — and it would do it most often
- * during an incident, when the logs are being read by the most people.
- *
- * ⚠ WHY THIS EXISTS AT ALL. The first deploy failed with `otp_send_failed` and NOTHING else: the
- * handler caught, emitted a metric and discarded the cause. Diagnosing it took direct SES and IAM
- * inspection. A metric tells you something broke; it does not tell you what.
- *
- * Common names worth recognising:
- *   MessageRejected              — SES sandbox, and the RECIPIENT is not a verified identity
- *   AccountSendingPausedException — SES sending disabled for the account
- *   AccessDeniedException        — the role lacks ses:SendEmail on the identity
+ * Logs the error name only: SES rejection messages embed the recipient's address.
+ * Common: MessageRejected (sandbox, unverified recipient), AccountSendingPausedException,
+ * AccessDeniedException (role lacks ses:SendEmail).
  */
 function logFailure(stage: string, err: unknown): void {
   const name = err instanceof Error ? err.name : "UnknownError";

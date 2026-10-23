@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 #
-# 037-platform-email-delivery — is the delivery-outcome pipeline actually RUNNING?
+# Platform-email-delivery — is the delivery-outcome pipeline actually running?
 #
-# `mail-verify` answers a different question: is the platform CONFIGURED to send authenticated mail
-# (DKIM/SPF/DMARC published, identity verified, configuration set present with an enabled event
+# `mail-verify` answers a different question: is the platform configured to send authenticated mail
+# (DKIM/spf/DMARC published, identity verified, configuration set present with an enabled event
 # destination). All of that can be perfectly true while nothing consumes the outcomes — and then the
 # platform is exactly as blind to a locked-out person as it was before this feature existed.
 #
-# WHY BLINDNESS IS THE FAILURE THAT MATTERS. A send to a hard-failed address returns SUCCESS and a
+# why blindness is the failure that matters. A send to a hard-failed address returns success and a
 # message id and delivers nothing. For driver, shop and back-office — no password, no federated
 # route — that is a permanent account lockout with no signal to anyone. The rate alarms cannot see
 # it: one person never moves a rate. Only the per-message outcome stream can, so this script checks
 # the parts of that stream that only exist at runtime.
 #
-# Everything here is READ-ONLY. It creates nothing, sends nothing and repairs nothing.
+# Everything here is read-only. It creates nothing, sends nothing and repairs nothing.
 #
-# Usage:  make mail-events-verify ENV=dev
+# Usage: make mail-events-verify ENV=dev
 set -euo pipefail
 
 ENV="${ENV:-dev}"
@@ -52,10 +52,10 @@ if [ -z "${topic_arn}" ]; then
 else
   ok "topic published in SSM"
 
-  # ⚠ A SUBSCRIPTION IS NOT A DELIVERY. An SNS subscription stuck in PendingConfirmation, or a
+  # A subscription is not a delivery. An SNS subscription stuck in PendingConfirmation, or a
   # topic with none at all, publishes happily into nothing. The configuration set still reports a
   # healthy enabled destination, so `mail-verify` stays green while every outcome is discarded.
-  # shellcheck disable=SC2016  # the backticks are JMESPath literals, not shell expansion
+  # shellcheck disable=SC2016 # the backticks are JMESPath literals, not shell expansion
   subs="$(
     $AWS sns list-subscriptions-by-topic --topic-arn "${topic_arn}" \
       --query 'Subscriptions[?Protocol==`lambda`].Endpoint' --output text 2>/dev/null || echo ""
@@ -73,8 +73,8 @@ head "Consumer (${CONSUMER})"
 if $AWS lambda get-function --function-name "${CONSUMER}" >/dev/null 2>&1; then
   ok "deployed"
 
-  # ⚠ The subscription and the invoke permission are two separate facts. A subscription without a
-  # resource policy allowing sns.amazonaws.com to invoke fails at DELIVERY time, asynchronously,
+  # The subscription and the invoke permission are two separate facts. A subscription without a
+  # resource policy allowing sns.amazonaws.com to invoke fails at delivery time, asynchronously,
   # where nobody is looking.
   if $AWS lambda get-policy --function-name "${CONSUMER}" \
       --query 'Policy' --output text 2>/dev/null | grep -q 'sns.amazonaws.com'; then
@@ -91,7 +91,7 @@ head "Recent consumer activity (last 24h)"
 
 since="$(date -u -v-24H +%s 2>/dev/null || date -u -d '24 hours ago' +%s)"
 
-# shellcheck disable=SC2016  # the backticks are JMESPath literals, not shell expansion
+# shellcheck disable=SC2016 # the backticks are JMESPath literals, not shell expansion
 metric() { # metric_name statistic
   $AWS cloudwatch get-metric-statistics \
     --namespace AWS/Lambda --metric-name "$1" \
@@ -105,7 +105,7 @@ metric() { # metric_name statistic
 invocations="$(metric Invocations)"
 errors="$(metric Errors)"
 
-# ⚠ ZERO INVOCATIONS IS NOT A FAILURE. On a quiet dev environment where nothing bounced, idle is the
+# zero invocations is not a failure. On a quiet dev environment where nothing bounced, idle is the
 # correct state — which is exactly why this reports rather than fails. Treating idle as broken is
 # how a check gets ignored.
 printf '  invocations: %s   errors: %s\n' "${invocations%.*}" "${errors%.*}"
@@ -118,14 +118,14 @@ fi
 # ── 4. SC-020 — no recipient address may ever reach CloudWatch ─────────────────────────────────
 head "Log hygiene (SC-020)"
 
-# ⚠ THIS IS THE ONE CHECK NOTHING ELSE PERFORMS. The consumer handles addresses and the receiving
+# this is the one check nothing else performs. The consumer handles addresses and the receiving
 # server's rejection text — which embeds the recipient — on every single invocation. 035's rule is
 # that neither ever reaches CloudWatch; a fingerprint correlates the lines instead. A unit test
 # proves the code paths it knows about. This proves what actually got written.
 if $AWS logs describe-log-groups --log-group-name-prefix "${LOG_GROUP}" \
      --query 'logGroups[0].logGroupName' --output text 2>/dev/null | grep -q "${CONSUMER}"; then
-  # ⚠ `--limit`, NOT `--max-items`. The latter is a CLIENT-side pagination control: the CLI keeps
-  # fetching pages and prints the query result once PER PAGE, so `length(events)` came back as five
+  # `--limit`, not `--max-items`. The latter is a client-side pagination control: the CLI keeps
+  # fetching pages and prints the query result once per page, so `length(events)` came back as five
   # lines of "0" — which is not the string "0", so the check reported a PII leak that did not exist.
   # A guard that cries wolf gets switched off, and this one guards recipient addresses.
   hits="$(
@@ -145,13 +145,9 @@ fi
 # ── 5. Every alarm this feature owns must be able to reach a person ────────────────────────────
 head "Alarms have a notification target (FR-037)"
 
-# ⚠ AN ALARM WITH NO ACTION IS A DASHBOARD DECORATION. It goes red in a console nobody has open.
-# This feature exists so operators find out before customers do, and an unwired alarm defeats that
-# completely while looking, in every listing, exactly like a working one.
-# ⚠ NAMING. The first two are Terraform's (infra/envs/dev/dns.tf). The consumer alarm is the
-# serverless service's, and that is not an inconsistency: only the service that deploys the Lambda
-# can `!Ref` it, so an alarm on its Errors metric cannot live in Terraform without hardcoding a
-# function name Terraform does not own. The spec's shorthand "mail-consumer-errors" refers to it.
+# An alarm with no action goes red in a console nobody has open, so each must notify. The first two are
+# Terraform's (infra/envs/dev/dns.tf); the consumer alarm is the serverless service's, since only the
+# service that deploys the Lambda can `!Ref` it.
 for alarm in \
   "${PREFIX}-mail-hard-bounce" \
   "${PREFIX}-mail-from-unhealthy" \
@@ -183,7 +179,7 @@ alerts_arn="$(
 if [ "${alerts_arn}" = "None" ] || [ -z "${alerts_arn}" ]; then
   bad "no ${PREFIX}-alerts topic — every alarm above fires into nothing"
 else
-  # ⚠ PendingConfirmation is the silent one: Terraform reports the subscription created, the alarm
+  # PendingConfirmation is the silent one: Terraform reports the subscription created, the alarm
   # reports an action, and no mail is ever sent because the operator never clicked the link.
   pending="$(
     $AWS sns list-subscriptions-by-topic --topic-arn "${alerts_arn}" \

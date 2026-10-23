@@ -6,16 +6,8 @@ import { useState } from "react"
 import { btnClass } from "@/components/storefront/actions"
 
 /**
- * Copy a promotion's code to the clipboard.
- *
- * ⚠ The ONLY client component on the promotion page, and it exists because a mistyped promo code
- * reads to a shopper as a refused offer — they blame the promotion, not their typing. The code is
- * rendered as plain selectable text beside it, so a browser that refuses clipboard access (an
- * insecure origin, a denied permission) still leaves the shopper able to select and copy by hand.
- *
- * ⚠ Deliberately imports NOTHING but the shared button classes. This page is guest-reachable and the
- * bundle gate measures it; a convenience button is not a reason to pull a dependency onto a public
- * route. `navigator.clipboard` is the platform API — no library.
+ * Copies a promotion's code (a mistyped code reads as a refused offer). The code is also plain
+ * selectable text, for a browser that refuses the clipboard. No dependency: a guest route.
  */
 export function CopyCodeButton({ code, className }: { code: string; className?: string }) {
   const [copied, setCopied] = useState(false)
@@ -28,7 +20,7 @@ export function CopyCodeButton({ code, className }: { code: string; className?: 
     } catch {
       // The clipboard can be refused outright (insecure origin, denied permission). Saying nothing
       // is right: the code is on screen and selectable, so the shopper has lost nothing but a
-      // shortcut — and a failure toast about a convenience would read as the OFFER having failed.
+      // shortcut — and a failure toast about a convenience would read as the offer having failed.
     }
   }
 

@@ -35,7 +35,7 @@ function encodeListQuery({ page, pageSize, status, q }: ShopListParams): string 
   return params.toString();
 }
 
-/** 096 — require every bag to be scanned as packed (fleet owns the rule, on the staff gateway). */
+/** Require every bag to be scanned as packed (fleet owns the rule, on the staff gateway). */
 export async function setPackScanning(id: string, required: boolean): Promise<{ shopId: string; required: boolean }> {
   return api.put(`/fleet/v1/shops/${id}/pack-scanning`, { required });
 }

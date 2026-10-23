@@ -15,18 +15,10 @@ import { Badge } from "@effy/design-system/ui";
 import { STATUS_TONE, type PackageStatus, type PackageStatusView } from "@effy/shared-types";
 
 /**
- * Where a package is, as one pill — the same on the back-office and the shop console (073).
- *
- * ⚠ THE WORD IS THE SERVER'S (`view.word`, from `STATUS_WORD`). This component never maps a status to
- * a label itself: four separate maps reading the shop's status are how a collected package came to
- * say "At hub" in one console and "Collected" in the other.
- *
- * The tone only reinforces the word (the closed mapping). A driver's name follows when the view
- * carries one — the shop's never does — and a Problem's one-line reason sits beside it.
- *
- * `icons` (back-office redesign, Foundations board) puts each word's icon in front of it — one icon
- * per status, so a problem reads as one at a glance without a colour. Omitted, the pill renders
- * exactly as before, which is what keeps the shop console unchanged.
+ * Where a package is, as one pill on both consoles. The word is the server's (`view.word`, from
+ * `STATUS_WORD`); this never maps a status itself. The tone reinforces it; a driver's name follows when
+ * the view has one (the shop's never does), and a Problem's reason sits beside it. `icons` puts each
+ * status's icon in front.
  */
 const STATUS_ICON: Record<PackageStatus, LucideIcon> = {
   preparing: PackageOpen,

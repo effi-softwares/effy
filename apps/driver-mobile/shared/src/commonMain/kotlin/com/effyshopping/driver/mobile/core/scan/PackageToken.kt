@@ -1,10 +1,10 @@
 package com.effyshopping.driver.mobile.core.scan
 
 /**
- * 090 — what a label read means: the package code it carries, or null for anything that is not an Effy
+ * What a label read means: the package code it carries, or null for anything that is not an Effy
  * package label (a product's barcode, a courier's, a misread).
  *
- * ⚠ THE KOTLIN TWIN of `packages/shared-types/src/package-code.ts`. Both are tested against the same
+ * The kotlin twin of `packages/shared-types/src/package-code.ts`. Both are tested against the same
  * rows (`package-code.fixtures.json`), so the phone and the platform can never disagree about a label.
  */
 object PackageToken {

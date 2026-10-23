@@ -1,8 +1,5 @@
-// GET /shop/v1/orders/{id} — one order in the shop console (057 Amendment A3).
-//
-// `{id}` is the shop's PORTION (shop_fulfillment.id), exactly as on the pick route. Opening it
-// acknowledges a `pending` portion (020 FR-011a). Another shop's portion and a missing one answer the
-// SAME 403, so the route cannot be used to discover which order ids exist.
+// `{id}` is the shop's portion (shop_fulfillment.id). Opening it acknowledges a `pending` portion.
+// Another shop's portion and a missing one answer the same 403.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

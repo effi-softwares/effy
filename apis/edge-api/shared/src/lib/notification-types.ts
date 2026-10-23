@@ -1,17 +1,7 @@
 /**
- * The shop audience's notification types — 059-shop-web-pwa.
- *
- * ⚠ IN `@effy/edge-shared` BECAUSE THREE SERVICES NEED THE SAME ANSWER (Principle II):
- *   • `edge-shop`'s preferences routes serve this list to the settings screen;
- *   • `edge-shop`'s attention evaluator decides which type each occurrence enqueues;
- *   • `edge-notifications`' copy catalogue renders them.
- * A copy in any one of those would be the two-sources-for-one-fact shape this repo has shipped five
- * defects through — and the way it would show up is an operator muting a type that the evaluator
- * then keeps sending, with nothing failing anywhere.
- *
- * ⚠ `label` IS NOT `title`. The label is what the SETTINGS SCREEN calls this ("New orders"); the
- * title is what the BANNER says ("New order to pick"). They are different strings for different
- * jobs, and `worker/copy.ts` owns the second. This is not duplication.
+ * The shop audience's notification types, shared by the preferences routes, the attention evaluator
+ * and the copy catalogue. `label` is what the settings screen says ("New orders"); `title` is the
+ * banner's ("New order to pick"), owned by `worker/copy.ts`.
  */
 
 export type ShopNotificationType =
@@ -20,7 +10,7 @@ export type ShopNotificationType =
   | "shop_out_of_stock"
   | "shop_low_stock"
   | "shop_refund_proposed"
-  // 067 — Effy's decision on a product the shop submitted or changed.
+  // Effy's review decision on a submitted or changed product.
   | "shop_product_approved"
   | "shop_product_sent_back";
 
@@ -28,16 +18,9 @@ export interface ShopNotificationTypeInfo {
   type: ShopNotificationType;
   /** What the settings screen calls it. */
   label: string;
-  /** Which coalescing group it belongs to — see `worker/copy.ts`. */
+  /** See `worker/copy.ts`. */
   group: "orders" | "attention";
-  /**
-   * A role this type is restricted to, if any.
-   *
-   * ⚠ A RENDERING HINT, NEVER THE GATE. The evaluator filters `shop_refund_proposed` by the
-   * PLATFORM RECORD at enqueue time, regardless of what any client does with this field. A
-   * preference hidden by CSS is still a preference, and "the client won't show it" is not access
-   * control (Principle IV).
-   */
+  /** A rendering hint, never the gate: the evaluator filters by the platform record at enqueue. */
   requiresRole?: "shop_manager";
 }
 
@@ -52,8 +35,7 @@ export const SHOP_NOTIFICATION_TYPES: readonly ShopNotificationTypeInfo[] = [
     group: "attention",
     requiresRole: "shop_manager",
   },
-  // 067 — raised by Effy's review decision, not by the attention evaluator. They share the
-  // "attention" group because they coalesce the same way: by tag, in the service worker.
+  // Raised by a review decision; grouped with attention because they coalesce the same way.
   { type: "shop_product_approved", label: "Products approved by Effy", group: "attention" },
   { type: "shop_product_sent_back", label: "Products sent back by Effy", group: "attention" },
 ];
@@ -61,14 +43,7 @@ export const SHOP_NOTIFICATION_TYPES: readonly ShopNotificationTypeInfo[] = [
 export const KNOWN_SHOP_NOTIFICATION_TYPES: readonly ShopNotificationType[] =
   SHOP_NOTIFICATION_TYPES.map((t) => t.type);
 
-/**
- * The four attention CONDITIONS, and the notification type each one raises.
- *
- * ⚠ FOUR KINDS, FOUR TYPES, ONE MAPPING. The alternative — one `shop_attention` type — was refused
- * because the four behave nothing alike: two resolve within the hour, two can stay true for days,
- * and one is manager-only. FR-024 requires them independently switchable and FR-022 requires one
- * filtered by role; a single type makes both unrepresentable.
- */
+/** Four conditions, four types, independently mutable, one of them manager-only. */
 export type AttentionKind = "awaiting_pick" | "out_of_stock" | "low_stock" | "refund_proposed";
 
 export const ATTENTION_TYPE: Record<AttentionKind, ShopNotificationType> = {
@@ -78,5 +53,5 @@ export const ATTENTION_TYPE: Record<AttentionKind, ShopNotificationType> = {
   refund_proposed: "shop_refund_proposed",
 };
 
-/** The one attention kind only a `shop_manager` may act on, and so the only one they are told about. */
+/** The one kind only a `shop_manager` may act on, so the only one they are told about. */
 export const MANAGER_ONLY_KINDS: readonly AttentionKind[] = ["refund_proposed"];

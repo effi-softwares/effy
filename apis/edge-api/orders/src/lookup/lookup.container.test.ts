@@ -26,7 +26,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { lookup } from "./service";
@@ -53,8 +53,8 @@ d("096 US5 — scan anything to find it", () => {
     const one = async <T>(sql: string, p: unknown[] = []) => (await pool.query(sql, p)).rows[0] as T;
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c1', 'c1@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-LK0001', 10, 12, '{}'::jsonb, 'paid') RETURNING id`, [cust.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-LK0001', 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust.id]);
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('LK1', 'Shop') RETURNING id`);
     const pkg = await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount) VALUES ($1, $2, 1, 10) RETURNING id`, [order.id, shop.id]);

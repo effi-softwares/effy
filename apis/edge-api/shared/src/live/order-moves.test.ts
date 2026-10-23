@@ -22,13 +22,13 @@ describe("changesForMoves", () => {
     expect(changes).toEqual([{ scope: "shop", shopId: "shopA", kind: "orders" }, { scope: "ops", kind: "orders" }]);
   });
 
-  // FR-024 / SC-011 — the split order.
+  // The split order.
   describe("an order split across two shops", () => {
     it("the FASTER shop's package being collected tells the customer nothing", () => {
       const rows = [row("f1", "o1", "shopA", "collected"), row("f2", "o1", "shopB", "picking")];
       const changes = changesForMoves(rows, [{ fulfillmentId: "f1", from: "ready_for_pickup" }], true);
       expect(changes).not.toContainEqual(CUSTOMER);
-      // And only the shop whose package moved is told — the other shop's screen did not change.
+      // Only the shop whose package moved is told.
       expect(changes.filter((c) => c.scope === "shop")).toEqual([{ scope: "shop", shopId: "shopA", kind: "orders" }]);
     });
 
@@ -43,7 +43,7 @@ describe("changesForMoves", () => {
       const heard = (shops: number) => {
         const status = Array.from({ length: shops }, () => "pending");
         let n = 0;
-        // Each shop advances one step at a time, shop 0 always first.
+        // Each shop advances one step at a time, shop 0 first.
         for (const next of journey) {
           for (let s = 0; s < shops; s++) {
             const from = status[s]!;

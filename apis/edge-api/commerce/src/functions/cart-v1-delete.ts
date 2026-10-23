@@ -1,4 +1,3 @@
-// DELETE /commerce/v1/cart?changeId= — empty the payable cart. Set-aside lines survive.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

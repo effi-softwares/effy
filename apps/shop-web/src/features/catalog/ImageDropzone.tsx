@@ -6,18 +6,13 @@ import { Button } from "@effy/design-system/ui";
 import { cn } from "@/lib/utils";
 
 /**
- * The primary-image capture control for the create flow's dedicated Image step (FR-010b, research
- * R16). Three input modalities, all native (no library):
- *   • click   — opens the hidden file input (the zone is a focusable button; Enter/Space work too)
- *   • drop    — the HTML Drag-and-Drop API (onDragOver preventDefault → onDrop reads dataTransfer)
- *   • paste   — a document-scoped `paste` listener, mounted only while this control is shown, that
- *               takes the first image on the clipboard (Ctrl/⌘-V). Safe because the Image step has no
- *               other input to steal a paste from.
+ * The primary-image control for the create flow's Image step. Three native modalities: click (a
+ * focusable button opening the hidden input), drop (Drag-and-Drop API) and paste (a document listener,
+ * mounted only while shown, taking the first clipboard image; the step has no other input to steal it from).
  *
- * Client-side validation mirrors the backend allow-list (apis/edge-api/shop/src/products/media.ts:
- * JPEG/PNG/WebP, ≤10 MB); the backend re-validates on presign, so this only fails fast with a
- * friendly message. The capture is preview-only — the presign → PUT → register runs on publish
- * (create-then-attach, R9); `progress` (0–100) renders a bar over the preview during that upload.
+ * Validation mirrors the backend's allow-list (JPEG/PNG/WebP, ≤10 MB) to fail fast; the backend
+ * re-validates. The capture is preview-only: presign → PUT → register runs on publish, with `progress`
+ * (0–100) drawn over the preview.
  */
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB — matches media.ts

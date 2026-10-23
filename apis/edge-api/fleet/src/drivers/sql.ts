@@ -1,41 +1,20 @@
-// Shared SQL fragments for the fleet service (056). Raw parameterized SQL, no ORM, no query builder
-// (constitution Principle VI).
-//
-// These live in one file because more than one repository needs the same definition of "can this
-// driver receive work". Two implementations of that rule would eventually disagree, and the register
-// would tell an operator a driver is fine while whatever assigns work passes over them.
+// One definition of "can this driver receive work", shared by every repository that asks.
 
-
-/**
- * Is the driver on duty right now? An open duty session (`ended_at IS NULL`) is what "on duty" means
- * on this platform — a partial unique index guarantees at most one per driver.
- */
+/** An open duty session (`ended_at IS NULL`); a partial unique index allows one per driver. */
 export const ON_DUTY_EXISTS = `EXISTS (
   SELECT 1 FROM public.driver_duty_session s
    WHERE s.driver_id = d.id AND s.ended_at IS NULL
 )`;
 
 /**
- * Why this driver cannot be given work, as a text[] (FR-044). Empty array = ready.
- *
- * ⚠ AN ENUMERATED CAUSE, NOT A BOOLEAN. "Cannot receive work" without "why" is not actionable, and
- * the remedy differs per cause: assign a zone, restore them, or renew a licence. A driver with no
- * zone is INERT FOR ASSIGNMENT TODAY and nothing anywhere says so — SC-009 is that this becomes
- * visible on the register, before an order is affected, rather than by an order failing to move.
- *
- * ⚠ Vehicle-registration expiry is deliberately NOT a blocking cause. A driver may change vehicle;
- * it is flagged in the readiness view but does not make the person unable to work.
+ * Why this driver cannot be given work, as a text[]; empty means ready. Enumerated, because each
+ * cause has a different remedy. Vehicle-registration expiry is flagged elsewhere but does not block.
  */
 export const BLOCKED_REASONS = `(
   ARRAY_REMOVE(ARRAY[
     CASE WHEN d.status = 'suspended'  THEN 'suspended'  END,
     CASE WHEN d.status = 'offboarded' THEN 'offboarded' END,
-    -- ⚠ 062 REPLACED no_zone WITH THIS. The old reason read d.delivery_zone_id IS NULL — a
-    -- single-zone column that no assignment code ever consulted, so a driver could be reported
-    -- "inert for assignment" on the basis of a field nothing used. A driver is now blocked when they
-    -- are cleared for NOTHING, and the remedy is to grant them a clearance rather than to assign
-    -- them a zone.
-    --
+    -- A driver cleared for NOTHING is blocked; the remedy is a clearance.
     -- ⚠ Disabled zones are excluded, so a driver whose only clearances name zones the platform has
     -- stopped serving is correctly reported as cleared for nothing.
     CASE WHEN NOT EXISTS (
@@ -48,8 +27,7 @@ export const BLOCKED_REASONS = `(
     CASE WHEN d.licence_expires_on IS NOT NULL
           AND d.licence_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
          THEN 'licence_expired' END,
-    -- ── 061 ──────────────────────────────────────────────────────────────────────────────────────
-    -- ⚠ EVERY APPLICABLE REASON IS EMITTED, NOT THE FIRST ONE FOUND (FR-026). A driver can be
+    -- ⚠ EVERY APPLICABLE REASON IS EMITTED, NOT THE FIRST ONE FOUND. A driver can be
     -- suspended AND holding a van with lapsed rego; sending an operator to fix only one of those
     -- wastes the trip. ARRAY_REMOVE keeps the array dense without collapsing the causes.
     CASE WHEN NOT EXISTS (
@@ -83,31 +61,13 @@ export const BLOCKED_REASONS = `(
   ], NULL)
 )`;
 
-/**
- * A package the platform has finished preparing and nobody has come for.
- *
- * ⚠ THIS PREDICATE'S MEANING CHANGED WHEN THE WORK MODEL WAS DROPPED, and the change is the honest
- * one. It used to read "ready_for_pickup AND no collection_task claims it", because it was a copy of
- * the 049 sweep's own candidate query, pinned by a parity test so the duty screen could not disagree
- * with what the sweep actually saw. There is no sweep now and nothing claims anything, so the second
- * term would match every row and the count is simply the backlog.
- *
- * ⚠ AND THE COUNT IS MORE LOAD-BEARING THAN IT WAS, not less. Until the dispatch slice lands, NOTHING
- * moves a package from `ready_for_pickup` — so this number only goes up, and this screen is the one
- * place at Effy where that is visible. It is supposed to look alarming.
- */
+/** Ready at a shop and not collected. */
 export const READY_TO_COLLECT = `
   SELECT sf.id
     FROM public.shop_fulfillment sf
    WHERE sf.status = 'ready_for_pickup'`;
 
-/**
- * A parcel Effy delivers that has been collected and not yet delivered. The mirror of READY_TO_COLLECT
- * for the second half of a shift, and it lost the same `NOT EXISTS` term for the same reason.
- *
- * ⚠ 082 — "Effy delivers it" is 079's one definition (`package_delivered_by`), not the method: since
- * 078 a later-day window is sold as `standard` with a window, and it is delivery work all the same.
- */
+/** An Effy parcel collected and not yet delivered (by delivery type, never the method). */
 export const READY_TO_DELIVER = `
   SELECT sf.id
     FROM public.shop_fulfillment sf

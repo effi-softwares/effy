@@ -1,21 +1,12 @@
-// 080 US2 — what a shop is told about a courier collecting a parcel from it. Raw SQL (Principle VI).
+// What a shop is told about a courier collecting a parcel from it.
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import { presignRead, query } from "@effy/edge-shared";
 import type { CourierPickupDTO } from "@effy/shared-types";
 
 /**
- * The courier pickups among `packageIds` — THIS shop's packages only (the `shop_id` predicate is the
- * isolation, not the caller's list). A package is here only while a courier collects it from the
- * supplier; switched to "via the hub", it simply drops out.
- *
- * ⚠ ONE READ PER LIST, beside the list's own query — not a subquery inside five grouped queries.
- *
- * ⚠ WHAT A SHOP IS NEVER TOLD: the fee, the customer's estimate, the tracking link, or anything about
- * another shop's parcel on the same order. The select names exactly the fields the shop may see.
- *
- * ⚠ The latest LIVE consignment wins; a cancelled one is shown only when nothing replaced it.
- * Handed over without a consignment row cannot happen (the one writer creates it), but the handoff is
- * the fact, so it is asked directly.
+ * This shop's courier pickups among `packageIds` (the `shop_id` predicate is the isolation), in one
+ * read per list. Never the fee, the customer's estimate, tracking, or another shop's parcel. The
+ * latest live consignment wins; a cancelled one shows only when nothing replaced it.
  */
 const SELECT_PICKUPS = `
   SELECT sf.id::text AS package_id,
@@ -68,14 +59,14 @@ export async function courierPickups(shopId: string, packageIds: readonly string
       courierName: r.courier_name,
       serviceName: r.service_name,
       reference: r.reference,
-      // ⚠ The label carries the customer's name and address: a short-lived read, never a public URL.
+      // The label carries the customer's name and address: a short-lived read, never public.
       labelUrl: r.state === "booked" && r.label_key ? await presignRead(r.label_key).catch(() => null) : null,
     });
   }
   return out;
 }
 
-/** `{ courierPickup }` when there is one, `{}` otherwise — the field is absent, never null. */
+/** The field is absent, never null, when there is none. */
 export const pickupOf = (m: Map<string, CourierPickupDTO>, id: string): { courierPickup?: CourierPickupDTO } => {
   const p = m.get(id);
   return p ? { courierPickup: p } : {};

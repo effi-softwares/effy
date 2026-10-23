@@ -1,12 +1,4 @@
-// The shared screen header (025 FR-030).
-//
-// Before this, pushed screens in customer-mobile announced themselves with a `TextButton("← Back")`
-// floating above the content. It worked, and it read as a prototype: no title, no elevation, no
-// standard hit target, and nothing a platform user recognises as "go back".
-//
-// The back affordance is optional so ONE component serves both a root destination (title only) and a
-// pushed screen (title + back), which keeps every screen's header identical by construction rather
-// than by everyone remembering to match.
+// The shared screen header: a title, plus a back control on pushed screens, so every header matches by construction.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.RowScope
@@ -31,13 +23,10 @@ import androidx.compose.ui.text.style.TextOverflow
 /**
  * A screen header.
  *
- * @param title the screen's name. Marked as a heading for assistive technology so a screen reader can
- *   jump straight to it (FR-045).
- * @param onBack when non-null, renders a standard back control. Null on root destinations.
- * @param backIcon the platform back glyph — supplied by the caller because Compose resource
- *   accessors are generated per module and cannot be reached from this shared package.
- * @param backContentDescription spoken label for the back control. Required when [onBack] is set: an
- *   unlabelled icon button is the single most common accessibility defect in a mobile app.
+ * @param title the screen's name, marked as a heading for assistive technology.
+ * @param onBack when non-null, renders a back control. Null on root destinations.
+ * @param backIcon the platform back glyph, from the caller (Compose resource accessors are per module).
+ * @param backContentDescription the back control's spoken label; required when [onBack] is set.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,10 +39,7 @@ fun EffyTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
-        // ⚠ FR-031: the bar owns its own safe-area insets. It sits ABOVE EffyPage in every screen, so
-        // if it did not consume the top and horizontal insets itself, the title would slide under the
-        // status bar and a display cutout would clip the back control — on exactly the devices least
-        // likely to be in a developer's hands.
+        // The bar consumes its own top and horizontal insets: it sits above EffyPage, so the title would otherwise slide under the status bar.
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         modifier = modifier,
         title = {

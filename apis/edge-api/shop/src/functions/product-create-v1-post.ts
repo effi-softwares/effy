@@ -1,5 +1,4 @@
-// POST /shop/v1/products — create a shop-owned product (as a draft). Any active shop member;
-// the product is bound to the caller's resolved shop (never client input).
+// Created as a draft, bound to the caller's resolved shop.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -5,10 +5,10 @@ import { VehiclesListScreen } from "@/features/vehicles/VehiclesListScreen";
 
 import { appRoute } from "./app";
 
-// The vehicle register (061). Both routes nest under the protected app shell (appRoute), so the
+// The vehicle register. Both routes nest under the protected app shell (appRoute), so the
 // session guard runs first.
 //
-// Read access is open to every signed-in back-office role INCLUDING csa — a CSA is exactly who is
+// Read access is open to every signed-in back-office role including csa — a CSA is exactly who is
 // asked "where is that order" and needs to see which van is out with whom. Mutating controls are
 // gated in the screens and independently enforced by the backend.
 export const vehiclesIndexRoute = createRoute({

@@ -43,18 +43,12 @@ import platform.UIKit.accessibilityLabel
 import platform.UIKit.accessibilityValue
 import platform.darwin.NSObject
 
-/**
- * ⚠ A NATIVE `UITextField`, NOT A COMPOSE FIELD — and that is the whole value of this file.
- * `textContentType = UITextContentTypeOneTimeCode` is what makes iOS offer the code from Mail or
- * Messages as a keyboard suggestion. A Compose `TextField` cannot ask for it, so a Compose-only
- * implementation silently loses one-tap autofill (FR-026).
- */
+/** A native `UITextField`: only `textContentType = UITextContentTypeOneTimeCode` gets iOS to offer the code from Mail or Messages. */
 private class OtpTextFieldDelegate(
     var onChange: (String) -> Unit,
     var onSubmit: () -> Unit,
 ) : NSObject(), UITextFieldDelegateProtocol {
-    // Intercepts every edit INCLUDING paste, splices it by hand and returns false so Kotlin — not
-    // UIKit — owns the text. That is what lets `normalizeOtp` see a pasted value at all.
+    // Intercepts every edit, paste included, and returns false so Kotlin owns the text and `normalizeOtp` sees it.
     override fun textField(
         textField: UITextField,
         shouldChangeCharactersInRange: CValue<NSRange>,
@@ -64,7 +58,7 @@ private class OtpTextFieldDelegate(
         val start = shouldChangeCharactersInRange.useContents { location.toInt() }.coerceIn(0, current.length)
         val length = shouldChangeCharactersInRange.useContents { length.toInt() }
         val end = (start + length).coerceIn(start, current.length)
-        // ⚠ Strips non-digits and NOTHING ELSE — no truncation. See `normalizeOtp`.
+        // Strips non-digits only; never truncates.
         onChange(normalizeOtp(current.replaceRange(start, end, replacementString)))
         return false
     }
@@ -85,30 +79,10 @@ actual fun OtpInput(
     enabled: Boolean,
     isError: Boolean,
     /**
-     * ⚠ HONOURED HERE BY DRAWING THE CELLS *BEHIND* A COLOUR-CLEARED, STILL-REAL `UITextField`.
-     *
-     * The field cannot be replaced by a Compose one: `textContentType = UITextContentTypeOneTimeCode`
-     * is what makes iOS offer the code from Mail as a keyboard suggestion, and Compose cannot ask for
-     * it. So the native field stays — visible to the system, first responder, delegate intact — and is
-     * simply made transparent: `textColor` and `tintColor` cleared, no background, no border, no
-     * placeholder. `OtpCells` paints the six positions underneath from the same `value`.
-     *
-     * ⚠ CLEAR COLOURS, NEVER `hidden = true` OR `alpha = 0`. iOS suppresses the QuickType one-time-code
-     * suggestion for a field it considers off-screen; a fully transparent but laid-out field is not
-     * off-screen. That distinction is the entire reason this works, and it is why nobody should
-     * "tidy" this into `isHidden`.
-     *
-     * ⚠ THE FIELD IS ON TOP, THE CELLS BEHIND — not the other way round. Compose content composited
-     * OVER a `UIKitView` is the fragile direction in CMP; a native view above Compose is not. It also
-     * keeps every touch landing on the real field.
-     *
-     * ⚠ THE CELLS CARRY NO SEMANTICS. `UIKitInteropProperties(isNativeAccessibilityEnabled = true)`
-     * gives UIKit ownership of accessibility for this subtree, so a second Compose node would break
-     * the one-logical-field invariant this whole component exists to hold.
-     *
-     * ⚠ STILL DEVICE-UNVERIFIED. Autofill is the highest-value behaviour here and the only thing in
-     * 036 that can be destroyed silently — quickstart §1 SPIKE-1 is the walk that confirms QuickType
-     * still offers the code, taps still reach the field, and VoiceOver still reports ONE element.
+     * The cells are drawn in UIKit behind the real `UITextField`, which is made transparent (`textColor`
+     * and `tintColor` cleared, no background, border or placeholder). Never `hidden` or `alpha = 0`: iOS
+     * withholds the one-time-code suggestion from a field it considers off-screen. The field is on top,
+     * so every touch reaches it; the cells carry no semantics, so VoiceOver sees one element.
      */
     variant: OtpVariant,
 ) {
@@ -146,7 +120,7 @@ actual fun OtpInput(
             }
             if (!cells) return@UIKitView field
 
-            // ── The six cells, drawn IN UIKIT ───────────────────────────────────────────────────
+            // The six cells, drawn in UIKit
             val container = UIView(frame = CGRectZero.readValue())
             val stack = UIStackView().apply {
                 axis = UILayoutConstraintAxisHorizontal
@@ -177,8 +151,7 @@ actual fun OtpInput(
             }
             container.addSubview(stack)
 
-            // ⚠ The field sits OVER the cells, fully transparent, and is what actually receives input,
-            // paste and the QuickType one-time-code suggestion.
+            // The transparent field over the cells receives input, paste and the one-time-code suggestion.
             field.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(field)
 
@@ -210,9 +183,7 @@ actual fun OtpInput(
                 return@UIKitView
             }
 
-            // ⚠ Transparent, but laid out, on-screen and first-responder-capable — see the note on
-            // `variant`. Never `hidden`/`alpha = 0`: iOS withholds the QuickType suggestion from a
-            // field it considers off-screen.
+            // Transparent but laid out and first-responder-capable; never `hidden`/`alpha = 0` (see `variant`).
             field.backgroundColor = UIColor.clearColor
             field.textColor = UIColor.clearColor
             field.tintColor = UIColor.clearColor
@@ -234,9 +205,7 @@ actual fun OtpInput(
                 cell?.layer?.borderWidth = if (active) 2.0 else 1.0
             }
         },
-        // ⚠ `fillMaxWidth()` — the Android actual has always had it and this one never did, so the
-        // `UIKitView` sized to the field's intrinsic width and the box hugged its placeholder. That is
-        // why the code field rendered small and left-aligned on iOS only, in BOTH variants.
+        // `fillMaxWidth`, as on Android, or the `UIKitView` hugs the field's intrinsic width.
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
@@ -248,7 +217,7 @@ actual fun OtpInput(
     )
 }
 
-/** Tags, so `update` can find the views `factory` built without keeping Kotlin references alive. */
+/** Tags, so `update` finds the views `factory` built without holding Kotlin references. */
 private const val FIELD_TAG = 4001
 private const val CELL_TAG = 4100
 private const val LABEL_TAG = 4200

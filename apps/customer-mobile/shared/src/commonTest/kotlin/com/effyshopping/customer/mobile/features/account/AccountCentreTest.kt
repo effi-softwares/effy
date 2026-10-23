@@ -19,13 +19,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// ⚠ NO COMMAS IN BACKTICKED TEST NAMES. Kotlin/Native forbids them in a declaration name while the
+// No commas in backticked test names. Kotlin/Native forbids them in a declaration name while the
 // JVM accepts them, so a comma here compiles green on `testAndroidHostTest` and fails the iOS test
-// target outright. Feature 033 found that its whole commonTest suite had NEVER compiled for iOS for
+// target outright. Feature 033 found that its whole commonTest suite had never compiled for iOS for
 // exactly this reason — and this file reproduced it on the first try. Use a dash.
 
 /**
- * 034 — the account centre's decisions, asserted where they are DECIDED rather than where they are
+ * The account centre's decisions, asserted where they are decided rather than where they are
  * drawn. Compose UI is not unit-testable on the JVM host here, so each test pins the rule the screen
  * reads, which is the part a refactor can silently invert.
  */
@@ -45,10 +45,10 @@ class AccountCentreTest {
         createdAtIso = "2026-07-14T00:00:00Z",
     )
 
-    // ── Security is composed from the credentials actually held (FR-025/FR-026, SC-006) ────────
+    // Security is composed from the credentials actually held
 
     /**
-     * ⚠ A shopper with no password must be offered SET and never CHANGE, and vice versa — never both.
+     * A shopper with no password must be offered set and never change, and vice versa — never both.
      * Effy's customer pool has three credential routes, so a fixed row list is wrong for a large
      * share of customers. This is the presentation half of the defect 012 found in Cognito itself.
      */
@@ -62,14 +62,14 @@ class AccountCentreTest {
         assertEquals(PasswordJourney.CHANGE, customer(hasPassword = true).passwordJourney)
     }
 
-    /** The journey is derived ONLY from the record — never from how the shopper signed in. */
+    /** The journey is derived only from the record — never from how the shopper signed in. */
     @Test
     fun `the journey is derived from the record - so a Google shopper can still hold a password`() {
         val googleShopperWithPassword = customer(hasPassword = true)
         assertEquals(PasswordJourney.CHANGE, googleShopperWithPassword.passwordJourney)
     }
 
-    // ── Phone (FR-060/FR-060a) ─────────────────────────────────────────────────────────────────
+    // Phone
 
     @Test
     fun `a phone is optional and absent by default`() {
@@ -77,9 +77,9 @@ class AccountCentreTest {
     }
 
     /**
-     * ⚠ There is deliberately NO verified flag on the domain model. A field whose only honest value
+     * There is deliberately NO verified flag on the domain model. A field whose only honest value
      * is `false` eventually gets rendered as a badge by someone, and a shopper would reasonably rely
-     * on it. If phone verification is ever built it arrives WITH its challenge flow.
+     * on it. If phone verification is ever built it arrives with its challenge flow.
      */
     @Test
     fun `the customer model carries no phone-verified concept at all`() {
@@ -88,7 +88,7 @@ class AccountCentreTest {
         assertFalse(fields.contains("verified", ignoreCase = true))
     }
 
-    // ── Blockers (FR-042) ──────────────────────────────────────────────────────────────────────
+    // Blockers
 
     private fun blocker(kind: ClosureBlockerKind) = ClosureBlocker(
         kind = kind,
@@ -99,7 +99,7 @@ class AccountCentreTest {
     )
 
     /**
-     * ⚠ Every blocker must say WHEN IT CLEARS. This requirement has been wrong twice — first blocking
+     * Every blocker must say when it clears. This requirement has been wrong twice — first blocking
      * forever on any unfulfilled order, then bounding it at 30 days, which on a weekly-re-buy grocery
      * platform still meant the most active shoppers could never delete.
      */
@@ -113,7 +113,7 @@ class AccountCentreTest {
         }
     }
 
-    /** ⚠ SC-009 — the sentences never offer an alternative to deleting. */
+    /** The sentences never offer an alternative to deleting. */
     @Test
     fun `blocker copy never says deactivate - disable - freeze or pause`() {
         ClosureBlockerKind.entries.forEach { kind ->
@@ -142,10 +142,10 @@ class AccountCentreTest {
         assertFalse(clean.copy(blockers = listOf(blocker(ClosureBlockerKind.ORDER_IN_TRANSIT))).canProceed)
     }
 
-    // ── Guest data deletion (FR-046) ───────────────────────────────────────────────────────────
+    // Guest data deletion
 
     /**
-     * ⚠ Apple's FAQ names guest accounts explicitly, and Effy is guest-first: a guest's saved list
+     * Apple's FAQ names guest accounts explicitly, and Effy is guest-first: a guest's saved list
      * survives a restart, so "there is no account" is not an answer.
      */
     @Test
@@ -180,9 +180,9 @@ class AccountCentreTest {
     }
 
     /**
-     * ⚠ SIGNING OUT MUST LEAVE NOTHING BEHIND, and the offline cart QUEUE is the part that was missed.
+     * Signing out must leave nothing behind, and the offline cart queue is the part that was missed.
      *
-     * The stores' own `reset()` writes an empty envelope back, which is functionally clear — but the
+     * The stores' own `reset` writes an empty envelope back, which is functionally clear — but the
      * queue was covered by neither reset, so a change made just before signing out could still be
      * drained afterwards, on a shared device, into the next person's session.
      */
@@ -203,7 +203,7 @@ class AccountCentreTest {
     }
 
     /**
-     * ⚠ The "clear data on this device" control is shown ONLY when this reports true. Signing out
+     * The "clear data on this device" control is shown only when this reports true. Signing out
      * already clears everything, so offering the button to a just-signed-out shopper implied the app
      * had not tidied up after them — the opposite of what happened.
      */
@@ -227,9 +227,9 @@ class AccountCentreTest {
         assertNull(prefs.getString("k"))
     }
 
-    // ── Retained-data disclosure (FR-045) ──────────────────────────────────────────────────────
+    // Retained-data disclosure
 
-    /** Every retained category must carry its REASON — SC-010 checks the claims, so they must exist. */
+    /** Every retained category must carry its reason — sc-010 checks the claims, so they must exist. */
     @Test
     fun `a retained category always carries a reason`() {
         val c = RetainedCategory("Completed orders", "Required for tax and accounting records.")

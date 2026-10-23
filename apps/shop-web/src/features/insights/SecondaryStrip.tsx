@@ -7,16 +7,16 @@ import { track } from "@/lib/telemetry"
 import { money } from "./model"
 
 /**
- * The drill-through strip (058, FR-018/FR-034).
+ * The drill-through strip.
  *
- * ⚠ THREE OF THE DESIGN'S FIVE CELLS ARE NOT BUILT, and they are not omissions. `Conversion rate`
+ * Three of the design's five cells are not built, and they are not omissions. `Conversion rate`
  * needs a storefront this shop does not have — customers buy from Effy, and a hidden fulfilment node
- * has no funnel of its own. `New customers` is customer-relationship data a shop is never shown
- * (023 FR-018). `Returns open` needs a returns model the platform does not have. Each would have to
+ * has no funnel of its own. `New customers` is customer-relationship data a shop is never shown.
+ * `Returns open` needs a returns model the platform does not have. Each would have to
  * be invented to be displayed, and an invented number on an operator's screen is worse than a
  * missing one. Their slots carry figures the platform can stand behind instead.
  *
- * ⚠ EVERY CELL GOES SOMEWHERE. A number that names a problem without taking you to it makes the
+ * Every cell goes somewhere. A number that names a problem without taking you to it makes the
  * reader do a search; each of these opens the already-filtered list that explains it.
  */
 export function SecondaryStrip({

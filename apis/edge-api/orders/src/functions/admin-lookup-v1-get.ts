@@ -7,13 +7,7 @@ import { requireStaff } from "../lib/guard";
 import { NOT_FOUND, VALIDATION_FAILED } from "../lib/problems";
 import { lookup } from "../lookup/service";
 
-/**
- * GET /orders/v1/admin/lookup?q=&method=scan|typed — what a bag label, a typed code or an order number
- * names (096 US5, FR-040). Read = any active staff incl. csa: finding an order is triage.
- *
- * ⚠ A GET that WRITES: every lookup is recorded as a read (FR-045). It is still safe to repeat — each
- * call is one more read on the record, which is what happened.
- */
+/** What a label, typed code or order number names. Any active staff. Every lookup is recorded as a read. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireStaff(event, context);
   if (!guard.ok) return guard.response;

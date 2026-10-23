@@ -1,10 +1,4 @@
-// Vehicle holding use-cases (061) — issuing a vehicle to a driver and taking it back.
-//
-// ⚠ EVERY REFUSAL NAMES WHAT IS ALREADY HELD (FR-014). "This vehicle is unavailable" sends an
-// operator to look for a problem; "EFY-001 is out with Sam Rivers" sends them to Sam. 053 shipped a
-// console where every refusal collapsed into one generic sentence because the screen tested
-// `e instanceof Error` while the client throws a plain object — the server got it right and the UI
-// discarded it. The `fields` list is what survives to the screen, so it is populated deliberately.
+// Every refusal names what is already held ("EFY-001 is out with Sam Rivers"), carried in `fields`.
 
 import type { RequestScope } from "@effy/edge-shared";
 import type { HoldingIssueRequest, HoldingReturnRequest, VehicleDetail } from "@effy/shared-types";
@@ -43,9 +37,7 @@ export async function issueVehicle(
   const vehicle = await vehicleRepo.getVehicle(vehicleId);
   if (!vehicle) throw notFound("vehicle not found");
 
-  // ⚠ Retired and off-road are refused SEPARATELY. They mean different things and have different
-  // remedies — one is terminal, the other is "it is in the workshop, try tomorrow" — and collapsing
-  // them into "unavailable" would tell an operator nothing about what to do next.
+  // Retired and off-road are refused separately: terminal versus "in the workshop".
   if (vehicle.status === "retired") {
     throw conflict(`${vehicle.registrationPlate} is retired and can no longer be issued`, [
       { field: "status", message: "this vehicle has been retired" },
@@ -90,13 +82,7 @@ export async function issueVehicle(
   return (await vehicleRepo.getVehicle(vehicleId))!;
 }
 
-/**
- * Turn a unique-index violation into a refusal that names the obstacle.
- *
- * ⚠ The index tells us WHICH rule was broken; this read tells us WHO or WHAT broke it. The read
- * happens AFTER the failure, so it can never be the thing that decides — which is what keeps the
- * guarantee in the database where two concurrent operators cannot slip past it.
- */
+/** The index says which rule broke; this read, after the failure, says who or what. */
 async function nameTheClash(err: HoldingConflictError, vehicleId: string, driverId: string): Promise<never> {
   if (err.clash === "vehicle") {
     const holder = await repo.holderOf(vehicleId);
@@ -145,9 +131,7 @@ export async function returnVehicle(
       );
     });
   } catch (err) {
-    // ⚠ FR-018 is enforced by the schema's CHECK, not by this service. A closing reading below the
-    // opening one is physically impossible, so the rule holds for every writer — including one
-    // nobody has written yet.
+    // The odometer rule is the schema's check, so it holds for every writer.
     if (err instanceof OdometerError) {
       throw validationError("the vehicle could not be returned", [
         {

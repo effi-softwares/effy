@@ -6,8 +6,8 @@ import {
 } from "./engine";
 
 // The plan every table below is worked against, by hand:
-//   base $3.00 · ≤10 km +$0 · ≤20 km +$2.00 · beyond +$5.00
-//   ≤5 kg +$0 · ≤15 kg +$1.50 · heavier +$4.00 · step $0.50 · minimum $4.00 · maximum $15.00
+//  base $3.00 · ≤10 km +$0 · ≤20 km +$2.00 · beyond +$5.00
+//  ≤5 kg +$0 · ≤15 kg +$1.50 · heavier +$4.00 · step $0.50 · minimum $4.00 · maximum $15.00
 const plan = (over: Partial<EffyPlanValues> = {}): EffyPlanValues => ({
   baseCents: 300,
   distanceBands: [
@@ -37,17 +37,17 @@ const sum = (b: FeeBreakdown) => feeLines(b).reduce((s, l) => s + l.cents, 0);
 describe("effyFee — P1, to the cent", () => {
   it.each([
     // km, grams, expected delivery cents — and why
-    [0, 1, 400], //       300 → under the minimum → 400
-    [10, 1, 400], //      exactly on the boundary: the LOWER band
-    [10.01, 1, 500], //   300 + 200
-    [20, 1, 500], //      boundary again: the lower band
-    [20.01, 1, 800], //   300 + 500
-    [900, 1, 800], //     the open-ended band prices any distance
-    [5, 5000, 400], //    weight boundary: the lower band
-    [5, 5001, 450], //    300 + 150
+    [0, 1, 400], //  300 → under the minimum → 400
+    [10, 1, 400], //  exactly on the boundary: the lower band
+    [10.01, 1, 500], //  300 + 200
+    [20, 1, 500], //  boundary again: the lower band
+    [20.01, 1, 800], //  300 + 500
+    [900, 1, 800], //  the open-ended band prices any distance
+    [5, 5000, 400], //  weight boundary: the lower band
+    [5, 5001, 450], //  300 + 150
     [5, 15000, 450],
-    [5, 15001, 700], //   300 + 400
-    [5, 80000, 700], //   heavier than every band: the heaviest
+    [5, 15001, 700], //  300 + 400
+    [5, 80000, 700], //  heavier than every band: the heaviest
     [25, 80000, 1200], // 300 + 500 + 400
   ])("%s km, %s g → %s", (km, grams, want) => {
     const b = price(km, grams);

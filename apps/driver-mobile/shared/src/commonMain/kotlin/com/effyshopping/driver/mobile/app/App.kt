@@ -37,8 +37,8 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 
 /**
- * The driver app root (049). Login-first: a top-level session gate picks the graph — `Restoring` splash,
- * the sign-in flow when signed out (the ONLY public screen), a refusal message when barred/unprovisioned,
+ * The driver app root. Login-first: a top-level session gate picks the graph — `Restoring` splash,
+ * the sign-in flow when signed out (the only public screen), a refusal message when barred/unprovisioned,
  * or the adaptive [DriverShell] when signed in. No guest; no driver content without a session.
  */
 @Composable
@@ -49,19 +49,19 @@ fun App(
 ) {
     val platformState by platformUiController.state.collectAsState()
     val appearanceMode by container.appearance.mode.collectAsState()
-    // 092 — the launch intro, over everything, once per cold start (as the customer app). While it shows
+    // The launch intro, over everything, once per cold start (as the customer app). While it shows
     // it owns the status bar (light on the dark splash); after, the theme does. `remember`, not saved:
     // a rotation does not replay it, a new process does.
     var introDone by remember { mutableStateOf(false) }
     EffyTheme(mode = appearanceMode, onResolvedAppearance = { if (introDone) platformUiController.applyAppearance(it) }) {
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()
-        // 071 — hold the live channel exactly while in the foreground and signed in.
+        // Hold the live channel exactly while in the foreground and signed in.
         LiveLifecycle(container.live, signedIn = session is SessionState.SignedIn)
 
         LaunchedEffect(Unit) {
             container.session.bootstrap()
-            // Flush any writes queued while offline on a previous run (FR-040).
+            // Flush any writes queued while offline on a previous run.
             runCatching { container.syncCoordinator.flush() }
         }
         // Backlog C6 — the moment the connection returns, send what is waiting and, if the app opened
@@ -89,7 +89,7 @@ fun App(
                 )
 
                 is SessionState.SignedIn -> {
-                    // One-time permission priming (FR-004), then the shell.
+                    // One-time permission priming, then the shell.
                     var primed by remember { mutableStateOf(container.hasPrimedPermissions()) }
                     if (!primed) {
                         PermissionPrimingScreen(firstName = s.driver.name.trim().substringBefore(' ').ifBlank { null }, onContinue = {

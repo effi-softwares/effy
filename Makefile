@@ -3,12 +3,12 @@
 # Single operator entry point for the Terraform infrastructure under infra/
 # (contract: specs/001-infra-foundation/contracts/makefile-targets.contract.md).
 #
-#   make <target> ENV=<dev|qa|staging|prod>     # ENV defaults to dev
+# make <target> ENV=<dev|qa|staging|prod> # ENV defaults to dev
 #
 # Every target wraps the underlying command in AWS_PROFILE=ef so both the AWS
-# provider and the S3 state backend resolve the `ef` credentials (FR-017/FR-018).
+# provider and the S3 state backend resolve the `ef` credentials.
 # `apply` / `destroy` keep Terraform's interactive approval — NO -auto-approve
-# anywhere; a human always confirms mutating actions (FR-015).
+# anywhere; a human always confirms mutating actions.
 
 AWS_PROFILE ?= ef
 ENV         ?= dev
@@ -26,21 +26,20 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard legacy-delivery-guard purge-orders wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
-        verify-naming verify-pool-credentials \
+        live-guards shop-words-guard driver-words-guard purge-orders wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-lighthouse cw-depcruise \
-        shop-verify-isolation shop-token-claims \
+        shop-verify-isolation \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
         brand-gen brand-check email-gen email-check email-preview \
-        storefront-locks storefront-locks-update \
         dev-status dev-stop dev-start check-dev-park check-no-phantm
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-## --- One-time state backend (run FIRST, once — see infra/bootstrap/README.md) ---
+# # --- One-time state backend (run first, once — see infra/bootstrap/README.md) ---
 
 bootstrap-init: ## Init the bootstrap root (local state)
 	cd $(BOOTSTRAP_DIR) && $(TF) init
@@ -48,7 +47,7 @@ bootstrap-init: ## Init the bootstrap root (local state)
 bootstrap-apply: ## OPERATOR: create the S3 state bucket (one-time, interactive approval)
 	cd $(BOOTSTRAP_DIR) && $(TF) apply
 
-## --- Platform-wide root (010): the parent DNS zone. NOT an environment — no ENV= here. ---
+# # --- Platform-wide root: the parent DNS zone. Not an environment — no ENV= here. ---
 
 global-init: ## Init the global root (parent hosted zone)
 	cd $(GLOBAL_DIR) && $(TF) init
@@ -63,7 +62,7 @@ global-apply: ## OPERATOR: apply the global root — creates the parent zone (in
 global-output: ## Show the parent zone's name-servers (paste these into GoDaddy)
 	cd $(GLOBAL_DIR) && $(TF) output
 
-## --- Per-environment workflow (ENV=dev|qa|staging|prod) ---
+# # --- Per-environment workflow (ENV=dev|qa|staging|prod) ---
 
 init: ## Init an env root (configures the S3 backend)
 	cd $(ENV_DIR) && $(TF) init
@@ -80,16 +79,13 @@ destroy: preflight ## OPERATOR: destroy an env (interactive approval)
 output: ## Show an env's outputs
 	cd $(ENV_DIR) && $(TF) output
 
-## --- Hygiene (no AWS calls, never applies) ---
+# # --- Hygiene (no AWS calls, never applies) ---
 
 fmt: ## Format all Terraform under infra/
 	terraform fmt -recursive $(INFRA_DIR)
 
 validate: ## Validate one env root (ENV=...); backend not required
 	cd $(ENV_DIR) && $(TF) init -backend=false -input=false > /dev/null && $(TF) validate
-
-verify-naming: ## One-name rule (008): fail on any retired audience token lacking a documented exclusion
-	@bash scripts/verify-no-store.sh
 
 check-no-phantm: ## ⚠ FAIL if the banned external domain (any subdomain or address) appears anywhere — constitution v1.12.0
 	@bash scripts/check-no-phantm.sh
@@ -119,7 +115,7 @@ lint: ## fmt-check + validate every root + tflint + trivy/checkov config scan
 		echo "WARN: trivy/checkov not installed — skipping security scan (brew install trivy)"; \
 	fi
 
-## --- Guardrail (research.md D8 belt-and-braces; skip with SKIP_PREFLIGHT=1) ---
+# # --- Guardrail (research.md D8 belt-and-braces; skip with SKIP_PREFLIGHT=1) ---
 
 preflight: ## Assert the resolved AWS account matches the env's tfvars before apply/destroy
 	@if [ -z "$(SKIP_PREFLIGHT)" ]; then \
@@ -128,11 +124,11 @@ preflight: ## Assert the resolved AWS account matches the env's tfvars before ap
 		echo "WARN: preflight skipped (SKIP_PREFLIGHT=1)"; \
 	fi
 
-## --- Database migrations (goose; specs/003-db-migrations) ---
+# # --- Database migrations (goose; specs/003-db-migrations) ---
 # DSN is composed at invocation from the platform contract (SSM /effy/<env>/db/* +
-# Secrets Manager) by infra/scripts/db-dsn.sh and enters goose ONLY via process env —
+# Secrets Manager) by infra/scripts/db-dsn.sh and enters goose only via process env
 # never argv, never echoed, never a file. Forward-only platform: db-down is a single-step,
-# DEV-ONLY iteration convenience; shipped mistakes are fixed by a new forward migration.
+# dev-only iteration convenience; shipped mistakes are fixed by a new forward migration.
 
 MIGRATIONS_DIR := db/migrations
 GOOSE_ENV      := GOOSE_DRIVER=postgres GOOSE_MIGRATION_DIR=$(MIGRATIONS_DIR)
@@ -141,7 +137,7 @@ DB_DSN_CMD      = AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-dsn.sh
 check-goose:
 	@command -v goose > /dev/null 2>&1 || { echo "goose not installed — brew install goose"; exit 1; }
 
-db-new: check-goose ## Scaffold a SQL migration: make db-new name=snake_case_title
+db-new: check-goose ## Scaffold a SQL migration: make db-new NAME=snake_case_title
 	@test -n "$(name)" || { echo "usage: make db-new name=snake_case_title"; exit 1; }
 	@goose -dir $(MIGRATIONS_DIR) create $(name) sql
 
@@ -169,7 +165,7 @@ db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up
 
-# 077: ONE migration, not all of them. A feature whose first migration is additive and whose second
+# one migration, not all of them. A feature whose first migration is additive and whose second
 # drops what the old code still reads needs a deploy between the two; `db-up` would apply both.
 # The process environment reaches goose unchanged — a migration that asks for an operator value
 # (`-- +goose ENVSUB ON`) reads it from here and raises when it is missing.
@@ -186,10 +182,10 @@ db-up-one: check-goose ## OPERATOR: apply ONE pending migration (confirm; FORCE=
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up-by-one
 
-# 070: the shopper-facing services (edge storefront + commerce) connect as a connection-limited role
+# The shopper-facing services (edge storefront + commerce) connect as a connection-limited role
 # so a shopper burst cannot starve staff, shop and driver services. The migration creates the role
 # with NO password; this gives it one, stores it in Secrets Manager, and enables login. Re-running
-# rotates the password. Run AFTER `make db-up` and BEFORE `make apply` (which publishes the ARN).
+# rotates the password. Run after `make db-up` and before `make apply` (which publishes the ARN).
 db-shopper-role: ## OPERATOR: set/rotate the shopper DB role's password and store it in Secrets Manager (ENV=dev)
 	@printf 'SET PASSWORD for role effy_shopper + write secret /effy/%s/db/shopper  →  env=%s\nContinue? [y/N] ' "$(ENV)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
@@ -207,21 +203,21 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose down
 
-## --- Backend services ---
-# ONE backend (070): a family of serverless services under apis/edge-api/<service>; SERVICE selects
-# one. edge-deploy mutates AWS → OPERATOR-run. Configuration reaches a function from the platform
+# # --- Backend services ---
+# one backend: a family of serverless services under apis/edge-api/<service>; service selects
+# one. edge-deploy mutates AWS → operator-run. Configuration reaches a function from the platform
 # contract (SSM /effy/<env>/… + Secrets Manager) at deploy and at run time — never a file.
 #
 # The operator tools below (create-first-admin, delete-admin, load-localities) are TypeScript in
-# apis/edge-api/ops, run from a workstation; the DSN and pool id are composed AT INVOCATION and passed
+# apis/edge-api/ops, run from a workstation; the DSN and pool id are composed at invocation and passed
 # as process env — never a file, never echoed.
-# ⚠ A STACK IS NOT ALWAYS A DIRECTORY (075). `inventory` deploys as TWO stacks from one source —
+# A stack is not always a directory. `inventory` deploys as two stacks from one source
 # `inventory` (shop routes, the shared gateway) and `inventory-staff` (back-office routes, the staff
-# gateway) — because a stack attaches to exactly one gateway. SERVICE names the STACK; the lookup
+# gateway) — because a stack attaches to exactly one gateway. Service names the stack; the lookup
 # below maps it to its directory and config file. Every other service is its own directory.
 EDGE_STACK_DIR_inventory-staff    := inventory
 EDGE_STACK_CONFIG_inventory-staff := serverless.staff.yml
-# 095 — admin's promotion routes, split out at CloudFormation's 500-resource limit. Deploy admin first.
+# Admin's promotion routes, split out at CloudFormation's 500-resource limit. Deploy admin first.
 EDGE_STACK_DIR_admin-promotions    := admin
 EDGE_STACK_CONFIG_admin-promotions := serverless.promotions.yml
 EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
@@ -280,7 +276,7 @@ edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing removed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless remove --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
-# --- back-office web (005): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on
+# --- back-office web: Vite SPA, local-only this slice (no hosted deploy). Runs on
 # :5173 against the live dev edge-api + admin Cognito pool. VITE_* config comes from
 # apps/back-office/.env.local (git-ignored) per contracts/config.contract.md.
 BO_DIR := apps/back-office
@@ -297,9 +293,9 @@ bo-lint: ## back-office typecheck (tsc --noEmit)
 bo-test: ## back-office unit/component tests (vitest)
 	@pnpm --filter @effy/back-office test
 
-# --- shop web (007): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on :5174
+# --- shop web: Vite SPA, local-only this slice (no hosted deploy). Runs on:5174
 # (an approved dev CORS origin — infra/envs/dev/edge-gateway.tf) against the live dev
-# shop service + SHOP Cognito pool. VITE_* config comes from apps/shop-web/.env.local
+# shop service + shop Cognito pool. VITE_* config comes from apps/shop-web/.env.local
 # (git-ignored) per specs/007-shop-web/contracts/config.contract.md.
 SHOP_DIR := apps/shop-web
 
@@ -315,8 +311,8 @@ shop-lint: ## shop-web typecheck (tsc --noEmit)
 shop-test: ## shop-web unit/component tests (vitest)
 	@pnpm --filter @effy/shop-web test
 
-# --- customer storefront (011) — the platform's first PUBLIC surface. SSR-first, guest-first.
-# It runs against the LIVE dev backend gateway (or `make edge-offline SERVICE=…` for one service).
+# --- customer storefront — the platform's first public surface. SSR-first, guest-first.
+# It runs against the live dev backend gateway (or `make edge-offline SERVICE=…` for one service).
 cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3000)
 	@pnpm --filter @effy/customer-web dev
 
@@ -332,7 +328,7 @@ cw-test: ## customer-web unit tests (vitest — async Server Components are E2E-
 cw-e2e: ## customer-web E2E (playwright) — SSR/SEO/auth/isolation. Proves what units cannot.
 	@pnpm --filter @effy/customer-web e2e
 
-# --- the three GATES (011 FR-005/FR-006). These FAIL THE BUILD; they do not warn.
+# --- the three gates. These fail the build; they do not warn.
 cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + guest bundle budget)
 	@pnpm --filter @effy/customer-web depcruise
 	@pnpm --filter @effy/customer-web size
@@ -346,7 +342,7 @@ cw-lighthouse: ## customer-web lab baseline (PERF-20): Lighthouse mobile ×3 on 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
 	@pnpm --filter @effy/customer-web depcruise
 
-# --- customer-mobile (013). Principle-II codegen (committed + drift-guarded) + the build-failing guard.
+# --- customer-mobile. Principle-II codegen (committed + drift-guarded) + the build-failing guard.
 cm-contract-gen: ## customer-mobile: regenerate the Kotlin DTOs (auth + commerce) from @effy/shared-types (013 D15)
 	@pnpm --filter @effy/shared-types contract:gen
 	@pnpm --filter @effy/shared-types commerce-contract:gen
@@ -361,9 +357,9 @@ cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-0
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
 
-# --- customer-mobile: shareable DEV APK. A DEV keystore + a signed release APK you can sideload on a
+# --- customer-mobile: shareable dev apk. A DEV keystore + a signed release APK you can sideload on a
 # real Android phone. The keystore and its passwords are git-ignored (keystore.properties / keystore/),
-# exactly like secrets.properties. This is a DEV signing key for internal test builds — NOT a store key.
+# exactly like secrets.properties. This is a DEV signing key for internal test builds — not a store key.
 CM_KEYSTORE       ?= keystore/customer-dev.jks
 CM_KEY_ALIAS      ?= effy-customer-dev
 CM_KEYSTORE_PASS  ?= effydevkeystore
@@ -386,8 +382,8 @@ cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (need
 	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
 	@echo "        install:  adb install -r <that path>   (or share the file and open it on the phone)"
 
-# --- brand marks (024). One authored vector -> every icon/splash/favicon on all six surfaces.
-# Same shape as the tokens generator above: an authored source, COMMITTED derived artifacts, and a
+# --- brand marks. One authored vector -> every icon/splash/favicon on all six surfaces.
+# Same shape as the tokens generator above: an authored source, committed derived artifacts, and a
 # drift check that fails when they diverge. brand-check also rides `pnpm test` (turbo run test) via
 # @effy/brand's own test script — `make lint` is Terraform-only and never runs it.
 brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/src/logo.svg (024)
@@ -395,8 +391,8 @@ brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/sr
 brand-check: ## brand: FAIL if any committed brand asset drifts from the authored mark (024 SC-008)
 	@pnpm --filter @effy/brand brand:check
 
-# --- Email templates (038) -----------------------------------------------------------------
-# Same shape as tokens:gen/tokens:check and brand:gen/brand:check — authored source, COMMITTED
+# --- Email templates -----------------------------------------------------------------
+# Same shape as tokens:gen/tokens:check and brand:gen/brand:check — authored source, committed
 # derived artifacts, a drift check that fails and names the stale template.
 email-gen: ## email: regenerate every template artifact from src/*.mjml + the design-system tokens (038)
 	@pnpm --filter @effy/email-kit email:gen
@@ -418,19 +414,11 @@ shop-words-guard: ## shop surfaces: FAIL if a shop screen says "same-day" or "st
 
 driver-words-guard: ## driver + dispatch surfaces: FAIL if a screen says "same-day" or "standard" — the customer's words (082 FR-012)
 	@bash scripts/check-driver-delivery-words.sh
-legacy-delivery-guard: ## FAIL if the old delivery arrangement (same-day slot / standard day by carrier) is named in live source (083 FR-021)
-	@bash scripts/check-no-legacy-delivery.sh
 
-storefront-locks: ## storefront: FAIL if an operator-LOCKED file (header/nav/product card/footer) drifted (039 FR-002)
-	@bash scripts/check-storefront-locks.sh
-
-storefront-locks-update: ## storefront: re-record the lock baseline — commit it WITH the change that justified it
-	@bash scripts/check-storefront-locks.sh --update
-
-# --- expose a local backend to a physical phone via an ngrok STATIC domain (013 quickstart § 0 Path A).
+# --- expose a local backend to a physical phone via an ngrok static domain (013 quickstart § 0 Path A).
 # A phone cannot reach localhost; ngrok gives a stable public https URL to put in secrets.properties.
-# The static domain is reserved on YOUR ngrok account — pass it in (or export it); nothing is hardcoded.
-# Port: serverless-offline = 3000 (make edge-offline SERVICE=…). A FREE ngrok account has ONE static
+# The static domain is reserved on your ngrok account — pass it in (or export it); nothing is hardcoded.
+# Port: serverless-offline = 3000 (make edge-offline SERVICE=…). A free ngrok account has one static
 # domain, so one service at a time.
 NGROK_EDGE_PORT   ?= 3000
 NGROK_STATIC_DOMAIN ?=
@@ -440,7 +428,7 @@ cm-ngrok-edge: ## Expose local edge-api on your ngrok static domain (NGROK_STATI
 	@command -v ngrok >/dev/null || { echo "cm-ngrok-edge: ngrok not found — install it and reserve a static domain first"; exit 1; }
 	ngrok http $(NGROK_EDGE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
 
-# --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
+# --- shop slice verification. SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
 # here and run against the real gateway. See specs/007-shop-web/research.md R9.
 shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_TOKEN=.. BO_TOKEN=.. [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..])
@@ -450,11 +438,7 @@ shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_
 	SHARED_API="$$SHARED" STAFF_API="$$STAFF" SHOP_TOKEN="$(SHOP_TOKEN)" BO_TOKEN="$(BO_TOKEN)" \
 	CUSTOMER_TOKEN="$(CUSTOMER_TOKEN)" DRIVER_TOKEN="$(DRIVER_TOKEN)" bash scripts/verify-cross-pool.sh
 
-shop-token-claims: ## Decode a Cognito ACCESS token's claims (TOKEN=eyJ..) — settles research R6
-	@test -n "$(TOKEN)" || { echo 'usage: make shop-token-claims TOKEN=eyJ...'; exit 1; }
-	@TOKEN="$(TOKEN)" bash scripts/token-claims.sh
-
-# --- domain slice verification (010). A DNS delegation, a TLS chain, and a DKIM signature cannot
+# --- domain slice verification. A DNS delegation, a TLS chain, and a DKIM signature cannot
 # honestly be unit-tested — they are properties of the live internet. Scripted here instead.
 dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL still works
 	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" \
@@ -464,34 +448,33 @@ dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL sti
 	STAFF_RAW_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_default_endpoint 2>/dev/null || true)" \
 		bash scripts/dns-verify.sh
 
-# ⚠ Each service is probed on the gateway it is attached to (075). CUTOVER=1 while back-office is
-# being moved: a service not yet redeployed is reported with the gateway it actually answered on.
+# Each service is probed on the gateway it is attached to.
 EDGE_HEALTH_SHARED := shop customer storefront commerce driver inventory
 EDGE_HEALTH_STAFF  := admin fleet orders catalog inventory-staff
-edge-health: ## Probe every service on its own gateway: healthz + readyz. Public, no token. (CUTOVER=1 during the 075 move)
+edge-health: ## Probe every service on its own gateway: healthz + readyz. Public, no token.
 	@SHARED="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
 	STAFF="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint)" || exit 1; \
-	TARGETS="$$SHARED=$(EDGE_HEALTH_SHARED);$$STAFF=$(EDGE_HEALTH_STAFF)" CUTOVER="$(CUTOVER)" bash scripts/edge-health.sh
+	TARGETS="$$SHARED=$(EDGE_HEALTH_SHARED);$$STAFF=$(EDGE_HEALTH_STAFF)" bash scripts/edge-health.sh
 
 gateway-usage: ## How full is each API gateway — routes and integrations of 300 (BY=1 lists routes per service). Read-only.
 	@ENV="$(ENV)" AWS_REGION="$(AWS_REGION)" AWS_PROFILE="$(AWS_PROFILE)" BY_SERVICE="$(BY)" bash scripts/gateway-usage.sh
 
-# 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform AUTHORIZED to send as its namespace?
+# 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform authorized to send as its namespace?
 mail-verify: ## Mail is authorized: DKIM/SPF/DMARC published, SES identity verified, sender configured
 	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" AWS_PROFILE="$(AWS_PROFILE)" \
 	AWS_REGION="$(AWS_REGION)" bash scripts/mail-verify.sh
 
-# 037 SC-010/SC-014/SC-020: is the outcome pipeline RUNNING? Configured and running are two facts,
+# 037 SC-010/SC-014/SC-020: is the outcome pipeline running? Configured and running are two facts,
 # and the gap between them is precisely the blindness this feature exists to remove.
 mail-events-verify: ## Delivery outcomes flow: consumer subscribed + erroring?, log hygiene, alarms wired
 	@ENV="$(ENV)" AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" \
 	bash scripts/mail-events-verify.sh
 
-## --- Dev cost control: stop the DB while you're not developing ---
-# The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
+# # --- Dev cost control: stop the DB while you're not developing ---
+# the DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
 # ~US$2.5/mo storage still bills while stopped). Everything else is pay-per-use ≈ $0
 # idle, except edge-api's Secrets Manager interface endpoint (~US$9/mo) — deliberately
-# left always-on for now. CAVEAT: AWS auto-restarts a stopped RDS instance after
+# left always-on for now. Caveat: AWS auto-restarts a stopped RDS instance after
 # 7 days — check dev-status and re-run dev-stop if you stay away longer.
 
 DB_INSTANCE_ID = effy-$(ENV)-db

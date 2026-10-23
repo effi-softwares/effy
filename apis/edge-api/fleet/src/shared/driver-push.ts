@@ -1,17 +1,10 @@
-// Pushes to a driver about their work (driver backlog D1). Written into the notification outbox in
-// the SAME transaction as the change, so a push is never sent for work that did not commit; the
-// notifications worker drains it within a minute.
+// Driver pushes, written to the notification outbox in the same transaction as the change.
 
 import type { Queryable } from "@effy/edge-shared";
 
 /**
- * "Run assigned" — a round has become this driver's: the planner made it, or dispatch moved it to
- * them. ⚠ ONE PER ROUND AND DRIVER: the dedupe key is the round and the driver's sub, so the planner
- * adding to a round every five minutes never repeats it, while a round moved to another driver tells
- * the new one. Before this nothing produced a driver push at all — a driver with the app closed
- * learned of new work only by opening it.
- *
- * The payload carries the round id and its link, never an address or an order (Principle VII).
+ * "Run assigned": once per round and driver (deduped on both), so additions never repeat it and a
+ * moved round tells the new driver. The payload is the round id and link only.
  */
 export async function enqueueRunAssigned(tx: Queryable, roundId: string): Promise<void> {
   await tx.query(
@@ -30,15 +23,9 @@ export async function enqueueRunAssigned(tx: Queryable, roundId: string): Promis
 }
 
 /**
- * A round changed under a driver (backlog D2): "Run removed" when it is no longer theirs — ended, or
- * moved to someone else — and "Run updated" when they are working it and its stops changed.
- *
- * ⚠ A ROUND NOT YET BEGUN IS NOT "UPDATED". It fills up and is re-planned for hours before it opens,
- * and a push per change would be noise about something nobody has started (072 FR-018's rule for
- * the change note). Withdrawal is told whatever the round's state: work the driver expected is gone.
- *
- * One "removed" per round and driver; one "updated" per change — the key carries the round's
- * `updated_at`, which every writer moves, so two edits in one transaction are one push.
+ * "Run removed" when a round is no longer theirs; "Run updated" when they are working it and its stops
+ * changed (an unstarted round is not "updated"). One removed per round and driver; one updated per
+ * change, keyed on `updated_at`.
  */
 export async function enqueueRoundChanged(tx: Queryable, roundId: string, driverId: string): Promise<void> {
   await tx.query(
@@ -62,14 +49,9 @@ export async function enqueueRoundChanged(tx: Queryable, roundId: string, driver
   );
 }
 
-/** How long before a round opens its driver is told it is about to (backlog D2). */
 export const OPENS_SOON_LEAD_MIN = 15;
 
-/**
- * "Run opens soon" for every round that opens within [OPENS_SOON_LEAD_MIN] of [now] (backlog D2).
- * Run by each planning pass (every five minutes), so the push lands 10–15 minutes ahead; once per
- * round and driver. The opening is `round_opens_at`'s — the one definition (072).
- */
+/** "Run opens soon", once per round and driver; each pass runs it, so it lands 10–15 minutes ahead. */
 export async function enqueueRoundsOpeningSoon(tx: Queryable, now: Date): Promise<void> {
   await tx.query(
     `INSERT INTO public.notification_request

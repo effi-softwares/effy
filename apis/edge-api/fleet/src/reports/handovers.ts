@@ -1,6 +1,5 @@
-// 096 US6 — the hand-over report (FR-063): how bags were handed over (scan / typed / by hand) overall,
-// per shop and per driver, refused reads by kind, bags declared missing, and exceptions per 1,000
-// hand-overs — so a shop printing bad labels or a step people skip is visible rather than guessed at.
+// How bags were handed over (scan / typed / by hand) overall, per shop and per driver; refused reads,
+// missing bags, and exceptions per 1,000 hand-overs.
 import type { HandoverMixDTO, HandoverReportDTO, ParcelMissingReason, ReadOutcome } from "@effy/shared-types";
 
 import { validationError } from "../shared/errors";
@@ -11,7 +10,7 @@ const MAX_DAYS = 92;
 
 const mix = (r: repo.MixRow): HandoverMixDTO => ({ scan: Number(r.scan), typed: Number(r.typed), manual: Number(r.manual) });
 const total = (m: HandoverMixDTO) => m.scan + m.typed + m.manual;
-/** Most hand-overs not scanned first: those are the shops and drivers to look at. */
+/** Most not-scanned first: the shops and drivers to look at. */
 const worstFirst = <T extends HandoverMixDTO>(xs: T[]) => xs.sort((a, b) => total(b) - b.scan - (total(a) - a.scan) || total(b) - total(a));
 
 export async function handoverReport(from: string, to: string): Promise<HandoverReportDTO> {

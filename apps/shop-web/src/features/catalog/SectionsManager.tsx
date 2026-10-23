@@ -23,8 +23,8 @@ import {
 } from "./queries";
 
 /**
- * Shop-local sections CRUD (US5 T071): list, create, rename, delete. Opened as a `Dialog` from the
- * catalog list. No cards — a plain divided list with inline rename (DOCTRINE-2). Deleting a section
+ * Shop-local sections CRUD: list, create, rename, delete. Opened as a `Dialog` from the
+ * catalog list. No cards — a plain divided list with inline rename (doctrine-2). Deleting a section
  * unassigns its products via cascade (handled server-side; the mutation invalidates the product lists).
  */
 export function SectionsManager({

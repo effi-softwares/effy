@@ -90,7 +90,7 @@ class DeliveryViewModelTest {
     }
 
     /**
-     * 092 rev 2 — "work changed" while the driver is at the door: the drop is re-read (new instructions,
+     * Rev 2 — "work changed" while the driver is at the door: the drop is re-read (new instructions,
      * a cancelled order). Not once they have finished it: Delivered describes what they did.
      */
     @Test fun work_changed_re_reads_the_open_drop_until_it_is_finished() = runTest {
@@ -111,8 +111,8 @@ class DeliveryViewModelTest {
     private fun drop() = Drop("d1", "EFY-1", "Ada", "1 St", null, emptyList(), DropStatus.ARRIVED)
 
     /**
-     * ⚠ 092 R5 — TWO TAPS, AND THE ARRIVAL IS STILL RECORDED. The driver no longer says "I've arrived";
-     * the ViewModel records it, silently and FIRST, so the platform's timeline keeps an arrival before
+     * Two taps, and the arrival is still recorded. The driver no longer says "I've arrived";
+     * the ViewModel records it, silently and first, so the platform's timeline keeps an arrival before
      * the proof — sent in that order, or saved in that order with no signal.
      */
     @Test fun delivering_an_out_drop_records_arrival_first_then_the_proof() = runTest {
@@ -133,7 +133,7 @@ class DeliveryViewModelTest {
         assertTrue(v.state.value.proofSending)
     }
 
-    /** 092 T026 — the door scan's methods ride the proof. */
+    /** The door scan's methods ride the proof. */
     @Test fun the_door_scan_rides_the_proof() = runTest {
         val repo = FakeDeliveryRepo(drop = drop()); val v = vm(repo)
         v.loadDrop("d1")
@@ -149,7 +149,7 @@ class DeliveryViewModelTest {
         assertEquals(listOf("proof"), repo.calls)
     }
 
-    /** 093 — a drop not yet loaded: delivering, failing or moving it is refused at once, and nothing is sent. */
+    /** A drop not yet loaded: delivering, failing or moving it is refused at once, and nothing is sent. */
     @Test fun nothing_on_a_drop_before_the_van_is_loaded() = runTest {
         val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.STAGED)); val v = vm(repo)
         v.loadDrop("d1")
@@ -161,7 +161,7 @@ class DeliveryViewModelTest {
         assertTrue(!v.state.value.delivered && !v.state.value.failed)
     }
 
-    /** 093 — a package declared not loaded rides the load; a drop with nothing loaded leaves the run. */
+    /** A package declared not loaded rides the load; a drop with nothing loaded leaves the run. */
     @Test fun loading_with_a_package_declared_missing() = runTest {
         val lone = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED, bags = listOf(com.effyshopping.driver.mobile.core.scan.Bag("AAAAAA", 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT)))
         val pair = DropSummary("d2", 2, "EFY-2", "Fitzroy", 2, DropStatus.STAGED, bags = listOf("BBBBBB", "CCCCCC").map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) })
@@ -206,15 +206,7 @@ class DeliveryViewModelTest {
         assertEquals(ProofMethod.PHOTO, repo.mediaMethod)
     }
 
-    /**
-     * ⚠ 064, FR-002 — an unattended drop carries a PHOTOGRAPH, and it is recorded as CONTACTLESS.
-     *
-     * Both halves matter. Before 064 contactless completed with no image at all; and the repository
-     * mapped every non-PHOTO method to SIGNATURE, so routing contactless through the media path would
-     * have recorded each one as a customer signature — which the backend ACCEPTS, since signature
-     * plus media is a valid proof. Every "left at the door" would have been filed as "they signed for
-     * it", with nothing failing anywhere.
-     */
+    /** An unattended drop carries a photograph and is recorded as contactless, never as a signature. */
     @Test fun contactless_carries_a_photo_and_is_recorded_as_contactless() = runTest {
         val repo = FakeDeliveryRepo(drop = drop()); val v = vm(repo)
         v.deliverContactless("d1", byteArrayOf(7, 7), "Left at: Front door")
@@ -225,7 +217,7 @@ class DeliveryViewModelTest {
     }
 
     /**
-     * ⚠ FR-006 — a drop is NOT delivered when its proof did not save.
+     * A drop is not delivered when its proof did not save.
      *
      * The repository throws when the upload fails, and that has to reach the driver as a message
      * rather than as a quietly-successful delivery. This is the case a driver can act on: retake the
@@ -265,7 +257,7 @@ class DeliveryViewModelTest {
         assertNull(v.state.value.message)
     }
 
-    /** 088 — one action returns the run's failed parcels; the step goes once it is sent. */
+    /** One action returns the run's failed parcels; the step goes once it is sent. */
     @Test fun return_to_hub_clears_the_step() = runTest {
         val repo = FakeDeliveryRepo(drop = drop()).apply { run = DeliveryRun("r1", "active", emptyList(), toReturn = toReturn) }
         val v = vm(repo)
@@ -276,7 +268,7 @@ class DeliveryViewModelTest {
         assertEquals(1, repo.returned.size)
     }
 
-    /** 088 — with no signal the return is saved and the step goes at once; a retry is the same write. */
+    /** With no signal the return is saved and the step goes at once; a retry is the same write. */
     @Test fun return_to_hub_offline_moves_on_and_keeps_one_change_id() = runTest {
         val repo = FakeDeliveryRepo(drop = drop(), fail = AppError.Unavailable)
             .apply { run = DeliveryRun("r1", "active", emptyList(), toReturn = toReturn) }

@@ -3,12 +3,7 @@ import * as RechartsPrimitive from "recharts"
 
 import { cn } from "../cn"
 
-// The shadcn chart primitive (the ONE the platform uses), relocated into the design-system so both
-// consoles consume it rather than each app owning a copy (constitution Principle II).
-//
-// ⚠ Colour comes ONLY from the bounded data-visualisation tokens --chart-1..5 (constitution v1.13.0),
-// threaded through `ChartContainer`'s per-config CSS vars. A chart is the one place non-monochrome
-// colour is permitted; it is never a UI accent.
+// The shadcn chart primitive. Colour comes only from the data-visualisation tokens --chart-1..5.
 
 const THEMES = { light: "", dark: ".dark" } as const
 
@@ -36,12 +31,7 @@ function useChart() {
   return context
 }
 
-/**
- * ⚠ THE `#ccc` / `#fff` LITERALS BELOW ARE NOT COLOURS THIS PLATFORM SETS. They are ATTRIBUTE
- * SELECTORS matching recharts' own hardcoded defaults (`[stroke='#ccc']`), used to find those
- * elements and override them with `--border` / `transparent`. Removing them would not remove a
- * colour; it would stop the override from matching and let recharts' grey through.
- */
+/** The `#ccc` / `#fff` literals below are attribute selectors matching recharts' defaults, so they can be overridden. */
 function ChartContainer({
   id,
   className,

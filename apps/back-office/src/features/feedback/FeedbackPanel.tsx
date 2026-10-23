@@ -70,7 +70,7 @@ export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { deta
 
       <div className="grid flex-1 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 border-border p-6 max-md:p-4 xl:col-span-2 xl:border-r">
-          {/* ⚠ `whitespace-pre-wrap` on plain text — React escapes it, so pasted markup renders inert (FR-017). */}
+          {/* `whitespace-pre-wrap` on plain text — React escapes it, so pasted markup renders inert. */}
           <p className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">{detail.message}</p>
 
           {timeline.length > 0 ? (
@@ -156,7 +156,7 @@ function StatusControl({ detail }: { detail: FeedbackDetailDTO }) {
 
 /**
  * One box, two kinds of writing: a reply (emailed to the submitter; marks it Replied) or an internal
- * note (never emailed or shown to them). ⚠ Reply is gated by role (admin/manager) and by there being
+ * note (never emailed or shown to them). Reply is gated by role (admin/manager) and by there being
  * an email to send to.
  */
 function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: boolean }) {

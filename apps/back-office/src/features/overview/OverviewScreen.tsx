@@ -44,7 +44,7 @@ import { setCommandPaletteOpen } from "@/lib/ui-store";
  * Overview (redesign, board "Overview — needs attention"): what needs a person right now, and how
  * today's deliveries are going. Replaces the placeholder dashboard and its illustrative figures.
  *
- * ⚠ EVERY NUMBER IS READ THROUGH THE QUERY OF THE PAGE IT LINKS TO — the same endpoint and cache tree
+ * Every number is read through the query of the page it links to — the same endpoint and cache tree
  * — so a count here and the list it opens can never disagree, and each refreshes when its page's data
  * does (a live update or a mutation). Nothing here refreshes on a timer.
  */

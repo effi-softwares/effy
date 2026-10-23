@@ -1,13 +1,8 @@
 import { createHash, createHmac } from "node:crypto";
 
 /**
- * 071 — sign one publish request with the function's own role (AWS Signature Version 4).
- *
- * Written against `node:crypto` rather than the SDK's signer: the request has a fixed shape (one
- * POST, four or five headers, no query string), so the general signer's handling of query
- * encoding, header folding and streaming bodies would be code this never runs — and the SDK's
- * signer is only a transitive dependency here, which pnpm does not let a package import.
- * `sign.test.ts` pins the output to a signature computed by the SDK's own signer.
+ * Signs one publish request (SigV4) with `node:crypto`: the request has a fixed shape, and the sdk's
+ * signer is only a transitive dependency. `sign.test.ts` pins it to the sdk's output.
  */
 
 export interface SigningCredentials {
@@ -28,7 +23,7 @@ const sha256 = (data: string): string => createHash("sha256").update(data, "utf8
 const hmac = (key: Buffer | string, data: string): Buffer =>
   createHmac("sha256", key).update(data, "utf8").digest();
 
-/** `20261005T031244Z` — the basic ISO 8601 form the signature requires, with no milliseconds. */
+/** Basic ISO 8601 with no milliseconds, e.g. `20261005T031244Z`. */
 function amzDate(now: Date): string {
   return now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }

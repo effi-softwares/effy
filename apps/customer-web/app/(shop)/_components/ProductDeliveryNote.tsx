@@ -10,15 +10,9 @@ import { getSession } from "@/lib/session"
 import { PaymentMarks } from "./PaymentMarks"
 
 /**
- * The panel under the buy buttons (reference: Product detail; FR-023): who delivers to the customer's
- * address, their points, and what checkout accepts.
- *
- * ⚠ SAME ANSWER AS THE HEADER AND CHECKOUT — the default address's own `coverage`. Nothing here is
- * worked out from a postcode, and nothing promises a day or a window: that is chosen at checkout.
- *
- * ⚠ Points are said as what they are worth and "use them to pay" — never as money off this product.
- *
- * A guest gets the general line and the payment marks; both customer rows need a session.
+ * The panel under the buy buttons: who delivers to the default address (its own `coverage`, as in the
+ * header and checkout; no day or window), the customer's points (as what they are worth), and what
+ * checkout accepts. A guest gets the general line and the payment marks.
  */
 export async function ProductDeliveryNote() {
   const session = await getSession()

@@ -1,21 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 
-/**
- * Nav model, generic over a surface's role union.
- *
- * The kit never knows what a role *means* — only that an item may require one. Each console
- * supplies its own `NavItem<ShopRole>[]` / `NavItem<BackOfficeRole>[]`.
- */
+/** The nav model, generic over a surface's role union: the kit only knows an item may require a role. */
 export interface NavItem<TRole extends string> {
   label: string;
   to: string;
   icon: LucideIcon;
-  /** Hide this item unless the operator holds this role. UX only — the backend gates for real. */
+  /** Hide this item unless the operator holds this role. UX only: the backend gates for real. */
   requiredRole?: TRole;
-  /**
-   * The sidebar group this item sits under (e.g. "Platform", "Workspace"). Items without one fall
-   * into the shell's default group, so a console that never names a group renders one group as before.
-   */
+  /** The sidebar group (e.g. "Platform"); items without one fall into the shell's default group. */
   group?: string;
 }
 
@@ -40,12 +32,7 @@ export function groupNav<TRole extends string>(
   return groups;
 }
 
-/**
- * Filter nav by role.
- *
- * This is least-privilege UX and defense in depth, NEVER the guard: the backend independently
- * refuses a request for a hidden route. Hiding a link is not authorization.
- */
+/** Filters nav by role: least-privilege UX, never the guard (the backend refuses a hidden route regardless). */
 export function visibleNav<TRole extends string>(
   nav: readonly NavItem<TRole>[],
   roles: readonly TRole[],
@@ -53,7 +40,7 @@ export function visibleNav<TRole extends string>(
   return nav.filter((item) => item.requiredRole === undefined || roles.includes(item.requiredRole));
 }
 
-/** Breadcrumb label for the active route, derived from the router (never hand-held). */
+/** The breadcrumb label for the active route, derived from the router. */
 export function currentSection<TRole extends string>(
   nav: readonly NavItem<TRole>[],
   pathname: string,

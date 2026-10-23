@@ -1,4 +1,3 @@
-// POST /commerce/v1/lists — create a named list, optionally placing one product in it at once.
 import { json } from "@effy/edge-shared";
 
 import { isUuid } from "../lib/ids";

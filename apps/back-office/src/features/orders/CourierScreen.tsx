@@ -18,15 +18,15 @@ import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock";
 import { courierParcelsQuery } from "./queries";
 
 /**
- * Courier parcels (080): everything a courier takes that is not finished, in five views.
+ * Courier parcels: everything a courier takes that is not finished, in five views.
  *
- *   At the hub, due   collected (or still to collect), not handed over, due by the next pickup
- *   At the hub, late  the pickup it was due for has gone
- *   Supplier pickups  a courier collects from the supplier — booked or still to arrange
- *   With the courier  handed over, not delivered; overdue first
- *   Problems          failed, lost, damaged or returned, until resolved
+ *  At the hub, due collected (or still to collect), not handed over, due by the next pickup
+ *  At the hub, late the pickup it was due for has gone
+ *  Supplier pickups a courier collects from the supplier — booked or still to arrange
+ *  with the courier handed over, not delivered; overdue first
+ *  Problems failed, lost, damaged or returned, until resolved
  *
- * ⚠ A TABLE WITH VIEWS, NO METRIC TILES (Principle V). Read-only for every role; bookings and steps
+ * A table with views, no metric tiles (Principle V). Read-only for every role; bookings and steps
  * are recorded on the order.
  */
 const VIEWS: { value: CourierView; label: string; empty: string }[] = [

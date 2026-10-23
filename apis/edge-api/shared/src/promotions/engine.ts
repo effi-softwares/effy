@@ -1,21 +1,15 @@
 /**
- * THE promotion evaluator (094 R2–R4). Pure: no I/O, no clock of its own, cents throughout.
+ * The promotion evaluator. Pure: no I/O, no clock of its own, cents throughout. The cart, the payment
+ * intent and the back-office preview all call `pricePromotions`, so cart, charge and receipt agree
+ * (`promotions.guard.test.ts` fails a second evaluator).
  *
- * ⚠ IT LIVES ONCE. The cart read, the payment intent and the back-office group preview all call
- * `pricePromotions`, so what the shopper sees in the cart, what they are charged and what the receipt
- * says cannot drift apart (SC-003). `promotions.guard.test.ts` fails a second evaluator.
+ * Order: item promotions per qualifying unit, then buy-X-get-Y on what is left; cart promotions on the
+ * remaining goods; delivery promotions on the order's one fee. Percentages round down per line; a cart
+ * or capped discount is allocated to its lines in proportion, largest remainder first, so every line
+ * carries its exact cents (refunds read them). Nothing goes below zero.
  *
- * The order reductions are worked out in (R3):
- *   1. item promotions, per qualifying unit, then buy-X-get-Y on what item promotions left;
- *   2. cart promotions on the remaining goods;
- *   3. delivery promotions on the order's one delivery fee (computed by the delivery engine on goods
- *      after 1–2, as before).
- * Percentages round DOWN per line; a cart or capped discount is allocated to the lines it applied to in
- * proportion to what is left of each, largest remainder first, so every line carries the exact cents it
- * lost (refunds read them, R8). Nothing ever goes below zero.
- *
- * Combining (R4): every combinable candidate applies together, unless one non-combinable candidate on
- * its own gives the shopper more; ties go to the option ending soonest, then the oldest.
+ * Combining: every combinable candidate applies together, unless one non-combinable candidate alone
+ * gives more; ties go to the one ending soonest, then the oldest.
  */
 
 export type EngineKind = "cart" | "item" | "bxgy" | "delivery";
@@ -25,7 +19,7 @@ export type DeliveryTypeName = "effy" | "courier";
 export interface BasketLine {
   lineId: string;
   productId: string;
-  /** The product's category and every ancestor — so a category target covers its sub-categories. */
+  /** The product's category and every ancestor, so a category target covers sub-categories. */
   categoryIds: readonly string[];
   /** Lower-cased and trimmed, or null. */
   brand: string | null;
@@ -183,8 +177,6 @@ export function pricePromotions(basket: Basket, candidates: readonly Candidate[]
   };
 }
 
-// ── internals ───────────────────────────────────────────────────────────────────────────────────
-
 interface Evaluation {
   applied: AppliedPromotion[];
   refused: NotApplied[];
@@ -218,7 +210,7 @@ const oldest = (cs: Candidate[]) => Math.min(...cs.map((c) => c.createdAt.getTim
 
 const STAGE: Record<EngineKind, number> = { item: 0, bxgy: 1, cart: 2, delivery: 3 };
 
-/** Apply a set of candidates in R3 order and record what each took. */
+/** Applies a set of candidates in order and records what each took. */
 function evaluate(basket: Basket, members: readonly Candidate[]): Evaluation {
   const remaining = new Map(basket.lines.map((l) => [l.lineId, l.unitCents * l.quantity]));
   const ordered = [...members].sort((a, b) => STAGE[a.kind] - STAGE[b.kind] || a.createdAt.getTime() - b.createdAt.getTime());
@@ -337,10 +329,7 @@ function cap(c: Candidate, cents: number): number {
   return c.maxDiscountCents !== null ? Math.min(cents, c.maxDiscountCents) : cents;
 }
 
-/**
- * Buy X get Y: units sorted dearest first, taken in groups of buy + get; in each group the cheapest
- * `get` units are reduced. So the shopper always gets the cheapest qualifying items reduced (spec US4).
- */
+/** Buy X get Y: units dearest first in groups of buy + get, the cheapest `get` of each reduced. */
 function buyXGetY(c: Candidate, lines: readonly BasketLine[], remaining: Map<string, number>): Map<string, number> {
   const out = new Map<string, number>();
   if (!c.bxgy) return out;

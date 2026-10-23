@@ -1,10 +1,10 @@
 # dev's DNS namespace + its email sending identity (010-domain-dns-foundation).
 #
-# Adding qa/staging is this file, copied, with env = "qa" — no new design (spec FR-007).
+# Adding qa/staging is this file, copied, with env = "qa" — no new design.
 
-# The parent zone is looked up BY NAME, not imported from another root's remote state (research R1).
+# The parent zone is looked up by name, not imported from another root's remote state.
 # No cross-root state coupling: this env root knows only the domain, and the parent zone is owned by
-# infra/global/ — a root that is deliberately NOT an environment, so `make destroy ENV=dev` can never
+# infra/global/ — a root that is deliberately not an environment, so `make destroy ENV=dev` can never
 # take the platform's apex with it.
 data "aws_route53_zone" "parent" {
   name         = var.root_domain
@@ -21,9 +21,9 @@ module "dns" {
   parent_zone_id = data.aws_route53_zone.parent.zone_id
 }
 
-# The environment sends as ITS OWN namespace (no-reply@dev.effyshopping.com), never the apex — so a
+# The environment sends as its own namespace (no-reply@dev.effyshopping.com), never the apex — so a
 # burst of bounced dev OTPs can never spend the production domain's sending reputation, which is a
-# real and hard-to-reverse asset (spec FR-018 / SC-014).
+# real and hard-to-reverse asset.
 module "ses" {
   source = "../../modules/ses-domain-identity"
 
@@ -31,15 +31,15 @@ module "ses" {
   zone_id = module.dns.zone_id
   region  = var.aws_region
 
-  # 037: attach the outcome pipeline as this identity's DEFAULT configuration set, and give the
+  # Attach the outcome pipeline as this identity's default configuration set, and give the
   # namespace's DMARC record a reporting address so monitor mode collects something.
   configuration_set_name = module.ses_events.configuration_set_name
   dmarc_rua              = var.dmarc_rua
 }
 
 # ── Per-message delivery outcomes (037-platform-email-delivery) ───────────────────────────────
-# The configuration set + the topic its outcomes land on. Everything that sends mail in this
-# environment attaches to this set, so a failure to reach ONE person is visible — which the
+# the configuration set + the topic its outcomes land on. Everything that sends mail in this
+# environment attaches to this set, so a failure to reach one person is visible — which the
 # account-wide reputation alarms below structurally cannot be.
 module "ses_events" {
   source = "../../modules/ses-events"
@@ -47,25 +47,19 @@ module "ses_events" {
   name_prefix    = module.shared.name_prefix
   aws_account_id = var.aws_account_id
 
-  # ⚠ [] in dev — see the variable's own documentation. This is what stops a mistyped dev address
-  # from permanently blocking a real customer in production (FR-041).
+  # [] in dev — see the variable's own documentation. This is what stops a mistyped dev address
+  # from permanently blocking a real customer in production.
   suppressed_reasons = var.ses_suppressed_reasons
 }
 
-# ── App↔infra contract: /effy/<env>/ses/* ─────────────────────────────────────────────────────
-#
-# ⚠ THE DEFECT THIS ENDS: the sender address existed in THREE places in TWO shapes — hardcoded as
-# `no-reply@${sls:stage}.effyshopping.com` in both apis/edge-api/auth/serverless.yml and
-# apis/edge-api/customer/serverless.yml, and as `Effy <no-reply@…>` here. They had ALREADY drifted,
-# so the Lambdas sent with no display name while Cognito would send with one. One writer, many
-# readers (Principle II; contracts/ssm-mail.contract.md).
+# /effy/<env>/ses/*: the sender address, with one writer (here) and many readers (Principle II).
 locals {
-  # The ONE definition of who Effy is in a recipient's inbox. Both the SSM contract and Cognito's
+  # The one definition of who Effy is in a recipient's inbox. Both the SSM contract and Cognito's
   # own configuration read this — never two literals that can disagree.
   mail_sender = module.ses.from_address
   # Customer-facing reply address — the public support mailbox.
   mail_reply_to = "hello@${var.root_domain}"
-  # ⚠ 038 FR-037: internal audiences (driver/shop/back-office) reply to the OPERATIONAL mailbox.
+  # Internal audiences (driver/shop/back-office) reply to the operational mailbox.
   # `workspace-admin@` is one of the two constitution-approved addresses; deriving it here (rather
   # than accepting a parameter) is what keeps a third address structurally impossible.
   mail_reply_to_internal = "workspace-admin@${var.root_domain}"
@@ -105,9 +99,9 @@ resource "aws_ssm_parameter" "ses_reply_to_internal" {
   tier        = "Standard"
 }
 
-# ⚠ CONDITIONAL on a non-empty value. AWS SSM rejects an empty String parameter ("Member must have
+# conditional on a non-empty value. AWS ssm rejects an empty String parameter ("Member must have
 # length greater than or equal to 1"), so an unset value cannot be stored as "". Instead the param is
-# simply NOT CREATED, and the services resolve their `${ssm:…, ''}` fallback to an empty string —
+# simply not created, and the services resolve their `${ssm:…, ''}` fallback to an empty string
 # which the app treats as "unset" (the footer omits the postal line). The correct shape for an
 # optional operator input: absent means absent, not an empty record.
 resource "aws_ssm_parameter" "mail_postal_address" {
@@ -124,19 +118,10 @@ resource "aws_ssm_parameter" "mail_postal_address" {
   tier  = "Standard"
 }
 
-# ⚠ THE PERMISSION HALF OF THE LINE ABOVE, AND IT IS NOT OPTIONAL.
-#
-# `ses:SendEmail` authorizes against EVERY resource the request touches. A send that names a
-# configuration set touches two: the identity AND the configuration set. A policy granting only the
-# identity therefore DENIES the call outright — with `AccessDeniedException`, which says nothing
-# about which resource was missing.
-#
-# ⚠ THIS SHIPPED BROKEN AND CAUSED A TOTAL SIGN-IN OUTAGE. Before 037 the senders passed no
-# configuration set, so the identity-only grant was sufficient and correct. 037 added
-# `ConfigurationSetName` to every send WITHOUT widening the grant, so every code email failed on all
-# four pools — and because a failed send is a failed sign-in on the three passwordless audiences,
-# nobody could sign in at all. The only signal was `otp_send_failed` and one log line reading
-# `{"stage":"ses-send","error":"AccessDeniedException"}`.
+# Required with the configuration set above: `ses:SendEmail` authorizes against every resource the request
+# names, and a send naming a configuration set touches it and the identity. Granting only the identity
+# denies every send with a bare `AccessDeniedException`, and on the passwordless audiences a failed code
+# email is a failed sign-in.
 resource "aws_ssm_parameter" "ses_configuration_set_arn" {
   name        = "/effy/${var.env}/ses/configuration_set_arn"
   description = "ARN of the configuration set. Every ses:SendEmail grant MUST name this alongside the identity — a send that specifies a configuration set is authorized against both."
@@ -155,11 +140,11 @@ resource "aws_ssm_parameter" "ses_events_topic_arn" {
 
 # ── Letting Cognito send through the identity ─────────────────────────────────────────────────
 #
-# ⚠ THIS LIVES IN THE ROOT, NOT THE MODULE, ON PURPOSE — it breaks a cycle.
+# this lives in the root, not the module, on purpose — it breaks a cycle.
 # The four pools need module.ses.identity_arn (their source_arn). If the ses module also took the
 # four pool ARNs, the two would depend on each other and Terraform would refuse the graph. Hoisting
 # just this one resource into the root makes the dependency a clean line:
-#     ses → pools → this policy
+# ses → pools → this policy
 data "aws_iam_policy_document" "cognito_ses_send" {
   statement {
     sid       = "AllowCognitoToSendAsEffy"
@@ -172,7 +157,7 @@ data "aws_iam_policy_document" "cognito_ses_send" {
       identifiers = ["cognito-idp.amazonaws.com"]
     }
 
-    # Only OUR four pools may send through this identity.
+    # Only our four pools may send through this identity.
     condition {
       test     = "StringEquals"
       variable = "aws:SourceAccount"
@@ -200,9 +185,9 @@ resource "aws_ses_identity_policy" "cognito" {
 
 # ── The pools' email configuration ────────────────────────────────────────────────────────────
 #
-# ⚠ TWO-STAGE BY NECESSITY (discovered in implementation — see tasks.md T028a):
-# Cognito REJECTS a source_arn whose SES identity is not yet VERIFIED. Verification is asynchronous:
-# AWS polls for the DKIM records this apply creates, which takes minutes AFTER the apply returns.
+# two-stage by necessity (discovered in implementation — see tasks.md T028a):
+# Cognito rejects a source_arn whose SES identity is not yet verified. Verification is asynchronous:
+# AWS polls for the DKIM records this apply creates, which takes minutes after the apply returns.
 # So the first apply creates the identity and its records with the pools still on the built-in
 # sender; once `make mail-verify ENV=dev` reports verified, flip ses_sender_enabled = true in
 # dev.tfvars and apply again. The flag makes that gate explicit instead of a mysterious failure.
@@ -212,22 +197,15 @@ locals {
     source_arn            = module.ses.identity_arn
     from_email_address    = local.mail_sender
 
-    # ⚠ 037 REVERSES 010's FR-022. That rule set this to null because "the platform cannot RECEIVE
-    # mail, and an address that silently bounces replies is worse than no address at all." The
-    # reasoning was right and its premise is gone: the apex now routes to the operator's mailbox.
-    # A shopper who cannot sign in and hits reply on their code email is the highest-intent support
-    # signal this platform will ever get, and it used to vanish.
-    #
-    # ⚠ Read from the SAME local the SSM contract publishes — one literal, two consumers. Writing
-    # the address here a second time would re-create in miniature the exact drift this slice exists
-    # to end (FR-004).
+    # Replies go to the operator's mailbox: a shopper who cannot sign in and replies to a code email is the
+    # strongest support signal there is. Read from the same local the SSM contract publishes (one literal).
     reply_to_email_address = local.mail_reply_to
 
-    # 037 FR-024: attributes Cognito's own mail — sign-up confirmation, password recovery,
+    # Attributes Cognito's own mail — sign-up confirmation, password recovery,
     # email-change and both step-up codes — to the outcome pipeline. Without this, four of the five
     # code-bearing flows would send with no per-message visibility at all.
     #
-    # ⚠ Only meaningful under DEVELOPER. Under COGNITO_DEFAULT, Cognito uses its own internal sender
+    # Only meaningful under developer. Under COGNITO_DEFAULT, Cognito uses its own internal sender
     # and the configuration set is inert.
     configuration_set = module.ses_events.configuration_set_name
     } : {
@@ -242,9 +220,9 @@ locals {
 }
 
 # ── Alarms (Principle VII, research R9) ───────────────────────────────────────────────────────
-# Both exist because these are the two things this slice makes able to fail SILENTLY and TOTALLY.
+# Both exist because these are the two things this slice makes able to fail silently and totally.
 
-# SC-006 claims certificate renewal needs zero human actions. That is true ONLY while the DNS
+# SC-006 claims certificate renewal needs zero human actions. That is true only while the DNS
 # validation record still resolves — delete it and renewal fails quietly, with no symptom at all
 # until the endpoint abruptly goes untrusted at expiry. This alarm is what makes the claim safe to
 # rely on rather than merely hoped for.
@@ -264,7 +242,7 @@ resource "aws_cloudwatch_metric_alarm" "cert_expiry" {
   alarm_description   = "ACM cert renews automatically ONLY while its DNS validation record resolves. Firing here means renewal is broken — the endpoint will go untrusted at expiry."
 }
 
-# Breaching AWS's reputation thresholds PAUSES SENDING. On this platform that means no one on ANY of
+# Breaching aws's reputation thresholds pauses sending. On this platform that means no one on any of
 # the four audiences can obtain a sign-in code — and there is no password fallback anywhere. This is
 # the single highest-severity failure mode the slice introduces.
 resource "aws_cloudwatch_metric_alarm" "ses_bounce_rate" {
@@ -295,12 +273,8 @@ resource "aws_cloudwatch_metric_alarm" "ses_complaint_rate" {
   alarm_description   = "SES complaint rate > 0.1%. AWS pauses sending past this — which means NOBODY can sign in."
 }
 
-# ── 037: the alarms that see ONE person, not a rate ───────────────────────────────────────────
-#
-# ⚠ WHY THE RATE ALARMS ABOVE ARE NOT ENOUGH. A single customer whose address hard-bounces never
-# moves a percentage — and that one person is permanently locked out of an account that, for three
-# of the four audiences, has no other credential. The rate alarms protect the ACCOUNT; these
-# protect a PERSON.
+# Alarms that see one person, not a rate: a single hard-bouncing address never moves a percentage, and for
+# three of the four audiences that person has no other credential.
 resource "aws_cloudwatch_metric_alarm" "mail_hard_bounce" {
   alarm_name          = "${module.shared.name_prefix}-mail-hard-bounce"
   namespace           = "Effy/Mail"
@@ -316,18 +290,18 @@ resource "aws_cloudwatch_metric_alarm" "mail_hard_bounce" {
   alarm_description   = "A permanent delivery failure was recorded. Someone may now be unable to sign in at all — check the back-office deliverability view and repair if the address is recoverable."
 }
 
-# ⚠ THIS ALARM EXISTS BECAUSE AWS PROVIDES NO SIGNAL FOR IT (research R11).
-# There is no CloudWatch metric and no EventBridge event for a broken custom MAIL FROM. The only
-# native notification is an email to the AWS ACCOUNT ROOT ADDRESS, which on a solo-operator project
+# this alarm exists because AWS provides no signal for it.
+# There is no CloudWatch metric and no EventBridge event for a broken custom mail from. The only
+# native notification is an email to the AWS account root address, which on a solo-operator project
 # is exactly as unmonitored as the gap this slice is closing. So the platform polls and publishes
 # its own metric (apis/edge-api/admin ses-identity-health, hourly).
 #
 # The failure it catches is silent by construction: with behavior_on_mx_failure = USE_DEFAULT_VALUE
 # (the right choice — the alternative makes every send fail, i.e. nobody signs in), SES quietly
 # falls back to an amazonses.com envelope. Mail keeps flowing. What breaks is SPF alignment, so
-# deliverability decays at the receiver over DAYS and the rate alarms fire only after the damage.
+# deliverability decays at the receiver over days and the rate alarms fire only after the damage.
 #
-# ⚠ treat_missing_data = "breaching" is deliberate: a probe that stops running must TRIP this alarm,
+# treat_missing_data = "breaching" is deliberate: a probe that stops running must trip this alarm,
 # not silence it.
 resource "aws_cloudwatch_metric_alarm" "mail_from_unhealthy" {
   alarm_name          = "${module.shared.name_prefix}-mail-from-unhealthy"

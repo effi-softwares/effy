@@ -11,13 +11,11 @@ import type { Queryable } from "../lib/db";
 import { imageWidthsField, publicImageUrl, renditionWidthsSql } from "../lib/media-public";
 
 /**
- * 095 — how a promotion looks in one place. The group reads (storefront, commerce) and back-office's group
- * preview resolve a member's skin and picture HERE, so every reader agrees on which skin a placement wears:
+ * How a promotion looks in one place, resolved here for every reader:
  *
- *   the member's own skin  ?? (a shared code ? the group's code default : —)  ?? the group's default
+ *  the member's own skin ?? (a shared code ? the group's code default: —) ?? the group's default
  *
- * and which picture it shows (`pickPicture`, @effy/shared-types: the member's choice if it still exists,
- * else the best fit for the layout, else none).
+ * and its picture (`pickPicture`: the member's choice if it exists, else the best fit, else none).
  */
 
 export interface SkinRow {

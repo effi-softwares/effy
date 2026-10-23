@@ -46,8 +46,7 @@ afterEach(() => {
 })
 
 describe("AddressFormModal — the container", () => {
-  // One native dialog at every width: it is centred or docked to the bottom edge by CSS alone
-  // (`fx-responsive`), so there is no second component to mount below the breakpoint.
+  // One native dialog at every width, centred or docked by CSS (`fx-responsive`).
   it("opens as one dialog, named for what it does", () => {
     render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
     expect(screen.getByRole("dialog", { name: "Add address" })).toBeInTheDocument()

@@ -1,11 +1,8 @@
 package com.effyshopping.customer.mobile.features.catalog
 
 /**
- * A COPY of `packages/shared-types/src/promotion-skins.fixtures.json` (095).
- *
- * ⚠ DO NOT EDIT BY HAND. `commonTest` cannot read a file outside the app, so the fixture is embedded —
- * and `packages/shared-types/src/promotion-skins.test.ts` reads THIS file and fails if it differs from the
- * JSON. Change the TypeScript, regenerate the JSON, then copy it here.
+ * A copy of `packages/shared-types/src/promotion-skins.fixtures.json`, embedded because `commonTest` cannot read a file outside the app. Do not edit by hand:
+ * `packages/shared-types/src/promotion-skins.test.ts` reads this file and fails if it differs. Change the source first, then copy it here.
  */
 internal const val PROMO_SKIN_FIXTURE = """
 {

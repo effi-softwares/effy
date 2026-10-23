@@ -2,15 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { drainReceiptsOnce, type PendingReceipt, type ReceiptDrainDeps } from "./drain";
 
-/**
- * The receipt drain's decision logic, with fakes — no DB, no SES. 052 US3.
- *
- * ⚠ WHAT THESE CANNOT PROVE, and what does: the EXACTLY-ONCE guarantee is not in this file. It is a
- * partial unique index, proven against a real engine in
- * the payment finalisation's own real-database suite (`commerce/src/checkout/checkout.container.test.ts`). A fake would accept
- * two inserts and tell you nothing. These tests cover what IS a decision here — what to do with a
- * claimed row.
- */
+/** The drain's decisions on a claimed row. Exactly-once is a unique index, proven in the container tests. */
 
 const row = (over: Partial<PendingReceipt> = {}): PendingReceipt => ({
   id: "d1",
@@ -42,16 +34,11 @@ describe("drainReceiptsOnce", () => {
     const s = await drainReceiptsOnce(d);
 
     expect(s).toMatchObject({ claimed: 1, sent: 1, failed: 0, skipped: 0, retried: 0 });
-    // ⚠ The message id is what joins a dispatch to `email_delivery_event` (037), so a bounce can be
-    // traced back to the order. Losing it would make a delivered-but-bounced receipt untraceable.
+    // The message id joins a dispatch to `email_delivery_event`, so bounces trace to the order.
     expect(d.markSent).toHaveBeenCalledWith("d1", "msg-1");
   });
 
-  /**
-   * ⚠ FAIL-OPEN (050 FR-027's posture). A deployment with no mail identity must leave every row
-   * PENDING — not failed. Marking them failed would burn the attempt budget on a misconfiguration and
-   * lose receipts that were never actually attempted.
-   */
+  /** Fail open: with no mail identity every row stays pending, not failed. */
   it("⚠ does nothing at all when the mailer is not configured", async () => {
     const d = deps({ mailerConfigured: false });
     const s = await drainReceiptsOnce(d);
@@ -63,7 +50,7 @@ describe("drainReceiptsOnce", () => {
     expect(d.markFailed).not.toHaveBeenCalled();
   });
 
-  /** No address on the account is a VALID OUTCOME, not a failure (the 050 `no_token` precedent). */
+  /** No address is a valid outcome, not a failure. */
   it("skips a dispatch with no recipient rather than failing it", async () => {
     const d = deps({ claimPending: vi.fn(async () => [row({ recipient: "" })]) });
     const s = await drainReceiptsOnce(d);
@@ -73,7 +60,7 @@ describe("drainReceiptsOnce", () => {
     expect(d.send).not.toHaveBeenCalled();
   });
 
-  /** An order that cannot be read will not reappear — retrying forever would only look like a backlog. */
+  /** An unreadable order will not reappear; retrying forever would only look like a backlog. */
   it("skips when the order can no longer be read", async () => {
     const d = deps({ send: vi.fn(async () => null) });
     const s = await drainReceiptsOnce(d);
@@ -94,10 +81,7 @@ describe("drainReceiptsOnce", () => {
     expect(last.markFailed).toHaveBeenCalledWith("d1", "ses_throttled");
   });
 
-  /**
-   * ⚠ A THROWN sender must be caught, not allowed to abandon the batch. One unreachable order's
-   * exception must not strand every other receipt claimed in the same run.
-   */
+  /** One order's thrown send must not strand the rest of the batch. */
   it("treats a thrown send as a failure and keeps draining the batch", async () => {
     const send = vi
       .fn()
@@ -115,20 +99,12 @@ describe("drainReceiptsOnce", () => {
     expect(d.markSent).toHaveBeenCalledWith("d2", "msg-2");
   });
 
-  /**
-   * ⚠ SC-015's unit half: A FAILED SEND TOUCHES NOTHING BUT THE DISPATCH ROW.
-   *
-   * The order is already paid and the shopper has already seen their confirmation. This drain has no
-   * way to reach either — it is given no order-mutating dependency at all — and that is the design,
-   * not an omission. The assertion is about the SHAPE of the deps: if someone later hands this worker
-   * a way to mutate an order, this test is where that shows up.
-   */
+  /** A failed send touches only the dispatch row: the drain is given no way to mutate an order. */
   it("⚠ has no capability to touch the order, so a failed send cannot unmake a payment", async () => {
     const d = deps({ send: vi.fn(async () => ({ ok: false, error: "ses_denied" })) });
     const s = await drainReceiptsOnce(d);
 
     expect(s.retried + s.failed).toBe(1);
-    // Every dependency this worker has, named. None of them can write to an order or a payment.
     expect(Object.keys(d).sort()).toEqual(
       [
         "batchSize",

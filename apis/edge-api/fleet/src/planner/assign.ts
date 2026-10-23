@@ -1,15 +1,7 @@
-// Who gets what (063, reshaped by 072) — a pure function over gathered work and loaded candidates.
-//
-// ⚠ PURE ON PURPOSE. No database, no clock of its own, no I/O. Every hard case this feature has —
-// a driver cleared for every zone, a van that cannot take frozen, a round that cannot finish before
-// the cutoff, two drivers with unequal loads — is then a table-driven unit test rather than a
-// container fixture. The repository decides WHAT IS TRUE; this decides WHAT TO DO.
-//
-// ⚠ 072 — IT NOW RUNS ALL DAY, NOT FOR 45 MINUTES BEFORE A RUN. Two things follow, and both live
-// here. Work for one run arrives across many passes, so a pass must ADD to the round a driver
-// already holds for that run and judge capacity over the WHOLE of it, not over this pass's handful
-// of packages. And a round planned hours ahead cannot be worked until it opens, so "can it finish in
-// time" is asked from the opening time — never from the moment it happened to be planned.
+// Who gets what: pure over gathered work and loaded candidates (no database, clock or I/O); the
+// repository decides what is true, this decides what to do. It runs all day, so a pass adds to the
+// round a driver already holds for a run and judges capacity over the whole round, and "can it finish"
+// is asked from the round's opening time.
 
 import { eligibilityReasons, pickByLoad, type ExclusionReason } from "@effy/edge-shared";
 
@@ -23,15 +15,15 @@ export interface AssignInput {
   deadlineAt: Date;
   now: Date;
   perStopAllowanceMin: number;
-  /** 072 — when a round for this run or window opens. Null or past means it can be worked now. */
+  /** When a round for this run or window opens; null or past means now. */
   opensAt?: Date | null;
-  /** 072 — the delivery window being planned. Null for collection and for windowless delivery. */
+  /** Null for collection and windowless delivery. */
   windowStartAt?: Date | null;
-  /** 072 — the rounds that already exist for this run or window, oldest first. */
+  /** Oldest first. */
   rounds?: readonly BucketRound[];
 }
 
-/** Running totals for one round — existing or about to be created — as the pass adds to it. */
+/** Running totals for one round, existing or about to be created. */
 interface Running {
   candidate: PlannerCandidate;
   /** Null for a round this pass would create. */
@@ -39,7 +31,7 @@ interface Running {
   status: "planned" | "in_progress";
   taken: PlannablePackage[];
   weightGrams: number;
-  /** Every stop the driver still has to make on it. */
+  /** Every stop still to make. */
   stops: Set<string>;
 }
 
@@ -47,32 +39,21 @@ function stopKey(kind: "collection" | "delivery", p: PlannablePackage): string {
   return kind === "collection" ? p.shopId : (p.orderId ?? p.packageId);
 }
 
-/**
- * Plan one run or one delivery window.
- *
- * ⚠ PACKAGES ARE PLACED IN READINESS ORDER, oldest first. What has been waiting longest is placed
- * first, so a busy pass degrades by making the newest work wait rather than by making an arbitrary
- * package wait — which is the behaviour a dispatcher can explain to a shop.
- */
+/** Packages are placed oldest first, so a busy pass makes the newest work wait. */
 export function planWave(input: AssignInput): WavePlan {
   const { kind, packages, candidates, plannedFor, deadlineAt, now, perStopAllowanceMin } = input;
   const opensAt = input.opensAt ?? null;
   const rounds = input.rounds ?? [];
   const byDriver = new Map(candidates.map((c) => [c.driverId, c]));
 
-  // ── What each driver already holds for this run or window ────────────────────────────────────
-  //
-  // `target` is where NEW work for a driver goes: their not-yet-begun round if they have one,
-  // otherwise a round this pass creates. ⚠ The OLDEST planned round wins when a dispatcher's move
-  // has left a driver with two — `rounds` arrives oldest first and the first one seen is kept.
+  // `target` is where new work goes: the driver's unstarted round (the oldest, if a move left two), else a new one.
   const target = new Map<string, Running>();
-  // Every existing round by id, including ones under way, which accept work only at a stop that is
-  // still outstanding (FR-004a) and are never a target for anything else.
+  // Rounds under way accept work only at a stop still outstanding, and are never a target.
   const existing = new Map<string, Running>();
 
   for (const round of rounds) {
     const candidate = byDriver.get(round.driverId);
-    if (!candidate) continue; // its driver is not a candidate at all; nothing may be added to it
+    if (!candidate) continue;
     const running: Running = {
       candidate,
       roundId: round.roundId,
@@ -90,34 +71,27 @@ export function planWave(input: AssignInput): WavePlan {
     }
   }
 
-  /** Which existing round, if any, still has this package's stop to make. */
   const roundVisiting = (key: string): Running | null => {
     for (const round of rounds) {
-      // ⚠ A delivery round under way has left the hub. The package is at the hub. Nothing joins it.
+      // A delivery round under way has left the hub.
       if (kind === "delivery" && round.status === "in_progress") continue;
       if (round.stops.some((s) => s.key === key && s.outstanding)) return existing.get(round.roundId) ?? null;
     }
     return null;
   };
 
-  /** A round's finish is judged from when it can be started — now, if it is already under way. */
+  /** Judged from when it can start: now, if under way. */
   const reasonsFor = (r: Running, pkg: PlannablePackage): ExclusionReason[] => {
     const projectedStops = new Set(r.stops);
     projectedStops.add(stopKey(kind, pkg));
 
-    // ⚠ THE LOAD FIGURE IS NOT PASSED HERE, AND THAT IS DELIBERATE. `eligibilityReasons` decides
-    // whether a driver MAY do the work; how much they are already carrying is a tie-break, not a
-    // gate (FR-010). An earlier draft computed the running load and handed it to this call, which
-    // ignores the field — and a negative proof aimed at that line passed happily, proving nothing.
-    // The count is computed once, at the `pickByLoad` call below, where it is actually read.
+    // No load here: eligibility decides may; load is a tie-break, counted at `pickByLoad`.
     return eligibilityReasons({
       driver: r.candidate,
       work: {
         function: kind,
         zoneId: pkg.zoneId,
-        // ⚠ 072 — THE WHOLE ROUND, not this pass's share of it. `r.weightGrams` and `r.stops` are
-        // seeded from what the round already holds; without that, a van filled across six passes
-        // would pass the capacity gate six times, a few kilograms at a time.
+        // The whole round, seeded from what it already holds.
         totalWeightGrams: r.weightGrams + pkg.weightGrams,
         requiresChilled: pkg.requiresChilled,
         requiresFrozen: pkg.requiresFrozen,
@@ -151,7 +125,7 @@ export function planWave(input: AssignInput): WavePlan {
     else into.set(key, [pkg]);
   };
 
-  /** How many packages a driver has been given today, counting this pass's own decisions. */
+  /** Counting this pass's own decisions. */
   const loadOf = (driverId: string): number => {
     let n = byDriver.get(driverId)!.packagesAssignedToday;
     const t = target.get(driverId);
@@ -165,10 +139,7 @@ export function planWave(input: AssignInput): WavePlan {
   for (const pkg of packages) {
     const perDriverReasons: PlannedExclusion[] = [];
 
-    // ── A round already going to this shop (or this order) takes the package ───────────────────
-    //
-    // FR-004a, and since 072 the same rule for a round not yet begun: work for a stop somebody is
-    // already going to make goes on that stop.
+    // A round already going to this shop (or order) takes the package at that stop.
     const visiting = roundVisiting(stopKey(kind, pkg));
     if (visiting) {
       const reasons = reasonsFor(visiting, pkg);
@@ -182,17 +153,15 @@ export function planWave(input: AssignInput): WavePlan {
         );
         continue;
       }
-      // ⚠ FR-004c — it does NOT quietly go on the round anyway. It is placed like any other
-      // package below; the reason is kept in case nobody else can take it either.
+      // It does not go on the round anyway: placed like any other, the reason kept.
       for (const reason of reasons) {
         perDriverReasons.push({ packageId: pkg.packageId, driverId: visiting.candidate.driverId, reason });
       }
     }
 
-    // ── The hard gates, then load balance ──────────────────────────────────────────────────────
     const eligible: Running[] = [];
     for (const r of target.values()) {
-      if (r === visiting) continue; // already refused above, for the reasons recorded
+      if (r === visiting) continue;
       const reasons = reasonsFor(r, pkg);
       if (reasons.length === 0) eligible.push(r);
       else {
@@ -202,10 +171,8 @@ export function planWave(input: AssignInput): WavePlan {
       }
     }
 
-    // ⚠ 093 — ONE TRIP: THE DRIVER WHO BROUGHT IT TO THE HUB TAKES IT ON. They are standing at the hub
-    // with it; sending another driver costs a second person and a second trip. Only when they pass every
-    // gate above (cleared, a vehicle that can carry it, time to finish) — eligibility is never bent —
-    // and only after an order's packages are kept together (the visiting rule above).
+    // One trip: the driver who brought it to the hub takes it on, if they pass every gate (eligibility is
+    // never bent), after keeping an order's packages together.
     if (kind === "delivery" && pkg.collectedBy) {
       const collector = eligible.find((r) => r.candidate.driverId === pkg.collectedBy);
       if (collector) {
@@ -223,20 +190,18 @@ export function planWave(input: AssignInput): WavePlan {
 
     if (winner === null) {
       unassigned.push(pkg);
-      // ⚠ FR-015 — EVERY unassigned package carries a reason. A swallowed exclusion still produces a
-      // plan and still looks like success, which is why NP12 exists.
+      // Every unassigned package carries a reason.
       if (perDriverReasons.length > 0) {
         exclusions.push(...perDriverReasons);
       } else {
-        // ⚠ No candidate at all — a different and more urgent problem than a named driver failing a
-        // named condition, and `driverId: null` is how the console tells them apart.
+        // No candidate at all: `driverId: null` lets the console tell it apart.
         exclusions.push({ packageId: pkg.packageId, driverId: null, reason: "not_on_duty" });
       }
       continue;
     }
 
     place(target.get(winner.driverId)!, pkg);
-    // ⚠ 073 — THE RULE IN WORDS A DRIVER COULD BE TOLD (063 FR-014a). No score, no formula.
+    // The rule in words a driver could be told; no score or formula.
     notes.set(
       pkg.packageId,
       loads.length === 1

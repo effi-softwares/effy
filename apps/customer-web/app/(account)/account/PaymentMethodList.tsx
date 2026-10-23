@@ -10,16 +10,8 @@ import { capture } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
 
 /**
- * The account's payment methods (051 US6).
- *
- * ⚠ WHY THIS EXISTS AT ALL. Removal was already reachable at the payment step, but that means a
- * shopper who wants to remove a card has to START A CHECKOUT to do it — and card removal is a trust
- * action people take precisely when they are NOT shopping. The address book set the expectation; this
- * is its sibling (Clarification Q1, FR-024a).
- *
- * ⚠ THREE STATES, NOT TWO. "You have no cards" and "we could not ask" are different facts, and a list
- * that renders empty on a failed read tells the shopper something false about their own account
- * (FR-036). `loadFailed` is what keeps them apart.
+ * The account's payment methods, so a card can be removed without starting a checkout. Three states:
+ * cards, none, and "we could not ask" (`loadFailed`), which must not render as none.
  */
 export function PaymentMethodList({
   initial,
@@ -37,7 +29,7 @@ export function PaymentMethodList({
     setError(null)
     try {
       const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
-      // 404 is success from the shopper's point of view: the card is gone either way.
+      // Is success from the shopper's point of view: the card is gone either way.
       if (!res.ok && res.status !== 404) {
         setError("We couldn't remove that card. Your cards are unchanged — try again in a moment.")
         return
@@ -61,8 +53,7 @@ export function PaymentMethodList({
   }
 
   if (cards.length === 0) {
-    // ⚠ An honest empty state with NO dead controls. There is nothing to press here, because a card is
-    // kept while paying and cannot be added from this screen (US6 scenario 4).
+    // An honest empty state with no dead controls: cards are kept while paying, not added here.
     return (
       <p className="text-sm text-muted-foreground">
         You haven&apos;t saved any cards yet. When you pay, you can choose to save your card for next
@@ -96,7 +87,7 @@ export function PaymentMethodList({
                   Expires {String(card.expMonth).padStart(2, "0")} / {String(card.expYear).slice(-2)}
                 </span>
               ) : (
-                // ⚠ The reason is stated, never left for the shopper to work out (FR-023).
+                // The reason is stated.
                 <span className="text-xs text-destructive">
                   {card.unusableReason ?? "This card can't be used."}
                 </span>
@@ -113,7 +104,7 @@ export function PaymentMethodList({
               type="button"
               onClick={() => remove(card.id)}
               disabled={removing === card.id}
-              // 44px minimum touch target (FR-033) — the icon is 16px, the hit area is not.
+              // A 44px target around a 16px icon.
               className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               aria-label={`Remove card ending ${card.last4}`}
             >

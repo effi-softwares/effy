@@ -92,7 +92,7 @@ const APPEAR_AFTER_MS = 4_000;
 const clock = new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Australia/Melbourne" });
 
 /**
- * 071 — says so when the screen cannot receive live updates, and how old what is on it is.
+ * Says so when the screen cannot receive live updates, and how old what is on it is.
  *
  * Nothing while the channel is live: an always-on "Live" badge is one more thing that can be green
  * while the screen is wrong. It waits a few seconds before appearing — every load and every brief

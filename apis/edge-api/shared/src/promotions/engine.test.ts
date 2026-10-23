@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { allocate, type EngineContext, melbourneContext, pricePromotions } from "./engine";
 import { basketOf, candidateOf, ENGINE_FIXTURES } from "./fixtures";
 
-/** 094 — the engine against every spec scenario and edge case (fixtures.ts). */
+/** The engine against every scenario and edge case in fixtures.ts. */
 const WEDNESDAY_NOON: EngineContext = { isoDay: 3, minuteOfDay: 720 };
 const all = ENGINE_FIXTURES;
 

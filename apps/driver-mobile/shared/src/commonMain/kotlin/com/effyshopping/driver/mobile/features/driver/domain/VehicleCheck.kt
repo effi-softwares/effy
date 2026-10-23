@@ -1,8 +1,8 @@
 package com.effyshopping.driver.mobile.features.driver.domain
 
 /**
- * 093 — the driver's daily check of the vehicle they hold. [DUE] until answered (no work until then);
- * [UNSAFE] until a dispatcher clears it; [NONE] with no vehicle or when the business has the check off.
+ * The driver's daily check of the vehicle they hold. [DUE] until answered (no work until then);
+ * [unsafe] until a dispatcher clears it; [none] with no vehicle or when the business has the check off.
  */
 enum class VehicleCheckStatus { NONE, OK, DUE, UNSAFE }
 

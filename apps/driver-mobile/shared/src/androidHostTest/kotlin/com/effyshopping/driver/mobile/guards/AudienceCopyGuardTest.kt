@@ -5,18 +5,9 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * The driver app must never address its user as a shop (060 FR-010, SC-008, T082) — and must never
- * show money (FR-011, SC-007, T095).
- *
- * ⚠ **Both of these already happened.** The sign-in screen read *"Shop workspace"* and
- * *"Passwordless access for provisioned shop operators."* — copied wholesale from shop-mobile when
- * 049 ported the auth flow, and shipped through four features. Nothing failed, because copy is not
- * typechecked and no DOM assertion reads it.
- *
- * ⚠ **Word-bounded phrases over COMMENT-STRIPPED source.** 057 recorded a guard defeated by its own
- * negative proof: it required a delimiter after the phrase, so an injected `<RotateCcw />Capture
- * payment` sailed past. Comments are stripped because this file's own explanatory notes quote the
- * banned strings, and a guard that fires on its own documentation gets deleted.
+ * The driver app never addresses its user as a shop and never shows money (shop copy once shipped on its
+ * sign-in screen). Word-bounded phrases over comment-stripped source, so this file's own notes do not trip
+ * it.
  */
 class AudienceCopyGuardTest {
 
@@ -29,7 +20,7 @@ class AudienceCopyGuardTest {
     )
 
     /**
-     * ⚠ A driver sees COUNTS, never currency (FR-011) — the design's own stated boundary and the
+     * A driver sees counts, never currency — the design's own stated boundary and the
      * driver app's rule since 049. No earnings, tips, pay or cash-out.
      */
     private val bannedMoney = listOf(

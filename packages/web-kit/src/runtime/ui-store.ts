@@ -1,22 +1,12 @@
 import { Store } from "@tanstack/react-store";
 
 /**
- * Genuine CLIENT state only — theme, sidebar collapse, command palette.
- *
- * Server data never lands here; the server-state cache owns it (constitution Principle VI). If you
- * are tempted to put a fetched record in this store, you want a query instead.
- *
- * Each surface creates its own store so two consoles open in one browser do not share a theme
- * key. The storage prefix is the surface name.
- *
- * Appearance (017): a tri-state MODE — `light | dark | system` (was binary light/dark). `system`
- * follows the OS and updates live; the default for a first-time user is `system` (FR-013). A stored
- * legacy `light`/`dark` still loads unchanged.
+ * Client state only: theme, sidebar collapse, command palette. Server data belongs in a query. Each
+ * surface has its own store (prefixed by surface name). The theme is `light | dark | system`; `system`
+ * follows the OS live and is the default.
  */
 
 export type Theme = "light" | "dark" | "system";
-
-const THEMES: readonly Theme[] = ["light", "dark", "system"];
 
 export interface UiState {
   theme: Theme;
@@ -27,8 +17,6 @@ export interface UiState {
 export interface UiStore {
   store: Store<UiState>;
   setTheme(theme: Theme): void;
-  /** Cycles light → dark → system (kept for back-compat; the UI uses setTheme directly). */
-  toggleTheme(): void;
   setCommandPaletteOpen(open: boolean): void;
   setSidebarOpen(open: boolean): void;
   toggleSidebar(): void;
@@ -48,7 +36,7 @@ export function createUiStore(prefix: string): UiStore {
       const saved = window.localStorage.getItem(themeKey);
       if (saved === "light" || saved === "dark" || saved === "system") return saved;
     }
-    return "system"; // FR-013 — default for a user who has never chosen
+    return "system";
   }
 
   function initialSidebarOpen(): boolean {
@@ -65,9 +53,7 @@ export function createUiStore(prefix: string): UiStore {
     sidebarOpen: initialSidebarOpen(),
   });
 
-  // Live OS tracking: while the mode is `system`, an OS light↔dark change must reflow the app.
-  // The listener is attached ONLY while following the system, and detached the moment the user
-  // forces light/dark — so a forced mode never gets silently overridden.
+  // While following the system, an OS change reflows the app; the listener detaches when the user forces a mode.
   let mql: MediaQueryList | null = null;
   let mediaListener: (() => void) | null = null;
 
@@ -81,15 +67,8 @@ export function createUiStore(prefix: string): UiStore {
   }
 
   /**
-   * ⚠ SETS TWO THINGS, AND THAT IS NOT A DUPLICATION. `data-theme` is the authoritative switch the
-   * adopted design specifies and the only value that is persisted; the `.dark` class is DERIVED from
-   * it here because Tailwind's `dark:` variants across three surfaces resolve off a class. They are
-   * written in one place, together, so they cannot disagree — a `data-theme` set without the class
-   * would give a navy-ink token set under light-mode utilities.
-   *
-   * ⚠ The attribute is written for BOTH appearances (`light` as well as `dark`), because the
-   * pre-paint script in each console's index.html reads it back, and an absent attribute is
-   * indistinguishable from "not yet decided".
+   * Sets `data-theme` (the persisted switch, written for both appearances because each console's
+   * pre-paint script reads it back) and derives the `.dark` class Tailwind keys on, together.
    */
   function applyTheme(theme: Theme): void {
     if (typeof document === "undefined") return;
@@ -120,11 +99,6 @@ export function createUiStore(prefix: string): UiStore {
     applyTheme(theme);
   }
 
-  function nextTheme(current: Theme): Theme {
-    const i = THEMES.indexOf(current);
-    return THEMES[(i + 1) % THEMES.length] as Theme;
-  }
-
   function setSidebarOpen(open: boolean): void {
     store.setState((s) => ({ ...s, sidebarOpen: open }));
     if (typeof window !== "undefined") window.localStorage.setItem(sidebarKey, String(open));
@@ -133,7 +107,6 @@ export function createUiStore(prefix: string): UiStore {
   return {
     store,
     setTheme,
-    toggleTheme: () => setTheme(nextTheme(store.state.theme)),
     setCommandPaletteOpen: (open) => store.setState((s) => ({ ...s, commandPaletteOpen: open })),
     setSidebarOpen,
     toggleSidebar: () => setSidebarOpen(!store.state.sidebarOpen),

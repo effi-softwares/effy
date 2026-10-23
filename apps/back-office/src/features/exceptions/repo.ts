@@ -8,7 +8,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// The data layer for the delivery-exceptions console (064). Screens never touch the api client
+// The data layer for the delivery-exceptions console. Screens never touch the api client
 // directly (Principle VI). Both endpoints live on the `fleet` cold-path service.
 
 export async function listExceptions(includeResolved: boolean): Promise<DeliveryExceptionListDTO> {
@@ -24,17 +24,17 @@ export async function resolveException(id: string, note: string | null, outcome:
   });
 }
 
-/** 088 — the parcels from a round's failed drops were handed in at the hub. One action per round. */
+/** The parcels from a round's failed drops were handed in at the hub. One action per round. */
 export async function recordReturn(roundId: string, changeId: string): Promise<StaffParcelReturnResponse> {
   return api.post<StaffParcelReturnResponse>(`/fleet/v1/dispatch/rounds/${roundId}/return`, { changeId });
 }
 
-/** 093 — decide a package a driver declared missing: found (planned again) or lost. */
+/** Decide a package a driver declared missing: found (planned again) or lost. */
 export async function resolveHold(holdId: string, resolution: "found" | "lost"): Promise<StaffActionResponse> {
   return api.post<StaffActionResponse>(`/fleet/v1/held-packages/${holdId}/resolve`, { resolution });
 }
 
-/** 093 — a vehicle found unsafe has been fixed or swapped. */
+/** A vehicle found unsafe has been fixed or swapped. */
 export async function clearVehicleCheck(checkId: string, note: string): Promise<StaffActionResponse> {
   return api.post<StaffActionResponse>(`/fleet/v1/vehicle-checks/${checkId}/clear`, { note });
 }

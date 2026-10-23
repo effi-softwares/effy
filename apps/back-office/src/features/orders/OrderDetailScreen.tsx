@@ -46,12 +46,12 @@ import { orderDetailQuery, useRecordArrival, useRecordHandoff } from "./queries"
 /**
  * The order (redesign, boards "Order — Delivered by Effy" / "Order — Courier delivery").
  *
- * The header says the order, where it is and what the customer sees. Its independent sections —
+ * The header says the order, where it is and what the customer sees. Its independent sections
  * packages, items, payment, refunds, history — are tabs, one at a time; the summary (customer,
  * delivery, who delivers it) is a rail that stays visible: beside the tabs from 1280px, above them
  * below that.
  *
- * ⚠ NO METRIC ROW AT THE TOP (Principle V): the header states the order and what the customer
+ * No metric row at the top (Principle V): the header states the order and what the customer
  * currently sees, which is the one fact a support call opens with.
  */
 type Section = "packages" | "items" | "payment" | "refunds" | "history";
@@ -81,7 +81,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
   const mayAssign = canDispatch(roles);
 
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(orderId));
-  // 096 — opened from a scan: bring the bag (or its package) into view once the order has loaded.
+  // Opened from a scan: bring the bag (or its package) into view once the order has loaded.
   const target = highlight?.parcelId ? `parcel-${highlight.parcelId}` : highlight?.packageId ? `package-${highlight.packageId}` : null;
   useEffect(() => {
     if (!target || !data) return;
@@ -136,7 +136,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
               <Calendar aria-hidden="true" />
               Placed {formatDateTime(order.placedAt).replace(/^(\w)/, (c) => c.toLowerCase())}
             </span>
-            {/* What the SHOPPER currently sees — the words a support call opens with. */}
+            {/* What the shopper currently sees — the words a support call opens with. */}
             <span>
               <Eye aria-hidden="true" />
               Customer sees: {STAGE_LABEL[order.stage] ?? order.stage}
@@ -238,7 +238,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                   busy={busy}
                   onHandoff={onHandoff}
                   onArrival={onArrival}
-                  // 073 — "Assign to…" / "Unassign". Absent for a CSA; the fleet service refuses them anyway.
+                  // "Assign to…" / "Unassign". Absent for a CSA; the fleet service refuses them anyway.
                   renderActions={
                     mayAssign
                       ? (pkg, stage, assignment) => (
@@ -289,7 +289,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                               </span>
                               <span>
                                 {i.productName}
-                                {/* 098 — the size as sold, and its stock code. */}
+                                {/* The size as sold, and its stock code. */}
                                 {i.variantLabel ? <span className="text-muted-foreground"> — {i.variantLabel}</span> : null}
                                 {i.variantCode || i.sku ? (
                                   <span className="block font-mono text-xs text-muted-foreground">
@@ -330,7 +330,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                     ) : null}
                     <MoneyRow label="Delivery" value={money(order.deliveryFeeAmount, order.currency)} />
                     <MoneyRow strong label="Total" value={money(order.grandTotalAmount, order.currency)} />
-                    {/* 074 — points are a way of PAYING, shown after the total, never as a discount above it. */}
+                    {/* Points are a way of paying, shown after the total, never as a discount above it. */}
                     {order.paymentSplit ? (
                       <>
                         <MoneyRow
@@ -353,7 +353,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                       />
                     ) : null}
                   </dl>
-                  {/* 077 — staff only. */}
+                  {/* Staff only. */}
                   <FeeBreakdown breakdown={order.deliveryFeeBreakdown} />
                 </div>
               </Panel>
@@ -408,7 +408,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                   {order.customerName ? <div className="bo-sub truncate">{order.customerEmail}</div> : null}
                 </div>
               </div>
-              {/* 074 — make things right while looking at the order that went wrong. */}
+              {/* Make things right while looking at the order that went wrong. */}
               <OrderCustomerPoints
                 customerId={order.customerId}
                 customerName={order.customerName ?? order.customerEmail}

@@ -10,8 +10,8 @@ vi.mock("@stripe/react-stripe-js", () => ({
 
 describe("MethodList (051 US4)", () => {
   /**
-   * ⚠ FR-010/FR-011 — the requirement this whole boolean exists for. An option that cannot be
-   * completed must be ABSENT, not present-and-empty: an empty "Pay over time" row is the
+   * The requirement this whole boolean exists for. An option that cannot be
+   * completed must be absent, not present-and-empty: an empty "Pay over time" row is the
    * unexplained-disappearance failure wearing a different hat.
    */
   it("omits pay over time entirely when the provider offers none", () => {
@@ -34,7 +34,7 @@ describe("MethodList (051 US4)", () => {
   })
 
   /**
-   * ⚠ THE CORRECTNESS ASSERTION, not a layout one. A Payment Element and split card elements mounted
+   * The correctness assertion, not a layout one. A Payment Element and split card elements mounted
    * together make `confirmPayment({elements})` ambiguous — it collects from everything mounted, so an
    * untouched card form would fail validation while the shopper pays with Klarna. These two tests are
    * what keep them mutually exclusive.
@@ -71,28 +71,23 @@ describe("MethodList (051 US4)", () => {
     expect(onSelect).toHaveBeenCalledWith("later")
   })
 
-  /** FR-035 — rows in a list, not a card layout; selection reads as a border, not a fill. */
+  /** Rows in a list, not a card layout; selection reads as a border, not a fill. */
   it("marks the selected row without a filled container", () => {
     const { container } = render(
       <MethodList selected="card" onSelect={vi.fn()} laterAvailable>
         <div>card fields</div>
       </MethodList>,
     )
-    // ⚠ Queries `rounded-xl`, not the arbitrary `rounded-[14px]` this once used. Commit 5a540f4
-    // (051's styling refinement) moved the component onto the token class; the two are the SAME
-    // 14px, because 041 pins `--radius-xl: 0.875rem`. So nothing about the rendered row changed —
-    // only this selector went stale, and it had been silently matching zero rows ever since.
-    // Found by 052's baseline sweep; it is not 052's file and not 052's defect.
-    // 084: the row is the storefront card shape (`rounded-lg`); the query follows the class again.
+    // The row is the storefront card shape (`rounded-lg`).
     const rows = container.querySelectorAll("[class*='rounded-lg'][class*='bg-card']")
     expect(rows.length).toBeGreaterThan(0)
-    // The container must NOT be filled — that is the half of this test about appearance-independence
+    // The container must not be filled — that is the half of this test about appearance-independence
     // (a monochrome accent inverts; a fill would not).
     expect(rows[0]!.className).not.toMatch(/bg-(primary|foreground)\b/)
-    // ⚠ `border-foreground` now lives on the RADIO INDICATOR, not the row container. Commit 5a540f4
+    // `border-foreground` now lives on the radio indicator, not the row container. Commit 5a540f4
     // moved it there; the selected container is a bare `border`. Asserting it on the container would
     // be asserting a fact about the old markup.
-    // 084: selection is the action colour (blue), on the radio AND as the row's ring — never a fill.
+    // Selection is the action colour (blue), on the radio and as the row's ring — never a fill.
     const marked = container.querySelector("[class*='border-primary']")
     expect(marked).not.toBeNull()
   })

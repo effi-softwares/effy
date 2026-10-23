@@ -142,8 +142,6 @@ describe("deleteAddress — the delete-default guard (FR-016a, SC-010)", () => {
   });
 });
 
-// ── 066 — default delivery instructions ────────────────────────────────────────────────────────
-
 describe("066 — an address's default delivery instructions", () => {
   beforeEach(() => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customerRow());
@@ -172,7 +170,7 @@ describe("066 — an address's default delivery instructions", () => {
     });
   });
 
-  /** ⚠ The three cases COALESCE cannot tell apart (056's lesson). */
+  /** The three cases COALESCE cannot tell apart. */
   it("⚠ an update with the key ABSENT leaves the saved default alone", async () => {
     await updateAddress(SUB, "addr-1", { ...validInput });
     expect(vi.mocked(update).mock.calls[0]![2].defaultDeliveryInstructions).toBeUndefined();
@@ -205,7 +203,7 @@ describe("066 — an address's default delivery instructions", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  /** FR-028 — the catch-all handler logs the error object. */
+  /** The catch-all handler logs the error object. */
   it("⚠ the refusal never carries the submitted text", async () => {
     const err = await updateAddress(SUB, "addr-1", {
       ...validInput,

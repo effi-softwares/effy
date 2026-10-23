@@ -65,7 +65,7 @@ interface Call {
   body: unknown
 }
 
-/** Records every request and answers with `status`/`body`, so a test can assert what was SENT. */
+/** Records every request and answers with `status`/`body`, so a test can assert what was sent. */
 function stubFetch(status: number, body?: unknown) {
   const calls: Call[] = []
   vi.stubGlobal(
@@ -118,7 +118,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     const calls = stubFetch(200, dto({ revision: 2, lines: [dtoLine("p1", 7)] }))
 
     setItemQuantity("p1", 7)
-    flushPendingCartSends() // the stepper is debounced; a test asserting the WIRE must not wait it out
+    flushPendingCartSends() // the stepper is debounced; a test asserting the wire must not wait it out
     await flush()
 
     expect(calls[0].method).toBe("PATCH")
@@ -151,7 +151,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     ])
   })
 
-  // 401 is the platform saying "you are a guest" — a normal state, and the mirror is already right.
+  // Is the platform saying "you are a guest" — a normal state, and the mirror is already right.
   it("keeps a guest's change locally when the platform answers 401", async () => {
     stubFetch(401, { error: "authentication required" })
 
@@ -195,7 +195,7 @@ describe("mergeCartAfterSignIn", () => {
         itemSubtotalAmount: "25.00",
       }),
     )
-    // Seeded through the STORE, not the actions: before sign-in this shopper was a guest, so their lines
+    // Seeded through the store, not the actions: before sign-in this shopper was a guest, so their lines
     // were never sent anywhere. Seeding via `addItem` would have adopted the stub's response and made the
     // test assert against a cart the platform had already answered with.
     seedGuestLine(line("a", 1))
@@ -207,7 +207,7 @@ describe("mergeCartAfterSignIn", () => {
     expect(calls[0].path).toBe("/api/cart/merge")
     expect(calls[0].body).toMatchObject({ lines: [{ variantId: "a", quantity: 1 }, { variantId: "b", quantity: 2 }] })
     expect(readCart().lines.map((l) => l.productId)).toEqual(["a", "b", "c"])
-    expect(readCart().lines[1].quantity).toBe(3) // the GREATER, not the sum
+    expect(readCart().lines[1].quantity).toBe(3) // the greater, not the sum
   })
 
   it("reads the account cart when this browser has nothing to contribute", async () => {
@@ -220,7 +220,7 @@ describe("mergeCartAfterSignIn", () => {
     expect(readCart().lines[0].productId).toBe("theirs")
   })
 
-  // ⚠ Clearing first and merging second is how 019's Option B lost carts. It is not coming back.
+  // Clearing first and merging second is how 019's Option B lost carts. It is not coming back.
   it("keeps this browser's cart when the merge fails", async () => {
     stubFetch(502, { error: "unavailable" })
     seedGuestLine(line("mine", 2))
@@ -341,7 +341,7 @@ describe("set aside and clear (US6)", () => {
     expect(calls[0].path).toContain("/api/cart/saved/gone")
   })
 
-  // ⚠ The property a `saved` boolean column would have put one forgotten WHERE clause away.
+  // The property a `saved` boolean column would have put one forgotten where clause away.
   it("clearing the cart leaves the saved list alone", async () => {
     stubFetch(200, dto({ revision: 6, lines: [], savedLines: [dtoLine("kept", 1)] }))
     seedGuestLine(line("a", 1))

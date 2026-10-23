@@ -25,9 +25,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 074 US1 — the Points screen's ViewModel.
+ * The Points screen's ViewModel.
  *
- * ⚠ The behaviour a refactor is most likely to "tidy" away: a failed read must NEVER read as a zero
+ * The behaviour a refactor is most likely to "tidy" away: a failed read must never read as a zero
  * balance, and a live update must re-read without blanking the screen.
  */
 @OptIn(ExperimentalCoroutinesApi::class)

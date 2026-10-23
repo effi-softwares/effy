@@ -8,20 +8,7 @@ import { dismissProposal, fulfillmentForProposal } from "../orders/refunds";
 import { requireWriter } from "../lib/guard";
 import { NOT_FOUND, VALIDATION_FAILED } from "../lib/problems";
 
-/**
- * POST /orders/v1/orders/{orderId}/proposals/{orderItemId}/dismiss — a human says this refund is not
- * owed (055 FR-004b).
- *
- * ⚠ NO MONEY MOVES. Issuing a refund is the route beside this one and calls the payment provider;
- * dismissing needs only a record of the judgement.
- *
- * ⚠ WRITE GATE: admin|manager, the SAME gate as issuing (FR-019). Dismissing looks like the harmless
- * half of the pair and is not: deciding a customer is NOT owed money they paid for is exactly as
- * consequential as deciding they are, and it is the decision nobody will ever come back to check.
- *
- * ⚠ A REASON IS REQUIRED and the schema enforces it too. A dismissal with no reason is a shortfall
- * that silently stops being owed with nobody accountable.
- */
+/** Moves no money but needs the same admin/manager gate as issuing, and a reason. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -53,23 +40,19 @@ export const handler = async (
   }
 
   try {
-    // ⚠ Resolved from the ORDER, never taken from the caller. A package id in the request body would
-    // let one order's dismissal be written against another order's package.
+    // Resolved from the order, never taken from the caller.
     const fulfillmentId = await fulfillmentForProposal(orderId, orderItemId);
     if (!fulfillmentId) {
       return problem(404, NOT_FOUND, "No such proposal", "there is no outstanding shortfall on that line", guard.scope);
     }
 
-    // ⚠ A replay is 200, not 409. The first dismissal stands — it is the one that was actually made,
-    // and its reason and author are the honest record.
+    // A replay is 200; the first dismissal stands.
     const result = await dismissProposal({
       shopFulfillmentId: fulfillmentId,
       orderItemId,
       dismissedBy: guard.sub,
       reason,
     });
-    // 071 — committed. The proposal leaves back-office's list and the shop's "needs attention";
-    // no status moved, so the customer's page is unchanged and they are not told.
     if (result.created) await announceMoves([{ fulfillmentId, from: null }]);
     return json(result.created ? 201 : 200, { dismissed: true }, guard.scope);
   } catch (err) {

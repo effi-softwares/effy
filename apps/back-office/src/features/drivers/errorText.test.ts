@@ -3,15 +3,8 @@ import { describe, expect, it } from "vitest";
 import { driverActionError } from "./errorText";
 
 /**
- * ⚠ THIS TEST EXISTS BECAUSE THE PLATFORM HAS SHIPPED THIS EXACT DEFECT BEFORE.
- *
- * 053's order console mapped refusals with `e instanceof Error`. `@effy/api-client` throws a
- * `DomainError` — a PLAIN OBJECT, not an `Error` instance — so the check was always false and every
- * refusal collapsed into one generic sentence, after the server had got it right. Every test stayed
- * green, because nothing asserted on the message.
- *
- * So the fixtures below are the REAL throw shape: plain objects, exactly as the client produces
- * them. If someone "tidies" the mapper into an `instanceof Error` check, these go red.
+ * The fixtures are the real throw shape: plain objects, as `@effy/api-client` produces them. A mapper
+ * "tidied" into `instanceof Error` goes red.
  */
 
 /** The shape `@effy/api-client`'s `toDomainError` actually returns. Not an Error. */
@@ -40,7 +33,7 @@ describe("driverActionError — a refusal the operator can act on", () => {
 
   it("⚠ passes the SERVICE's conflict prose through for create and status", () => {
     // These two are the only refusals the console cannot phrase better than the service can, because
-    // only the service knows WHICH driver holds the address (FR-014) or WHAT work is held (FR-020).
+    // only the service knows which driver holds the address or what work is held.
     const duplicate = thrown({
       kind: "conflict",
       status: 409,
@@ -53,7 +46,7 @@ describe("driverActionError — a refusal the operator can act on", () => {
   it("gives the concurrent-edit conflict the console's own copy, saying what to do", () => {
     const stale = thrown({ kind: "conflict", status: 409, detail: "row moved" });
     const msg = driverActionError(stale, "update");
-    // ⚠ NOT the server's prose: "row moved" is internals. The operator needs the action.
+    // Not the server's prose: "row moved" is internals. The operator needs the action.
     expect(msg).not.toContain("row moved");
     expect(msg).toContain("Reload");
     expect(msg).toContain("undo theirs");

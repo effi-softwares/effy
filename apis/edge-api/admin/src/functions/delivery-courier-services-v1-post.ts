@@ -1,4 +1,3 @@
-// POST /admin/v1/delivery/courier-services — add a courier service (080). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

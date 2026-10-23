@@ -1,4 +1,3 @@
-// POST /commerce/v1/saved/merge — fold a device's guest list into the account at sign-in.
 import { json } from "@effy/edge-shared";
 
 import { customerRoute, jsonBody } from "../lib/route";
@@ -27,14 +26,11 @@ function mergeItems(body: Record<string, unknown> | null): MergeItem[] | null {
     if (o.savedAt !== undefined && o.savedAt !== null && typeof o.savedAt !== "string") return null;
     out.push({
       productId: (o.productId as string | undefined) ?? "",
-      // 098 — the variant the device remembered; anything but a string is simply not remembered.
       variantId: typeof o.variantId === "string" ? o.variantId : null,
-      // ⚠ An empty string is ABSENT, not zero. "0" would report the item as having dropped from
-      // nothing — a fabricated fact, and worse than no baseline at all.
+      // An empty string is absent, not zero: "0" would invent a price the item dropped from.
       savedPriceAmount: price === "" ? null : price,
       savedCurrency: currency === "" ? null : currency,
-      // ⚠ An unparseable timestamp takes now rather than rejecting the whole merge: one bad row
-      // from a device must not cost the shopper their entire guest list.
+      // One bad timestamp takes now rather than rejecting the whole guest list.
       savedAt: parseRfc3339(o.savedAt) ?? new Date(),
     });
   }

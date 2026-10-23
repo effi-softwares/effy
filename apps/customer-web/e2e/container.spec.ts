@@ -5,9 +5,9 @@ import { expect, test } from "@playwright/test"
  * and page on this surface (it replaced the string `mx-auto w-full max-w-7xl px-4 sm:px-6`, which was
  * written out in twenty-four places).
  *
- * ⚠ WHY THIS NEEDS A TEST AT ALL. Tailwind v4 still emits its own `.container` breakpoint rules
- * (40rem…96rem, no centring, no padding) alongside the override, and the override wins on SOURCE
- * ORDER rather than specificity. If that order ever flipped — a Tailwind upgrade, a change to where
+ * Why this needs a test at all. Tailwind v4 still emits its own `.container` breakpoint rules
+ * (40rem…96rem, no centring, no padding) alongside the override, and the override wins on source
+ * order rather than specificity. If that order ever flipped — a Tailwind upgrade, a change to where
  * the utility is declared — nothing would break: every page would just get wider and lose its
  * gutter, which is indistinguishable from a design decision. Nobody would file a bug against it.
  *

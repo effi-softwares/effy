@@ -1,7 +1,3 @@
-// Shared handler support for the catalog slice (016): the back-office auth guard, CatalogError →
-// problem+json mapping, and domain → wire-DTO mappers. Keeps the thin handlers free of repetition
-// while each still owns its own parse/authorize/map flow (ARCHITECTURE: no middleware framework).
-// Mirrors shops/handler-support.ts.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -21,8 +17,7 @@ import type { AllowedValue, Assignment, AttributeDefinition, Category, ProductTy
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
 
-/** Authenticate (401 if no sub) + authorize from the platform record (403), fail-closed to 503 on
- *  an infra error. `read` = any active staff; `mutate` = admin/manager (R5). */
+/** Without a sub, 403 from the staff record, 503 on infra error. `read`: any active staff; `mutate`: admin/manager. */
 export async function guard(
   event: AuthedEvent,
   scope: RequestScope,
@@ -48,7 +43,7 @@ export async function guard(
   return { sub };
 }
 
-/** Map a domain error to problem+json. Unknown errors become 503 with the cause logged only. */
+/** Unknown errors become 503 with the cause logged only. */
 export function mapCatalogError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (isCatalogError(err)) {
     switch (err.kind) {
@@ -63,8 +58,6 @@ export function mapCatalogError(err: unknown, scope: RequestScope): APIGatewayPr
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "catalog op failed");
   return unavailable(scope);
 }
-
-// ── domain → wire DTO (never leak domain shapes past the handler) ──────────────────────────────
 
 function toAllowedDTO(a: AllowedValue): AttributeAllowedValueDTO {
   return { id: a.id, value: a.value, label: a.label, displayOrder: a.displayOrder };

@@ -1,5 +1,4 @@
-// DELETE /commerce/v1/payment-methods/{id} — remove a kept card. 404 for both "no such card" and
-// "not yours": telling them apart would reveal whether a payment-method id exists.
+// For both "no such card" and "not yours", so a card id's existence is not revealed.
 import { noContent } from "@effy/edge-shared";
 
 import { checkoutError } from "../checkout/respond";

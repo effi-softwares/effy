@@ -1,12 +1,6 @@
 import type { AddressDTO, CoverageKind, HandoverPreference } from "@effy/shared-types";
 
-/**
- * The address book — customer profile management, which is this service's job (011 FR-028).
- * Checkout (`edge-api/commerce`) reads `public.customer_address` directly for its order snapshot —
- * that is checkout reading one row it needs, not a second address-book API.
- *
- * Raw SQL, no ORM (Principle VI). The row is a wire shape and never leaks past this layer.
- */
+/** The address book. Checkout reads `public.customer_address` directly for its order snapshot. */
 export interface AddressRow {
   id: string;
   label: string | null;
@@ -19,19 +13,16 @@ export interface AddressRow {
   postal_code: string;
   country: string;
   is_default: boolean;
-  /** 066 — the instructions this address prefills at checkout. Both null = none saved. */
+  /** Prefilled at checkout. Both null means none saved. */
   default_delivery_handover: HandoverPreference | null;
   default_delivery_note: string | null;
-  /** 076 — who delivers there NOW. Computed by the statement that read the row; never a column. */
+  /** Who delivers there now, computed by the reading statement; never a column. */
   coverage: CoverageKind;
 }
 
-/** Every column the repository returns — one list, referenced by every statement. */
 /**
- * ⚠ `coverage` IS WORKED OUT, NOT STORED (076 FR-021). The last entry asks the one deciding function
- * about this row's postcode as the row is read — in a SELECT and in a RETURNING alike — so an
- * address saved while its postcode was on Effy's list says "cannot deliver" the next time it is
- * shown after the postcode leaves. A column would remember the answer from the day it was saved.
+ * One column list for every statement. `coverage` asks the deciding function as the row is read, so
+ * it is always today's answer, never the one from the day the address was saved.
  */
 export const ADDRESS_COLUMNS = `id::text, label, recipient_name, phone, line1, line2,
           city, region, postal_code, country, is_default,
@@ -52,7 +43,7 @@ export function toDTO(row: AddressRow): AddressDTO {
     country: row.country,
     isDefault: row.is_default,
     coverage: row.coverage,
-    // 066 — null, never an empty object, when nothing is saved: the client shows nothing for null.
+    // null, never an empty object, when nothing is saved.
     defaultDeliveryInstructions:
       row.default_delivery_handover === null && row.default_delivery_note === null
         ? null

@@ -1,17 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql"
+import { migrationSql } from "@effy/edge-shared/testing"
 import { Pool } from "pg"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * ⚠ Real PostgreSQL 16 — the load-bearing behaviour of this repo lives in the DATABASE:
- *
- *   • The rate limit is a `SELECT count(*) … WHERE (…) < $max` INSIDE the INSERT. "Did the cap
- *     refuse?" is answered by whether Postgres returned a row — a mock would return whatever it was told.
- *   • `reference_code UNIQUE` is what makes a collision a real error the service retries on.
- *   • The `customer_id` FK + `email_verified` are what separate a linked signed-in submission from a guest.
- *
- * Gated behind CONTAINER_TESTS=1 so ordinary unit runs stay Docker-free.
- */
+/** The rate limit inside the INSERT, the reference unique, and the linked-vs-guest columns, against real Postgres. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }))
 
 vi.mock("@effy/edge-shared", () => ({
@@ -46,34 +38,7 @@ describe.skipIf(!RUN)("feedback repo — against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() })
     holder.pool = pool
 
-    // The real schema, copied from the migration (a rename there fails this loudly).
-    await pool.query(`
-      CREATE EXTENSION IF NOT EXISTS citext;
-      CREATE EXTENSION IF NOT EXISTS pg_trgm;
-      CREATE TABLE public.customer (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        cognito_sub text UNIQUE NOT NULL,
-        email citext NOT NULL,
-        given_name text, family_name text
-      );
-      CREATE TABLE public.feedback_submission (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        reference_code text NOT NULL UNIQUE,
-        category text NOT NULL,
-        message text NOT NULL CHECK (char_length(btrim(message)) BETWEEN 1 AND 5000),
-        rating smallint CHECK (rating BETWEEN 1 AND 5),
-        submitter_name text,
-        submitter_email citext,
-        email_verified boolean NOT NULL DEFAULT false,
-        customer_id uuid REFERENCES public.customer(id) ON DELETE SET NULL,
-        source text NOT NULL DEFAULT 'general',
-        platform text NOT NULL,
-        status text NOT NULL DEFAULT 'new',
-        source_key text,
-        created_at timestamptz NOT NULL DEFAULT now(),
-        updated_at timestamptz NOT NULL DEFAULT now()
-      );
-    `)
+    await pool.query(migrationSql())
   }, 120_000)
 
   afterAll(async () => {

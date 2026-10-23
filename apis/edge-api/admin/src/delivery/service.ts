@@ -1,11 +1,7 @@
-// Service for the delivery settings and collection runs (047; fee plans moved to pricing.service.ts in 077).
-// Validation + orchestration; no SQL, no HTTP.
 import { announce } from "@effy/edge-shared/live";
 
 import * as repo from "./repository";
 import { DeliveryError, type Settings } from "./types";
-
-// ── Zones & serviceability (047) ──────────────────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<Settings | null> {
   return repo.readSettings();
@@ -19,12 +15,10 @@ export async function putSettings(input: Settings, sub: string): Promise<Setting
     throw new DeliveryError("invalid_zone", "prep buffer must be a non-negative whole number of minutes");
   }
   const saved = await repo.upsertSettings(input, sub);
-  // 076 — a hub move changed the coverage list's distances: an open Coverage screen re-reads.
+  // A hub move changed distances: an open Coverage screen re-reads.
   if (saved.distances) await announce([{ scope: "ops", kind: "coverage" }]);
   return saved;
 }
-
-// ── Collection runs (047 US2) ────────────────────────────────────────────
 
 export async function listCollectionRuns() {
   return repo.listCollectionRuns();

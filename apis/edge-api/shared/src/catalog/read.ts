@@ -1,7 +1,5 @@
-// Reading a product's options and variants (098) — one read for every service that shows them (the
-// shop console, Effy's review, the storefront), so the label, the order and the shape agree.
-// Rows only: each service maps them to its own DTO (a shopper never sees a shop price or a removed
-// variant; a shop never sees a margin).
+// One read of a product's options and variants for every service, so label, order and shape agree.
+// Rows only: each service maps its own DTO.
 
 import type { PackUnit, VariantState } from "@effy/shared-types";
 
@@ -34,7 +32,7 @@ export interface VariantRow {
   gtin: string | null;
   shopPriceAmount: string;
   shopCompareAtAmount: string | null;
-  /** Customer price; null until first approved. */
+  /** null until first approved. */
   priceAmount: string | null;
   compareAtAmount: string | null;
   weightGrams: number;
@@ -54,17 +52,13 @@ export interface VariantSet {
   variants: VariantRow[];
 }
 
-/** A pack quantity as the shop typed it: "1.25", "500" — never "500.000". */
+/** As typed: "1.25", "500", never "500.000". */
 function trimQuantity(q: string | null): string | null {
   if (q === null) return null;
   return q.includes(".") ? q.replace(/0+$/, "").replace(/\.$/, "") : q;
 }
 
-/**
- * Options (with their values, in order) and variants (active and inactive in display order, then
- * removed) for each product. `includeRemoved: false` leaves removed variants out; shopper reads pass
- * `states: ["active"]`.
- */
+/** Active and inactive in display order, then removed (unless `includeRemoved: false`); shopper reads pass `states: ["active"]`. */
 export async function readVariantSets(
   db: Queryable,
   productIds: readonly string[],

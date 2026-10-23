@@ -2,13 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 069 US7 — the carrier handover list and the package promise, against the REAL migrations.
- *
- * ⚠ REAL MIGRATIONS, NOT A TRANSCRIBED SCHEMA. The queries under test read five columns this slice
- * added and one view-adjacent table; 063 recorded six column names that typechecked perfectly and
- * failed only when a query ran.
- */
+/** The carrier handover list against the real schema. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -17,18 +11,19 @@ vi.mock("@effy/edge-shared", async () => {
   return {
     ...actual,
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
-    // 078 — recording a handover runs in a transaction; give it the container's.
     withTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
       (actual.transactorFor as (p: Pool) => (f: typeof fn) => Promise<unknown>)(holder.pool!)(fn),
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { recordDeliveryType } from "@effy/edge-shared/delivery";
 import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
-import { listHandovers, listOrders, toPackage } from "../orders/service";
+import { listCourierParcels, listOrders, toPackage } from "../orders/service";
 import { OrderActionError } from "../lib/errors";
 import { recordHandoff } from "./repository";
+
+const atHub = async () => [...(await listCourierParcels("hub_due")), ...(await listCourierParcels("hub_late"))];
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -67,8 +62,8 @@ async function seedPackage(opts: {
   );
   const o = await pool.query<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount,
-                                 delivery_address, status, placed_at)
-     VALUES ($1, $2, 10, 12, '{"line1":"1 Test St"}'::jsonb, $3, now()) RETURNING id`,
+                                 delivery_address, status, placed_at, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 10, 12, '{"line1":"1 Test St"}'::jsonb, $3, now(), 'effy', 'in_coverage') RETURNING id`,
     [c.rows[0]!.id, orderNumber, opts.orderStatus ?? "paid"],
   );
   const s = await pool.query<{ id: string }>(
@@ -107,7 +102,6 @@ async function handOver(fulfillmentId: string, daysAgo: number) {
   );
 }
 
-// One container for the whole file: both suites read the same schema and truncate between tests.
 beforeAll(async () => {
   if (!RUN) return;
   container = await new PostgreSqlContainer("postgres:16-alpine").start();
@@ -127,7 +121,7 @@ d("069 — carrier handover list", () => {
     await pool.query(`DELETE FROM public.delivery_settings`);
   });
 
-  /** A parcel of an order SOLD as a courier delivery — the only kind this list holds since 083. */
+  /** A parcel of an order sold as a courier delivery, the only kind this list holds. */
   async function courierParcel(opts: { placedDaysAgo?: number; status?: string } = {}): Promise<Seeded> {
     const p = await seedPackage({ method: "standard", promisedDay: null, status: opts.status });
     await sell(p.orderId, "courier", "out_of_coverage", "2–4 business days");
@@ -139,26 +133,25 @@ d("069 — carrier handover list", () => {
     const dueToday = await courierParcel();
     const overdue = await courierParcel({ placedDaysAgo: 2 });
 
-    const today = await listHandovers("today");
+    const today = await listCourierParcels("hub_due");
     expect(today.map((r) => r.orderNumber)).toEqual([dueToday.orderNumber]);
     expect(today[0]).toMatchObject({ fulfillmentId: dueToday.fulfillmentId, promisedDate: null, handoverDueOn: await melDay(0), atRisk: false, atHub: true });
 
-    const late = await listHandovers("overdue");
+    const late = await listCourierParcels("hub_late");
     expect(late.map((r) => r.orderNumber)).toEqual([overdue.orderNumber]);
     expect(late[0]).toMatchObject({ atRisk: true, handoverDueOn: await melDay(-2) });
-    expect(await listHandovers("upcoming")).toEqual([]);
   });
 
   it("drops a parcel once it has been handed over", async () => {
     const p = await courierParcel();
-    expect(await listHandovers("today")).toHaveLength(1);
+    expect(await listCourierParcels("hub_due")).toHaveLength(1);
     await handOver(p.fulfillmentId, 0);
-    expect(await listHandovers("today")).toHaveLength(0);
+    expect(await listCourierParcels("hub_due")).toHaveLength(0);
   });
 
   it("shows a parcel that is due but has not reached the hub yet, and says so", async () => {
     await courierParcel({ status: "ready_for_pickup" });
-    const today = await listHandovers("today");
+    const today = await listCourierParcels("hub_due");
     expect(today).toHaveLength(1);
     expect(today[0]!.atHub).toBe(false);
   });
@@ -174,47 +167,12 @@ d("069 — carrier handover list", () => {
     await sell(cancelled.orderId, "courier", "out_of_coverage", "2–4 business days");
     const withdrawn = await seedPackage({ method: "standard", promisedDay: null, status: "withdrawn" });
     await sell(withdrawn.orderId, "courier", "out_of_coverage", "2–4 business days");
-    // ⚠ 083 — sold a standard day before delivery types: it was due "its day less the carrier's lead
-    // time", a rule that went with the old arrangement. Every such order was finished first.
     await seedPackage({ method: "standard", promisedDay: await melDay(0) });
     await seedPackage({ method: "standard", promisedDay: null });
 
-    for (const due of ["today", "overdue", "upcoming"] as const) {
-      expect(await listHandovers(due), due).toEqual([]);
-    }
-  });
-
-  it("078 — a standard package sold a WINDOW is Effy's: never listed, and a handover is refused", async () => {
-    const start = new Date(Date.now() + 26 * 3_600_000);
-    const windowed = await seedPackage({
-      method: "standard",
-      promisedDay: await melDay(1),
-      window: { start: start.toISOString(), end: new Date(start.getTime() + 7_200_000).toISOString() },
-    });
-    // A carrier's package from before delivery types: no longer on the list (083), still the carrier's.
-    const carrier = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
-
-    const listed = [...(await listHandovers("today")), ...(await listHandovers("overdue")), ...(await listHandovers("upcoming"))];
-    expect(listed).toEqual([]);
-
-    const refused = await recordHandoff({ fulfillmentId: windowed.fulfillmentId, actorSub: "staff-1" } as never).then(() => null, (e: unknown) => e);
-    expect(refused).toBeInstanceOf(OrderActionError);
-    expect((refused as OrderActionError).reason).toBe("not_carrier");
-    // …and one with no window still goes to the carrier.
-    expect((await recordHandoff({ fulfillmentId: carrier.fulfillmentId, actorSub: "staff-1" } as never)).created).toBe(true);
-
-    const pkg = await onlyWindowed(windowed.orderId);
-    expect(pkg.handoverDueOn).toBeNull();
-    expect(pkg.atRisk).toBe(false);
-    expect(pkg.window).not.toBeNull();
+    expect(await atHub()).toEqual([]);
   });
 });
-
-async function onlyWindowed(orderId: string) {
-  const rows = await packages(orderId);
-  expect(rows).toHaveLength(1);
-  return toPackage(rows[0]!);
-}
 
 d("069 — the promise on the back-office order detail", () => {
   beforeEach(async () => {
@@ -227,19 +185,6 @@ d("069 — the promise on the back-office order detail", () => {
     expect(rows).toHaveLength(1);
     return toPackage(rows[0]!);
   }
-
-  it("⚠ 083 P13 — a standard package from before delivery types still shows the day it was promised; it has no due-out day", async () => {
-    const p = await seedPackage({ method: "standard", promisedDay: await melDay(0) });
-    const pkg = await onlyPackage(p.orderId);
-
-    expect(pkg.promisedDate).toBe(await melDay(0));
-    expect(pkg.deliveredBy).toBe("courier");
-    expect(pkg.handoverDueOn).toBeNull();
-    expect(pkg.atRisk).toBe(false);
-    expect(pkg.window).toBeNull();
-    expect(pkg.onTime).toBeNull();
-    expect(pkg.overCapacity).toBe(false);
-  });
 
   it("a same-day package shows its window and is judged against it on arrival", async () => {
     const start = new Date(Date.now() - 3 * 3_600_000);
@@ -297,7 +242,7 @@ d("069 — the promise on the back-office order detail", () => {
   });
 });
 
-/** Make a seeded order one placed under 079: who delivers it, why, and the first history entry. */
+/** Who delivers, why, and the first history entry. */
 async function sell(orderId: string, type: "effy" | "courier", reason: "in_coverage" | "out_of_coverage" | "no_window", estimate: string | null = null) {
   await pool.query(`UPDATE public."order" SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4 WHERE id = $1`, [orderId, type, reason, estimate]);
   await recordDeliveryType(pool, { orderId, actor: { kind: "checkout" } });
@@ -310,7 +255,7 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
   });
 
   const everywhere = async () =>
-    [...(await listHandovers("today")), ...(await listHandovers("overdue")), ...(await listHandovers("upcoming"))].map((p) => p.orderNumber).sort();
+    (await atHub()).map((p) => p.orderNumber).sort();
   const refusal = (fulfillmentId: string) =>
     recordHandoff({ fulfillmentId, actorSub: "staff-1" } as never).then(() => null, (e: unknown) => (e as OrderActionError).reason);
   const later = (hours: number) => {
@@ -321,15 +266,13 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
   it("a courier ORDER has no day and no window: it is listed, due the day it was placed, and can be handed over", async () => {
     const courier = await seedPackage({ method: "standard", promisedDay: null });
     await sell(courier.orderId, "courier", "out_of_coverage", "2–4 business days");
-    // The same package shape from before 069 — no day, no type — is still NOT listed: nothing to be due by.
     await seedPackage({ method: "standard", promisedDay: null });
 
-    const today = await listHandovers("today");
+    const today = await listCourierParcels("hub_due");
     expect(today).toHaveLength(1);
     expect(today[0]).toMatchObject({
       fulfillmentId: courier.fulfillmentId, orderId: courier.orderId, orderNumber: courier.orderNumber, promisedDate: null,
       handoverDueOn: await melDay(0), atRisk: false, atHub: true,
-      // 080 — an order from before courier services (none on it): no service, no pickup to be due by.
       service: null, dueOut: null, collection: "hub",
     });
     const pkg = toPackage((await packages(courier.orderId))[0]!);
@@ -337,7 +280,7 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
 
     // A day later with no handover it is overdue and at risk.
     await pool.query(`UPDATE public."order" SET placed_at = now() - interval '2 days' WHERE id = $1`, [courier.orderId]);
-    expect((await listHandovers("overdue")).map((p) => [p.orderNumber, p.atRisk])).toEqual([[courier.orderNumber, true]]);
+    expect((await listCourierParcels("hub_late")).map((p) => [p.orderNumber, p.atRisk])).toEqual([[courier.orderNumber, true]]);
     expect(toPackage((await packages(courier.orderId))[0]!).atRisk).toBe(true);
 
     expect(await refusal(courier.fulfillmentId)).toBeNull();
@@ -386,24 +329,18 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber]);
   });
 
-  it("the order detail: type, why, the estimate as sold, and the history — nothing invented for an old order", async () => {
+  it("the order detail: type, why, the estimate as sold, and the history", async () => {
     const courier = await seedPackage({ method: "standard", promisedDay: null });
     await sell(courier.orderId, "courier", "out_of_coverage", "2–4 business days");
     // The business changes its estimate afterwards; the order keeps the one it was sold.
     await pool.query(`UPDATE public.courier_service SET estimate_text = '5–7 business days'`);
 
-    // ⚠ The reads, not `getOrder`: that also reads refund proposals through the shared library's own
-    // pool, which this file does not replace (as `delivery-instructions.container.test.ts` found).
+    // Not `getOrder`: it reads refund proposals through the shared library's own pool.
     expect(await findOrder(courier.orderId)).toMatchObject({ delivery_type: "courier", delivery_type_reason: "out_of_coverage", courier_estimate: "2–4 business days" });
     expect(await deliveryTypeHistory(courier.orderId)).toEqual([
       { from_type: null, to_type: "courier", reason: "out_of_coverage", actor_kind: "checkout", actor_sub: null, note: null, created_at: expect.any(Date) },
     ]);
     expect(toPackage((await packages(courier.orderId))[0]!)).toMatchObject({ deliveredBy: "courier" });
 
-    const old = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(2) });
-    expect(await findOrder(old.orderId)).toMatchObject({ delivery_type: null, delivery_type_reason: null, courier_estimate: null });
-    expect(await deliveryTypeHistory(old.orderId)).toEqual([]);
-    // …and its package still says who took it.
-    expect(toPackage((await packages(old.orderId))[0]!)).toMatchObject({ deliveredBy: "effy", deliveryMethod: "same_day" });
   });
 });

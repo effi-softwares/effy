@@ -23,9 +23,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * 092 rev 2 — the reported defect: a driver collected shop one, came back, and Today still said
+ * Rev 2 — the reported defect: a driver collected shop one, came back, and Today still said
  * "Next · stop 1 of 2". The server never announces a driver's own change back to them, so the app says
- * it to itself — once the platform HAS the change, never for a write saved with no signal.
+ * it to itself — once the platform has the change, never for a write saved with no signal.
  */
 class WorkChangesTest {
     private class Collection(var outcome: WriteOutcome = WriteOutcome.SENT, var split: HubSplit? = HubSplit(1, 0, emptyList()), var fail: Boolean = false) : CollectionRepository {

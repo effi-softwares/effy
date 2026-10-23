@@ -3,13 +3,9 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * 067 — the shop's half of product review, against the REAL migrations.
- *
- * ⚠ THE UNIT TESTS MOCK THE REPOSITORY AND THE CHANGE MODULE, so they prove the service asks for
- * the right thing and nothing about whether the SQL does it. Everything that matters here is SQL:
- * that an approved product's live rows are byte-identical after a shop edits it, that a proposal
- * which no longer differs is deleted, that one product has one open change, and that the table
- * itself refuses a never-approved product going on sale.
+ * Against the real migrations: an approved product's live rows are untouched by a shop's edit, a
+ * proposal that no longer differs is deleted, one product has one open change, and the table refuses a
+ * never-approved product going on sale.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -35,13 +31,13 @@ vi.mock("@effy/edge-shared", async () => {
     },
   };
 });
-// Presigning needs AWS; the key itself is enough to assert on.
+// Presigning needs AWS; the key is enough to assert on.
 vi.mock("./media", () => ({
   presignRead: async (key: string) => `signed:${key}`,
   presignUpload: async () => ({ uploadUrl: "u", storageKey: "k" }),
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import {
   changeStatus,
@@ -81,7 +77,7 @@ async function makeShop(code: string): Promise<string> {
   )).rows[0]!.id;
 }
 
-/** A product as the shop wizard leaves it. `approved` makes it one Effy has already passed. */
+/** As the shop wizard leaves it; `approved` makes it one Effy has passed. */
 async function makeProduct(opts: { approved?: boolean; image?: boolean; shop?: string } = {}): Promise<string> {
   const approved = opts.approved ?? false;
   const id = (await pool.query<{ id: string }>(
@@ -100,13 +96,13 @@ SELECT id FROM p`,
   return id;
 }
 
-/** Everything a customer could be shown, as one comparable value. */
+/** Everything a customer could be shown. */
 async function liveSnapshot(id: string): Promise<string> {
   const p = (await pool.query(
     `SELECT name, brand, short_description, long_description, primary_category_id, product_type_id, status
        FROM public.product WHERE id = $1`, [id],
   )).rows[0];
-  // 098 — prices, codes and weight are the variants'.
+  // Prices, codes and weight are the variants'.
   const v = (await pool.query(
     `SELECT id, sku, gtin, price_amount::text, compare_at_amount::text, shop_price_amount::text, weight_grams, state
        FROM public.product_variant WHERE product_id = $1 ORDER BY position, id`, [id],
@@ -122,7 +118,7 @@ async function liveSnapshot(id: string): Promise<string> {
   return JSON.stringify({ p, v, a, m });
 }
 
-/** 098 — the whole variant set a shop sends: the product's one variant at a new shop price. */
+/** The product's one variant at a new shop price. */
 async function repriced(productId: string, shopPriceAmount: string) {
   const v = (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!;
   return {
@@ -143,7 +139,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
     await pool.query(migrationSql());
-    // A product type with NO mandatory attributes, so readiness is about the image alone here.
+    // No mandatory attributes, so readiness is about the image alone.
     await pool.query(
       `INSERT INTO public.product_type (key, name, description) VALUES ('general', 'General', 'Test type')
        ON CONFLICT DO NOTHING`,
@@ -151,7 +147,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     storageAttrId = (await pool.query<{ id: string }>(
       `SELECT id FROM public.attribute_definition WHERE key = 'storage'`,
     )).rows[0]!.id;
-    // …but the storage attribute is ASSIGNED to it (optional), so a shop may set and change it.
+    // The storage attribute is assigned (optional), so a shop may set and change it.
     await pool.query(
       `INSERT INTO public.product_type_attribute (product_type_id, attribute_definition_id, is_mandatory, display_order)
        SELECT pt.id, $1, false, 1 FROM public.product_type pt WHERE pt.key = 'general'
@@ -174,8 +170,6 @@ d("067 — shop product review against real PostgreSQL", () => {
     otherShopId = await makeShop("SB");
   });
 
-  // ── US1 — a new product ─────────────────────────────────────────────────────────────────────────
-
   it("a submitted product is in review, still a draft, and reads so to the shop", async () => {
     const id = await makeProduct();
     const out = await submitForReview(shopId, id);
@@ -192,7 +186,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect((await pool.query(`SELECT review_state FROM public.product WHERE id = $1`, [id])).rows[0].review_state).toBe("none");
   });
 
-  /** ⚠ FR-001, at all three layers. */
+  /** Refused at all three layers. */
   it("⚠ a shop cannot put a never-approved product on sale — by the service, the query, or the table", async () => {
     const id = await makeProduct();
     expect(await kindOf(changeStatus(shopId, id, { status: "active" }))).toBe("conflict");
@@ -260,7 +254,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(filtered.total).toBe(1);
   });
 
-  /** ⚠ FR-014 — the reviewer's version must move when the PHOTO does, not only when a field does. */
+  /** The reviewer's version moves when the photo does, not only a field. */
   it("⚠ swapping the image of a product in review moves its version", async () => {
     const id = await makeProduct();
     await submitForReview(shopId, id);
@@ -271,9 +265,6 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(await version()).not.toBe(seen);
   });
 
-  // ── US3 — a change to an approved product ───────────────────────────────────────────────────────
-
-  /** ⚠ FR-015 / FR-016 / SC-003. */
   it("⚠ editing an approved product leaves every live row byte-identical and creates ONE change", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(
@@ -290,7 +281,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(await changeCount(id)).toBe(1);
 
     const shown = await getProduct(shopId, id);
-    expect(shown.name).toBe("Sourdough"); // the shop still sees what customers see
+    expect(shown.name).toBe("Sourdough");
     expect(shown.reviewState).toBe("live_change_pending");
     expect(shown.pendingChange!.proposed).toMatchObject({ name: "Rye", brand: "Acme" });
     expect(shown.pendingChange!.proposed.variants![0]).toMatchObject({ shopPriceAmount: "12.50" });
@@ -303,7 +294,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     ]);
   });
 
-  /** FR-022 — changing it back proposes nothing, and leaves nothing in Effy's queue. */
+  /** Changing it back proposes nothing and leaves nothing in the queue. */
   it("a proposal that no longer differs from the live product is deleted", async () => {
     const id = await makeProduct({ approved: true });
     await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");
@@ -333,7 +324,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(patched.isPrimary).toBe(true);
     expect(await liveSnapshot(id)).toBe(before);
     const shown = await getProduct(shopId, id);
-    expect(shown.media.find((m) => m.isPrimary)!.storageKey).toBe("live/one.jpg"); // live: unchanged
+    expect(shown.media.find((m) => m.isPrimary)!.storageKey).toBe("live/one.jpg");
     expect(shown.pendingChange!.media!.find((m) => m.isPrimary)!.storageKey).toBe("live/two.jpg");
   });
 
@@ -376,13 +367,11 @@ d("067 — shop product review against real PostgreSQL", () => {
     await pool.query(`UPDATE public.product_variant SET price_amount = 12.00 WHERE product_id = $1`, [id]);
     const shown = await getProduct(shopId, id);
     expect(shown.variants[0]).toMatchObject({ shopPriceAmount: "10.00", priceAmount: "12.00" });
-    // ⚠ FR-039 — the margin itself is nowhere on what a shop receives.
+    // The margin is nowhere on what a shop receives.
     expect(JSON.stringify(shown)).not.toMatch(/margin/i);
   });
 
-  // ── US4 — what never waits ──────────────────────────────────────────────────────────────────────
-
-  /** FR-024 / FR-025 / FR-026. */
+  /** What never waits. */
   it("⚠ off sale and back on sale are immediate and never touch the pending change", async () => {
     const id = await makeProduct({ approved: true });
     await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");

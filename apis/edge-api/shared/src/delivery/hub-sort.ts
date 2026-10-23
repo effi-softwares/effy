@@ -1,9 +1,5 @@
-// Where a package goes at the hub (090) — what the hub scan shows for each package, with no signal.
-// 096 — moved here from the driver service: the back-office hub station says the same words.
-//
-// ⚠ THE SAME DECISION AND THE SAME WORDS AS THE HUB CHECK-IN GROUPS (082, `complete.ts`): who delivers is
-// `package_delivered_by`; an Effy parcel for a window today goes out now, one for a later day waits on a
-// shelf; a courier parcel goes to the courier bay. The app never formats a day.
+// Where a package goes at the hub, in the hub check-in groups' words: an Effy parcel for today goes out,
+// one for a later day waits on a shelf, a courier parcel goes to the courier bay.
 
 import { anyTimeDayLabel, formatArrival, melbourneDate, type HubSortKind } from "@effy/shared-types";
 
@@ -11,7 +7,7 @@ export interface HubSortFacts {
   deliveredBy: "effy" | "courier";
   windowStart: Date | null;
   windowEnd: Date | null;
-  /** 085 — sold a day with no time ("Any time"). */
+  /** Sold a day with no time ("Any time"). */
   anyTime?: boolean;
 }
 

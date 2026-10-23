@@ -3,11 +3,11 @@ package com.effyshopping.customer.mobile.core.observability
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 /**
- * Android crash/non-fatal reporting via Firebase Crashlytics (050 US1). Injected into
+ * Android crash/non-fatal reporting via Firebase Crashlytics. Injected into
  * [com.effyshopping.customer.mobile.app.AppContainer] by the Android entry point; iOS keeps
  * [NoOpCrashReporter] until its Swift bridge lands (Firebase has no Kotlin/Native support).
  *
- * ⚠ NO PII beyond the subject id (Principle VII). Firebase auto-initialises from the google-services
+ * No PII beyond the subject id (Principle VII). Firebase auto-initialises from the google-services
  * resources (the google-services plugin generates them from google-services.json), so there is nothing
  * to configure here — [init] only sets collection on.
  */

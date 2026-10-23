@@ -1,14 +1,8 @@
-/** RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors
- *  docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface
- *  consumes it, never re-declares it. */
+/** RFC 9457 problem+json: the platform's one machine-readable error shape. */
 export interface ProblemFieldIssue {
   /**
-   * The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE CODE.
-   *
-   * ⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`,
-   * `bands_required`, …). "Please check the fields and try again" tells an operator nothing about
-   * which of five rules they broke, and every one of those rules fails SILENTLY in production if it
-   * is not understood — a cap below the floor makes every delivery cost the cap, forever.
+   * The offending field path, or for a whole-request refusal a stable machine-readable code (e.g.
+   * `cap_below_floor`, `bands_required`), so the client can say which rule was broken.
    */
   field: string;
   message: string;
@@ -20,18 +14,9 @@ export interface ProblemJSON {
   status: number;
   detail?: string;
   instance?: string;
-  /**
-   * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues
-   * under `errors`; `fields` was the name only this type used, so every reader keying off it saw
-   * nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface
-   * (053 found it; 054 fixed the reader in `@effy/api-client`).
-   */
+  /** Field issues (the wire key is `errors`). */
   errors?: ProblemFieldIssue[];
-  /**
-   * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
-   * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client switches
-   * on and maps to its OWN copy — unlike `detail`, which is prose.
-   */
+  /** A stable refusal code where the route defines one (e.g. `slot_required`), mapped by the client to its own copy; `detail` is prose. */
   code?: string;
   [key: string]: unknown;
 }

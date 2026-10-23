@@ -1,8 +1,4 @@
-// Fleet readiness (056 US6): find the gaps before an order is affected, not afterwards.
-//
-// ⚠ SC-009 IS THE POINT OF THIS FILE. A driver with no delivery zone is INERT FOR ASSIGNMENT today —
-// `assignCollectionWork` will never pick them — and nothing anywhere says so. The symptom is an order
-// that does not move, hours later, in a place nobody is looking. Here it is a row on a list.
+// The gaps, found before an order is affected.
 import { query } from "@effy/edge-shared";
 import type {
   BlockedDriver,
@@ -14,7 +10,7 @@ import type {
 import { expiryWarningDays } from "../shared/config";
 import { BLOCKED_REASONS } from "../drivers/sql";
 
-/** Drivers who cannot receive work, with the enumerated reason(s) why (FR-044). */
+/** With the enumerated reasons. */
 export async function blockedDrivers(): Promise<BlockedDriver[]> {
   const res = await query<{ id: string; name: string; blocked: string[] }>(
     `SELECT d.id, d.name, ${BLOCKED_REASONS} AS blocked
@@ -30,20 +26,9 @@ export async function blockedDrivers(): Promise<BlockedDriver[]> {
   }));
 }
 
-/**
- * Zones with no active driver assigned (FR-045).
- *
- * ⚠ Every zone is listed with its count, not only the empty ones — a zone that dropped from three
- * drivers to one is the gap that is about to happen, and it is invisible if the query only returns
- * zeroes. The screen orders by count so the empty ones sit at the top.
- */
+/** Every zone with its count, not only empty ones: one driver left is the gap about to happen. */
 export async function zoneCoverage(): Promise<ZoneCoverage[]> {
-  // ⚠ 062 — counted from CLEARANCES, not from a single zone column on the driver. The old count read
-  // `d.delivery_zone_id = z.id`, which could never see a driver who covered several zones and never
-  // saw an every-zone driver at all — so a fully covered zone could report zero.
-  //
-  // ⚠ `DISTINCT` matters: a driver cleared for both collection and delivery in one zone is ONE
-  // person, and counting their grants would report a zone as twice as covered as it is.
+  // Counted from clearances, distinct per person (collection and delivery in one zone is one driver).
   const CLEARED = `
     SELECT count(DISTINCT d.id)
       FROM public.driver_zone_capability c
@@ -58,7 +43,7 @@ export async function zoneCoverage(): Promise<ZoneCoverage[]> {
   return res.rows.map((r) => ({ zoneId: r.id, zoneName: r.name, activeDrivers: Number(r.n) }));
 }
 
-/** Licence and registration expiries that have passed or fall inside the warning window (FR-046). */
+/** Passed, or inside the warning window. */
 export async function expiringCredentials(): Promise<ExpiringCredential[]> {
   const res = await query<{
     id: string;
@@ -78,10 +63,8 @@ export async function expiringCredentials(): Promise<ExpiringCredential[]> {
         AND d.licence_expires_on IS NOT NULL
         AND d.licence_expires_on <= h.limit_date
       UNION ALL
-     -- ⚠ 061: a registration expiry is a fact about a VEHICLE, not about a person. It used to be a
-     -- column on the driver row because vehicles had no table, which meant two drivers sharing a van
-     -- kept two hand-maintained copies of one date. It is now read through the driver's OPEN holding,
-     -- so the warning names the person who will actually be stopped at the roadside.
+     -- ⚠ a registration expiry is a fact about a VEHICLE, read through the driver's OPEN holding, so
+     -- the warning names the person who will actually be stopped at the roadside.
      SELECT d.id, d.name, 'vehicle_registration'::text, v.registration_expires_on,
             (v.registration_expires_on < h.today)
        FROM public.driver d

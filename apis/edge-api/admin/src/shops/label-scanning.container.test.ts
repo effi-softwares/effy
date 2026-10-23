@@ -9,12 +9,12 @@ vi.mock("@effy/edge-shared", async (importOriginal) => {
   return { ...(await importOriginal<typeof import("@effy/edge-shared")>()), query, pooled: { query } };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { getShopDetail } from "./repository";
 
-/** 091 — a shop's labels that did not scan, over 30 days (quickstart P3). */
+/** Labels that did not scan, over 30 days. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -38,8 +38,8 @@ d("091 — label scanning per shop", () => {
     const one = async <T>(sql: string, p: unknown[] = []) => (await pool.query(sql, p)).rows[0] as T;
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c1', 'c1@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-S1', 10, 12, '{}'::jsonb, 'paid') RETURNING id`, [cust.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-S1', 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust.id]);
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('LS1', 'Labels') RETURNING id`);
     const other = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('LS2', 'Other') RETURNING id`);
     const pkg = await one<{ id: string }>(`INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount) VALUES ($1, $2, 1, 10) RETURNING id`, [order.id, shop.id]);
@@ -47,7 +47,7 @@ d("091 — label scanning per shop", () => {
     const drv = await one<{ id: string }>(`INSERT INTO public.driver (cognito_sub, name, work_email) VALUES ('d1', 'Ada', 'ada@effyshopping.com') RETURNING id`);
     const wave = await one<{ id: string }>(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
     const round = await one<{ id: string }>(`INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at) VALUES ($1, $2, 'collection', now()) RETURNING id`, [wave.id, drv.id]);
-    // 096 — a hand-over is per bag: each package gets its bag 1 first (idempotent).
+    // A hand-over is per bag: each package gets its bag 1 first.
     const add = async (pkgId: string, method: string, daysAgo: number) => {
       await createFirstParcels(pool, { packageIds: [pkgId] });
       await pool.query(

@@ -20,12 +20,8 @@ import {
 import { generateReferenceCode, ipSource, sourceKey, subSource } from "./lib"
 
 /**
- * Feedback submission (046 US1). Cold path, one service behind two handlers (authed + guest).
- *
- * ⚠ THE VALIDATION IS THE SAME FOR BOTH CALLERS; only identity differs. A signed-in submitter is
- * linked to their customer record and gets their TRUSTED profile email (a body email is ignored on
- * that path); a guest supplies an UNVERIFIED email used only to send the acknowledgement. The email
- * shape/length rule is the shared one (044) so the form refuses exactly what this refuses.
+ * One validation for both callers. A signed-in submitter is linked and uses their verified profile
+ * email (a body email is ignored); a guest's unverified email is used only to reply.
  */
 
 const DEFAULT_WINDOW_MINUTES = 60
@@ -46,7 +42,7 @@ export function feedbackConfig(env: NodeJS.ProcessEnv = process.env): FeedbackCo
   }
 }
 
-/** Who is submitting. The handler resolves this from the route; the service never trusts a body id. */
+/** Resolved from the route, never a body id. */
 export type SubmitContext =
   | { kind: "customer"; cognitoSub: string }
   | { kind: "guest"; sourceIp: string }
@@ -64,7 +60,7 @@ interface ParsedInput {
 const SOURCES: readonly FeedbackSource[] = ["checkout", "general", "other"]
 const PLATFORMS: readonly FeedbackPlatform[] = ["web", "ios", "android"]
 
-/** Validate the request body. Returns the parsed input or the first field that failed. */
+/** The parsed input, or the first field that failed. */
 function parse(raw: unknown):
   | { ok: true; value: ParsedInput }
   | { ok: false; field: NonNullable<Extract<SubmitFeedbackResult, { status: "invalid" }>["field"]> } {
@@ -79,7 +75,7 @@ function parse(raw: unknown):
   if (typeof bag.message !== "string" || bag.message.trim().length === 0) {
     return { ok: false, field: "message" }
   }
-  // ⚠ Bound BEFORE storage (FR-007); the DB CHECK is the backstop, not the first line of defence.
+  // Bounded before storage; the DB check is the backstop.
   if (bag.message.trim().length > FEEDBACK_MESSAGE_MAX) {
     return { ok: false, field: "message" }
   }
@@ -135,7 +131,6 @@ export async function submitFeedback(
   if (!parsed.ok) return { status: "invalid", field: parsed.field }
   const input = parsed.value
 
-  // Identity — resolved from the ROUTE, never from the body (research D2).
   let customerId: string | null = null
   let submitterEmail: string | null = null
   let emailVerified = false
@@ -147,16 +142,15 @@ export async function submitFeedback(
     const customer = await findCustomerBySub(ctx.cognitoSub)
     if (customer) {
       customerId = customer.id
-      submitterEmail = customer.email // ⚠ TRUSTED — the verified profile email, not a body value.
+      submitterEmail = customer.email
       emailVerified = true
       const profileName = [customer.givenName, customer.familyName].filter(Boolean).join(" ").trim()
       submitterName = input.bodyName ?? (profileName.length > 0 ? profileName : null)
     }
-    // If no customer record yet (record is created lazily on /me), we still store the feedback but
-    // cannot link it or trust an email — the sub still bounds the rate limit.
+    // No customer record yet (it is created on /me): stored unlinked, the sub still bounds the rate limit.
   } else {
     rawSource = ipSource(ctx.sourceIp)
-    submitterEmail = input.bodyEmail // ⚠ UNVERIFIED — used only to send the acknowledgement/reply.
+    submitterEmail = input.bodyEmail
   }
 
   const key = sourceKey(rawSource, config.sourceSalt)
@@ -178,7 +172,7 @@ export async function submitFeedback(
 
   let referenceCode: string
   try {
-    // ⚠ Retry ONLY on a reference-code collision (unique violation). Everything else propagates.
+    // Retry only on a reference-code collision.
     let inserted: Awaited<ReturnType<typeof insertSubmission>> | null = null
     for (let attempt = 0; attempt < 3; attempt++) {
       const code = generateReferenceCode()
@@ -192,7 +186,7 @@ export async function submitFeedback(
     }
     if (!inserted) return { status: "error" }
     if (inserted.status === "rate_limited") {
-      // ⚠ Logged WITHOUT the address (Principle VII). The outcome is the operational fact.
+      // Logged without the address.
       logger.info({ msg: "feedback.rate_limited", kind: ctx.kind }, "feedback submission refused by rate limit")
       return { status: "rate_limited" }
     }
@@ -202,9 +196,7 @@ export async function submitFeedback(
     return { status: "error" }
   }
 
-  // ⚠ The submission is now STORED. A failed acknowledgement must NOT lose it (FR-015) — and
-  // `feedback-received` declares `onSendFailure: "swallow"`, so this send will not throw. We still
-  // guard and log, because a swallowed failure is exactly the kind that must remain visible.
+  // Already stored: a failed acknowledgement must not lose it (`feedback-received` swallows), but is logged.
   if (submitterEmail) {
     try {
       await sendEmail(
@@ -225,7 +217,6 @@ export async function submitFeedback(
   return { status: "ok", referenceCode }
 }
 
-/** Postgres unique-violation SQLSTATE. */
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505"
 }

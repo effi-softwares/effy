@@ -1,9 +1,9 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * Add every purchasable saved item to the cart (033 FR-051).
+ * Add every purchasable saved item to the cart.
  *
- * ⚠ The SERVER decides what is purchasable. A client filtering by its own copy of the verdict would
+ * The server decides what is purchasable. A client filtering by its own copy of the verdict would
  * be re-implementing the four-term delivery predicate, and the two would drift.
  */
 export async function POST(req: Request) {

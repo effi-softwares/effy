@@ -1,11 +1,5 @@
-// Loading skeletons (060 FR-009, US6).
-//
-// ⚠ THE RULE THIS FILE EXISTS TO ENFORCE, learned the hard way in 028: a skeleton must be composed
-// from the SAME primitives as the content it stands in for. 028 built a rail skeleton out of a `Row`
-// where the content used a `LazyRow`, and it could not match — a `Row` allocates width sequentially
-// and coerces `Modifier.width()` into whatever is left. The fix was not better numbers, it was the
-// same container. So these are PRIMITIVES, deliberately: each screen composes its own skeleton from
-// its own layout, and this file only supplies the shimmering blocks.
+// Loading skeleton primitives. A skeleton must be composed from the same containers as the content it
+// stands in for (a `Row` cannot match a `LazyRow`), so each screen builds its own from these blocks.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.animation.core.InfiniteRepeatableSpec
@@ -32,13 +26,7 @@ import androidx.compose.ui.unit.dp
 
 private const val SHIMMER_PERIOD_MS = 1200
 
-/**
- * The shimmering fill every skeleton block uses.
- *
- * ⚠ [reducedMotion] collapses it to a flat tint rather than removing the block — a driver who has
- * asked the OS for less motion still needs to see that something is loading (FR-009). The app
- * already carries this signal via `PlatformUiController`.
- */
+/** The shimmering fill every block uses; [reducedMotion] makes it a flat tint, still visibly loading. */
 @Composable
 fun shimmerBrush(reducedMotion: Boolean = false): Brush {
     val base = MaterialTheme.colorScheme.surfaceVariant
@@ -57,8 +45,7 @@ fun shimmerBrush(reducedMotion: Boolean = false): Brush {
         label = "skeleton-shift",
     )
 
-    // A band sweeping left to right. The travel is generous so the highlight leaves the block
-    // entirely at each end instead of appearing to bounce.
+    // A band sweeping left to right, travelling far enough to leave the block at each end.
     val travel = 900f
     val start = -travel + shift * (travel * 2)
     return Brush.linearGradient(
@@ -68,7 +55,7 @@ fun shimmerBrush(reducedMotion: Boolean = false): Brush {
     )
 }
 
-/** A rectangular placeholder — a card, an image, a map strip. */
+/** A rectangular placeholder: a card, an image, a map strip. */
 @Composable
 fun SkeletonBlock(
     height: Dp,
@@ -88,8 +75,7 @@ fun SkeletonBlock(
 /**
  * A line of placeholder text.
  *
- * @param widthFraction how much of the available width this line occupies. Vary it between lines —
- *   a stack of identical full-width bars reads as a broken layout rather than as loading text.
+ * @param widthFraction the share of the width this line takes; vary it, or the stack reads as broken.
  */
 @Composable
 fun SkeletonLine(
@@ -107,7 +93,7 @@ fun SkeletonLine(
     )
 }
 
-/** A square placeholder — an avatar, a leading index chip, an icon slot. */
+/** A square placeholder: an avatar, an index chip, an icon slot. */
 @Composable
 fun SkeletonSquare(
     size: Dp,

@@ -24,7 +24,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * 079 — this app says how an order is delivered in the SAME words as the website and the emailed
+ * This app says how an order is delivered in the same words as the website and the emailed
  * receipt: every case of the shared fixture, through this app's own `deliverySummary`.
  *
  * (See [DELIVERY_TYPE_FIXTURE] for why the fixture is a copy and what keeps it honest; that the
@@ -45,7 +45,7 @@ class DeliveryTypeSummaryTest {
             OrderDelivery(
                 type = if (it.str("type") == "courier") DeliveryType.COURIER else DeliveryType.EFFY,
                 courierEstimate = it.str("courierEstimate"),
-                // 085 — what was sold.
+                // What was sold.
                 promise = when (it.str("promise")) {
                     "window" -> DeliveryPromise.WINDOW
                     "day" -> DeliveryPromise.DAY
@@ -118,7 +118,7 @@ class DeliveryTypeSummaryTest {
     fun `a courier order never says same-day, standard, a day or a time - and its estimate is said as one`() {
         val s = deliverySummary(
             OrderDelivery(DeliveryType.COURIER, "2–4 business days"),
-            // ⚠ What its packages hold is routing, and is never read.
+            // What its packages hold is routing, and is never read.
             listOf(ArrivalEstimate(method = "standard", promisedFrom = "2026-10-09", promisedTo = "2026-10-09")),
             DeliveryWindowText.epochMillisOrNull("2026-10-08T09:00:00+11:00")!!, aedt,
         )

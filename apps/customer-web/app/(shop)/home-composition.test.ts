@@ -5,16 +5,7 @@ import type { StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontProductCardDTO
 
 import { composeSections, isEmptyStore, railHref } from "./home-composition"
 
-/**
- * ⚠ NO `as` CAST HERE, EVER. The first draft of this fixture invented `slug`, `price` and
- * `compareAtPrice` — none of which exist on `StorefrontProductCardDTO` — and forced the shape with an
- * assertion. That is 033's recorded failure mode verbatim: "my key-set test passed because I wrote the
- * expectation from my own struct instead of the contract."
- *
- * With the annotation and no cast, the compiler checks the fixture against the real DTO, so a contract
- * change breaks this file instead of quietly letting it keep testing a shape the platform stopped
- * using.
- */
+/** No `as` cast: the annotation alone makes the compiler check the fixture against the real DTO. */
 function product(id = "p1"): StorefrontProductCardDTO {
   return {
     id,
@@ -94,7 +85,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
   })
 
   /**
-   * ⚠ THE SERVER'S ARRAY ORDER MUST NOT DECIDE THE PAGE'S ORDER. Here the payload lists `featured`
+   * The server's array order must not decide the page's order. Here the payload lists `featured`
    * first, and the page must still lead with `on_sale`. If this ever starts following the payload, the
    * storefront silently rearranges itself whenever the catalogue changes.
    */
@@ -118,7 +109,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
   })
 
   /**
-   * ⚠ A rail the backend adds tomorrow must still reach the page. Without the trailing sweep, a
+   * A rail the backend adds tomorrow must still reach the page. Without the trailing sweep, a
    * frontend that only knows `on_sale`/`featured`/`category:*` would silently drop it — and nothing
    * would look broken, which is why it would go unnoticed.
    */
@@ -155,7 +146,7 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
     expect(composeSections(home(), [])).toEqual([])
   })
 
-  /** The page must stay coherent with ANY subset present (SC-005) — not just the full one. */
+  /** The page must stay coherent with any subset present — not just the full one. */
   it("emits a coherent sequence with only one slot filled", () => {
     expect(kinds(composeSections(home({ rails: [rail("category:pantry")] }), []))).toEqual([
       "rail:category:pantry",
@@ -164,9 +155,9 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
 })
 
 /**
- * FR-020 — the second offers block "MUST NOT duplicate a promotion already shown above".
+ * The second offers block "MUST NOT duplicate a promotion already shown above".
  *
- * ⚠ Structural rather than checked: there is ONE list of offers and each block consumes from
+ * Structural rather than checked: there is one list of offers and each block consumes from
  * it, so a duplicate is not something the code has to remember to avoid. These tests pin that property
  * so a later refactor cannot quietly turn `slice` into two independent filters.
  */

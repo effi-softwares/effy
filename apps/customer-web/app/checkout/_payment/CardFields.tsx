@@ -14,16 +14,16 @@ import { AcceptedNetworks } from "./BrandMarks"
 import { Field } from "./Field"
 
 /**
- * The card form (051 T034) — three provider-owned inputs inside Effy's own shells.
+ * The card form — three provider-owned inputs inside Effy's own shells.
  *
- * ⚠ THREE FIELDS, NOT SIX. No country, no postcode, no name on card. The provider only ever asked for
+ * Three fields, not six. No country, no postcode, no name on card. The provider only ever asked for
  * those because `fields.billingDetails` defaults to `auto`, under which it decides what to collect and
  * guesses a country from the shopper's IP — which is where "Country: Sri Lanka" on an Australia-only
- * storefront came from (research R4). The split card elements have no billing fields at all, so there is
+ * storefront came from. The split card elements have no billing fields at all, so there is
  * nothing to switch off here; the details Effy already holds ride in the confirm call instead
  * (see `confirm.ts`).
  *
- * ⚠ Removing those fields does NOT weaken authorization. The same address still reaches the bank — it is
+ * Removing those fields does not weaken authorization. The same address still reaches the bank — it is
  * sourced from Effy's record rather than from the shopper's keyboard.
  */
 export type CardFieldState = {
@@ -44,7 +44,7 @@ export function useCardFieldState() {
     setNumber,
     setExpiry,
     setCvc,
-    /** Every field filled and none complaining — the gate the pay control reads (FR-041). */
+    /** Every field filled and none complaining — the gate the pay control reads. */
     complete: number.complete && expiry.complete && cvc.complete,
   }
 }
@@ -52,9 +52,9 @@ export function useCardFieldState() {
 export type CardFieldsController = ReturnType<typeof useCardFieldState>
 
 export function CardFields({ state }: { state: CardFieldsController }) {
-  // ⚠ Derived from the GENERATED appearance, not typed out here. The generator reads tokens.css, so a
+  // Derived from the generated appearance, not typed out here. The generator reads tokens.css, so a
   // brand change reaches these iframes with no hand edit (Principle II). Light only: this surface is
-  // light-only by operator decision and ships no appearance switcher (research R16).
+  // light-only by operator decision and ships no appearance switcher.
   const style = useMemo<StripeElementStyle>(() => {
     const v = storefrontPaymentAppearance.variables
     return {

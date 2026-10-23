@@ -2,16 +2,8 @@ import * as React from "react"
 
 import { cn } from "../cn"
 
-// THE TABLE (theme-adoption-prompt.md, Phase 2 §7).
-//
-// ⚠ TABLES ARE THE PLATFORM'S DEFAULT LAYOUT, not cards. The design lays out records as rows with a
-// `--muted` header, hairline rules and an `--accent` hover — and the reason is legibility at density:
-// an operator scanning 40 orders compares values down a column, which a grid of cards makes
-// impossible.
-//
-// ⚠ NUMBERS GO RIGHT AND MONOSPACE. `TableCell numeric` does both. A currency column set in the
-// proportional face cannot be compared by eye — the digits do not line up — and that is the single
-// most common way a console table stops being scannable.
+// The table, the platform's default layout for records: a `--muted` header, hairline rules, `--accent`
+// hover. Numbers go right and monospace (`TableCell numeric`) so they can be compared down a column.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
@@ -65,8 +57,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        // ⚠ `--accent` on hover, not a translucent `--muted`. An alpha overlay over a tinted row
-        // (selected, or a status-tinted row) compounds into a third colour that is in no palette.
+        // `--accent` on hover, not a translucent overlay that would compound with a tinted row.
         "border-b border-border transition-colors hover:bg-accent data-[state=selected]:bg-brand-soft",
         className
       )}
@@ -75,13 +66,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-/**
- * A column header — the design's micro-label: 11.5px/500 uppercase at .04em, muted.
- *
- * ⚠ `numeric` must match the cells below it. A right-aligned column under a left-aligned header
- * reads as two columns, and it is the kind of mismatch nobody notices in review because each half
- * looks correct on its own.
- */
+/** A column header: 11.5px/500 uppercase at.04em, muted. `numeric` must match its cells. */
 function TableHead({
   className,
   numeric,
@@ -101,16 +86,7 @@ function TableHead({
   )
 }
 
-/**
- * A sortable column header: a full-width button carrying a direction arrow.
- *
- * ⚠ FULL WIDTH ON PURPOSE. A button sized to its text leaves most of the header cell dead, so a
- * click an inch away from the word does nothing — which people read as the sort being broken rather
- * than as having missed a target.
- *
- * ⚠ The arrow is rendered only for the ACTIVE column. An arrow on every header says every column is
- * sorted; a neutral glyph everywhere says nothing and adds noise to a row that is already dense.
- */
+/** A sortable column header: full width so the whole cell is the target, with an arrow only on the active column. */
 function TableSortHead({
   className,
   numeric,
@@ -150,11 +126,8 @@ function TableSortHead({
 }
 
 /**
- * A body cell. `--rowpad` (12px) vertical, 13.5px type.
- *
- * `numeric` right-aligns and sets tabular monospace — use it for every amount, count and quantity.
- * `mono` sets monospace WITHOUT right-aligning — for identifiers, SKUs and dates, which read as
- * labels rather than as quantities and so stay on the left.
+ * A body cell: 12px (`--rowpad`) vertical, 13.5px. `numeric` right-aligns with tabular monospace (amounts,
+ * counts); `mono` is monospace on the left (identifiers, SKUs, dates).
  */
 function TableCell({
   className,

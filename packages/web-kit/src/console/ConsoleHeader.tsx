@@ -19,26 +19,18 @@ export interface ConsoleHeaderProps<TRole extends string> {
   /** e.g. "Effy Shop" — the static left crumb. */
   surfaceLabel: string;
   nav: readonly NavItem<TRole>[];
-  /** 057 — optional right-aligned controls. Omitted = the header renders exactly as before. */
+  /** Optional right-aligned controls. */
   actions?: ReactNode;
   /**
-   * ⚠ 057 — when supplied, the breadcrumb is REPLACED by a title + hairline + subtitle, which is the
-   * imported design's header. Omitted, the breadcrumb renders exactly as it always has, which is what
-   * keeps back-office untouched by this feature (Principle II: one shell, per-surface chrome).
-   *
-   * The subtitle is where the mockup puts the screen's one-line context ("8 waiting · 2 at risk"), so
-   * the page below it does not need to repeat a description under its own heading.
+   * Replaces the breadcrumb with a title, a hairline and a subtitle (the screen's one-line context,
+   * e.g. "8 waiting · 2 at risk"). A screen supplying it must not render its own heading.
    */
   title?: ReactNode;
   subtitle?: ReactNode;
   /**
-   * 057 (design revision 2026-09-10) — a breadcrumb trail rendered IN PLACE OF the title, in the same
-   * 56px header, followed by the same hairline + subtitle. Opt-in like `title`: omitted, nothing
-   * changes.
-   *
-   * ⚠ It replaces the `<h1>` rather than going inside it: a trail of links is navigation, and a heading
-   * wrapping interactive crumbs reads to a screen reader as one long title. The surface supplying the
-   * trail owns the page's heading (e.g. by making its final crumb the `<h1>`).
+   * A breadcrumb trail in place of the title, followed by the hairline and subtitle. It replaces the
+   * `<h1>` rather than going inside it (links inside a heading read as one long title); the surface
+   * owns the page's heading.
    */
   breadcrumb?: ReactNode;
 }
@@ -54,20 +46,17 @@ export function ConsoleHeader<TRole extends string>({
   const { pathname } = useLocation();
   const section = currentSection(nav, pathname);
 
-  // ⚠ 057's header is 56px, not 64px, and sticky. The imported design puts the page's identity here
-  // rather than repeating it as an <h1> on every screen — so a screen supplying `title` must NOT also
-  // render its own heading, or the same words appear twice.
+  // 56px and sticky. A screen supplying `title` must not repeat it as its own heading.
   if (title !== undefined || breadcrumb !== undefined) {
     return (
       <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b px-[var(--pad)]">
-        {/* sidebar-07: the trigger, then a hairline, then the trail. The trigger is the ONLY control
-            that collapses the rail (the brand is a link home); below 1100px it opens the sheet. */}
+        {/* The trigger, a hairline, then the trail. The trigger alone collapses the rail; below 1100px
+            it opens the sheet. */}
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="!h-4" />
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {breadcrumb !== undefined ? (
-            // May shrink (unlike the title): a long product name truncates rather than pushing the
-            // header wider than the screen.
+            // May shrink: a long product name truncates rather than widening the header.
             <div className="min-w-0">{breadcrumb}</div>
           ) : (
             <h1 className="shrink-0 text-sm font-semibold tracking-[-.01em] whitespace-nowrap">{title}</h1>

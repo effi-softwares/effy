@@ -45,7 +45,7 @@ class SessionManagerTest {
         SessionManager(auth, GetDriverIdentity(drivers), this, onSignedOut = cleared)
 
     /**
-     * 092 rev 2 — back-office gave the driver another van mid-shift. Its driver edit tells the driver
+     * Rev 2 — back-office gave the driver another van mid-shift. Its driver edit tells the driver
      * "work"; the record is re-read on it, so Today and Account stop showing the old van.
      */
     @Test fun work_changed_re_reads_the_driver_record() = runTest {

@@ -3,21 +3,21 @@
 import { cn } from "@/lib/utils"
 
 /**
- * The field shell the card inputs sit inside (051 T033).
+ * The field shell the card inputs sit inside.
  *
- * ⚠ WHY THIS EXISTS RATHER THAN A PAYMENT ELEMENT. The provider's own card form has a fixed layout —
+ * Why this exists rather than a payment element. The provider's own card form has a fixed layout
  * its label positions, field grouping and row order are its own — so styling it can only ever produce a
- * resemblance to Effy, not the thing itself (FR-028, research R7). Mounting the three PCI-scoped inputs
- * into OUR shell means the label, the pill, the focus treatment, the error copy and the spacing are all
+ * resemblance to Effy, not the thing itself. Mounting the three PCI-scoped inputs
+ * into our shell means the label, the pill, the focus treatment, the error copy and the spacing are all
  * ordinary Effy markup, and the provider owns exactly the three boxes it must.
  *
- * ⚠ THE CLASSES BELOW ARE COPIED FROM `packages/design-system/src/ui/input.tsx` ON PURPOSE, not
- * approximated. h-11, `rounded-full`, `px-4`, `border-input` — the platform's ONE input shape. A field
+ * The classes below are copied from `packages/design-system/src/ui/input.tsx` on purpose, not
+ * approximated. h-11, `rounded-full`, `px-4`, `border-input` — the platform's one input shape. A field
  * on the payment step that is 2px shorter than a field on the address form is exactly the kind of drift
  * that makes a page feel bought-in rather than built.
  *
- * ⚠ NO FOCUS HALO. `input.tsx` records the decision in full: shadcn's default is a soft ring outside the
- * field; the platform's focus indicator is the BORDER changing to `--ring` (3.95:1 light / 4.18:1 dark,
+ * No focus halo. `input.tsx` records the decision in full: shadcn's default is a soft ring outside the
+ * field; the platform's focus indicator is the border changing to `--ring` (3.95:1 light / 4.18:1 dark,
  * over WCAG 1.4.11's 3:1). Removing the halo is a style change, not an accessibility regression — and
  * re-introducing one here would make this the only field on the platform that glows.
  */
@@ -32,7 +32,7 @@ export function Field({
   label: string
   htmlFor?: string
   children: React.ReactNode
-  /** A message the shopper can act on. Renders the field in the error state (FR-036). */
+  /** A message the shopper can act on. Renders the field in the error state. */
   error?: string | null
   hint?: string
   className?: string
@@ -59,8 +59,8 @@ export function Field({
         {children}
       </div>
       {error ? (
-        // ⚠ `role="alert"` so a shopper using a screen reader hears the refusal rather than tabbing past
-        // it. A decline they cannot perceive is indistinguishable from the form doing nothing (FR-034).
+        // `role="alert"` so a shopper using a screen reader hears the refusal rather than tabbing past
+        // it. A decline they cannot perceive is indistinguishable from the form doing nothing.
         <p role="alert" className="mt-1.5 text-[13px] font-medium text-foreground">
           {error}
         </p>

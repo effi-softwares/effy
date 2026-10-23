@@ -8,7 +8,7 @@ const EMPTY: SuggestionsDTO = { phrases: [], products: [] }
 /**
  * Search suggestions for the header field, relayed from the storefront service. Public.
  *
- * ⚠ IT NEVER FAILS THE FIELD. Whatever goes wrong upstream, the answer is "no suggestions" and the
+ * It never fails the field. Whatever goes wrong upstream, the answer is "no suggestions" and the
  * search box carries on as a plain search box.
  */
 export async function GET(request: Request): Promise<NextResponse> {

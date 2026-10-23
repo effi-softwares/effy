@@ -1,5 +1,5 @@
-// Where a driver's run is (093) — one stage, worded the same in the driver app, dispatch day and round
-// detail. Derived from the round's rows (`ROUND_STAGE_FACTS` in @effy/edge-shared), never stored.
+// Where a driver's run is: one stage, worded the same in the driver app, dispatch day and round detail.
+// Derived from the round's rows (`ROUND_STAGE_FACTS` in @effy/edge-shared), never stored.
 
 export type RunStage =
   | "to_collect"

@@ -13,10 +13,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 072 — a round is on the phone hours before it can be worked.
+ * A round is on the phone hours before it can be worked.
  *
  * These pin the three things the app does about that: it knows when a round opens, it notices the
- * moment arrive, and when the platform refuses an early action it says WHEN rather than something
+ * moment arrive, and when the platform refuses an early action it says when rather than something
  * generic.
  */
 class OpeningTest {
@@ -46,7 +46,7 @@ class OpeningTest {
     }
 
     /**
-     * ⚠ THE SERVER SENDS NOTHING ONCE A ROUND IS OPEN, so null must mean open — whatever this
+     * The server sends nothing once a round is open, so null must mean open — whatever this
      * device's clock says. A phone an hour slow must not lock a round the platform has opened.
      */
     @Test fun no_opening_means_open_whatever_the_clock_says() {
@@ -55,7 +55,7 @@ class OpeningTest {
         assertTrue(none.isOpenAt(Long.MAX_VALUE))
     }
 
-    // ── The refusal ─────────────────────────────────────────────────────────────────────────────
+    // The refusal
 
     private fun problem(type: String, vararg issues: Pair<String, String>) = ProblemJSON(
         status = 409.0,
@@ -72,7 +72,7 @@ class OpeningTest {
     }
 
     /**
-     * ⚠ NOT A CONFLICT. Both are a 409, and a conflict tells the driver "someone else just changed
+     * Not a conflict. Both are a 409, and a conflict tells the driver "someone else just changed
      * this. Pull to refresh" — which they could do for hours at a round that is simply not open.
      */
     @Test fun it_is_never_reported_as_someone_else_changed_this() {

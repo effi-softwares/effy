@@ -9,9 +9,8 @@ import { CATALOG } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
 /**
- * order-delivery-changed (081) — back-office moved the order to courier delivery, or back to Effy.
- * Pins what it may say (what changed, when it arrives, what the customer received) and what it may
- * not (why, the courier fee, Effy's cost — the catalogue has no var for them).
+ * Back-office moved the order to courier delivery, or back to Effy. It may say what changed, when it
+ * arrives and what the customer received; never why, the courier fee or Effy's cost.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const vars = JSON.parse(readFileSync(resolve(here, "../src/fixtures/order-delivery-changed.json"), "utf8"));

@@ -1,11 +1,5 @@
-// Shop-pool Cognito Admin adapter (009). A back-office-authenticated caller provisions identities
-// in the SHOP pool — an authorized server-side provisioning write, NOT cross-pool authentication
-// (research R3; the routes still carry the back-office authorizer). Mirrors the 006 first-admin
-// pattern: AdminCreateUser with no password, SUPPRESS invite, email_verified — so the user lands
-// CONFIRMED on a passwordless pool — then group membership. Idempotent on re-run.
-//
-// No DI framework: a module-singleton client, wired by hand (Principle VI). The pool id is injected
-// as SHOP_USER_POOL_ID (resolved from /effy/<env>/auth/shop/user_pool_id at deploy time).
+// Provisions shop-pool identities: AdminCreateUser with no password and the invite suppressed, so the
+// user lands confirmed on a passwordless pool, then group membership. Idempotent.
 import {
   AdminAddUserToGroupCommand,
   AdminCreateUserCommand,
@@ -39,12 +33,7 @@ function subFromAttrs(attrs: AttributeType[] | undefined): string {
   return sub;
 }
 
-/**
- * Ensure a shop-pool account for `email` in `group`, returning the stable `sub` (the DB join key).
- * Idempotent: a second call for the same email recovers the sub via AdminGetUser and re-enables a
- * disabled account (break-glass parity with 006). The email is the admin username identifier (the
- * shop pool signs in by email).
- */
+/** Returns the stable `sub`. A repeat recovers it via AdminGetUser and re-enables a disabled account. */
 export async function ensureShopUser(
   email: string,
   name: string,
@@ -66,7 +55,7 @@ export async function ensureShopUser(
           { Name: "email_verified", Value: "true" },
           { Name: "name", Value: name },
         ],
-        // No TemporaryPassword — required to land the user CONFIRMED on a passwordless pool.
+        // No TemporaryPassword, so the user lands confirmed.
       }),
     );
     sub = subFromAttrs(created.User?.Attributes);
@@ -85,8 +74,7 @@ export async function ensureShopUser(
   return sub;
 }
 
-/** Reconcile a user's shop groups to exactly `roles` (add missing, remove the rest). The claim is
- *  the ORIGIN the shop service reconciles from, so a role change MUST touch Cognito (research R5). */
+/** Exactly `roles`: the shop service reconciles from the claim, so a role change must touch Cognito. */
 export async function setUserGroups(email: string, roles: readonly ShopRole[]): Promise<void> {
   const c = getClient();
   const UserPoolId = poolId();
@@ -101,7 +89,7 @@ export async function setUserGroups(email: string, roles: readonly ShopRole[]): 
   }
 }
 
-/** Disable the identity account (defense in depth — a disabled user cannot obtain a session, Q1). */
+/** A disabled user cannot obtain a session. */
 export async function disableUser(email: string): Promise<void> {
   await getClient().send(new AdminDisableUserCommand({ UserPoolId: poolId(), Username: email }));
 }

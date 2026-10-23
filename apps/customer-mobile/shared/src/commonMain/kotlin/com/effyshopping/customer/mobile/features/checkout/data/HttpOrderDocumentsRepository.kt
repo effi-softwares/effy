@@ -30,9 +30,9 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 
 /**
- * 096 US7 — `GET commerce/v1/orders/{id}/delivery-note` (JSON) and `?format=pdf` (the bytes).
+ * `GET commerce/v1/orders/{id}/delivery-note` (JSON) and `?format=pdf` (the bytes).
  *
- * ⚠ 404 covers both "not yours" and "no such order"; the server refuses them identically, so this
+ * Covers both "not yours" and "no such order"; the server refuses them identically, so this
  * client cannot tell them apart either. 409 is "not delivered yet".
  */
 class HttpOrderDocumentsRepository(private val edge: HttpClient) : OrderDocumentsRepository {

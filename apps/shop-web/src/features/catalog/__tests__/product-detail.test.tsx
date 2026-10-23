@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  // 057: the rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
+  // The rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
   useNavigate: () => () => {},
 }))
 
@@ -45,7 +45,7 @@ const DETAIL = {
   longDescription: null,
   currency: "AUD",
   status: "active",
-  // 098 — the one size this product is sold as carries the price, codes and weight.
+  // The one size this product is sold as carries the price, codes and weight.
   unitBasis: null,
   options: [],
   variants: [{
@@ -68,9 +68,9 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-/** US3 (T030) — the focused edit dialogs round-trip a change to the server. */
+/** The focused edit dialogs round-trip a change to the server. */
 describe("product edit and persist", () => {
-  // ⚠ Without this the "must not be called" assertion below counts calls made by the tests ABOVE it
+  // Without this the "must not be called" assertion below counts calls made by the tests above it
   // and fails for the wrong reason — a false red that teaches nothing.
   beforeEach(() => {
     updateProduct.mockClear()
@@ -90,17 +90,15 @@ describe("product edit and persist", () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalled())
     const body = updateProduct.mock.calls[0]![1]
 
-    // 098 — sizes travel WHOLE (the server proposes only a difference), and nothing else rides along:
+    // Sizes travel whole (the server proposes only a difference), and nothing else rides along:
     // a PATCH that resent untouched details is how one operator's save reverts another's.
     expect(body).toMatchObject({ options: [], variants: [{ id: "00000000-0000-4000-8000-0000000000a1", shopPriceAmount: "9.00", sku: "EGG-700", weightGrams: 800 }] })
     expect(body).not.toHaveProperty("name")
   })
 
   /**
-   * ⚠ 056 shipped exactly this defect: `toISOString()` truncates to MILLISECONDS while PostgreSQL
-   * stores MICROSECONDS, so `WHERE updated_at = $2` never matched its own row and every save reported
-   * "changed by someone else". The concurrency token must cross the wire as the server sent it —
-   * byte for byte, never re-formatted through a Date.
+   * The concurrency token crosses the wire byte for byte, never through a Date: `toISOString` truncates
+   * to milliseconds while PostgreSQL stores microseconds, so every save would read "changed by someone else".
    */
   it("returns the concurrency token exactly as the server sent it", async () => {
     updateProduct.mockResolvedValue(DETAIL)
@@ -126,7 +124,7 @@ describe("product edit and persist", () => {
     const price = await screen.findByLabelText(/^price for/i)
     await userEvent.clear(price)
     await userEvent.type(price, "-3")
-    // 098 — not while typing: a cell says what is wrong once the operator leaves it…
+    // Not while typing: a cell says what is wrong once the operator leaves it…
     expect(screen.queryByText(/enter a price like/i)).toBeNull()
     await userEvent.tab()
     expect(screen.getByText(/enter a price like/i)).toBeInTheDocument()

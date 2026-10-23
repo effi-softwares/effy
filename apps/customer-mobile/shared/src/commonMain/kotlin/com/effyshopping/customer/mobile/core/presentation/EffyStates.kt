@@ -50,7 +50,7 @@ import com.effyshopping.mobile.kit.ui.widthClassFor
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * A loading placeholder in the shape of what is coming (Patterns board). It SHIMMERS: on a grey page
+ * A loading placeholder in the shape of what is coming (Patterns board). It shimmers: on a grey page
  * a still grey box is indistinguishable from UI that rendered grey and finished.
  */
 @Composable
@@ -97,7 +97,7 @@ fun Modifier.effyShimmer(): Modifier {
 }
 
 /**
- * The empty state: an icon in a zinc circle, a 20sp title, one sentence, and ONE way forward
+ * The empty state: an icon in a zinc circle, a 20sp title, one sentence, and one way forward
  * (Patterns board). Cart, orders, saved items and search all use it.
  */
 @Composable
@@ -130,7 +130,7 @@ fun EffyEmptyState(
 }
 
 /**
- * The error state (Patterns board): black, with an icon — never red — and ALWAYS a way to try again.
+ * The error state (Patterns board): black, with an icon — never red — and always a way to try again.
  * A failure with no retry leaves the shopper to guess whether waiting or leaving is the fix.
  */
 @Composable

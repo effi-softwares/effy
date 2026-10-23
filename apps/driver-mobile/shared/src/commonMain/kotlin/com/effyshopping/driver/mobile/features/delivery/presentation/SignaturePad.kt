@@ -45,7 +45,7 @@ class SignatureState {
     fun clear() = strokes.clear()
 
     /**
-     * The signature as a PNG — ⚠ ALWAYS BLACK INK ON WHITE, whatever the appearance: it is a record
+     * The signature as a PNG — always black ink on white, whatever the appearance: it is a record
      * read later by people on other screens, and light ink drawn in dark mode would vanish on paper.
      */
     fun render(): ByteArray {

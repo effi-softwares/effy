@@ -1,11 +1,6 @@
 /**
- * Loading the Australian locality reference data (047): the suburb / state / postcode triples that
- * address entry searches.
- *
- * ⚠ IDEMPOTENT on (name, state, postcode): loading the same file twice leaves the table as one
- * load would. ⚠ A row the table refuses (an unknown state, a postcode that is not four digits)
- * FAILS THE LOAD rather than being skipped — the file is the source of truth, and a silent drop
- * would hide a corrupt one.
+ * Idempotent on (name, state, postcode). A row the table refuses fails the whole load: a silent
+ * drop would hide a corrupt file.
  */
 import type pg from "pg";
 
@@ -13,13 +8,13 @@ export interface LocalityRow {
   postcode: string;
   name: string;
   state: string;
-  /** A decimal string, or "" for a locality with no point — stored NULL. */
+  /** "" for a locality with no point (stored null). */
   latitude: string;
   longitude: string;
   addressCount: number;
 }
 
-/** One CSV record: fields separated by commas, a field optionally "double-quoted" with "" escapes. */
+/** Comma-separated, optionally "double-quoted" with "" escapes. */
 export function parseCsvLine(line: string): string[] {
   const out: string[] = [];
   let field = "";
@@ -47,7 +42,7 @@ const COLUMNS = {
   addressCount: ["address_count", "addresses", "count"],
 } as const;
 
-/** Parse the whole file. The header may be in any order; latitude, longitude and the count are optional. */
+/** Any header order; latitude, longitude and the count are optional. */
 export function parseLocalities(csv: string): LocalityRow[] {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim() !== "");
   const header = parseCsvLine(lines[0] ?? "").map((h) => h.toLowerCase());

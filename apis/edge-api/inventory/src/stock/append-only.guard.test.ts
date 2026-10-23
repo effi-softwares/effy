@@ -4,28 +4,15 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ THE GUARD FOR FR-008 — `public.stock_movement` IS APPEND-ONLY.
- *
- * data-model §2 chose discipline over a database trigger, following the platform's existing
- * convention for `fulfillment_event` and `admin.audit_log`. Discipline that nothing checks is a
- * comment, and this is the table SC-005 rests on: "the movement history fully accounts for the
- * difference between a product's opening and current count". One `UPDATE` against it and that stops
- * being true, permanently and silently — the history cannot be reconstructed after the fact.
- *
- * So it is made mechanical the same way FR-012's one-rule guard is: read the source, fail NAMING the
- * file. Proven by breaking it (quickstart §2).
- */
+/** `public.stock_movement` is append-only: the history must account for every count change. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../..");
 
-/** Every place on the platform that could plausibly write this table. */
 const SEARCH_ROOTS = [
   "apis/edge-api/inventory/src",
   "apis/edge-api/shop/src",
   "apis/edge-api/admin/src",
-  // 070: payment finalisation and refund stock returns write movements from here now.
   "apis/edge-api/shared/src",
   "apis/edge-api/commerce/src",
   "apis/edge-api/orders/src",
@@ -76,8 +63,7 @@ describe("stock_movement is append-only (FR-008)", () => {
   });
 
   it("is actually looking at source — a guard that scans nothing always passes", () => {
-    // ⚠ The failure mode of a source-scanning guard is finding no files and reporting success. This
-    // pins that the walk reaches the repository that owns the table.
+    // Pins that the walk reaches the owning repository, so finding no files cannot pass.
     const files = [...sourceFiles(join(repoRoot, "apis/edge-api/inventory/src"))];
     expect(files.length).toBeGreaterThan(5);
     expect(files.some((f) => f.endsWith("repository.ts"))).toBe(true);

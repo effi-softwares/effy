@@ -1,9 +1,5 @@
-// 096 US5 — the hub station (FR-042, FR-043): hub staff check bags in with a handheld scanner as they
-// come off a collection run. The SAME rules as the driver's check-in (research R8): the bags a run
-// still owes are `bagsToCheckIn`, each is recorded through the one hand-over writer (actor: hub staff),
-// and the scan of a run's last bag closes it through `closeRunCheckin` — the driver's own close.
-//
-// ⚠ Every read is recorded, accepted or refused, through the one read writer.
+// Hub staff check bags in by scanner, by the driver's own rules: `bagsToCheckIn`, the one hand-over
+// writer (actor: hub staff), and `closeRunCheckin` when the last bag arrives. Every read is recorded.
 import { withTransaction } from "@effy/edge-shared";
 import { bagsToCheckIn, closeRunCheckin, hubSortOf } from "@effy/edge-shared/delivery";
 import { recordHandovers, recordReads, resolveCode } from "@effy/edge-shared/labels";
@@ -25,7 +21,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sortOf = (f: { delivered_by: "effy" | "courier"; window_start: Date | null; window_end: Date | null; any_time: boolean }, at: Date): HubSortDTO =>
   hubSortOf({ deliveredBy: f.delivered_by, windowStart: f.window_start, windowEnd: f.window_end, anyTime: f.any_time }, at);
 
-/** The runs on their way in, each with its bags and where each goes. */
 export async function expected(): Promise<HubExpectedDTO> {
   return withTransaction(async (tx) => {
     const rows = await repo.expectedBags(tx);
@@ -45,13 +40,12 @@ export async function expected(): Promise<HubExpectedDTO> {
 
 export interface CheckinOutcome {
   results: HubCheckinResultDTO[];
-  /** Drivers whose runs moved, for the live announcement after commit. */
+  /** For the live announcement after commit. */
   drivers: string[];
-  /** Shops whose bags arrived (their consoles show "At hub"). */
+  /** Their consoles show "At hub". */
   shops: string[];
 }
 
-/** Judge and record each read; check in each accepted bag; close every run this completes. */
 export async function checkIn(sub: string, reads: ReadonlyArray<Partial<LabelReadDTO>>): Promise<CheckinOutcome> {
   return withTransaction(async (tx) => {
     const results: HubCheckinResultDTO[] = [];
@@ -117,7 +111,7 @@ async function judgeAndCheckIn(
     deviceAt: read.deviceAt ?? null,
   });
 
-  // The run's last bag closes it — the driver's own close, recorded as hub staff's.
+  // The last bag closes the run, recorded as hub staff's.
   let runClosed = false;
   if (owed.length === 1 && !(await repo.runHasUnsettledStops(tx, run.runId))) {
     await closeRunCheckin(tx, run.runId, { by: "admin_staff", sub });

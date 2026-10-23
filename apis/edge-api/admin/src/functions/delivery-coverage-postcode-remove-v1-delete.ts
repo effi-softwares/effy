@@ -1,4 +1,4 @@
-// DELETE /admin/v1/delivery/coverage/postcodes/{postcode} — take a postcode off the list; placed orders are untouched (076 FR-005). Mutate.
+// Placed orders are untouched.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

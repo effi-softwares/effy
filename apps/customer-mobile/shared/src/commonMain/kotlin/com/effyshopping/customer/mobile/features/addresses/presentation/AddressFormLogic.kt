@@ -5,12 +5,12 @@ import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 
 /**
- * The add/edit form logic (022), extracted so BOTH the Address Book (022) and Checkout (023) reuse one
+ * The add/edit form logic, extracted so both the Address Book and Checkout reuse one
  * validation + mapping (Principle II — one source of truth, never copy-pasted per surface). Pure
  * functions over [AddressForm]; no coroutines, no state — the ViewModels own the state.
  */
 
-/** Field-level validation (FR-009). The four required fields; optional fields never block. */
+/** Field-level validation. The four required fields; optional fields never block. */
 fun AddressForm.validate(): Map<String, String> = buildMap {
     if (recipientName.isBlank()) put("recipientName", "Enter a recipient name.")
     if (line1.isBlank()) put("line1", "Enter the street address.")
@@ -28,11 +28,11 @@ fun AddressForm.toDraft(): AddressDraft = AddressDraft(
     phone = phone.trim().ifBlank { null },
     line2 = line2.trim().ifBlank { null },
     region = region.trim().ifBlank { null },
-    // 066 — always carried from the form: an emptied control CLEARS what the address had saved.
+    // Always carried from the form: an emptied control clears what the address had saved.
     defaultInstructions = instructions,
 )
 
-/** The chip's resolved label string (or null for NONE / a blank Other). */
+/** The chip's resolved label string (or null for none / a blank Other). */
 private fun AddressForm.resolveLabel(): String? = when (labelChip) {
     LabelChip.NONE -> null
     LabelChip.HOME -> "Home"

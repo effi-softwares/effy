@@ -1,6 +1,5 @@
-// The driver's daily vehicle check (093). Once per vehicle per Melbourne day; an unsafe answer means no
-// work until a dispatcher clears it (eligibility `vehicle_unsafe`). The check is of the vehicle the
-// driver holds right now — never one named by the request.
+// Once per vehicle per Melbourne day; an unsafe answer means no work until dispatch clears it. Always
+// the vehicle the driver holds now, never one named by the request.
 
 import { withTransaction } from "@effy/edge-shared";
 import { VEHICLE_CHECK_ITEMS, type VehicleCheckEntry } from "@effy/shared-types";
@@ -14,7 +13,7 @@ export class VehicleCheckError extends Error {
 
 const ANSWERS = new Set(["ok", "minor", "unsafe"]);
 
-/** Every item exactly once, each a known answer; a note at most 500 characters. Throws `invalid`. */
+/** Every item once, each a known answer; a note of at most 500 characters. */
 export function validateAnswers(answers: unknown): VehicleCheckEntry[] {
   if (!Array.isArray(answers)) throw new VehicleCheckError("invalid", "Answer every item of the check.");
   const byItem = new Map<string, VehicleCheckEntry>();
@@ -30,7 +29,7 @@ export function validateAnswers(answers: unknown): VehicleCheckEntry[] {
   return VEHICLE_CHECK_ITEMS.map((item) => byItem.get(item)!);
 }
 
-/** Record today's check of the driver's vehicle. A second check of the same vehicle today answers with the first. */
+/** A second check of the same vehicle today answers with the first. */
 export async function submitVehicleCheck(driverId: string, changeId: string, answers: VehicleCheckEntry[]): Promise<{ state: "ok" | "unsafe"; recorded: boolean }> {
   return withTransaction(async (tx: any) => {
     const held = await tx.query(
@@ -51,7 +50,6 @@ export async function submitVehicleCheck(driverId: string, changeId: string, ans
     );
     if ((ins.rowCount ?? 0) > 0) return { state: unsafe ? "unsafe" : "ok", recorded: true };
 
-    // Already checked today (or this very request retried): the check that stands.
     const prior = await tx.query(
       `SELECT unsafe, cleared_at FROM public.vehicle_check
         WHERE driver_id = $1 AND vehicle_id = $2 AND local_date = (now() AT TIME ZONE 'Australia/Melbourne')::date`,

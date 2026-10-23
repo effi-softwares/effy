@@ -1,4 +1,3 @@
-// The courier services Effy uses (080): validation and the rules. No SQL, no HTTP (Principle VI).
 import { announce } from "@effy/edge-shared/live";
 import type { CourierServiceDTO, CourierServiceInput, CourierServiceListDTO } from "@effy/shared-types";
 
@@ -18,7 +17,7 @@ export async function list(): Promise<CourierServiceListDTO> {
 
 type Field = { field: string; message: string };
 
-/** Every rule a person can be told about, as field errors — never a bare 400. */
+/** As field errors, never a bare 400. */
 function values(body: CourierServiceInput, base: CourierServiceDTO | null): repo.ServiceValues {
   const errors: Field[] = [];
   const text = (key: "courierName" | "serviceName", min: number, max: number, label: string): string => {

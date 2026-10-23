@@ -9,26 +9,9 @@ import { PasswordField } from "./PasswordField"
 import { writePassword } from "./actions"
 
 /**
- * CHANGE AN EXISTING PASSWORD (012 FR-016).
- *
- * ⚠ THE CURRENT PASSWORD IS REQUIRED, AND HOLDING A SESSION IS NOT ENOUGH.
- *
- * Same threat as the set flow, one step milder: without it, anyone who gets hold of a live session
- * — a borrowed laptop, an XSS'd token, an unlocked phone — can lock the real owner out of their own
- * account by changing the password from under them. OWASP is explicit: require the current
- * credentials before updating sensitive account information.
- *
- * Here the current password IS the step-up factor, so no emailed code is needed. Cognito verifies it
- * server-side and refuses with `NotAuthorizedException` — we never compare passwords ourselves.
- *
- * ── The container ─────────────────────────────────────────────────────────────────────────────
- *
- * Built on the EXISTING `ResponsiveModal` from the design system — a centred Dialog at/above the
- * mobile breakpoint, a bottom Drawer below it — the same container `FieldEditor` and the address
- * form already use, rather than growing a third overlay (Principle II). It replaces an inline panel
- * that declared `role="dialog" aria-modal="true"` while being neither: it trapped no focus, closed
- * on no Escape, and left the page behind it fully reachable, so the promise the markup made to a
- * screen reader was one the DOM did not keep.
+ * Changes an existing password. The current password is required, so a borrowed or stolen session
+ * cannot lock the owner out; Cognito verifies it and refuses with `NotAuthorizedException`. Built on
+ * `ResponsiveModal`, like the field editor and the address form.
  */
 export function ChangePasswordDialog({
   open,
@@ -42,8 +25,7 @@ export function ChangePasswordDialog({
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  // ⚠ Clear on every open. The overlay now stays mounted across open/close, so without this a
-  // password typed and abandoned would still be sitting in the field — and in memory — next time.
+  // Cleared on every open: the overlay stays mounted, and an abandoned password must not linger.
   useEffect(() => {
     if (open) {
       setCurrent("")
@@ -56,7 +38,7 @@ export function ChangePasswordDialog({
     e.preventDefault()
     setError(null)
     start(async () => {
-      // On success this REDIRECTS — every session is revoked, including this one (FR-024).
+      // On success this redirects: every session is revoked, this one included.
       const res = await writePassword({
         mode: "change",
         currentPassword: current,
@@ -69,7 +51,7 @@ export function ChangePasswordDialog({
   return (
     <ResponsiveModal
       open={open}
-      // A dismissal mid-request would leave the customer with no idea whether the change landed.
+      // No dismissal mid-request, or the customer cannot tell whether the change landed.
       onOpenChange={(nextOpen) => {
         if (pending) return
         onOpenChange(nextOpen)
@@ -83,8 +65,7 @@ export function ChangePasswordDialog({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        {/* The submit control lives in the footer, so the form is addressed by id — that keeps
-            Enter-to-submit working rather than making the button a bare onClick. */}
+        {/* The form is addressed by id from the footer's submit, keeping Enter-to-submit. */}
         <form id="change-password-form" onSubmit={submit} className="space-y-4 px-4 sm:px-0">
           <PasswordField
             name="currentPassword"
@@ -102,7 +83,7 @@ export function ChangePasswordDialog({
             onChange={setNext}
           />
 
-          {/* FR-027 — in the form, next to what went wrong. Never a toast the customer can miss. */}
+          {/* In the form, next to what went wrong; never a toast. */}
           {error && (
             <p role="alert" data-testid="password-error" className="text-sm text-destructive">
               {error}
@@ -115,8 +96,7 @@ export function ChangePasswordDialog({
           </p>
         </form>
 
-        {/* Cancel on the LEFT, de-weighted as a ghost; the primary submit on the RIGHT. The ghost
-            weighting is what keeps a mis-tap from being a discarded form. */}
+        {/* Cancel on the left as a ghost, submit on the right, so a mis-tap does not discard the form. */}
         <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
           <Button
             type="button"

@@ -1,7 +1,4 @@
-// DELETE /commerce/v1/saved/{productId} — the heart's un-save.
-//
-// ⚠ 204 for an absent membership, never 404: a retried delete must not look like a failure.
-// Deliberately asymmetric with PUT. Refused 409 `in-named-lists` when the product is in a named list.
+// For an absent membership, never 404: a retried delete must not look like a failure.
 import { customerRoute, pathParam } from "../lib/route";
 import { savedService } from "../lib/wiring";
 import { noContentOr } from "../saved/respond";

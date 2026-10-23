@@ -1,24 +1,8 @@
 /**
- * Shop ORDER CONSOLE contracts — 057 Amendment A3 (shop-web orders list + order detail).
- *
- * ⚠ A SEPARATE FAMILY FROM ./shop-order, ON PURPOSE. `./shop-order` is the PICK contract that both
- * shop surfaces read (shop-mobile decodes it through a generated Kotlin mirror), and its header states
- * a rule this family deliberately relaxes: under A3 the operator decided a shop's order console shows
- * the ORDER's money — its total, what was paid, what has been refunded. Putting those fields on the
- * pick DTOs would change the mobile contract and silently widen a rule the pick screen still keeps.
- * So the console gets its own routes (`/shop/v1/orders…`) and its own shapes, and the pick routes are
- * byte-for-byte what they were.
- *
- * ⚠ WHAT STILL DOES NOT CROSS, EVEN HERE:
- *  - NO shop identifier in any request — scope is resolved server-side from the operator's record.
- *  - NO billing address (023 FR-018) and NO customer email / account history. The shop reaches the
- *    person it delivers to through the delivery snapshot's name and phone, which is all it needs.
- *  - NO capture action. Effy captures at payment (`CaptureMethod: automatic`, 055 R3), so there is no
- *    "authorised but not captured" state for a button to act on.
- *  - NO tax line. Australian grocery is a mixed GST supply and per-item GST treatment is unmodelled
- *    (052 R13), so any "tax" figure here would be invented.
- *
- * Money crosses as a 2-dp decimal STRING (e.g. "57.80"), never a float — the platform-wide rule.
+ * Shop order console contracts (the orders list and order detail). Separate from `./shop-order` (the
+ * pick contract) because the console shows the order's money: total, paid, refunded. Still never: a
+ * shop id in a request, the billing address, the customer's email or history, a capture action (capture
+ * is automatic), or a tax line. Money is a 2-dp decimal string.
  */
 
 import type { WireInt } from "./cart"
@@ -28,12 +12,9 @@ import type { PackageStatusView } from "./package-status"
 import type { DeliveredBy } from "./delivery-type"
 import type { ParcelCustody, ParcelZone } from "./parcels"
 
-/**
- * 080 — a courier will collect THIS package from the shop. ⚠ The shop's own parcel only: never a fee,
- * the customer's estimate, a tracking link, or anything about another shop's parcel.
- */
+/** A courier will collect this package from the shop: the shop's own parcel only, never a fee, estimate, tracking link or another shop's parcel. */
 export interface CourierPickupDTO {
-  /** arranging = staff have not booked it yet; the parcel is prepared and marked ready as usual. */
+  /** arranging: not booked yet; the parcel is prepared and marked ready as usual. */
   state: "arranging" | "booked" | "handed_over" | "cancelled"
   /** yyyy-mm-dd */
   pickupDate: string | null
@@ -47,13 +28,9 @@ export interface CourierPickupDTO {
   labelUrl: string | null
 }
 
-// ── The list ────────────────────────────────────────────────────────────────────────────────────
+// The list
 
-/**
- * The status tabs. `new` is `pending` + `received` together: both mean "nobody has started picking",
- * and `pending` lasts only until the first open (020 FR-011a), so a tab of its own would be a tab that
- * empties itself whenever someone looks at it.
- */
+/** The status tabs. `new` is `pending` + `received` (nobody has started picking; `pending` lasts only until first opened). */
 export const SHOP_ORDER_TABS = [
   "all",
   "new",
@@ -66,11 +43,7 @@ export const SHOP_ORDER_TABS = [
 ] as const
 export type ShopOrderTab = (typeof SHOP_ORDER_TABS)[number]
 
-/**
- * Where the order's money stands, DERIVED on read from `public.refund` — never stored (027's
- * counted-not-stored rule). `refund_pending` means a refund is with the provider and has not settled;
- * 055 is explicit that "submitted" is not "returned", so it is not reported as refunded yet.
- */
+/** Where the order's money stands, derived from `public.refund`. `refund_pending` is with the provider, not yet settled. */
 export const SHOP_ORDER_PAYMENT_STATES = [
   "paid",
   "refund_pending",
@@ -79,11 +52,11 @@ export const SHOP_ORDER_PAYMENT_STATES = [
 ] as const
 export type ShopOrderPaymentState = (typeof SHOP_ORDER_PAYMENT_STATES)[number]
 
-/** The "Status" filter — the attention a row needs, orthogonal to the lifecycle tabs. */
+/** The "Status" filter: the attention a row needs, apart from the lifecycle tabs. */
 export const SHOP_ORDER_ATTENTION = ["any", "at_risk", "short", "on_track"] as const
 export type ShopOrderAttention = (typeof SHOP_ORDER_ATTENTION)[number]
 
-/** 079 — the "Fulfilment" filter: who takes the package away from the shop. */
+/** The "Fulfilment" filter: who takes the package away. */
 export const SHOP_ORDER_DELIVERED_BY = ["any", "effy_driver", "courier"] as const
 export type ShopOrderDeliveredBy = (typeof SHOP_ORDER_DELIVERED_BY)[number]
 
@@ -93,10 +66,7 @@ export type ShopOrderRange = (typeof SHOP_ORDER_RANGES)[number]
 export const SHOP_ORDER_SORTS = ["placed", "number", "customer", "items", "total"] as const
 export type ShopOrderSort = (typeof SHOP_ORDER_SORTS)[number]
 
-/**
- * GET /shop/v1/orders query. Every field optional; an unrecognised value is treated as its default
- * (never as "match everything differently"), exactly as the pick queue treats `state`.
- */
+/** GET /shop/v1/orders query. Every field optional; an unrecognised value is its default. */
 export interface ShopOrderListQuery {
   tab?: ShopOrderTab
   q?: string
@@ -110,43 +80,36 @@ export interface ShopOrderListQuery {
   page?: number
 }
 
-/** One row. `id` is the PORTION (shop_fulfillment.id) — the detail route is keyed on it. */
+/** One row. `id` is the portion (shop_fulfillment.id), which the detail route is keyed on. */
 export interface ShopOrderRowDTO {
   id: string
   orderNumber: string
-  /** The delivery snapshot's recipient — the only customer identity a shop holds. */
+  /** The delivery snapshot's recipient: the only customer identity a shop holds. */
   customerName: string
   placedAt: string
   status: FulfillmentStatus
-  /**
-   * 073 — where the package really is, in the words every staff screen uses. ⚠ `status` above is the
-   * shop's own step and stops at `collected`; this carries it on — At hub, Out for delivery, With
-   * carrier, Delivered — so a shop can answer "has it gone?". `driverName` is ALWAYS null here.
-   */
+  /** Where the package really is, in the staff words (At hub, Out for delivery…); `status` is the shop's own step. `driverName` is always null here. */
   statusView: PackageStatusView
   /** This shop's units on the order. */
   itemCount: WireInt
   gatheredCount: WireInt
   unavailableCount: WireInt
-  /**
-   * 079 — who takes this package away: an Effy driver or a courier. True of every package, old or
-   * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
-   */
+  /** Who takes this package away: the only delivery fact a shop is told (never a window, day, estimate or fee). */
   deliveredBy: DeliveredBy
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** Open (pending/received/picking) and within 15 minutes of — or past — its ready-by. */
+  /** Open and within 15 minutes of, or past, its ready-by. */
   atRisk: boolean
   payment: ShopOrderPaymentState
-  /** The order's grand total (A3). */
+  /** The order's grand total. */
   total: string
   currency: string
   tags: string[]
-  /** "Eggs ×2, Oat milk ×1" — this shop's lines, for the list's Items column. */
+  /** "Eggs ×2, Oat milk ×1": this shop's lines, for the Items column. */
   itemsSummary: string
 }
 
-/** Per-tab counts over EVERY state, under every filter except the tab itself. */
+/** Per-tab counts over every state, under every filter but the tab. */
 export type ShopOrderCounts = Record<ShopOrderTab, WireInt>
 
 export interface ShopOrderListDTO {
@@ -158,55 +121,54 @@ export interface ShopOrderListDTO {
   counts: ShopOrderCounts
 }
 
-// ── The detail ──────────────────────────────────────────────────────────────────────────────────
+// The detail
 
-/** One of this shop's lines, priced from the receipt snapshot (019). */
+/** One of this shop's lines, priced from the receipt snapshot. */
 export interface ShopOrderLineDTO {
   orderItemId: string
   name: string
-  /** 098 — the variant's label as sold ("1 kg"); null for a product with no options. */
+  /** The variant's label as sold ("1 kg"); null with no options. */
   variantLabel: string | null
-  /** 098 — Effy's code for the variant as sold (V + 6). */
+  /** Effy's code for the variant as sold (V + 6). */
   variantCode: string | null
   /** The shop's own stock code as sold. */
   sku: string | null
-  /** 098 — the variant's barcode as sold, so a picker can check the item in hand (FR-022). */
+  /** The variant's barcode as sold, so a picker can check the item in hand. */
   gtin: string | null
   imageUrl: string | null
   orderedQuantity: WireInt
   gatheredQuantity: WireInt
   unavailableQuantity: WireInt
-  /** Units already covered by a refund that did not fail or get refused. */
+  /** Units covered by a refund that did not fail or get refused. */
   refundedQuantity: WireInt
   unitPrice: string
   lineTotal: string
-  /** The picker's note from "Adjust this line" (A3 revision 2). */
+  /** The picker's note from "Adjust this line". */
   pickNote: string | null
 }
 
-/** One refund on the order — any issuer, so the shop sees money Effy returned too. */
+/** One refund on the order, any issuer, so the shop sees money Effy returned too. */
 export interface ShopOrderRefundDTO {
   id: string
   amount: string
   status: RefundStatus
   reason: RefundReason
   actorKind: RefundActorKind
-  /** Resolved from shop staff or back-office staff; `null` when the issuer is unattributable. */
+  /** Resolved from shop or back-office staff; `null` when unattributable. */
   actorLabel: string | null
   createdAt: string
 }
 
 export interface ShopOrderMoneyDTO {
   currency: string
-  /** This shop's lines — Σ lineTotal. */
+  /** This shop's lines: Σ lineTotal. */
   shopSubtotal: string
-  /** The order's item subtotal; exceeds `shopSubtotal` when other shops supplied part of it. */
+  /** The order's item subtotal; exceeds `shopSubtotal` when other shops supplied part. */
   itemSubtotal: string
-  // ⚠ 077: NO delivery fee. A shop never sees what the customer paid for delivery, or any part of it
-  // (FR-038). `shop-order.guard` fails a shop contract that carries one.
+  // No delivery fee: a shop never sees what the customer paid for delivery (`shop-order.guard`).
   discount: string
   total: string
-  /** Refunds that SETTLED. */
+  /** Refunds that settled. */
   refunded: string
   /** Refunds with the provider, not yet settled. */
   refundPending: string
@@ -216,22 +178,20 @@ export interface ShopOrderMoneyDTO {
 
 export interface ShopOrderPaymentDTO {
   state: ShopOrderPaymentState
-  /** e.g. "card". `null` on orders paid before 052 recorded the method. */
+  /** e.g. "card"; `null` when not recorded. */
   methodType: string | null
   methodBrand: string | null
   methodLast4: string | null
-  /** The amount the customer authorised — and, because capture is automatic, also what was captured. */
+  /** The amount authorised, which with automatic capture is also what was captured. */
   amount: string
   paidAt: string | null
 }
 
-/** What happened to the package after it left the shelf (049 collection, 053 arrival). */
+/** What happened to the package after it left the shelf. */
 export interface ShopOrderHandoffDTO {
-  /** ISO — when an Effy driver collected it. */
-  collectedAt: string | null
-  /** ISO — when it reached the customer. */
+  /** ISO: when it reached the customer. */
   deliveredAt: string | null
-  /** The shop's own words when it declared the portion unsuppliable (055 US6). */
+  /** The shop's own words when it declared the portion unsuppliable. */
   unfulfillableReason: string | null
 }
 
@@ -242,10 +202,7 @@ export interface ShopOrderNoteDTO {
   createdAt: string
 }
 
-/**
- * 096 — one bag of this package, as its label and the shop's pack step need it. ⚠ `custody` never names
- * a driver (073); "printed" means printed since the bag's number or zone last changed.
- */
+/** One bag of this package, for its label and the pack step. `custody` never names a driver; "printed" means since its number or zone last changed. */
 export interface ShopParcelLabelDTO {
   parcelId: string
   code: string
@@ -257,27 +214,20 @@ export interface ShopParcelLabelDTO {
   custody: ParcelCustody
 }
 
-/**
- * 096 — what every bag's label shares (spec US10). The recipient and full address are on the label
- * (spec Clarifications reverse 089): the shop already sees both on this order. ⚠ Never a window, day,
- * estimate, price, phone or email (079, FR-011).
- */
+/** What every bag's label shares: the recipient and full address (the shop already sees both). Never a window, day, estimate, price, phone or email. */
 export interface ShopLabelCommonDTO {
   service: DeliveredBy
   orderNumber: string
-  /** The day the first label was printed, or null before any print (the label then shows today). */
+  /** The day the first label was printed, or null before any (the label then shows today). */
   packedOn: string | null
-  /**
-   * The SHIPPING address, every part of it, and the recipient's phone (operator, 2026-10-22). Never the
-   * billing address — when the two differ the bag goes where it is shipped.
-   */
+  /** The shipping address in full and the recipient's phone; never the billing address. */
   recipientName: string
   line1: string
   line2: string | null
   suburb: string
   state: string
   postcode: string
-  /** As stored on the order (`AU`); the label words it. */
+  /** As stored (`AU`); the label words it. */
   country: string | null
   phone: string | null
 }
@@ -288,26 +238,23 @@ export interface ShopOrderDetailDTO {
   orderNumber: string
   placedAt: string
   status: FulfillmentStatus
-  /** 073 — see `ShopOrderRowDTO.statusView`. Never carries a driver's name. */
+  /** See `ShopOrderRowDTO.statusView`. Never a driver's name. */
   statusView: PackageStatusView
   stateChangedAt: string
   readyBy: string
-  /**
-   * 079 — who takes this package away: an Effy driver or a courier. True of every package, old or
-   * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
-   */
+  /** Who takes this package away: the only delivery fact a shop is told. */
   deliveredBy: DeliveredBy
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO
-  /** 096 — this package's live bags, each with its own label. */
+  /** This package's live bags, each with its own label. */
   parcels: ShopParcelLabelDTO[]
-  /** 096 — what every bag's label shares (spec US10). */
+  /** What every bag's label shares. */
   labelCommon: ShopLabelCommonDTO
-  /** 096 — the cold zones this package's lines need a bag for (a declaration without one is refused). */
+  /** The cold zones this package's lines need a bag for (a declaration without one is refused). */
   zonesNeeded: ParcelZone[]
-  /** 096 — back-office requires every bag to be scanned as packed before the order can be ready. */
+  /** Back-office requires every bag to be scanned as packed before the order can be ready. */
   packScanRequired: boolean
   lines: ShopOrderLineDTO[]
   money: ShopOrderMoneyDTO
@@ -318,18 +265,15 @@ export interface ShopOrderDetailDTO {
   notes: ShopOrderNoteDTO[]
 }
 
-// ── The activity log ────────────────────────────────────────────────────────────────────────────
+// The activity log
 
-/**
- * One log entry. `tone` drives the entry's dot: `strong` for events that needed or took a decision
- * (a shortfall, a refund, can't-supply), `quiet` for routine progress.
- */
+/** One log entry. `tone`: `strong` for events that needed or took a decision (a shortfall, a refund, can't-supply), `quiet` for routine progress. */
 export interface ShopOrderActivityEntryDTO {
   id: string
   at: string
   title: string
   actorLabel: string | null
-  /** `negative` — something the customer will not get (unavailable, can't supply, cancelled). */
+  /** `negative`: something the customer will not get (unavailable, can't supply, cancelled). */
   tone: "strong" | "quiet" | "negative"
 }
 
@@ -337,22 +281,7 @@ export interface ShopOrderActivityDTO {
   entries: ShopOrderActivityEntryDTO[]
 }
 
-// ── Writes ──────────────────────────────────────────────────────────────────────────────────────
-
-/** PUT /shop/v1/orders/{id}/tags — the ABSOLUTE set, so a retry is idempotent. */
-export interface ShopOrderTagsRequest {
-  tags: string[]
-}
-
-/** POST /shop/v1/orders/{id}/notes. */
-export interface ShopOrderNoteRequest {
-  body: string
-}
-
-/**
- * POST /shop/v1/orders/{id}/picks — item-level picking. `full` ticks the whole line, `none` clears it,
- * `part` records `units` picked (the rest is short), `unavailable` none. The note is optional.
- */
+/** POST /shop/v1/orders/{id}/picks: item-level picking. `full` ticks the line, `none` clears it, `part` records `units` picked (the rest is short), `unavailable` none. */
 export interface ShopOrderPicksRequest {
   lines: {
     orderItemId: string
@@ -362,7 +291,7 @@ export interface ShopOrderPicksRequest {
   }[]
 }
 
-/** Tag limits, shared so the console refuses exactly what the service refuses. */
+/** Tag limits, shared so the console refuses what the service refuses. */
 export const SHOP_ORDER_TAG_MAX = 10
 export const SHOP_ORDER_TAG_MAX_LENGTH = 32
 export const SHOP_ORDER_NOTE_MAX_LENGTH = 2000

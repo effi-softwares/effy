@@ -2,13 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 069 US4 — the driver sees the window the customer was sold, against the REAL migrations.
- *
- * `DeliveryDropSummary.window` has existed since 049 and was hard-coded null: no window was ever
- * sold. This proves it now comes from the ORDER's own packages, that earlier windows are ordered
- * first through the ONE shared ordering rule, and that an order placed before 069 still says nothing.
- */
+/** The drop's window comes from the order's packages, earlier first by the shared ordering rule. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -20,7 +14,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { deliveryDrop } from "./delivery";
 import { NotFoundError, deliveryRun } from "./service";
@@ -54,7 +48,7 @@ async function makeRound(driverId: string): Promise<string> {
   )).id;
 }
 
-/** A customer drop on a round. `window` null is an order placed before 069. */
+/** `window` null means none was sold. */
 async function addDrop(
   roundId: string,
   suburb: string,
@@ -67,11 +61,11 @@ async function addDrop(
   );
   const order = await one<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount,
-                                 delivery_address, status)
+                                 delivery_address, status, delivery_type, delivery_type_reason)
      VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 10, 12,
              jsonb_build_object('recipientName', 'Pat', 'line1', '1 Test St', 'city', $2::text,
                                 'postalCode', '3053', 'region', 'VIC'),
-             'paid') RETURNING id`,
+             'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust.id, suburb],
   );
   const drop = await one<{ id: string }>(
@@ -111,8 +105,8 @@ async function addDrop(
   return drop.id;
 }
 
-const EARLY = { start: "2026-10-08T06:00:00.000Z", end: "2026-10-08T08:00:00.000Z" }; // 5–7 pm AEDT
-const LATE = { start: "2026-10-08T08:00:00.000Z", end: "2026-10-08T10:00:00.000Z" }; //  7–9 pm AEDT
+const EARLY = { start: "2026-10-08T06:00:00.000Z", end: "2026-10-08T08:00:00.000Z" };
+const LATE = { start: "2026-10-08T08:00:00.000Z", end: "2026-10-08T10:00:00.000Z" };
 
 d("069 — the delivery window on the driver's work", () => {
   beforeAll(async () => {
@@ -144,7 +138,7 @@ d("069 — the delivery window on the driver's work", () => {
 
     const drop = await deliveryDrop(dropId, driverId);
     expect(drop.deliveryWindow).toEqual({ startAt: EARLY.start, endAt: EARLY.end });
-    // The label is the server's, in Melbourne time — the app never formats a time itself.
+    // The server's label, in Melbourne time.
     expect(drop.window).toBe("5 pm – 7 pm");
   });
 
@@ -170,7 +164,7 @@ d("069 — the delivery window on the driver's work", () => {
   it("⚠ the round lists earlier windows first, and labels each in Melbourne time", async () => {
     const driverId = await makeDriver();
     const roundId = await makeRound(driverId);
-    // Inserted LATE first, so insertion order cannot be what puts EARLY on top.
+    // Inserted late first, so insertion order cannot explain the result.
     await addDrop(roundId, "Late Suburb", LATE);
     await addDrop(roundId, "No Window", null);
     await addDrop(roundId, "Early Suburb", EARLY);

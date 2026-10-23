@@ -7,13 +7,7 @@ import { requireStaff } from "../lib/guard";
 import { NOT_FOUND, VALIDATION_FAILED } from "../lib/problems";
 import { getOrder } from "../orders/service";
 
-/**
- * GET /orders/v1/orders/{orderId} — the back-office order detail (053 US1).
- *
- * ⚠ NO OWNERSHIP SCOPING, and that is the difference between this and the customer's own
- * `GET /commerce/v1/orders/{id}`. Staff read EVERY order; the gate is that they are staff.
- * The customer's route scopes to their own record and must keep doing so.
- */
+/** No ownership scoping: staff read every order. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

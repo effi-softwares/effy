@@ -32,7 +32,7 @@ vi.mock("./media", () => ({
   presignUpload: async () => ({ uploadUrl: "u", storageKey: "k" }),
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { createProduct, getProduct, updateProduct } from "./service";
 
@@ -75,7 +75,7 @@ d("096 US9 — a product's GST status, set by the shop", () => {
     await expect(updateProduct(shopId, created.id, { expectedUpdatedAt: fresh.updatedAt, gstStatus: "zero" }, "sub-sam"))
       .rejects.toMatchObject({ kind: "validation" });
 
-    // Live: the change is proposed, the live status is untouched until review.
+    // Live: the change is proposed; the live status waits for review.
     await pool.query(`UPDATE public.product SET approved_at = now(), status = 'active' WHERE id = $1`, [created.id]);
     await updateProduct(shopId, created.id, { gstStatus: "gst_free" }, "sub-sam");
     const live = await getProduct(shopId, created.id);

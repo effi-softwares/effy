@@ -14,24 +14,19 @@ plugins {
     alias(libs.plugins.firebaseCrashlytics) apply false
 }
 
-// ── Build-time configuration contract (049, per 013/014 D14) ───────────────────────────────────────
+// Build-time configuration: every value the app needs to reach an environment comes from a git-ignored
+// `secrets.properties` (or environment variables, which win, so CI needs no file). No
+// `amplifyconfiguration.json` exists: the Amplify config is built in code from these constants.
 //
-// Every value the driver app needs to reach an environment is supplied HERE, at build time, from a
-// git-ignored `secrets.properties` (or environment variables, which win — so CI needs no file). None
-// of it is committed, and NO `amplifyconfiguration.json` is shipped: the Amplify config string is
-// built in code from these constants (D12).
-//
-// FR-041 — a MISSING key FAILS THE BUILD, naming what is missing, at CONFIGURATION time. BuildKonfig
-// would happily bake in null/"" — so the check lives HERE, before it.
-//
-// FR-042 — none of these is a secret. A pool id / client id is a NAME, not a key. The app client has
-// NO client secret (generate_secret = false). `scripts/mobile-guard.sh` asserts no key is secret-shaped.
+// A missing key fails the build at configuration time, naming it (BuildKonfig would bake in null/"").
+// None is a secret (pool and client ids are names; the app client has no secret);
+// `scripts/mobile-guard.sh` refuses secret-shaped key names.
 
 val requiredKeys = listOf(
-    "COGNITO_USER_POOL_ID",   // the DRIVER pool — a NAME, not a key
-    "COGNITO_APP_CLIENT_ID",  // the DRIVER MOBILE client id — a NAME, not a key; NO client secret
+    "COGNITO_USER_POOL_ID",   // the driver pool — a name, not a key
+    "COGNITO_APP_CLIENT_ID",  // the driver mobile client id — a name, not a key; NO client secret
     "COGNITO_REGION",
-    "DRIVER_API_BASE_URL",    // edge-api/driver — the ONLY backend this app calls
+    "DRIVER_API_BASE_URL",    // edge-api/driver — the only backend this app calls
 )
 
 val secretsFile = rootProject.file("secrets.properties") // git-ignored
@@ -59,17 +54,17 @@ if (missingKeys.isNotEmpty()) {
     )
 }
 
-// Exposed to the :shared module's BuildKonfig block (shared/build.gradle.kts).
+// Exposed to the:shared module's BuildKonfig block (shared/build.gradle.kts).
 //
-// DISPATCH_PHONE / HUB_DESK_PHONE / HANDBOOK_URL are the Help screen's contacts. ⚠ They are real-world
-// identifiers a driver will dial, so they are OPERATOR-SUPPLIED and have no default: left blank, the
+// DISPATCH_PHONE / HUB_DESK_PHONE / HANDBOOK_URL are the Help screen's contacts. They are real-world
+// identifiers a driver will dial, so they are operator-supplied and have no default: left blank, the
 // app says the contact is not set up rather than showing a number nobody chose.
 val optionalKeys = listOf(
     "POSTHOG_KEY", "POSTHOG_HOST", "TELEMETRY_ENABLED",
     "DISPATCH_PHONE", "HUB_DESK_PHONE", "HANDBOOK_URL",
 )
 
-// 050 — OPTIONAL telemetry config; missing values bake in "" so telemetry stays a no-op (FR-027).
+// Optional telemetry config; missing values bake in "" so telemetry stays a no-op.
 extra["effyConfig"] =
     requiredKeys.associateWith { configValue(it)!! } +
         optionalKeys.associateWith { configValue(it) ?: "" }

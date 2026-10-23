@@ -1,8 +1,7 @@
-// The delivery quote a shopper sees before paying, and its wire form (077–079).
 import { emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, pooled, type Queryable } from "@effy/edge-shared";
 import {
   basketValueCents, feeDTO, normalizePostcode, quote as deliveryQuote,
-  storedBreakdown, windowKey, type EffyWindowsQuote, type PackageInput, type PricedFee, type QuoteResult,
+  windowKey, type EffyWindowsQuote, type PackageInput, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
 import type { DeliveryQuoteDTO, EffyWindowsDTO } from "@effy/shared-types";
 
@@ -10,19 +9,13 @@ import { isUuid } from "../lib/ids";
 import type { Pricing } from "../promotions/pricing";
 import type { CheckoutLine, CheckoutStore } from "./store";
 
-/**
- * The least a card can be charged (AUD). ⚠ A FIXED PROVIDER FACT, not a business setting: below it the
- * provider refuses the intent, so a points total that leaves 30¢ for the card is refused up front with
- * the most points that leave a chargeable amount (research R4).
- */
+/** The provider's minimum card charge (AUD), so a points total cannot leave less on the card. */
 export const CARD_MINIMUM_CENTS = 50;
 
-/** How long a captured quote is honoured. */
 export const QUOTE_VALIDITY_MS = 30 * 60_000;
 
 export class AddressNotFoundError extends Error {}
 
-/** `basketCents` is the basket's value for the fee's basket rules — `basketValueCents(...)`. */
 export type DeliveryQuoter = (
   customerId: string | null, postcode: string, pkgs: readonly PackageInput[], now: Date, basketCents: number,
 ) => Promise<QuoteResult>;
@@ -30,12 +23,7 @@ export type DeliveryQuoter = (
 export const defaultQuoter = (db: Queryable = pooled): DeliveryQuoter => (customerId, postcode, pkgs, now, basketCents) =>
   deliveryQuote(db, customerId, postcode, pkgs, now, basketCents);
 
-/**
- * 094 — the cart's promotions priced through the ONE engine, for a set of checkout lines. The quote
- * needs it for the same reason the intent does: free delivery and the small-order fee are judged on
- * the basket AFTER promotions (077 FR-005), and a quote that judged it before would promise a free
- * delivery the intent then charges for.
- */
+/** Free delivery and the small-order fee are judged after promotions, as the intent judges them. */
 export type PromoSource = (input: {
   customerId: string;
   lines: readonly CheckoutLine[];
@@ -45,28 +33,20 @@ export type PromoSource = (input: {
   excludeOrderId?: string | null;
 }) => Promise<Pricing>;
 
-/** The destination postcode from an address snapshot; null when it is missing or malformed. */
 export function destinationPostcode(address: Record<string, unknown>): string | null {
   return typeof address.postalCode === "string" ? normalizePostcode(address.postalCode) : null;
 }
 
-/**
- * The cart lines grouped into per-shop packages, each with its total weight
- * (Σ unit weight × quantity). Order is first appearance, so a package's position is stable.
- */
+/** Lines grouped into per-shop packages with total weight, in first-appearance order. */
 export function packagesFromLines(lines: readonly CheckoutLine[]): PackageInput[] {
   const grams = new Map<string, number>();
   for (const l of lines) grams.set(l.shopId, (grams.get(l.shopId) ?? 0) + l.weightGrams * l.quantity);
   return [...grams].map(([shopId, g]) => ({ shopId, grams: g }));
 }
 
-type SellableQuote = Extract<QuoteResult, { serviced: true }>;
-
 /**
- * 078 — the windows as the client receives them: today under `same_day`, every later day under
- * `standard`, each window with the order's charge and what it adds over a plain later day.
- *
- * ⚠ OPEN WINDOWS ONLY. A full window is absent — never sent with a flag or a count (069 FR-050).
+ * Today under `same_day`, later days under `standard`, each window with its charge and what it adds
+ * over a plain later day. Full windows are absent, never flagged.
  */
 export function toEffyWindowsDTO(w: EffyWindowsQuote, baseFee: PricedFee): EffyWindowsDTO {
   const windowDTO = (s: EffyWindowsQuote["days"][number]["windows"][number], date: string) => {
@@ -83,32 +63,21 @@ export function toEffyWindowsDTO(w: EffyWindowsQuote, baseFee: PricedFee): EffyW
       section: d.isToday ? "same_day" : "standard",
       windows: d.windows.map((s) => windowDTO(s, d.date)),
       closedReason: d.closedReason,
-      // 085 — ⚠ NEVER TODAY: today's Any-time window is the server's own, for an "as soon as
-      // possible" order, and is not sent.
+      // Never today's: that one is the server's own, for asap orders.
       anyTime: !d.isToday && d.anyTime ? windowDTO(d.anyTime, d.date) : null,
     })),
     unavailable: w.unavailable,
-    // 085 — ⚠ No day: which one it lands on is never the customer's to know.
+    // No day: where an asap order lands is never told to the customer.
     asap: w.asap ? { estimate: w.asap.estimate, fee: feeDTO(w.asap.fee) } : null,
   };
 }
 
-/**
- * The quote as the client receives it: who delivers, and then either the windows to choose from or
- * the courier's estimate and fee.
- *
- * ⚠ NOTHING ABOUT HOW THE ORDER SPLITS — no package list, no shop (hidden fulfilment). ⚠ Windows
- * carry no capacity: a window's fullness is Effy's business. ⚠ The fee is the ORDER's (077): lines
- * and a total, and nothing about distance, weight or the plan.
- */
+/** No package list or shop, no window capacity, and no fee inputs: only lines and a total. */
 export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): DeliveryQuoteDTO {
   if (!q.serviced) return { postcode, serviced: false, coverage: "none", expiresAt: "" };
-  // ⚠ With the Melbourne offset, like every other time in this document (069 FR-029).
   const expiresAt = operatingStamp(new Date(now.getTime() + QUOTE_VALIDITY_MS));
   const freeDeliveryRemainingAmount = q.freeDeliveryRemainingCents === null ? null : formatCents(q.freeDeliveryRemainingCents);
   if (q.coverage === "courier") {
-    // 079 — a courier delivers. NOTHING TO CHOOSE: what the customer is told and charged is in
-    // `courier`. ⚠ No distance, no courier company.
     return {
       postcode, serviced: true, coverage: "courier", expiresAt, freeDeliveryRemainingAmount,
       courier: { estimate: q.estimate, fee: feeDTO(q.fee), reason: q.reason },
@@ -120,25 +89,6 @@ export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): Deliver
   };
 }
 
-/**
- * What is captured on the order: the SHOP-keyed quote, for the platform's own later use — every
- * delivery charge the shopper was offered, with how it was built.
- */
-export function capturedQuote(q: SellableQuote) {
-  // 079 — a courier order: the one charge it was offered, the estimate it was told, and why.
-  if (q.coverage === "courier") {
-    return { serviced: true, coverage: "courier", reason: q.reason, estimate: q.estimate, fee: storedBreakdown(q.fee) };
-  }
-  return {
-    serviced: true,
-    coverage: "effy",
-    shopIds: q.shopIds,
-    // Every window offered, on every day, with how its charge was built.
-    windowFees: [...q.effyWindows.fees].map(([key, fee]) => ({ date: key.split("|")[1], ...storedBreakdown(fee) })),
-  };
-}
-
-/** Quote delivery for the shopper's current cart to one of their addresses. Reads only. */
 export async function quoteForCheckout(
   deps: { store: CheckoutStore; quoter: DeliveryQuoter; promos: PromoSource },
   customerId: string,
@@ -152,33 +102,25 @@ export async function quoteForCheckout(
   if (!postcode) throw new AddressNotFoundError();
 
   const lines = await deps.store.cartLines(customerId);
-  // The basket as the fee judges it: goods after the cart's promotion — the same two figures the
-  // intent uses, so the quote and the charge cannot disagree about free delivery.
+  // Goods after promotions, as the intent judges them, so quote and charge agree on free delivery.
   const itemSubtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.quantity, 0);
   const priced = await deps.promos({ customerId, lines, deliveryType: null, deliveryFeeCents: null, now });
   const [delivery, points] = await Promise.all([
     deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, priced.outcome.goodsDiscountCents)),
     deps.store.pointsFor(customerId, now),
   ]);
-  // ⚠ A page, not a number to watch (078 FR-020): a covered address and not one window switched on.
-  // Emitted HERE, on the read — a shopper who is shown "no windows" never reaches the intent call.
+  // Emitted on the read: a shopper shown no windows never reaches the intent.
   if (delivery.serviced && delivery.coverage === "effy" && delivery.effyWindows.unavailable === "none_defined") emitMetric(metricNamespace(), "EffyWindowsNoneDefined");
   return {
     ...withDeliveryPromotions(toQuoteDTO(postcode, delivery, now), priced),
-    // 074 — what the shopper can spend. ABSENT when they have none, so the control is not shown.
-    // ⚠ The order total depends on the delivery choice still to be made, so the CLIENT works out the
-    // most for this order; the intent call re-decides it and refuses what it cannot honour.
+    // Absent when the shopper has none. The client works out the most usable; the intent re-decides.
     ...(points.usable > 0
       ? { points: { usable: points.usable, centsPerPoint: points.centsPerPoint, cardMinimumAmount: formatCents(CARD_MINIMUM_CENTS) } }
       : {}),
   };
 }
 
-/**
- * 094 — every fee in a quote says what this shopper's delivery promotions take off it, so a client
- * shows "Free delivery" on the option it applies to and the total it will be charged. The courier
- * option is priced as courier, every other as Effy. A quote with no delivery promotion is unchanged.
- */
+/** Each fee says what this shopper's delivery promotions take off it. */
 export function withDeliveryPromotions<T>(dto: T, priced: Pricing): T {
   const reprice = priced.reprice;
   if (!reprice) return dto;

@@ -1,8 +1,6 @@
-// Module-singleton pg.Pool — ONE connection per warm container (research C4): a Node
-// Lambda container serves one invocation at a time, so max > 1 is pure waste against
-// the shared t4g.micro's ~85-connection budget. Pool (not bare Client) so an
-// idle-killed connection is replaced transparently between invocations. TLS pins the
-// RDS CA (002 forces TLS; bare `ssl: true` fails against the RDS chain).
+// One pg.Pool connection per warm container (a Lambda serves one invocation at a time, and the shared
+// database's connection budget is small). A Pool replaces an idle-killed connection transparently. TLS
+// pins the RDS ca.
 import pg from "pg";
 
 import { RDS_CA_BUNDLE } from "./rds-ca";
@@ -28,8 +26,7 @@ async function getPool(): Promise<pg.Pool> {
     max: 1,
     min: 0,
     idleTimeoutMillis: 120_000,
-    // MUST stay below the 10s function timeout: a dead DB then fails through OUR
-    // error mapping (problem+json / health 503) instead of a gateway timeout.
+    // Below the 10 s function timeout, so a dead database fails through our error mapping.
     connectionTimeoutMillis: 5_000,
     ssl: { ca: RDS_CA_BUNDLE, rejectUnauthorized: true },
   });
@@ -43,12 +40,7 @@ async function resetPool(): Promise<void> {
   await dead?.end().catch(() => undefined);
 }
 
-/**
- * The database refused the connection because this role (or the server) has no connections left
- * (070 FR-030). Shopper-facing services connect as a role with a connection limit, so a shopper
- * burst lands HERE — fast, at the database — instead of taking the connections staff, shop and
- * driver services share. `shopperHandler` answers it as a retryable 503.
- */
+/** No connections left for this role (or the server): shopper services land here first, answered as a retryable 503. */
 export class ConnectionLimitError extends Error {
   constructor() {
     super("db: connection limit reached");
@@ -57,17 +49,16 @@ export class ConnectionLimitError extends Error {
 }
 
 export function isConnectionLimit(err: unknown): boolean {
-  // 53300 too_many_connections — raised for the server-wide limit AND for a role's CONNECTION LIMIT.
+  // 53300 too_many_connections: the server-wide limit and a role's connection limit.
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "53300";
 }
 
 function isAuthFailure(err: unknown): boolean {
-  // 28P01 invalid_password — the signature of a rotated credential (research C6).
+  // 28P01 invalid_password: a rotated credential.
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "28P01";
 }
 
-// query is the repository layer's single seam: parameterized raw SQL only (no ORM,
-// no query builder). One transparent retry on credential rotation.
+// The repository's single seam: parameterised raw SQL, one transparent retry on credential rotation.
 export async function query<R extends pg.QueryResultRow>(
   text: string,
   values?: unknown[],
@@ -82,9 +73,7 @@ export async function query<R extends pg.QueryResultRow>(
   }
 }
 
-// withTransaction runs fn against a dedicated client inside BEGIN/COMMIT (ROLLBACK on throw).
-// Used for multi-statement atomic writes (the staff JIT upsert + role reconcile, 005). The
-// max:1 pool means the client is the container's single connection for the transaction's life.
+// Runs fn on a dedicated client inside begin/commit (rollback on throw).
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
@@ -108,17 +97,12 @@ export async function withTransaction<T>(
   }
 }
 
-// pingDatabase is the health check's dependency probe — SELECT 1, no table dependency
-// (the 2s budget is enforced by the caller). Shared by every service's /<service>/healthz.
+// The health check's probe: SELECT 1 (the caller enforces the 2 s budget).
 export async function pingDatabase(): Promise<void> {
   await query("SELECT 1");
 }
 
-/**
- * What a repository needs from a connection: run one statement. The module pool satisfies it
- * (`pooled`), and so does the client a transaction hands out — so one repository function serves a
- * plain read and a read under a row lock without knowing which it is.
- */
+/** Run one statement: the pool (`pooled`) or a transaction's client, so one repository function serves both. */
 export interface Queryable {
   query<R extends pg.QueryResultRow = pg.QueryResultRow>(
     text: string,
@@ -126,17 +110,12 @@ export interface Queryable {
   ): Promise<pg.QueryResult<R>>;
 }
 
-/** The module pool as a `Queryable`. */
 export const pooled: Queryable = { query };
 
-/** Runs `fn` inside one transaction on one connection: COMMIT on return, ROLLBACK on throw. */
+/** Commit on return, rollback on throw. */
 export type Transactor = <T>(fn: (tx: Queryable) => Promise<T>) => Promise<T>;
 
-/**
- * A `Transactor` over a specific pool. The module pool's is `withTransaction`; this exists so a
- * repository under a real-database test runs its transactions against the test's own database
- * rather than the module pool it cannot configure.
- */
+/** Over a specific pool, so a real-database test runs transactions against its own database. */
 export function transactorFor(pool: pg.Pool): Transactor {
   return async (fn) => {
     const client = await pool.connect();

@@ -1,22 +1,12 @@
-/**
- * `userPoolId` → audience (research R8).
- *
- * One deployment serves all four pools, so per-audience differences are a branch rather than four
- * copies of the service. `event.userPoolId` is in the common trigger parameters, which is what
- * makes this possible at all.
- *
- * ⚠ FAIL CLOSED ON AN UNKNOWN POOL. If a pool id does not resolve, something has been wired that
- * this code was never reviewed against — the safe answer is to refuse, not to guess a default and
- * start emailing codes on behalf of an audience nobody signed off.
- */
+/** `userPoolId` → audience. One deployment serves four pools. An unknown pool fails closed. */
 
 export type Audience = "customer" | "driver" | "shop" | "back-office";
 
 export interface AudienceProfile {
   readonly audience: Audience;
-  /** Appears in the subject line. Internal staff and shoppers are addressed differently. */
+  /** Appears in the subject line. */
   readonly productName: string;
-  /** Internal audiences are employees on provisioned accounts; customers are the public. */
+  /** Internal audiences are employees; customers are the public. */
   readonly internal: boolean;
 }
 
@@ -27,10 +17,7 @@ const PROFILES: Record<Audience, AudienceProfile> = {
   "back-office": { audience: "back-office", productName: "Effy Back-Office", internal: true },
 };
 
-/**
- * Built once per container from the env, so a warm invocation does no work here.
- * The four ids are injected by Terraform via SSM — see `serverless.yml`.
- */
+/** Built once per container from env (SSM, via serverless.yml). */
 function buildIndex(): ReadonlyMap<string, AudienceProfile> {
   const index = new Map<string, AudienceProfile>();
   const pairs: ReadonlyArray<readonly [string | undefined, Audience]> = [
@@ -47,13 +34,12 @@ function buildIndex(): ReadonlyMap<string, AudienceProfile> {
 
 let index: ReadonlyMap<string, AudienceProfile> | undefined;
 
-/** `null` when the pool is not one of ours — callers must treat that as a refusal. */
+/** `null` when the pool is not ours: callers must refuse. */
 export function audienceForPool(userPoolId: string): AudienceProfile | null {
   index ??= buildIndex();
   return index.get(userPoolId) ?? null;
 }
 
-/** Test seam — the env is read once per container, so a test must be able to reset it. */
 export function resetAudienceIndexForTests(): void {
   index = undefined;
 }

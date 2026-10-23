@@ -202,7 +202,7 @@ private fun RowIcon(look: RowLook) {
 private fun Chevron() = DriverIcon(Res.drawable.lucide_chevron_right, size = 18.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
 
 /**
- * A past record (canvas `HistoryRun`, `HistoryDrop`). ⚠ The proof photo is shown — it is what the
+ * A past record (canvas `HistoryRun`, `HistoryDrop`). The proof photo is shown — it is what the
  * driver needs when a customer says the parcel never came. A run has no proof section.
  */
 @Composable

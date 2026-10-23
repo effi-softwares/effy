@@ -2,35 +2,28 @@ import type { AuthedEvent } from "@effy/edge-shared";
 import type { Context } from "aws-lambda";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Mock the DB seam, not the gate: gate() calls resolveActor() internally, and under ESM an
-// internal call is unaffected by mocking the module's export. Driving the real gate through
-// `query` also means these tests exercise the actual authorization path rather than a stand-in.
+// The DB seam is mocked, not the gate, so the real authorization path runs.
 const query = vi.hoisted(() => vi.fn());
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@effy/edge-shared")>()),
   query,
 }));
 
-/** The gate resolves an active member of an active shop. */
 const grants = () => query.mockResolvedValue({ rows: [{ staff_id: "staff-1", shop_id: "shop-1" }] });
-/** Uniform deny — disabled, unassigned, or inactive shop all collapse to no row. */
+/** Disabled, unassigned or inactive shop all collapse to no row. */
 const denies = () => query.mockResolvedValue({ rows: [] });
 
 const listQueue = vi.hoisted(() => vi.fn());
 const getDetail = vi.hoisted(() => vi.fn());
 const transition = vi.hoisted(() => vi.fn());
-const updateItemProgress = vi.hoisted(() => vi.fn());
-const collectViaStub = vi.hoisted(() => vi.fn());
 vi.mock("../fulfillments/service", () => ({
   listQueue,
   getDetail,
   transition,
-  updateItemProgress,
-  collectViaStub,
 }));
 
 import { handler as getOne } from "./fulfillment-get-v1-get";
-import { handler as postPickup } from "./fulfillment-pickup-v1-post";
+
 import { handler as postStatus } from "./fulfillment-status-v1-post";
 import { handler as listAll } from "./fulfillments-list-v1-get";
 import { FulfillmentError } from "../fulfillments/types";
@@ -56,7 +49,6 @@ function event(
     requestContext: { requestId: "req-1", authorizer: { jwt: { claims } } },
   } as unknown as AuthedEvent;
 }
-
 
 const DETAIL = {
   id: "f-1",
@@ -88,10 +80,9 @@ const DETAIL = {
   ],
 };
 
-// Reset AFTER each test — clearing a mock whose previous call rejected orphans vitest's
-// result-tracking promise and surfaces as a spurious unhandled error.
+// Reset after each test: clearing a mock whose last call rejected surfaces as an unhandled error.
 afterEach(() => {
-  for (const m of [query, listQueue, getDetail, transition, updateItemProgress, collectViaStub]) {
+  for (const m of [query, listQueue, getDetail, transition]) {
     m.mockReset();
   }
 });
@@ -124,8 +115,7 @@ describe("authorization — uniform and fail-closed (FR-019, FR-020, SC-008)", (
     expect(res.headers?.["content-type"]).toBe("application/problem+json");
   });
 
-  // Every denial reason — disabled operator, unassigned, inactive shop — collapses to the same
-  // falsity in the resolver, so the wire response cannot distinguish them.
+  // Every denial reason collapses to the same response.
   it("discloses nothing about which authorization term failed", async () => {
     denies();
     const res = (await listAll(event({ sub: "s" }), ctx)) as { body: string };
@@ -137,7 +127,7 @@ describe("authorization — uniform and fail-closed (FR-019, FR-020, SC-008)", (
     expect(body).not.toHaveProperty("errors");
   });
 
-  // FAIL CLOSED — an authorization check that throws is never a grant.
+  // Fail closed.
   it("returns 503, not 200, when the authorization check itself fails", async () => {
     query.mockImplementation(async () => {
       throw new Error("connection terminated");
@@ -167,7 +157,6 @@ describe("GET /shop/v1/fulfillments — the queue (US1)", () => {
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), "completed");
   });
 
-  // An unrecognised value must never silently widen the result set.
   it("falls back to the active queue for an unrecognised state", async () => {
     grants();
     listQueue.mockResolvedValue([]);
@@ -191,8 +180,7 @@ describe("GET /shop/v1/fulfillments/{id} — the pick screen (US2)", () => {
     expect(JSON.parse(res.body).items).toHaveLength(1);
   });
 
-  // SC-007: response codes must not be usable to enumerate other shops' portions, so another
-  // shop's id and a nonexistent id must look identical — both 403, never 404.
+  // Another shop's id and a missing id are both 403.
   it("returns 403 (not 404) for a portion outside the caller's shop", async () => {
     grants();
     getDetail.mockImplementation(async () => {
@@ -205,7 +193,7 @@ describe("GET /shop/v1/fulfillments/{id} — the pick screen (US2)", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  // SC-007 / FR-008 — the wire must carry no payment data and no order-level total.
+  // No payment data and no order-level total on the wire.
   it("emits no payment field and no order total", async () => {
     grants();
     getDetail.mockResolvedValue(DETAIL);
@@ -239,15 +227,11 @@ describe("POST /shop/v1/fulfillments/{id}/status — transitions (US3)", () => {
     )) as { statusCode: number };
 
     expect(res.statusCode).toBe(200);
-    // ⚠ The trailing `undefined` is the 055 reason — required only for `unfulfillable`.
+    // The trailing `undefined` is the reason, required only for `unfulfillable`.
     expect(transition).toHaveBeenCalledWith(expect.anything(), "f-1", "ready_for_pickup", undefined);
   });
 
-  // `received` is implicit on open and `collected` belongs to the stub — neither is requestable
-  // over this endpoint, so a client cannot use it to skip or forge a state.
-  //
-  // ⚠ 055 — `withdrawn` is in this list and must stay: it is written by the platform's cancellation when an ORDER is
-  // cancelled, and a shop asserting it would be claiming a customer cancelled.
+  // Neither `received` nor `collected` is requestable here; `withdrawn` must stay refused too.
   it.each(["received", "collected", "withdrawn", "pending", "nonsense", 42, null])(
     "rejects %s as a target state",
     async (to) => {
@@ -279,43 +263,6 @@ describe("POST /shop/v1/fulfillments/{id}/status — transitions (US3)", () => {
   it("requires a body", async () => {
     grants();
     const res = (await postStatus(event({ sub: "s" }, { path: { id: "f-1" } }), ctx)) as {
-      statusCode: number;
-    };
-    expect(res.statusCode).toBe(400);
-  });
-});
-
-describe("the pickup stub handler — ⚠ dev-only (US3a)", () => {
-  // The handler exists and is authorized like any other. Its containment is that NO ROUTE points at
-  // it in any stage (serverless.yml), which is asserted separately by the deployment probe (SC-013).
-  it("still enforces authorization when invoked directly", async () => {
-    denies();
-
-    const res = (await postPickup(
-      event({ sub: "s" }, { path: { id: "f-1" }, body: { driverRef: "d" } }),
-      ctx,
-    )) as { statusCode: number };
-    expect(res.statusCode).toBe(403);
-    expect(collectViaStub).not.toHaveBeenCalled();
-  });
-
-  it("collects a ready portion with a placeholder driver reference", async () => {
-    grants();
-    collectViaStub.mockResolvedValue({ ...DETAIL, status: "collected" });
-
-    const res = (await postPickup(
-      event({ sub: "s" }, { path: { id: "f-1" }, body: { driverRef: "test-driver-1" } }),
-      ctx,
-    )) as { statusCode: number };
-
-    expect(res.statusCode).toBe(200);
-    expect(collectViaStub).toHaveBeenCalledWith(expect.anything(), "f-1", "test-driver-1");
-  });
-
-  it("requires a driver reference", async () => {
-    grants();
-
-    const res = (await postPickup(event({ sub: "s" }, { path: { id: "f-1" }, body: {} }), ctx)) as {
       statusCode: number;
     };
     expect(res.statusCode).toBe(400);

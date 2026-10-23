@@ -29,8 +29,7 @@ const RECORD = {
 };
 
 describe("GET /shop/v1/me", () => {
-  // Reset AFTER each test, not before: clearing a mock whose previous call rejected orphans
-  // vitest's result-tracking promise, which then surfaces as a spurious unhandled error.
+  // Reset after each test: clearing a mock whose last call rejected surfaces as an unhandled error.
   afterEach(() => recordAndLoad.mockReset());
 
   it("records the operator and returns the platform record", async () => {
@@ -41,7 +40,7 @@ describe("GET /shop/v1/me", () => {
     expect(JSON.parse(res.body as string)).toEqual(RECORD);
   });
 
-  // /me ADMITS role-less callers — its job is to record them. Gating lives on manager-ping.
+  // /me admits role-less callers: its job is to record them.
   it("admits and records a role-less operator", async () => {
     recordAndLoad.mockResolvedValue({ ...RECORD, roles: [], shop: null });
     const res = await handler(event({ sub: "sub-1" }), ctx);
@@ -61,7 +60,7 @@ describe("GET /shop/v1/me", () => {
 
   it("passes a null email through when the token carries no address (research R6)", async () => {
     recordAndLoad.mockResolvedValue({ ...RECORD, email: null });
-    // `username` is a UUID on an email-as-username pool — not an address.
+    // `username` is a UUID on an email-as-username pool.
     await handler(event({ sub: "sub-1", username: "9f2c-uuid-not-an-email" }), ctx);
     expect(recordAndLoad).toHaveBeenCalledWith("sub-1", null, expect.anything());
   });

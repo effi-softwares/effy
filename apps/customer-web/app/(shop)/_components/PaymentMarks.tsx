@@ -3,8 +3,8 @@ export const PAYMENT_MARKS = ["VISA", "MASTERCARD", "AMEX", "Apple Pay", "G Pay"
 /**
  * What checkout accepts, as text in a box (reference: footer, product page, order summary).
  *
- * ⚠ Not the schemes' logos: these say which ways to pay exist without shipping six third-party assets
- * on every page. Whether a given wallet or pay-later option is offered to THIS customer on THIS device
+ * Not the schemes' logos: these say which ways to pay exist without shipping six third-party assets
+ * on every page. Whether a given wallet or pay-later option is offered to this customer on this device
  * is the payment provider's decision at checkout, not a promise made here.
  */
 export function PaymentMarks({ className }: { className?: string }) {

@@ -7,15 +7,7 @@ import { NotCancellableError, RefundOrderNotFoundError, refundProblem } from "@e
 import { requireWriter } from "../lib/guard";
 import { refundService } from "../lib/money";
 
-/**
- * POST /orders/v1/orders/{orderId}/cancel — back-office cancels an order (055 FR-018).
- *
- * ⚠ STAFF HAVE NO "BEFORE PICKING" LIMIT: a phone call arrives after the customer's own control
- * has closed, and someone has to be able to honour it. What nobody can do is cancel after
- * collection — the goods have left the shop and somebody is carrying them.
- *
- * Write gate admin|manager; already cancelled answers 200.
- */
+/** Admin/manager. No "BEFORE PICKING" limit for staff, but never after collection. Already cancelled is 200. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireWriter(event, context);
   if (!guard.ok) return guard.response;

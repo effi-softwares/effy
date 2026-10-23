@@ -1,6 +1,4 @@
-# edge-admin — Effy back-office/admin service (004-backend-bootstrap A3; hosts the
-# 005 back-office console's endpoints). Attaches to the Terraform-owned STAFF HTTP API
-# (075; docs/api/shared-gateway.md): NO API/stage/CORS/authorizers here. Routes live under /admin/.
+# Back-office admin routes on the staff gateway, under /admin/.
 service: effy-edge-admin
 frameworkVersion: "3"
 
@@ -11,7 +9,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -25,13 +22,7 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # ⚠ 049 — the admin service has grown to 94 functions; with a Lambda Version per function the stack
-  # hit CloudFormation's hard 500-resource limit (511) when the driver-management routes landed. We
-  # publish no aliases and use no provisioned concurrency, and every httpApi integration invokes the
-  # unqualified ($LATEST) ARN — so per-deploy Versions are dead weight. Turning them off removes ~94
-  # resources with zero runtime change (routing is unaffected; existing Version resources are cleaned
-  # up on the next deploy). The real long-term lever if it grows again is nested stacks
-  # (serverless-plugin-split-stacks), deferred until needed.
+  # Every integration invokes $latest, so per-deploy Versions would only spend CloudFormation resources.
   versionFunctions: false
   tags:
     project: effy
@@ -42,8 +33,7 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
@@ -51,26 +41,14 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Shop-pool provisioning (009): the pool id the shops slice creates users in. Resolved from
-    # the auth contract at deploy time — never hard-coded (R3).
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
-    # Promotional banner artwork (028). The SAME bucket product media uses — banners live under a
-    # `promotions/` prefix rather than in a bucket of their own, so one bucket policy and one
-    # lifecycle rule cover all operator-uploaded imagery.
+    # Operator-uploaded imagery shares the product media bucket, under `promotions/`.
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
-    # 095 — promotion pictures' public address (publicImageUrl), for back-office's previews.
     MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
-    # Email deliverability (037). The sending domain is what the hourly MAIL FROM probe inspects;
-    # the alerts topic is what every alarm below notifies. Both from the SSM contract — never a
-    # literal (contracts/ssm-mail.contract.md).
+    # The sending domain the mail from probe inspects, and the alerts topic; both from SSM.
     MAIL_SENDING_DOMAIN: ${sls:stage}.effyshopping.com
     MAIL_ALERTS_TOPIC_ARN: ${ssm:/effy/${sls:stage}/alerts/topic_arn}
-    # ── 046: feedback reply email (US3) ────────────────────────────────────────────────────────────
-    #
-    # ⚠ email-kit's send path reads exactly these keys (its exported MAIL_ENV_KEYS); a config-contract
-    # test (src/feedback/config.contract.test.ts) fails if one is missing. The values are the SAME SSM
-    # contract edge-customer uses (037/038) — the customer-facing reply-to is hello@; internal falls
-    # back to it until workspace-admin@ is published.
+    # Feedback replies: every key in email-kit's MAIL_ENV_KEYS (feedback/config.contract.test.ts checks).
     MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
     MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
@@ -82,17 +60,13 @@ provider:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # Banner artwork (028): scoped to the media bucket's OBJECT ARN — never a wildcard. Presigned
-        # URLs inherit this identity's authority, so a broader grant here would be a broader grant
-        # handed to whoever holds the url. Mirrors the shop service's product-media statement.
+        # The media bucket's object ARN only: presigned URLs inherit this identity's authority.
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
-        # Shop-management provisioning (009): admin Cognito actions, scoped to the SHOP pool ARN
-        # ONLY (least privilege). An authorized server-side provisioning write, not token brokering
-        # — the routes stay behind the back-office authorizer (Constitution Check, research R3).
+        # Admin Cognito actions on the shop pool only.
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -102,38 +76,23 @@ provider:
             - cognito-idp:AdminDisableUser
             - cognito-idp:AdminEnableUser
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
-        # ⚠ The driver-pool Cognito grant that stood here (049) MOVED TO `apis/edge-api/fleet` with
-        # the routes that used it (056). Nothing in this service touches the driver pool any more, and
-        # a grant nothing uses is a standing permission with no purpose — the kind that survives until
-        # something else finds it.
-        # Email deliverability (037). Three reads and ONE delete, all scoped to this environment's
-        # SES identity — never "*". ⚠ There is deliberately no PutSuppressedDestination: nothing in
-        # the product needs to make a person unreachable by hand, and a button that can silently
-        # disable someone's only credential is a weapon, not a feature.
+        # SES suppression: three reads and one delete, on this environment's identity. No PutSuppressedDestination.
         - Effect: Allow
           Action:
             - ses:GetEmailIdentity
             - ses:GetSuppressedDestination
             - ses:DeleteSuppressedDestination
           Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
-        # The hourly MAIL FROM probe publishes its own metric — AWS provides none for this.
         - Effect: Allow
           Action: cloudwatch:PutMetricData
           Resource: "*"
           Condition:
             StringEquals:
               cloudwatch:namespace: Effy/Mail
-        # 076 — publish live updates, to this environment's channel only. Until 076 this service
-        # announced nothing (it is configuration); a coverage change now tells an open Coverage
-        # screen to re-read.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
-        # ── 075: how full is each gateway? ──────────────────────────────────────────────────────────
-        #
-        # Read-only, and only the two lists the hourly `gatewayUsage` function counts, on exactly the
-        # two gateways this environment owns. ⚠ Not `apigateway:GET` on `*`: that reads every API in
-        # the account, including each one's authorizer configuration.
+        # Gateway usage: read-only, the two lists counted, on this environment's two gateways only.
         - Effect: Allow
           Action: apigateway:GET
           Resource:
@@ -141,11 +100,7 @@ provider:
             - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/edge/http_api_id}/integrations
             - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/staff/http_api_id}/routes
             - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/staff/http_api_id}/integrations
-        # ── 046: feedback reply email (US3) ─────────────────────────────────────────────────────────
-        #
-        # ⚠ ses:SendEmail authorizes against EVERY resource the request touches, and 037 made every send
-        # name a configuration set — so BOTH the identity AND the configuration set, or the send is
-        # denied (the same fix edge-customer needed). Scoped to this environment's identity, never "*".
+        # Feedback replies: the identity and the configuration set, or the send is denied.
         - Effect: Allow
           Action: ses:SendEmail
           Resource:
@@ -153,12 +108,7 @@ provider:
             - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). An in-VPC
-  # Lambda has no internet without NAT, so every public AWS API it calls (Cognito, for the 009
-  # shop-user provisioning) hangs to its timeout unless given an interface endpoint. Running
-  # outside the VPC gives Cognito + Secrets Manager a working path for $0 and drops ~$18/mo of
-  # endpoints. The trade: these functions reach the DB over its PUBLIC endpoint, so the dev DB
-  # admits 0.0.0.0/0 (TLS forced, RDS-managed 32-char password). DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach Cognito or Secrets Manager (dev only).
 
 custom:
   esbuild:
@@ -176,8 +126,7 @@ package:
   individually: true
 
 functions:
-  # Two probes, both PUBLIC and unversioned. Split on purpose: a combined probe cannot tell
-  # "this service is not deployed" from "the database is down" — both just look red.
+  # Two probes: a combined one cannot tell "not deployed" from "database down".
   liveV1:
     handler: src/functions/live-v1-get.handler
     description: Which live-update channel is this person's — read on sign-in and reconnect, never on a timer — 071
@@ -227,7 +176,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Shop management (009). All back-office authorizer; read = any active staff, mutate = admin/manager. ──
+  # Shop management. Read: any active staff; mutate: admin/manager.
   shopsListV1:
     handler: src/functions/shops-list-v1-get.handler
     description: List shops (paginated/filterable/searchable) — 009
@@ -327,29 +276,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Driver management MOVED OUT (056-driver-management). ──────────────────────────────────────
-  # 049 landed five routes here as a "minimal provisioning adjunct" so the driver app had accounts to
-  # sign in as, and recorded in its own spec that "a full driver-management console is out of scope
-  # for this slice unless folded in during planning."
-  #
-  # 056 is that console, and it does not fit here. This stack packaged to 434 of CloudFormation's
-  # hard 500 resources with `versionFunctions: false` ALREADY SPENT — and the header of this file
-  # records that it was the driver routes that tipped it to 511 in the first place. ~18 more routes
-  # at ~5 resources each is not available at any price this stack can pay.
-  #
-  # The five routes now live in `apis/edge-api/fleet` under /fleet/v1/*, behind the SAME back-office
-  # authorizer. Removing them here reclaims ~25 resources — the first time this stack has gone down
-  # rather than up. The driver-pool Cognito grant and DRIVER_USER_POOL_ID moved with them; nothing
-  # left in this service touches the driver pool.
-  #
-  # ⚠ DEPLOY ORDER MATTERS: deploy `fleet` BEFORE re-deploying this service, or there is a window in
-  # which driver management answers nothing at all.
-
-  # ── Order rules (027 US10). Back-office authorizer; read = any active staff, mutate = admin/manager.
-  # ⚠ THE PROMOTION ROUTES MOVED to `serverless.promotions.yml` (stack `admin-promotions`, 095): with
-  # 095's ten routes this stack packaged to 533 of CloudFormation's hard 500 resources. Same directory,
-  # same source — a second stack, as `inventory` is (075). Deploy THIS stack first, then that one: a
-  # route key may exist only once on the gateway.
+  # Order rules. The promotion routes are in serverless.promotions.yml.
   orderPolicyReadV1:
     handler: src/functions/order-policy-v1-get.handler
     description: The minimum spend and the two cart ceilings — 027 FR-053
@@ -372,8 +299,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Catalog schema authority (016). All back-office authorizer; read = any active staff,
-  #    mutate = admin/manager (contracts/admin-catalog.contract.md). Every mutation audits. ──
+  # Catalog schema. Read: any active staff; mutate: admin/manager. Every mutation audits.
   catalogProductTypesListV1:
     handler: src/functions/catalog-product-types-list-v1-get.handler
     description: List product types + assigned attributes — 016
@@ -572,21 +498,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-# Alarms: see `resources:` at the end of this file — only ones that notify, and only for what the
-# gateway's 5xx alarm (Terraform, A3) cannot see.
-  # ── Email deliverability (037-platform-email-delivery) ──────────────────────────────────────
-
-  # ⚠ THE ONLY THING ON THIS PLATFORM THAT CAN SEE ONE PERSON BEING LOCKED OUT. A send to a blocked
-  # address returns success and delivers nothing; the rate alarms cannot help, because one person
-  # never moves a rate.
-  #
-  # ⚠ NO filterPolicy. SES publishes the discriminator in the message BODY, not in message
-  # attributes, so an attribute filter would silently match nothing — a subscription that looks
-  # configured and receives zero events. Filtering happens in the consumer, where it is visible and
-  # testable.
-  #
-  # ⚠ topicName is REQUIRED alongside arn. Serverless uses it to name the CloudFormation
-  # subscription resources; omitting it with an explicit arn is a common deploy failure.
+# Email deliverability: the only thing that sees one person locked out. No filterPolicy: SES puts
+# the discriminator in the body, so filtering is in the consumer. topicName is required with arn.
   sesEventConsumer:
     handler: src/functions/ses-event-consumer.handler
     description: Consume SES delivery outcomes → public.email_delivery_* (037)
@@ -596,9 +509,7 @@ functions:
           arn: ${ssm:/effy/${sls:stage}/ses/events_topic_arn}
           topicName: effy-${sls:stage}-ses-events
 
-  # ⚠ EXISTS BECAUSE AWS PROVIDES NO SIGNAL. There is no CloudWatch metric and no EventBridge event
-  # for a broken custom MAIL FROM; the only native notification goes to the AWS account root
-  # address. See the handler's header.
+  # AWS gives no signal for a broken custom mail from.
   sesIdentityHealth:
     handler: src/functions/ses-identity-health.handler
     description: Hourly MAIL FROM / DKIM health probe → Effy/Mail metric (037)
@@ -606,17 +517,13 @@ functions:
     events:
       - schedule: rate(1 hour)
 
-  # ── 075: gateway usage ───────────────────────────────────────────────────────────────────────────
-  # ⚠ No route — and so no integration: the function that counts integrations must not be one.
-  # It lives here because it is platform health for the operator, beside the other hourly probe.
-  # Its failed-invocation alarm is infra/envs/<env>/background-functions.tf (gateway-usage); the
-  # 75% / 90% alarms on what it reports are infra/envs/<env>/gateway-usage.tf.
+  # Gateway usage: no route, so it is not itself an integration. Alarms in background-functions.tf and gateway-usage.tf.
   gatewayUsage:
     handler: src/functions/gateway-usage-scheduled.handler
     description: Hourly count of routes and integrations on both API gateways → Effy/Platform GatewayUsagePercent (075)
     timeout: 30
     environment:
-      # The one stack that reads BOTH gateways' ids: it measures both. It attaches only to staff.
+      # The one stack that reads both gateways' ids; it attaches only to staff.
       SHARED_HTTP_API_ID: ${ssm:/effy/${sls:stage}/edge/http_api_id}
       STAFF_HTTP_API_ID: ${ssm:/effy/${sls:stage}/staff/http_api_id}
     events:
@@ -655,10 +562,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 046: customer feedback console (US2/US3) ─────────────────────────────────────────────────────
-  #
-  # All behind the back-office authorizer. RBAC is decided from the admin.staff record inside each
-  # handler (read = any active staff incl. csa; reply = admin/manager) — the claim never decides.
+  # Feedback console. Read: any active staff; reply: admin/manager.
   feedbackListV1:
     handler: src/functions/feedback-list-v1-get.handler
     description: List/search/filter feedback — any active staff (046 US2)
@@ -714,9 +618,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Delivery coverage (076): the list of postcodes Effy delivers to, its groups, courier reach ────
-  # ⚠ These REPLACE the 047 zone, ring-create, suggest-ring, postcode-check and same-day-exception
-  # routes. (The read-only rings route that outlived them went with the fee engine, 077.)
+  # Delivery coverage: the postcode list, its groups and courier reach.
   deliveryCoverageListV1:
     handler: src/functions/delivery-coverage-list-v1-get.handler
     description: The list of postcodes effy delivers to, its groups and courier reach — 076
@@ -882,7 +784,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Delivery pricing (077): fee plans v2 — one active per kind (Effy, courier) ──────────────────
+  # Delivery pricing: one active fee plan per kind (Effy, courier).
   deliveryPlansListV1:
     handler: src/functions/delivery-plans-list-v1-get.handler
     description: List fee plans of a kind (effy | courier) with their gaps — 077
@@ -938,13 +840,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-
-
-
-
-
-
-
   deliverySettingsGetV1:
     handler: src/functions/delivery-settings-get-v1-get.handler
     description: Read the operating hub + same-day prep buffer — 047
@@ -966,7 +861,6 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
 
   deliveryCollectionRunsListV1:
     handler: src/functions/delivery-collection-runs-list-v1-get.handler
@@ -1004,19 +898,8 @@ functions:
 resources:
   Resources:
 
-    # ── Email deliverability (037) ────────────────────────────────────────────────────────────
-    #
-    # ⚠ EVERY ALARM IN A SERVICE CARRIES AlarmActions, OR IT IS NOT AN ALARM. This file once held 44
-    # more — one "this function had an error" alarm per route — and the shop service 32. None had an
-    # action: they turned red in a console nobody watched, and cost $0.10 a month each to do it
-    # (037 recorded them as a carry-forward, FR-037a). They were removed on 2026-10-05.
-    #
-    # What replaced them is ONE alarm that notifies: `effy-<env>-edge-api-5xx` on the shared gateway
-    # (infra/envs/<env>/edge-gateway.tf) covers a server error on any route of any service.
-    #
-    # ⚠ So a per-function alarm belongs here only for a function the gateway cannot see — one run
-    # by a schedule, a queue or a topic — or for a failure that is not a 5xx. The four below are
-    # those, and they are wired (037 FR-037).
+    # Alarms here only for what the gateway's 5xx alarm cannot see (schedules, queues, topics), and every
+    # one carries AlarmActions.
     SesEventConsumerErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:

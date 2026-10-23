@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.core.error
 
 /**
- * A CLOSED set of failures the UI can act on (014 FR-031). Backend `application/problem+json` and
+ * A closed set of failures the UI can act on. Backend `application/problem+json` and
  * transport failures both map to one of these; the raw SDK/HTTP text is never surfaced (no internal detail).
  */
 sealed interface AppError {
@@ -10,10 +10,10 @@ sealed interface AppError {
     /** Not signed in / token invalid → re-authenticate. */
     data object Unauthenticated : AppError
 
-    /** A denial: the manager gate refused, or a disabled operator. Rendered uniformly (FR-025). */
+    /** A denial: the manager gate refused, or a disabled operator. Rendered uniformly. */
     data object Forbidden : AppError
 
-    /** The resource is gone / not this shop's (404). Detail screens turn this into a "no longer available". */
+    /** The resource is gone / not this shop's. Detail screens turn this into a "no longer available". */
     data object NotFound : AppError
 
     /**
@@ -24,29 +24,29 @@ sealed interface AppError {
     data object Conflict : AppError
 
     /**
-     * 072 — the driver acted on a round before it opened. The platform refused and wrote nothing.
+     * The driver acted on a round before it opened. The platform refused and wrote nothing.
      * [opening] says when it will open, in the server's words; null only if the answer could not be
      * read, in which case the screen still says "not yet" rather than something generic.
      *
-     * ⚠ DISTINCT FROM [Conflict] ON PURPOSE. Both are a 409, and [Conflict]'s message is "Someone
+     * Distinct from [Conflict] on purpose. Both are a 409, and [Conflict]'s message is "Someone
      * else just changed this. Pull to refresh" — which would send a driver pulling to refresh at a
      * round that is simply not open, for as long as they cared to try.
      */
     data class NotOpenYet(val opening: com.effyshopping.driver.mobile.core.opening.Opening?) : AppError
 
     /**
-     * 093 — a step taken out of turn: check-in before every shop, a drop before the van is loaded, a
+     * A step taken out of turn: check-in before every shop, a drop before the van is loaded, a
      * load before the collected parcels are checked in. The platform refused and wrote nothing;
      * [message] is its sentence saying what to do first ("Load the van first.").
      *
-     * ⚠ NOT [Conflict] either: "pull to refresh" does not help a driver who has to do something first.
+     * Not [Conflict] either: "pull to refresh" does not help a driver who has to do something first.
      */
     data class OutOfTurn(val message: String) : AppError
 
-    /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop (FR-012). */
+    /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop. */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
-    /** No network / backend unreachable — degraded + retry; lose nothing (FR-007). */
+    /** No network / backend unreachable — degraded + retry; lose nothing. */
     data object Network : AppError
 
     data object Unavailable : AppError

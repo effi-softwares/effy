@@ -1,20 +1,11 @@
-// The nightly reconciliation (058, US3).
-//
-// ⚠ A NON-ZERO `corrections` IS AN ALARM, NOT A SUCCESS. It means a figure changed without its
-// bucket being marked — i.e. something writes to the order, refund or fulfilment tables in a way the
-// triggers do not see. The repair is cheap; the fact that a repair was needed is the finding.
+// Nightly reconciliation. Non-zero `corrections` means something writes those tables without the triggers seeing it.
 import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
 import { runReconcile } from "../insights/reconcile";
 
-/**
- * ⚠ THE CORRECTION COUNT IS THE ALARM, and the threshold is ZERO. Every other alarm on this platform
- * tolerates a baseline; this one must not. A correction means a figure changed without its bucket
- * being marked — i.e. something writes to the order, refund or fulfilment tables in a way the
- * triggers do not see. The nightly repair is cheap; the hole it implies is what needs a person.
- */
+/** The correction count is the alarm, with a threshold of zero. */
 function emitReconcileMetric(corrections: number, rebuilds: number): void {
   console.log(
     JSON.stringify({

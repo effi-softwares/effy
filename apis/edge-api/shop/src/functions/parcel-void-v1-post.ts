@@ -1,4 +1,4 @@
-// POST /shop/v1/fulfillments/{id}/parcels/{parcelId}/void — remove one bag (bag 1 never; once printed, only the last) (096).
+// Bag 1 never; once printed, only the last.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

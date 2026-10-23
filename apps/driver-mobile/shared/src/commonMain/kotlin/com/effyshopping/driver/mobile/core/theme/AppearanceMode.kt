@@ -1,11 +1,11 @@
 package com.effyshopping.driver.mobile.core.theme
 
 /**
- * The user's chosen appearance (017 US2 / FR-009). [System] follows the device; [Light]/[Dark] force
+ * The user's chosen appearance. [System] follows the device; [Light]/[Dark] force
  * it. Resolved to a concrete "is dark?" at render time via [resolveDark], so `System` is the only mode
  * that consults the device setting.
  *
- * The default for a user who has never chosen is [System] (FR-013) — see [fromStorage].
+ * The default for a user who has never chosen is [System] — see [fromStorage].
  */
 enum class AppearanceMode {
     Light,

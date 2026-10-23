@@ -1,89 +1,63 @@
-# `@effy/design-system` — the brand SSOT
+# `@effy/design-system`
 
-The single source of truth for Effy's web brand (constitution Principle V). The brand accent and
-dark mode live here **once** — never hardcoded per surface. Internal package: exports TypeScript
-source + CSS token files (each consumer's bundler transpiles).
+The one source of Effy's visual identity: CSS tokens, the shared shadcn/ui primitives, and the
+generators that derive the mobile and payment themes from the tokens. Internal package: it exports
+TypeScript source and CSS (each consumer's bundler transpiles).
 
-## Theme: the monochrome ramp brand (feature 017, constitution v1.10.0)
+## Token files
 
-- **Brand accent is the monochrome neutral ramp** (emerald-800) as `--primary` / `--sidebar-primary`, with a
-  **white** label in both modes (emerald-800 is dark enough for ~7.7:1). The focus `--ring` brightens to
-  `#10b981` (emerald-500) on dark so it stays visible on the dark ground. A **terracotta** `#d0735a`
-  (AA-tuned to `#bf5540`) is the `--destructive` accent. This **supersedes the retired Jade accent**.
-- **Surfaces are the shadcn `neutral` scale — no brand tint.** Light: `#f5f5f5` ground, white cards,
-  neutral-300 borders. Dark: `#171717` (neutral-900) ground, `#262626` (neutral-800) cards, and **subtle
-  neutral-800 borders** (close to the ground). No green/black blend anywhere.
-- **Typography is General Sans** (`--font-sans`; apps self-host it — `next/font` General Sans on customer-web,
-  `@fontsource-variable/nunito-sans` on the Vite consoles, bundled `.ttf` on mobile).
-- **Radii are pinned explicitly** (not shadcn's `calc()` chain): `--radius-sm` = 8px, `--radius-md` = 16px
-  (brand default), pill via `rounded-full` — so web px equals mobile `EffyRadius` dp (SC-004).
-- **Appearance is user-selectable** — Light / Dark / Follow-System, default System (dark mode REQUIRED,
-  now switchable). Web via `@effy/web-kit` `ui-store` (consoles) / `next-themes` (customer-web); mobile via
-  `AppearanceMode` + `EffyTheme(mode)`.
-- **WCAG AA is machine-enforced**: `pnpm --filter @effy/design-system test` (`scripts/check-tokens.mjs`)
-  fails the build if any FG/BG pair drops below AA in either appearance, or if the radii drift from 8/16.
-- To adjust the theme, edit **`src/tokens.css` only** — every surface consumes these tokens, and mobile
-  regenerates from them (`tokens:gen`, diff-guarded by `tokens:check`). Never hardcode a colour.
+| File (export) | Used by | Identity |
+|---|---|---|
+| `src/tokens.css` (`./tokens.css`) | shop-web; mobile layout scale | The console: cobalt `--brand`/`--primary` as the one action colour, neutral greys, near-black dark base, three bounded hues (`--accent2`, `--violet`, `--teal`), four states with `-soft` tints, radius 4/6/8/10, Geist |
+| `src/storefront/tokens.css` (`./storefront.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
+| `src/backoffice/tokens.css` (`./backoffice.css`) | back-office | The storefront identity, declaring every console token name so the shared primitives resolve |
 
-## Sizing: shadcn defaults
-
-The UI uses **shadcn/Tailwind default sizing** — the browser-default 16px root font-size, no fluid
-responsive scaling. (An earlier fluid `clamp()` root font-size that grew the whole UI on wide
-displays was removed; surfaces render at their native size at every width.)
-
-## Exports
-
-| Import | What |
-|---|---|
-| `@effy/design-system` | `cn(...)` — the Tailwind class-merge util |
-| `@effy/design-system/tokens.css` | Tailwind v4 `@theme` tokens + light/dark CSS variables (the monochrome ramp accent, neutral surfaces, General Sans type, radius scale) |
-
-Consumers import the tokens in their entry stylesheet **after** Tailwind:
+Consumers import one of them after Tailwind:
 
 ```css
 @import "tailwindcss";
 @import "@effy/design-system/tokens.css";
 ```
 
-Dark mode is driven by the `.dark` class on `<html>` (shadcn convention); flip it from a client
-store (see `apps/back-office/src/lib/ui-store.ts`). Dark mode is **required** on every surface.
+Dark mode follows `data-theme` on the document element, with the `.dark` class derived from it.
+Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 
-## Component graduation rule — **exercised** (007-shop-web)
+## Guards
 
-shadcn's model copies UI primitives into each app. With one web surface that was fine: the **tokens**
-were shared, the **components** started app-local, and pre-abstracting a single consumer would have
-been speculation.
+`pnpm --filter @effy/design-system test` runs:
 
-**The second surface arrived**, and the rule fired. All 13 primitives plus `use-mobile` graduated
-out of `apps/back-office/src/components/ui/` into this package:
+- `check-tokens.mjs`, `check-storefront-tokens.mjs`, `check-backoffice-tokens.mjs`: key-set parity
+  between appearances, the radius scale, WCAG AA on every text pair, and every ratio written in a
+  comment matching the recomputed one.
+- `check-component-shape.mjs`: controls are never pills, badges always are, containers are at least
+  as round as the controls inside them.
+- `check-token-usage.mjs`: every colour utility names a declared token (Tailwind emits nothing for an
+  unknown one).
+- `check-banner-canvas.mjs`, `check-banner-template.mjs`: the promotional banner canvas and its template.
 
-```
-packages/design-system/src/
-├── ui/            # avatar, breadcrumb, button, card, collapsible, dropdown-menu, input,
-│   └── index.ts   #   label, separator, sheet, sidebar, skeleton, tooltip  → @effy/design-system/ui
-└── hooks/
-    └── use-mobile.ts                                     → @effy/design-system/hooks/use-mobile
-```
+## Exports
 
-Both consoles point `components.json` → `aliases.ui` at `@effy/design-system/ui`, so the shadcn CLI
-keeps generating correct imports. **There is no per-app copy.** Constitution Principle V — "one
-design-system package drives every surface" — is now literally true rather than aspirational.
+| Import | What |
+|---|---|
+| `@effy/design-system` | `cn(...)`, the Tailwind class-merge util |
+| `@effy/design-system/ui` | The shared shadcn/ui primitives (`src/ui/`) |
+| `@effy/design-system/hooks/use-mobile` | The mobile breakpoint hook |
+| `@effy/design-system/stripe-storefront-appearance` | The payment element's appearance (generated) |
+| `@effy/design-system/banner-template.svg` | The operator's banner template (generated) |
 
-Adding a new primitive: `pnpm dlx shadcn@latest add <name>` inside a consuming app writes it to the
-alias path (this package), then export it from `src/ui/index.ts`.
+To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming app (its
+`components.json` aliases `ui` to this package), then export it from `src/ui/index.ts`.
 
-The rule for the *next* surface is unchanged: share what two consumers need, and not before.
+## Mobile themes
 
-## Mobile themes (087)
+`scripts/gen-compose-theme.mjs` generates the Compose theme for each KMP app (customer, driver):
+colours, Geist type and `EffyStorefrontShape` from `src/storefront/tokens.css` (light and dark), and the
+layout scale (`EffyRadius`, `EffySpacing`) from `src/tokens.css`. `scripts/gen-stripe-appearance.mjs`
+themes the customer payment element on the web, Android and iOS (the iOS half is written to
+`apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift`) from the storefront file.
+`tokens:check` regenerates everything and fails on drift, or on a customer colour the storefront file
+does not declare.
 
-`scripts/gen-compose-theme.mjs` generates one Compose theme per KMP app, each from **its identity's**
-token file: the customer app from `src/storefront/tokens.css` (light only, Geist, plus
-`EffyStorefrontShape`), shop and driver from `src/tokens.css`. `scripts/gen-stripe-appearance.mjs`
-themes the customer app's payment element on both platforms from the storefront file (the iOS half is
-written to `apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift`). `tokens:check` regenerates
-everything and fails on drift, and fails the customer theme if it gains a dark scheme or a colour the
-storefront file does not declare.
-
-`mobile-assets/` holds fonts and icons per identity: Geist and Lucide (`lucide_*`, generated by
-`scripts/gen-lucide-drawables.mjs` from a pinned `lucide-static`) go to the customer app only; General
-Sans and the Material Symbols go to shop and driver. Licences sit beside the files.
+`mobile-assets/` holds the Geist fonts and the icons (`lucide_*`, generated by
+`scripts/gen-lucide-drawables.mjs` from a pinned `lucide-static`) that `mobile-assets:sync` copies into
+both apps. Licences sit beside the files.

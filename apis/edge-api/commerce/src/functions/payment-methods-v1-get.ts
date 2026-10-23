@@ -1,7 +1,4 @@
-// GET /commerce/v1/payment-methods — the shopper's kept cards, read live from the provider.
-//
-// ⚠ A provider failure is a 500, NEVER an empty list: "you have no cards" and "we could not ask"
-// are different facts, and a client cannot tell them apart from a 200 with [] (051 FR-036).
+// A provider failure is a 500, never an empty list: "no cards" and "could not ask" differ.
 import { json } from "@effy/edge-shared";
 
 import { checkoutError } from "../checkout/respond";

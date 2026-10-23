@@ -52,28 +52,28 @@ import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * The app root (015). A top-level **session gate** picks the graph: `Restoring` splash, a `Barred`
+ * The app root. A top-level **session gate** picks the graph: `Restoring` splash, a `Barred`
  * refusal, or — for both a guest and a signed-in customer — the guest-first [CustomerShell] (adaptive
  * bottom bar / navigation rail over Home · Search · Orders · Account). `Restoring` is its own screen so
  * the guest home never flickers in before a signed-in session resolves.
  */
 @Composable
 fun App(container: AppContainer) {
-    // Register the app's Coil ImageLoader (cancellation-safe engine) ONCE, during composition — before
+    // Register the app's Coil ImageLoader (cancellation-safe engine) once, during composition — before
     // any AsyncImage loads — so scrolling a list of product images can't crash the app (019 scroll fix).
     remember { SingletonImageLoader.setSafe { ctx -> newImageLoader(ctx) }; true }
 
-    // 025 FR-037 / T073: read the device's reduced-motion preference ONCE and publish it to every
+    // 025 FR-037 / T073: read the device's reduced-motion preference once and publish it to every
     // screen below. Provided outside EffyTheme so the value is in force for the theme's own
     // transitions too.
-    // 087 / v3.4.0 — Light, Dark or Match my phone (Account → Appearance).
+    // Light, Dark or Match my phone (Account → Appearance).
     val appearance by container.appearance.collectAsState()
     val dark = appearance.resolveDark(phoneInDarkMode())
 
     CompositionLocalProvider(LocalMotionLevel provides platformMotionLevel()) {
     EffyTheme(dark = dark) {
         val session by container.session.state.collectAsState()
-        // 071 — hold the live channel exactly while in the foreground and signed in. A guest holds none.
+        // Hold the live channel exactly while in the foreground and signed in. A guest holds none.
         LiveLifecycle(container.live, signedIn = session is SessionState.Authenticated)
         val scope = rememberCoroutineScope()
 
@@ -85,35 +85,25 @@ fun App(container: AppContainer) {
             mutableStateOf(prefs.getBoolean(PreferenceKeys.ONBOARDING_SEEN))
         }
 
-        // 050 T031 — the analytics-consent choice. `mutableStateOf` so accepting/declining re-renders
+        // The analytics-consent choice. `mutableStateOf` so accepting/declining re-renders
         // the shell (dismissing the banner) immediately, not only on the next launch.
         var consent by remember { mutableStateOf(container.analyticsConsent()) }
 
         LaunchedEffect(Unit) {
             container.session.bootstrap()
-            // 030 US2: seed the delivery location from the account's default address on sign-in, and
-            // drop an account-derived one on sign-out. ⚠ Started here rather than from a screen — in a
+            // Seed the delivery location from the account's default address on sign-in, and
+            // drop an account-derived one on sign-out. Started here rather than from a screen — in a
             // screen it would never run if the shopper's first stop is another tab, and would re-run
             // on every recomposition.
         }
 
-        // ⚠ THE COLOUR IS PAINTED EDGE-TO-EDGE; THE PADDING IS APPLIED INSIDE IT.
-        //
-        // These used to be the same modifier chain — `fillMaxSize().windowInsetsPadding(safeDrawing)`
-        // on the `Surface` itself — and that is a different thing entirely: a Surface paints only the
-        // area left after its own padding, so the status-bar strip and the gesture-bar strip were
-        // never painted by the app at all. They fell through to the window background: Android's
-        // `Theme.Material.NoActionBar` default (a mid grey) and, on iOS, the black UIWindow behind the
-        // Compose layer. In light mode that reads as a barely-there seam; in dark mode it is a plainly
-        // wrong-coloured band above and below the app.
-        //
-        // Splitting them keeps the layout identical — content is still inset by exactly `safeDrawing` —
-        // while the ground extends under the system bars, which is the whole point of going
-        // edge-to-edge in `MainActivity`.
+        // The colour is painted edge-to-edge and the padding applied inside it: a Surface paints only the area
+        // left after its own padding, so padding the Surface left the status and gesture bars to the window
+        // background (grey on Android, black on iOS).
         Surface(
             modifier = Modifier.fillMaxSize(),
-            // ⚠ `EffySurface.page`, NOT `colorScheme.background`. The customer storefront's page is the
-            // lightest ground and TILES carry the tint (see StorefrontKit), which is the inverse of the
+            // `EffySurface.page`, not `colorScheme.background`. The customer storefront's page is the
+            // lightest ground and tiles carry the tint (see StorefrontKit), which is the inverse of the
             // console arrangement. Today both resolve to the same value, so this is about intent: if the
             // tokens diverge again, the storefront must follow `page`.
             color = EffySurface.page,
@@ -135,14 +125,14 @@ fun App(container: AppContainer) {
                     }
                 } }
 
-                // ⚠ 034 FR-041a — THE WAY BACK, and the only exception to "a closing account is
+                // The way back, and the only exception to "a closing account is
                 // refused everywhere".
                 //
-                // Restore is an EXPLICIT act, never inferred from signing in: the refusal and the
+                // Restore is an explicit act, never inferred from signing in: the refusal and the
                 // restore run through the same identity lookup, so an implicit restore would have the
                 // gate refuse the very request meant to undo the deletion — and anyone holding this
                 // customer's token would silently un-delete their account merely by opening the app.
-                // Signing in SURFACES the choice; this screen makes it.
+                // Signing in surfaces the choice; this screen makes it.
                 SessionState.Closing -> Inset { CenteredMessage {
                     var working by remember { mutableStateOf(false) }
                     var failed by remember { mutableStateOf(false) }
@@ -184,17 +174,17 @@ fun App(container: AppContainer) {
                     }
                 } }
 
-                // Guest AND Authenticated both render the tab shell — the customer app is guest-first;
+                // Guest and Authenticated both render the tab shell — the customer app is guest-first;
                 // only gated tabs/actions defer to sign-in.
                 //
-                // ⚠ 026 FR-033: the first-launch introduction sits IN FRONT of the shell, not inside a
-                // tab, and only until it has been seen once. It is deliberately NOT gated on session —
+                // The first-launch introduction sits in front of the shell, not inside a
+                // tab, and only until it has been seen once. It is deliberately not gated on session
                 // a returning signed-in customer on a fresh install still gets introduced, and a guest
                 // who skipped it never sees it again. The flag is device-local and never syncs.
                 is SessionState.Authenticated, SessionState.Guest ->
                     if (onboardingSeen) {
-                        // 050 T031 — the shell, with the analytics-consent banner overlaid at the
-                        // bottom only while the choice is UNKNOWN (non-blocking; the app is fully usable
+                        // The shell, with the analytics-consent banner overlaid at the
+                        // bottom only while the choice is unknown (non-blocking; the app is fully usable
                         // behind it). Accept loads analytics; decline records the refusal. No SDK loads
                         // until accept (Principle VII). Shown after onboarding so the two don't stack.
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -210,7 +200,7 @@ fun App(container: AppContainer) {
                             }
                         }
                     } else {
-                        // ⚠ DELIBERATELY NOT [Inset]. The introduction is a full-bleed photograph, and
+                        // Deliberately not [Inset]. The introduction is a full-bleed photograph, and
                         // insetting it here stopped the image at the safe area — leaving a bar of page
                         // colour across the bottom that read as a rendering fault. It owns its insets
                         // instead, applying them to its text and actions and to nothing else.
@@ -222,7 +212,7 @@ fun App(container: AppContainer) {
             }
         }
 
-        // 087 — the launch intro, OVER everything, once per cold start: the native splash's "e." grows
+        // The launch intro, over everything, once per cold start: the native splash's "e." grows
         // into "effy." and hands over to the app once the session is known. Not saved across
         // configuration changes on purpose — `remember`, so a rotation does not replay it, but a new
         // process does.
@@ -240,7 +230,7 @@ fun App(container: AppContainer) {
 /**
  * Hold content clear of the system bars.
  *
- * ⚠ Applied per BRANCH, not once around the whole tree, because one branch must not have it: a
+ * Applied per branch, not once around the whole tree, because one branch must not have it: a
  * full-bleed screen has to reach the physical edges, and the root `Surface` deliberately paints
  * beyond this padding so the bars carry the app's own ground either way.
  */

@@ -1,7 +1,7 @@
 /**
  * Money formatting for the storefront.
  *
- * Amounts cross the wire as decimal STRINGS + a currency (R9) — never floats. We parse once, at the
+ * Amounts cross the wire as decimal strings + a currency — never floats. We parse once, at the
  * display edge, and format with Intl. All amounts are the single platform currency (AUD) this slice.
  */
 

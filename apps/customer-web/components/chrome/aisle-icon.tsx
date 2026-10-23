@@ -20,7 +20,7 @@ import type { LucideIcon } from "lucide-react"
 /**
  * The glyph beside an aisle.
  *
- * ⚠ Aisles are DATA — back-office names them — so this cannot be a table keyed on the reference's
+ * Aisles are data — back-office names them — so this cannot be a table keyed on the reference's
  * sample aisles. It matches on words in the name and falls back to a neutral box, which means a new
  * aisle always gets *a* glyph and never a blank gap in the row.
  *

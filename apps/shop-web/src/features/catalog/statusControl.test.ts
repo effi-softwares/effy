@@ -8,7 +8,7 @@ import {
   visibilityAction,
 } from "./statusControl";
 
-// T073: the status menu offers only the transitions valid from the current status (data-model §4),
+// The status menu offers only the transitions valid from the current status,
 // and the delete guard offers hard-delete only for a draft (archive otherwise).
 
 describe("availableTransitions", () => {
@@ -53,14 +53,14 @@ describe("deleteGuardMessage", () => {
   });
 });
 
-/* ── 057: the two named actions that replaced the "Change status" menu ─────────────────────────── */
+/* The two named actions that replaced the "Change status" menu */
 
 describe("visibilityAction", () => {
   it("says what the operator gets, never the internal status name", () => {
-    // ⚠ The whole point of the change. "Make unavailable" is a state machine talking to itself;
+    // The whole point of the change. "Make unavailable" is a state machine talking to itself;
     // "Unpublish" is the outcome, and it is what the operator came to do.
     expect(visibilityAction("active")?.label).toBe("Unpublish");
-    // 067 — a shop submits; it does not publish.
+    // A shop submits; it does not publish.
     expect(visibilityAction("draft")?.label).toBe("Submit for review");
     expect(visibilityAction("unavailable")?.label).toBe("Publish");
     expect(visibilityAction("archived")?.label).toBe("Restore");
@@ -74,7 +74,7 @@ describe("visibilityAction", () => {
   });
 
   it("never offers a transition availableTransitions would refuse", () => {
-    // ⚠ The two must not drift. The header button is a PRESENTATION of the state machine; if it
+    // The two must not drift. The header button is a presentation of the state machine; if it
     // ever offers a move the machine does not have, the backend refuses and the operator is told
     // nothing useful about why.
     for (const status of ["draft", "active", "unavailable", "archived"] as const) {
@@ -108,7 +108,7 @@ describe("removalAction", () => {
   });
 
   it("offers nothing for an archived product", () => {
-    // ⚠ It is already removed, and the header's Restore is the only thing left to do to it. A second
+    // It is already removed, and the header's Restore is the only thing left to do to it. A second
     // control doing the same job is how two buttons drift apart.
     expect(removalAction("archived")).toBeNull();
   });

@@ -10,16 +10,9 @@ import kotlinx.io.IOException
 enum class WriteOutcome { SENT, QUEUED }
 
 /**
- * Wrap a driver mutation so a **network failure never loses the write** (049 US6, FR-039/040).
- *
- * Runs [block] (the online POST). If it fails because there is no connection, the action is enqueued
- * for replay (idempotent by `changeId` — a duplicate on reconnect is a no-op) and [queued] is
- * returned: ⚠ A QUEUED WRITE IS ACCEPTED, NOT FAILED (backlog C1). It used to re-throw `Network`, so
- * the screen said "You're offline", the driver stayed put and tapped again — queuing a duplicate.
- * Any other failure (a real refusal) propagates unchanged and is NOT queued.
- *
- * ⚠ A transport exception counts as offline too. Ktor throws an IOException for no signal, which
- * only became `AppError.Network` OUTSIDE this wrapper — so nothing was ever queued that way.
+ * Wrap a driver mutation so a network failure never loses the write. With no connection (including
+ * Ktor's IOException), the action is queued for replay (idempotent by `changeId`) and [queued] is returned:
+ * accepted, not failed, so the driver does not tap again. A real refusal propagates and is not queued.
  */
 suspend inline fun <T> OfflineQueue.withReplay(
     path: String,
@@ -44,7 +37,7 @@ fun Throwable.isOffline(): Boolean =
     (this is AppException && error == AppError.Network) || this is IOException || this is UnresolvedAddressException
 
 /**
- * One `changeId` per driver ACTION, not per tap (backlog C1). The same action asked for again — a
+ * One `changeId` per driver action, not per tap (backlog C1). The same action asked for again — a
  * second tap, a retry after a timeout — reuses its id, so the platform and the queue both see one
  * write. [settled] forgets it once the action has a final answer, so a genuinely new attempt (a
  * second failed delivery, say) gets a new id.

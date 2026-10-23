@@ -1,59 +1,31 @@
 /**
- * `challengeMetadata` encoding (035 — research R1).
- *
- * ⚠ THE PROBLEM THIS SOLVES. When a shopper answers wrongly and `DefineAuthChallenge` re-issues
- * `CUSTOM_CHALLENGE`, Cognito invokes `CreateAuthChallenge` AGAIN — with an empty response object.
- * `privateChallengeParameters` is response-only; it does not appear on the request side and it does
- * not persist. `request.session[].challengeMetadata` is the ONLY channel that carries anything from
- * one invocation to the next.
- *
- * So a flow that lets someone mistype without re-mailing them a fresh code MUST round-trip
- * something through here.
- *
- * ⚠ AND WHY WE DIVERGE FROM AWS'S OWN SAMPLE. `aws-samples/amazon-cognito-passwordless-email-auth`
- * writes `challengeMetadata = \`CODE-${secretLoginCode}\`` — the CLEARTEXT code. Two reasons not to:
- *   1. FR-014 requires hash-only storage, and this string is storage.
- *   2. `challengeMetadata` round-trips through the client's `Session` string. The InitiateAuth and
- *      RespondToAuthChallenge response schemas carry no field for it, and the Session value decodes
- *      to an AWS-Encryption-SDK/KMS envelope — but NO AWS PAGE STATES AS A POSITIVE FACT that it is
- *      withheld from the client. Designing so the answer does not matter costs nothing.
- *
- * A leak of this string therefore exposes a keyed hash of a 5-minute, 3-attempt secret — not a code.
+ * `challengeMetadata` is the only channel between CreateAuthChallenge invocations, so a mistyped code
+ * can be retried without a new email. Unlike aws's sample it carries a keyed hash, never the code:
+ * the value round-trips through the client's Session.
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-/** Bumping this invalidates in-flight codes by design — an old-format token simply fails to parse. */
+/** Bumping this invalidates in-flight codes. */
 const VERSION = "v1";
 
 export interface CodeEnvelope {
-  /** Epoch seconds at which the code was generated. Set once, on the first invocation. */
+  /** Epoch seconds, set on the first invocation. */
   readonly issuedAt: number;
-  /** Lowercase hex HMAC-SHA256 of the code. ⚠ Never the code. */
+  /** Lowercase hex HMAC-SHA256. Never the code. */
   readonly digest: string;
 }
 
-/** HMAC a code with the service key. Exported because both encode and verify need the same one. */
 export function digestCode(code: string, key: string): string {
   return createHmac("sha256", key).update(code, "utf8").digest("hex");
 }
 
-/**
- * Serialise for `response.challengeMetadata`.
- * ⚠ Anything added here becomes something a client might one day be able to read. Keep it to a
- * timestamp and a keyed hash.
- */
+/** Keep it to a timestamp and a keyed hash: a client might one day read it. */
 export function encodeEnvelope(envelope: CodeEnvelope): string {
   return `${VERSION}:${envelope.issuedAt}:${envelope.digest}`;
 }
 
-/**
- * Parse a previous invocation's `challengeMetadata`.
- *
- * Returns `null` rather than throwing on ANY malformed input — a corrupt or unrecognised envelope
- * must degrade to "issue a fresh challenge", never to a 500 whose text Cognito would relay to the
- * caller verbatim.
- */
+/** `null` on any malformed input, so it degrades to a fresh challenge, never a relayed error. */
 export function decodeEnvelope(raw: string | undefined): CodeEnvelope | null {
   if (!raw) return null;
 
@@ -64,8 +36,7 @@ export function decodeEnvelope(raw: string | undefined): CodeEnvelope | null {
   if (version !== VERSION) return null;
   if (!issuedAtRaw || !digest) return null;
 
-  // Reject anything that is not a plain positive integer. `Number()` alone would accept
-  // "1e9", " 12 " and "0x10"; none of those are timestamps we wrote.
+  // A plain positive integer only: `Number` accepts "1e9", " 12 " and "0x10".
   if (!/^[0-9]+$/.test(issuedAtRaw)) return null;
   if (!/^[0-9a-f]{64}$/.test(digest)) return null;
 
@@ -75,14 +46,7 @@ export function decodeEnvelope(raw: string | undefined): CodeEnvelope | null {
   return { issuedAt, digest };
 }
 
-/**
- * Constant-time digest comparison (FR-015).
- *
- * ⚠ `timingSafeEqual` THROWS on length mismatch, which would itself be a timing/behaviour oracle.
- * Both operands here are fixed-width hex from `digestCode`, but a malformed stored value could
- * still reach this, so the length check is explicit and the buffers are built the same way on both
- * sides.
- */
+/** Constant-time. The explicit length check avoids `timingSafeEqual` throwing. */
 export function digestsMatch(a: string, b: string): boolean {
   const left = Buffer.from(a, "utf8");
   const right = Buffer.from(b, "utf8");

@@ -1,11 +1,7 @@
-// Repository for the order rules (027 FR-053) — the single policy row. SQL only (Principle VI).
-//
-// ⚠ Promotions themselves moved to `promotion-repository.ts` with the 094 model.
+// The order rules: the single policy row.
 import { query, withTransaction } from "@effy/edge-shared";
 
 import { type OrderPolicy, PromoError } from "./types";
-
-// ── Order rules (the single policy row) ──────────────────────────────────────────────────────
 
 export async function readOrderPolicy(): Promise<OrderPolicy> {
   const res = await query<{

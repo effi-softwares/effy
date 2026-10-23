@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { canManageDrivers } from "./access";
 
 /**
- * The console's capability check (FR-022, FR-023).
+ * The console's capability check.
  *
- * ⚠ THIS IS A COURTESY, NOT THE GATE. The backend decides from the `admin.staff` record
+ * This is a courtesy, not the gate. The backend decides from the `admin.staff` record
  * independently (Principle IV: "a valid claim never overrides it"). What this function decides is
  * which controls the UI reveals, so an operator is never shown a button that will refuse them.
  * Asserting it here keeps the two halves saying the same thing.

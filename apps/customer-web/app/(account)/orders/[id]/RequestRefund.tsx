@@ -10,18 +10,8 @@ import { Dialog } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/form"
 
 /**
- * "Something wrong with this order?" — the ask arrives ATTACHED TO THE ORDER (055; reference:
- * Orders · Report a problem).
- *
- * Before 055 this was a link to a general inbox, where nobody could see which order was meant. It is
- * a request, not a refund: staff decide what happens, and the confirmation says exactly that.
- *
- * ⚠ THE ITEMS ARE OPTIONAL. "Everything arrived warm" has no item to tick, and a form that demanded
- * one would send that shopper back to the general inbox.
- *
- * ⚠ WHAT WENT WRONG IS SENT AS WORDS, with the details: the request has one free-text field, and a
- * category of ours is not something the staff queue filters on. It leads the message so the first
- * thing staff read is the kind of problem.
+ * "Something wrong with this order?": a request attached to the order, not a refund (staff decide, and
+ * the confirmation says so). Items are optional; what went wrong is sent as words leading the message.
  */
 const REASONS = ["An item was damaged", "Something was missing", "Wrong item", "Delivery problem", "Something else"] as const
 

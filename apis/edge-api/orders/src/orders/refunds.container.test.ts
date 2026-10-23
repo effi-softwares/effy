@@ -1,25 +1,12 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
-// ⚠ THE SHARED `db` MODULE IS MOCKED, NOT THE PACKAGE ENTRY — and that is the whole fix.
-//
-// This used to mock "@effy/edge-shared" with a factory returning ONLY `query` and `withTransaction`.
-// That replaced the entire package, so everything else it exports — including `proposedRefunds`,
-// which 058 promoted there and `./refunds` re-exports — became `undefined`, and 14 tests died with
-// "proposedRefunds is not a function". Nobody noticed because Docker was down for several slices and
-// these tests never ran.
-//
-// Spreading `importActual` would NOT have been enough. `refund-proposals.ts` imports `query` from
-// "./db" by RELATIVE path, so a mock on the package entry never reaches it: the real pool would be
-// built from DB_HOST/DB_SECRET_ARN and the tests would fail on a connection instead. Mocking the one
-// module every caller shares — inside the package or out — routes all of them to the container.
-// It works because @effy/edge-shared resolves to its TypeScript source ("exports": "./src/index.ts").
+// The shared `db` module is mocked, not the package entry: modules inside the package import it by
+// relative path, and mocking the entry would replace every other export too.
 vi.mock("../../../shared/src/lib/db", () => ({
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
@@ -30,30 +17,6 @@ import { proposedRefunds, refundRequest, refunds } from "./refunds";
 import { getOrder } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
-
-/**
- * ⚠ THE REAL MIGRATIONS, not a hand-written subset.
- *
- * A subset is a second definition of the schema, and the derivation under test here reads five tables
- * across three slices (020's shortfall, 054's stock, 055's refunds). Hand-writing them would mean this
- * test could pass against a schema the platform does not have — which is the failure mode 027 R13,
- * 028 and 033 each shipped a defect through: a fixture agreeing with the code instead of with the
- * world.
- */
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
 
 const CUST = "11111111-1111-4111-8111-111111111111";
 const ORDER = "22222222-2222-4222-8222-222222222222";
@@ -70,7 +33,7 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -86,14 +49,12 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
       `INSERT INTO public.shop (id, code, name) VALUES ($1,'S1','Shop One')`, [SHOP]);
     await pool.query(
       `INSERT INTO public."order" (id, customer_id, order_number, status, item_subtotal_amount,
-         delivery_fee_amount, grand_total_amount, delivery_address)
-       VALUES ($1,$2,'EFY-R1','paid',30,0,30,'{}'::jsonb)`, [ORDER, CUST]);
+         delivery_fee_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
+       VALUES ($1,$2,'EFY-R1','paid',30,0,30,'{}'::jsonb, 'effy', 'in_coverage')`, [ORDER, CUST]);
     await pool.query(
       `INSERT INTO public.payment (order_id, stripe_payment_intent_id, amount, status)
        VALUES ($1,'pi_r1',30,'succeeded')`, [ORDER]);
-    // ⚠ A REAL product, type and category — `order_item.product_id` has a foreign key, and applying
-    // the real migrations is what forces the fixture to be honest about it. A hand-written schema
-    // subset would have accepted a random uuid and quietly tested a shape the platform does not have.
+    // A real product, type and category: `order_item.product_id` has a foreign key.
     await pool.query(
       `INSERT INTO public.product_type (id, key, name) VALUES (gen_random_uuid(),'grocery','Grocery')
        ON CONFLICT DO NOTHING`);
@@ -106,8 +67,8 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric FROM p RETURNING id)
 SELECT p.id FROM p`, [PRODUCT, SHOP]);
     await pool.query(
-      `INSERT INTO public.order_item (id, order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), $4, 'Milk', 10, 3, 30)`, [ITEM, ORDER, PRODUCT, SHOP]);
+      `INSERT INTO public.order_item (id, order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), $4, 'Milk', 10, 3, 30, 10, 30)`, [ITEM, ORDER, PRODUCT, SHOP]);
     await pool.query(
       `INSERT INTO public.shop_fulfillment (id, order_id, shop_id, item_count, subtotal_amount)
        VALUES ($1,$2,$3,3,30)`, [FULFILMENT, ORDER, SHOP]);
@@ -129,14 +90,12 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
 
       expect(rows).toHaveLength(1);
       expect(rows[0]!.quantity).toBe(2);
-      // ⚠ Priced from the RECEIPT line, not from the product — a price change after the order must
-      // not change what is owed back.
+      // Priced from the receipt line, so a later price change cannot change what is owed.
       expect(rows[0]!.amount).toBe("20.00");
       expect(rows[0]!.product_name).toBe("Milk");
     });
 
-    // ⚠ FR-004b. The proposal is DERIVED, so editing the shortfall re-derives it. A stored proposal
-    // would leave the operator with a queue of near-duplicates to reconcile.
+    // The proposal is derived, so editing the shortfall re-derives it.
     it("yields ONE proposal however many times the picker edits the shortfall", async () => {
       await recordShortfall(1);
       await recordShortfall(2);
@@ -176,9 +135,7 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       expect(proposals, "two of the three units are still owed").toHaveLength(1);
     });
 
-    // ⚠ The one fact the derivation cannot hold: a human looked and said no. A shortfall is sometimes
-    // resolved another way — the item was substituted, the customer declined, the picker corrected a
-    // mistake — and none of those should leave money moving.
+    // A dismissal is the one fact the derivation cannot hold: a person looked and said no.
     it("is suppressed once a human dismisses it, and no money has moved", async () => {
       await recordShortfall(2);
       await pool.query(
@@ -205,9 +162,7 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
 
     it("carries the provider's failure reason for staff", async () => {
       await pool.query(
-        // ⚠ The note is required by the database — my first version of this fixture omitted it and was
-        // refused by `refund_goodwill_needs_note_ck`, which is the constraint doing its job on the
-        // person who wrote it.
+        // The note is required by `refund_goodwill_needs_note_ck`.
         `INSERT INTO public.refund (order_id, kind, amount, reason, note, status, failure_reason,
            idempotency_key, actor_kind, actor_sub)
          VALUES ($1,'goodwill',5,'goodwill','late delivery','failed','expired_or_canceled_card',
@@ -217,24 +172,15 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       const rows = await refunds(ORDER);
       expect(rows).toHaveLength(1);
       expect(rows[0]!.status).toBe("failed");
-      // ⚠ Staff-only. The customer sees "there was a problem" — a shopper cannot act on a bank's
-      // decline code, and showing it invites an argument with a message they cannot answer.
+      // Staff-only; the customer sees "there was a problem".
       expect(rows[0]!.failure_reason).toBe("expired_or_canceled_card");
     });
   });
 
-  /**
-   * ⚠ THROUGH `getOrder`, NOT THROUGH THE QUERIES.
-   *
-   * The queries above had passing tests while NOTHING CALLED THEM — the order read did not carry a
-   * single refund field, so the console had nothing to render and the suite was green anyway. That is
-   * 053's paging defect exactly: a test that exercised the repository directly and never touched the
-   * layer where the bug lived. These tests only pass if the composition is really wired.
-   */
+  /** Through `getOrder`, not the queries, so the composition must really be wired. */
   describe("the order read carries the refund picture (FR-020)", () => {
     async function issue(amount: string, status: string, units?: number) {
-      // ⚠ A failed or refused refund MUST carry the provider's reason — the schema refuses one
-      // without it, because a failure nobody can explain is a failure nobody can act on.
+      // A failed or refused refund must carry the provider's reason.
       const failureReason = status === "failed" || status === "refused" ? "card_declined" : null;
       const { rows } = await pool.query<{ id: string }>(
         `INSERT INTO public.refund (order_id, kind, amount, reason, status, idempotency_key,
@@ -268,7 +214,7 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       expect(o!.refunds[0]!.lines[0]!.productName).toBe("Milk");
     });
 
-    // ⚠ THE SET MUST MATCH THE ONE REFUNDS ARE ISSUED AGAINST (`COUNTED_REFUND_STATUSES`) OR THE CONSOLE LIES ABOUT THE CEILING.
+    // Must match `COUNTED_REFUND_STATUSES`, or the console misstates the ceiling.
     it("counts `failed` against the ceiling but never `submitting` or `refused`", async () => {
       await issue("10.00", "failed", 1);
       await issue("5.00", "submitting");
@@ -277,7 +223,6 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       const o = await getOrder(ORDER);
       expect(o!.refundedAmount, "only the failed one counts").toBe("10.00");
       expect(o!.refundableAmount).toBe("20.00");
-      // All three are still SHOWN — staff must see the failure and the attempt.
       expect(o!.refunds).toHaveLength(3);
     });
 
@@ -302,19 +247,12 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       expect(o!.proposedRefunds).toHaveLength(1);
       expect(o!.proposedRefunds[0]!.amount).toBe("20.00");
       expect(o!.refundRequest!.message).toBe("Two cartons were missing");
-      // ⚠ The request's items must survive the second hop — the one that queries on a request id we
-      // had not read when the first wave went out.
+      // The request's items must survive the second query hop.
       expect(o!.refundRequest!.items[0]!.productName).toBe("Milk");
     });
   });
 
-  /**
-   * ⚠ 055 US6 / T075 — A PORTION THE SHOP CANNOT SUPPLY IS THE CONSOLE'S MOST URGENT WORK ITEM.
-   *
-   * It ranks above `handover` and `arrival` because it is the only one where a CUSTOMER IS OUT OF
-   * POCKET while the queue waits: a late package is late, but a package nobody can supply is money
-   * the platform is holding for goods that will never be sent.
-   */
+  /** An unsuppliable portion is the most urgent item: the customer is out of pocket while it waits. */
   describe("a shop that cannot supply its portion (US6)", () => {
     async function markUnfulfillable() {
       await pool.query(
@@ -334,16 +272,14 @@ SELECT p.id FROM p`, [PRODUCT, SHOP]);
       expect(after!.awaiting).toBe("refund_decision");
     });
 
-    // ⚠ It outranks the others rather than being appended to a list — an order can genuinely be
-    // waiting on more than one thing, and this says which one an operator should act on.
+    // It outranks the others: an order can wait on several things, and this says which comes first.
     it("outranks awaiting an arrival on the same order", async () => {
       await markUnfulfillable();
       const o = await getOrder(ORDER);
-      // The package has no arrival either, so both are true; the more urgent one wins.
       expect(o!.awaiting).toBe("refund_decision");
     });
 
-    // ⚠ It moves NO money (FR-031). The shop said it cannot supply; a person decides the refund.
+    // It moves no money; a person decides the refund.
     it("moves no money — it only asks for a decision", async () => {
       await markUnfulfillable();
       const o = await getOrder(ORDER);

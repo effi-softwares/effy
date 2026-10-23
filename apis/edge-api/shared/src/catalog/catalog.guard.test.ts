@@ -5,17 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 098 — ONE WRITER EACH, AND NO READER OF A COLUMN THAT IS GONE.
- *
- * (a) The listing summary on `product` (list_price_amount, list_compare_at_amount, price_varies) is
- *     written only by `refreshListing` (listing.ts). A second writer would let it disagree with the
- *     variants it summarises — the listing showing one price while the product page shows another,
- *     with nothing failing.
- * (b) Options, values and every non-stock variant column are written only by variants.ts. Stock
- *     columns have their own writers (054), so an UPDATE of product_variant that sets only stock
- *     columns is allowed anywhere.
- * (c) 098 DROPPED product's price, code, weight and stock columns. A query naming one fails at run
- *     time, in production, on the first request that reaches it — so this fails at test time instead.
+ * One writer each: the product listing summary only by `refreshListing`; options, values and non-stock
+ * variant columns only by variants.ts (stock-only updates are allowed anywhere). No query may name the
+ * product price, code, weight or stock columns, which no longer exist.
  */
 
 const EDGE_API = fileURLToPath(new URL("../../..", import.meta.url));
@@ -27,7 +19,7 @@ function sourceFiles(dir: string): string[] {
     if (name === "node_modules" || name.startsWith(".")) continue;
     const full = join(dir, name);
     if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
-    // Test-only fixtures (src/testing) write rows directly, as a test must; they ship in no service.
+    // Test fixtures (src/testing) write rows directly and ship in no service.
     else if (name.endsWith(".ts") && !name.endsWith(".test.ts") && !full.includes("/src/testing/")) out.push(full);
   }
   return out;

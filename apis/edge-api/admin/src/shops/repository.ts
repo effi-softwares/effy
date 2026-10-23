@@ -1,7 +1,4 @@
-// Repository layer for back-office shop management: raw parameterized SQL + explicit row → domain
-// mapping (constitution Principle VI, no ORM). Reads/writes the customer-operational shop tables
-// (public.shop*, 007) and the back-office audit log (admin.audit_log, 009). Every mutation writes
-// an audit row inside the SAME transaction as the change it records (FR-016/SC-010).
+// Every mutation writes its audit row in the same transaction.
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
@@ -19,8 +16,6 @@ import {
   type ShopUser,
   SHOP_ROLES,
 } from "./types";
-
-// ── Wire row shapes (internal; never exported) ───────────────────────────────────────────────
 
 interface ShopRow {
   id: string;
@@ -43,7 +38,7 @@ interface ShopListRow {
   code: string;
   name: string;
   status: ShopLifecycleStatus;
-  user_count: string; // pg bigint → string
+  user_count: string;
   has_address: boolean;
   scanned: number;
   not_scanned: number;
@@ -71,8 +66,6 @@ interface AuditRow {
   total: string;
 }
 
-// ── Mappers ──────────────────────────────────────────────────────────────────────────────────
-
 function mapShop(row: ShopRow): Shop {
   return {
     id: row.id,
@@ -81,7 +74,7 @@ function mapShop(row: ShopRow): Shop {
     status: row.status,
     contactPhone: row.contact_phone,
     notes: row.notes,
-    // ⚠ 061: address only, never coordinates (FR-031). Nothing computes distance.
+    // Address only, never coordinates.
     address: {
       addressLine1: row.address_line1,
       addressLine2: row.address_line2,
@@ -109,8 +102,6 @@ function mapUser(row: ShopUserRow): ShopUser {
   };
 }
 
-// ── Audit (written inside the mutation's transaction) ────────────────────────────────────────
-
 async function insertAudit(
   client: PoolClient,
   actorSub: string,
@@ -126,7 +117,6 @@ async function insertAudit(
   );
 }
 
-// Map a Postgres unique_violation (23505) to a domain conflict, else rethrow.
 function asConflict(err: unknown, message: string): ShopError {
   if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
     return new ShopError("conflict", message);
@@ -134,10 +124,7 @@ function asConflict(err: unknown, message: string): ShopError {
   throw err;
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────────────────────
-
-/** Returns the shop id an email is already bound to (a non-null shop assignment), or null. The
- *  one-user-one-shop invariant check (FR-009). */
+/** The shop an email is already assigned to, or null: one user, one shop. */
 export async function shopIdForEmail(email: string): Promise<string | null> {
   const res = await query<{ shop_id: string }>(
     `SELECT shop_id FROM public.shop_staff
@@ -165,12 +152,12 @@ export async function listShops(params: {
   const { page, pageSize, status, q } = params;
   const res = await query<ShopListRow>(
     `SELECT s.id, s.code, s.name, s.status,
-            -- ⚠ 061 FR-030: whether a driver could be sent here at all. The address itself is NOT
+            -- ⚠ whether a driver could be sent here at all. The address itself is NOT
             -- selected — a register does not need a street, and a shop's location should not travel
             -- further than it has to.
             (s.address_line1 IS NOT NULL) AS has_address,
             count(ss.id) AS user_count,
-            -- 091 — the register shows each shop's label-scanning rate, the same count the shop page reads.
+            -- The register shows each shop's label-scanning rate, the same count the shop page reads.
             (SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int
                FROM public.package_handover ph
                JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
@@ -232,28 +219,23 @@ async function readRoster(shopId: string): Promise<ShopUser[]> {
   return res.rows.map(mapUser);
 }
 
-/** Full detail + roster. Returns null when the shop does not exist (→ 404). */
+/** null when the shop does not exist. */
 export async function getShopDetail(shopId: string): Promise<ShopDetail | null> {
   const shop = await readShop(shopId);
   if (!shop) return null;
   const [users, labelScanning, packScanRequired] = await Promise.all([
     readRoster(shopId),
     readLabelScanning(shopId),
-    // 096 — read here so the shop page shows it; the one writer is fleet's pack-scanning route.
+    // Written only by fleet's pack-scanning route.
     query<{ pack_scan_required: boolean }>(`SELECT pack_scan_required FROM public.shop WHERE id = $1`, [shopId])
       .then((r) => r.rows[0]?.pack_scan_required ?? false),
   ]);
   return { ...shop, users, labelScanning, packScanRequired };
 }
 
-/** 091 — the window the shop page counts label scanning over. */
 const LABEL_SCAN_DAYS = 30;
 
-/**
- * 091 — this shop's packages' recorded hand-overs over the last 30 days (090's record): scanned, and
- * typed or ticked by hand. Every step counts — a label that will not scan fails at the hub and the door
- * too. Nothing recorded is nothing counted, never "not scanned".
- */
+/** Recorded hand-overs over 30 days, scanned or by hand. Nothing recorded counts as nothing, never "not scanned". */
 async function readLabelScanning(shopId: string): Promise<{ scanned: number; notScanned: number; sinceDays: number }> {
   const res = await query<{ scanned: number; not_scanned: number }>(
     `SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int  AS scanned,
@@ -268,8 +250,7 @@ async function readLabelScanning(shopId: string): Promise<{ scanned: number; not
   return { scanned: Number(r?.scanned ?? 0), notScanned: Number(r?.not_scanned ?? 0), sinceDays: LABEL_SCAN_DAYS };
 }
 
-/** The user's assignment + email, for a roster PATCH. Throws not_found if absent; conflict if the
- *  user belongs to a different shop (no reassignment, A8). */
+/** Throws not_found if absent, conflict if the user is another shop's. */
 export async function getShopUserForUpdate(
   shopId: string,
   userId: string,
@@ -294,7 +275,7 @@ export async function getShopUserForUpdate(
   return { id: row.id, email: row.email, shopId: row.shop_id, roles };
 }
 
-/** Shop-and-user history, newest first (FR-016/SC-010). */
+/** Newest first. */
 export async function listShopHistory(
   shopId: string,
   page: number,
@@ -328,8 +309,6 @@ export async function listShopHistory(
   };
 }
 
-// ── Role reconciliation helper (used by create/add/role-change) ────────────────────────────────
-
 async function setRoles(client: PoolClient, staffId: string, roles: readonly ShopRole[]): Promise<void> {
   await client.query(
     `DELETE FROM public.shop_staff_role WHERE staff_id = $1 AND role_key <> ALL($2::text[])`,
@@ -353,10 +332,7 @@ ON CONFLICT (cognito_sub)
   RETURNING id
 `;
 
-// ── Writes ───────────────────────────────────────────────────────────────────────────────────
-
-/** Create the shop and its primary manager (already provisioned in Cognito → `primary.sub`) in ONE
- *  transaction, keyed on the returned sub so 007's JIT reconcile matches it (FR-002/FR-012). */
+/** One transaction, keyed on the Cognito `sub` so the shop service's reconcile matches it. */
 export async function createShopWithManager(
   input: {
     code: string;
@@ -371,7 +347,7 @@ export async function createShopWithManager(
     let id: string;
     try {
       const ins = await client.query<{ id: string }>(
-        // ⚠ 061: no address here — create does not collect one; it is set through update.
+        // No address on create; it is set through update.
         `INSERT INTO public.shop (code, name, contact_phone, notes)
               VALUES ($1, $2, $3, $4)
            ON CONFLICT (code) DO UPDATE
@@ -403,7 +379,7 @@ export async function createShopWithManager(
   return detail;
 }
 
-/** Edit mutable details (name/contactPhone/notes/address). Code is immutable (A9), never touched. */
+/** The code is immutable. */
 export async function updateShop(
   shopId: string,
   values: {
@@ -419,9 +395,7 @@ export async function updateShop(
   actorSub: string,
 ): Promise<ShopDetail> {
   await withTransaction(async (client) => {
-    // ⚠ Address fields use PRESENCE, not value: a key present with null clears, a key absent leaves
-    // alone. The same rule 056 established for drivers, where COALESCE collapsed the two and a zone
-    // once assigned could never be un-assigned.
+    // Address fields use presence: a key with null clears, an absent key leaves alone.
     const sets = [
       "name = $2",
       "contact_phone = $3",
@@ -467,7 +441,7 @@ export async function changeShopStatus(
   return (await getShopDetail(shopId))!;
 }
 
-/** Current status (for transition validation / detail). Null when the shop does not exist. */
+/** Null when the shop does not exist. */
 export async function shopStatus(shopId: string): Promise<ShopLifecycleStatus | null> {
   const res = await query<{ status: ShopLifecycleStatus }>(
     `SELECT status FROM public.shop WHERE id = $1`,
@@ -476,7 +450,7 @@ export async function shopStatus(shopId: string): Promise<ShopLifecycleStatus | 
   return res.rows[0]?.status ?? null;
 }
 
-/** Hard-delete only a dependent-free shop; otherwise conflict (disable instead — FR-006/A6). */
+/** Only a dependent-free shop; otherwise conflict (disable instead). */
 export async function deleteShop(shopId: string, actorSub: string): Promise<void> {
   await withTransaction(async (client) => {
     const dep = await client.query<{ n: string }>(
@@ -495,7 +469,7 @@ export async function deleteShop(shopId: string, actorSub: string): Promise<void
   });
 }
 
-/** Add a user (already provisioned in Cognito → `user.sub`) to a shop, keyed on the sub. */
+/** Already provisioned in Cognito, keyed on the sub. */
 export async function addShopUser(
   shopId: string,
   user: { sub: string; email: string; name: string; role: ShopRole },

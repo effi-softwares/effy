@@ -4,32 +4,14 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE GUARD WHOSE ABSENCE LET SIXTEEN ROUTES GO DEAD (063).
- *
- * The driver app calls its backend by string literal. When the work model was torn down, the routes
- * went with it and **the app's client code stayed exactly as it was** — five HTTP repositories, all
- * wired into ViewModels, all calling paths that now 404. Nothing failed: not `tsc`, not the Kotlin
- * compile, not a single test on either side. It was found by reading the app, months of work later.
- *
- * This test makes that impossible to repeat. It reads the ROUTES THE APP ACTUALLY CALLS out of the
- * Kotlin source and fails naming any that `serverless.yml` does not declare.
- *
- * ⚠ DEFERRED ROUTES ARE LISTED EXPLICITLY, NOT PATTERN-MATCHED. A route Slice D will build is a
- * decision somebody made; a route that merely looks unfinished is a bug. Listing them by hand means
- * removing one from this array is the act that makes the guard demand it.
+ * Every route the driver app calls (read from its Kotlin source) must be declared in serverless.yml.
+ * Deferred routes are listed by hand below, with their reason.
  */
 
 const APP_SRC = resolve(__dirname, "../../../../../apps/driver-mobile/shared/src/commonMain");
 const SERVERLESS = resolve(__dirname, "../../serverless.yml");
 
-/** Slice D — the three custody mechanisms (D16). Each must be built, or deliberately un-listed here. */
-// ⚠ EMPTY, AND THAT IS THE POINT. 064 built all three routes this list held — `.../proof`,
-// `.../proof/presign` and `.../fail` — and each entry was deleted as its route landed. The second
-// test below is what forced that: a deferred route the app no longer calls fails the suite, so the
-// list cannot rot into a place where entries are added and never removed.
-//
-// It stays declared (rather than being deleted with its last entry) because the NEXT deferral should
-// be recorded here with its reason, not invented somewhere else.
+/** Routes the app calls that are deliberately not built yet. Empty; the next deferral goes here. */
 const DEFERRED_TO_SLICE_D: string[] = [];
 
 function kotlinFiles(dir: string): string[] {
@@ -42,7 +24,6 @@ function kotlinFiles(dir: string): string[] {
   return out;
 }
 
-/** Normalise `.../runs/$runId/stops/$stopId` and `.../{runId}` to one comparable shape. */
 function normalise(path: string): string {
   return path
     .replace(/\$\{[^}]*\}/g, "{}")
@@ -91,8 +72,7 @@ describe("route inventory — every route the app calls must exist", () => {
   });
 
   it("keeps the deferral list honest — a deferred route must still be one the app calls", () => {
-    // ⚠ Otherwise the list rots into a place where entries are added and never removed, and the
-    // guard quietly stops guarding the thing it was written for.
+    // A listed route the app no longer calls fails, so the list cannot rot.
     const called = new Set(routesTheAppCalls());
     for (const d of DEFERRED_TO_SLICE_D.map(normalise)) {
       expect(called.has(d), `${d} is deferred but the app no longer calls it — delete the entry`).toBe(true);

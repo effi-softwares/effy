@@ -1,5 +1,3 @@
-// GET /commerce/v1/lists/{listId}/items — one list's items, newest-added first. `listId` is a list
-// id or "default".
 import { json } from "@effy/edge-shared";
 
 import { customerRoute, pathParam } from "../lib/route";

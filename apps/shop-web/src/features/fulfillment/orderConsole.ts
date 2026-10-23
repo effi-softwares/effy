@@ -25,11 +25,11 @@ import {
 import type { FulfillmentStatus } from "@effy/shared-types"
 
 /**
- * The shop ORDER CONSOLE's domain (057 Amendment A3) — the list's URL state, the labels, and money
+ * The shop order console's domain — the list's URL state, the labels, and money
  * formatting. Pure: no React, no transport.
  *
- * ⚠ THE LIST'S STATE LIVES IN THE URL, NOT IN COMPONENT STATE. Clicking a row opens the order and the
- * back button must land on the SAME filtered, sorted page — and the order detail's previous/next
+ * The list's state lives in the URL, not in component state. Clicking a row opens the order and the
+ * back button must land on the same filtered, sorted page — and the order detail's previous/next
  * needs to know which list it was opened from. A URL answers both; `useState` answers neither.
  */
 
@@ -47,7 +47,7 @@ export interface OrdersSearch {
   q?: string
   attention?: ShopOrderAttention
   payment?: ShopOrderPaymentState
-  /** 079 — who takes the package away. (Was `method`: the customer's words, which a shop is no longer shown.) */
+  /** Who takes the package away. (Was `method`: the customer's words, which a shop is no longer shown.) */
   deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
   sort?: ShopOrderSort
@@ -60,7 +60,7 @@ function pick<T extends string>(raw: unknown, allowed: readonly T[]): T | undefi
 }
 
 /**
- * Parse the URL into search params. ⚠ INVALID AND DEFAULT VALUES ARE DROPPED, not kept: a URL carrying
+ * Parse the URL into search params. Invalid and default values are dropped, not kept: a URL carrying
  * `tab=all&page=1` is the same list as a bare `/orders`, and two URLs for one list would cache twice.
  */
 export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch {
@@ -72,7 +72,7 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (attention && attention !== "any") out.attention = attention
   const payment = pick(raw.payment, SHOP_ORDER_PAYMENT_STATES)
   if (payment) out.payment = payment
-  // ⚠ An old link may still carry `method=same_day`. It is dropped, like any key this list does not
+  // An old link may still carry `method=same_day`. It is dropped, like any key this list does not
   // know: the words were the customer's, and "standard" no longer says who collects the package.
   const deliveredBy = pick(raw.deliveredBy, SHOP_ORDER_DELIVERED_BY)
   if (deliveredBy && deliveredBy !== "any") out.deliveredBy = deliveredBy
@@ -80,8 +80,8 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (range && range !== "any") out.range = range
   const sort = pick(raw.sort, SHOP_ORDER_SORTS)
   if (sort && sort !== "placed") out.sort = sort
-  // ⚠ DESCENDING IS THE DEFAULT (see ORDER_ROW_TONE below) — so it is `asc` that must be written into
-  // the URL, and `desc` that is dropped. This MUST agree with the service's own default
+  // Descending is the default (see ORDER_ROW_TONE below) — so it is `asc` that must be written into
+  // the URL, and `desc` that is dropped. This must agree with the service's own default
   // (`apis/edge-api/shop/src/orders/service.ts`): if the two disagree, a bare `/orders` sends no
   // direction, the server picks its own, and the header arrow points the wrong way at a correct list.
   if (raw.dir === "asc") out.dir = "asc"
@@ -109,7 +109,7 @@ export function activeFilterCount(s: OrdersSearch): number {
   return [s.range, s.payment, s.deliveredBy, s.attention].filter(Boolean).length
 }
 
-// ── Labels ──────────────────────────────────────────────────────────────────────────────────────
+// Labels
 
 export const TAB_LABEL: Record<ShopOrderTab, string> = {
   all: "All",
@@ -137,7 +137,7 @@ export const ATTENTION_LABEL: Record<ShopOrderAttention, string> = {
 }
 
 /**
- * 079 — who takes a package away from the shop. ⚠ THE WORDS ARE `DELIVERED_BY_WORDS`'S (shared-types):
+ * Who takes a package away from the shop. The words are `DELIVERED_BY_WORDS`'S (shared-types):
  * the shop app prints the same two, and a test holds it to them. "Same-day" and "standard" are the
  * customer's words and appear nowhere in this console (`scripts/check-shop-delivery-words.sh`).
  */
@@ -158,23 +158,14 @@ export function deliveredByText(d: DeliveredBy): string {
   return DELIVERED_BY_WORDS[d]
 }
 
-// ── Formatting ──────────────────────────────────────────────────────────────────────────────────
+// Formatting
 
-// ── The row's tone (2026-09-19, operator direction) ─────────────────────────────────────────────
+// The row's tone (2026-09-19, operator direction)
 
 /**
- * How long an order reads as "just in".
- *
- * ⚠ NOT Today's `NEW_WINDOW_MS` (60 s), and the difference is the screen's job rather than taste.
- * Today's Live orders is a five-row feed of the newest arrivals that a person watches change; one
- * minute is long enough there because the row is at the top of a short list either way. This is the
- * whole order book, paged and filterable, and an operator comes back to it from the floor — a window
- * that expires before they return would mean the highlight is only ever seen by someone already
- * looking at the screen, which is the one person who does not need it.
- *
- * ⚠ THE LIST POLLS EVERY 15 s AND THE SCREEN TICKS ITS OWN CLOCK AT THE SAME RATE, so a row stops
- * being green on time even if no new data arrives. A highlight that outlives its claim is worse than
- * none: it is read as fresh (058 FR-009, the same rule as the ageing timestamps).
+ * How long an order reads as "just in": longer than Today's 60 s feed, because an operator comes back to
+ * the order book from the floor. The screen ticks its own clock, so a row stops being green on time even
+ * with no new data.
  */
 export const RECENT_WINDOW_MS = 15 * 60_000
 
@@ -187,19 +178,9 @@ const TERMINAL: ReadonlySet<FulfillmentStatus> = new Set<FulfillmentStatus>([
 ])
 
 /**
- * The row's highlight, or `null` for the ordinary case.
- *
- * ⚠ TWO DIFFERENT FACTS, DELIBERATELY NOT ONE. `recent` is about the CLOCK — it just arrived.
- * `unopened` is about a PERSON — `status = 'pending'` means nobody at this shop has opened it yet,
- * because opening it IS the acknowledgement (020 FR-011a). They usually coincide at first and then
- * come apart, which is exactly the case worth seeing: an order that is no longer new and STILL has
- * not been looked at.
- *
- * ⚠ THE STATUS PILL CANNOT SAY THIS. It maps `pending` and `received` both to "Awaiting pick" (they
- * are the same work), so the console had no way at all to show that an order had never been opened.
- *
- * ⚠ A TERMINAL ORDER IS NEVER "RECENT". A cancelled order placed ten minutes ago is not work waiting
- * to be done, and a green wash on it would say the opposite of the truth.
+ * The row's highlight, or `null`. `recent` is the clock (it just arrived); `unopened` is a person
+ * (`pending` = nobody at the shop has opened it). The status pill cannot say the second (`pending` and
+ * `received` are both "Awaiting pick"). A terminal order is never "recent".
  */
 export type OrderRowTone = "recent" | "unopened"
 
@@ -280,12 +261,12 @@ export function toCsv(rows: readonly OrderRow[]): string {
   return [head.join(","), ...body].join("\n")
 }
 
-// ── Item-level picking (A3 revision 2) ────────────────────────────────────────────────────────
+// Item-level picking (A3 revision 2)
 
 /**
- * A line's pick state, DERIVED from its two counts — never stored beside them.
- *   full — every unit gathered · part — some gathered (the rest short) · unavailable — none gathered,
- *   all short · none — untouched.
+ * A line's pick state, derived from its two counts — never stored beside them.
+ *  full — every unit gathered · part — some gathered (the rest short) · unavailable — none gathered,
+ *  all short · none — untouched.
  */
 export type PickMode = "full" | "part" | "unavailable" | "none"
 

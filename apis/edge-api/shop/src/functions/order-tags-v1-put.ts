@@ -1,7 +1,4 @@
-// PUT /shop/v1/orders/{id}/tags — replace the order's tag set (057 A3).
-//
-// The body is the ABSOLUTE set, never an add/remove delta, so a retried save lands the same result. A
-// save that changes nothing writes nothing — not even a log entry.
+// The absolute tag set, so a retry lands the same result. A save that changes nothing writes nothing.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

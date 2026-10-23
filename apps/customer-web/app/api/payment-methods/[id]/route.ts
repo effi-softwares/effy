@@ -1,10 +1,10 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * Remove a kept card (051 FR-024).
+ * Remove a kept card.
  *
- * ⚠ Ownership is verified SERVER-SIDE before anything is detached. The id arrives from the client, so
- * a route that trusted it would let one shopper remove another's card by guessing an id (FR-026). A
+ * Ownership is verified server-side before anything is detached. The id arrives from the client, so
+ * a route that trusted it would let one shopper remove another's card by guessing an id. A
  * card that is not this shopper's answers 404 — deliberately indistinguishable from "no such card", so
  * the route cannot be used as an oracle for which payment-method ids exist.
  */

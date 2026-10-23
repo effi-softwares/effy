@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
-// ⚠ PARTIAL mock (058): the low-stock SQL fragments moved into @effy/edge-shared so Today and the
-// restock list cannot answer "what is running out?" differently (054's one-rule-in-14-places
-// lesson). Only the DB access is stubbed; the real constants are spread in, so these assertions
-// still read the rule the service actually sends.
+// Partial mock: the low-stock SQL fragments are shared with Today, so the real constants are kept.
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   query,
@@ -20,29 +17,23 @@ beforeEach(() => {
   query.mockResolvedValue({ rows: [] });
 });
 
-// ── The effective threshold: the product's own if set, else the shop's default (FR-005) ─────────
-// 098 — per VARIANT: `v` is the variant, `p` its product.
+// The effective threshold: the variant's own if set, else the shop's default.
 describe("the restock list (054 US5, FR-029)", () => {
   it("resolves the threshold as product-then-shop-default", async () => {
     await readLowStock("shop-1");
-    // ⚠ COALESCE, not a branch in TypeScript. The rule is evaluated per row against thousands of
-    // products; pulling it into the service would mean reading every tracked product to filter most
-    // of them out again.
+    // COALESCE in SQL, not a TypeScript branch, so untracked rows are never read.
     expect(sql()).toContain("COALESCE(v.low_stock_threshold, s.default_low_stock_threshold)");
   });
 
   it("reports a product at zero even with NO threshold anywhere (FR-005a)", async () => {
     await readLowStock("shop-1");
-    // ⚠ A missing threshold means "I have no opinion about running LOW" — not "never tell me about
-    // this product". An empty shelf is reported regardless, or a shop that never set a threshold
-    // would silently sell nothing.
+    // No threshold means no opinion about running low; an empty shelf is still reported.
     expect(sql()).toContain("v.stock_on_hand <= 0 OR (COALESCE");
   });
 
   it("excludes zero from 'low' so out and low are mutually exclusive", async () => {
     await readLowStock("shop-1");
-    // An empty shelf and a thin one need different actions — restock now versus restock soon — and a
-    // row claiming both would sort into two places at once.
+    // Out and low are different actions, so a row is never both.
     expect(sql()).toContain("CASE WHEN v.stock_on_hand <= 0 THEN 'out' ELSE 'low' END");
   });
 

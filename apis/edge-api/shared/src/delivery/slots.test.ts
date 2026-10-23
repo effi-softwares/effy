@@ -8,7 +8,7 @@ const c = (hour: number, minute: number) => ({ hour, minute });
 const evening: Slot = { id: "evening", start: c(17, 0), end: c(19, 0), cutoff: c(15, 0), capacity: 2, anyTime: false };
 const oneRun: CollectionRun[] = [{ hour: 14, minute: 0 }];
 const run = (hour: number, minute: number): CollectionRun[] => [{ hour, minute }];
-/** A window TODAY — the day on which the collection rule applies. Later days are in `windows.test.ts`. */
+/** Today: the day the collection rule applies (later days in `windows.test.ts`). */
 const judgeToday = (now: Date, slot: Slot, booked: number, runs: readonly CollectionRun[], buffer: number, turnaround: number) =>
   judgeWindow(now, melbourneDate(now), slot, booked, runs, buffer, turnaround);
 

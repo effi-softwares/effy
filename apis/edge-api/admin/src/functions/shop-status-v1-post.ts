@@ -1,6 +1,4 @@
-// POST /admin/v1/shops/{shopId}/status — lifecycle transition (US3/FR-005). Mutate access.
-// Touches public.shop.status only — no Cognito (R5/Q1). Suspend/disable refuses operators via the
-// 007 gate on their next attempt.
+// Touches public.shop.status only; operators are refused by the shop gate on their next request.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

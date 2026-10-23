@@ -3,11 +3,11 @@ import type { LiveDescriptor } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
 
-// The data layer for the live channel (071): where back-office's operations channel is.
+// The data layer for the live channel: where back-office's operations channel is.
 //
-// ⚠ "NO CHANNEL" IS AN ANSWER, NOT A FAILURE. 204 (none in this environment), 403 (not an active
+// "NO CHANNEL" is an answer, not a failure. 204 (none in this environment), 403 (not an active
 // account) and 404 (a backend that predates the route) all resolve `null`: the console then says
-// live updates are off and reads on open, on return and on request. Only a failure to FIND OUT —
+// live updates are off and reads on open, on return and on request. Only a failure to find out
 // the network, a 5xx — throws, and that is what gets retried.
 export async function getLiveDescriptor(): Promise<LiveDescriptor | null> {
   try {

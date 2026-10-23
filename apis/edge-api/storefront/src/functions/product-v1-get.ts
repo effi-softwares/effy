@@ -1,6 +1,3 @@
-// GET /storefront/v1/products/{id} — the product page. Public. An unknown, inactive or malformed
-// id is 404: a shopper following a stale link is told the product is not there, not that the
-// service is down.
 import { json, notFound, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { catalogService } from "../lib/wiring";

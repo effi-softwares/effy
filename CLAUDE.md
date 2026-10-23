@@ -24,12 +24,11 @@ Every order is one of two things, decided from the delivery address:
 removed; what it was, and how to read an order sold that way, is
 [docs/archive/delivery-model-v1.md](docs/archive/delivery-model-v1.md). ⚠ `same_day` / `standard` on a
 package are **not** legacy: for an Effy order they are the customer's words for *a window today* / *a
-window on a later day*. `scripts/check-no-legacy-delivery.sh` fails the old path's identifiers, not those words.
+window on a later day*.
 - ⚠ **THE GO-LIVE PAGE, SWITCH AND "OLD ORDERS STILL OPEN" ARE GONE (cleanup, 2026-10-23).** Dev was
-  wiped, so no order from before delivery types exists. Until the cleanup's database rebuild makes
-  `order.delivery_type` required, `public.package_delivered_by(type, method, slot)` still reads a NULL
-  type the old way, and `public.delivery_model_v2_at` (always true) is still called from inside the
-  database only.
+  wiped and the 92 migrations were collapsed into ONE baseline (`db/migrations/20261023000000_baseline.sql`).
+  A paid order always has a type (`order_paid_delivery_type_ck`); the type is set by checkout before
+  payment, so the column itself stays nullable.
 
 **Coverage (076).** Where Effy delivers is **one flat list of postcodes**; "who delivers to this address" —
 `effy` | `courier` | `none` — is decided by `public.coverage_for_postcode` **only** (read through
@@ -91,9 +90,8 @@ show (409 `delivery_fee_changed`). A package carries no fee; a shop never sees d
   twins pinned to `delivery-type.fixtures.json`. A courier estimate is ALWAYS said as an estimate; an order
   keeps the text it was sold. An order's arrivals are said once per DISTINCT promise (`distinctArrivals`).
 
-**Who delivers an order (079).** ⚠ `order.delivery_type` (`effy` | `courier`), read through
-`public.package_delivered_by` (`deliveredBySql` / `fulfilmentDeliveredBySql`); `delivery-type.guard.test.ts`
-fails a reader that decides from `slot_id` again. A courier package is stored `standard`, no window, no
+**Who delivers an order (079).** ⚠ `order.delivery_type` (`effy` | `courier`), read directly — never
+re-derived from a method or window; `delivery-type.guard.test.ts` fails a reader that decides from `slot_id`. A courier package is stored `standard`, no window, no
 day — that word is ROUTING; a courier order's customer DTO carries `delivery` and **empty**
 `arrivalEstimates`. ⚠ **THE TYPE'S HISTORY HAS ONE WRITER** — `recordDeliveryType` / `changeDeliveryType`
 (`shared/src/delivery/delivery-type.ts`); `order_delivery_type_change` is append-only.
@@ -130,7 +128,7 @@ couriers**. They are Effy employees working typed tasks, not roles:
 - **Hub check-in** shows what the customer already chose — `effyGroups` (by day and window, `dueToday`)
   and `courierCount`. The driver classifies nothing.
 - **Delivery round (hub → customers):** planned **per window, on its window's day**, to the window's end; a
-  later-day parcel waits at the hub on no round. ⚠ Driver work asks `package_delivered_by = 'effy'` —
+  later-day parcel waits at the hub on no round. ⚠ Driver work asks `o.delivery_type = 'effy'` —
   never a method (`fleet/src/driver-method.guard.test.ts`).
 - ⚠ **A clearance is (function, area), one row each** — collection or delivery, in a group or everywhere
   (`zone_id` NULL, including groups created later). An ungrouped postcode is cleared by any clearance for
@@ -230,8 +228,8 @@ for `shop-web` only.
     append-only points ledger; the balance is `public.points_usable`, never stored, never recomputed
     elsewhere. Points are a **way of paying**, not a discount: `order.grand_total_amount` is unchanged
     and `payment.amount` is the **card** amount. A shop never sees points.
-  - **Event backbone:** services publish domain events to one SNS topic; per-consumer SQS queues
-    subscribe with filter policies (the fulfillment fan-out).
+  - **Event backbone: NOT BUILT.** The planned domain-event topic was never delivered; its unread
+    outbox table was removed in the cleanup (2026-10-23). Add it back when a consumer needs it.
 - **Data:** PostgreSQL 16, **raw SQL**, Goose migrations, **no ORM.** Two schemas: `public`
   (operational) and `admin` (back-office accounts + audit).
 - **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
@@ -261,7 +259,7 @@ The spine in five rules:
 - **Unidirectional client state** — mobile MVVM (a ViewModel exposing immutable, observable state; the View calls its functions for user actions);
   web treats the server-state cache as the source of truth, with a client store only for genuine
   client state. Never hand-cache server data in component state.
-- **One event language** — every service publishes the same event envelope; consumers are idempotent.
+- **One event language** (when the event backbone is built) — one envelope; consumers are idempotent.
 
 ## Observability & telemetry
 Observable and measurable from day one (constitution Principle VII; full detail in
@@ -532,8 +530,8 @@ days, stock, the shop and back-office consoles, the driver operation. ⚠ **Deli
 served by the one serverless backend** — `storefront` and `commerce` for shoppers, beside the staff,
 shop and driver services — at `edge-api.dev.effyshopping.com`, with back-office at
 `staff-api.dev.effyshopping.com` (075, moved 2026-10-08). The Go service that 040 deployed at
-`core-api.dev.effyshopping.com` no longer exists. Still ahead: **delivering the event backbone**
-(the order-placed record is written and not yet delivered) and sweeping abandoned unpaid orders.
+`core-api.dev.effyshopping.com` no longer exists. Still ahead: **the event backbone**
+(not built) and sweeping abandoned unpaid orders.
 
 ⚠ **NO SCREEN REFRESHES ITS DATA ON A TIMER (071).** All six apps are told when something they show
 has changed — over a managed channel (AWS AppSync Events), independent of push notifications — and

@@ -8,10 +8,7 @@ import { assignTo } from "../assignments/service";
 import { announceDispatch } from "../lib/live";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * POST /fleet/v1/dispatch/packages/{packageId}/assign (073) — "Assign to…". Gives a package to a
- * driver, whether nobody has it or someone else does. Mutate = admin/manager.
- */
+/** Admin/manager. Whether nobody has the package or someone else does. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -31,7 +28,6 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
       actorSub: g.sub,
     });
     logger.info({ action: "assign", stage: body.stage, packageId }, "dispatch.manual");
-    // 071 — committed. Both drivers' apps, and back-office's order and dispatch screens.
     await announceDispatch(result.driverIds);
     return json(200, { message: result.message }, scope);
   } catch (err) {

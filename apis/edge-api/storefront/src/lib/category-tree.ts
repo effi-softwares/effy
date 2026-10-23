@@ -1,27 +1,16 @@
-// "This category" always means the category AND everything filed under it.
-//
-// ⚠ A product is filed in ONE category — usually a leaf ("Full cream"). An aisle ("Dairy & eggs") or a
-// group ("Milk") holds almost nothing directly, so a filter that matched `primary_category_id` exactly
-// showed an empty page for every aisle link in the header. These fragments are the one definition of
-// a category's contents: the search filter, the home rails and the category counts all read through
-// them, so "Milk (24)" and the page behind it can never disagree.
+// A category means the category and everything under it. Products are filed in leaves, so these
+// fragments are the one definition of a category's contents for search, rails and counts.
 
-/** The ids of the category with this key and all its descendants. `key` is a bind placeholder (`$3`). */
+/** `key` is a bind placeholder (`$3`). */
 export function categorySubtreeByKey(key: string): string {
   return subtree(`key = ${key}`);
 }
 
-/** The same set, starting from an id expression (`c.id`). */
 export function categorySubtreeById(id: string): string {
   return subtree(`id = ${id}`);
 }
 
-/**
- * Every (category, category-or-descendant) pair, as a recursive CTE body with columns
- * `root_id, id` — the same "everything filed under it" as `categorySubtreeById`, for every category
- * at once. Use it as `WITH RECURSIVE tree AS (${categoryClosure()})` when a statement needs the
- * subtree of MANY categories: one walk of the taxonomy instead of one per category (PERF-13).
- */
+/** Every (root_id, id) pair as a recursive CTE body: one taxonomy walk for many categories. */
 export function categoryClosure(): string {
   return (
     "SELECT id AS root_id, id FROM public.category " +

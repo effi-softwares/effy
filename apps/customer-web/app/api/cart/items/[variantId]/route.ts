@@ -3,8 +3,8 @@ import { proxyToEdge } from "@/lib/api/proxy"
 type Params = { params: Promise<{ variantId: string }> }
 
 /**
- * Set an ABSOLUTE line quantity; 0 removes (027). Absolute rather than a delta is what makes the client's
- * per-line debounce safe: intermediate values can simply be dropped (FR-016).
+ * Set an absolute line quantity; 0 removes. Absolute rather than a delta is what makes the client's
+ * per-line debounce safe: intermediate values can simply be dropped.
  */
 export async function PATCH(req: Request, { params }: Params) {
   const { variantId } = await params

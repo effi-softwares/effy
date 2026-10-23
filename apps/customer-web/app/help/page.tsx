@@ -17,12 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/help" },
 }
 
-/**
- * Help & feedback (reference: Help & info · Help & feedback; FR-030).
- *
- * Answers first, the message form beneath. The form is 046's feedback form, unchanged — the same
- * fields, the same server action, the same reference code on success; `/feedback` now redirects here.
- */
+/** Help & feedback: answers first, the feedback form beneath (`/feedback` redirects here). */
 export default function HelpPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   return (
     <div className="container py-6">

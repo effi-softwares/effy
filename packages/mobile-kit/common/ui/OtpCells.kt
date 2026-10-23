@@ -29,43 +29,20 @@ import androidx.compose.ui.unit.dp
 
 /** How the one-time-code field presents itself. */
 enum class OtpVariant {
-    /**
-     * One box, flowing text. ⚠ The DEFAULT, and that default is load-bearing: `apps/shop-mobile` is
-     * out of scope for 036 (FR-044a) and must keep today's rendering byte-for-byte.
-     */
+    /** One box, flowing text (the default). */
     Plain,
 
-    /** Six visible character positions, drawn behind ONE field. */
+    /** Six visible character positions, drawn behind one field. */
     Cells,
 }
 
 /**
- * Six character cells, drawn from the current value (036 FR-002, R3b).
- *
- * ⚠ ANDROID ONLY, and that is a correction rather than a design. iOS drew these cells for exactly one
- * build and they were INVISIBLE: `UIKitView` composites its native view above the Compose canvas and
- * clears the region beneath it, so anything Compose paints *behind* an interop view is never seen. The
- * iOS actual now builds the same six cells in UIKit, inside the same native view as the text field, so
- * no compositing is involved at all. Do not "share" this composable back to iOS.
- *
- * ⚠ THIS IS DECORATION AROUND ONE FIELD — NOT SIX FIELDS. The editor above it remains a single
- * `BasicTextField` with a single accessibility node named "One-time code". Six real inputs are
- * "several inputs wearing a costume", and they are how screen-reader users lose their place in an OTP
- * form. GOV.UK reached the same conclusion and ships a single input; this simply paints the positions.
- *
- * ⚠ IT DELIBERATELY DOES NOT RENDER `innerTextField()`. The Compose idiom for this draws the glyphs
- * itself from `value`; calling the inner field as well would paint the real text ON TOP of the cells.
- * The cost, stated rather than discovered later: **no caret and no selection handles**. The caret is
- * replaced by a pulsing underline on the active cell, which is what the shopper actually needs — "the
- * next digit goes here". Selection is not a gesture anyone performs on a six-digit code; paste still
- * works through the IME, and `normalizeOtp` still sees it.
- *
- * ⚠ OVER-LENGTH FALLS BACK TO FLOWING TEXT, AND THAT IS THE WHOLE REASON THIS FUNCTION TAKES THE CASE
- * SERIOUSLY. Six cells can only show six characters. An 8-digit paste rendered as cells would LOOK
- * like a six-digit code — visually reproducing the exact truncation defect 035 exists to fix, while
- * `normalizeOtp` was carefully written not to truncate. So when the value is too long the cells are
- * abandoned entirely and every digit is shown, in the error colour, with the submit gate already
- * closed by `isCompleteOtp`.
+ * Six character cells drawn from the current value, Android only (iOS draws them in UIKit, since
+ * Compose cannot paint behind an interop view). Decoration around one `BasicTextField` with one
+ * accessibility node, not six fields. It does not render `innerTextField`, which would paint the text
+ * over the cells, so there is no caret or selection handle: a pulsing underline marks the next cell,
+ * and paste still works. An over-length value falls back to flowing text in the error colour, so an
+ * eight-digit paste never looks like a valid six-digit code.
  */
 @Composable
 fun OtpCells(
@@ -77,8 +54,7 @@ fun OtpCells(
     val tooLong = value.length > OTP_LENGTH
 
     if (tooLong) {
-        // ⚠ Not a cell in sight. The person must be able to SEE that what they pasted is not a code
-        // from us — that is strictly more informative than showing six digits and a server refusal.
+        // No cells: the person must see that what they pasted is not our code.
         Box(
             modifier
                 .fillMaxWidth()
@@ -99,12 +75,7 @@ fun OtpCells(
         return
     }
 
-    // ⚠ FULL WIDTH, BUT CAPPED. The cells divide the available width equally, so on a phone they fill
-    // the column edge to edge — which is the affordance a shopper recognises. Without the cap they
-    // keep growing on a tablet or an unconstrained parent and become six wide rectangles instead of
-    // six character positions. 360 dp is arithmetic, not a citation: six cells at the ~48 dp touch
-    // target plus five 8 dp gaps is ≈ 328 dp, and the published guidance is to keep the group compact
-    // and centred rather than let it span a wide layout.
+    // Full width, capped at 360dp (six ~48dp cells and five 8dp gaps), so cells stay character positions on a tablet.
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Row(
             Modifier.fillMaxWidth().widthIn(max = 360.dp).heightIn(min = 56.dp),
@@ -116,9 +87,7 @@ fun OtpCells(
                     digit = value.getOrNull(index),
                     active = enabled && index == value.length,
                     isError = isError,
-                    // ⚠ `aspectRatio` is deliberately NOT used: a square cell at a narrow width would
-                    // shrink the height below the touch minimum on a 320 dp device. Height is pinned,
-                    // width flexes.
+                    // No `aspectRatio`: a square cell on a narrow screen would fall below the touch minimum. Height is pinned.
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -143,8 +112,7 @@ private fun Cell(
 
     Box(
         modifier
-            // ⚠ 56dp, matching the plain variant. Measured, not asserted — 033 shipped a 32dp control
-            // under a comment claiming it cleared the 48dp minimum.
+            // 56dp, matching the plain variant.
             .heightIn(min = 56.dp)
             .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
@@ -169,13 +137,7 @@ private fun Cell(
     }
 }
 
-/**
- * The caret stand-in.
- *
- * ⚠ There is no real caret in this variant (see the note on [OtpCells]), so the active cell's rule
- * breathes instead. Without it, a shopper mid-code has no indication of where the next digit lands —
- * which is the one thing a caret was doing for them.
- */
+/** The caret stand-in: the active cell's rule breathes, showing where the next digit lands. */
 @Composable
 private fun pulse(): Float {
     val transition = rememberInfiniteTransition(label = "otp-caret")

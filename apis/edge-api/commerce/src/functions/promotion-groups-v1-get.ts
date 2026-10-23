@@ -1,7 +1,5 @@
-// GET /commerce/v1/promotion-groups?keys=home-hero,home-side — display groups for a SIGNED-IN shopper
-// (094 US2). The storefront's public read answers everyone-audience promotions only; this one adds the
-// first-order, new-customer and chosen-customer offers this shopper qualifies for and drops any they
-// have used as often as allowed. Not cached: the answer is the shopper's own.
+// The signed-in version of the storefront's read: adds the offers this shopper qualifies for and drops
+// those they have used up. Not cached.
 import { json } from "@effy/edge-shared";
 import { groupPromotions } from "@effy/edge-shared/promotions";
 import { pooled } from "@effy/edge-shared";

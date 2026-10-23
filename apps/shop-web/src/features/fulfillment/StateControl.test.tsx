@@ -11,7 +11,6 @@ vi.mock("./repo", () => ({
   transitionFulfillment,
   listFulfillments: vi.fn(),
   getFulfillment: vi.fn(),
-  updateItemProgress: vi.fn(),
 }));
 
 import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl";
@@ -41,7 +40,7 @@ describe("StateActions — the header's lifecycle control", () => {
     expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "ready_for_pickup" });
   });
 
-  // ⚠ `from` is state the operator acted on — it must never reach the wire.
+  // `from` is state the operator acted on — it must never reach the wire.
   it("sends only the transition, never the source state", async () => {
     wrap(<StateActions detail={target("picking")} />);
     await userEvent.click(screen.getByRole("button", { name: /mark ready for pickup/i }));
@@ -62,7 +61,7 @@ describe("StateActions — the header's lifecycle control", () => {
 });
 
 describe("stateNote", () => {
-  // ⚠ `withdrawn` was NOT the shop's doing, and this screen is where they are judged.
+  // `withdrawn` was not the shop's doing, and this screen is where they are judged.
   it("says a cancelled order was cancelled, not that the shop failed", () => {
     expect(stateNote("withdrawn")).toMatch(/the customer cancelled this order/i);
     expect(stateNote("withdrawn")).not.toMatch(/couldn't supply|failed to/i);
@@ -73,7 +72,7 @@ describe("stateNote", () => {
   });
 });
 
-// ── 055 US6 — the console's "Cancel order", which is a can't-supply declaration ─────────────────
+// The console's "Cancel order", which is a can't-supply declaration
 
 describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   beforeEach(() => {
@@ -81,7 +80,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
     transitionFulfillment.mockResolvedValue({});
   });
 
-  // ⚠ It tells Effy to refund a customer and takes the order off the queue for good.
+  // It tells Effy to refund a customer and takes the order off the queue for good.
   it("names the consequence before it acts", () => {
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
     expect(screen.getByText(/effy refunds the customer/i)).toBeInTheDocument();
@@ -100,7 +99,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
-  // ⚠ A REASON IS REQUIRED, here and in the database — "Other" asks for the words.
+  // A reason is required, here and in the database — "Other" asks for the words.
   it("cannot be declared as Other without saying what happened", async () => {
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
     await userEvent.selectOptions(screen.getByLabelText(/why can't you supply/i), "Other");
@@ -114,7 +113,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
     );
   });
 
-  // ⚠ In bulk it lists every order it will touch, and leaves out the ones already gone.
+  // In bulk it lists every order it will touch, and leaves out the ones already gone.
   it("in bulk, names each order and leaves out the ones already gone", async () => {
     wrap(
       <CantSupplyDialog

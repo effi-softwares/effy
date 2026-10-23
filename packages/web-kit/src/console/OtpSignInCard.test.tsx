@@ -24,7 +24,7 @@ function renderCard(onAuthenticated = vi.fn()) {
 
 describe("OtpSignInCard", () => {
   it("advances from the email step to the OTP step after a code is sent", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     const user = userEvent.setup();
     renderCard();
 
@@ -39,7 +39,7 @@ describe("OtpSignInCard", () => {
   });
 
   it("completes when the code is accepted", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     confirmSignIn.mockResolvedValue({ nextStep: { signInStep: "DONE" } });
     const onAuthenticated = vi.fn();
     const user = userEvent.setup();
@@ -53,7 +53,7 @@ describe("OtpSignInCard", () => {
     await waitFor(() => expect(onAuthenticated).toHaveBeenCalledOnce());
   });
 
-  // An unprovisioned email and a provisioned one must look identical — no existence oracle.
+  // Unprovisioned and provisioned addresses look identical: no existence oracle.
   it("shows uniform copy when the email step fails, revealing nothing", async () => {
     signIn.mockRejectedValue(Object.assign(new Error("x"), { name: "UserNotFoundException" }));
     const user = userEvent.setup();
@@ -67,7 +67,7 @@ describe("OtpSignInCard", () => {
   });
 
   it("maps a wrong code to actionable copy without leaking the exception", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     confirmSignIn.mockRejectedValue(
       Object.assign(new Error("x"), { name: "CodeMismatchException" }),
     );
@@ -139,17 +139,9 @@ describe("OtpSignInCard", () => {
   });
 });
 
-/**
- * 035 — the shared code field's contract on the console surfaces (T112).
- *
- * ⚠ The `One-time code` label is matched by FOUR test files across three packages. It is asserted
- * here too so that a rename fails in the package that OWNS the component, rather than only in the
- * two apps that consume it.
- */
+/** The shared code field's contract on the console surfaces. The `One-time code` label is matched by several test files. */
 describe("the one-time-code field (035)", () => {
   async function reachCodeStep() {
-    // ⚠ Note the step name: the console still accepts the MANAGED factor's step during rollout, so
-    // this fixture keeps working whichever flow the pool is serving (FR-033, FR-034).
     signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     const user = userEvent.setup();
     renderCard();
@@ -159,16 +151,14 @@ describe("the one-time-code field (035)", () => {
   }
 
   it("⚠ accepts the CUSTOM CHALLENGE step, which is what the platform now sends", async () => {
-    // This is the branch that did not exist before 035. `otp.ts`'s switch has a THROWING default,
-    // so an unhandled step would take down shop-web and back-office simultaneously.
+    // `otp.ts`'s switch throws on an unhandled step, which would take down both consoles.
     const field = await reachCodeStep();
     expect(field).toBeInTheDocument();
   });
 
   it("renders ONE labelled input, not a grid of per-digit boxes", async () => {
     await reachCodeStep();
-    // FR-025: exactly one logical field. Segmented widgets are how screen-reader users lose their
-    // place; mobile-kit's OtpInput carries the same invariant.
+    // Exactly one logical field: segmented widgets lose screen-reader users.
     expect(screen.getAllByLabelText(/one-time code/i)).toHaveLength(1);
   });
 

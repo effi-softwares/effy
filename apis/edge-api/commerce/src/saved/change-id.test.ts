@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 import { itemChangeId } from "./change-id";
 
 describe("itemChangeId", () => {
-  // ⚠ THESE EXPECTED VALUES WERE COMPUTED BY THE RETIRED GO BACKEND (uuid.NewSHA1 over the same
-  // namespace and name) before it was removed. They are the proof that a bulk add-to-cart retried
-  // across the cut-over derives the SAME per-item ids and therefore adds nothing twice. If this
-  // test is ever "fixed" by changing the expectations, that guarantee is gone.
+  // Fixed expectations: if these change, retries stop deduplicating.
   it.each([
     ["batch-1", "a", "0c9d79ee-3a09-5187-9977-493fc70f3ef3"],
     ["3f2c1b0a-0000-4000-8000-000000000001", "00000000-0000-0000-0000-000000000001", "faa9be4f-59d4-51bc-a5b8-49b303ad3387"],

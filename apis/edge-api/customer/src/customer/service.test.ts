@@ -20,15 +20,14 @@ const row = (over: Partial<CustomerRow> = {}): CustomerRow => ({
   id: "c-1",
   cognito_sub: "sub-1",
   email: "shopper@example.com",
-  // 037 — no outcome recorded, the common case.
+  // No outcome recorded, the common case.
   email_delivery: null,
   given_name: "Janith",
   family_name: "Madarasinghe",
   phone: null,
   status: "active",
   closure_state: "open",
-  // 012 — platform-owned password state. `false`/`null` is the ordinary case: an email-OTP customer
-  // who has never had a password, which is a complete and permanent state, not a gap.
+  // Platform-owned password state; `false`/`null` (never had one) is a complete state.
   has_password: false,
   password_updated_at: null,
   created_at: new Date("2026-07-14T00:00:00Z"),
@@ -47,7 +46,7 @@ beforeEach(() => vi.clearAllMocks())
 
 describe("getOrCreateCustomer", () => {
   it("returns the PLATFORM RECORD, not the token's claims", async () => {
-    // The record says "Janith" and active; whatever the token claims is irrelevant.
+    // The record says "Janith" and active; the token's claims are irrelevant.
     vi.mocked(upsertCustomer).mockResolvedValue(row())
 
     const dto = await getOrCreateCustomer(identity)
@@ -62,8 +61,7 @@ describe("getOrCreateCustomer", () => {
       closureState: "open",
       hasPassword: false,
       passwordUpdatedAt: null,
-      // 037 — no outcome recorded for this address, which is the common case. Absence of evidence
-      // is not evidence of failure.
+      // No outcome recorded: absence of evidence is not failure.
       emailDelivery: "reachable",
       createdAt: "2026-07-14T00:00:00.000Z",
     })
@@ -75,12 +73,7 @@ describe("getOrCreateCustomer", () => {
     expect(dto).not.toHaveProperty("cognito_sub")
   })
 
-  /**
-   * FR-025 / SC-011 — the whole reason the platform keeps its own record.
-   *
-   * The gateway already proved the token is genuine, unexpired and minted by the customer pool.
-   * If that were sufficient, Effy could never ban anybody.
-   */
+  /** A valid token is not enough: the record can bar a customer. */
   it("REFUSES a barred customer holding a completely valid token", async () => {
     vi.mocked(upsertCustomer).mockResolvedValue(row({ status: "barred" }))
 
@@ -148,8 +141,6 @@ describe("updateCustomerProfile", () => {
     ).rejects.toBeInstanceOf(CustomerNotFoundError)
   })
 
-  // ── 034: phone (FR-060) ─────────────────────────────────────────────────────────────────────
-
   it("stores a trimmed phone", async () => {
     vi.mocked(updateProfile).mockResolvedValue(row({ phone: "0400 000 000" }))
 
@@ -163,14 +154,7 @@ describe("updateCustomerProfile", () => {
     expect(updateProfile).toHaveBeenCalledWith("sub-1", "Jan", "M", "0400 000 000")
   })
 
-  /**
-   * ⚠ THE CLEAR PATH, AND IT IS NOT COSMETIC.
-   *
-   * The mobile client serialises with `explicitNulls = false`, so a `null` is dropped from the
-   * payload entirely and arrives as `undefined` — indistinguishable from "field not sent". Every
-   * clearable field must therefore travel as `""`. If this normalisation is ever removed, clearing a
-   * phone silently no-ops on mobile while appearing to work on web.
-   */
+  /** Mobile drops nulls (`explicitNulls = false`), so clearing travels as `""`. */
   it("treats an empty string as CLEARED, because a null never survives the mobile wire", async () => {
     vi.mocked(updateProfile).mockResolvedValue(row({ phone: null }))
 
@@ -195,11 +179,7 @@ describe("the closure gate (034 FR-041)", () => {
     await expect(getOrCreateCustomer(identity)).rejects.toBeInstanceOf(CustomerClosingError)
   })
 
-  /**
-   * Barred and closing are DIFFERENT FACTS and stay distinguishable internally — one is a sanction
-   * the platform imposed, the other a decision the customer made. The wire must not tell them apart
-   * (both answer a uniform 403), but the logs and the closure flow must.
-   */
+  /** Barred and closing both answer a uniform 403 but stay distinct in logs and the closure flow. */
   it("keeps barred and closing as distinct errors", async () => {
     vi.mocked(upsertCustomer).mockResolvedValue(row({ status: "barred" }))
     await expect(getOrCreateCustomer(identity)).rejects.toBeInstanceOf(CustomerBarredError)

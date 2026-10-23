@@ -25,37 +25,22 @@ import {
   submitOtp,
 } from "../auth/otp";
 
-/**
- * ⚠ The on-screen copy is deliberately uniform (no existence oracle), which also made every failure
- * UNDIAGNOSABLE — the email step discarded the exception outright. The exception NAME (never the
- * message, never the address) goes to the console so the next report carries the actual cause.
- */
+/** The on-screen copy is uniform, so the exception name (never the message or address) goes to the console for diagnosis. */
 function logSignInFailure(stage: "start" | "otp", err: unknown): void {
   const name = (err as { name?: string } | null)?.name ?? "UnknownError";
   console.warn(`[auth] sign-in ${stage} failed: ${name}`);
 }
 
 /**
- * The passwordless sign-in card: email → one-time code → done.
- *
- * There is no password field, because no Effy pool has passwords. The email step's failure copy is
- * uniform whether or not the account exists — the form must never become an account-existence
- * oracle, so a "user not found" and a "network blip" read identically.
- *
- * Navigation and telemetry belong to the surface, so they arrive as callbacks.
+ * The passwordless sign-in card: email → one-time code → done. The email step's failure copy is the
+ * same whether or not the account exists. Navigation and telemetry are the surface's callbacks.
  */
 export interface OtpSignInCardProps {
   title: string;
+  /** `"bare"` drops the card frame and header, leaving the form (the shop console's sign-in column). */
   /**
-   * ⚠ 057 — `"bare"` drops the card frame and the title/description header, leaving only the form.
-   * The shop console's sign-in is a column on the page ground rather than a card floating on it, and
-   * its heading lives in the page. Omitted (the default) renders exactly as it always has, which is
-   * what keeps back-office untouched.
-   */
-  /**
-   * `"page"` (back-office redesign, board "Sign in") — the form as the page's own column: its heading
-   * ("Sign in to …" / "Check your email") is the form's, controls are the large size, the code is six
-   * cells that submit on the sixth digit, and a new code can be asked for after a minute.
+   * `"page"`: the form as the page's column, with its own heading, large controls, six cells that submit
+   * on the sixth digit, and a new code after a minute.
    */
   chrome?: "card" | "bare" | "page";
   /** Fired when the flow completes and a session exists. The surface navigates. */
@@ -110,8 +95,7 @@ export function OtpSignInCard({
       } catch (err) {
         logSignInFailure("otp", err);
         setFormError(otpErrorMessage(err));
-        // The challenge state expired locally — the code box can no longer be checked by anyone, so
-        // return to the email step (address kept) where one tap sends a fresh code.
+        // The challenge state expired locally: back to the email step (address kept) for a fresh code.
         if (isStaleSignInSession(err)) {
           otpForm.reset();
           setStep("email");
@@ -121,7 +105,7 @@ export function OtpSignInCard({
     },
   });
 
-  // `page` — a new code can be asked for once a minute; the code box submits on the sixth digit.
+  // `page`: a new code once a minute; the code box submits on the sixth digit.
   const [resendIn, setResendIn] = useState(0);
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -264,7 +248,7 @@ export function OtpSignInCard({
             Resend code
           </Button>
         </div>
-        {/* ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a) — shown to everyone, always; see below. */}
+        {/* The uniform escape hatch, shown to everyone; see below. */}
         <p className="text-xs text-muted-foreground" data-testid="stuck-note">
           Still not arriving? Check your spam folder, or write to{" "}
           <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
@@ -324,12 +308,8 @@ export function OtpSignInCard({
             <otpForm.Field name="code">
               {(field) => (
                 <div className="space-y-2">
-                  {/* ⚠ The label text is matched by four test files across three packages —
-                      changing it breaks shop-web, back-office and web-kit's own suites at once. */}
+                  {/* The label text is matched by several test files. */}
                   <Label htmlFor="code">One-time code</Label>
-                  {/* 035 — the SHARED code field. Behaviour (autofill token, numeric keyboard, one
-                      logical a11y node, no reshaping of a wrong-length paste) lives in one place
-                      rather than being re-declared per surface (FR-035). */}
                   <OtpInput
                     id="code"
                     autoFocus
@@ -362,18 +342,10 @@ export function OtpSignInCard({
             </Button>
 
             {/*
-              ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always — never
-              conditioned on whether the platform can actually reach this address.
-
-              It matters most HERE. Shop, driver and back-office are strictly passwordless: an
-              emailed code is their ONLY credential, so an address that has silently stopped
-              accepting mail is a total lockout with no self-service way back. This line is the way
-              back.
-
-              ⚠ It must not become conditional. Delivery state is only knowable for an address the
-              platform has emailed, so varying this copy would answer "does this address have an Effy
-              account?" to anyone who types one — the enumeration oracle 035 exists to close. The
-              honest, specific statement lives on authenticated surfaces instead (FR-030).
+              The uniform escape hatch, shown to everyone always. For the passwordless audiences an
+              emailed code is the only credential, so an address that stopped accepting mail is a
+              lockout and this line is the way back. Making it conditional would reveal whether an
+              address has an account.
             */}
             <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
               Still not arriving?{" "}
@@ -386,9 +358,7 @@ export function OtpSignInCard({
     </>
   );
 
-  // ⚠ The step description is the ONE piece of the header that carries state ("Enter the code we sent
-  // to …"), so `bare` keeps it and drops only the frame and the title. Losing it would leave an
-  // operator staring at six empty boxes with no idea which inbox to check.
+  // `bare` keeps the step description ("Enter the code we sent to …") and drops only the frame and title.
   const description =
     step === "email"
       ? "Sign in with your work email — we'll send a one-time code."

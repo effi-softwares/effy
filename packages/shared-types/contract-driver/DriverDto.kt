@@ -17,13 +17,9 @@ data class CollectRequest (
     val missingParcels: List<ParcelMissing>? = null,
 
     /**
-     * Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one
-     * request, so it cannot half-happen).
-     *
-     * ⚠ 093 — REQUIRED, AND ONLY WHAT IS NAMED IS SETTLED. Until 093 an absent package meant
-     * "collected", so a package added to the stop while the driver stood at the counter was
-     * recorded as in the van without anybody having seen it. A package not named here stays
-     * waiting, and the stop stays open (`CollectResponse.remaining`).
+     * Every package the driver was shown at this stop, with its outcome, in one request. Only
+     * what is named is settled: an unnamed package stays waiting and the stop stays open
+     * (`CollectResponse.remaining`).
      */
     val packages: List<Package>,
 
@@ -80,9 +76,8 @@ data class ParcelHandover (
 )
 
 /**
- * 090 — how a package was handed over: scanned from its label, its code typed (a torn
- * label), or ticked by hand. Optional on every hand-over; an app that sends none behaves as
- * before.
+ * How a package was handed over: scanned from its label, its code typed (a torn label), or
+ * ticked by hand.
  */
 @Serializable
 enum class HandoverMethod(val value: String) {
@@ -124,7 +119,7 @@ enum class ReadMethod(val value: String) {
 }
 
 /**
- * What a read means, everywhere (FR-052). `not_found` is decided by the server only.
+ * What a read means, everywhere. `not_found` is decided by the server only.
  */
 @Serializable
 enum class ReadOutcome(val value: String) {
@@ -141,15 +136,15 @@ enum class ReadOutcome(val value: String) {
 @Serializable
 data class CollectResponse (
     /**
-     * 093 — how many were collected and declared not available by this call.
+     * How many were collected and declared not available by this call.
      */
     val collected: Long? = null,
 
     val notAvailable: Long? = null,
 
     /**
-     * 093 — packages on the stop this request did not name (added while the driver was there).
-     * When more than 0 the stop is still open, and the app re-reads it and shows them.
+     * Packages on the stop this request did not name (added meanwhile); when above 0 the stop
+     * stays open and the app re-reads it.
      */
     val remaining: Long? = null,
 
@@ -162,7 +157,7 @@ enum class CollectResponseStatus(val value: String) {
 }
 
 /**
- * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue — report a missing/short
+ * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue: report a missing or short
  * package.
  */
 @Serializable
@@ -186,32 +181,30 @@ enum class CollectionIssueKind(val value: String) {
 @Serializable
 data class CollectionPackage (
     /**
-     * 082 — who takes it from the hub: an Effy driver, or a courier. What the app says.
+     * Who takes it from the hub: an Effy driver or a courier.
      */
     val deliveredBy: DeliveredBy,
 
     val destinationSuburb: String,
 
     /**
-     * ⚠ THIS PACKAGE'S OWN LINES (065). Until 065 every package at a stop carried every line at
-     * the stop, so three packages of 2, 5 and 1 items each read "8 items".
+     * This package's own lines.
      */
     val items: List<ManifestLine>,
 
     /**
-     * 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.
+     * The code on this package's label (`EFY1:<code>`): bag 1's.
      */
     val packageCode: String,
 
     /**
-     * The package's own id — what `CollectRequest.packages[].packageId` names.
+     * The package's own id, as `CollectRequest.packages[].packageId` names it.
      */
     @SerialName("packageId")
     val packageID: String,
 
     /**
-     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag.
+     * The package's live bags ("Bag n of N"); every step accounts for every bag.
      */
     val parcels: List<ParcelDTO>,
 
@@ -219,14 +212,13 @@ data class CollectionPackage (
     val summary: ClassSummary,
 
     /**
-     * 082 — the day and window an Effy parcel is for, in words written by the server; null when
-     * none.
+     * The day and window an Effy parcel is for, in the server's words; null when none.
      */
     val windowLabel: String? = null
 )
 
 /**
- * 082 — who takes it from the hub: an Effy driver, or a courier. What the app says.
+ * Who takes it from the hub: an Effy driver or a courier.
  */
 @Serializable
 enum class DeliveredBy(val value: String) {
@@ -245,10 +237,8 @@ data class ManifestLine (
     val orderedQty: Long,
 
     /**
-     * ⚠ The quantity IN THE BAG (065) — what the shop gathered, which is less than `orderedQty`
-     * when the line was part-supplied and 0 when it was not supplied at all. Until 065 this was
-     * the quantity ordered, so a driver's count disagreed with the bag whenever a shop was
-     * short.
+     * The quantity in the bag: what the shop gathered (less than `orderedQty` when
+     * part-supplied, 0 when not supplied).
      */
     val qty: Long,
 
@@ -256,20 +246,14 @@ data class ManifestLine (
 )
 
 /**
- * How an item must be carried (065). The driver-facing vocabulary, NOT the catalogue's: the
- * catalogue says `ambient`, a driver is shown "Normal".
- *
- * ⚠ `not_recorded` IS NOT A SYNONYM FOR `normal`. It is a line sold before 065 snapshotted
- * the class, and nobody knows what it was. Showing it as Normal would tell a driver a
- * frozen item can ride in the ambient compartment — the exact harm the class exists to
- * prevent (065 FR-010).
+ * How an item must be carried, in the driver's words (the catalogue's `ambient` is shown
+ * "Normal").
  */
 @Serializable
 enum class TemperatureClass(val value: String) {
     @SerialName("chilled") Chilled("chilled"),
     @SerialName("frozen") Frozen("frozen"),
-    @SerialName("normal") Normal("normal"),
-    @SerialName("not_recorded") NotRecorded("not_recorded");
+    @SerialName("normal") Normal("normal");
 }
 
 /**
@@ -295,48 +279,45 @@ enum class ParcelZone(val value: String) {
 }
 
 /**
- * Units IN THE BAG per class (065). Counts only lines the shop actually supplied — a line
- * marked unavailable is in no bucket. Every field is always present; a client omits a zero
- * when rendering.
+ * Units in the bag per class, counting only supplied lines. Every field is present; clients
+ * omit zeros.
  *
- * 065 — the sum of `packages[].summary`.
+ * The sum of `packages[].summary`.
  *
- * 065 — the drop's total across its packages, so cold goods show in the list unopened.
+ * The drop's total across its packages, so cold goods show in the list.
  */
 @Serializable
 data class ClassSummary (
     val chilled: Long,
     val frozen: Long,
-    val normal: Long,
-    val notRecorded: Long
+    val normal: Long
 )
 
 /**
- * GET /driver/v1/collection/runs/{runId} (driver-facing; distinct from 047's admin
- * CollectionRunDTO)
+ * GET /driver/v1/collection/runs/{runId}.
  */
 @Serializable
 data class DriverCollectionRunDTO (
     /**
-     * 072 — the collection run's time: when collecting must be finished.
+     * When collecting must be finished.
      */
     val deadlineAt: String,
 
     val dueLabel: String,
 
     /**
-     * 090 — where each package on this run goes at the hub, in the platform's words, so the hub
-     * scan can say it with no signal.
+     * Where each package goes at the hub, in the platform's words, so the hub scan can say it
+     * offline.
      */
     val hubSort: List<HubSortInstruction>,
 
     /**
-     * 092 rev 2 — the run map.
+     * The run map.
      */
     val map: RunMapDTO? = null,
 
     /**
-     * 072 — when this round opens; `null` = open.
+     * When this round opens; `null` = open.
      */
     val opening: RoundOpening? = null,
 
@@ -344,7 +325,7 @@ data class DriverCollectionRunDTO (
     val runID: String,
 
     /**
-     * 093 — the run's stage and its words.
+     * The run's stage and its words.
      */
     val stage: String? = null,
 
@@ -354,15 +335,13 @@ data class DriverCollectionRunDTO (
 )
 
 /**
- * 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm".
+ * One package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm".
  */
 @Serializable
 data class HubSortInstruction (
     /**
-     * `load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN
-     * ENUM: the driver app decodes enums as closed sets, and a fourth kind added later would
-     * fail the whole run read on every installed build. The app maps an unknown kind to "show
-     * the label".
+     * `load_now` | `shelve` | `courier_bay` (`HubSortKind`), a string on the wire so a new kind
+     * cannot break the read; an unknown kind shows the label.
      */
     val kind: String,
 
@@ -370,8 +349,7 @@ data class HubSortInstruction (
     val packageCode: String,
 
     /**
-     * 096 — the codes of every bag of this package: each bag scanned at the hub gets this
-     * instruction.
+     * Every bag of this package: each scanned at the hub gets this instruction.
      */
     val parcelCodes: List<String>
 )
@@ -379,7 +357,7 @@ data class HubSortInstruction (
 @Serializable
 data class RunMapDTO (
     /**
-     * The hub's point — also where "Navigate to the hub" goes.
+     * The hub's point, where "Navigate to the hub" goes.
      */
     val hub: RunMapPoint? = null,
 
@@ -390,11 +368,10 @@ data class RunMapDTO (
 )
 
 /**
- * 092 rev 2 — the RUN MAP (decorative, operator direction 2026-10-17, decision D25): where
- * a run's stops roughly are, so the app can draw a small schematic map. ⚠ A STOP'S POINT IS
- * ITS POSTCODE'S PLACE — the locality the platform already holds — never a geocoded address
- * and never a device position; the hub's is the hub's own. Nothing that orders or assigns
- * work reads it (D20 stands). Stops whose place has no point are left out.
+ * The run map, decorative: where a run's stops roughly are, for a small schematic. A stop's
+ * point is its postcode's place (never a geocoded address or a device position); the hub's
+ * is its own. Nothing that orders or assigns work reads it. Stops with no point are left
+ * out.
  */
 @Serializable
 data class RunMapPoint (
@@ -430,14 +407,13 @@ enum class RunMapStopStatus(val value: String) {
 }
 
 /**
- * 072 — when a round opens. ⚠ ONLY EVER SENT FOR A ROUND THAT HAS NOT OPENED: the server
- * decides "is it open" against its own clock and sends `null` once it is, so a phone whose
- * clock is wrong cannot show an open round as locked.
+ * When a round opens. Sent only for a round not yet open (the server judges by its own
+ * clock), so a wrong phone clock cannot lock an open round.
  */
 @Serializable
 data class RoundOpening (
     /**
-     * The instant, ISO 8601 — what the app's clock is compared with to unlock by itself.
+     * The instant, ISO 8601, which the app's clock is compared with to unlock by itself.
      */
     val at: String,
 
@@ -450,25 +426,15 @@ data class RoundOpening (
 @Serializable
 data class CollectionStopSummary (
     /**
-     * ⚠ ADDED BY 063, AND IT RETIRES A PLACEHOLDER. `collection/data/PlaceholderData.kt`
-     * declares `stopAddress = operational("`shop.address`")` — an invented value a driver could
-     * act on, so the app renders it as unavailable. 061 built `shop.address_*`; this carries
-     * it, and the unblocking condition that placeholder names is now met.
-     *
-     * ⚠ AN ADDRESS, NEVER A POSITION (D20/D21). The app hands this to the device's own maps app
-     * (D7 — per stop, not per route). No coordinate exists to send.
-     *
-     * Nullable because a shop whose address has not been recorded yet is an ordinary state the
-     * back-office readiness view already reports (061 FR-029/030) — and a driver must be told
-     * the address is missing rather than shown an empty line.
+     * The shop's address for the device's maps app (never a position). Null when not yet
+     * recorded, which back-office readiness reports; the driver is told it is missing.
      */
     val address: String? = null,
 
     val packageCount: Long,
 
     /**
-     * 096 — the stop's live BAGS, each with its own code ("Bag n of N"), for matching a scan
-     * with no signal.
+     * The stop's live bags, each with its own code ("Bag n of N"), for matching a scan offline.
      */
     val parcels: List<ParcelDTO>,
 
@@ -490,18 +456,17 @@ enum class CollectionStopStatus(val value: String) {
 }
 
 /**
- * GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages.
+ * GET /driver/v1/collection/runs/{runId}/stops/{stopId}: a shop stop and its packages.
  */
 @Serializable
 data class CollectionStopDTO (
     /**
-     * ⚠ See `CollectionStopSummary.address` — added by 063, retires the `stopAddress`
-     * placeholder.
+     * See `CollectionStopSummary.address`.
      */
     val address: String? = null,
 
     /**
-     * 072 — when this stop's round opens; `null` = open. Collecting is refused before then.
+     * When this stop's round opens; `null` = open. Collecting is refused before then.
      */
     val opening: RoundOpening? = null,
 
@@ -515,7 +480,7 @@ data class CollectionStopDTO (
 )
 
 /**
- * POST /driver/v1/delivery/drops/{dropId}/contact — masked relay (capability-flagged, R6).
+ * POST /driver/v1/delivery/drops/{dropId}/contact: masked relay (capability-flagged).
  */
 @Serializable
 data class ContactRequest (
@@ -537,7 +502,7 @@ data class ContactResponse (
 )
 
 /**
- * GET /driver/v1/delivery/drops/{dropId}
+ * GET /driver/v1/delivery/drops/{dropId}.
  */
 @Serializable
 data class DeliveryDropDTO (
@@ -545,17 +510,14 @@ data class DeliveryDropDTO (
     val customerName: String,
 
     /**
-     * 092 — the phone number the customer gave at checkout, for the driver to call from the
-     * door. ⚠ Sent ONLY while the drop is open (not delivered, not failed) and only to the
-     * round's own driver; null otherwise, or when the customer gave none. Never in history or
-     * run lists.
+     * The customer's checkout phone, for calling from the door: sent only while the drop is
+     * open and only to the round's own driver; never in history or run lists.
      */
     val customerPhone: String? = null,
 
     /**
-     * 069 — the time window the customer was sold. Null/absent for an order placed before 069.
-     * ⚠ Due and late are derived by the app from this and the clock; the server does not send a
-     * state that would be stale the moment the screen had been open a minute.
+     * The window the customer was sold. Due and late are derived by the app from the clock,
+     * never sent.
      */
     val deliveryWindow: DeliveryWindow? = null,
 
@@ -563,29 +525,24 @@ data class DeliveryDropDTO (
     val dropID: String,
 
     /**
-     * 066 — how the customer asked for the order to be handed over, or null/absent for no
-     * preference. ⚠ A REQUEST, not a constraint: the app says it and leads the proof chooser
-     * with it, and never removes a way of completing the drop. Kept apart from `instructions`
-     * because the app ACTS on it.
+     * How the customer asked for the order to be handed over, or null. A request, not a
+     * constraint: the app says it and leads the proof chooser with it, but never removes a way
+     * of completing the drop.
      */
     val handover: HandoverPreference? = null,
 
     /**
-     * The customer's NOTE to the driver, verbatim (066). Null when they wrote none. ⚠ Until 066
-     * this was always null: the field existed, three screens rendered it, and nothing stored
-     * it. Customer-authored free text — plain text only.
+     * The customer's note to the driver, verbatim plain text; null when they wrote none.
      */
     val instructions: String? = null,
 
     /**
-     * 093 — the van has been loaded with this drop. Until it is, nothing on the drop can be
-     * done.
+     * The van has been loaded with this drop; until then nothing on it can be done.
      */
     val loaded: Boolean? = null,
 
     /**
-     * 072 — when this drop's round opens; `null` = open. Every action on it is refused before
-     * then.
+     * When this drop's round opens; `null` = open. Every action is refused before then.
      */
     val opening: RoundOpening? = null,
 
@@ -594,20 +551,19 @@ data class DeliveryDropDTO (
     val status: DeliveryDropStatus,
 
     /**
-     * 065 — the sum of `packages[].summary`.
+     * The sum of `packages[].summary`.
      */
     val summary: ClassSummary,
 
     /**
-     * 069 — the same window as a ready-made label in Melbourne time ("5 pm – 7 pm"), the field
-     * the run list has carried since 049. Sent so the app shows the SERVER's wording and never
+     * The same window as a ready-made label in Melbourne time ("5 pm – 7 pm"), so the app never
      * formats a time.
      */
     val window: String? = null
 )
 
 /**
- * A same-day delivery window, as two instants.
+ * A delivery window, as two instants.
  */
 @Serializable
 data class DeliveryWindow (
@@ -623,20 +579,11 @@ data class DeliveryWindow (
 )
 
 /**
- * Delivery instructions — 066-delivery-instructions.
- *
- * What a customer tells the driver: how to hand the order over, and a short note. The
- * vocabulary, the length limit and the normalisation rule live HERE and nowhere else
- * (Principle II): the two customer surfaces use them to show a remaining-characters count,
- * and the two backends use them to decide. A client holding a looser opinion than the
- * server is how a 300-character note is typed, accepted by the screen and refused at
- * payment.
- *
- * ⚠ THE SERVER IMPORTS THIS FILE. Checkout (`edge-api/commerce`) calls
- * `normaliseDeliveryInstructions` itself, so the client's opinion and the server's are the
- * same function. (Until 070 the server was a second language and carried a mirror, pinned
- * by `delivery-instructions.fixtures.json`; the fixture remains as this rule's table of
- * cases.)
+ * Delivery instructions: how to hand the order over, and a short note. The vocabulary, the
+ * length limit and the normalisation rule live here only; the customer surfaces use them
+ * for a remaining-characters count and checkout calls `normaliseDeliveryInstructions`
+ * itself, so client and server agree. `delivery-instructions.fixtures.json` is the rule's
+ * table of cases.
  */
 @Serializable
 enum class HandoverPreference(val value: String) {
@@ -645,11 +592,9 @@ enum class HandoverPreference(val value: String) {
 }
 
 /**
- * One physical package at a drop.
- *
- * ⚠ ONE ENTRY PER PACKAGE SINCE 065, in a stable order the app labels by POSITION ("Package
- * 1 of 2"). A package is one shop's portion, so grouping by package IS grouping by shop —
- * which is why the entry carries no shop id, name or code, and never may.
+ * One physical package at a drop, in a stable order the app labels by position ("Package 1
+ * of 2"). A package is one shop's portion, so it carries no shop id, name or code, and
+ * never may.
  */
 @Serializable
 data class DropPackageRef (
@@ -657,13 +602,12 @@ data class DropPackageRef (
     val items: List<ManifestLine>,
 
     /**
-     * 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.
+     * The code on this package's label (`EFY1:<code>`): bag 1's.
      */
     val packageCode: String,
 
     /**
-     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag.
+     * The package's live bags ("Bag n of N"); every step accounts for every bag.
      */
     val parcels: List<ParcelDTO>,
 
@@ -684,15 +628,14 @@ enum class DeliveryDropStatus(val value: String) {
 @Serializable
 data class DeliveryDropSummary (
     /**
-     * 092 rev 2 — when a finished drop was finished, and how: the proof method or the failure
-     * reason.
+     * When and how a finished drop was finished: the proof method or the failure reason.
      */
     val completedAt: String? = null,
 
     val customerSuburb: String,
 
     /**
-     * 069 — the same window as instants, so the app can say Due and Late as the clock moves.
+     * The same window as instants, so the app can say Due and Late as the clock moves.
      */
     val deliveryWindow: DeliveryWindow? = null,
 
@@ -704,8 +647,7 @@ data class DeliveryDropSummary (
     val packageCount: Long,
 
     /**
-     * 096 — the drop's live BAGS, each with its own code ("Bag n of N"), for matching a scan
-     * with no signal.
+     * The drop's live bags ("Bag n of N"), for matching a scan offline.
      */
     val parcels: List<ParcelDTO>,
 
@@ -714,20 +656,17 @@ data class DeliveryDropSummary (
     val status: DeliveryDropStatus,
 
     /**
-     * 092 rev 2 — the street line, for the run list ("5 Faraday St"); null when the address has
-     * none.
+     * The street line, for the run list ("5 Faraday St"); null when the address has none.
      */
     val street: String? = null,
 
     /**
-     * 065 — the drop's total across its packages, so cold goods show in the list unopened.
+     * The drop's total across its packages, so cold goods show in the list.
      */
     val summary: ClassSummary,
 
     /**
-     * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null
-     * from 049 until 069 — the field existed and nothing could fill it, because no window was
-     * ever sold.
+     * The window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time).
      */
     val window: String? = null
 )
@@ -750,12 +689,12 @@ enum class ProofMethod(val value: String) {
 }
 
 /**
- * GET /driver/v1/delivery/runs/{runId}
+ * GET /driver/v1/delivery/runs/{runId}.
  */
 @Serializable
 data class DeliveryRunDTO (
     /**
-     * 072 — the end of the delivery window, or the end of the day where there is none.
+     * The end of the delivery window, or of the day where there is none.
      */
     val deadlineAt: String,
 
@@ -763,12 +702,12 @@ data class DeliveryRunDTO (
     val dueLabel: String,
 
     /**
-     * 092 rev 2 — the run map.
+     * The run map.
      */
     val map: RunMapDTO? = null,
 
     /**
-     * 072 — when this round opens; `null` = open (always, for a round with no delivery window).
+     * When this round opens; `null` = open.
      */
     val opening: RoundOpening? = null,
 
@@ -776,7 +715,7 @@ data class DeliveryRunDTO (
     val runID: String,
 
     /**
-     * 093 — the run's stage and its words.
+     * The run's stage and its words.
      */
     val stage: String? = null,
 
@@ -784,32 +723,26 @@ data class DeliveryRunDTO (
     val status: String,
 
     /**
-     * 088 — parcels from failed drops on this run, still with the driver, to be checked back in
-     * at the hub. `null` when there are none.
+     * Parcels from failed drops on this run, still with the driver, to be checked back in at
+     * the hub; `null` when none.
      */
     val toReturn: ParcelsToReturn? = null
 )
 
 /**
- * 088 — what a driver still has to bring back to the hub from a delivery run's failed
- * drops.
- *
- * ⚠ A FIELD, NEVER A NEW `TodayItemRef.kind`. Installed driver builds decode that kind as a
- * closed enum; a new value would fail the WHOLE Today response on every one of them, and
- * there is no app-update mechanism. An unknown field is ignored by every build.
+ * What a driver still has to bring back to the hub from a delivery run's failed drops.
  */
 @Serializable
 data class ParcelsToReturn (
     val count: Long,
 
     /**
-     * Order numbers only — no address, no customer (049 FR-013).
+     * Order numbers only: no address, no customer.
      */
     val orders: List<String>,
 
     /**
-     * 092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why
-     * it came back.
+     * Each parcel for the Return to hub screen: its ref, where it was for and why it came back.
      */
     val parcels: List<ReturnParcel>,
 
@@ -822,8 +755,7 @@ data class ReturnParcel (
     val packageCode: String,
 
     /**
-     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag.
+     * The package's live bags ("Bag n of N"); every step accounts for every bag.
      */
     val parcels: List<ParcelDTO>,
 
@@ -837,7 +769,7 @@ data class ReturnParcel (
 )
 
 /**
- * POST /driver/v1/delivery/drops/{dropId}/fail
+ * POST /driver/v1/delivery/drops/{dropId}/fail.
  */
 @Serializable
 data class DropFailRequest (
@@ -859,7 +791,7 @@ enum class DropFailResponseStatus(val value: String) {
 }
 
 /**
- * POST /driver/v1/delivery/drops/{dropId}/status
+ * POST /driver/v1/delivery/drops/{dropId}/status.
  */
 @Serializable
 data class DropStatusRequest (
@@ -867,13 +799,13 @@ data class DropStatusRequest (
     val changeID: String,
 
     /**
-     * 093 — `out_for_delivery` is written only by loading the van.
+     * `out_for_delivery` is written only by loading the van.
      */
     val to: To
 )
 
 /**
- * 093 — `out_for_delivery` is written only by loading the van.
+ * `out_for_delivery` is written only by loading the van.
  */
 @Serializable
 enum class To(val value: String) {
@@ -892,17 +824,9 @@ data class DropStatusResponse (
 @Serializable
 data class DutyRequest (
     /**
-     * ⚠ 064, FR-018 — "I have seen what I am carrying and I am going off duty anyway."
-     *
-     * Going off duty with packages still in the van is REFUSED (409) until this is set, and the
-     * refusal names every package. It is a confirmation, not a bypass: the requirement is that
-     * a shift cannot end SILENTLY on a van with goods in it, not that it cannot end at all — a
-     * driver whose van is genuinely empty, or who handed over some other way, says so and goes
-     * home.
-     *
-     * 056 found that standing a driver down could strand physical goods permanently and
-     * invisibly: the release sweep deliberately never reclaims picked-up work, so nothing else
-     * would ever mention it.
+     * "I have seen what I am carrying and I am going off duty anyway." Going off duty with
+     * packages in the van is refused (409, naming every package) until this is set: a shift
+     * cannot end silently on goods.
      */
     val acknowledgeHeldPackages: Boolean? = null,
 
@@ -910,15 +834,8 @@ data class DutyRequest (
     val changeID: String,
 
     /**
-     * ⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).
-     *
-     * When a driver goes on duty they may say when they expect to finish. It buys nothing today
-     * — it exists so the dispatch slice can ask "can this driver finish this round before they
-     * go home", which is otherwise unanswerable.
-     *
-     * ⚠ IT MUST NEVER BE DEFAULTED TO A SHIFT LENGTH. An invented finish time would make a
-     * guess look like a fact at exactly the moment it decides someone's workload — and the
-     * driver would be the one who found out.
+     * When the driver expects to finish, if they say; absence means unknown. Never defaulted to
+     * a shift length: a guess would decide someone's workload as if it were a fact.
      */
     val expectedEndAt: String? = null,
 
@@ -930,7 +847,7 @@ data class DutyResponse (
     val dutyStatus: DriverDutyStatus,
 
     /**
-     * null = the driver did not say. Render as "unknown", never as a time.
+     * null: the driver did not say. Render as "unknown", never as a time.
      */
     val expectedEndAt: String? = null,
 
@@ -944,7 +861,7 @@ enum class DriverDutyStatus(val value: String) {
 }
 
 /**
- * GET /driver/v1/history
+ * GET /driver/v1/history.
  */
 @Serializable
 data class HistoryDTO (
@@ -967,7 +884,7 @@ data class HistoryDropRow (
     val dropID: String,
 
     /**
-     * Set for a drop that was NOT delivered (its parcels went back to the hub).
+     * Set for a drop that was not delivered (its parcels went back to the hub).
      */
     val failureReason: DeliveryFailureReason? = null,
 
@@ -976,8 +893,7 @@ data class HistoryDropRow (
     val proofMethod: ProofMethod? = null,
 
     /**
-     * 092 rev 2 — the street line, how it was handed over, and — for a drop that came back —
-     * why.
+     * The street line, how it was handed over, and for a drop that came back, why.
      */
     val street: String? = null
 )
@@ -987,7 +903,7 @@ data class HistoryRunRow (
     val completedAt: String? = null,
 
     /**
-     * 092 rev 2 — packages on the run, and a delivery run's window in words.
+     * Packages on the run, and a delivery run's window in words.
      */
     val packageCount: Long? = null,
 
@@ -1000,12 +916,9 @@ data class HistoryRunRow (
 )
 
 /**
- * The two kinds of work a driver run can be. Named as a type by 056 because back-office
- * reads it too — it was an inline union used once, and a second consumer is exactly when a
- * concept earns a name (Principle II: one definition per concept, not one per file).
- *
- * ⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and
- * then a same-day round in the same shift; neither is a role they hold.
+ * The two kinds of work a driver run can be (back-office reads it too). Work is typed
+ * tasks, not roles: one driver often runs a collection round and then a delivery round in a
+ * shift.
  */
 @Serializable
 enum class DriverRunType(val value: String) {
@@ -1014,26 +927,26 @@ enum class DriverRunType(val value: String) {
 }
 
 /**
- * GET /driver/v1/history/{kind}/{id}
+ * GET /driver/v1/history/{kind}/{id}.
  */
 @Serializable
 data class HistoryDetailDTO (
     val addressFull: String? = null,
 
     /**
-     * 092 rev 2 — why a drop came back to the hub.
+     * Why a drop came back to the hub.
      */
     val failureReason: DeliveryFailureReason? = null,
 
     /**
-     * 092 rev 2 — a run's map (every stop done), and its window in words.
+     * A run's map (every stop done), and its window in words.
      */
     val map: RunMapDTO? = null,
 
     val orderRef: String? = null,
 
     /**
-     * 092 rev 2 — a drop's packages, and the window it was sold.
+     * A drop's packages, and the window it was sold.
      */
     val packageCount: Long? = null,
 
@@ -1041,8 +954,7 @@ data class HistoryDetailDTO (
     val proof: Proof? = null,
 
     /**
-     * 092 — for a RUN: its stops in order, each with how it ended. Absent for a drop. ⚠ Until
-     * 092 a run's detail looked its id up as a stop and was always "not found".
+     * For a run: its stops in order, each with how it ended. Absent for a drop.
      */
     val stops: List<HistoryStop>? = null,
 
@@ -1062,14 +974,14 @@ data class Proof (
 )
 
 /**
- * 092 — one stop of a finished run, as History lists it. No money, no customer name.
+ * One stop of a finished run, as History lists it. No money, no customer name.
  */
 @Serializable
 data class HistoryStop (
     val completedAt: String? = null,
 
     /**
-     * 092 rev 2 — why a drop came back to the hub.
+     * Why a drop came back to the hub.
      */
     val failureReason: DeliveryFailureReason? = null,
 
@@ -1125,30 +1037,27 @@ data class HubCheckinRequest (
 @Serializable
 data class HubCheckinResponse (
     /**
-     * 080 — parcels a COURIER takes from the hub. The app says "Courier".
+     * Parcels a courier takes from the hub.
      */
     val courierCount: Long,
 
     /**
-     * 082 — parcels EFFY delivers, in all and by the day and window each waits for. The app
-     * shows two groups, "Effy delivery" (these) and "Courier", and the driver classifies
-     * nothing. ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am –
-     * 12 pm"): the app has no timezone database and never formats a day itself. A parcel sold
-     * no window has null instants.
+     * Parcels Effy delivers, in all and by the day and window each waits for; the driver
+     * classifies nothing. `label` is written by the server ("Today, 4 pm – 6 pm"). A parcel
+     * sold no window has null instants.
      */
     val effyCount: Long,
 
     val effyGroups: List<HubCheckinEffyGroup>,
 
     /**
-     * 093 — packages declared not in the van at this check-in, now held for dispatch.
+     * Packages declared not in the van at this check-in, now held for dispatch.
      */
     val held: Long? = null,
 
     /**
-     * 092 — when the courier next collects from the hub, in the server's words ("4 pm",
-     * "tomorrow 10 am"); null when no courier parcel was checked in or no courier service is
-     * set up.
+     * When the courier next collects from the hub, in the server's words; null when no courier
+     * parcel or no service.
      */
     val nextCourierPickupLabel: String? = null,
 
@@ -1156,12 +1065,12 @@ data class HubCheckinResponse (
 )
 
 /**
- * 082 — the Effy parcels of one check-in that wait for one day and window.
+ * The Effy parcels of one check-in that wait for one day and window.
  */
 @Serializable
 data class HubCheckinEffyGroup (
     /**
-     * 085 — these were sold a day with no time.
+     * Sold a day with no time.
      */
     val anyTime: Boolean? = null,
 
@@ -1173,9 +1082,8 @@ data class HubCheckinEffyGroup (
     val date: String? = null,
 
     /**
-     * True when these go out TODAY (their window is today, or they were sold no window): the
-     * driver loads them for a delivery round. False = shelved at the hub for a later day. ⚠
-     * Decided by the server, which knows the operating day; the app never compares dates.
+     * True when these go out today (loaded for a delivery round); false means shelved for a
+     * later day. Decided by the server.
      */
     val dueToday: Boolean,
 
@@ -1185,8 +1093,7 @@ data class HubCheckinEffyGroup (
 )
 
 /**
- * POST /driver/v1/delivery/runs/{runId}/load — 090: the van is loaded; every staged drop
- * goes out.
+ * POST /driver/v1/delivery/runs/{runId}/load: the van is loaded; every staged drop goes out.
  */
 @Serializable
 data class LoadRequest (
@@ -1203,8 +1110,7 @@ data class LoadResponse (
     val dropsRemoved: Long? = null,
 
     /**
-     * 093 — packages taken off the run as not loaded, and drops removed because nothing was
-     * left.
+     * Packages taken off the run as not loaded, and drops removed because nothing was left.
      */
     val held: Long? = null,
 
@@ -1215,7 +1121,7 @@ data class LoadResponse (
 )
 
 /**
- * 093 — "Load the van": the run, and what goes in it.
+ * "Load the van": the run, and what goes in it.
  */
 @Serializable
 data class LoadStep (
@@ -1227,7 +1133,7 @@ data class LoadStep (
 )
 
 /**
- * GET /driver/v1/me — the record-backed identity read. Display strings only; no currency.
+ * GET /driver/v1/me: the record-backed identity. Display strings only.
  */
 @Serializable
 data class DriverMeDTO (
@@ -1238,41 +1144,23 @@ data class DriverMeDTO (
     val vehicle: DriverVehicle,
 
     /**
-     * 093 — today's pre-trip check of the vehicle the driver holds. `due` until it is answered
-     * (the driver is given no work until then), `unsafe` until a dispatcher clears it, `none`
-     * with no vehicle.
+     * Today's pre-trip vehicle check: `due` until answered (no work until then), `unsafe` until
+     * a dispatcher clears it, `none` with no vehicle.
      */
     val vehicleCheck: DriverVehicleCheckState? = null,
 
     val workEmail: String,
 
     /**
-     * What the driver is cleared to cover, as one line for their own Account screen.
-     *
-     * ⚠ THE SHAPE IS UNCHANGED BY 062 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
-     * in three places (Today, Help, Account) and it is part of the generated Kotlin contract.
-     * What changed is where it COMES FROM: until 062 this was a single assigned zone that no
-     * assignment code ever read; it is now DERIVED from the driver's clearances. The app tells
-     * the truth without a line of Kotlin changing — the same move 061 made for
-     * `DriverVehicle`.
-     *
-     * null when the driver is cleared for nothing, which is an ordinary state for a new starter
-     * and one the app already renders as unavailable rather than as a broken row.
+     * What the driver is cleared to cover, as one line (Today, Help, Account), derived from
+     * their clearances. Null when cleared for nothing, which the app renders as unavailable.
      */
     val zone: String? = null
 )
 
 /**
- * What the driver is currently driving, for their own Account screen.
- *
- * ⚠ THE SHAPE IS UNCHANGED BY 061 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
- * (`DriverMappers.kt`, `AccountScreen.kt`) and it is part of the generated Kotlin contract.
- * What changed is where it COMES FROM: until 061 these were two free-text columns on the
- * driver row that nobody maintained; they are now read from the driver's open
- * `vehicle_holding` and the real vehicle behind it. The app shows a true answer without a
- * single line of Kotlin changing.
- *
- * Both fields are null when the driver holds no vehicle, which is an ordinary state.
+ * What the driver is driving, for their Account screen, read from their open vehicle
+ * holding. Both fields are null when they hold no vehicle.
  */
 @Serializable
 data class DriverVehicle (
@@ -1281,12 +1169,12 @@ data class DriverVehicle (
 )
 
 /**
- * 093 — the state of the driver's vehicle check today.
+ * The state of the driver's vehicle check today.
  */
 @Serializable
 data class DriverVehicleCheckState (
     /**
-     * `due` | `ok` | `unsafe` | `none` — a string on the wire; the app treats an unknown value
+     * `due` | `ok` | `unsafe` | `none`, a string on the wire; the app treats an unknown value
      * as `ok`.
      */
     val state: String,
@@ -1298,7 +1186,7 @@ data class DriverVehicleCheckState (
 )
 
 /**
- * POST /driver/v1/delivery/runs/{runId}/return — 088.
+ * POST /driver/v1/delivery/runs/{runId}/return.
  */
 @Serializable
 data class ParcelReturnRequest (
@@ -1324,7 +1212,7 @@ data class ParcelReturnResponse (
 )
 
 /**
- * 096 — the 409 a step answers when a live bag was neither handed over nor declared missing.
+ * The 409 when a live bag was neither handed over nor declared missing.
  */
 @Serializable
 data class ParcelsUnaccountedProblem (
@@ -1348,19 +1236,15 @@ enum class Type(val value: String) {
 @Serializable
 data class ProblemJSON (
     /**
-     * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
-     * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client
-     * switches on and maps to its OWN copy — unlike `detail`, which is prose.
+     * A stable refusal code where the route defines one (e.g. `slot_required`), mapped by the
+     * client to its own copy; `detail` is prose.
      */
     val code: String? = null,
 
     val detail: String? = null,
 
     /**
-     * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field
-     * issues under `errors`; `fields` was the name only this type used, so every reader keying
-     * off it saw nothing. Both are declared so the mismatch is visible here rather than
-     * rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).
+     * Field issues (the wire key is `errors`).
      */
     val errors: List<ProblemFieldIssue>? = null,
 
@@ -1371,21 +1255,13 @@ data class ProblemJSON (
 )
 
 /**
- * RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors
- * docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface
- * consumes it, never re-declares it.
+ * RFC 9457 problem+json: the platform's one machine-readable error shape.
  */
 @Serializable
 data class ProblemFieldIssue (
     /**
-     * The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE
-     * CODE.
-     *
-     * ⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`,
-     * `bands_required`, …). "Please check the fields and try again" tells an operator nothing
-     * about which of five rules they broke, and every one of those rules fails SILENTLY in
-     * production if it is not understood — a cap below the floor makes every delivery cost the
-     * cap, forever.
+     * The offending field path, or for a whole-request refusal a stable machine-readable code
+     * (e.g. `cap_below_floor`, `bands_required`), so the client can say which rule was broken.
      */
     val field: String,
 
@@ -1393,7 +1269,7 @@ data class ProblemFieldIssue (
 )
 
 /**
- * POST /driver/v1/delivery/drops/{dropId}/proof/presign
+ * POST /driver/v1/delivery/drops/{dropId}/proof/presign.
  */
 @Serializable
 data class ProofPresignRequest (
@@ -1413,7 +1289,7 @@ data class ProofPresignResponse (
 )
 
 /**
- * POST /driver/v1/delivery/drops/{dropId}/proof
+ * POST /driver/v1/delivery/drops/{dropId}/proof.
  */
 @Serializable
 data class ProofRequest (
@@ -1427,7 +1303,7 @@ data class ProofRequest (
     val note: String? = null,
 
     /**
-     * 096 — every bag of the drop, handed over or declared missing (`ParcelStepFields`).
+     * Every bag of the drop, handed over or declared missing (`ParcelStepFields`).
      */
     val parcels: List<ParcelHandover>? = null,
 
@@ -1455,66 +1331,60 @@ data class TodayDTO (
     val activeRunID: String? = null,
 
     /**
-     * 092 — what dispatch changed on the current round while it was under way ("Added 2
-     * drops"), in their words; null when nothing has changed. Shown on Today until the driver
-     * dismisses it.
+     * What dispatch changed on the current round while under way ("Added 2 drops"); null when
+     * nothing. Shown until dismissed.
      */
     val changedNote: String? = null,
 
     /**
-     * 072 — the current round's deadline. `null` only when there is no current round.
+     * The current round's deadline; `null` only with no current round.
      */
     val deadlineAt: String? = null,
 
     /**
-     * 072 — the deadline in words, Melbourne time ("2 pm", "tomorrow 11 am").
+     * The deadline in words, Melbourne time ("2 pm", "tomorrow 11 am").
      */
     val dueLabel: String? = null,
 
     /**
-     * 093 — the current run is a delivery run that is open and not loaded: loading is the next
-     * step, and `active` is null. Nothing on a drop can be done before it.
+     * The current run is an open delivery run not yet loaded: loading is next, `active` is
+     * null, and no drop can be done before it.
      */
     val loadStep: LoadStep? = null,
 
     val map: RunMapDTO? = null,
 
     /**
-     * 072 — when the current round OPENS. `null` means it is open (or there is none).
-     *
-     * ⚠ WORK IS NOW GIVEN OUT THE MOMENT A DRIVER CAN TAKE IT, hours before it can be done. A
-     * round is readable from the moment it is assigned and its actions are refused until it
-     * opens — by the platform (a 409 problem of type `round_not_open`, carrying `opensAt` and
-     * `opensLabel` as field issues), not merely hidden by the app.
+     * When the current round opens; `null` means open (or none). Work is assigned as soon as a
+     * driver can take it; its actions are refused until it opens (409 `round_not_open`, with
+     * `opensAt` and `opensLabel` as field issues).
      */
     val opening: RoundOpening? = null,
 
     val phase: DriverPhase,
 
     /**
-     * 092 rev 2 — progress through the current round, and its map.
+     * Progress through the current round, and its map.
      */
     val progress: TodayProgress? = null,
 
     val remainingCount: Long,
 
     /**
-     * 093 — the current run's stage (`RunStage`) and the same in words ("Collecting 2 of 5").
+     * The current run's stage (`RunStage`) and its words ("Collecting 2 of 5").
      */
     val stage: String? = null,
 
     val stageLabel: String? = null,
 
     /**
-     * 088 — the current round's parcels still to return to the hub. When that is the only work
-     * left on it, `active` is `null` and this is what the driver is shown.
+     * The current round's parcels still to return to the hub; when that is all that is left,
+     * `active` is null and this is shown.
      */
     val toReturn: ParcelsToReturn? = null,
 
     /**
-     * 072 — the driver's OTHER unfinished rounds, soonest first. Until 072 a driver was told
-     * about one round at a time because rounds only existed for the last 45 minutes before they
-     * were due.
+     * The driver's other unfinished rounds, soonest first.
      */
     val upcoming: List<UpcomingRound>,
 
@@ -1522,15 +1392,8 @@ data class TodayDTO (
 )
 
 /**
- * A compact reference to the active/queued work item shown on the home.
- *
- * ⚠ `"hub_checkin"` ADDED BY 064, AND IT FIXES A LIVE DEFECT. A collection round's work did
- * not end at its last shop — the load still has to be checked in at the hub — but the hub
- * had no representation here, so `todayView`'s outstanding filter emptied the moment the
- * final shop stop went `done`. Both routes into the round (the hero card, drawn from
- * `active`, and the "Whole run" link, drawn only when `upNext` is non-empty) vanished at
- * exactly that point. Found live on 2026-09-21 with a driver holding thirteen packages and
- * no way back into their own round.
+ * A compact reference to the active or queued work item on the home. `hub_checkin` keeps a
+ * finished collection round reachable until it is checked in.
  */
 @Serializable
 data class TodayItemRef (
@@ -1552,12 +1415,10 @@ data class TodayItemRef (
     val status: String,
 
     /**
-     * 092 rev 2 — what the Today card and its "Up next" rows show (the redesign's canvas). All
-     * optional: a server without them leaves the card as it was.
-     * - `street`: a drop's street line ("12 Lygon St") — the card's title; null for a shop or
+     * What the Today card and its "Up next" rows show:
+     * - `street`: a drop's street line ("12 Lygon St"), the card's title; null for a shop or
      * the hub.
-     * - `place`: the rest of the place in one line — a shop's full address, or a drop's
-     * "Carlton VIC 3053".
+     * - `place`: the rest in one line, a shop's full address or a drop's "Carlton VIC 3053".
      */
     val street: String? = null,
 
@@ -1577,9 +1438,6 @@ enum class TodayItemRefKind(val value: String) {
     @SerialName("hub_checkin") HubCheckin("hub_checkin");
 }
 
-/**
- * ⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below.
- */
 @Serializable
 enum class DriverPhase(val value: String) {
     @SerialName("collection") Collection("collection"),
@@ -1588,7 +1446,7 @@ enum class DriverPhase(val value: String) {
 }
 
 /**
- * 092 rev 2 — how far through the current round the driver is. Counts, never money.
+ * How far through the current round the driver is. Counts only.
  */
 @Serializable
 data class TodayProgress (
@@ -1611,7 +1469,7 @@ data class TodayProgress (
 )
 
 /**
- * 072 — a round the driver holds besides the current one. Readable in full; a count here.
+ * A round the driver holds besides the current one.
  */
 @Serializable
 data class UpcomingRound (
@@ -1647,7 +1505,7 @@ enum class VehicleCheckAnswer(val value: String) {
 }
 
 /**
- * 093 — the six things a driver checks before taking the vehicle out.
+ * The six things a driver checks before taking the vehicle out.
  */
 @Serializable
 enum class VehicleCheckItem(val value: String) {
@@ -1660,7 +1518,7 @@ enum class VehicleCheckItem(val value: String) {
 }
 
 /**
- * POST /driver/v1/vehicle-check — 093. Every item, once.
+ * POST /driver/v1/vehicle-check: every item, once.
  */
 @Serializable
 data class VehicleCheckRequest (

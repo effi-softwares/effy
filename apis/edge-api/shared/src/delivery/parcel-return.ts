@@ -1,23 +1,13 @@
-// Parcels from a failed delivery, and their return to the hub (088, driver backlog A4).
-//
-// ⚠ ONE WRITER, TWO CALLERS. A driver returns parcels from the app (`edge-api/driver`); a staff member
-// records the return on their behalf (`edge-api/fleet`). Both go through `recordParcelReturn` — the
-// same rule in two services would agree today and disagree the first time one of them changed.
-//
-// ⚠ "TO RETURN" IS DERIVED, NEVER STORED (research R1). A parcel is in the van after a failed drop
-// because its delivery `round_package` is still `assigned` on a stop that was `skipped`. The return is
-// the only new fact: `state = 'returned'`, and a `parcel_return` row saying who and when.
+// Parcels from a failed delivery, and their return to the hub: one writer (`recordParcelReturn`) for the
+// driver's app and for staff. "TO RETURN" is derived (an `assigned` package on a `skipped` stop); the
+// return records `state = 'returned'` and a `parcel_return` row.
 
 import type { ParcelDTO } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 import { liveParcelsByPackage } from "../labels/parcels";
 
-/**
- * Delivery parcels still in a driver's van after a failed drop: `assigned` on a `skipped` stop of a
- * delivery round, with no arrival. Used as a predicate over `rp` (round_package), `rs` (round_stop)
- * and `dr` (driver_round) — the one definition custody, the exceptions list and the driver's reads share.
- */
+/** Still in a van after a failed drop: `assigned` on a `skipped` delivery stop with no arrival. A predicate over `rp`, `rs`, `dr`. */
 export const TO_RETURN_SQL = `(
   dr.kind = 'delivery'
   AND rp.state = 'assigned'
@@ -25,11 +15,7 @@ export const TO_RETURN_SQL = `(
   AND NOT EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = rp.shop_fulfillment_id)
 )`;
 
-/**
- * Delivery parcels on their way to a door: `assigned` on a drop the driver has started. A `pending`
- * (staged) drop is NOT counted — with no "load the van" step yet, a staged parcel may still be on a
- * hub shelf (research R2).
- */
+/** On the way to a door: `assigned` on a drop the driver has started (a staged drop is not counted). */
 export const IN_TRANSIT_SQL = `(
   dr.kind = 'delivery'
   AND rp.state = 'assigned'
@@ -37,7 +23,6 @@ export const IN_TRANSIT_SQL = `(
   AND NOT EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = rp.shop_fulfillment_id)
 )`;
 
-/** The parcels on one round still to return, with their order numbers. */
 const TO_RETURN_ON_ROUND = `
   SELECT rp.id, rp.shop_fulfillment_id AS package_id, o.order_number, sf.package_code,
          concat_ws(', ', nullif(btrim(o.delivery_address ->> 'line1'), ''), nullif(btrim(o.delivery_address ->> 'city'), '')) AS place,
@@ -52,14 +37,14 @@ const TO_RETURN_ON_ROUND = `
    ORDER BY rs.seq NULLS LAST, o.order_number, rp.id
 `;
 
-/** What a driver still has to bring back from one round: a count and the orders (no address). */
+/** A count and the orders (no address). */
 export interface ToReturn {
   runId: string;
   count: number;
   orders: string[];
-  /** 096 — the packages to return (server-side only; not on the driver wire). */
+  /** Server-side only; not on the driver wire. */
   packageIds: string[];
-  /** 092 rev 2 — each parcel: its order, label code, where it was for, and why it came back. */
+  /** Each parcel: its order, label code, where it was for, and why it came back. */
   parcels: Array<{ ref: string; packageCode: string; place: string | null; reason: ReturnReason | null; parcels: ParcelDTO[] }>;
 }
 
@@ -68,7 +53,7 @@ type ReturnReason = "nobody_home" | "wrong_address" | "customer_refused" | "acce
 export async function toReturnOnRound(db: Queryable, roundId: string): Promise<ToReturn | null> {
   const res = await db.query<{ id: string; package_id: string; order_number: string; package_code: string; place: string | null; reason: ReturnReason | null }>(TO_RETURN_ON_ROUND, [roundId]);
   if (res.rows.length === 0) return null;
-  // 096 — each package's live bags: the return scan accounts for every one.
+  // Each package's live bags: the return scan accounts for every one.
   const bags = await liveParcelsByPackage(db, res.rows.map((r) => r.package_id));
   return {
     runId: roundId,
@@ -80,14 +65,8 @@ export async function toReturnOnRound(db: Queryable, roundId: string): Promise<T
 }
 
 /**
- * Close a delivery round that is finished: no drop still open AND nothing left to return (088 R3).
- *
- * ⚠ THE ONE COMPLETION RULE FOR DELIVERY ROUNDS. Until driver backlog A1 nothing closed a delivery
- * round at all; A1 closed it on its last settled drop; 088 adds the second condition — a round whose
- * failed parcels are still in the van is not finished, from anyone's point of view.
- *
- * The round row is locked first: two drops on one round settled at the same moment would otherwise
- * each see the other still open, and neither would close it.
+ * The one completion rule for delivery rounds: no drop open and nothing left to return. The round row
+ * is locked first, so two drops settled at once cannot each see the other open.
  */
 export async function completeDeliveryRoundIfFinished(tx: Queryable, roundId: string): Promise<boolean> {
   await tx.query(`SELECT id FROM public.driver_round WHERE id = $1 FOR UPDATE`, [roundId]);
@@ -112,7 +91,7 @@ export async function completeDeliveryRoundIfFinished(tx: Queryable, roundId: st
 
 export interface RecordParcelReturnInput {
   roundId: string;
-  /** Set when a DRIVER returns: the round must be theirs. Omitted for a staff return. */
+  /** Set when a driver returns: the round must be theirs. */
   driverId?: string;
   recordedBy: "driver" | "staff";
   recordedBySub: string;
@@ -122,7 +101,7 @@ export interface RecordParcelReturnInput {
 export interface ParcelReturnResult {
   returned: number;
   roundComplete: boolean;
-  /** The round's driver — told by a live update when staff returned on their behalf. */
+  /** Told by a live update when staff returned for them. */
   driverId: string;
   replayed: boolean;
 }
@@ -135,12 +114,8 @@ export class ParcelReturnRoundNotFoundError extends Error {
 }
 
 /**
- * Return every parcel on a delivery round that is still to return (FR-004). Call inside a transaction.
- *
- * - Idempotent on `changeId` (FR-005): a replay answers with what the first call did.
- * - Nothing to return is a success with `returned: 0`, never an error — a second tap after the first
- *   landed must not be something the driver has to think about.
- * - Never touches the recorded failure (FR-013): reason, note and time stay as the driver wrote them.
+ * Inside a transaction. Idempotent on `changeId`; nothing to return is `returned: 0`, not an error;
+ * the recorded failure is never touched.
  */
 export async function recordParcelReturn(tx: Queryable, input: RecordParcelReturnInput): Promise<ParcelReturnResult> {
   const prior = await tx.query<{ package_count: number; round_id: string; driver_id: string }>(
@@ -157,7 +132,7 @@ export async function recordParcelReturn(tx: Queryable, input: RecordParcelRetur
     };
   }
 
-  // ⚠ Scoped to the driver for a driver's call, so "not yours" and "no such round" are one answer.
+  // Scoped to the driver, so "not yours" and "no such round" are one answer.
   const round = await tx.query<{ id: string; driver_id: string; status: string }>(
     `SELECT id, driver_id, status FROM public.driver_round
       WHERE id = $1 AND kind = 'delivery' AND ($2::uuid IS NULL OR driver_id = $2::uuid)

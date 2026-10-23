@@ -34,12 +34,12 @@ import com.effyshopping.customer.mobile.features.saved.domain.listNameRemaining
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The list chooser (068): a sheet of tick boxes, one per list, and a field to make a new one.
+ * The list chooser: a sheet of tick boxes, one per list, and a field to make a new one.
  *
- * Reached from four places and no others (FR-014): the product page, a row on a list's page, the
+ * Reached from four places and no others: the product page, a row on a list's page, the
  * snackbar after a one-tap save, and a filled heart on a product that is in a named list.
  *
- * ⚠ ROWS, NOT CARDS (Principle V), each a full-width [EffyMinTouchTarget]-tall toggle so the whole row
+ * Rows, not cards (Principle V), each a full-width [EffyMinTouchTarget]-tall toggle so the whole row
  * is the target and a screen reader announces one checkbox with the list's name.
  *
  * [onRequireSignIn] is null where the screen has no route to sign-in; the guest message then says
@@ -51,7 +51,7 @@ fun ListChooserSheet(
     productId: String,
     onDismiss: () -> Unit,
     onRequireSignIn: (() -> Unit)? = null,
-    /** 098 — the size on screen, remembered with the product. */
+    /** The size on screen, remembered with the product. */
     variantId: String? = null,
 ) {
     val vm = remember(productId, variantId) {
@@ -138,7 +138,7 @@ private fun ListRow(list: SavedList, enabled: Boolean, onToggle: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        // ⚠ `onCheckedChange = null`: the ROW is the control. A second click target inside it would
+        // `onCheckedChange = null`: the ROW is the control. A second click target inside it would
         // make a screen reader announce two checkboxes for one list.
         Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
         // Plain text. A list name is the shopper's own and is never interpreted.

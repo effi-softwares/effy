@@ -1,5 +1,4 @@
-// POST /commerce/v1/cart/preview — PUBLIC. Re-price a guest's device cart with full notices and
-// write nothing. Takes no identity and persists nothing, so there is nothing to leak.
+// Public: re-prices a guest's device cart and writes nothing.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

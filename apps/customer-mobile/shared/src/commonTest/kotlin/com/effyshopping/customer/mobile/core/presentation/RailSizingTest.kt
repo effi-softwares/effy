@@ -8,15 +8,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 028 T017 — the rail tile sizing rule (research R4).
- *
- * The rule is pure precisely so the two things that can go wrong with it can be asserted rather than
- * eyeballed on a device:
- *
- *   · **no peek** — a row whose last visible tile ends flush at the screen edge reads as a complete
- *     set, and a shopper never drags it. The peek IS the affordance FR-015 asks for.
- *   · **a stretched phone layout on a tablet** — the failure mode FR-046 exists to prevent, where a
- *     wider window simply makes each product bigger instead of showing more of them.
+ * The rail tile sizing rule: there is always a peek (a row ending flush at the edge reads as complete, and
+ * nobody drags it), and a tablet shows more tiles rather than bigger ones.
  */
 class RailSizingTest {
 
@@ -70,13 +63,7 @@ class RailSizingTest {
     }
 }
 
-/**
- * 029 T026 — the banner's render width.
- *
- * ⚠ Testing the PURE function, not the composable. 028 twice had layout maths pass a function test
- * and fail on a device, so this proves the rule and the device walk proves the layout. What it can
- * genuinely catch is the bound being absent, inverted, or applied on a phone.
- */
+/** The banner's render width: the pure rule (absent, inverted or applied on a phone); the device walk proves the layout. */
 class BannerSizingTest {
 
     @Test
@@ -88,7 +75,7 @@ class BannerSizingTest {
 
     @Test
     fun `a wide window is bounded rather than stretched`() {
-        // ⚠ FR-015. Without this a tablet in landscape renders a banner as tall as half the screen —
+        // FR-015. Without this a tablet in landscape renders a banner as tall as half the screen
         // at 2:1, a 1000dp-wide window would produce a 500dp slab.
         assertEquals(EffyBanner.maxRenderWidth, bannerRenderWidth(1000.dp))
         assertEquals(EffyBanner.maxRenderWidth, bannerRenderWidth(2000.dp))

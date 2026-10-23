@@ -9,7 +9,7 @@ import type {
 import type { CatalogSchema, ProductDetail } from "./model";
 
 /**
- * Review state, as a shop is shown it (067) — pure, no React.
+ * Review state, as a shop is shown it — pure, no React.
  *
  * Effy approves a product before it goes on sale, and approves every later change to its details.
  * Stock is never reviewed. This file is the one place that turns the server's review state into
@@ -26,7 +26,7 @@ export interface ReviewChip {
 /**
  * The chip for a review state, or null when there is nothing to say.
  *
- * ⚠ `draft` AND `live` SAY NOTHING. The lifecycle chip beside this one already reads "draft" or
+ * `draft` and `live` say nothing. The lifecycle chip beside this one already reads "draft" or
  * "active"; a second chip repeating it is noise on every row of a table that is mostly live products.
  */
 export function reviewChip(state: ShopReviewState | undefined): ReviewChip | null {
@@ -68,15 +68,15 @@ function inferDataType(a: NonNullable<ProductChangeProposalDTO["attributes"]>[nu
 /**
  * The product as the shop last left it: the live details with the pending change laid over them.
  *
- * ⚠ THIS IS WHAT THE EDIT DIALOGS OPEN ON, never what the page displays as "the product". A shop
+ * This is what the edit dialogs open on, never what the page displays as "the product". A shop
  * that changed the name yesterday and opens the editor today must find yesterday's name in the
- * field — and a dialog seeded from the LIVE product would silently send the old name back as the
+ * field — and a dialog seeded from the live product would silently send the old name back as the
  * new proposal for every field it re-submits whole (attributes are sent as a complete set).
  */
 export function workingDetail(detail: ProductDetail): ProductDetail {
   const pending = detail.pendingChange;
   if (!pending) return detail;
-  // 098 — the option/variant sets are NOT laid over the live rows here: those carry stock and state a
+  // The option/variant sets are not laid over the live rows here: those carry stock and state a
   // proposal has not got. The sizes editor opens on the proposal itself (`draftFromDetail`).
   const { attributes: proposedAttributes, options: _options, variants: _variants, ...scalars } = pending.proposed;
 
@@ -131,7 +131,7 @@ function categoryName(schema: CatalogSchema | undefined, id: string): string {
 
 /**
  * What the pending change proposes, as Now / Proposed rows — only the details that differ.
- * The price rows are the SHOP's price: it is the figure the shop typed.
+ * The price rows are the shop's price: it is the figure the shop typed.
  */
 export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): ProposedRow[] {
   const p = detail.pendingChange?.proposed;
@@ -146,7 +146,7 @@ export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): Pro
   if (p.unitBasis !== undefined) {
     add("Unit pricing", detail.unitBasis ? UNIT_BASIS_LABELS[detail.unitBasis] : "None", p.unitBasis ? UNIT_BASIS_LABELS[p.unitBasis] : "None");
   }
-  // 098 — sizes: one row per size added, removed or re-priced. Prices are the SHOP's: what it typed.
+  // Sizes: one row per size added, removed or re-priced. Prices are the shop's: what it typed.
   if (p.options && p.variants) {
     const liveSets = detail.variants.filter((v) => v.state !== "removed");
     const live = new Map(liveSets.map((v) => [v.id, v]));

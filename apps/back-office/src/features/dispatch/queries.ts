@@ -4,13 +4,13 @@ import type { ReassignRoundInput, ReorderStopsInput } from "@effy/shared-types";
 
 import * as repo from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations INVALIDATE.
+// Server state lives only in the TanStack Query cache (Principle VI). Mutations invalidate.
 
 export const dispatchKeys = {
   all: ["dispatch"] as const,
   day: () => ["dispatch", "day"] as const,
   round: (id: string) => ["dispatch", "round", id] as const,
-  // 082 — under "dispatch": a pass, an assignment or a check-in changes what a window shows.
+  // Under "dispatch": a pass, an assignment or a check-in changes what a window shows.
   windows: (date: string | null) => ["dispatch", "windows", date ?? "today"] as const,
 };
 
@@ -24,7 +24,7 @@ export const dispatchRoundQuery = (id: string) =>
   queryOptions({ queryKey: dispatchKeys.round(id), queryFn: () => repo.getRound(id) });
 
 /**
- * ⚠ EVERY MUTATION INVALIDATES THE DAY. A dispatcher's change moves work between drivers, so the
+ * Every mutation invalidates the day. A dispatcher's change moves work between drivers, so the
  * round they did not touch is stale too — patching one row in the cache would leave the other
  * showing a driver who no longer holds it.
  */
@@ -48,7 +48,7 @@ export const useReorderStops = (id: string) =>
   useDispatchMutation<ReorderStopsInput>((body) => repo.reorder(id, body));
 
 
-/** 093 — waive the order of work for one run. */
+/** Waive the order of work for one run. */
 export const useWaiveSequence = (id: string) =>
   useDispatchMutation<string>(async (reason) => {
     await repo.waiveSequence(id, reason);

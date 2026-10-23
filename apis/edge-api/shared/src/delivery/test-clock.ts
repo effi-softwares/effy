@@ -1,7 +1,7 @@
 // Test helpers only: build and read Melbourne wall-clock instants.
 import { instantAtLocalTime, OPERATING_TZ } from "../lib/collection-deadline";
 
-/** h:m on 24 Aug 2026 in Melbourne — the fixture day the delivery table tests share. */
+/** h:m on 24 Aug 2026 in Melbourne, the shared fixture day. */
 export const at = (hour: number, minute: number): Date => instantAtLocalTime(2026, 8, 24, hour, minute);
 
 export const melbourne = (y: number, m: number, d: number, hour: number, minute = 0): Date =>

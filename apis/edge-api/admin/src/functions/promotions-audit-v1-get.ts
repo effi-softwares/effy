@@ -1,4 +1,3 @@
-// GET /admin/v1/promotions/{id}/audit — a promotion's change history (094; FR-021). Read: any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

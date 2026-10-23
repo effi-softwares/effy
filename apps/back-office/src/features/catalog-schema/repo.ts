@@ -28,7 +28,7 @@ import type {
 
 const BASE = "/admin/v1/catalog";
 
-// ── Product types ───────────────────────────────────────────────────────────────────────────────
+// Product types
 
 export async function listProductTypes(): Promise<ProductType[]> {
   return api.get<ProductTypeDTO[]>(`${BASE}/product-types`);
@@ -75,7 +75,7 @@ export async function unassignAttribute(id: string, attrId: string): Promise<voi
   await api.delete<void>(`${BASE}/product-types/${id}/attributes/${attrId}`);
 }
 
-// ── Attribute definitions ─────────────────────────────────────────────────────────────────────
+// Attribute definitions
 
 export async function listAttributes(): Promise<AttributeDefinition[]> {
   return api.get<AttributeDefinitionDTO[]>(`${BASE}/attributes`);
@@ -109,7 +109,7 @@ export async function deleteAllowedValue(id: string, valueId: string): Promise<v
   await api.delete<void>(`${BASE}/attributes/${id}/allowed-values/${valueId}`);
 }
 
-// ── Categories (taxonomy) ─────────────────────────────────────────────────────────────────────
+// Categories (taxonomy)
 
 export async function listCategories(): Promise<Category[]> {
   return api.get<CategoryDTO[]>(`${BASE}/categories`);

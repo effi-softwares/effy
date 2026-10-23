@@ -1,33 +1,20 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ THE LOAD-BEARING TEST OF THIS FEATURE, AGAINST REAL POSTGRESQL 16.
- *
- * Everything that makes `recordArrival` safe is a database behaviour, not a TypeScript behaviour:
- * the row lock that serialises two operators, the status-guarded UPDATE that makes a replay a no-op,
- * the UNIQUE that refuses a second arrival independently of this code, and the CHECK that makes an
- * unattributable staff assertion unrepresentable. A mock would agree with whatever the code does —
- * 027's R13 lesson, where every unit test passed because the fakes spoke Kotlin at both ends and
- * never crossed the wire.
- *
- * The transport is replaced (the shared `query` forces SSL with the embedded RDS CA bundle, which no
- * local container has). The SQL is NOT replaced — the statements under test are the real ones, and
- * so is the real `enqueueOrderDeliveredIfComplete` rollup from `@effy/edge-shared`.
- *
- * Gated on Docker, mirroring the Go side's `testing.Short()` convention.
+ * Against real Postgres: the row lock, the status-guarded UPDATE, the unique and the attribution check
+ * are what make `recordArrival` safe. Only the transport is replaced (no RDS ca locally).
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
 vi.mock("@effy/edge-shared", async () => {
-  // The REAL completion rule — this test covers the shared rollup as well as the arrival.
   const completion = await import("../../../shared/src/lib/order-completion");
   return {
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
-    // ⚠ A REAL transaction with a REAL client, not the pool. `FOR UPDATE` only serialises inside
-    // one, so a pool-backed stand-in would make the concurrency test pass while the race stayed live.
+    // A real transaction: `FOR UPDATE` only serialises inside one.
     withTransaction: async (fn: (c: unknown) => unknown) => {
       const client = await holder.pool!.connect();
       try {
@@ -61,80 +48,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
 
-    // The real shapes, including the constraints that ARE the guarantee. Deliberately minimal
-    // otherwise: a future migration that renames a column fails here loudly rather than matching
-    // nothing quietly.
-    await pool.query(`
-      CREATE SCHEMA admin;
-      CREATE TABLE public.customer (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        cognito_sub text NOT NULL,
-        email text
-      );
-      CREATE TABLE public."order" (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        customer_id uuid NOT NULL REFERENCES public.customer (id),
-        order_number text NOT NULL DEFAULT 'EFY-TEST'
-      );
-      CREATE TABLE public.shop (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL);
-      CREATE TABLE public.shop_fulfillment (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        order_id uuid NOT NULL REFERENCES public."order" (id) ON DELETE CASCADE,
-        shop_id uuid NOT NULL REFERENCES public.shop (id),
-        status text NOT NULL,
-        state_changed_at timestamptz,
-        updated_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.order_package_delivery (
-        order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL,
-        CONSTRAINT opd_uq UNIQUE (order_id, shop_id)
-      );
-      CREATE TABLE public.carrier_handoff (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id),
-        reference text, carrier_name text,
-        handed_over_at timestamptz NOT NULL DEFAULT now(),
-        recorded_by_sub text NOT NULL, note text,
-        created_at timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT carrier_handoff_package_uq UNIQUE (shop_fulfillment_id)
-      );
-      CREATE TABLE public.package_arrival (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id),
-        arrived_at timestamptz NOT NULL DEFAULT now(),
-        source text NOT NULL CHECK (source IN ('driver_proof','staff_recorded','carrier_signal')),
-        recorded_by_sub text,
-        note text,
-        created_at timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT package_arrival_package_uq UNIQUE (shop_fulfillment_id),
-        CONSTRAINT package_arrival_staff_attributed CHECK (
-          source <> 'staff_recorded' OR recorded_by_sub IS NOT NULL
-        )
-      );
-      CREATE TABLE public.fulfillment_event (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id) ON DELETE CASCADE,
-        event_type text NOT NULL, from_status text, to_status text,
-        occurred_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.notification_request (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        recipient_sub text NOT NULL, audience text NOT NULL, type text NOT NULL,
-        channel text NOT NULL DEFAULT 'push' CHECK (channel IN ('push','email')),
-        recipient_email text,
-        payload jsonb NOT NULL, dedupe_key text NOT NULL UNIQUE,
-        status text NOT NULL DEFAULT 'pending',
-        CONSTRAINT notification_request_email_addressed CHECK (
-          channel <> 'email' OR recipient_email IS NOT NULL
-        )
-      );
-      CREATE TABLE admin.audit_log (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        actor_sub text NOT NULL, action text NOT NULL, target_type text NOT NULL,
-        target_id uuid, detail jsonb NOT NULL DEFAULT '{}'::jsonb,
-        created_at timestamptz NOT NULL DEFAULT now()
-      );
-    `);
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -155,30 +69,29 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     packages: string[];
   }
 
-  /** Seed an order with one package per entry in `methods`. */
   async function seedOrder(
     methods: ("standard" | "same_day")[],
     status = "collected",
-    email: string | null = "shopper@example.com",
   ): Promise<Seeded> {
     const c = await pool.query<{ id: string }>(
-      `INSERT INTO public.customer (cognito_sub, email) VALUES ('cust-sub', $1) RETURNING id`,
-      [email],
+      `INSERT INTO public.customer (cognito_sub, email) VALUES ('cust-sub', 'shopper@example.com') RETURNING id`,
     );
     const o = await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id) VALUES ($1) RETURNING id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, delivery_address, item_subtotal_amount, grand_total_amount,
+                                   delivery_type, delivery_type_reason, courier_estimate)
+       VALUES ($1, 'EFY-ARR1', 'paid', '{}', 10, 10, 'courier', 'out_of_coverage', '2–4 business days') RETURNING id`,
       [c.rows[0]!.id],
     );
     const orderId = o.rows[0]!.id;
     const packages: string[] = [];
     for (const [i, method] of methods.entries()) {
       const s = await pool.query<{ id: string }>(
-        `INSERT INTO public.shop (name) VALUES ($1) RETURNING id`,
-        [`Shop ${i}`],
+        `INSERT INTO public.shop (code, name) VALUES ($1, $2) RETURNING id`,
+        [`S${i}`, `Shop ${i}`],
       );
       const f = await pool.query<{ id: string }>(
-        `INSERT INTO public.shop_fulfillment (order_id, shop_id, status)
-         VALUES ($1, $2, $3) RETURNING id`,
+        `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount)
+         VALUES ($1, $2, $3, 1, 10) RETURNING id`,
         [orderId, s.rows[0]!.id, status],
       );
       await pool.query(
@@ -218,11 +131,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     expect(status.rows[0]!.status).toBe("delivered");
   });
 
-  /**
-   * ⚠ SC-007. Five presses, one arrival, one push, one email — and critically the ORIGINAL time.
-   * A "successful" repeat that silently moved `arrived_at` would corrupt the single fact this table
-   * exists to hold, and would look exactly like success.
-   */
+  /** Five presses: one arrival, one push, one email, and the original time. */
   it("records ONE arrival however many times it is called, preserving the original time", async () => {
     const { packages } = await seedOrder(["standard"]);
     await seedHandoff(packages[0]!);
@@ -244,10 +153,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     expect(notifications.rows.map((r) => r.channel)).toEqual(["email", "push"]);
   });
 
-  /**
-   * ⚠ Run CONCURRENTLY, not sequentially. A sequential pair passes while the race is live — the
-   * point is that `FOR UPDATE` serialises them.
-   */
+  /** Concurrent, not sequential: a sequential pair passes while the race is live. */
   it("survives two operators recording the same arrival at the same instant", async () => {
     const { packages } = await seedOrder(["standard"]);
     await seedHandoff(packages[0]!);
@@ -264,10 +170,10 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     const arrivals = await pool.query(`SELECT 1 FROM public.package_arrival`);
     expect(arrivals.rowCount).toBe(1);
     const notifications = await pool.query(`SELECT 1 FROM public.notification_request`);
-    expect(notifications.rowCount).toBe(2); // push + email, once
+    expect(notifications.rowCount).toBe(2);
   });
 
-  /** ⚠ FR-006 — the refusal that names the missing handover rather than just failing. */
+  /** The refusal names the missing handover. */
   it("refuses an arrival on a package with no recorded handover", async () => {
     const { packages } = await seedOrder(["standard"]);
 
@@ -294,11 +200,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     ).rejects.toMatchObject({ reason: "not_found" });
   });
 
-  /**
-   * ⚠ FR-007 — a rollup, not a max. This is the mixed order: one shop same-day, one standard. The
-   * customer has not received their order until ALL of it has arrived, and must not be told
-   * otherwise. The same rule `stageFor` applies to the progress word.
-   */
+  /** A rollup, not a max: the order is delivered only when every package has arrived. */
   it("does not finish a mixed order until EVERY package has arrived", async () => {
     const { packages } = await seedOrder(["standard", "standard"]);
     await seedHandoff(packages[0]!);
@@ -315,10 +217,9 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     expect(second.orderFinished).toBe(true);
 
     notifications = await pool.query(`SELECT 1 FROM public.notification_request`);
-    expect(notifications.rowCount).toBe(2); // push + email, exactly once, for the ORDER
+    expect(notifications.rowCount).toBe(2);
   });
 
-  /** FR-014 — attributed, and retained where 009 put every other back-office action. */
   it("writes an attributed audit entry", async () => {
     const { packages } = await seedOrder(["standard"]);
     await seedHandoff(packages[0]!);
@@ -332,7 +233,6 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     expect(audit.rows[0]!.action).toBe("order.arrival_recorded");
   });
 
-  /** The append-only accountability record the shop console already reads (020 FR-019a). */
   it("appends the state change to fulfillment_event", async () => {
     const { packages } = await seedOrder(["standard"]);
     await seedHandoff(packages[0]!);
@@ -344,24 +244,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
     expect(events.rows).toEqual([{ from_status: "collected", to_status: "delivered" }]);
   });
 
-  /**
-   * ⚠ A customer with no address on file must still get their PUSH. Failing the whole arrival over a
-   * missing email would mean an operational record cannot be written because of a contact detail.
-   */
-  it("still records the arrival and the push when the customer has no email", async () => {
-    const { packages } = await seedOrder(["standard"], "collected", null);
-    await seedHandoff(packages[0]!);
-
-    const result = await arrive(packages[0]!);
-    expect(result.created).toBe(true);
-
-    const notifications = await pool.query<{ channel: string }>(
-      `SELECT channel FROM public.notification_request`,
-    );
-    expect(notifications.rows.map((r) => r.channel)).toEqual(["push"]);
-  });
-
-  /** A handover with NO reference is a complete record (FR-003) — the arrival must accept it. */
+  /** A handover with no reference is a complete record. */
   it("accepts an arrival on a handover recorded without a carrier reference", async () => {
     const { packages } = await seedOrder(["standard"]);
     await seedHandoff(packages[0]!, null);

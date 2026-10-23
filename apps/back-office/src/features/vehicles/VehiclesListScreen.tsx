@@ -29,10 +29,8 @@ const VIEWS: readonly { key: View; label: string }[] = [
 ];
 
 /**
- * The vehicle register (061 US1; redesign, board "Vehicles") — the front door of the fleet.
- *
- * ⚠ A TABLE, NOT CARDS, AND NO METRIC TILES (Principle V). ⚠ COMPLIANCE IS VISIBLE WITHOUT OPENING A
- * RECORD (FR-009), and it NAMES the lapsed item — "not compliant" would send an operator hunting.
+ * The vehicle register: a table, no metric tiles. Compliance shows without opening a record, naming the
+ * lapsed item.
  */
 export function VehiclesListScreen() {
   const roles = useSessionRoles();
@@ -169,7 +167,7 @@ export function VehiclesListScreen() {
               </tbody>
             </table>
           </div>
-          {/* ⚠ nextCursor is CONSUMED, not merely returned (053 shipped a console capped at 25). */}
+          {/* nextCursor is consumed, not merely returned (053 shipped a console capped at 25). */}
           {query.data.nextCursor || cursorStack.length > 0 ? (
             <Pager
               summary={`${items.length} vehicle${items.length === 1 ? "" : "s"} · page ${cursorStack.length + 1}`}

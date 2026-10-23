@@ -1,18 +1,18 @@
 /**
- * Structured data (JSON-LD) — how search engines understand the storefront.
+ * Structured data (JSON-ld) — how search engines understand the storefront.
  *
- * Rendered as a NATIVE <script> tag from a Server Component, never via `next/script`. The Next
- * docs are explicit about this: "Since JSON-LD is structured data, not executable code, a
+ * Rendered as a native <script> tag from a Server Component, never via `next/script`. The Next
+ * docs are explicit about this: "Since JSON-ld is structured data, not executable code, a
  * native `<script>` tag is the right choice." It costs zero client JavaScript.
  *
- * ⚠ The `.replace(/</g, "\\u003c")` below is not decoration. Any string that ends up in this
+ * The `.replace(/</g, "\\u003c")` below is not decoration. Any string that ends up in this
  * payload could otherwise close the <script> tag and inject markup — once a catalog exists,
  * product names and descriptions come from the database and are therefore untrusted input on a
  * page served to the entire internet.
  *
- * ⚠ Structured data MUST match what the page visibly says. Claiming `InStock` in JSON-LD while
+ * Structured data must match what the page visibly says. Claiming `InStock` in JSON-ld while
  * the page shows "out of stock" is a Google policy violation, not a cosmetic mismatch. When the
- * catalog slice adds Product/Offer, emit price and availability from the SAME component that
+ * catalog slice adds Product/Offer, emit price and availability from the same component that
  * renders them.
  */
 
@@ -59,10 +59,10 @@ export function breadcrumbLd(
 const AVAILABILITY = (available: boolean) => (available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock")
 
 /**
- * The product (098, research R18). One size → a `Product` with its `Offer`. Several sizes → a
+ * The product. One size → a `Product` with its `Offer`. Several sizes → a
  * `ProductGroup` whose `hasVariant` lists each size as a `Product`, each with its own price,
  * availability and a link that opens the page on it (`?variant=`) — Google's documented shape for
- * variants. Built from the page's LIVE read, so it says what the page says.
+ * variants. Built from the page's live read, so it says what the page says.
  */
 export function productLd(
   siteUrl: string,

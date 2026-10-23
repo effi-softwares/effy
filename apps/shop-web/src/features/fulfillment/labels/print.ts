@@ -1,10 +1,7 @@
 /**
- * 096 — printing labels through the browser (research R9): one SVG per page at the label's exact size,
- * margin 0, no scaling, and NO trailing page break — 089's labels printed a blank second page after
- * every label. On A4, four labels per page on a 2 × 2 grid of A6 quarters.
- *
- * ⚠ It writes into its OWN window so the console's chrome never reaches the printer, and returns 0 when
- * the browser blocked the window — "printed" is never claimed over a window that never opened (FR-018).
+ * Printing labels through the browser: one SVG per page at the label's exact size, margin 0, no scaling,
+ * and no trailing page break (it prints a blank page). On A4, four labels on a 2 × 2 grid of A6 quarters.
+ * Its own window keeps the console's chrome off the paper; returns 0 when the window was blocked.
  */
 import { GEOMETRY, type LabelLayout } from "./render"
 
@@ -29,7 +26,7 @@ export function printDocument(svgs: readonly string[], layout: LabelLayout): str
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>Bag labels</title><style>` +
     `@page{${PAGE[layout]}}html,body{margin:0;padding:0;background:#fff}` +
-    // ⚠ A label exactly the page's height spilled its footer onto a second page in Chrome (rounding):
+    // A label exactly the page's height spilled its footer onto a second page in Chrome (rounding):
     // the page box is fixed at the label's size, a hair shorter, and nothing can overflow it.
     `.page{break-after:page;page-break-after:always;overflow:hidden;width:${g.widthMm}mm;height:${g.heightMm - 0.5}mm}` +
     `.page:last-child{break-after:auto;page-break-after:auto}` +

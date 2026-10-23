@@ -3,17 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * ⚠ THE ONE PLACE THAT KNOWS WHICH DEPLOYABLE STACKS EXIST (075).
- *
- * A stack is a `serverless*.yml`, not a directory. Until 075 the two were the same thing, and half
- * a dozen contract tests each found "the services" by reading `<dir>/serverless.yml`. Then
- * `inventory` became two stacks from one directory — one per gateway — and a guard that reads only
- * `serverless.yml` would have gone on passing while seeing half the service.
- *
- * So a guard that needs "every stack" asks here. A new stack file is then visible to all of them at
- * once, and a guard that lists directories for itself is the thing to fix.
- *
- * Test support only: nothing a Lambda runs imports this file.
+ * The one place that knows which stacks exist. A stack is a `serverless*.yml`, not a directory
+ * (`inventory` has two), so a guard that needs every stack asks here. Test support only.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 

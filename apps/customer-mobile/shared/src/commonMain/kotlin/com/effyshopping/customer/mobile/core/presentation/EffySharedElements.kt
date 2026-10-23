@@ -8,13 +8,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 
 /**
- * Shared-element plumbing for "the product picture grows from its tile into the product page"
- * (Page transitions board; 087 FR-017).
- *
- * The shell wraps the navigator in a `SharedTransitionLayout` and provides its scope here; each
- * destination provides the navigator's animated-content scope. A picture marked with the same key on
- * both pages then travels between them. Outside the shell (previews, tests) both are null and the
- * modifier does nothing — as it does under reduced motion, where the push falls back to a fade.
+ * Shared-element plumbing for "the product picture grows from its tile into the product page". The shell
+ * wraps the navigator in a `SharedTransitionLayout` and provides its scope here; each destination provides
+ * the animated-content scope; a picture with the same key on both pages travels between them. Outside the
+ * shell (previews, tests) and under reduced motion, the modifier does nothing.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 val LocalEffySharedTransition = compositionLocalOf<SharedTransitionScope?> { null }

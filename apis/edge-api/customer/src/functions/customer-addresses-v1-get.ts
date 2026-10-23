@@ -6,12 +6,7 @@ import { json, preamble, problem, ProblemType, subject } from "@effy/edge-shared
 import { addressErrorResponse } from "../addresses/http";
 import { listAddresses } from "../addresses/service";
 
-/**
- * GET /customer/v1/addresses — the customer's saved delivery addresses, default first (022 US1).
- *
- * Customer profile management (011 FR-028). Scoped to the caller's own record from
- * the token subject; a customer never sees another's addresses (FR-020, SC-005).
- */
+/** Default first, scoped to the caller's own record. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

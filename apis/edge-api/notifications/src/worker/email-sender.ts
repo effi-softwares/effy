@@ -1,13 +1,5 @@
-// The EMAIL channel of the notification drain (053 US3).
-//
-// ⚠ IT RESOLVES WHAT IT RENDERS AT SEND TIME, from the entity id alone. The outbox payload is
-// contractually no-PII (050 FR-021) because a push payload traverses FCM, so nothing about the
-// customer or their order travels through `notification_request` — only routing ids. This module is
-// where an order id becomes a name and a date.
-//
-// ⚠ THE ADDRESS IS NOT RESOLVED HERE. It was snapshotted onto the row at enqueue (052's rule), so a
-// customer who later changes their account email does not retroactively redirect a message about an
-// order that has already arrived. This module is handed the address; it must never look one up.
+// Resolves what it renders at send time from the entity id: the outbox carries routing ids only. The
+// address was snapshotted at enqueue and is never looked up here.
 import { logger, query } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
@@ -18,27 +10,15 @@ import { sendEmail } from "@effy/email-kit/send";
 import type { SendResult } from "../fcm/sender";
 import type { NotificationType } from "./copy";
 
-/** The trading timezone. A delivery date is a claim about the SHOPPER'S day, not the server's. */
+/** A delivery date is the shopper's day, not the server's. */
 const TZ = "Australia/Melbourne";
 
-/**
- * Which notification types have an email counterpart.
- *
- * ⚠ THE SCOPE BOUNDARY, IN CODE (research R8). 053 adds the email channel and uses it for
- * `order_delivered` ONLY. `order_ready` and `order_out_for_delivery` stay push-only — adding them is
- * a values change for a later slice, not scope to take now.
- *
- * ⚠ `order_paid` MUST NEVER APPEAR HERE. It already has an email — 052's receipt, via its own
- * `receipt_dispatch` outbox. A second one for the same event is a defect, not coverage.
- */
+/** `order_paid` must never appear: its email is the receipt, via `receipt_dispatch`. */
 const EMAIL_TEMPLATES = {
   order_delivered: "order-delivered",
-  // 074 — a points credit, and the one warning before points expire.
   points_credited: "points-credited",
   points_expiring: "points-expiring",
-  // 080 — one per consignment: the per-parcel tracking the order page says is sent by email.
   order_with_courier: "order-with-courier",
-  // 081 — one per move by back-office: what changed, when it now arrives, what the customer received.
   order_delivery_changed: "order-delivery-changed",
 } as const satisfies Partial<Record<NotificationType, string>>;
 
@@ -51,7 +31,7 @@ interface DeliveredRow {
   delivered_at: string | null;
 }
 
-/** The order's facts, and the day its LAST package arrived. */
+/** The day its last package arrived. */
 async function loadDelivered(orderId: string): Promise<DeliveredRow | null> {
   const res = await query<DeliveredRow>(
     `SELECT o.order_number,
@@ -66,29 +46,19 @@ async function loadDelivered(orderId: string): Promise<DeliveredRow | null> {
   return res.rows[0] ?? null;
 }
 
-/**
- * ⚠ A DATE, NEVER A TIME OF DAY. The platform has no delivery window (052 research R4) and the
- * arrival timestamp is when a person pressed a button, not when the doorbell rang. Printing
- * "delivered at 3:42 pm" would state a precision the record does not have, on a message a customer
- * may later use to dispute something.
- */
+/** A date, never a time: the timestamp is a button press, not the doorbell. */
 function formatDeliveredOn(iso: string | null): string {
   const d = iso ? new Date(iso) : new Date();
   const when = Number.isNaN(d.getTime()) ? new Date() : d;
   return new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeZone: TZ }).format(when);
 }
 
-// ── 074 points ─────────────────────────────────────────────────────────────────────────────────────
-
 const points = (n: number) => new Intl.NumberFormat("en-AU").format(n);
 const dollars = (cents: number) => (cents / 100).toFixed(2);
-/** A Melbourne yyyy-mm-dd written out, at noon so no zone can move it to another day. */
+/** At noon, so no zone moves it to another day. */
 const longDate = (ymd: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeZone: TZ }).format(new Date(`${ymd}T12:00:00+10:00`));
 
-/**
- * One credit, resolved at send time from its entry id (the payload carries nothing else). The reason
- * words come from the same closed vocabulary the account page uses; the staff note is not selected.
- */
+/** Reason words from the account page's vocabulary; the staff note is not selected. */
 async function loadCredited(entryId: string) {
   const row = (
     await query<{ kind: string; points: number; reason: string; order_number: string | null; last_day: string; cents_per_point: number }>(
@@ -123,12 +93,7 @@ async function loadExpiring(noticeId: string) {
   return { points: points(row.points), valueAmount: dollars(row.points * row.cents_per_point), expiresOn: longDate(row.expiry_date) };
 }
 
-// ── 080 courier ───────────────────────────────────────────────────────────────────────────────────
-
-/**
- * One consignment, resolved at send time from its id. ⚠ Selects nothing about the shop, the other
- * parcels or the fee — the template has no var for them.
- */
+/** Selects nothing about the shop, other parcels or the fee. */
 async function loadWithCourier(consignmentId: string) {
   return (
     await query<{ order_id: string; order_number: string; courier_name: string; reference: string | null; tracking_url: string | null }>(
@@ -143,12 +108,7 @@ async function loadWithCourier(consignmentId: string) {
   ).rows[0] ?? null;
 }
 
-// ── 081 courier override ──────────────────────────────────────────────────────────────────────────
-
-/**
- * One move, resolved at send time from its id, into the shared wording. ⚠ Selects nothing about the
- * staff reason, the courier fee or the difference — the template has no var for them.
- */
+/** Selects nothing about the staff reason, the courier fee or the difference. */
 async function loadDeliveryChanged(overrideId: string) {
   const row = (
     await query<{
@@ -181,7 +141,6 @@ async function loadDeliveryChanged(overrideId: string) {
 }
 
 export interface EmailSenderOptions {
-  /** Absolute base URL of the storefront, for the order link. */
   siteUrl: string;
 }
 
@@ -200,8 +159,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
     async send(to: string, type: NotificationType, entityId: string): Promise<SendResult> {
       if (!identity) return { ok: false, prune: false, errorClass: "mail_not_configured" };
       if (!hasEmailTemplate(type)) {
-        // A row asking for a channel this type does not have. Not retryable — the type will not
-        // grow a template on the next tick.
+        // This type has no template on this channel: not retryable.
         return { ok: false, prune: false, errorClass: "no_email_template" };
       }
 
@@ -257,9 +215,7 @@ export function createEmailSender(opts: EmailSenderOptions) {
 
       return res.outcome === "sent"
         ? { ok: true, prune: false }
-        // ⚠ `prune` is meaningless on this channel and is always false. It exists on SendResult for
-        // FCM, where a dead token must be deleted; an email address that bounces is 037's
-        // deliverability path, not this worker's to act on.
+        // Always false here; bounces are handled by the deliverability path.
         : { ok: false, prune: false, errorClass: "send_failed" };
     },
   };

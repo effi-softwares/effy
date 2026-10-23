@@ -1,12 +1,7 @@
 /**
- * The one warning before points expire (074 FR-023, SC-007).
- *
- * ⚠ ONE STATEMENT DECIDES AND RECORDS IT. The notice row is inserted with ON CONFLICT DO NOTHING on
- * (customer, expiry date), and the email intent is created only FROM the rows that insert produced —
- * so however many lots expire on a day, and however many times the job runs, a customer is told once.
- *
- * ⚠ The date is the LAST DAY THE POINTS CAN BE USED, in Melbourne: the same date the account page
- * shows. The email address is snapshotted here (052's rule); a customer with none is simply not mailed.
+ * The one warning before points expire. One statement decides and records it: the notice insert (ON
+ * conflict do nothing on customer and date) produces the email intents, so a customer is told once. The
+ * date is the last usable day in Melbourne; a customer with no email is not mailed.
  */
 import type { Queryable } from "../lib/db";
 import { loadSettings } from "./settings";

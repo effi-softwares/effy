@@ -13,7 +13,7 @@ const v = (id: string, a: string, b: string, available = true): StorefrontVarian
   id, optionValueIds: [a, b], label: id, priceAmount: "1.00", compareAtAmount: null, unitPrice: null, available, imageUrl: null,
 })
 
-// 500 g White, 500 g Brown (sold out), 1 kg White. No 1 kg Brown.
+// G White, 500 g Brown (sold out), 1 kg White. No 1 kg Brown.
 const variants = [v("5w", "s5", "tw"), v("5b", "s5", "tb", false), v("1w", "s1", "tw")]
 
 describe("variant selection (098)", () => {

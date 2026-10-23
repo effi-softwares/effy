@@ -8,7 +8,7 @@ import { PaymentStep } from "./PaymentStep"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 
-// The step asks the platform whether the order is already paid (FR-042); answer "no" so the card path
+// The step asks the platform whether the order is already paid; answer "no" so the card path
 // renders. A mock omitting this would make every test here navigate away.
 let confirmResult: unknown = { paymentIntent: { status: "requires_payment_method" }, error: undefined }
 // Off by default: most tests are about the shell, not a filled-in card.
@@ -18,7 +18,7 @@ vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
   json: async () => (String(url).includes("confirm") ? { paid: false } : { paymentMethods: [] }),
 })))
 
-// The three PCI-scoped inputs are provider iframes; stand them in with labelled boxes so the SHELL —
+// The three PCI-scoped inputs are provider iframes; stand them in with labelled boxes so the shell
 // which is the part Effy owns and this feature is about — can be asserted.
 function cardField(testId: string) {
   return function CardField({ onChange }: { onChange?: (e: { complete: boolean }) => void }) {
@@ -36,7 +36,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
   CardNumberElement: cardField("card-number"),
   CardExpiryElement: cardField("card-expiry"),
   CardCvcElement: cardField("card-cvc"),
-  // 051 US2: the wallet row shares this module. A mock missing it makes every PaymentStep test throw
+  // The wallet row shares this module. A mock missing it makes every PaymentStep test throw
   // — the same stale-mock failure `CheckoutFlow.address.test.tsx` hit when PaymentForm was replaced.
   // Reports no wallet, which is the branch this suite wants: US1's assertions are about the card path.
   ExpressCheckoutElement: ({ onReady }: { onReady: (e: unknown) => void }) => {
@@ -59,9 +59,9 @@ function intent(over: Partial<CreateCheckoutIntentResponse> = {}): CreateCheckou
 
 describe("PaymentStep (051 US1)", () => {
   /**
-   * ⚠ SC-004 / FR-003 — the reason this feature exists.
+   * The reason this feature exists.
    *
-   * The payment step must carry the amount and NOTHING else. This asserts the ABSENCE of order content,
+   * The payment step must carry the amount and nothing else. This asserts the absence of order content,
    * which is the only way to test a requirement whose whole content is "do not show these things".
    */
   it("shows no basket line, delivery address or delivery-speed control", () => {
@@ -75,7 +75,7 @@ describe("PaymentStep (051 US1)", () => {
   })
 
   /**
-   * ⚠ SC-001 / FR-014 / FR-015 — three fields, and the three that are ABSENT matter more than the three
+   * Three fields, and the three that are absent matter more than the three
    * that are present. Country and postcode are what the shopper reported; they are gone because Effy
    * sends the address it already holds at confirm time instead.
    */
@@ -91,7 +91,7 @@ describe("PaymentStep (051 US1)", () => {
     expect(screen.queryByText(/name on card|cardholder/i)).not.toBeInTheDocument()
   })
 
-  /** ⚠ SC-005 — the figure shown is the figure from the server, never one the client computed. */
+  /** The figure shown is the figure from the server, never one the client computed. */
   it("shows the server's amount, and shows it on the pay control", () => {
     render(<PaymentStep intent={intent({ grandTotalAmount: "23.05" })} onBack={vi.fn()} />)
 
@@ -100,7 +100,7 @@ describe("PaymentStep (051 US1)", () => {
   })
 
   /**
-   * ⚠ FR-041 — the control cannot be pressed until there is something to pay with. The old form let a
+   * The control cannot be pressed until there is something to pay with. The old form let a
    * shopper submit an empty card form and find out from the provider.
    */
   it("keeps the pay control disabled until the card fields are complete", () => {
@@ -108,21 +108,14 @@ describe("PaymentStep (051 US1)", () => {
     expect(screen.getByRole("button", { name: /pay \$14\.60/i })).toBeDisabled()
   })
 
-  /** FR-004 — exactly one route back, and it does not lose the basket. */
+  /** Exactly one route back, and it does not lose the basket. */
   it("offers one clearly-labelled route back to checkout", () => {
     const onBack = vi.fn()
     render(<PaymentStep intent={intent()} onBack={onBack} />)
     expect(screen.getByRole("button", { name: /back to checkout/i })).toBeInTheDocument()
   })
 
-  /**
-   * ⚠ T085 / FR-041 — THE DEFECT THIS FEATURE WAS REPORTED FOR.
-   *
-   * The old form set `busy` on submit and cleared it only on a validation error. On the success path
-   * `onSuccess()` navigated while `busy` stayed true, so the control read "Processing…" through the
-   * navigation and the receipt's two server round trips — and stayed there forever if that navigation
-   * failed. The fix is a `finally`, and this is what stops it regressing.
-   */
+  /** `busy` clears on every outcome (a `finally`), so the control never stays on "Processing…". */
   it("clears the busy state on every outcome, including success", async () => {
     cardComplete = true
     const assign = vi.fn()
@@ -145,12 +138,7 @@ describe("PaymentStep (051 US1)", () => {
     }
   })
 
-  /**
-   * 084 — the pay rail IS a card now. 051's FR-035 ("a rule and space, not a bordered card") was the
-   * console-era no-card doctrine; constitution v3.3.0 makes the card the storefront's pattern, and
-   * the reference puts "Total due" in one. What must still hold: it is the storefront's card shape
-   * (white, hairline border, `rounded-lg`), not an arbitrary box.
-   */
+  /** The pay rail is a storefront card (white, hairline border, `rounded-lg`). */
   it("lays the pay rail out as the storefront card", () => {
     const { container } = render(<PaymentStep intent={intent()} onBack={vi.fn()} />)
     const aside = container.querySelector("aside")

@@ -1,14 +1,8 @@
 /**
- * The customer COMMERCE wire contract, as a single barrel + aggregator — 019-customer-commerce-flow.
- *
- * This exists so the KMP customer mobile app generates its Kotlin DTOs from EXACTLY the commerce types
- * it consumes (storefront, cart, address, checkout, order, saved-item) — the same discipline as
- * customer-contract.ts (013). The individual `*.ts` files remain the single source of truth
- * (Principle II); this file only re-exports and aggregates, and is an input to the KMP codegen.
- *
- * The `CustomerCommerceContract` aggregator below is not used at runtime — it exists solely so the
- * schema generator (run with `--expose all`) pulls EVERY referenced DTO into `definitions`. Do NOT add
- * shop/driver/admin types.
+ * The customer commerce wire contract: a barrel and aggregator the customer app's Kotlin DTOs are
+ * generated from. The `*.ts` files stay the source of truth. `CustomerCommerceContract` is not used at
+ * runtime; it makes the schema generator (`--expose all`) pull every referenced DTO in. No shop, driver
+ * or admin types.
  */
 import type {
   CustomerRefundDTO,
@@ -182,7 +176,7 @@ export type {
   DeliveryQuoteDTO,
 };
 
-/** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
+/** Codegen entry only. Every field forces a type into the schema. */
 export type {
   CustomerRefundDTO,
   RefundRequestDTO,
@@ -206,7 +200,7 @@ export interface CustomerCommerceContract {
   facetOption: FacetOptionDTO;
   facetType: FacetType;
   promotion: PromotionDTO;
-  /** 094 — display groups by key (storefront public / commerce personal). */
+  /** Display groups by key (storefront public, commerce personal). */
   promotionGroups: PromotionGroupsDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
@@ -239,55 +233,41 @@ export interface CustomerCommerceContract {
   orderItem: OrderItemDTO;
   orderAddress: OrderAddressDTO;
   orderFulfillment: OrderFulfillmentDTO;
-  // ⚠ 033. Referencing these here is what makes them EXIST in Kotlin. Declaring them in
-  // saved-item.ts alone is not enough — the generator walks this aggregator, so an unreferenced type
-  // is silently never generated and `commerce-contract:check` then passes TRIVIALLY (both the
-  // regenerated and the committed file are equally missing it). That is 030 T022a, and it stays
-  // invisible until a client needs the class. SavedVerdict, SavedMergeItem and SavedSkip are reached
-  // transitively and need no field of their own.
+  // A type is generated only if this aggregator reaches it; an unreferenced one is silently missing and
+  // `commerce-contract:check` still passes. SavedVerdict, SavedMergeItem and SavedSkip are reached
+  // transitively.
   savedItem: SavedItemDTO;
   savedMembership: SavedMembershipDTO;
   savedMergeRequest: SavedMergeRequest;
   savedMergeResult: SavedMergeResultDTO;
   savedAddToCartRequest: SavedAddToCartRequest;
   savedAddToCartResult: SavedAddToCartResultDTO;
-  // 068 lists. Same rule: a type not referenced HERE is never generated, and the drift check passes.
+  // Lists.
   savedList: SavedListDTO;
   savedListCreateRequest: SavedListCreateRequest;
   savedListRenameRequest: SavedListRenameRequest;
   savedListEntryRequest: SavedListEntryRequest;
   savedListRefusal: SavedListRefusal;
-  // ⚠ 047 delivery. Referencing them here is what makes them EXIST in Kotlin (same rule as saved-item
-  // above). DeliveryMethod / AustralianState are reached transitively; the rest each need a field.
+  // Delivery. DeliveryMethod and AustralianState are reached transitively.
   deliveryQuote: DeliveryQuoteDTO;
-  // The windows are reached through the quote; the refusal body is reached from nothing, so it is
-  // named here or it would never be generated.
+  // The windows are reached through the quote; the refusal body from nothing, so it is named here.
   deliveryChoiceRefusal: DeliveryChoiceRefusalDTO;
-  // ⚠ 051 payment. Same rule as saved-item and delivery above: referencing them HERE is what makes
-  // them exist in Kotlin. PaymentMethodDTO and ListPaymentMethodsResponse are reachable from nothing
-  // else in this contract, so without these two fields they would silently never be generated and
-  // `commerce-contract:check` would pass trivially — both files equally missing them. BillingDetails
-  // is reached transitively through the intent response, and is named anyway so a later refactor of
-  // that response cannot quietly drop it.
+  // Payment. PaymentMethodDTO and ListPaymentMethodsResponse are reached from nothing else; BillingDetails
+  // is named anyway so a refactor of the intent response cannot drop it.
   paymentMethod: PaymentMethodDTO;
   listPaymentMethods: ListPaymentMethodsResponse;
   billingDetails: BillingDetailsDTO;
   billingAddress: BillingAddressDTO;
-  // ── 055 refunds & cancellation ──
-  // ⚠ Only the CUSTOMER-facing shapes. `RefundDTO` (staff) carries the payment provider's failure
-  // text and a five-state status, neither of which may reach a shopper — putting it here would make
-  // that a one-line mistake away.
+  // Refunds: the customer-facing shapes only (`RefundDTO` carries provider failure text).
   customerRefund: CustomerRefundDTO;
   refundRequest: RefundRequestDTO;
   createRefundRequest: CreateRefundRequestBody;
   cancelOrder: CancelOrderBody;
-  // ── 096 order documents ──
+  // Order documents
   deliveryNote: DeliveryNoteDTO;
   orderTaxDocuments: OrderTaxDocumentsDTO;
   businessIdentity: BusinessIdentityRequest;
-  // ── 098 product variants ──
-  // Reached through the product detail and the cart, and named here anyway so a later refactor of
-  // either cannot quietly drop them from the Kotlin.
+  // Product variants, reached through the product detail and the cart, named so a refactor cannot drop them.
   option: OptionDTO;
   optionValue: OptionValueDTO;
   storefrontVariant: StorefrontVariantDTO;

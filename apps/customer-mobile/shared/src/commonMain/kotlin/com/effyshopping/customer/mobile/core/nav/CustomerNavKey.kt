@@ -8,57 +8,32 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 /**
- * Every destination in the customer app, as a Navigation 3 [NavKey] (026).
+ * Every destination in the customer app, as a Navigation 3 [NavKey]: typed keys the compiler checks,
+ * with an exhaustive `when` in the entry provider.
  *
- * ── Why this replaced `AppRoute` + a hand-rolled stack ──────────────────────────────────────────
- *
- * 015 built a `List<AppRoute>` navigator and a delimiter-joined `String` back stack for the Home tab,
- * because Navigation 3 was alpha and unverified on iOS at the time. Nav3 went **stable in Nov 2025**
- * and Compose Multiplatform **1.10** shipped it for iOS/desktop/web; this app is on **1.11.1**. The
- * deviation's reason expired, so the mechanism goes with it.
- *
- * The concrete win is not tidiness: the Home tab's stack was encoded as `"homeproduct:42"` and
- * parsed with `startsWith("product:")`. A typo in a prefix was a runtime blank screen. These are typed
- * keys the compiler checks, and the `when` in the entry provider is exhaustive.
- *
- * ── ⚠ EVERY ROUTE MUST BE REGISTERED IN [customerNavSavedState] ─────────────────────────────────
- *
- * Kotlin/Native has no reflection-based saved state, so Nav3's convenient `rememberNavBackStack(key)`
- * overload is **Android-only**. iOS needs the `SavedStateConfiguration` overload with an explicit
- * polymorphic [SerializersModule]. An unregistered route silently fails to restore **on iOS only** —
- * it passes every Android test — which is exactly the class of bug 015 predicted (research R6) and
- * `CustomerNavKeySerializationTest` guards.
+ * Every route must be registered in [customerNavSavedState]: Kotlin/Native has no reflection-based saved
+ * state, so iOS needs an explicit polymorphic [SerializersModule], and an unregistered route fails to
+ * restore on iOS only (`CustomerNavKeySerializationTest` guards it).
  */
 @Serializable
 sealed interface CustomerNavKey : NavKey {
 
-
-    // ── Tab roots — the four primary destinations. Always show the bar. ─────────────────────────
+    // Tab roots — the four primary destinations. Always show the bar.
 
     @Serializable data object Home : CustomerNavKey
     @Serializable data object Search : CustomerNavKey
     @Serializable data object Orders : CustomerNavKey
     @Serializable data object Account : CustomerNavKey
 
-    // ── Commerce ───────────────────────────────────────────────────────────────────────────────
+    // Commerce
 
     @Serializable
     data class Product(val productId: String) : CustomerNavKey
 
     /**
-     * A SCOPED result set — Home's "see all" on a section, and a category shortcut (028 US2/US3).
-     *
-     * Renders the ordinary Search screen with an entry refinement applied, so there is exactly one
-     * results implementation in the app (FR-009). `SearchViewModel` already supports both
-     * refinements; 025 built that seam and 026 removed its only caller.
-     *
-     * ⚠ PUSHED onto the current tab, never `selectTab(Search)`. A shopper who taps "see all" on Home
-     * came from Home, and Back has to take them there — switching tabs would strand them at the
-     * Search tab's root instead.
-     *
-     * [title] is what the destination shows so the shopper can see the scope they are now in
-     * (FR-018/FR-027) — a filtered list that does not say what it is filtered to is a list that
-     * looks broken.
+     * A scoped result set (Home's "see all", a category shortcut): the ordinary Search screen with an entry
+     * refinement. Pushed onto the current tab, never `selectTab(Search)`, so Back returns where the shopper
+     * came from. [title] says what the list is filtered to.
      */
     @Serializable
     data class Results(
@@ -68,12 +43,8 @@ sealed interface CustomerNavKey : NavKey {
     ) : CustomerNavKey
 
     /**
-     * One advertised promotion in full — where a banner tap leads.
-     *
-     * ⚠ Carries the ID ONLY, never the promotion's copy. The screen re-reads it, so a promotion that
-     * expired or was fully claimed while Home sat on screen is met with "this offer has ended" rather
-     * than with restored terms that are no longer true. A serialised copy of the banner would also
-     * restore a presigned image URL that had since expired.
+     * One promotion in full. Carries the id only: the screen re-reads it, so an offer that ended meanwhile
+     * says so (and no expired presigned image URL is restored).
      */
     @Serializable
     data class Promotion(val promotionId: String) : CustomerNavKey
@@ -83,9 +54,9 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data object Checkout : CustomerNavKey
 
     /**
-     * Paying (051 US1) — Effy's own payment screen around the provider's in-app element.
+     * Paying — Effy's own payment screen around the provider's in-app element.
      *
-     * ⚠ IT CARRIES NO ARGUMENTS ON PURPOSE. Every route here is `@Serializable` and persisted across
+     * It carries no arguments on purpose. Every route here is `@Serializable` and persisted across
      * process death, and the thing this screen needs is a payment intent holding a client secret.
      * Persisting that to device storage would be a durable secret written for no reason, so the intent
      * travels in memory through `PaymentHandoff` and this key is a bare marker. No handoff ⇒ the screen
@@ -99,17 +70,16 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable
     data class OrderDetail(val orderId: String) : CustomerNavKey
 
-
-    // ── Auth ───────────────────────────────────────────────────────────────────────────────────
+    // Auth
 
     @Serializable
     data class SignIn(val returnTo: CustomerNavKey? = null) : CustomerNavKey
 
     /**
-     * The password step of sign-in (036 FR-017).
+     * The password step of sign-in.
      *
-     * ⚠ A separate destination, not a mode flag on [SignIn]. The whole point of the step form is that
-     * choosing "use a password" MOVES you somewhere — with a back arrow that returns you, and with the
+     * A separate destination, not a mode flag on [SignIn]. The whole point of the step form is that
+     * choosing "use a password" moves you somewhere — with a back arrow that returns you, and with the
      * address already known so it is never asked twice.
      */
     @Serializable
@@ -117,15 +87,15 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object SignUp : CustomerNavKey
 
-    /** The password step of sign-up (036 FR-028). Asks for the password only — the email is known. */
+    /** The password step of sign-up. Asks for the password only — the email is known. */
     @Serializable
     data class SignUpPassword(val email: String) : CustomerNavKey
 
     /**
-     * "What should we call you?" — the LAST step of registration, on every route (036 FR-032).
+     * "What should we call you?" — the last step of registration, on every route.
      *
-     * ⚠ Reached only once the account EXISTS and the shopper is signed in. It completes a profile; it
-     * does not gate access. Abandoning it must never lock anyone out (FR-035a).
+     * Reached only once the account exists and the shopper is signed in. It completes a profile; it
+     * does not gate access. Abandoning it must never lock anyone out.
      */
     @Serializable data object ProfileName : CustomerNavKey
 
@@ -138,44 +108,40 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object Recovery : CustomerNavKey
 
-    // ── Account sub-screens ────────────────────────────────────────────────────────────────────
+    // Account sub-screens
 
     @Serializable data object Saved : CustomerNavKey
     @Serializable data object AddressBook : CustomerNavKey
 
     /**
-     * Payment methods (051 US6) — the cards a shopper chose to keep.
-     *
-     * ⚠ Beside the address book, because that is where a shopper looks for them and because the two are
-     * the same kind of thing: saved details Effy uses on their behalf. Removal is also reachable at the
-     * payment step, but that means starting a checkout to remove a card — and card removal is a trust
-     * action people take precisely when they are NOT shopping (Clarification Q1, FR-024a).
+     * Payment methods: the cards a shopper kept, beside the address book. Removal is also on the payment
+     * step, but a shopper removes a card when not shopping.
      */
     @Serializable data object PaymentMethods : CustomerNavKey
-    /** 074 — the customer's Effy points: balance and history. */
+    /** The customer's Effy points: balance and history. */
     @Serializable data object Points : CustomerNavKey
     @Serializable data object Notifications : CustomerNavKey
     @Serializable data object Faqs : CustomerNavKey
     @Serializable data object HelpCenter : CustomerNavKey
     @Serializable data object CustomerService : CustomerNavKey
 
-    /** Give feedback (046 US1) — reachable from the Account tab, guest or signed-in. */
+    /** Give feedback — reachable from the Account tab, guest or signed-in. */
     @Serializable data object Feedback : CustomerNavKey
 
     @Serializable data object MyDetails : CustomerNavKey
 
-    // ── 034: the account centre's new destinations ────────────────────────────────────────────
-    /** How you sign in — composed from the credentials the account ACTUALLY holds (FR-025). */
+    // The account centre's new destinations
+    /** How you sign in — composed from the credentials the account actually holds. */
     @Serializable data object Security : CustomerNavKey
-    /** Privacy & data. Hosts the deletion control, as its LAST item (FR-039). */
+    /** Privacy & data. Hosts the deletion control, as its last item. */
     @Serializable data object Privacy : CustomerNavKey
     /** The account-deletion flow itself. */
     @Serializable data object DeleteAccount : CustomerNavKey
 
     /**
-     * Resetting a FORGOTTEN password from inside the account.
+     * Resetting a forgotten password from inside the account.
      *
-     * ⚠ A separate route from [Recovery], deliberately. Recovery is the PUBLIC, signed-out journey and
+     * A separate route from [Recovery], deliberately. Recovery is the public, signed-out journey and
      * has to ask for an email address because it does not know who is asking. This one is reached by a
      * signed-in shopper who simply cannot remember their current password — the platform already knows
      * their address, so asking for it would be a question with a known answer, and typing the wrong one
@@ -186,7 +152,7 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable
     data class Password(val setFirst: Boolean) : CustomerNavKey
 
-    // ── 045: Legal & informational documents ────────────────────────────────────────────────────
+    // Legal & informational documents
     /** The `/legal` index — lists every document. */
     @Serializable data object LegalIndex : CustomerNavKey
 
@@ -215,23 +181,10 @@ val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
 )
 
 /**
- * The saved-state configuration Nav3 uses to persist back stacks across process death.
- *
- * ⚠ THIS IS THE iOS PATH. Android could use the reflection-based overload; iOS cannot, so every app
- * uses this one and the two platforms stay identical. A route missing from the polymorphic module
- * below throws at restore time on iOS and works fine on Android — never add a route without adding it
- * here, and the serialization test will tell you if you forget.
- *
- * ⚠⚠ AND A ROUTE NEEDS A FOURTH REGISTRATION THIS COMMENT USED TO OMIT. ⚠⚠
- *
- * It also needs an `entry<CustomerNavKey.X> { … }` block in `CustomerShell`'s `NavDisplay`, or
- * the fallback throws `IllegalStateException: Unknown screen X` the instant a shopper taps it.
- *
- * That gap is invisible to everything else: the code compiles, the serialization round-trip test
- * passes (the route IS in all three lists below), and `mobile-guard`'s reachability check passes
- * too — it proves something NAVIGATES to the route, not that the shell can RENDER it. Feature
- * 034 shipped `Security` this way and it crashed on the first tap, on a device, with every gate
- * green. `mobile-guard` now checks the `entry<>` registration as well.
+ * The saved-state configuration Nav3 uses to persist back stacks across process death; the iOS path, used
+ * on both platforms. A route needs registering here (the serialization test fails otherwise) and an
+ * `entry<CustomerNavKey.X> { … }` in `CustomerShell`'s `NavDisplay`, or the first tap throws "Unknown
+ * screen X"; `mobile-guard` checks both.
  */
 val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {

@@ -4,10 +4,10 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * The time window the customer was sold for a same-day delivery (069).
+ * The time window the customer was sold for a same-day delivery.
  *
- * [label] is the window in words, in Melbourne time ("5 pm – 7 pm"), exactly as the SERVER wrote it.
- * ⚠ This app never formats a time: it has no timezone database, and a second wording is how the
+ * [label] is the window in words, in Melbourne time ("5 pm – 7 pm"), exactly as the server wrote it.
+ * This app never formats a time: it has no timezone database, and a second wording is how the
  * driver's screen and the customer's receipt end up disagreeing about the same promise. The instants
  * are here for one purpose — telling whether the window is open, still to come, or missed.
  */
@@ -18,7 +18,7 @@ data class DeliveryWindow(
 ) {
     companion object {
         /**
-         * From the wire: the server's label and the two ISO instants. Null unless ALL THREE are
+         * From the wire: the server's label and the two ISO instants. Null unless all three are
          * present and readable — half a window is not a promise, and an order placed before 069 has
          * none, in which case the screens show no window at all.
          */
@@ -43,14 +43,14 @@ enum class WindowState(
 }
 
 /**
- * Upcoming until the window opens, due while it is open, late once it has closed (069 FR-032).
+ * Upcoming until the window opens, due while it is open, late once it has closed.
  *
- * ⚠ THE KOTLIN TWIN OF `windowStateAt` IN `packages/shared-types/src/delivery-window.ts`, which the
+ * The kotlin twin of `windowStateAt` IN `packages/shared-types/src/delivery-window.ts`, which the
  * dispatcher's console uses. `DeliveryWindowTest` runs both against the same fixture: a dispatcher
  * told a drop is late while the driver's app says it is due is two people working from different
  * facts. The window's end is inclusive.
  *
- * ⚠ Derived HERE, from the clock, and never sent by the server: it changes while the screen is open.
+ * Derived here, from the clock, and never sent by the server: it changes while the screen is open.
  */
 fun windowStateAt(nowEpochMillis: Long, window: DeliveryWindow): WindowState = when {
     nowEpochMillis < window.startEpochMillis -> WindowState.Upcoming
@@ -61,7 +61,7 @@ fun windowStateAt(nowEpochMillis: Long, window: DeliveryWindow): WindowState = w
 /**
  * What to say about a drop's window, or null when it has none.
  *
- * ⚠ A FINISHED DROP IS NEVER CALLED LATE HERE. Whether it arrived inside its window is recorded
+ * A finished drop is never called late here. Whether it arrived inside its window is recorded
  * against the time it actually arrived; "late" on the driver's screen means "the window has closed
  * and you have not been".
  */

@@ -1,7 +1,4 @@
-// Every hour: check that the points ledger still adds up (074 SC-001/SC-002). Not a route.
-//
-// ⚠ THE COUNT IS EMITTED EVERY RUN, ZERO INCLUDED, so the PointsInvariantViolations alarm has data
-// when all is well — "no data" must never read as "healthy".
+// Hourly ledger check. Emits the count every run, zero included, so the alarm always has data.
 import { logger, pooled } from "@effy/edge-shared";
 import { reportLedger } from "@effy/edge-shared/points";
 

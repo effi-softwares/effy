@@ -33,11 +33,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 074 US2 — points at checkout on mobile.
+ * Points at checkout on mobile.
  *
- * ⚠ The app does not know the order total before the intent call, so "the most I can" is sent as the
+ * The app does not know the order total before the intent call, so "the most I can" is sent as the
  * balance and the server answers with the most it will take; the app asks once more with that. These
- * pin that it retries ONLY for that, and that a points-paid order skips the payment screen.
+ * pin that it retries only for that, and that a points-paid order skips the payment screen.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PointsCheckoutViewModelTest {
@@ -69,7 +69,7 @@ class PointsCheckoutViewModelTest {
         override suspend fun confirm(orderId: String) = true
         override suspend fun quote(addressId: String) = DeliveryQuote(
             serviced = true,
-            // ⚠ A courier quote: one fee ($6.00) and nothing to choose — these tests are about points.
+            // A courier quote: one fee ($6.00) and nothing to choose — these tests are about points.
             courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
                 estimate = "2–4 business days",
                 fee = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee(listOf(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery, "6.00")), "6.00"),

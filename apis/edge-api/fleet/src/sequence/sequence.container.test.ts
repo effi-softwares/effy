@@ -2,11 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * What dispatch sees and does about the order of a driver's work, against real PostgreSQL (093):
- * held packages (found / lost), overdue steps, the waiver, and the daily vehicle check as a reason a
- * driver is given no work.
- */
+/** Held packages (found / lost), overdue steps, the waiver and the vehicle check, against real Postgres. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -32,7 +28,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { loadCandidates } from "../planner/repository";
 import { clearVehicleCheck, heldPackages, overdueCrossedSince, overdueRuns, resolveHold, vehicleChecksToday, waiveSequence } from "./service";
@@ -51,8 +47,8 @@ async function aPackage(n: string): Promise<string> {
     `INSERT INTO public.customer (cognito_sub, email) VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
   );
   const order = await one<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, $2, 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid') RETURNING id`, [cust.id, `EFY-SQ${n}`],
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust.id, `EFY-SQ${n}`],
   );
   return (await one<{ id: string }>(
     `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, delivery_method)

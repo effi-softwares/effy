@@ -6,7 +6,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.subAislesOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 087 FR-035 — an aisle shows its sub-aisles; an empty one is not offered. */
+/** An aisle shows its sub-aisles; an empty one is not offered. */
 class SubAislesTest {
     private fun c(key: String, parent: String? = null, count: Int = 3) = Category(key, key, parent, count, null)
     private val cats = listOf(c("dairy_eggs"), c("milk", "dairy_eggs"), c("cheese", "dairy_eggs"), c("eggs", "dairy_eggs", 0), c("fruit_veg"))

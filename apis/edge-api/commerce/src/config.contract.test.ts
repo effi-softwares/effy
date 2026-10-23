@@ -5,14 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE DEPLOYMENT CONTRACT for the commerce service — 035's guard.
- *
- * Reads the ACTUAL `serverless.yml`, because a unit test that provides its own environment cannot
- * catch an environment that was never provisioned (035's fourth defect).
- *
- * It also pins the authorizer. Every route here except three named ones carries a shopper's
- * identity; a route that lost its authorizer would let anyone read or change anyone's cart, cards
- * and orders.
+ * Reads the real `serverless.yml`: environment that was never provisioned, and a route that lost its
+ * authorizer, cannot be caught by unit tests.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +26,6 @@ function declaredEnvKeys(): Set<string> {
   return keys;
 }
 
-/** Every function block in `functions:`, keyed by its logical name. */
 export function functionBlocks(): Map<string, string> {
   const start = yaml.indexOf("\nfunctions:\n");
   if (start < 0) throw new Error("serverless.yml has no functions block");
@@ -55,13 +48,10 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Set by the Lambda runtime itself, never by `serverless.yml`. */
+/** Set by the Lambda runtime, never by `serverless.yml`. */
 const RUNTIME_PROVIDED = new Set(["AWS_LAMBDA_FUNCTION_NAME", "AWS_SESSION_TOKEN", "AWS_REGION"]);
 
-/**
- * ⚠ THE ONLY HTTP ROUTES WITHOUT THE CUSTOMER AUTHORIZER — each recorded in plan.md's Complexity
- * Tracking. Adding a name here is a decision to serve something to the whole internet.
- */
+/** The only routes without the customer authorizer. Adding one serves it to the whole internet. */
 const PUBLIC_HTTP = new Set([
   "healthz",
   "readyz",
@@ -76,11 +66,11 @@ describe("commerce service deployment contract", () => {
 
   it("declares every key the shared library reads on this service's behalf", () => {
     const required = [
-      "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN", // db
-      "MEDIA_PUBLIC_BASE_URL", // 086 — publicImageUrl
-      "METRIC_NAMESPACE", // emitMetric
-      "STRIPE_SECRET_KEY_ARN", "STRIPE_WEBHOOK_SECRET_ARN", // @effy/edge-shared/payments
-      "EFFY_ENV", "LOG_LEVEL", // logger
+      "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN",
+      "MEDIA_PUBLIC_BASE_URL",
+      "METRIC_NAMESPACE",
+      "STRIPE_SECRET_KEY_ARN", "STRIPE_WEBHOOK_SECRET_ARN",
+      "EFFY_ENV", "LOG_LEVEL",
     ];
     expect(required.filter((k) => !declared.has(k))).toEqual([]);
   });
@@ -109,7 +99,7 @@ describe("commerce service deployment contract", () => {
 
   it("puts EVERY http route behind the customer authorizer, except the named public ones", () => {
     for (const [name, block] of blocks) {
-      if (!block.includes("httpApi:")) continue; // a schedule, not a route
+      if (!block.includes("httpApi:")) continue;
       if (PUBLIC_HTTP.has(name)) {
         expect(block, `${name} is declared public but carries an authorizer`).not.toContain("authorizer:");
         continue;
@@ -122,13 +112,11 @@ describe("commerce service deployment contract", () => {
   it("names no public route that does not exist — the allow-list cannot rot into a blanket", () => {
     const declaredRoutes = new Set(blocks.keys());
     const built = [...PUBLIC_HTTP].filter((n) => declaredRoutes.has(n));
-    // Health is present from the scaffold; the other three arrive with their stories. None may be
-    // listed here and then quietly reused for something else.
     expect(built).toEqual(expect.arrayContaining(["healthz", "readyz"]));
     for (const n of built) expect(blocks.get(n)).toContain("httpApi:");
   });
 
-  // 086 — pictures are addressed on the media CDN; this service never touches the bucket.
+  // Pictures are addressed on the media CDN; this service never touches the bucket.
   it("has no access to the media bucket at all", () => {
     expect(yaml).not.toMatch(/s3:(GetObject|PutObject|DeleteObject)/);
     expect(yaml).not.toContain("S3_MEDIA_BUCKET");

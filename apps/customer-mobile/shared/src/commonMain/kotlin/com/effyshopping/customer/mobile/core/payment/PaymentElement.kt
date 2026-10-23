@@ -5,17 +5,9 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The IN-APP payment element (051 US1) — the payment method list rendered INSIDE an Effy screen.
- *
- * ⚠ WHY THIS REPLACED THE RETIRED `PaymentDriver.presentPaymentSheet`. That call presented the full modal
- * sheet: its chrome, its amount, its button, its layout. Nothing about it can be made to look like Effy
- * beyond colours and a corner radius, so FR-028 ("every part of the payment step that Effy is permitted
- * to draw MUST be drawn by Effy") is unmeetable with it. The embedded element renders only the method
- * list and its forms; Effy supplies the screen, the amount, the trust copy and the pay button.
- *
- * ⚠ THE ELEMENT IS PLATFORM CODE AND CANNOT BE BUILT IN commonMain. Android has a Compose
- * `EmbeddedPaymentElement`; iOS has a Swift one. So this file declares the SHAPE and each platform
- * supplies it — the same seam [AuthDriver] and [PaymentDriver] already use (013 D5, research R8).
+ * The in-app payment element: the provider's method list drawn inside an Effy screen, which supplies the
+ * amount, the trust copy and the pay button. Platform code (Android's Compose `EmbeddedPaymentElement`,
+ * iOS's Swift one), so this declares the shape and each platform supplies it.
  */
 
 /**
@@ -23,9 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
  * response; nothing here is decided by the element itself.
  */
 data class PaymentElementConfig(
-    /** Authorizes confirming exactly this PaymentIntent. Never a secret key (019 R3). */
+    /** Authorizes confirming exactly this PaymentIntent. Never a secret key. */
     val clientSecret: String,
-    /** The client's OWN publishable key — a name, not a secret. */
+    /** The client's own publishable key — a name, not a secret. */
     val publishableKey: String,
     /** Shown by wallet sheets as the payee. */
     val merchantName: String,
@@ -33,7 +25,7 @@ data class PaymentElementConfig(
     val amountMinor: Long,
     val currency: String,
     /**
-     * ⚠ SUPPLIED BY EFFY, NOT COLLECTED FROM THE SHOPPER (FR-015/FR-016). The element is configured to
+     * Supplied by Effy, not collected from the shopper. The element is configured to
      * collect NO billing address and NO name; these are attached at confirmation instead. Passing null
      * here while collection is off means the payment is refused — the two halves ship together.
      */
@@ -44,9 +36,9 @@ data class PaymentElementConfig(
      */
     val customerSessionSecret: String?,
     /**
-     * The provider customer the session belongs to (051 US3).
+     * The provider customer the session belongs to.
      *
-     * ⚠ Required ALONGSIDE the secret — the provider's `createWithCustomerSession(id, clientSecret)`
+     * Required alongside the secret — the provider's `createWithCustomerSession(id, clientSecret)`
      * takes both, and a session without its id cannot be attached. Null whenever
      * [customerSessionSecret] is null: a shopper who has never paid has no provider record, which is
      * not an error.
@@ -54,9 +46,9 @@ data class PaymentElementConfig(
     val customerId: String?,
 )
 
-// ⚠ There is deliberately NO font-resource id on this config. A font resource is an Android concept,
+// There is deliberately NO font-resource id on this config. A font resource is an Android concept,
 // and putting an `Int` here that only one platform can interpret would leak a platform detail into the
-// shared contract. Each platform resolves its own typeface (research R8).
+// shared contract. Each platform resolves its own typeface.
 
 /** The billing details Effy attaches on the shopper's behalf. Mirrors the wire DTO, minus its nulls. */
 data class PaymentBillingDetails(
@@ -74,8 +66,8 @@ data class PaymentBillingDetails(
 /**
  * What Effy's own screen renders around the element.
  *
- * ⚠ [selectedLabel] is what lets the pay button say what it will do ("Pay with Visa 4242") rather than
- * a bare "Pay". [mandateText] is a COMPLIANCE requirement, not decoration: the element is configured not
+ * [selectedLabel] is what lets the pay button say what it will do ("Pay with Visa 4242") rather than
+ * a bare "Pay". [mandateText] is a compliance requirement, not decoration: the element is configured not
  * to draw its own, so the screen must, near the pay control.
  */
 data class PaymentElementState(
@@ -99,9 +91,9 @@ interface PaymentElementHandle {
     /**
      * Confirm the payment with whatever the shopper selected.
      *
-     * ⚠ Returns [PaymentResult.Completed] for a payment the provider has ACCEPTED, which is not the same
+     * Returns [PaymentResult.Completed] for a payment the provider has accepted, which is not the same
      * as settled. The receipt reads the webhook-authoritative order state and is what tells the shopper
-     * they have paid (FR-039/FR-040).
+     * they have paid.
      */
     suspend fun confirm(): PaymentResult
 }
@@ -109,7 +101,7 @@ interface PaymentElementHandle {
 /**
  * Create (and remember) the element for a configuration.
  *
- * ⚠ Called from a `@Composable`, because the Android element is Compose-scoped and cannot be built from
+ * Called from a `@Composable`, because the Android element is Compose-scoped and cannot be built from
  * a container or a ViewModel. Returns null while the platform is still preparing it.
  */
 @Composable

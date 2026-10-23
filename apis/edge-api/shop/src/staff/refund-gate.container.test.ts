@@ -1,15 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-/**
- * 070 — the shop refund gate against the REAL schema (ported from the retired backend's
- * shop-gate suite). The join was read off the migrations, and an invented column name here would
- * typecheck, pass every mocked test, and refuse every manager in production.
- *
- * The statement is read from the repository's own source so this runs the query that ships.
- */
+/** The shop refund gate against the real schema, running the statement read from the repository's source. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -51,12 +45,12 @@ d("070 — who may refund part of an order from the shop console", () => {
     const customer = (await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('gt-c', 'gt@example.test') RETURNING id`)).rows[0]!.id;
     orderId = (
       await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_address)
-         VALUES ($1, 'EFY-GATE01', 'paid', 'AUD', 10, 10, '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, 'EFY-GATE01', 'paid', 'AUD', 10, 10, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [customer],
       )
     ).rows[0]!.id;
-    // Shop A has TWO rows' worth of reasons to match; the suspended shop is on the order too.
+    // Shop a has two rows' worth of reasons to match; the suspended shop is on the order too.
     for (const s of [shops[0], shops[2]]) {
       await pool.query(`INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount) VALUES ($1, $2, 1, 5)`, [orderId, s]);
     }
@@ -64,7 +58,7 @@ d("070 — who may refund part of an order from the shop console", () => {
     await staff("mgr-a", shops[0]!, "shop_manager");
     await staff("staff-a", shops[0]!, "shop_staff");
     await staff("mgr-a-disabled", shops[0]!, "shop_manager", "disabled");
-    await staff("mgr-b", shops[1]!, "shop_manager"); // a manager, at a shop NOT on this order
+    await staff("mgr-b", shops[1]!, "shop_manager"); // a manager, at a shop not on this order
     await staff("mgr-suspended", shops[2]!, "shop_manager");
     await staff("mgr-unassigned", null, "shop_manager");
     await staff("no-role", shops[0]!, null);

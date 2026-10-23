@@ -1,17 +1,9 @@
-// Repository layer: SQL only. Reads the catalogue for the CUSTOMER projection — money cast to text
-// so it crosses the wire exactly. Wire rows are mapped to the DTO in the service.
 import { pooled, type Queryable } from "@effy/edge-shared";
 
 import { CARD_COLUMNS, CARD_FROM, CARD_SELECT, type CardRow } from "../lib/cards";
 import { binder, cursorPredicate, filters, matchedVariantSql, orderClause, TRIGRAM_EXPR, type SearchParams } from "./filters";
 
-/**
- * CardRow plus the relevance score.
- *
- * ⚠ CardRow is EXTENDED, never restated. `searchCards` selects CARD_COLUMNS verbatim and appends
- * one score column, so its result set IS CardRow's plus `score` by construction. An earlier version
- * restated the fields, missed one, and every search then failed at runtime.
- */
+/** CardRow plus `score`: CARD_COLUMNS selected verbatim with one column appended. */
 export interface SearchRow extends CardRow {
   score: number;
 }
@@ -24,19 +16,16 @@ export interface SearchRepository {
 
 export function createSearchRepository(db: Queryable = pooled): SearchRepository {
   return {
-    /** The dynamic keyset query, in the requested order. */
     async searchCards(p) {
       const args: unknown[] = [];
       const next = binder(args);
 
       let sql = `SELECT ${CARD_COLUMNS}`;
-      // The score column exists for every sort so one row type serves them all; it is only
-      // meaningful under relevance, where the ORDER BY reads it.
+      // Present for every sort so one row type serves them all.
       sql +=
         p.sort === "relevance" && p.q !== ""
           ? `,\n       similarity(${TRIGRAM_EXPR}, ${next(p.q)}) AS score`
           : ",\n       0::real AS score";
-      // 098 — a query that is a variant's code opens the tile on that variant.
       if (p.q !== "") sql += `,\n       ${matchedVariantSql(next(p.q.trim()))} AS matched_variant_id`;
       sql += CARD_FROM;
       sql += filters(p, next);
@@ -47,25 +36,21 @@ export function createSearchRepository(db: Queryable = pooled): SearchRepository
       return (await db.query<SearchRow>(sql, args)).rows;
     },
 
-    /**
-     * How many products match the filters, ignoring ordering and pagination (025 FR-016a). Shares
-     * `filters` with `searchCards`, which is what keeps the headline number and the list beneath
-     * it describing the same result set.
-     */
+    /** Shares `filters` with `searchCards`, so the total and the list describe the same set. */
     async countCards(p) {
       const args: unknown[] = [];
-      // ::int — count(*) is a bigint, which this driver hands back as a STRING.
+      // count(*) is a bigint, which the driver returns as a string.
       const sql = `SELECT count(*)::int AS n FROM public.product p${filters(p, binder(args))}`;
       return (await db.query<{ n: number }>(sql, args)).rows[0]?.n ?? 0;
     },
 
-    /** Hydrate a set of ids (recently viewed). Order is not guaranteed — the caller re-orders. */
+    /** The caller re-orders. */
     async cardsByIds(ids) {
       return (
         await db.query<CardRow>(
           `${CARD_SELECT}
 -- availability-exempt: public.product — a LISTING filter, not a purchasability decision.
--- Out-of-stock products stay listed; the projected available column marks them (FR-013, A10).
+-- Out-of-stock products stay listed; the projected available column marks them.
 WHERE p.status = 'active'
   AND p.id = ANY($1::uuid[])`,
           [[...ids]],

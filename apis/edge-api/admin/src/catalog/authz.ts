@@ -1,9 +1,5 @@
-// Back-office authorization for catalog schema authority (016), decided from the admin.staff
-// platform record (005/009 `shops/authz.ts` pattern, research R5) — never from the token claim.
-// Two levels, exactly the shops guard:
-//   canReadCatalog   — read (browse/view the schema): any active back-office staff, incl. csa.
-//   canManageCatalog — mutate (types/attributes/categories): active AND role ∈ {admin, manager}.
-// Fail-closed: a throw propagates to the handler, which returns 503 (never an implicit allow).
+// Decided from admin.staff, never the token. Read: any active staff, csa included. Manage: admin or
+// manager. A throw propagates, never an implicit allow.
 import { query } from "@effy/edge-shared";
 
 export async function canReadCatalog(sub: string): Promise<boolean> {

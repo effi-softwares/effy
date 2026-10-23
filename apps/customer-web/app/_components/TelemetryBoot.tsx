@@ -7,16 +7,11 @@ import { wireGlobalErrorReporting } from "@/lib/error-tracking"
 import { getConsent, initAnalytics, setConsent, type ConsentState } from "@/lib/telemetry"
 
 /**
- * The one client island that turns telemetry on (050 US1/US2/US4). It ships NO analytics SDK itself —
- * posthog-js is dynamically imported by lib/telemetry (analytics, on consent) and lib/error-tracking
- * (errors, independent of consent), so this component costs the guest critical path almost nothing.
- *
- *  • Error tracking is wired immediately (consent-independent, FR-002/Q1); the SDK still only loads if
- *    an error actually fires.
- *  • Analytics loads only once the customer consents (Principle VII). If they already consented on a
- *    prior visit, it initialises on mount.
- *  • A minimal consent bar is shown only while the choice is unknown, and only when telemetry is
- *    enabled + configured. Declining loads nothing.
+ * The one client island that turns telemetry on; it ships no SDK itself (posthog-js is imported on demand
+ * by lib/telemetry and lib/error-tracking):
+ *  • error tracking is wired at once, independent of consent (the SDK loads only if an error fires);
+ *  • analytics loads only after consent (at once on mount if consent was given before);
+ *  • a minimal consent bar shows while the choice is unknown and telemetry is configured. Declining loads nothing.
  */
 export function TelemetryBoot() {
   const [consent, setLocalConsent] = useState<ConsentState>("unknown")

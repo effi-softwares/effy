@@ -1,199 +1,120 @@
 /**
- * Checkout & payment contracts — 019-customer-commerce-flow.
- *
- * The server owns the Stripe secret and computes the amount from the cart; the client
- * receives ONLY a `clientSecret` (+ the publishable key, a name not a secret) and confirms exactly one
- * PaymentIntent (R3). The webhook is the authoritative finalizer; confirm is a fallback (R4).
- *
- * Data design: see specs/019-customer-commerce-flow/data-model.md §3 and contracts/core-commerce-api.md.
- *
- * 051 extends the intent response additively — every pre-existing field keeps its name and meaning.
+ * Checkout and payment contracts. The server owns the Stripe secret and computes the amount; the client
+ * gets only a `clientSecret` (and the publishable key) and confirms exactly one PaymentIntent. The
+ * webhook is the authoritative finalizer; confirm is a fallback.
  */
 
 import type { WireInt } from "./cart";
 import type { BillingDetailsDTO } from "./payment";
 
-
-
-
-
-
-
-
-
-import type { DeliveryQuoteDTO } from "./delivery";
 import type { DeliveryFeeDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
-/** POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021). */
+/** POST /v1/checkout/intent: create or locate the pending order and its PaymentIntent. */
 export interface CreateCheckoutIntentRequest {
-  /** The SHIPPING address (required). Snapshotted onto the order at placement. */
+  /** The shipping address (required), snapshotted onto the order. */
   addressId: string;
-  /**
-   * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal to
-   * `addressId` → billing is "same as shipping" (the order stores NULL). Billing never affects the
-   * amount.
-   */
+  /** The billing address, when it differs; absent, null or equal to `addressId` means same as shipping. Never affects the amount. */
   billingAddressId?: string | null;
   /**
-   * 066 — what the customer tells the driver for THIS order: a handover preference and/or a note.
-   * Absent or null → none. Validated and normalised by the server with the same rule the client
-   * uses (`normaliseDeliveryInstructions`); refused with a field error, never truncated.
-   *
-   * ⚠ The server stores exactly what THIS request carries. It never reads the address's saved
-   * default — prefilling from that is the client's job — which is why editing an address later
-   * cannot change a placed order.
+   * What the customer tells the driver for this order, or null. Normalised by the server with the
+   * client's own rule (`normaliseDeliveryInstructions`); refused with a field error, never truncated.
+   * The server stores what this request carries and never reads the address's saved default.
    */
   deliveryInstructions?: DeliveryInstructionsDTO | null;
   /**
-   * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` + `date`).
-   * REQUIRED when the quote carried `effyWindows` (refused with `slot_required` without it); the
-   * server derives same-day vs standard from the date. ⚠ The server holds a place in the window when
-   * it accepts it — see `slotHeldUntil` on the response.
+   * The window chosen, one for the whole order. Required when the quote carried `effyWindows` (else
+   * `slot_required`). The server holds a place when it accepts it (`slotHeldUntil`).
    */
   deliveryWindow?: { slotId: string; date: string } | null;
   /**
-   * 085 — "as soon as possible": sent INSTEAD of `deliveryWindow` when the quote carried
-   * `effyWindows.asap`; both, or neither, is refused with `slot_required`. (A day with no time is
-   * NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
+   * "As soon as possible", sent instead of `deliveryWindow` when the quote carried `effyWindows.asap`;
+   * both or neither is `slot_required`. A day with no time is `deliveryWindow` naming its `anyTime`.
    */
   deliveryPromise?: "asap";
   /**
-   * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server writes
-   * nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this differs from
-   * what applies now, or when a courier quote is answered without it — so nobody pays a courier fee
-   * for a screen that showed Effy's windows, or the reverse. Optional for an Effy order.
+   * The delivery type the client is showing; required for a courier order. A mismatch with what applies
+   * now (or a courier quote answered without it) is 409 `delivery_type_changed` with a fresh quote.
    */
   deliveryType?: "effy" | "courier";
   /**
-   * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile in-app element)
-   * and therefore needs a customer session. Web renders Effy's own list and leaves this unset.
-   *
-   * ⚠ Asking is not authorization to get someone else's: the session is always minted for the
-   * AUTHENTICATED subject, so the worst a hostile client achieves is a session for itself.
-   *
-   * ⚠ There is deliberately NO `billingDetails` on this request. Billing details are DERIVED from the
-   * order's own snapshot; accepting them here would let a client contradict the address it confirmed
-   * one screen earlier (contract § 1, FR-016).
+   * Set by a client rendering a provider-owned payment-method list (mobile), which needs a customer
+   * session; always minted for the authenticated subject. There is no `billingDetails` here: they derive
+   * from the order's snapshot.
    */
   wantsProviderMethodList?: boolean;
   /**
-   * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The server
-   * refuses rather than clamps: more than is usable → 409 `points_balance_changed`; more than the order
-   * total → 422 `points_exceed_total`; a card remainder under the provider minimum → 422
-   * `points_card_remainder_too_small`. Each refusal carries what IS possible.
+   * Points to pay with (whole, absent = 0). Refused rather than clamped: over usable is 409
+   * `points_balance_changed`, over the total 422 `points_exceed_total`, a card remainder under the
+   * provider minimum 422 `points_card_remainder_too_small`; each says what is possible.
    */
   pointsToUse?: WireInt;
   /**
-   * 077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If the server
-   * now works out a different one — a new fee plan went live, the basket crossed a threshold — it
-   * writes nothing and refuses with 409 `delivery_fee_changed` and a fresh quote, so the customer
-   * sees the new total before they can pay (FR-031). Absent from a client built before 077, which is
-   * priced without the check.
+   * The delivery total the client is showing. A different server total is 409 `delivery_fee_changed`
+   * with a fresh quote, nothing written, so the customer sees it before paying.
    */
   shownDeliveryAmount?: string | null;
   /**
-   * 094 — the promotions total (goods + delivery) the client is SHOWING. If the server now works out a
-   * different one — a promotion ended, its budget ran out, the cart changed — it writes nothing and
-   * refuses with 409 `promotions_changed` and the cart as it stands, so the shopper sees the new total
-   * before paying (FR-037). Absent from a client built before 094, which is priced without the check.
+   * The promotions total (goods + delivery) the client is showing. A different server total is 409
+   * `promotions_changed` with the current cart, nothing written.
    */
   expectedDiscount?: string | null;
 }
 
-/** 094 — the problem `code` when the promotions total differs from the one the client showed. */
+/** The problem `code` when the promotions total differs from the one shown. */
 export const PROMOTIONS_CHANGED_CODE = "promotions_changed";
 
-/** 077 — the problem `code` when the delivery total differs from the one the client showed. */
+/** The problem `code` when the delivery total differs from the one shown. */
 export const DELIVERY_FEE_CHANGED_CODE = "delivery_fee_changed";
-
-/** The body of that refusal: the options as they stand NOW. Nothing was written or charged. */
-export interface DeliveryFeeChangedDTO {
-  code: typeof DELIVERY_FEE_CHANGED_CODE;
-  quote: DeliveryQuoteDTO | null;
-}
 
 export interface CreateCheckoutIntentResponse {
   orderId: string;
   orderNumber: string;
-  /** Authorizes confirming exactly this PaymentIntent from the client. Never a secret key. */
+  /** Authorizes confirming exactly this PaymentIntent. Never a secret key. */
   clientSecret: string;
   publishableKey: string;
   grandTotalAmount: string;
   currency: string;
-  /** 094 — what delivery promotions took off the delivery fee; absent or "0.00" when none. */
+  /** What delivery promotions took off the fee; absent or "0.00" when none. */
   deliveryDiscountAmount?: string;
   /**
-   * 069 — until when the customer's place in their same-day slot is held. Absent when no package is
-   * same-day. ⚠ A client MUST call intent again before confirming payment once this has passed: the
-   * place may have gone, and the intent call is the last moment the server can say so before the
-   * customer is charged.
+   * Until when the window place is held. Once passed, call intent again before confirming payment: it is
+   * the last moment the server can say the place has gone.
    */
   slotHeldUntil?: string | null;
-  /** 079 — the delivery type the order was written with. Absent while the new delivery model is off. */
+  /** The delivery type the order was written with. */
   deliveryType?: "effy" | "courier";
   /**
-   * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
-   *
-   * ⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the saved-card list
-   * itself and needs a session to do it; the web card route renders that list from
-   * `GET /v1/payment-methods` and confirms with a payment-method id, so minting a session there would
-   * be an unused provider round trip on a path 027 already found latency-sensitive.
-   * Spike S2 — see specs/051-customer-payment-experience/research.md § R5 AMENDED.
+   * Authorizes a provider-owned payment-method list for this shopper. Mobile only (the web lists cards
+   * from `GET /v1/payment-methods`); null elsewhere.
    */
   customerSessionSecret?: string | null;
   /**
-   * 051 — the provider customer the session belongs to. Present ONLY beside `customerSessionSecret`,
-   * i.e. only for a client that renders a provider-owned method list (mobile).
-   *
-   * ⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together
-   * (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be attached. The
-   * SECRET is the credential — this id alone reaches no API, because every call that reads a customer
-   * needs a secret key that never leaves the server. Absent from the web response, never logged, never in
-   * telemetry, and never accepted as request input (data-model § 1, amended).
+   * The provider customer the session belongs to, present only beside `customerSessionSecret` (the mobile
+   * SDKs take both). The secret is the credential; this id alone reaches no API. Never logged or accepted
+   * as input.
    */
   customerId?: string | null;
-  /**
-   * 051 US4 — whether the provider offers any instalment option for THIS intent.
-   *
-   * ⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on account
-   * eligibility, neither of which a client knows. A guess produces exactly what FR-010/FR-011 forbid:
-   * an option offered and then refused after the shopper commits, or one that vanishes unexplained.
-   *
-   * ⚠ A boolean, not the list — which providers appear is the payment element's business, and sending
-   * the raw list would leak account configuration to a client with no use for it.
-   */
+  /** Whether the provider offers an instalment option for this intent, as the provider answers it. */
   payOverTimeAvailable?: boolean;
   /**
-   * 051 — the billing details the CLIENT must pass back at confirmation, because the payment step no
-   * longer asks the shopper for them (FR-014/FR-015).
-   *
-   * ⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. This is the address the shopper already confirmed
-   * one screen earlier — the delivery address where they did not diverge, the chosen billing address
-   * where they did — plus the profile name. Sending it means the provider stops guessing a country from
-   * the shopper's IP, which is where "Country: Sri Lanka" on an Australia-only storefront came from.
-   *
-   * ⚠ Removing the fields does NOT weaken authorization: the same data still reaches the bank, sourced
-   * from Effy instead of from the shopper's keyboard (research R4).
+   * The billing details the client passes back at confirmation, derived from the order (the confirmed
+   * delivery or billing address, plus the profile name), never from the request.
    */
   billingDetails?: BillingDetailsDTO | null;
-  /** 074 — the points this order uses, their value, and what is left for the card. */
+  /** The points this order uses, their value, and what is left for the card. */
   pointsUsed?: WireInt;
   pointsAmount?: string;
   cardAmount?: string;
-  /**
-   * 074 — TRUE when points covered the whole order: it is ALREADY PAID, no card is involved, and
-   * `clientSecret` is empty. The client goes straight to the confirmation.
-   */
+  /** True when points covered the whole order: already paid, `clientSecret` empty; go to the confirmation. */
   paidWithPoints?: boolean;
-  /** 077 — the delivery charge inside `grandTotalAmount`, as lines. */
+  /** The delivery charge inside `grandTotalAmount`, as lines. */
   deliveryFee?: DeliveryFeeDTO;
 }
 
 /**
- * 074 — what a customer can spend at checkout, on the delivery quote. Absent when they have no points.
- * The client offers up to min(usable, order total); the card part must be 0 or at least
- * `cardMinimumAmount` (the provider cannot charge less).
+ * What a customer can spend at checkout, on the quote; absent with no points. Offer up to min(usable,
+ * total); the card part must be 0 or at least `cardMinimumAmount`.
  */
 export interface CheckoutPointsDTO {
   usable: WireInt;
@@ -201,7 +122,7 @@ export interface CheckoutPointsDTO {
   cardMinimumAmount: string;
 }
 
-/** POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook). */
+/** POST /v1/checkout/confirm: the fallback finalizer for a delayed or missed webhook. */
 export interface ConfirmCheckoutRequest {
   orderId: string;
 }

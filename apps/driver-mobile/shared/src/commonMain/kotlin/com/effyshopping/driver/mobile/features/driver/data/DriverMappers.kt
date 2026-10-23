@@ -24,7 +24,7 @@ internal fun DriverMeDTO.toDomain(): Driver = Driver(
     vehicleLabel = vehicleCheck?.vehicleLabel?.takeIf { it.isNotBlank() },
 )
 
-/** 093 — a string on the wire; an unknown value is read as OK, never as a reason to stop work. */
+/** A string on the wire; an unknown value is read as OK, never as a reason to stop work. */
 internal fun vehicleCheckStatus(state: String?): VehicleCheckStatus = when (state) {
     "due" -> VehicleCheckStatus.DUE
     "unsafe" -> VehicleCheckStatus.UNSAFE

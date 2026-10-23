@@ -5,19 +5,14 @@ import { DEFAULT_LIST_ID, type SavedItemDTO, type SavedListDTO } from "@effy/sha
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 
 /**
- * One list's page data (068): every list for the tab row, and this list's products.
- *
- * `items` is `null` when the list does not exist for this shopper — deleted on another device, or
- * never theirs. The default list always exists.
- *
- * ⚠ A failed read renders an empty list rather than an error page, as the saved list always has:
- * the next load repairs it. The tab row falls back to "Saved" alone so the page still has a home.
+ * One list's page data: every list for the tab row, and this list's products. `items` is null when the
+ * list does not exist for this shopper. A failed read renders an empty list (the next load repairs it).
  */
 export async function readList(
   session: { idToken: string; accessToken?: string | null } | null | undefined,
   listId: string,
 ): Promise<{ lists: SavedListDTO[]; items: SavedItemDTO[] | null }> {
-  // No session: the shopper sees the empty default list, exactly as a failed read would show.
+  // No session: the empty default list, as a failed read would show.
   if (!session?.idToken) {
     return { lists: [{ id: DEFAULT_LIST_ID, isDefault: true, name: null, count: 0, onlyHereCount: 0 }], items: [] }
   }

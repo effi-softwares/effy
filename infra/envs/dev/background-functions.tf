@@ -1,30 +1,14 @@
-# Alarms on the functions NO REQUEST REACHES — the ones run by a schedule.
+# Alarms on scheduled functions, which no request reaches. Each is watched by what it is for, but those
+# signals are emitted by the function: one that throws first emits nothing, and "no data" reads as healthy.
+# So each gets the one alarm that does not depend on its own code: its count of invocations that errored.
 #
-# ⚠ WHY THESE EXIST. The gateway's 5xx alarm (edge-gateway.tf) sees a server error on any route. It
-# cannot see a function nothing calls. Each function below is already watched by what it is FOR — a
-# refund left stuck, a notification that failed to send, a wave that placed nothing — but every one
-# of those signals is EMITTED BY THE FUNCTION. If the function throws before it gets that far (a bad
-# deploy, a missing permission, a renamed column) it emits nothing, "no data" is treated as healthy,
-# and the work simply stops with every alarm green.
+# A failure must repeat across the window to page (a single cold-connection failure recovers a minute
+# later). No `ok_actions`: they all fire while the database is stopped (stop-db.sh), and recoveries would
+# double the mail.
 #
-# So each gets the one alarm that does not depend on its own code running: the platform's count of
-# invocations that ended in an error.
-#
-# ⚠ A FAILURE MUST PERSIST TO PAGE. One failed run is usually a cold database connection, and the
-# next run a minute later succeeds. Each alarm needs the failure to repeat across its whole window.
-#
-# ⚠ NO `ok_actions`, deliberately. These fire together when the database is stopped (stop-db.sh —
-# every scheduled function fails until it is started again). That is seven emails as it is; the
-# recoveries would make it fourteen, and "it is working again" is not news an operator who has just
-# started the database needs to be told.
-#
-# ⚠ THE FUNCTION NAMES ARE A CONTRACT with each service's serverless.yml:
-# `<service>-<stage>-<function key>`. Renaming a function there disarms its alarm here with nothing
-# failing — the alarm just watches a name that no longer exists. Rename both together.
-#
-# Not listed, because each already has its own wired error alarm: `insightsRollup` (insights.tf),
-# and admin's `sesEventConsumer` / `sesIdentityHealth` (that service's serverless.yml). The Cognito
-# trigger functions are not scheduled: a failure there fails a sign-in the person sees at once.
+# Function names are a contract with each serverless.yml (`<service>-<stage>-<function key>`): renaming one
+# there silently disarms its alarm here. Not listed (they have their own error alarms): `insightsRollup`
+# (insights.tf) and admin's `sesEventConsumer` / `sesIdentityHealth`. Cognito triggers are not scheduled.
 
 locals {
   # key = { function, period (s), periods, threshold (errors per period, >=), what stops }

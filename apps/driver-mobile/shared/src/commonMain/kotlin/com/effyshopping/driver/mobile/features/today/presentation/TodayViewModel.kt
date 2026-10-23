@@ -31,7 +31,7 @@ data class TodayUiState(
     val isTogglingDuty: Boolean = false,
     val message: String? = null,
     /**
-     * ⚠ 060: the offline write queue has existed since 049 and has never had an interface. A driver
+     * The offline write queue has existed since 049 and has never had an interface. A driver
      * in a basement loading dock — which is where this app is used — could not tell whether the app
      * was broken or the signal was.
      */
@@ -39,36 +39,36 @@ data class TodayUiState(
     /** When the shown run was last read from the platform — the offline banner's "Last synced". */
     val syncedAtEpochMillis: Long? = null,
     /**
-     * ⚠ Distinct from [message], which today does double duty as both error text and informational
+     * Distinct from [message], which today does double duty as both error text and informational
      * text — so a screen cannot tell a failed load from a note and renders both as a red line.
      */
     val loadFailed: Boolean = false,
-    /** 088 — a "Return to hub" is being sent. */
+    /** A "Return to hub" is being sent. */
     val isReturning: Boolean = false,
-    /** 093 — today's check of the vehicle held: asked while DUE, explained while UNSAFE. */
+    /** Today's check of the vehicle held: asked while DUE, explained while unsafe. */
     val vehicleCheck: VehicleCheckStatus = VehicleCheckStatus.NONE,
     val vehicleLabel: String? = null,
     val isSubmittingCheck: Boolean = false,
 )
 
 /**
- * The phase-aware home (049 FR-021). Owns the duty toggle (FR-005/006) and the Today read. When off
+ * The phase-aware home. Owns the duty toggle and the Today read. When off
  * duty there is no work to load; going on duty loads Today. A per-action changeId makes the duty
- * request idempotent (R10).
+ * request idempotent.
  */
 class TodayViewModel(
     initialDuty: DutyStatus,
     private val getToday: GetToday,
     private val setDuty: SetDuty,
     private val newChangeId: () -> String,
-    /** Flush the offline write queue — called on refresh, the natural "back online" moment (FR-040). */
+    /** Flush the offline write queue — called on refresh, the natural "back online" moment. */
     private val syncFlush: suspend () -> Unit = {},
-    /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
+    /** "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
     private val now: () -> Long = ::nowEpochMillis,
-    /** 088 — check the current run's failed parcels back in at the hub. Null in tests that do not care. */
+    /** Check the current run's failed parcels back in at the hub. Null in tests that do not care. */
     private val returnToHub: (suspend (runId: String, changeId: String) -> WriteOutcome)? = null,
-    /** 093 — the vehicle check: its state when the screen opens, how to answer it, and how to re-read it. */
+    /** The vehicle check: its state when the screen opens, how to answer it, and how to re-read it. */
     initialVehicleCheck: VehicleCheckStatus = VehicleCheckStatus.NONE,
     initialVehicleLabel: String? = null,
     private val submitCheck: (suspend (changeId: String, answers: List<VehicleCheckAnswer>) -> VehicleCheckStatus)? = null,
@@ -93,10 +93,10 @@ class TodayViewModel(
     private suspend fun refreshQuietly() {
         val now = _state.value
         if (now.dutyStatus != DutyStatus.ON_DUTY || now.isLoading) return
-        // The channel also speaks when it reconnects — the moment queued writes can be sent (FR-040).
+        // The channel also speaks when it reconnects — the moment queued writes can be sent.
         // Until now they waited for the driver to pull to refresh on this one screen.
         runCatching { syncFlush() }
-        // 093 — a dispatcher clearing an unsafe check is announced as work changing: read it back.
+        // A dispatcher clearing an unsafe check is announced as work changing: read it back.
         if (now.vehicleCheck == VehicleCheckStatus.UNSAFE) {
             readMe?.let { me -> runCatching { me() }.onSuccess { d -> _state.update { it.copy(vehicleCheck = d.vehicleCheck, vehicleLabel = d.vehicleLabel) } } }
         }
@@ -111,8 +111,8 @@ class TodayViewModel(
     }
 
     /**
-     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
-     * time after, it re-reads quietly. ⚠ A FALLBACK: the driver's own writes already re-read every
+     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
      * This catches what slips past that — a write made before the app last closed, a missed signal.
      */
@@ -124,7 +124,7 @@ class TodayViewModel(
         if (_state.value.dutyStatus != DutyStatus.ON_DUTY) return
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
-            runCatching { syncFlush() } // drain any queued offline writes before re-reading (FR-040)
+            runCatching { syncFlush() } // drain any queued offline writes before re-reading
             try {
                 val fresh = getToday()
                 _state.update {
@@ -134,7 +134,7 @@ class TodayViewModel(
                     )
                 }
             } catch (e: AppException) {
-                // ⚠ With nothing to show, a failed read is the error screen. It used to fall through
+                // With nothing to show, a failed read is the error screen. It used to fall through
                 // to the idle body, which told a driver whose run did not load "You're all caught up".
                 _state.update {
                     // With a round already on screen, no connection is the offline banner over it.
@@ -151,7 +151,7 @@ class TodayViewModel(
     }
 
     /**
-     * 088 — the driver is at the hub with the parcels from failed drops: return them all in one action.
+     * The driver is at the hub with the parcels from failed drops: return them all in one action.
      * Saved with no signal, it is done as far as the driver is concerned and the step goes at once.
      */
     fun returnParcels() {
@@ -173,7 +173,7 @@ class TodayViewModel(
         }
     }
 
-    /** 093 — today's vehicle check, every item answered. Work comes once it is in (and nothing is unsafe). */
+    /** Today's vehicle check, every item answered. Work comes once it is in (and nothing is unsafe). */
     fun submitVehicleCheck(answers: List<VehicleCheckAnswer>) {
         val send = submitCheck ?: return
         if (_state.value.isSubmittingCheck) return

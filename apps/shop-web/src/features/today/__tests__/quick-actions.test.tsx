@@ -54,7 +54,7 @@ describe("Quick actions (US4)", () => {
     ]) {
       expect(screen.getByText(row)).toBeInTheDocument()
     }
-    // ⚠ And none of the three the platform cannot do (FR-011).
+    // And none of the three the platform cannot do.
     expect(screen.queryByText("New order")).not.toBeInTheDocument()
     expect(screen.queryByText("Discount code")).not.toBeInTheDocument()
     expect(screen.queryByText("Message a customer")).not.toBeInTheDocument()
@@ -105,7 +105,7 @@ describe("Quick actions (US4)", () => {
     await userEvent.click(await screen.findByText("Export orders"))
 
     await vi.waitFor(() => expect(exportOrdersCsv).toHaveBeenCalled())
-    // ⚠ It exports here rather than navigating with a flag: a URL that performs an action on arrival
+    // It exports here rather than navigating with a flag: a URL that performs an action on arrival
     // fires again on refresh and on a shared link.
     expect(navigate).not.toHaveBeenCalledWith(expect.objectContaining({ search: { export: "1" } }))
   })

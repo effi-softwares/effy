@@ -18,7 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * Points over the customer service (074 US1). The DTOs never leave this file (Principle VI).
+ * Points over the customer service. The DTOs never leave this file (Principle VI).
  */
 class HttpPointsRepository(private val edge: HttpClient) : PointsRepository {
 

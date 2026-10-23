@@ -6,21 +6,9 @@ import { ChangePasswordDialog } from "./ChangePasswordDialog"
 import { SetPasswordDialog } from "./SetPasswordDialog"
 
 /**
- * The password card (012 FR-014 / FR-015).
- *
- * ⚠ IT BRANCHES ON `hasPassword`, AND ON NOTHING ELSE.
- *
- * Never on "how did they sign in". A customer who signed in with Google is a LINKED NATIVE user and
- * CAN hold a password — so inferring the control from the sign-in route would show the wrong one to a
- * real cohort (research R5). The platform's record is the only thing that knows, because Cognito
- * cannot be asked.
- *
- * ⚠ HAVING NO PASSWORD IS PRESENTED AS A COMPLETE, LEGITIMATE STATE — not a deficiency (FR-015).
- *
- * No warning triangle. No "your account is incomplete". No amber badge. A customer who signs in with
- * an emailed code is using the SAFER of the two routes, and nagging them toward a password would be
- * both patronising and, on the merits, backwards. It is an optional convenience, offered once, in
- * plain words.
+ * The password card. It branches on `hasPassword` only, never on how the customer signed in (a Google
+ * customer is a linked native user and can hold a password). Having no password is presented as a
+ * complete state, not a deficiency: signing in with an emailed code is the safer route.
  */
 export function PasswordCard({
   hasPassword,

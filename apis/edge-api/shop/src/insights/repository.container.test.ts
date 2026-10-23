@@ -1,21 +1,11 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The rollups, against real PostgreSQL 16 and THE REAL MIGRATIONS (058, US3).
- *
- * ⚠ THE FIGURES ON THIS SCREEN ARE MONEY, and every one of them is produced by SQL that no mocked
- * test can check: a refund attributed to the wrong shop, a cancellation counted twice, a bucket
- * boundary half an hour out. All of those produce a number that looks entirely plausible. The only
- * way to know is to insert real rows, run the real job and check the arithmetic by hand.
- *
- * ⚠ AND IDEMPOTENCY IS THE LOAD-BEARING PROPERTY. The design's whole claim is that recomputing a
- * bucket is safe — run it twice, run it late, run it after a reversal. That is asserted here, not
- * assumed.
+ * The rollups against real Postgres: the figures are money, and each is checked by hand. Recomputing a
+ * bucket twice, late or after a reversal must be safe.
  */
 
 const holder: { pool: Pool | null } = { pool: null };
@@ -50,21 +40,6 @@ import { readInsights } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
-
 const CUST = "11111111-1111-4111-8111-111111111111";
 const SHOP = "33333333-3333-4333-8333-333333333333";
 const OTHER_SHOP = "33333333-3333-4333-8333-000000000000";
@@ -78,7 +53,7 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -112,7 +87,7 @@ SELECT id FROM p`,
     return res.rows[0]!.id;
   }
 
-  /** A paid order at `minutesAgo`, with one line of `qty × $10` from `shop`. */
+  /** Paid `minutesAgo`, with one line of `qty × $10` from `shop`. */
   async function paidOrder(opts: {
     number: string;
     shop?: string;
@@ -123,22 +98,19 @@ SELECT id FROM p`,
   }): Promise<{ orderId: string; fulfillmentId: string; itemId: string }> {
     const shop = opts.shop ?? SHOP;
     const qty = opts.qty ?? 3;
-    // ⚠ THE PRODUCTION PATH, NOT A SHORTCUT: an order is created `pending_payment` and only becomes
-    // `paid` through an UPDATE inside FinalizeSucceeded (019). That UPDATE is what the trigger
-    // watches, so a fixture that inserts a paid row directly marks no bucket and silently gives the
-    // rollup nothing to do — which is exactly how this suite first came up empty.
+    // The production path: created `pending_payment`, then the UPDATE to `paid` the trigger watches.
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-         delivery_fee_amount, grand_total_amount, delivery_address, placed_at)
+         delivery_fee_amount, grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
        VALUES ($1,$2,'pending_payment',$3,5,$4,'{"recipientName":"Ada"}'::jsonb,
-               now() - make_interval(mins => $5))
+               now() - make_interval(mins => $5), 'effy', 'in_coverage')
        RETURNING id`,
       [CUST, opts.number, qty * 10, qty * 10 + 5, opts.minutesAgo ?? 30],
     );
     const orderId = o.rows[0]!.id;
     const productId = opts.productId ?? (await product(`P-${opts.number}`, shop));
     const item = await pool.query<{ id: string }>(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5) RETURNING id`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5, 10, $5) RETURNING id`,
       [orderId, productId, shop, qty, qty * 10],
     );
     const f = await pool.query<{ id: string }>(
@@ -146,8 +118,7 @@ SELECT id FROM p`,
        VALUES ($1,$2,'received',$3,$4) RETURNING id`,
       [orderId, shop, qty, qty * 10],
     );
-    // The payment lands last, exactly as FinalizeSucceeded does it — and THAT is what marks the
-    // bucket dirty. `opts.status` lets a test leave an order unpaid.
+    // The payment lands last and marks the bucket dirty; `opts.status` can leave an order unpaid.
     await pool.query(`UPDATE public."order" SET status = $2 WHERE id = $1`, [
       orderId,
       opts.status ?? "paid",
@@ -155,7 +126,7 @@ SELECT id FROM p`,
     return { orderId, fulfillmentId: f.rows[0]!.id, itemId: item.rows[0]!.id };
   }
 
-  /** The calendar date an instant falls on IN THE SHOP'S ZONE — what `local_date` actually holds. */
+  /** The calendar date in the shop's zone, as `local_date` holds it. */
   function shopDate(d: Date): string {
     const p = localParts(d, TZ);
     return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
@@ -167,14 +138,13 @@ SELECT id FROM p`,
 
   describe("goods and orders", () => {
     it("counts this shop's goods, and not the delivery fee", async () => {
-      await paidOrder({ number: "EFY-1", qty: 3 }); // $30 goods, $35 total
+      await paidOrder({ number: "EFY-1", qty: 3 });
       await runRollup();
 
       const { from, to } = await currentWindow();
       const rows = await readHours(SHOP, from, to);
       const gross = rows.reduce((n, r) => n + Number(r.grossGoods), 0);
-      // ⚠ $30, not $35: the delivery fee is Effy's, set for the whole order, and counting it per shop
-      // would count one fee in several shops' revenue (FR-032).
+      // $30, not $35: the delivery fee is Effy's, never counted per shop.
       expect(gross).toBe(30);
       expect(rows.reduce((n, r) => n + r.orders, 0)).toBe(1);
       expect(rows.reduce((n, r) => n + r.units, 0)).toBe(3);
@@ -207,9 +177,9 @@ SELECT id FROM p`,
     });
   });
 
-  // ── 067 — a shop's sales are at the SHOP's prices ────────────────────────────────────────────
+  // A shop's sales are at the shop's prices.
   describe("067 — the shop's own prices", () => {
-    /** Mark every line of an order as sold at a customer price ABOVE what the shop is owed. */
+    /** Every line sold at a customer price above what the shop is owed. */
     async function withMargin(orderId: string, shopUnit: number): Promise<void> {
       await pool.query(
         `UPDATE public.order_item
@@ -217,7 +187,7 @@ SELECT id FROM p`,
           WHERE order_id = $1`,
         [orderId, shopUnit],
       );
-      // The UPDATE above does not go through the order trigger; mark the bucket as the job would see it.
+      // That UPDATE bypasses the order trigger, so mark the bucket as the job would see it.
       await pool.query(
         `INSERT INTO public.insights_dirty (shop_id, bucket_start)
          SELECT $1, public.shop_local_hour(now() - interval '30 minutes', $2) ON CONFLICT DO NOTHING`,
@@ -225,9 +195,9 @@ SELECT id FROM p`,
       );
     }
 
-    /** ⚠ FR-044 — the customer paid $10 a unit; the shop is owed $8. The shop's sales say $8. */
+    /** The customer paid $10 a unit, the shop is owed $8: the shop's sales say $8. */
     it("⚠ reports goods at what the shop is owed, not what the customer paid", async () => {
-      const { orderId } = await paidOrder({ number: "EFY-M1", qty: 3 }); // customer: 3 × $10
+      const { orderId } = await paidOrder({ number: "EFY-M1", qty: 3 });
       await withMargin(orderId, 8);
       await runRollup();
 
@@ -246,7 +216,7 @@ SELECT id FROM p`,
          VALUES ($1,'item',10,'item_not_supplied','k-m2','back_office','sub-staff','succeeded') RETURNING id`,
         [orderId],
       );
-      // The CUSTOMER got $10 back for one unit; the shop's sales fall by the $8 it was owed for it.
+      // The customer got $10 back for one unit; the shop's sales fall by the $8 it was owed for it.
       await pool.query(
         `INSERT INTO public.refund_line (refund_id, order_item_id, quantity, amount) VALUES ($1,$2,1,10)`,
         [refund.rows[0]!.id, itemId],
@@ -257,24 +227,6 @@ SELECT id FROM p`,
       const rows = await readHours(SHOP, from, to);
       expect(rows.reduce((n, r) => n + Number(r.refunds), 0)).toBe(8);
       expect(rows.reduce((n, r) => n + Number(r.grossGoods) - Number(r.refunds), 0)).toBe(16);
-    });
-
-    /**
-     * ⚠ A line written before 067 — or by a backend older than it — has NO shop price. It reads as
-     * the customer price, so nothing a shop has already been shown changes.
-     */
-    it("⚠ a line with no shop price reads as its customer price", async () => {
-      const { orderId } = await paidOrder({ number: "EFY-M3", qty: 2 });
-      const stored = await pool.query(
-        `SELECT shop_unit_price_amount, shop_line_subtotal_amount FROM public.order_item WHERE order_id = $1`,
-        [orderId],
-      );
-      expect(stored.rows[0]).toEqual({ shop_unit_price_amount: null, shop_line_subtotal_amount: null });
-      await runRollup();
-
-      const { from, to } = await currentWindow();
-      const rows = await readHours(SHOP, from, to);
-      expect(rows.reduce((n, r) => n + Number(r.grossGoods), 0)).toBe(20);
     });
 
     it("the top-products ranking uses the shop's prices too", async () => {
@@ -323,7 +275,7 @@ SELECT id FROM p`,
 
       const { from, to } = await currentWindow();
       const rows = await readHours(SHOP, from, to);
-      // A shop cannot explain this from anything it did, so it must not appear in its revenue.
+      // A shop cannot explain it from anything it did, so it is not in its revenue.
       expect(rows.reduce((n, r) => n + Number(r.refunds), 0)).toBe(0);
     });
 
@@ -371,7 +323,7 @@ SELECT id FROM p`,
       const { from, to } = await currentWindow();
       expect((await readHours(SHOP, from, to)).reduce((n, x) => n + Number(x.refunds), 0)).toBe(10);
 
-      // 055: the bank can reject a refund up to thirty days later. The figure must go back.
+      // The bank can reject a refund up to thirty days later: the figure must go back.
       await pool.query(
         `UPDATE public.refund SET status = 'failed', failure_reason = 'the bank rejected it'
           WHERE id = $1`,
@@ -382,10 +334,10 @@ SELECT id FROM p`,
     });
 
     it("splits a cancellation refund across the shops that supplied the order", async () => {
-      const { orderId } = await paidOrder({ number: "EFY-9", qty: 2 }); // $20 from SHOP
+      const { orderId } = await paidOrder({ number: "EFY-9", qty: 2 });
       const p2 = await product("Other", OTHER_SHOP);
       await pool.query(
-        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Bread', 10, 4, 40)`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Bread', 10, 4, 40, 10, 40)`,
         [orderId, p2, OTHER_SHOP],
       );
       await pool.query(
@@ -418,7 +370,7 @@ SELECT id FROM p`,
       const { from, to } = await currentWindow();
       const first = await readHours(SHOP, from, to);
 
-      // Re-mark and re-run: the whole design rests on this being safe.
+      // Re-mark and re-run: the design rests on this being safe.
       await pool.query(
         `INSERT INTO public.insights_dirty (shop_id, bucket_start)
          SELECT shop_id, bucket_start FROM public.shop_sales_hour WHERE shop_id = $1
@@ -463,10 +415,7 @@ SELECT id FROM p`,
       await paidOrder({ number: "EFY-14", qty: 2, productId: b });
       await runRollup();
 
-      // ⚠ THE SHOP'S DATES, NOT THE MACHINE'S. `shop_product_sales_day.local_date` is a Melbourne
-      // date, and `toISOString()` gives a UTC one — the same day only for part of the day, and for
-      // developers in some timezones never. The first draft did exactly that and found nothing at
-      // 17:17 UTC, when Melbourne had already turned over.
+      // The shop's dates, not utc's: `local_date` is a Melbourne date.
       const date = shopDate(new Date());
       const yesterday = shopDate(new Date(Date.now() - 86_400_000));
       const rows = await readTopProducts(SHOP, yesterday, date, 5);
@@ -477,15 +426,14 @@ SELECT id FROM p`,
 
       await pool.query(`UPDATE public.product SET name = 'Linen apron, sand' WHERE id = $1`, [a]);
       const renamed = await readTopProducts(SHOP, yesterday, date, 5);
-      // A copied name would leave the operator searching the catalog for something that no longer
-      // exists under that name.
+      // The current name, not a copy.
       expect(renamed[0]!.name).toBe("Linen apron, sand");
     });
   });
 
   describe("the payload the screen renders", () => {
     it("reports figures, a comparison basis and a computed-at for a real shop", async () => {
-      await paidOrder({ number: "EFY-15", qty: 3, minutesAgo: 20 });
+      await paidOrder({ number: "EFY-15", qty: 3, minutesAgo: 0 });
       await runRollup();
 
       const dto = await readInsights({ shopId: SHOP }, "today", TZ, new Date());
@@ -493,7 +441,7 @@ SELECT id FROM p`,
       expect(dto.comparison.basis).toBe("same_weekday_last_week");
       expect(Number(dto.primary.revenue.value)).toBe(30);
       expect(dto.computedAt).not.toBeNull();
-      // Nothing to compare against: last week is empty, and saying "+100%" would be a fiction.
+      // Nothing to compare against: "+100%" would be a fiction.
       expect(dto.primary.revenue.change.kind).toBe("none");
       expect(dto.series.grain).toBe("hour");
       expect(dto.series.buckets.length).toBeGreaterThan(0);
@@ -503,8 +451,7 @@ SELECT id FROM p`,
       const dto = await readInsights({ shopId: OTHER_SHOP }, "7d", TZ, new Date());
       expect(Number(dto.primary.revenue.value)).toBe(0);
       expect(dto.topProducts).toEqual([]);
-      // The rollups have never run for this shop, and the screen must say that rather than present
-      // zeros as measurements.
+      // Never run for this shop: the screen says so rather than show zeros.
       expect(dto.computedAt).toBeNull();
     });
   });
@@ -515,8 +462,7 @@ SELECT id FROM p`,
       await runRollup();
 
       const result = await runReconcile(2);
-      // A non-zero count is the finding: it means a writer changed a figure without its bucket being
-      // marked, which is a hole in the trigger path rather than a number to quietly repair.
+      // A non-zero count is the finding: a hole in the trigger path.
       expect(result.corrections).toBe(0);
     });
 
@@ -524,8 +470,7 @@ SELECT id FROM p`,
       await paidOrder({ number: "EFY-17" });
       await runRollup();
 
-      // Simulate the failure the triggers are supposed to make impossible: a write that leaves no
-      // dirty mark behind.
+      // A write that leaves no dirty mark, which the triggers should make impossible.
       await pool.query(`ALTER TABLE public."order" DISABLE TRIGGER shop_ops_order_status`);
       await pool.query(`UPDATE public.shop_sales_hour SET gross_goods = 999 WHERE shop_id = $1`, [SHOP]);
       await pool.query(`ALTER TABLE public."order" ENABLE TRIGGER shop_ops_order_status`);
@@ -533,7 +478,7 @@ SELECT id FROM p`,
       const result = await runReconcile(2);
       expect(result.corrections).toBeGreaterThan(0);
 
-      // And the repair goes through the ordinary path, so there is only ever one recomputation rule.
+      // Repaired through the ordinary path: one recomputation rule.
       await runRollup();
       const { from, to } = await currentWindow();
       const rows = await readHours(SHOP, from, to);

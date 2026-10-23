@@ -23,11 +23,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * 078 — this app's delivery-window picker says exactly what the website's says (P17, P18).
+ * This app's delivery-window picker says exactly what the website's says.
  *
- * ⚠ The fixture is the one `packages/shared-types` tests `effyWindowsView` against, and the website's
+ * The fixture is the one `packages/shared-types` tests `effyWindowsView` against, and the website's
  * picker is drawn from (see [EFFY_WINDOWS_FIXTURE] for why it is a copy and what keeps it honest).
- * Each case's `input` is decoded as the SERVER'S BYTES — through the generated contract and the app's
+ * Each case's `input` is decoded as the server's bytes — through the generated contract and the app's
  * own mapper — so a field renamed on the wire fails here, not in a shopper's hand.
  */
 class EffyWindowsViewTest {
@@ -46,7 +46,7 @@ class EffyWindowsViewTest {
                     closed = w.getValue("closed").jsonPrimitive.boolean, surchargeAmount = w.str("surchargeAmount"),
                 )
             },
-            // 085 — a day that can be chosen with no time.
+            // A day that can be chosen with no time.
             anyTime = d["anyTime"]?.takeIf { it !is JsonNull }?.jsonObject?.let { AnyTimeChoice(it.str("slotId")!!, it.str("date")!!) },
         )
     }
@@ -57,7 +57,7 @@ class EffyWindowsViewTest {
         standardTitle = e.str("standardTitle")!!,
         today = e["today"]?.takeIf { it !is JsonNull }?.let(::day),
         later = e.getValue("later").jsonArray.map(::day),
-        // 085 — "as soon as possible".
+        // "as soon as possible".
         asap = e["asap"]?.takeIf { it !is JsonNull }?.jsonObject?.let { AsapView(it.str("title")!!, it.str("hint")!!, it.str("estimate")!!) },
     )
 

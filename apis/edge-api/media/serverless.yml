@@ -1,17 +1,6 @@
-# Effy MEDIA worker — 086-catalogue-image-delivery.
-#
-# Makes the smaller WebP copies of every catalogue and promotion picture, once, when it is uploaded,
-# and records which exist in public.media_rendition (its ONE writer).
-#
-# ⚠ NO HTTP ROUTE, AND NO GATEWAY. Uploads are presigned PUTs no Lambda observes, so the bucket is the
-# only place that knows a picture arrived: it notifies a queue (infra/envs/<env>/media.tf), and
-# `render` reads that queue. Neither gateway's integration count changes (the `live` precedent).
-#
-# ⚠ DEPLOY ORDER: the Terraform that creates the queue first (this file reads its ARN and URL from
-# SSM), then the migration (the table), then this service.
-#
-# ⚠ THE FUNCTION NAME IS A CONTRACT with background-functions.tf, which alarms on
-# `effy-edge-media-<env>-render`. Rename both together.
+# Makes WebP copies of each uploaded picture and records them in public.media_rendition. No route:
+# the bucket notifies a queue (media.tf). Deploy after the Terraform and the migration.
+# background-functions.tf alarms on the function name.
 service: effy-edge-media
 frameworkVersion: "3"
 
@@ -21,7 +10,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # Region-pinned AWS layer (Decisions locked: changed by hand on a region move).
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -32,7 +20,7 @@ provider:
   stage: ${opt:stage, 'dev'}
   runtime: nodejs22.x
   architecture: arm64
-  memorySize: 2048 # sharp's speed scales with the CPU this buys
+  memorySize: 2048
   timeout: 60
   logRetentionInDays: 30
   versionFunctions: false
@@ -56,13 +44,13 @@ provider:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # Read originals — the two public ORIGINAL prefixes only. Never proof/ or courier-label/.
+        # Originals: the public original prefixes only.
         - Effect: Allow
           Action: s3:GetObject
           Resource:
             - arn:aws:s3:::${ssm:/effy/${sls:stage}/media/bucket}/products/*
             - arn:aws:s3:::${ssm:/effy/${sls:stage}/media/bucket}/promotions/*
-        # Write copies — renditions/ ONLY, which the bucket never notifies (no loop).
+        # Copies: renditions/ only, which the bucket never notifies.
         - Effect: Allow
           Action: s3:PutObject
           Resource: arn:aws:s3:::${ssm:/effy/${sls:stage}/media/bucket}/renditions/*
@@ -86,9 +74,7 @@ custom:
     outputFileExtension: .mjs
     banner:
       js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-    # ⚠ sharp is a NATIVE module: it cannot be bundled, and the binary must be Lambda's (linux, arm64,
-    # glibc), not the laptop's. Installed for that target at package time from prebuilt binaries
-    # (research R11). The version MUST match package.json's.
+    # sharp is native: installed for linux arm64 at package time. Its version must match package.json.
     external:
       - sharp
     packager: npm
@@ -106,5 +92,5 @@ functions:
     events:
       - sqs:
           arn: ${ssm:/effy/${sls:stage}/media/rendition_queue_arn}
-          # ONE picture per invocation: a bad picture must never fail its neighbours.
+          # One picture per invocation, so a bad one never fails its neighbours.
           batchSize: 1

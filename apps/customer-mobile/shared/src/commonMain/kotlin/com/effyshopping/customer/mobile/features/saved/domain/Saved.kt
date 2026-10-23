@@ -3,27 +3,27 @@ package com.effyshopping.customer.mobile.features.saved.domain
 import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
 
 /**
- * The saved-items domain (033) — a price-and-availability WATCHLIST, not a wishlist.
+ * The saved-items domain — a price-and-availability watchlist, not a wishlist.
  *
- * Clean-Architecture domain models: the app's OWN types, mapped from the generated wire DTOs in the
+ * Clean-Architecture domain models: the app's own types, mapped from the generated wire DTOs in the
  * data layer (Principle VI — wire shapes never leak past `data`).
  *
- * ⚠ NOT the cart's set-aside (027), which is a bookmark and a different capability.
+ * Not the cart's set-aside, which is a bookmark and a different capability.
  */
 
 /**
  * Whether the shopper can buy a saved item right now, at the location they are shopping for.
  *
- * ⚠ FIVE VALUES, NOT A BOOLEAN, and that is the whole point of the slice. The capability this
+ * Five values, not a boolean, and that is the whole point of the slice. The capability this
  * replaces reported `available = true` whenever the catalogue said `status = 'active'` — but with
  * hidden fulfilment and zone-scoped delivery a product can be perfectly active and still unreachable
  * at the shopper's address, so the list invited people into a checkout that refused them.
  *
- * Each value implies a DIFFERENT next action, which is why collapsing any two is a regression:
+ * Each value implies a different next action, which is why collapsing any two is a regression:
  *
- *   PURCHASABLE                → buy now
- *   TEMPORARILY_UNAVAILABLE    → sold and delivered here, just not in stock — wait
- *   NO_LONGER_SOLD             → withdrawn entirely — give up
+ *  purchasable → buy now
+ *  TEMPORARILY_UNAVAILABLE → sold and delivered here, just not in stock — wait
+ *  NO_LONGER_SOLD → withdrawn entirely — give up
  */
 enum class SavedVerdict {
     PURCHASABLE,
@@ -35,14 +35,7 @@ enum class SavedVerdict {
     val isPurchasable: Boolean get() = this == PURCHASABLE
 }
 
-/**
- * One entry in the saved list.
- *
- * ⚠ Carries `brand`, `compareAtAmount` and `badges`. The predecessor's domain model DROPPED all
- * three — and then a comment on the screen blamed "the favourites projection" for carrying fewer
- * fields. It did not; the backend computed them and the mapper threw them away, so a sale on a saved
- * item was invisible on this surface while visible everywhere else.
- */
+/** One entry in the saved list, with `brand`, `compareAtAmount` and `badges` (so a sale on a saved item shows). */
 data class SavedItem(
     val productId: String,
     val name: String,
@@ -56,33 +49,33 @@ data class SavedItem(
     /** The price when it was saved — the baseline [priceDropped] is measured against. */
     val savedPriceAmount: String,
     /**
-     * True only when the current price is BELOW the save-time price.
+     * True only when the current price is below the save-time price.
      *
-     * ⚠ There is deliberately no `priceRose`. The current price is always shown, so nothing is
-     * concealed, but a rise is not something a shopper can act on (FR-044).
+     * There is deliberately no `priceRose`. The current price is always shown, so nothing is
+     * concealed, but a rise is not something a shopper can act on.
      */
     val priceDropped: Boolean,
     val verdict: SavedVerdict,
-    /** For grouping the list by aisle (FR-056). */
+    /** For grouping the list by aisle. */
     val categoryKey: String?,
     /**
-     * 098 — the size "Add to cart" adds: the one remembered when it was saved, else the product's only
+     * The size "Add to cart" adds: the one remembered when it was saved, else the product's only
      * one. Null when it is sold in several sizes and none is remembered: the shopper chooses on its page.
      */
     val variantId: String? = null,
-    /** 098 — the remembered size's words ("1 kg"). */
+    /** The remembered size's words ("1 kg"). */
     val variantLabel: String? = null,
     val variantCount: Int = 1,
     val unitPrice: UnitPrice? = null,
 )
 
 /**
- * The shopper's whole set of saved product ids, across EVERY list — the read that makes the heart
+ * The shopper's whole set of saved product ids, across every list — the read that makes the heart
  * tell the truth.
  *
- * [namedProductIds] (068) is the subset held in a list the shopper named. A tap on a filled heart
+ * [namedProductIds] is the subset held in a list the shopper named. A tap on a filled heart
  * un-saves a product that is only in "Saved"; for one of these it opens the list chooser instead,
- * because one tap must never take a product out of a list the shopper built (FR-020).
+ * because one tap must never take a product out of a list the shopper built.
  */
 data class SavedMembership(
     val productIds: Set<String>,
@@ -92,44 +85,39 @@ data class SavedMembership(
 /**
  * The saved-items platform contract.
  *
- * ⚠ [save] and [remove] are IDEMPOTENT in both directions (FR-009/FR-010). A retry, a double-tap, or
+ * [save] and [remove] are idempotent in both directions. A retry, a double-tap, or
  * a request whose response never arrived can never leave the state inverted.
  */
 interface SavedRepository {
-    /** One request per screen, regardless of how many products it shows (FR-020). */
+    /** One request per screen, regardless of how many products it shows. */
     suspend fun membership(): SavedMembership
 
     /**
      * The list with a verdict per item.
      *
-     * ⚠ No location. Delivery zones were withdrawn from the platform, so purchasability is decided by
+     * No location. Delivery zones were withdrawn from the platform, so purchasability is decided by
      * catalogue status alone and every address is implicitly deliverable.
      */
     suspend fun list(listId: String = DEFAULT_LIST_ID): List<SavedItem>
 
     /**
-     * [restoreSavedAt] is set ONLY by undo, returning the item to the position it previously held.
+     * [restoreSavedAt] is set only by undo, returning the item to the position it previously held.
      * An ordinary save leaves it null and the item lands at the top — a deliberate re-save after a
-     * completed removal is a NEW save, and the list must be able to say so (FR-018).
+     * completed removal is a new save, and the list must be able to say so.
      */
     suspend fun save(productId: String, restoreSavedAt: String? = null, variantId: String? = null)
 
     /**
-     * The HEART's un-save.
-     *
-     * ⚠ Throws [ListRefusedException] with [ListRefusal.IN_NAMED_LISTS] when the product is in a list
-     * the shopper named. Nothing was removed; the caller opens the list chooser.
+     * The heart's un-save. Throws [ListRefusedException] with [ListRefusal.IN_NAMED_LISTS] when the product is
+     * in a list the shopper named: nothing was removed; the caller opens the list chooser.
      */
     suspend fun remove(productId: String)
 }
 
 /**
- * One entry in a GUEST's device-held saved list.
- *
- * ⚠ It carries the save-time price when the surface knew one — and omits it when it did not, rather
- * than storing a placeholder. On merge, an absent price means the platform uses the product's current
- * price as the baseline, which is what an ordinary save records. Storing `0` instead would report the
- * item as having fallen from nothing: a fabricated fact, worse than an absent one.
+ * One entry in a guest's device-held list. It carries the save-time price when known and omits it
+ * otherwise (the platform then uses the current price as the baseline); never `0`, which would read as a
+ * price drop from nothing.
  */
 @kotlinx.serialization.Serializable
 data class SavedGuestEntry(
@@ -139,12 +127,12 @@ data class SavedGuestEntry(
     val savedAt: String,
 )
 
-/** Folds a device-held guest list into the account on sign-in (FR-028). */
+/** Folds a device-held guest list into the account on sign-in. */
 interface SavedMergeRepository {
     suspend fun merge(items: List<SavedGuestEntry>): SavedMergeOutcome
 }
 
-/** ⚠ [added] exists so the surface can DISCLOSE the join by count (FR-032), never absorb it silently. */
+/** [added] exists so the surface can disclose the join by count, never absorb it silently. */
 data class SavedMergeOutcome(
     val added: Int,
     val productIds: Set<String>,
@@ -153,14 +141,13 @@ data class SavedMergeOutcome(
 
 data class SavedMergeSkip(val productId: String, val reason: String)
 
-
-/** Adds every purchasable product in ONE list to the cart (FR-051, 068 FR-028). */
+/** Adds every purchasable product in one list to the cart. */
 interface SavedCartRepository {
     suspend fun addAllToCart(listId: String, changeId: String): SavedAddToCartOutcome
 }
 
 /**
- * ⚠ [skipped] is the whole point of this shape. FR-052 forbids silent omission: a bulk add that
+ * [skipped] is the whole point of this shape. FR-052 forbids silent omission: a bulk add that
  * quietly drops what it could not take leaves the shopper believing they bought something they did
  * not, and they find out at the till.
  */
@@ -169,8 +156,7 @@ data class SavedAddToCartOutcome(
     val skipped: List<SavedMergeSkip>,
 )
 
-
-/* ── 068: lists the shopper names for themselves ─────────────────────────────────────────────── */
+/* Lists the shopper names for themselves */
 
 /** The default list's id on the wire. No screen ever needs its real id. */
 const val DEFAULT_LIST_ID = "default"
@@ -181,7 +167,7 @@ const val DEFAULT_LIST_NAME = "Saved"
 /**
  * The longest list name, in code points. Mirrors `LIST_NAME_MAX` in `@effy/shared-types`.
  *
- * ⚠ ADVISORY. It drives the remaining-characters count; the platform decides, and a name it refuses
+ * Advisory. It drives the remaining-characters count; the platform decides, and a name it refuses
  * comes back as [ListRefusal.INVALID_NAME] whatever this says.
  */
 const val LIST_NAME_MAX = 40
@@ -192,7 +178,7 @@ data class SavedList(
     val isDefault: Boolean,
     val name: String?,
     val count: Int,
-    /** How many of its products are in NO other list: what deleting it would un-save (FR-006). */
+    /** How many of its products are in NO other list: what deleting it would un-save. */
     val onlyHereCount: Int,
     /** Set only when the read named a product. */
     val containsProduct: Boolean? = null,
@@ -214,7 +200,7 @@ enum class ListRefusal {
 /**
  * A list request the platform understood and refused.
  *
- * ⚠ NOT an [com.effyshopping.customer.mobile.core.error.AppException]. Those are mapped from the
+ * Not an [com.effyshopping.customer.mobile.core.error.AppException]. Those are mapped from the
  * status code alone, and two different list refusals share a status; this carries the reason.
  */
 class ListRefusedException(val refusal: ListRefusal) : Exception()
@@ -232,11 +218,11 @@ interface ListRepository {
     /** Products that were only in this list stop being saved. Products in another list stay there. */
     suspend fun delete(listId: String)
 
-    /** [restoreAddedAt] is set ONLY by undo: the product returns to the position it held. */
-    /** 098 — [variantId] is the size on screen, remembered with the product (a list holds products). */
+    /** [restoreAddedAt] is set only by undo: the product returns to the position it held. */
+    /** [variantId] is the size on screen, remembered with the product (a list holds products). */
     suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String? = null, variantId: String? = null)
 
-    /** Takes the product out of THIS list only. Never refused. */
+    /** Takes the product out of this list only. Never refused. */
     suspend fun removeEntry(listId: String, productId: String)
 }
 

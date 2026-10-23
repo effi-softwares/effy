@@ -1,9 +1,5 @@
-// @effy/edge-shared/points — the ONE home of points logic (074, research R6).
-//
-// Four places change a customer's points: back-office credits and debits (`orders`), checkout holds
-// and the paid transition (`commerce`, via ../payments/finalize), refunds (../payments/refunds, from
-// `commerce`, `orders` and `shop`), and the expiry sweep (`customer`). They all call this module; none
-// writes a points table itself (points-append-only.guard.test.ts).
+// The one home of points logic, used by orders (credits, debits), commerce (holds, the paid transition),
+// refunds and the customer expiry sweep. Nothing else writes a points table (points-append-only.guard.test.ts).
 export * from "./errors";
 export * from "./vocabulary";
 export * from "./split";

@@ -3,15 +3,7 @@ import { Pool } from "pg";
 import { seedHub, seedPlace } from "./run-map.fixture";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * ⚠ A DRIVER WALKS A DROP THE WAY THE APP DOES (found on the first end-to-end walk, 2026-09-30).
- *
- * "Start this drop" did nothing. The app sends out_for_delivery → en_route → arrived; the backend
- * mapped everything that was not "arrived" to "pending", answered 200, and the app re-read "staged".
- * Every unit test passed, because each half was right about itself. This file drives the real sequence
- * through the real functions against the real migrations — including the one that widens the CHECK —
- * and asserts where the drop is after every step, on both screens that show it.
- */
+/** Drives the app's real step sequence through the real functions and asserts the drop after each step. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -37,7 +29,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels, NothingToHandOver, ParcelsUnaccounted } from "@effy/edge-shared/labels";
 
 import { recordFailure, recordProof } from "../proof/repository";
@@ -56,14 +48,14 @@ let driverSub: string;
 let roundId: string;
 let dropId: string;
 
-/** 093 — loading the van is what puts a drop out for delivery; nothing on a drop happens before it. */
-/** Load the van with every live bag scanned (096 — a load accounts for every bag). */
+/** Loading the van puts a drop out for delivery; nothing happens before it. */
+/** Every live bag scanned. */
 const load = async () => {
   const codes = (await pool.query(`SELECT parcel_code FROM public.package_parcel WHERE voided_at IS NULL`)).rows.map((r) => r.parcel_code as string);
   return loadRun(roundId, driverId, crypto.randomUUID(), codes.map((c) => ({ parcelCode: c, method: "scan" as const })));
 };
 
-/** A drop step as the app makes it: `out_for_delivery` is the van being loaded (093), the rest follow it. */
+/** `out_for_delivery` is the van being loaded; the rest follow it. */
 const dropStatus = async () => (await deliveryDrop(dropId, driverId)).status;
 
 const step = async (to: string): Promise<{ status: string }> => {
@@ -113,8 +105,8 @@ d("064 fix — a drop advances through every state the app sends", () => {
        VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
     )).rows[0]!.id;
     const orderId = (await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-WALK01', 10, 12, '{"line1":"1 Walk St","city":"Melbourne","postalCode":"3000","region":"VIC"}'::jsonb, 'paid')
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-WALK01', 10, 12, '{"line1":"1 Walk St","city":"Melbourne","postalCode":"3000","region":"VIC"}'::jsonb, 'paid', 'effy', 'in_coverage')
        RETURNING id`, [cust],
     )).rows[0]!.id;
     const shopId = (await pool.query<{ id: string }>(
@@ -145,11 +137,11 @@ d("064 fix — a drop advances through every state the app sends", () => {
   const dropScreen = async () => (await deliveryDrop(dropId, driverId)).status;
   const runScreen = async () => (await deliveryRun(roundId, driverId)).drops[0]!.status;
 
-  /** 092 rev 2 — Today's card details, progress and the run map; the run list's street; the outcome. */
+  /** Today's card, progress and run map; the run list's street; the outcome. */
   it("092 rev 2 — Today carries progress, the card's details and a map from the postcode's place", async () => {
     await seedPlace(pool, { name: "Melbourne", state: "VIC", postcode: "3000", lat: -37.8136, lng: 144.9631 });
     await seedHub(pool, -37.8, 144.97);
-    // 093 — before the van is loaded the one step is loading it; the drop follows it.
+    // Before loading, the one step is loading.
     const before = await today(driverId);
     expect(before.active).toBeNull();
     expect(before.loadStep).toEqual({ runId: roundId, dropCount: 1, packageCount: 1 });
@@ -171,14 +163,14 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(run.map?.stops).toHaveLength(2);
   });
 
-  /** 092 — Today carries what dispatch changed on the round, until there is nothing to say. */
+  /** Today carries what dispatch changed on the round, until there is nothing to say. */
   it("092 — Today carries the round's change note", async () => {
     expect((await today(driverId)).changedNote).toBeNull();
     await pool.query(`UPDATE public.driver_round SET changed_note = 'Added 2 drops' WHERE id = $1`, [roundId]);
     expect((await today(driverId)).changedNote).toBe("Added 2 drops");
   });
 
-  /** 092 — a finished run's detail lists its stops; ⚠ before, a run id was looked up as a stop. */
+  /** A finished run's detail lists its stops. */
   it("092 — a finished run lists its stops; an unfinished or someone else's run is not found", async () => {
     await expect(historyDetail("run", roundId, driverId)).rejects.toBeInstanceOf(NotFoundError);
     await pool.query(`UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE id = $1`, [dropId]);
@@ -194,7 +186,6 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("staged");
   });
 
-  /** ⚠ THE DEFECT. Before the fix this assertion read "staged" — the button did nothing. */
   it("⚠ loading the van moves it to out_for_delivery, on BOTH screens", async () => {
     await step("out_for_delivery");
     expect(await dropScreen()).toBe("out_for_delivery");
@@ -215,10 +206,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("arrived");
   });
 
-  /**
-   * ⚠ THE SECOND WAY IT WOULD HAVE BROKEN. The Today screen's "outstanding" filter listed `pending`
-   * and `arrived` by name, so a started drop would have vanished from the driver's home screen.
-   */
+  /** A started drop must stay on the Today screen's outstanding list. */
   it("⚠ a started drop stays on the driver's Today screen at every step", async () => {
     for (const to of ["out_for_delivery", "en_route", "arrived"]) {
       await step(to);
@@ -242,7 +230,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(o.rows[0].status).toBe("delivered");
   });
 
-  /** ⚠ The function used to write whatever it was given, so a stale tap could un-deliver a package. */
+  /** A stale tap must not un-deliver a package. */
   it("⚠ never moves a delivered drop backwards", async () => {
     await step("arrived");
     await recordProof({
@@ -254,7 +242,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("delivered");
   });
 
-  /** Backlog A3 — an offline replay of an earlier step must not undo a later one. */
+  /** An offline replay of an earlier step must not undo a later one. */
   it("⚠ never moves an open drop backwards", async () => {
     await step("arrived");
     const res = await step("out_for_delivery");
@@ -264,7 +252,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("arrived");
   });
 
-  /** 088 — a failed drop's parcel is shown as "to return", and is the only work left (quickstart P10). */
+  /** A failed drop's parcel is "to return", the only work left. */
   it("088 — after the only drop fails, Today and the run carry the parcel to return; active is empty", async () => {
     await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
     await step("arrived");
@@ -285,17 +273,18 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect((await deliveryRun(roundId, driverId)).toReturn).toBeNull();
   });
 
-  /** 089 — every package the driver reads carries the code on its label (quickstart P7). */
+  /** Every package carries its label code. */
   it("089 — the drop and the run carry each package's label code", async () => {
-    const code = (await pool.query(`SELECT package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0].package_code as string;
+    const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0] as { id: string; package_code: string };
     expect(code).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
+    await createFirstParcels(pool, { packageIds: [sf] });
     const drop = await deliveryDrop(dropId, driverId);
     expect(drop.packages.map((p) => p.packageCode)).toEqual([code]);
     const run = await deliveryRun(roundId, driverId);
     expect(run.drops[0]!.parcels.map((b) => b.code)).toEqual([code]);
   });
 
-  /** 090/096 — how each BAG was handed over is recorded with the hand-over itself (quickstart Q11). */
+  /** How each bag was handed over is recorded with the hand-over. */
   it("096 — records each bag's hand-over once, ignoring foreign bags and unknown methods", async () => {
     const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0];
     await createFirstParcels(pool, { packageIds: [sf] });
@@ -306,17 +295,17 @@ d("064 fix — a drop advances through every state the app sends", () => {
       dropId, driverId, driverSub, method: "photo" as const, mediaKey: "proof/h/1.jpg", note: null, changeId,
       parcels: [
         { parcelCode: code, method: "scan" as const },
-        { parcelCode: "ZZZZZZ", method: "scan" as const },        // not at this drop
-        { parcelCode: code, method: "telepathy" as never },        // a method this build does not know
+        { parcelCode: "ZZZZZZ", method: "scan" as const },
+        { parcelCode: code, method: "telepathy" as never },
       ],
     };
     await recordProof(proof);
-    await recordProof(proof); // a retry
+    await recordProof(proof);
     const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover WHERE step = 'deliver'`);
     expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "scan" }]);
   });
 
-  /** 096 — the door accounts for every bag: one left unaccounted refuses the proof and writes nothing. */
+  /** One bag unaccounted for refuses the proof and writes nothing. */
   it("096 — a proof that leaves a bag unaccounted for is refused, naming it", async () => {
     const { id: sf } = (await pool.query(`SELECT id FROM public.shop_fulfillment LIMIT 1`)).rows[0];
     await createFirstParcels(pool, { packageIds: [sf] });
@@ -339,7 +328,6 @@ d("064 fix — a drop advances through every state the app sends", () => {
     })).rejects.toBeInstanceOf(NothingToHandOver);
   });
 
-  /** 090 — "the van is loaded" (quickstart P6). */
   it("090 — loading puts every staged drop out for delivery, once; a drop further along is untouched", async () => {
     const r1 = await loadRun(roundId, driverId, crypto.randomUUID());
     expect(r1.loadedDropIds).toEqual([dropId]);

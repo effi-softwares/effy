@@ -1,6 +1,3 @@
-// Handler tests for the administrator-only gate (spec US3/US4, SC-004/SC-012). The gate now
-// authorizes from the platform record (status + role) via staff.isActiveAdmin — a disabled admin
-// is refused despite a valid admin token.
 import type { Context } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +35,4 @@ describe("back-office admin ping (DB-record gate)", () => {
     expect((await handler(fakeEvent(), ctx)).statusCode).toBe(403);
   });
 
-  // The catch → unavailable(503) mapping on a DB failure is verified at the console layer
-  // (AdminOnlyScreen degraded-state test) and the operator quickstart §US4; asserting it here
-  // fights vitest's unhandled-rejection detector, so it is intentionally not unit-tested.
 });

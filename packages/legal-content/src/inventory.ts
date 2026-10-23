@@ -1,11 +1,6 @@
 /**
- * The data-type / sub-processor inventory — the ONE spine that keeps the Privacy Policy, the Apple
- * App Privacy details mapping, and the Google Data safety mapping mutually consistent (SC-004).
- *
- * ⚠ Every entry MUST be TRUE of the platform as built (SC-002 / research R10). A provider not
- * actually integrated does not appear; a data type not actually collected is not declared. Derived
- * from the codebase (Cognito auth, Stripe payments, AWS SES/RDS/S3, PostHog, Crashlytics, FCM/APNs,
- * Google federated sign-in) and the closure service's RETAINED set.
+ * The data-type and sub-processor inventory that keeps the Privacy Policy and the Apple and Google store
+ * forms consistent. Every entry must be true of the platform as built.
  */
 
 export interface SubProcessor {
@@ -149,12 +144,12 @@ export const dataTypes: DataType[] = [
   },
 ]
 
-/** The categories retained AFTER account deletion — mirrors edge-api/customer closure `RETAINED`. */
+/** Categories retained after account deletion: mirrors the customer closure's `RETAINED`. */
 export const retainedAfterDeletion = [
   "Completed orders (tax & accounting)",
   "Payment records (tax, accounting & fraud)",
   "Fraud & security signals (protecting other customers)",
 ]
 
-/** No data type is used for cross-app/cross-site tracking — drives the 'no ATT prompt' posture. */
+/** No data type is used for cross-app tracking (no ATT prompt). */
 export const usedForTrackingAnywhere = dataTypes.some((d) => d.usedForTracking)

@@ -1,9 +1,6 @@
 /**
- * What a balance and its history LOOK like (074) — one read for the customer's own screens (`customer`)
- * and back-office's (`orders`), so the two can never show one customer two different balances.
- *
- * ⚠ THE CUSTOMER SHAPE HAS NO NOTE AND NO AUTHOR. `history(…, { staff: false })` does not select them,
- * so there is nothing to forget to strip.
+ * What a balance and its history look like: one read for the customer's screens and back-office's.
+ * The customer shape has no note and no author: `{ staff: false }` does not select them.
  */
 import type { Queryable } from "../lib/db";
 import { formatCents } from "../lib/money";
@@ -18,7 +15,7 @@ export interface BalanceSummary {
   centsPerPoint: number;
   /** Points set aside by a checkout in progress. */
   held: number;
-  /** The earliest Melbourne date on which points stop, and how many stop then. */
+  /** The earliest Melbourne date points stop, and how many. */
   nextExpiry: { points: number; date: string } | null;
 }
 
@@ -122,7 +119,7 @@ export async function history(
   const staffCols = opts.staff
     ? `, e.note, e.author_kind, e.author_flow, s.name AS staff_name, e.order_id::text AS order_id, e.refund_id::text AS refund_id`
     : "";
-  // ⚠ admin.staff is joined ONLY for the staff read: the customer service has no business there.
+  // admin.staff is joined only for the staff read.
   const staffJoin = opts.staff ? `LEFT JOIN admin.staff s ON e.author_kind = 'staff' AND s.cognito_sub = e.author_sub` : "";
   const [{ centsPerPoint }, rows] = await Promise.all([
     loadSettings(q),

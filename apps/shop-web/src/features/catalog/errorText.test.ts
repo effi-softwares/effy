@@ -4,7 +4,7 @@ import type { DomainError } from "@effy/api-client";
 
 import { STALE_EDIT_MESSAGE, isConflict, productMutationError } from "./errorText";
 
-// The 409 discriminator is load-bearing for the focused-edit reload UX (FR-023a): a stale edit must be
+// The 409 discriminator is load-bearing for the focused-edit reload UX: a stale edit must be
 // distinguished from every other failure so the dialog offers "reload" instead of a doomed retry.
 
 function domainError(over: Partial<DomainError>): DomainError {

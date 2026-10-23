@@ -1,40 +1,25 @@
 #!/usr/bin/env bash
 #
-# Probe EVERY service individually, on the gateway it is attached to — liveness and readiness, side by side.
+# Probe every service individually, on the gateway it is attached to — liveness and readiness, side by side.
 #
 # The pair localizes a fault instantly, which a single combined probe cannot:
 #
-#   healthz ✓  readyz ✓   → the service is healthy
-#   healthz ✓  readyz ✗   → the service is fine; its DATABASE is not
-#   healthz ✗             → the service itself is not there (bad deploy / wrong route / dead)
+# healthz ✓ readyz ✓ → the service is healthy
+# healthz ✓ readyz ✗ → the service is fine; its database is not
+# healthz ✗ → the service itself is not there (bad deploy / wrong route / dead)
 #
 # Both are public — no token needed. A probe you can only run when you hold a credential is a probe
 # you cannot run when things are actually broken.
 #
-# Usage:  make edge-health ENV=dev
+# Usage: make edge-health ENV=dev
 set -euo pipefail
 
-# ⚠ TWO GATEWAYS SINCE 075 — a service answers on the one it is attached to and 404s on the other.
-#
-#   TARGETS="<url>=<svc svc …>;<url>=<svc …>"     one group per gateway
-#   API_URL=… SERVICES="…"                        still accepted: one gateway, as before
-#
-# CUTOVER=1 — while back-office is being moved a service is on one gateway or the other depending on
-# whether it has been redeployed yet. With this set, a service that does not answer where it is
-# listed is tried on the other gateway(s) and reported with WHERE it answered, instead of as down.
-#
-# ⚠ `auth` (035), `live` (071) and `media` (086) are deliberately ABSENT and must stay absent: none has an HTTP
-# route to probe. Adding one would report DOWN forever and train everyone to ignore a red row.
-if [ -z "${TARGETS:-}" ]; then
-  API_URL="${API_URL:?set TARGETS, or API_URL (from /effy/<env>/edge/api_endpoint)}"
-  TARGETS="${API_URL}=${SERVICES:-admin shop}"
-fi
-CUTOVER="${CUTOVER:-}"
+# TARGETS="<url>=<svc svc …>;<url>=<svc …>", one group per gateway: a service answers on the gateway it
+# is attached to and 404s on the other. `auth`, `live` and `media` have no HTTP route and stay absent.
+: "${TARGETS:?set TARGETS (make edge-health ENV=<env> does)}"
 
 fail=0
-urls=()
 IFS=';' read -r -a groups <<<"${TARGETS}"
-for g in "${groups[@]}"; do urls+=("${g%%=*}"); done
 
 code() { curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$1" || echo "000"; }
 
@@ -47,19 +32,8 @@ for g in "${groups[@]}"; do
   printf '  %-16s %-22s %-22s\n' "-------" "------------------" "------------------"
 
   for svc in ${services}; do
-    at="${url}"
-    live=$(code "${at}/${svc}/healthz")
-    note=""
-    if [ "${live}" != "200" ] && [ -n "${CUTOVER}" ]; then
-      for other in "${urls[@]}"; do
-        [ "${other}" = "${url}" ] && continue
-        if [ "$(code "${other}/${svc}/healthz")" = "200" ]; then
-          at="${other}"; live="200"; note="  ← answering on ${other} (not moved yet, or moved early)"
-          break
-        fi
-      done
-    fi
-    ready=$(code "${at}/${svc}/readyz")
+    live=$(code "${url}/${svc}/healthz")
+    ready=$(code "${url}/${svc}/readyz")
 
     if [ "${live}" = "200" ]; then
       live_txt=$'\033[32m200 up\033[0m'
@@ -77,7 +51,7 @@ for g in "${groups[@]}"; do
       *)   ready_txt=$'\033[31m'"${ready} DOWN"$'\033[0m'; fail=$((fail + 1)) ;;
     esac
 
-    printf '  %-16s %-31b %-31b%s\n' "${svc}" "${live_txt}" "${ready_txt}" "${note}"
+    printf '  %-16s %-31b %-31b\n' "${svc}" "${live_txt}" "${ready_txt}"
   done
 done
 

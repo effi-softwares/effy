@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  // 057: the rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
+  // The rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
   useNavigate: () => () => {},
 }))
 
@@ -60,7 +60,7 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-/** US3 (T029) — catalog search and filtering. */
+/** Catalog search and filtering. */
 describe("catalog list", () => {
   it("passes the typed search term to the server rather than filtering in the browser", async () => {
     getCatalogSchema.mockResolvedValue(SCHEMA)
@@ -72,8 +72,8 @@ describe("catalog list", () => {
 
     await userEvent.type(screen.getByLabelText(/search products/i), "eggs")
 
-    // ⚠ Server-side by design: the catalog is paged and can run to thousands of rows, so unlike the
-    // order queue it must NOT be filtered client-side over one page — that would silently search only
+    // Server-side by design: the catalog is paged and can run to thousands of rows, so unlike the
+    // order queue it must not be filtered client-side over one page — that would silently search only
     // the visible page and report "no matches" for a product that exists.
     expect(listProducts).toHaveBeenLastCalledWith(expect.objectContaining({ q: "eggs", page: 1 }))
   })
@@ -88,7 +88,7 @@ describe("catalog list", () => {
 
     await userEvent.type(screen.getByLabelText(/search products/i), "x")
 
-    // ⚠ Staying on page 3 of a freshly-narrowed result set shows an empty table for a filter that
+    // Staying on page 3 of a freshly-narrowed result set shows an empty table for a filter that
     // matched plenty — the classic "my search returned nothing" bug that is really a paging bug.
     expect(listProducts).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }))
   })

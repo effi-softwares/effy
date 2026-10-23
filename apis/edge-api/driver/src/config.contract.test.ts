@@ -4,23 +4,8 @@ import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE DEPLOYMENT CONTRACT for the driver service (049).
- *
- * The same defect this platform has guarded five times (027 R13, 029, 033, 035, 039): a unit test
- * that supplies its own configuration can never notice the configuration does not exist. So this test
- * mocks nothing — it reads the ACTUAL `serverless.yml` and asserts the wiring the service depends on.
- *
- * Two properties are load-bearing and invisible to a normal unit test:
- *  1. Every authenticated /driver/v1/* route must carry the DRIVER JWT authorizer. A missing
- *     authorizer would silently make a driver-only route public (auth isolation, Principle IV).
- *  2. The DB env keys the code reads must be declared, or every request fails at first use.
- *
- * ⚠ THE WORK-MODEL ROUTES ARE GONE, DELIBERATELY. Collection, hub check-in, delivery, proof, history
- * and the activity feed were retired with 049's assignment sweep (see
- * db/migrations/20260920101500_remove_driver_work_model.sql). What is left is the driver's IDENTITY
- * half — who they are, whether they are on duty, where they were, and where to push to. Asserting
- * over a list that no longer includes them is the point: a route that returns here must be added to
- * this list, rather than inheriting the previous slice's authorizer by resemblance.
+ * Reads the real serverless.yml: every authenticated /driver/v1/* route carries the driver authorizer,
+ * and every env key the code reads is declared.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -60,70 +45,38 @@ describe("driver deployment contract — serverless.yml declares what the servic
       "DB_NAME",
       "DB_USER",
       "DB_SECRET_ARN",
-      // ⚠ 064 — the shared media helper reads this to presign proof uploads. It is in the same list
-      // as the DB keys for the same reason: 035 shipped an audience map that read FOUR env vars
-      // `serverless.yml` never declared, every pool resolved "unknown", no email was ever sent, and
-      // a hundred passing tests missed it because each one set those vars itself.
+      // The shared media helper reads this to presign proof uploads.
       "S3_MEDIA_BUCKET",
     ]) {
       expect(yaml.includes(`${key}:`), `serverless.yml does not declare ${key}`).toBe(true);
     }
   });
 
-  /**
-   * ⚠ 064 — WITHOUT THIS GRANT EVERY PROOF CAPTURE FAILS AT THE PRESIGN, and the driver sees a
-   * generic error at the doorstep. This service had NO S3 permission at all before 064; the env key
-   * above and this grant have to land together or the feature is configured and unauthorised.
-   */
+  /** Without this grant every proof capture fails at the presign. */
   it("grants S3 object access for proof media, scoped to objects and not the bucket", () => {
     expect(yaml).toMatch(/s3:PutObject/);
     expect(yaml).toMatch(/s3:GetObject/);
-    // ⚠ Objects only. A bucket-level grant would let a driver-pool credential LIST every product and
-    // promotion key in the shared bucket.
+    // Objects only: a bucket grant would let a driver credential list the shared bucket.
     expect(yaml).toMatch(/arn:aws:s3:::effy-\$\{sls:stage\}-product-media\/\*/);
     expect(yaml).not.toMatch(/s3:ListBucket/);
   });
 
   /**
-   * ⚠ EFFY DOES NOT TRACK DRIVER POSITION, AND THIS IS WHAT KEEPS IT THAT WAY (061, FR-035/FR-036).
-   *
-   * `POST /driver/v1/location` existed and was a RECEIVER WITH NO SENDER: no caller in
-   * `apps/driver-mobile`, no location permission declared on Android or iOS, no reader of the three
-   * `driver_duty_session.last_location_*` columns. Nothing was ever collected — and that is exactly
-   * what made it dangerous. The moment anyone added a location permission to make a map work, the
-   * platform would have begun recording an employee's position with no notice, no consent record and
-   * no retention rule, and NOTHING WOULD HAVE FAILED.
-   *
-   * A removal without a guard is an invitation to restore it by resemblance, so the absence is
-   * pinned rather than trusted to memory. If driver position is ever wanted, consent, notice and a
-   * retention rule land in the SAME change — see decisions D10/D20/D22.
+   * Effy does not track driver position: no location route. If it is ever wanted, consent, notice and a
+   * retention rule land in the same change.
    */
   it("exposes no route that accepts a driver location, and stores none", () => {
     expect(yaml).not.toMatch(/path: .*location/i);
     expect(yaml).not.toContain("driverLocationV1");
   });
 
-  /**
-   * ⚠ A NEGATIVE ASSERTION, AND IT IS THE POINT OF THIS CHANGE. The greedy sweep is not paused or
-   * feature-flagged, it is gone — and a schedule is exactly the kind of thing that gets restored by
-   * someone reading the git history and assuming its absence was an oversight. Nothing in this
-   * service may run on a timer until the dispatch slice says what the timer is for.
-   */
+  /** Nothing in this service runs on a timer. */
   it("schedules nothing — the 049 assignment sweep is retired, not disabled", () => {
     expect(yaml).not.toContain("schedule:");
     expect(yaml).not.toContain("assignmentSchedule");
   });
 
-  // ⚠ THE FILE MUST ACTUALLY PARSE, AND NOTHING ELSE HERE CHECKS THAT.
-  //
-  // Every other assertion in this file reads `serverless.yml` as TEXT and matches it with regexes —
-  // which is fine for "does it declare X", and blind to whether the document is valid YAML at all.
-  // 063 shipped a description containing `: ` unquoted, which YAML reads as a mapping key: every
-  // test in this suite passed, `tsc` passed, and the failure appeared at DEPLOY, in front of the
-  // operator, as "bad indentation of a mapping entry".
-  //
-  // ⚠ CloudFormation tags (`!Ref`, `!GetAtt`) are not known to a plain YAML loader, so they are
-  // accepted as opaque rather than treated as errors — the point is the document's SHAPE.
+  // The file must parse as YAML (CloudFormation tags accepted as opaque); the regex checks cannot see that.
   it("is valid YAML that parses into functions (063)", async () => {
     const { parse } = await import("yaml");
     const doc = parse(yaml, { logLevel: "error" }) as { functions?: Record<string, unknown> };
@@ -134,16 +87,7 @@ describe("driver deployment contract — serverless.yml declares what the servic
     ).toBeGreaterThan(5);
   });
 
-
-  // ⚠ AWS PROPERTY LIMITS, CHECKED HERE BECAUSE CLOUDFORMATION CHECKS THEM LAST.
-  //
-  // 063 shipped a 328-character function description. Lambda caps `Description` at 256, so the
-  // deploy died at `AWS::EarlyValidation::PropertyValidation` — an error that names NO property, NO
-  // function and NO limit, and arrives only after two minutes of uploading artifacts.
-  //
-  // Every assertion above this one reads the file as text, and the YAML-parse test proves only that
-  // the document is well-formed. Neither can see a value that is valid YAML, valid TypeScript, and
-  // too long for the service it describes.
+  // AWS property limits (a Lambda Description is 256 characters), which CloudFormation reports only at deploy.
   it("keeps every function property inside its AWS limit (063)", async () => {
     const { parse } = await import("yaml");
     const doc = parse(yaml, { logLevel: "error" }) as {

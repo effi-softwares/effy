@@ -57,7 +57,7 @@ private val Inset = 4.dp
  * (collect a stop, check in at the hub). A blue track and thumb; on commit the thumb settles at the end
  * and turns green with a tick.
  *
- * ⚠ Cancellable: a release before 72% springs back and nothing happens. ⚠ Operable without the gesture:
+ * Cancellable: a release before 72% springs back and nothing happens. Operable without the gesture:
  * the track carries a click action for switch and screen-reader users.
  *
  * @param note a line above the track ("4 of 4 packages ticked"); null for none.

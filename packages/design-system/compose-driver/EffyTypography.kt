@@ -1,6 +1,5 @@
 // GENERATED FROM packages/design-system/src/storefront/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
-// The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).
 package com.effyshopping.driver.mobile.design
 
 import androidx.compose.material3.Typography
@@ -17,7 +16,7 @@ import com.effyshopping.driver.mobile.resources.geist_mono_medium
 import com.effyshopping.driver.mobile.resources.geist_regular
 import com.effyshopping.driver.mobile.resources.geist_semibold
 
-/** Geist — the storefront typeface (constitution v3.3.0), bundled; no run-time download. */
+/** Geist, bundled; no run-time download. */
 @Composable
 fun effyFontFamily(): FontFamily = FontFamily(
     Font(Res.font.geist_regular, FontWeight.Normal),
@@ -30,7 +29,7 @@ fun effyFontFamily(): FontFamily = FontFamily(
 @Composable
 fun effyMonoFontFamily(): FontFamily = FontFamily(Font(Res.font.geist_mono_medium, FontWeight.Medium))
 
-/** The storefront Material 3 type scale (all fifteen slots defined — none falls back to the platform font). */
+/** The Material 3 type scale: all fifteen slots defined, so none falls back to the platform font. */
 @Composable
 fun effyTypography(): Typography {
     val family = effyFontFamily()
@@ -58,7 +57,7 @@ private fun effyTextStyle(
     weight: FontWeight,
     size: Int,
     lineHeight: Int,
-    /** Tracking as a FRACTION OF THE FONT SIZE (em). */
+    /** Tracking as a fraction of the font size (em). */
     letterSpacingEm: Float = 0f,
 ) = TextStyle(
     fontFamily = family,

@@ -7,12 +7,8 @@ import { addressErrorResponse } from "../addresses/http";
 import { deleteAddress } from "../addresses/service";
 
 /**
- * DELETE /customer/v1/addresses/{id} — delete an address, with the delete-default guard (022 US4).
- *
- * A non-default → 204. The default WHILE other addresses exist → 409 (set another default first,
- * FR-016a) — enforced server-side, so a racing device or a direct call cannot bypass it. The only
- * remaining address → 204 (nothing left to be default). 404 not-found/not-owned. Deleting an
- * address never touches a past order's snapshot (orders hold their own immutable jsonb copy).
+ * 204, or 409 for the default while other addresses exist (set another default first). Past orders
+ * hold their own snapshot.
  */
 export const handler = async (
   event: AuthedEvent,

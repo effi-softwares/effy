@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# Cross-pool isolation, EVERY direction (007 SC-004; 075 SC-005).
+# Cross-pool isolation, every direction, against the real gateways with real tokens: the rule is enforced by
+# the gateways' JWT authorizers, so a unit test could only check its own fixture. Per gateway as well as per
+# route:
+# · the staff gateway carries only the back-office authorizer — a customer, shop or driver token
+# has nothing there that could accept it;
+# · the shared gateway carries no back-office authorizer — a staff token has nothing there.
 #
-# The four-pool isolation rule (constitution Principle IV) is enforced structurally, by the
-# gateways' JWT authorizers — not by application code. That means it cannot be unit-tested: a vitest
-# assertion would only prove the test's own fixture is shaped as expected. This script is the honest
-# verification, run against the real gateways with real tokens.
-#
-# ⚠ TWO GATEWAYS SINCE 075, and the boundary is now per GATEWAY as well as per route:
-#   · the STAFF gateway carries only the back-office authorizer — a customer, shop or driver token
-#     has nothing there that could accept it;
-#   · the SHARED gateway carries no back-office authorizer — a staff token has nothing there.
-#
-#   usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..] ENV=dev
+# usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..] ENV=dev
 #
 # Pass = every same-pool call 200, every cross-pool call 401.
 set -euo pipefail

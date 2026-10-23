@@ -1,6 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql, transactorFor, type Transactor } from "@effy/edge-shared";
-import { insertTestProduct } from "@effy/edge-shared/testing";
+import { transactorFor, type Transactor } from "@effy/edge-shared";
+import { insertTestProduct, migrationSql } from "@effy/edge-shared/testing";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
 import { bookConsignment, effyDays, handOver, melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
 import {
@@ -28,14 +28,14 @@ import {
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
 
 /**
- * 070 — checkout, payment finalisation and the provider webhook against the REAL schema.
+ * Checkout, payment finalisation and the provider webhook against the real schema.
  *
- * ⚠ THESE CANNOT BE UNIT TESTS. "Exactly once" is a row lock on the order; slot capacity is a row
+ * These cannot be unit tests. "Exactly once" is a row lock on the order; slot capacity is a row
  * lock on the slot; the stock floor is one statement; and "an event is recorded only if it was
- * handled" is a property of a transaction. A fake store proves none of them. The payment PROVIDER
+ * handled" is a property of a transaction. A fake store proves none of them. The payment provider
  * is the one thing faked — it is behind a port for exactly this.
  *
- * ⚠ WHY THE REAL CLOCK. The slot load compares `held_until` with the DATABASE's now(), so a frozen
+ * Why the real clock. The slot load compares `held_until` with the database's now, so a frozen
  * clock in the test would hold places the database already considers lapsed. The fixture is built
  * to be open at any time of day: one collection run at 23:57 with no buffer and no turnaround, and
  * a slot starting at 23:58.
@@ -68,7 +68,7 @@ function fakeGateway() {
       if (!i) throw new Error("no such intent");
       return i;
     },
-    // 074 — as the real provider: a paid or processing intent cannot be cancelled; it says what it is.
+    // As the real provider: a paid or processing intent cannot be cancelled; it says what it is.
     async cancelPaymentIntent(id) {
       const i = byId.get(id);
       if (!i) throw new Error("no such intent");
@@ -107,7 +107,7 @@ let svc: CheckoutService;
 let shopId: string;
 let slotId: string;
 const product: Record<string, string> = {};
-/** 098 — the ids every test product is filed under. */
+/** The ids every test product is filed under. */
 const catalogIds = async () => ({
   productTypeId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.product_type WHERE key='chk-type'`)).id,
   primaryCategoryId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.category WHERE key='chk-cat'`)).id,
@@ -132,7 +132,7 @@ async function shopper(cart: Record<string, number>) {
   );
   const { id: cartId } = await one<{ id: string }>(`INSERT INTO public.cart (customer_id) VALUES ($1) RETURNING id::text AS id`, [customerId]);
   for (const [name, qty] of Object.entries(cart)) {
-    // 098 — a line is a variant; each test product has exactly one.
+    // A line is a variant; each test product has exactly one.
     await pool.query(
       `INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity)
        SELECT $1, v.product_id, v.id, $3 FROM public.product_variant v WHERE v.product_id = $2`,
@@ -144,12 +144,12 @@ async function shopper(cart: Record<string, number>) {
 
 const input = (addressId: string, over: Partial<IntentInput> = {}): IntentInput => ({
   addressId, billingAddressId: "",
-  // ⚠ Every Effy order has a window (083). The default is a LATER day: the plain fee, no today premium.
+  // Every Effy order has a window. The default is a later day: the plain fee, no today premium.
   deliveryWindow: { slotId, date: effyDays(new Date(), 3, [], new Set(), true)[1]!.date },
   deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, pointsToUse: 0, shownDeliveryAmount: "", ...over,
 });
 
-/** 074 — give a shopper points, as back-office would. */
+/** Give a shopper points, as back-office would. */
 const givePoints = (customerId: string, points: number) =>
   transact((tx) => credit(tx, { customerId, points, kind: "staff_credit", reason: "goodwill", author: { kind: "staff", sub: "s" }, now: new Date() }));
 const pointsNow = (customerId: string) => usable(pool, customerId, new Date());
@@ -227,7 +227,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await container?.stop();
   });
 
-  // ── The intent ──────────────────────────────────────────────────────────────────────────────────
+  // The intent
 
   it("charges items plus the delivery fee, computed by the platform, and records the pending order", async () => {
     const s = await shopper({ Milk: 2 });
@@ -247,7 +247,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     // Omitted, not null, for a web checkout with no same-day package.
     expect(r).not.toHaveProperty("customerSessionSecret");
     expect(r).not.toHaveProperty("customerId");
-    // Every Effy order holds a place in its window from the intent call (069, 083).
+    // Every Effy order holds a place in its window from the intent call.
     expect(r.slotHeldUntil).toMatch(/[+-]\d\d:\d\d$/);
   });
 
@@ -326,7 +326,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await orderRow(a.orderId)).toMatchObject({ handover: null, note: null });
   });
 
-  // ── Recording a payment ─────────────────────────────────────────────────────────────────────────
+  // Recording a payment
 
   it("a payment is recorded once: fan-out, stock, receipt, notifications, cart — and a second delivery does nothing", async () => {
     const s = await shopper({ Scarce: 1, Milk: 2 });
@@ -334,7 +334,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
     const first = await pay(orderId);
     expect(first).toMatchObject({ applied: true, stockShortfall: false, slotConfirmed: true });
-    // 071 — who is told: the fulfilling shop(s) and the customer's token subject, read from the
+    // Who is told: the fulfilling shop(s) and the customer's token subject, read from the
     // rows this transaction wrote. A redelivery names nobody.
     expect(first.shopIds).toHaveLength(1);
     expect(first.shopIds[0]).toMatch(/^[0-9a-f-]{36}$/);
@@ -350,7 +350,6 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await stockOf("Scarce")).toBe(1); // 2 − 1, once
     expect(await count(`SELECT 1 FROM public.stock_movement WHERE order_id = $1`, [orderId])).toBe(1); // untracked Milk writes none
     expect(await count(`SELECT 1 FROM public.receipt_dispatch WHERE order_id = $1`, [orderId])).toBe(1);
-    expect(await count(`SELECT 1 FROM public.event_outbox WHERE aggregate_id = $1`, [orderId])).toBe(1);
     expect(await count(`SELECT 1 FROM public.cart_item WHERE cart_id = $1`, [s.cartId])).toBe(0);
     expect((await one<{ s: string }>(`SELECT status AS s FROM public.payment WHERE order_id = $1`, [orderId])).s).toBe("succeeded");
 
@@ -359,7 +358,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
               delivery_method AS method FROM public.shop_fulfillment WHERE order_id = $1`,
       [orderId],
     );
-    // ⚠ No fee on a shop's portion — the column is gone (083): delivery is priced once, on the order.
+    // No fee on a shop's portion — the column is gone: delivery is priced once, on the order.
     expect(sf).toEqual({ items: 3, cust: "11.00", shop: "10.00", method: "standard" });
     expect((await orderRow(orderId)).fee).toBe("6.00");
   });
@@ -394,7 +393,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     ).toEqual([1]);
   });
 
-  // ── Same-day places ─────────────────────────────────────────────────────────────────────────────
+  // Same-day places
 
   const sameDay = (addressId: string, over: Partial<IntentInput> = {}) =>
     input(addressId, { deliveryWindow: { slotId, date: melbourneDate(new Date()) }, ...over });
@@ -451,7 +450,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
     const now = new Date();
     await expect(
-      store.captureDelivery(r.orderId, {}, now, [{
+      store.captureDelivery(r.orderId, [{
         shopId, method: "same_day", promisedDay: melbourneDate(now), slotId,
         windowStart: now, windowEnd: new Date(now.getTime() + 60_000),
       }], { slotId, date: melbourneDate(now), now }, null),
@@ -477,7 +476,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       .toEqual({ state: "confirmed", over_capacity: true });
   });
 
-  // ── The shopper's return ────────────────────────────────────────────────────────────────────────
+  // The shopper's return
 
   it("confirm settles a succeeded payment, is safe to repeat, and records how it was paid", async () => {
     const s = await shopper({ Milk: 1 });
@@ -503,7 +502,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await expect(svc.confirm(scope, s.customerId, "not-a-uuid")).rejects.toBeInstanceOf(OrderNotFoundError);
   });
 
-  // ── The shopper's history and receipt ───────────────────────────────────────────────────────────
+  // The shopper's history and receipt
 
   it("the receipt reads back what was sold: every statement runs, nothing names a shop, and it is the owner's only", async () => {
     const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async (k) => (k ? `https://img/${k}` : null) });
@@ -537,7 +536,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await expect(orders.get(scope, stranger.customerId, r.orderId)).rejects.toBeInstanceOf(ReceiptNotFoundError);
   });
 
-  // ── The provider's notifications ────────────────────────────────────────────────────────────────
+  // The provider's notifications
 
   async function pendingWithIntent() {
     const s = await shopper({ Scarce: 1 });
@@ -565,7 +564,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const p = await pendingWithIntent();
     const sig = gateway.sign({ id: "evt_flaky", type: "payment_intent.succeeded", paymentIntentId: p.intentId, intentStatus: "succeeded" });
 
-    // The first delivery fails AFTER the work is done and before it commits — a dropped connection.
+    // The first delivery fails after the work is done and before it commits — a dropped connection.
     let fail = true;
     const flaky: Transactor = (fn) =>
       transact(async (tx) => {
@@ -580,7 +579,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect((await orderRow(p.orderId)).status).toBe("pending_payment");
     expect(await stockOf("Scarce")).toBe(2);
 
-    expect(await handle(scope, "{}", sig)).toBe("handled"); // the retry is NOT discarded
+    expect(await handle(scope, "{}", sig)).toBe("handled"); // the retry is not discarded
     expect((await orderRow(p.orderId)).status).toBe("paid");
     expect(await stockOf("Scarce")).toBe(1);
     expect(await recorded("evt_flaky")).toBe(1);
@@ -631,7 +630,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(seen).toEqual(["re_1"]);
   });
 
-  // ── 074 points ──────────────────────────────────────────────────────────────────────────────────
+  // Points
 
   it("074 — part-paid with points: the total is unchanged, the card intent is total − points, and paying spends them once (P6)", async () => {
     const s = await shopper({ Milk: 2 }); // 9.00 + 6.00 delivery = 15.00
@@ -695,8 +694,8 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     // Another order for the same customer (as a second device would hold).
     const other = (
       await one<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-         VALUES ($1, 'EFY-OTHER1', 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, 'EFY-OTHER1', 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [s.customerId],
       )
     ).id;
@@ -725,7 +724,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await transact((tx) => finalizeFailed(tx, r.orderId));
     expect(await pointsNow(s.customerId)).toBe(1000);
   });
-  // ── 077 — one delivery fee per order ────────────────────────────────────────────────────────────
+  // One delivery fee per order
 
   /** A product at any price, in any shop — the basket rules are tested to the cent. */
   async function priced(name: string, price: string, inShop = shopId): Promise<string> {
@@ -774,7 +773,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       inputs: { km: 3.4, grams: 1000, basketCents: 900, slotId, windowIsToday: true },
       parts: { baseCents: 0, distanceCents: 600, distanceBandUpperKm: null, premiumCents: 500, rawCents: 1100, deliveryCents: 1100, totalCents: 1100, freeApplied: false },
     });
-    // A package says WHEN it arrives, never what it costs: it has no fee column at all (083).
+    // A package says when it arrives, never what it costs: it has no fee column at all.
     expect(await one(`SELECT method FROM public.order_package_delivery WHERE order_id = $1`, [r.orderId])).toEqual({ method: "same_day" });
     expect(await count(`SELECT 1 FROM information_schema.columns WHERE table_name IN ('order_package_delivery', 'shop_fulfillment') AND column_name = 'delivery_fee_amount'`)).toBe(0);
   });
@@ -838,7 +837,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(q.effyWindows!.days[1]!.windows[0]!.fee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" });
       expect(q.freeDeliveryRemainingAmount).toBe("5.00");
 
-      // Points do NOT count: an $80 basket half-paid with points is still an $80 basket.
+      // Points do not count: an $80 basket half-paid with points is still an $80 basket.
       const withPoints = await shopper({ P8000: 1 });
       await givePoints(withPoints.customerId, 4000);
       const paid = await svc.createIntent(withPoints.customerId, input(withPoints.addressId, { pointsToUse: 4000 }), new Date());
@@ -909,7 +908,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       deliveryFeeAmount: "11.00", grandTotalAmount: "20.00",
       deliveryFee: { lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00" },
     });
-    // ⚠ What the customer is sent is the lines and nothing else of how the fee was built.
+    // What the customer is sent is the lines and nothing else of how the fee was built.
     expect(JSON.stringify(await orders.get(scope, s.customerId, r.orderId))).not.toMatch(/"km"|"plan"|"grams"|"basketCents"|"parts"|"inputs"/);
 
     const DEAR = "00000000-0000-0000-0000-0000000000d7";
@@ -940,7 +939,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         UPDATE public.delivery_fee_plan SET is_active = true WHERE id = '${PLAN}';`);
     }
   });
-  // ── 078 — Effy delivery windows: today and the next delivery days ────────────────────────────────
+  // Effy delivery windows: today and the next delivery days
   //
   // `modelOn` only puts the calendar settings back after a test that changed them: since 083 there
   // is no switch to turn on — this is the one checkout.
@@ -983,11 +982,11 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         [days[0], "same_day", 1, null], [days[1], "standard", 1, null], [days[2], "standard", 1, null], [days[3], "standard", 1, null],
       ]);
       const w = q.effyWindows!.days[2]!.windows[0]!;
-      // ⚠ Exactly these fields: no capacity, no count, nothing per package.
+      // Exactly these fields: no capacity, no count, nothing per package.
       expect(Object.keys(w).sort()).toEqual(["cutoffAt", "date", "endAt", "fee", "slotId", "startAt", "surchargeAmount"]);
       expect(w.startAt.slice(0, 16)).toBe(`${days[2]}T23:58`);
       expect(w.cutoffAt.slice(0, 16)).toBe(`${days[2]}T23:58`);
-      // ⚠ And nothing else: no package list, no separate same-day or standard picker (083).
+      // And nothing else: no package list, no separate same-day or standard picker.
       expect(Object.keys(q).sort()).toEqual(["coverage", "effyWindows", "expiresAt", "freeDeliveryRemainingAmount", "postcode", "serviced"]);
     });
   });
@@ -1040,7 +1039,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const days = offered();
       const s = await shopper({ Milk: 1 });
       // No window sent — which is all a client built for the old checkout can do: its slot and day
-      // fields are no longer read (083), so it is refused here and never sold the old way.
+      // fields are no longer read, so it is refused here and never sold the old way.
       expect(await refusal(svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: null }), new Date()))).toBe("slot_required");
       const oldClient = { ...input(s.addressId, { deliveryWindow: null }), deliveryMethod: "same_day", sameDaySlotId: slotId, standardDate: days[1] } as IntentInput;
       expect(await refusal(svc.createIntent(s.customerId, oldClient, new Date()))).toBe("slot_required");
@@ -1147,7 +1146,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const shown = q.effyWindows!.days.map((d) => [d.windows[0]!.surchargeAmount, d.windows[0]!.fee.totalAmount]);
       expect(shown).toEqual([["7.00", "13.00"], ["2.00", "8.00"], ["2.00", "8.00"], ["2.00", "8.00"]]);
 
-      // The charge is the window's on ITS day — and a client showing another amount is stopped first.
+      // The charge is the window's on its day — and a client showing another amount is stopped first.
       await expect(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "13.00" }), new Date()))
         .rejects.toBeInstanceOf(DeliveryFeeChangedError);
       const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "8.00" }), new Date());
@@ -1209,9 +1208,9 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
   });
 
-  // ── 079 — Delivered by Effy, or by a courier ─────────────────────────────────────────────────────
+  // Delivered by Effy, or by a courier
   //
-  // ⚠ Courier delivery is ARMED inside each test (a fee table, an estimate, the switch) and always
+  // Courier delivery is armed inside each test (a fee table, an estimate, the switch) and always
   // put back, and so is the delivery model: every test above this line is the proof that neither
   // changes anything while it is off.
 
@@ -1263,7 +1262,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   const ordersOf = (customerId: string) => count(`SELECT 1 FROM public."order" WHERE customer_id = $1`, [customerId]);
   const courier = (addressId: string, over: Partial<IntentInput> = {}) => input(addressId, { deliveryType: "courier", ...over });
 
-  // ── 097 — delivery today, postcode by postcode ──────────────────────────────────────────────────
+  // Delivery today, postcode by postcode
 
   /** 3121 with delivery today switched off for the length of `fn`; 3141 listed beside it, left on. */
   async function todayOffAt3121<T>(fn: () => Promise<T>): Promise<T> {
@@ -1285,7 +1284,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await todayOffAt3121(async () => {
       const days = offered();
       const q = await quoteOf(s);
-      // ⚠ ABSENT, not listed as closed: a closed today would show the customer a Same-day section saying so.
+      // Absent, not listed as closed: a closed today would show the customer a Same-day section saying so.
       expect(q.effyWindows!.days.some((d) => d.section === "same_day")).toBe(false);
       expect(q.effyWindows!.days).toEqual(before.effyWindows!.days.filter((d) => d.section === "standard"));
       expect(q.effyWindows!.days.map((d) => d.date)).toEqual(days.slice(1));
@@ -1331,7 +1330,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         const r = await svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: null, deliveryPromise: "asap" }), new Date());
         expect((await packagesOf(r.orderId))[0]).toMatchObject({ method: "standard", day: days[1], slot: anyTime });
 
-        // The same moment at a postcode that offers today: ASAP is today.
+        // The same moment at a postcode that offers today: Asap is today.
         const t = await shopper({ Milk: 1 });
         await movedTo3141(t.addressId);
         const rt = await svc.createIntent(t.customerId, input(t.addressId, { deliveryWindow: null, deliveryPromise: "asap" }), new Date());
@@ -1371,7 +1370,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const s = await shopper({ Milk: 2 });
       const far = { customerId: s.customerId, addressId: await addressAt(s.customerId) };
       const q = await quoteOf(far);
-      // ⚠ Exactly these keys: no window, no day, no package, no Effy fee.
+      // Exactly these keys: no window, no day, no package, no Effy fee.
       expect(Object.keys(q).sort()).toEqual([
         "courier", "coverage", "expiresAt", "freeDeliveryRemainingAmount", "postcode", "serviced",
       ]);
@@ -1380,14 +1379,14 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         estimate: ESTIMATE, reason: "out_of_coverage",
         fee: { lines: [{ kind: "delivery", amount: "9.00" }], totalAmount: "9.00" },
       });
-      // ⚠ What a customer is sent says nothing of how it was built, who the courier is, or how many shops.
+      // What a customer is sent says nothing of how it was built, who the courier is, or how many shops.
       expect(JSON.stringify(q)).not.toMatch(/"km"|"plan|"grams"|shop|pkg-|carrier/i);
 
       // The whole basket's weight, once: 12 × 500 g crosses the 5 kg band.
       const heavy = await shopper({ Milk: 12 });
       expect((await quoteOf({ customerId: heavy.customerId, addressId: await addressAt(heavy.customerId) })).courier!.fee.totalAmount).toBe("13.50");
 
-      // ⚠ Effy's free delivery does NOT make a courier order free (077 FR-012): it has its own amount.
+      // Effy's free delivery does not make a courier order free: it has its own amount.
       await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 5.00 WHERE id = $1`, [PLAN]);
       expect((await quoteOf(s)).effyWindows!.days[1]!.windows[0]!.fee.totalAmount).toBe("0.00");
       expect((await quoteOf(far)).courier!.fee.totalAmount).toBe("9.00");
@@ -1417,7 +1416,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const s2 = await shopper({ CouA: 1 });
       const r2 = await svc.createIntent(s2.customerId, courier(await addressAt(s2.customerId)), new Date());
       expect((await one<{ mode: string }>(`SELECT courier_collection AS mode FROM public."order" WHERE id = $1`, [r2.orderId])).mode).toBe("supplier");
-      // Two suppliers, ONE delivery type and ONE fee; each package is the shape the hub hands to a carrier.
+      // Two suppliers, one delivery type and one fee; each package is the shape the hub hands to a carrier.
       expect(await packagesOf(r.orderId)).toEqual(Array(2).fill({ method: "standard", day: null, slot: null, start: null }));
       expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toBe(0);
       const fee = await feeOf(r.orderId);
@@ -1431,7 +1430,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect((await pool.query(`SELECT delivery_method FROM public.shop_fulfillment WHERE order_id = $1`, [r.orderId])).rows)
         .toEqual(Array(2).fill({ delivery_method: "standard" }));
 
-      // The total the client shows must be the one charged, here as everywhere (077).
+      // The total the client shows must be the one charged, here as everywhere.
       const t = await shopper({ CouA: 1 });
       await expect(svc.createIntent(t.customerId, courier(await addressAt(t.customerId), { shownDeliveryAmount: "6.00" }), new Date()))
         .rejects.toBeInstanceOf(DeliveryFeeChangedError);
@@ -1485,7 +1484,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [a.orderId])).toBe(1);
       expect(await bookedOn(days[2]!)).toBe(1);
 
-      // Address B — a courier. The SAME pending order: the place is given up, the rows replaced.
+      // Address B — a courier. The same pending order: the place is given up, the rows replaced.
       const bq = await svc.createIntent(s.customerId, courier(far), new Date());
       expect(bq.orderId).toBe(a.orderId);
       expect(await soldAs(bq.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
@@ -1523,7 +1522,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       await pool.query(`DELETE FROM public.courier_excluded_postcode`);
 
       await pool.query(`UPDATE public.courier_service SET is_default = false WHERE id = '${COURIER_SERVICE}'`);
-      await refusedAt(far); // on, and no courier service to tell the customer a timeframe from (080)
+      await refusedAt(far); // on, and no courier service to tell the customer a timeframe from
       await pool.query(`UPDATE public.courier_service SET is_default = true WHERE id = '${COURIER_SERVICE}'`);
 
       await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE id = '${COURIER_PLAN}'`);
@@ -1548,7 +1547,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
       const o = await orders.get(scope, s.customerId, r.orderId);
       expect(o.delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE });
-      // ⚠ No arrival at all — not "standard", which is only how the package is routed.
+      // No arrival at all — not "standard", which is only how the package is routed.
       expect(o.arrivalEstimates).toEqual([]);
       // A customer is told who delivers, never why.
       expect(JSON.stringify(o)).not.toMatch(/out_of_coverage|in_coverage|no_window|reason/);
@@ -1578,7 +1577,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const packagesOf = async (orderId: string) =>
         (await pool.query<{ id: string }>(`SELECT id::text AS id FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at`, [orderId])).rows.map((r) => r.id);
 
-      // ONE parcel.
+      // One parcel.
       const s = await shopper({ Milk: 2 });
       const r = await svc.createIntent(s.customerId, courier(await addressAt(s.customerId)), new Date());
       await pay(r.orderId);
@@ -1592,7 +1591,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         type: "courier", courierEstimate: ESTIMATE, tracking: { kind: "link", url: "https://track.example.test/A1", courierName: "Test Courier" },
       });
 
-      // TWO parcels (a second supplier): "by email" as soon as one has gone — and never a number.
+      // Two parcels (a second supplier): "by email" as soon as one has gone — and never a number.
       const t = await shopper({ Milk: 1 });
       const rt = await svc.createIntent(t.customerId, courier(await addressAt(t.customerId)), new Date());
       await pay(rt.orderId);
@@ -1689,7 +1688,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(Number(cart.discountAmount)).toBeGreaterThan(0);
     const r = await real.createIntent(s.customerId, input(s.addressId, { expectedDiscount: cart.discountAmount }), new Date());
 
-    // SC-003 — the cart's discount is exactly the order's, on its lines and in its record.
+    // The cart's discount is exactly the order's, on its lines and in its record.
     const o = await one<{ discount: string; lines: string; recorded: string; use: string }>(
       `SELECT o.discount_amount::text AS discount,
               (SELECT sum(discount_amount)::text FROM public.order_item WHERE order_id = o.id) AS lines,
@@ -1712,7 +1711,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const priced = await createRefundRepository(pool, transact).priceLines(r.orderId, [{ orderItemId: item.id, quantity: 3 }]);
     expect(priced.totalCents).toBe(Math.round(Number(item.unit) * 300 - Number(item.disc) * 100));
 
-    // FR-037 — a promotion that ends between the cart and the pay button is refused, nothing charged.
+    // A promotion that ends between the cart and the pay button is refused, nothing charged.
     const t = await shopper({ Milk: 3 });
     const tCart = await cartSvc.applyPromo(t.customerId, code);
     await pool.query(`UPDATE public.promotion SET ended_at = now() WHERE id = $1`, [promo.id]);

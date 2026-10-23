@@ -2,23 +2,9 @@ import type { ProblemJSON } from "@effy/shared-types";
 import { toDomainError, type DomainError } from "./errors";
 
 /**
- * The SERVER-side API client (011).
- *
- * The browser client (`ApiClient`) pulls a fresh token from an auth library on every call and
- * never caches. On a server-rendered surface both of those are wrong:
- *
- *   • There is no auth library on the server — the token has already been resolved from the
- *     request's cookies by the caller. So the token is INJECTED, not fetched.
- *   • Public reads SHOULD be cached (that is the whole point of an SSR storefront), and the
- *     caller needs to say for how long and under which invalidation tag.
- *
- * This client therefore takes an optional token and passes framework cache options straight
- * through as an opaque `RequestInit`. It deliberately does NOT import anything from Next.js —
- * this package is consumed by Vite SPAs too, and a framework import here would infect them
- * (Principle II: shared packages stay audience- and framework-neutral).
- *
- * Callers on the storefront pass `{ next: { tags: [...], revalidate: N } }`; a caller elsewhere
- * can pass whatever its own runtime understands, or nothing at all.
+ * The server-side API client. The token is injected (already resolved from cookies) and framework cache
+ * options pass through as an opaque `RequestInit` (the storefront sends `{ next: { tags, revalidate } }`).
+ * No Next.js import: Vite SPAs use this package too.
  */
 export interface ServerApiClientConfig {
   baseUrl: string;
@@ -26,17 +12,9 @@ export interface ServerApiClientConfig {
   token?: string | null;
 
   /**
-   * The customer's ACCESS token, for the privileged account routes (012).
-   *
-   * ⚠ WHY THERE ARE TWO TOKENS. The gateway's JWT authorizer is configured for the ID token
-   * (`audience = [app_client_id]`), and that is what `token` above carries. But the Cognito APIs the
-   * password endpoints must call — ChangePassword, GlobalSignOut, the attribute-verification pair —
-   * are authorized by the ACCESS token. So the backend needs both.
-   *
-   * ⚠ The backend REFUSES any request whose access-token `sub` differs from the one the gateway
-   * verified. Without that check, a victim's ID token could be paired with an attacker's access
-   * token — the platform would then update the victim's record while mutating the attacker's Cognito
-   * user (012 research R12). Do not send this header to any service that does not perform that check.
+   * The customer's access token, for account routes that call Cognito (ChangePassword, GlobalSignOut,
+   * attribute verification); `token` is the ID token the gateway checks. The backend refuses a request
+   * whose access-token `sub` differs from the verified one; never send this to a service that does not.
    */
   accessToken?: string | null;
 }
@@ -90,9 +68,7 @@ export class ServerApiClient {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch {
-      // Network failure / DNS / the backend is asleep → a uniform "unavailable" DomainError.
-      // The caller renders a recoverable degraded state (FR-030); it never sees a raw throw,
-      // and a failure here must never take down the public content around it.
+      // Network failure, DNS, or a cold backend: a uniform "unavailable"; the caller renders a degraded state.
       throw toDomainError(0);
     }
 
@@ -108,7 +84,7 @@ async function problemFrom(res: Response): Promise<DomainError> {
     const ct = res.headers.get("content-type") ?? "";
     if (ct.includes("json")) problem = (await res.json()) as Partial<ProblemJSON>;
   } catch {
-    /* non-JSON error body — fall back to status-only mapping */
+    /* non-JSON error body: status-only mapping */
   }
   return toDomainError(res.status, problem);
 }

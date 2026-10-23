@@ -39,8 +39,8 @@ import { LookPanel, MemberLookDialog } from "./GroupLook";
 import { promotionGroupPreviewQuery, promotionGroupQuery, useDeleteGroup, usePutMembers, type MemberChoice } from "./queries";
 
 /**
- * One display group (094 US2): its promotions in order — reordered with the arrows — and a preview of
- * what a shopper sees right now, with why each hidden promotion is hidden (FR-025).
+ * One display group: its promotions in order — reordered with the arrows — and a preview of
+ * what a shopper sees right now, with why each hidden promotion is hidden.
  */
 export function PromotionGroupScreen({ groupId }: { groupId: string }) {
   const canManage = canManagePromotions(useSessionRoles());

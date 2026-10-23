@@ -3,15 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Read a wire fixture straight out of a mobile contract test.
- *
- * ⚠ ONE COPY, NOT TWO. The mobile app pins what it can DECODE with a JSON literal in a Kotlin test.
- * The backend must pin that it PRODUCES the same thing. Until 070 the second half was a Go test
- * holding a hand-duplicated copy of the literal, kept in step by comments saying "keep in sync" —
- * and 029 found one such pair agreeing with each other about a shape no server had ever sent.
- *
- * So the backend half does not hold a copy. It reads the Kotlin source and uses the literal that
- * is there. Change the fixture and this test changes with it; change the mapper and it fails.
+ * Reads a wire fixture straight out of a mobile contract test, so the Kotlin literal the app decodes
+ * is the one the backend proves it produces: one copy, not two.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileTests = resolve(here, "../../../../../apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile");
@@ -43,7 +36,7 @@ export const kotlinFixtureJson = (testFile: string, name: string): unknown => JS
 /** What a client actually receives: the value through a real JSON round trip (undefined keys drop out). */
 export const wire = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
-/** Every key path in a JSON value — to compare SHAPE where values legitimately differ. */
+/** Every key path in a JSON value — to compare shape where values legitimately differ. */
 export function keyPaths(value: unknown, prefix = ""): string[] {
   if (Array.isArray(value)) return [...new Set(value.flatMap((v) => keyPaths(v, `${prefix}[]`)))].sort();
   if (value !== null && typeof value === "object") {

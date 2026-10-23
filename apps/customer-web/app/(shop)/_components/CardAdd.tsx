@@ -7,19 +7,9 @@ import { addItem, removeItem, setItemQuantity } from "@/lib/cart-actions"
 import { DEFAULT_PACKAGE_KEY, useCart } from "@/lib/cart-store"
 
 /**
- * The product card's Add control (reference: Shared components · Product card).
- *
- * "Add" becomes the quantity stepper IN PLACE the moment the product is in the cart, and goes back to
- * "Add" when its quantity returns to zero. The cart is the only state: the stepper shows the cart's
- * own quantity for this product, so the same product on two rails, the cart drawer and the cart page
- * can never disagree.
- *
- * ⚠ 098 — A PRODUCT SOLD IN SIZES IS CHOSEN, NOT QUICK-ADDED. With more than one size on sale the
- * control is "Choose", opening the product page: adding "the first size" for the shopper would put
- * something in the cart they did not pick. The stepper counts THIS tile's size only.
- *
- * ⚠ No toast here. On a card the control itself is the confirmation — it has just turned blue and
- * shows a number — and a rail of six cards would otherwise stack six toasts.
+ * The product card's Add control: it becomes the cart's own quantity stepper in place, so every view of
+ * a product agrees. A product with more than one size on sale shows "Choose" (opening the product page)
+ * rather than adding a size the shopper did not pick. No toast: the control is the confirmation.
  */
 export function CardAdd({
   product,

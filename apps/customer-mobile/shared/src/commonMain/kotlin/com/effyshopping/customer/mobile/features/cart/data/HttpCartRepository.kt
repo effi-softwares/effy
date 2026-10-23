@@ -47,15 +47,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * The cart over the `commerce` service (070) — the platform's one backend. Until 070 these were `v1/…`
- * routes on a second, always-on backend; the paths moved under the service prefix and the wire
- * shapes did not change.
- *
- * Every method maps the wire DTO to the domain explicitly (Principle VI: wire shapes never leak past the
- * data layer). Every mutation returns the COMPLETE re-priced cart, which is why none of these methods
- * returns Unit — the platform's answer IS the new truth, and the mirror adopts it by revision.
- *
- * ⚠ 019's `replace` (PUT cart) is gone. See [CartRepository] for why its absence is load-bearing.
+ * The cart over the `commerce` service. Every method maps the wire DTO to the domain explicitly, and every
+ * mutation returns the complete re-priced cart, which the mirror adopts by revision. There is no whole-cart
+ * replace (see [CartRepository]).
  */
 class HttpCartRepository(private val edge: HttpClient) : CartRepository {
 
@@ -172,13 +166,8 @@ class HttpCartRepository(private val edge: HttpClient) : CartRepository {
         }
 }
 
-// ── Wire → domain ───────────────────────────────────────────────────────────────────────────────
-//
-// The contract declares counts, quantities, limits and the revision as `WireInt` (`@asType integer`), so
-// the generated Kotlin types them `Long` and a whole number goes on the wire. That matters in the REQUEST
-// direction: before 027 they were `Double`, kotlinx sent `"quantity":1.0`, and Go's `encoding/json` cannot
-// unmarshal `1.0` into an `int` — so every mobile cart write answered 422 (research R13). They are narrowed
-// to `Int` here, once, at the boundary; nothing above the data layer deals in wire widths.
+// Wire → domain. Counts, quantities, limits and the revision are `WireInt` on the wire (whole numbers,
+// never `1.0`), narrowed to `Int` here once.
 
 private fun PendingLine.toInput() = CartLineInput(variantID = variantId, quantity = quantity.toLong())
 

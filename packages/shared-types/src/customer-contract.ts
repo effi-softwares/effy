@@ -1,14 +1,8 @@
 /**
- * The customer-surface wire contract, as a single barrel + aggregator.
- *
- * This exists so the KMP customer mobile app can generate its Kotlin DTOs from EXACTLY the types it
- * consumes (customer + the RFC 9457 problem shape) — not the shop / back-office types it must never
- * touch. `customer.ts` remains the single source of truth (Principle II); this file only re-exports
- * and aggregates, and it is the input to `contract:gen` (013 research D15).
- *
- * The `CustomerContract` aggregator below is not used at runtime — it exists solely so the schema
- * generator, run with `--expose all`, pulls EVERY referenced DTO into `definitions`. (`-t '*'` alone
- * silently drops types; see the commit that introduced this.) Do NOT add shop/driver/admin types.
+ * The customer-surface wire contract: a barrel and aggregator the customer app's Kotlin DTOs are
+ * generated from (`contract:gen`). `CustomerContract` is not used at runtime; it makes the schema
+ * generator (`--expose all`; `-t '*'` drops types) pull every referenced DTO in. No shop, driver or
+ * admin types.
  */
 import type {
   CustomerStatus,
@@ -62,7 +56,7 @@ export type {
   PointsHistoryPageDTO,
 };
 
-/** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
+/** Codegen entry only. Every field forces a type into the schema. */
 export interface CustomerContract {
   status: CustomerStatus;
   closureState: ClosureState;
@@ -76,8 +70,7 @@ export interface CustomerContract {
   passwordChallengeResult: PasswordChallengeResultDTO;
   passwordWriteResult: PasswordWriteResultDTO;
 
-  // ── Account closure (034). ⚠ EVERY new type needs a field here, or it generates ZERO times and
-  // the drift check passes trivially — the failure mode 033 recorded as R17.
+  // Account closure. Every new type needs a field here, or it is never generated.
   closureBlockerKind: ClosureBlockerKind;
   closureBlocker: ClosureBlockerDTO;
   retainedCategory: RetainedCategoryDTO;
@@ -87,7 +80,7 @@ export interface CustomerContract {
   closureResult: ClosureResultDTO;
   closureRestoreResult: ClosureRestoreResultDTO;
 
-  // ── 074 points. ⚠ Each needs its field here, or it generates zero times (R17).
+  // Points. Each needs its field here.
   pointsBalance: PointsBalanceDTO;
   pointsEntryKind: PointsEntryKind;
   pointsHistoryEntry: PointsHistoryEntryDTO;

@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 
 /**
- * 087 FR-033 — "Continue with Google" is never a button that does nothing.
+ * "Continue with Google" is never a button that does nothing.
  *
  * Google federation is parked platform-wide (`customer_google_enabled = false`). While it is, the app
  * must not show the button. Flipping this flag is a deliberate act that belongs with the feature that

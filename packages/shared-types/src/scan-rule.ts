@@ -1,8 +1,6 @@
-// 096 — what one read means at one step: ONE RULE on every surface (FR-052).
-//
-// ⚠ THE TYPESCRIPT TWIN of the driver app's `core/scan/ScanRule.kt`. Both are held to the same rows,
-// `packages/shared-types/scan-rule.fixtures.json`; the app embeds a copy that `scan-rule.test.ts` checks
-// byte for byte. Pure, and decided from what the surface already holds — so it works with no signal.
+// What one read means at one step, on every surface: the twin of the driver app's
+// `core/scan/ScanRule.kt`, both held to `scan-rule.fixtures.json` (the app's embedded copy is checked by
+// `scan-rule.test.ts`). Pure, from what the surface already holds, so it works offline.
 
 import { isPackageCode, parsePackageToken } from "./package-code";
 import type { ParcelDTO, ReadMethod, ReadOutcome } from "./parcels";

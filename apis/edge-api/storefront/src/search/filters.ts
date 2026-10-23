@@ -1,44 +1,29 @@
-/**
- * The search query's moving parts: the shared WHERE, the ORDER BY per sort, and the keyset
- * predicate. Search / browse (019 US4, 025 US1, 043).
- */
 import type { ProductSort } from "@effy/shared-types";
 
 import { categorySubtreeByKey } from "../lib/category-tree";
 import type { Cursor } from "./cursor";
 
-/** The repository-level query (cursor already decoded, limit already +1 for lookahead). */
+/** Cursor already decoded, limit already +1 for lookahead. */
 export interface SearchParams {
   q: string;
   categoryKey: string;
   minPrice: string;
   maxPrice: string;
   saleOnly: boolean;
-  /** Brands selected in the brand facet — OR within (043 FR-003). Empty means "any brand". */
+  /** OR within; empty means any brand. */
   brands: readonly string[];
-  /** attribute-definition key → selected value(s). OR within a key, AND across keys. */
+  /** attribute key → value(s). OR within a key, and across keys. */
   attributes: Readonly<Record<string, readonly string[]>>;
   sort: ProductSort;
-  /** Null for the first page. Its sort has already been checked against `sort` by the service. */
+  /** Null for the first page; its sort is already checked. */
   cursor: Cursor | null;
   limit: number;
 }
 
-/**
- * The text this search scores and matches against.
- *
- * ⚠ It MUST stay character-identical to the expression the GIN trigram index is built on
- * (rebuilt without the stock code by db/migrations/20261026090000_product_variants.sql). Postgres matches an expression index by the
- * expression, so a stray space or a reordered column here silently drops the index and turns every
- * relevance search into a sequential scan — with no error and no visible symptom until the
- * catalogue grows. `trigram-index.guard.test.ts` reads the migration and compares.
- */
+/** Must stay character-identical to the GIN trigram index expression; `trigram-index.guard.test.ts` compares. */
 export const TRIGRAM_EXPR = `lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)`;
 
-/**
- * 098 — a query that IS a variant's stock code or barcode finds its product (exactly, never fuzzily:
- * codes moved off the product and out of the trigram text, R13). `q` is the raw query, bound once.
- */
+/** A query that is a variant's stock code or barcode finds its product, exactly. `q` is bound once. */
 export function codeMatchSql(q: string): string {
   return `EXISTS (SELECT 1 FROM public.product_variant cv
                   -- availability-exempt: product_variant — a visibility filter; a hidden variant is not findable.
@@ -46,7 +31,7 @@ export function codeMatchSql(q: string): string {
                     AND (lower(cv.sku) = lower(${q}) OR cv.gtin = ${q} OR cv.code = upper(${q})))`;
 }
 
-/** 098 — the id of the variant whose code `q` is, or NULL. Selected beside the card so the tile opens on it. */
+/** The variant whose code `q` is, or null; the tile opens on it. */
 export function matchedVariantSql(q: string): string {
   return `(SELECT mv.id::text FROM public.product_variant mv
             -- availability-exempt: product_variant — a visibility filter.
@@ -55,7 +40,6 @@ export function matchedVariantSql(q: string): string {
             ORDER BY mv.position LIMIT 1)`;
 }
 
-/** Mints `$n` placeholders over an argument list. */
 export type Binder = (value: unknown) => string;
 
 export function binder(args: unknown[]): Binder {
@@ -65,11 +49,7 @@ export function binder(args: unknown[]): Binder {
   };
 }
 
-/**
- * The ORDER BY for a sort. `id` is in every one because no sort key is unique — two products can
- * share a price, or a created_at to the microsecond — and a keyset without a unique tiebreak skips
- * and repeats rows at every page boundary.
- */
+/** `id` is in every order by: no sort key is unique, and a keyset needs a unique tiebreak. */
 export function orderClause(sort: ProductSort): string {
   switch (sort) {
     case "price_asc":
@@ -83,11 +63,7 @@ export function orderClause(sort: ProductSort): string {
   }
 }
 
-/**
- * The keyset WHERE fragment for a sort. The comparison direction mirrors the ORDER BY exactly.
- * Row-value comparison is used rather than the expanded OR form because Postgres can drive an
- * index with it directly.
- */
+/** Mirrors the order by; a row-value comparison lets Postgres drive an index. */
 export function cursorPredicate(p: SearchParams & { cursor: Cursor }, next: Binder): string {
   const cur = p.cursor;
   switch (p.sort) {
@@ -96,25 +72,16 @@ export function cursorPredicate(p: SearchParams & { cursor: Cursor }, next: Bind
     case "price_desc":
       return `\n  AND (p.list_price_amount, p.id) < (${next(cur.key)}::numeric, ${next(cur.id)}::uuid)`;
     case "relevance":
-      // `score` is a select-list alias, and SQL will not let WHERE reference one — so the
-      // expression is repeated. Both occurrences are built from the same TRIGRAM_EXPR constant and
-      // the same bound query text, so they cannot drift apart.
+      // Where cannot reference the `score` alias, so the expression is repeated from the same constant.
       return `\n  AND (similarity(${TRIGRAM_EXPR}, ${next(p.q)}), p.id) < (${next(cur.key)}::real, ${next(cur.id)}::uuid)`;
     default:
       return `\n  AND (p.created_at, p.id) < (${next(cur.key)}::timestamptz, ${next(cur.id)}::uuid)`;
   }
 }
 
-/**
- * The WHERE shared by the page query, the count query and every facet count.
- *
- * ⚠ ONE builder, deliberately. If the count used its own copy of these predicates the two would
- * drift the first time a filter was added to one of them, and the shopper would see "48 results"
- * above a list of 31 — a number wrong in a way nobody can debug from the outside (025 FR-016a).
- */
+/** Shared by the page, the count and every facet count, so the total always matches the list. */
 export function filters(p: SearchParams, next: Binder): string {
-  // availability-exempt: public.product — a LISTING filter (see lib/cards.ts). Search results keep
-  // an out-of-stock product visible and mark it unavailable (054 FR-013, A10).
+  // availability-exempt: public.product — a listing filter (see lib/cards.ts).
   let sql = "\nWHERE p.status = 'active'";
 
   if (p.q !== "") {
@@ -122,7 +89,6 @@ export function filters(p: SearchParams, next: Binder): string {
     sql += `\n  AND (p.name ILIKE ${q} OR p.brand ILIKE ${q} OR p.short_description ILIKE ${q} OR ${codeMatchSql(next(p.q.trim()))})`;
   }
   if (p.categoryKey !== "") {
-    // The category and everything under it — an aisle link shows the whole aisle (lib/category-tree.ts).
     sql += `\n  AND p.primary_category_id IN ${categorySubtreeByKey(next(p.categoryKey))}`;
   }
   if (p.minPrice !== "") sql += `\n  AND p.list_price_amount >= ${next(p.minPrice)}::numeric`;
@@ -133,9 +99,8 @@ export function filters(p: SearchParams, next: Binder): string {
   for (const [key, vals] of Object.entries(p.attributes)) {
     if (vals.length === 0) continue;
     const kp = next(key);
-    const vp = `${next([...vals])}::text[]`; // one text[] bind, reused three times below
-    // value_text covers single_select; value_options (overlap) covers multi_select;
-    // value_boolean::text covers boolean facets ('true'/'false'). One predicate, all three types.
+    const vp = `${next([...vals])}::text[]`;
+    // value_text: single_select; value_options: multi_select; value_boolean::text: boolean.
     sql += `
   AND EXISTS (
       SELECT 1 FROM public.product_attribute_value pav

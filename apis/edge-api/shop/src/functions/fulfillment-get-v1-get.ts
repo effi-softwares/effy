@@ -1,7 +1,4 @@
-// GET /shop/v1/fulfillments/{id} — the pick screen (020, US2).
-//
-// Side effect: a `pending` portion becomes `received` — opening it IS the acknowledgement (FR-011a).
-// The underlying UPDATE is guarded, so concurrent opens still produce exactly one transition.
+// Opening a `pending` portion makes it `received`, guarded so concurrent opens make one transition.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -24,8 +21,7 @@ export const handler = async (
   try {
     return json(200, toDetailDTO(await getDetail(g.actor, id)), scope);
   } catch (err) {
-    // A portion belonging to another shop surfaces here as not_found and is mapped to the uniform
-    // 403 — response codes must not be usable to enumerate other shops' orders (SC-007).
+    // Another shop's portion is not_found, answered as the uniform 403.
     return mapFulfillmentError(err, scope);
   }
 };

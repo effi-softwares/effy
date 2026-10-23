@@ -1,17 +1,9 @@
-// Team activity → the wire (058, US5).
 import type { ShopTeamActivityDTO, TeamActivityEntryDTO } from "@effy/shared-types";
 
 import { readTeamActivity } from "./repository";
 import type { ActivityRow } from "./repository";
 
-/**
- * Who acted.
- *
- * ⚠ THREE ANSWERS, AND "NOBODY" IS NOT ONE OF THEM. A named staff member; a person at this shop
- * whose operator record has since been removed (020: a NULL actor means "the person is gone", never
- * "nobody did it"); or Effy, for anything the platform or back-office did. A blank actor would read
- * as an action with no author, which is the opposite of what an accountability log is for.
- */
+/** A named staff member, a since-removed person at this shop, or Effy. Never nobody. */
 function actorOf(row: ActivityRow): TeamActivityEntryDTO["actor"] {
   if (row.actorName) return { kind: "staff", name: row.actorName };
   if (row.actorWasStaff) return { kind: "former_staff" };
@@ -46,7 +38,7 @@ function actionOf(row: ActivityRow): TeamActivityEntryDTO["action"] {
   }
 }
 
-/** The dot beside a row. ⚠ A marker, never a text colour (Principle V). */
+/** A marker, never a text colour. */
 function toneOf(row: ActivityRow): TeamActivityEntryDTO["tone"] {
   if (row.kind === "item_unavailable" || row.kind === "refund_issued") return "problem";
   if (row.kind === "state_changed" || row.kind === "item_gathered") return "done";

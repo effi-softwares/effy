@@ -1,17 +1,7 @@
 /**
- * The payment provider's notifications (070 FR-023).
- *
- * ⚠ AN EVENT IS RECORDED AS HANDLED IN THE SAME TRANSACTION THAT HANDLES IT. The backend this
- * replaces recorded the event first, in its own statement, and then processed it: a transient
- * failure in the processing left the event marked seen, the provider's retry was discarded as a
- * duplicate, and the notification was lost for good. For a payment the shopper's return to the site
- * usually recovered it; for a refund the bank rejected a month later, nothing did.
- *
- * Here the record and the effects commit together or not at all. If handling throws, nothing is
- * recorded, the provider is answered with a failure, and its retry is processed.
- *
- * ⚠ The transaction's first statement is the insert into `stripe_event`. Two deliveries of one
- * event race on that primary key: one inserts, the other waits, sees the row, and does nothing.
+ * An event is recorded as handled in the same transaction that handles it, starting with the
+ * `stripe_event` insert: a duplicate delivery waits on its primary key and does nothing, and a
+ * failure records nothing, so the provider's retry is processed.
  */
 import {
   emitMetric, metricNamespace, withTransaction, type Queryable, type RequestScope, type Transactor,
@@ -26,29 +16,23 @@ import { findOrderByIntent } from "../checkout/store";
 
 export type WebhookOutcome = "handled" | "duplicate" | "ignored";
 
-/** Applies a `refund.*` event inside the webhook's transaction. */
 export type RefundEventHandler = (tx: Queryable, evt: WebhookEvent) => Promise<void>;
 
 export function createWebhookHandler(deps: {
   gateway: PaymentGateway;
   refunds: RefundEventHandler;
-  /** After a payment has COMMITTED: record how it was paid, best-effort. */
+  /** After the payment commits; best-effort. */
   afterPaid: (scope: Pick<RequestScope, "log">, orderId: string, intentId: string) => Promise<void>;
-  /** 071 — after a refund's outcome has committed. Defaults to telling the order's audience. */
   afterRefund?: (providerRefundId: string) => Promise<void>;
   transact?: Transactor;
 }) {
   const transact = deps.transact ?? withTransaction;
 
-  /**
-   * Verify, deduplicate and apply one notification.
-   * Throws `WebhookSignatureError` for an invalid signature; any other throw means "not handled,
-   * send it again".
-   */
+  /** Throws `WebhookSignatureError` for a bad signature; any other throw means "send it again". */
   return async function handle(scope: Pick<RequestScope, "log">, rawBody: string | Buffer, signature: string): Promise<WebhookOutcome> {
     const evt = await deps.gateway.constructWebhookEvent(rawBody, signature);
 
-    // An event type this platform does not act on. Acknowledged; nothing recorded.
+    // Not an event we act on: acknowledged, nothing recorded.
     if (evt.paymentIntentId === "" && !evt.refundId) return count(evt, "ignored");
 
     let paid: { orderId: string; out: FinalizeOutcome } | null = null;
@@ -62,7 +46,7 @@ export function createWebhookHandler(deps: {
         );
         if ((first.rowCount ?? 0) === 0) return "duplicate";
 
-        // A refund is keyed on its OWN id — an order can have several, and each has its own fate.
+        // Keyed on the refund's own id: an order can have several.
         if (evt.refundId) {
           await deps.refunds(tx, evt);
           refundSettled = evt.refundId;
@@ -70,7 +54,7 @@ export function createWebhookHandler(deps: {
         }
 
         const orderId = await findOrderByIntent(tx, evt.paymentIntentId);
-        if (!orderId) return "handled"; // an intent that is not one of ours
+        if (!orderId) return "handled";
 
         if (evt.intentStatus === "succeeded") {
           paid = { orderId, out: await finalizeSucceeded(tx, orderId) };
@@ -84,16 +68,13 @@ export function createWebhookHandler(deps: {
       throw err;
     }
 
-    // ⚠ Only now — the transaction has committed. An outcome that rolled back did not happen.
+    // Only after the commit: an outcome that rolled back did not happen.
     const settled = paid as { orderId: string; out: FinalizeOutcome } | null;
     if (settled) {
       meterFinalize(metricNamespace(), settled.out);
       await announcePaid(settled.out);
       await deps.afterPaid(scope, settled.orderId, evt.paymentIntentId);
     }
-    // 071 — the bank's verdict on a refund changes the customer's order page ("on its way" →
-    // "completed", or "there was a problem") and back-office's. Announced after the commit, like
-    // everything else here; a duplicate delivery returned above without setting this.
     const settledRefund = refundSettled as string | null;
     if (settledRefund) {
       await (deps.afterRefund ?? announceOrderOfProviderRefund)(settledRefund);
@@ -103,10 +84,8 @@ export function createWebhookHandler(deps: {
 }
 
 function count<T extends WebhookOutcome | "failed">(evt: WebhookEvent, outcome: T): T {
-  // The provider's own event type: a small closed vocabulary, safe as a dimension.
   emitMetric(metricNamespace(), "WebhookEvents", 1, { type: evt.type, outcome });
-  // ⚠ The same failure again with NO dimensions, because that is what an alarm can watch: the
-  // metric above is one series per event type, and an alarm cannot sum series it must discover.
+  // Again with no dimensions, which is what an alarm can watch.
   if (outcome === "failed") emitMetric(metricNamespace(), "WebhookFailures");
   return outcome;
 }

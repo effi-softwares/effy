@@ -1,4 +1,3 @@
-// POST /admin/v1/catalog/attributes/{id}/status — retire/activate; retiring an in-use attribute → 409 (FR-006). Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

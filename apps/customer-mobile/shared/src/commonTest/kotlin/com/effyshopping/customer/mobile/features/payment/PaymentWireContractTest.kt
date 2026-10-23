@@ -11,23 +11,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The Kotlin half of the 051 payment wire contract.
- *
- * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
- * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
- * source, takes each `const val`, and compares it with what the real mapper produces — so there is
- * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
- *
- * ⚠ ONE LITERAL, TWO INDEPENDENT JUDGES. The old arrangement kept two hand-made copies on the theory
- * that a shared fixture "moves with the bug". This one cannot: the literal is judged here by whether
- * the app can DECODE it, and on the backend by whether the real mapper PRODUCES it. Change the
- * literal and both must still agree with it separately; change either side's code and its own test
- * fails. (029 found the two-copy version agreeing with itself about a payload no server ever sent.)
- *
- * ⚠ WHY THIS EXISTS. 027 R13 lost days because Kotlin serialised a count as `Double`, so the wire
- * carried `1.0` and Go's encoding/json refused it into an int. Every unit test on both sides passed
- * throughout, because the fakes spoke Kotlin at both ends and never crossed the wire. A card expiry is
- * a count; this test is the thing standing between that lesson and its fourth recurrence.
+ * The Kotlin half of the payment wire contract. `apis/edge-api/commerce/src/wire.contract.test.ts` parses
+ * this file, takes each `const val` and compares it with what the real mapper produces; here the same
+ * literal must decode. Renaming a constant breaks that test: rename it there too.
  */
 class PaymentWireContractTest {
 
@@ -65,17 +51,14 @@ class PaymentWireContractTest {
     fun `an unusable card always carries a reason a shopper can read`() {
         val pm = json.decodeFromString<PaymentMethodDTO>(PAYMENT_METHOD_UNUSABLE)
         assertFalse(pm.usable)
-        // ⚠ FR-023. A card shown as unusable with no reason is a refusal the shopper cannot act on,
+        // FR-023. A card shown as unusable with no reason is a refusal the shopper cannot act on,
         // which is indistinguishable from a bug.
         assertEquals("This card has expired.", pm.unusableReason)
     }
 
     /**
-     * ⚠ THE 027 R13 GUARD.
-     *
-     * `expMonth` and `expYear` must round-trip as integers. Re-encoding and comparing against the
-     * server's exact bytes is what catches a Double: `4.0` would serialise back as `4.0` and fail here,
-     * where an assertion on the decoded VALUE alone would happily pass, because 4.0 == 4.
+     * `expMonth` and `expYear` round-trip as integers: re-encoding against the server's bytes catches a
+     * Double (`4.0`), which a decoded-value assertion would miss.
      */
     @Test
     fun `expiry round-trips as an integer and never as a float`() {
@@ -97,7 +80,7 @@ class PaymentWireContractTest {
         assertEquals("Jane Smith", bd.name)
         assertEquals("1 Test St", bd.address.line1)
         assertEquals("3121", bd.address.postalCode)
-        // ⚠ The whole point of the feature: the shopper is never asked for a country, so the server
+        // The whole point of the feature: the shopper is never asked for a country, so the server
         // supplies one and the client must receive it. An absent country is what let the provider guess.
         assertEquals("AU", bd.address.country)
     }

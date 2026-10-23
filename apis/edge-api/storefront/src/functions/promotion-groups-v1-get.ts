@@ -1,6 +1,4 @@
-// GET /storefront/v1/promotion-groups?keys=home-hero,home-side — display groups by key (094 US2).
-// Public: everyone-audience promotions only (a signed-in client asks commerce for its personal answer).
-// Cached on the listing tier — a promotion that ends is gone within a minute (SC-005).
+// Everyone-audience promotions only; signed-in clients ask commerce for their own.
 import { ConnectionLimitError, json, preamble, shopperHandler, unavailable } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";

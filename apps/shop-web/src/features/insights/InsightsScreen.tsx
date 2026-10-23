@@ -24,16 +24,16 @@ const RANGES: Array<{ value: InsightsRange; label: string }> = [
 ]
 
 /**
- * INSIGHTS — how the shop is doing (058, US3).
+ * Insights — how the shop is doing.
  *
- * ⚠ EVERYTHING HERE RESPONDS TO ONE CONTROL. One range, one window, one comparison basis, applied to
+ * Everything here responds to one control. One range, one window, one comparison basis, applied to
  * every figure and both charts at once. The alternative — per-card date pickers — produces a screen
  * where two numbers beside each other quietly describe different weeks.
  *
- * ⚠ TWO SOURCES, DELIBERATELY. The analytics come from the rollups (`insightsQuery`); "Awaiting pick"
+ * Two sources, deliberately. The analytics come from the rollups (`insightsQuery`); "Awaiting pick"
  * and "Unfulfilled units" come from `todayQuery`, the same cache entry Today renders from. Those two
  * are live work, and a figure about work in progress that is a minute stale is a figure that sends
- * someone to a shelf for an order already packed (FR-006/FR-025).
+ * someone to a shelf for an order already packed.
  */
 export function InsightsScreen() {
   const [range, setRange] = useState<InsightsRange>("today")
@@ -111,8 +111,8 @@ export function InsightsScreen() {
             <BarChart
               series="primary"
               title="Revenue"
-              // ⚠ "Goods · AUD", not the design's "SEK incl. VAT": per-item GST is unmodelled
-              // (052 R13), so any tax claim here would be invented — and "goods" names the basis,
+              // "Goods · AUD", not the design's "SEK incl. VAT": per-item GST is unmodelled,
+              // so any tax claim here would be invented — and "goods" names the basis,
               // which is what stops this being read as the order totals the Orders list shows.
               subtitle={`${GRAIN_LABEL[dto.series.grain]} · Goods · ${dto.currency}`}
               total={money(dto.series.revenueTotal.value, dto.currency)}

@@ -1,23 +1,14 @@
-// Repository for vehicle holdings (061): raw parameterized SQL, no ORM (Principle VI).
-//
-// ⚠⚠ THIS MODULE DOES NOT CHECK WHETHER A VEHICLE OR DRIVER IS FREE. THAT IS DELIBERATE.
-//
-// "At most one open holding per vehicle, and per driver" (FR-012/FR-013) is a CONCURRENCY claim, and
-// a read-then-write check cannot make it true: two operators clicking at the same moment both read
-// "free" and both write. The guarantee is `vehicle_holding_open_vehicle_uq` and
-// `vehicle_holding_open_driver_uq` — two partial unique indexes on `WHERE ended_at IS NULL` — and
-// this module's job is to let the INSERT fail and hand the violation up with enough information for
-// the service to name it. `driver_duty_session_open_uq` is the same shape and has held since 049.
+// Does not check whether a vehicle or driver is free: two partial unique indexes on
+// `WHERE ended_at IS NULL` guarantee one open holding each, and this lets the INSERT fail and hands
+// the violation up for the service to name.
 
 import { query, withTransaction } from "@effy/edge-shared";
 import type pg from "pg";
 
-/** Which of the two partial unique indexes a violation came from. */
 export type HoldingClash = "vehicle" | "driver" | null;
 
-/** PostgreSQL's unique_violation. */
 const UNIQUE_VIOLATION = "23505";
-/** PostgreSQL's check_violation — the odometer rule (FR-018) lives in the schema. */
+/** check_violation: the odometer rule lives in the schema. */
 const CHECK_VIOLATION = "23514";
 
 export class HoldingConflictError extends Error {
@@ -55,12 +46,7 @@ export interface IssueInput {
   issuedBySub: string;
 }
 
-/**
- * Open a holding. Throws `HoldingConflictError` when either index refuses it.
- *
- * ⚠ The odometer is ALSO written onto the vehicle, so `vehicle.odometer_km` is the last reading
- * anybody recorded rather than a figure that drifts from the holdings beneath it.
- */
+/** Throws `HoldingConflictError` when either index refuses. Also writes the odometer onto the vehicle. */
 export async function issue(input: IssueInput, write: (tx: pg.PoolClient, holdingId: string) => Promise<void>): Promise<string> {
   return withTransaction(async (tx) => {
     try {
@@ -129,12 +115,7 @@ export interface HeldVehicleRow {
   since: string;
 }
 
-/**
- * What this driver is currently holding, if anything.
- *
- * ⚠ Used to NAME a refusal and to warn before a stand-down (FR-014, FR-019) — never to decide
- * whether an insert may proceed. The indexes decide that.
- */
+/** To name a refusal and warn before a stand-down; never to decide whether an insert proceeds. */
 export async function heldByDriver(driverId: string): Promise<HeldVehicleRow | null> {
   const res = await query<{
     vehicle_id: string;
@@ -162,7 +143,7 @@ export async function heldByDriver(driverId: string): Promise<HeldVehicleRow | n
     : null;
 }
 
-/** Who holds this vehicle, if anyone. Same rule: for the message, not for the invariant. */
+/** For the message, not the invariant. */
 export async function holderOf(vehicleId: string): Promise<{ driverId: string; driverName: string } | null> {
   const res = await query<{ driver_id: string; name: string }>(
     `SELECT h.driver_id, d.name

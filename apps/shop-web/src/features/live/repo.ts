@@ -3,15 +3,15 @@ import type { LiveDescriptor } from "@effy/shared-types"
 
 import { api } from "@/lib/api"
 
-// The data layer for the live channel (071): which channel is this operator's.
+// The data layer for the live channel: which channel is this operator's.
 //
 // Like every other read here it sends no shop identifier — the shop is resolved server-side from
 // the operator's record, and the channel comes back opaque.
 //
-// ⚠ "NO CHANNEL FOR YOU" IS AN ANSWER, NOT A FAILURE. 204 (this environment has no live channel),
+// "NO CHANNEL FOR YOU" is an answer, not a failure. 204 (this environment has no live channel),
 // 403 (no active record) and 404 (a backend that predates the route) all resolve `null`: the
 // console then says live updates are off and reads on open, on return and on request. Only a
-// failure to FIND OUT — the network, a 5xx — throws, and that is what gets retried.
+// failure to find out — the network, a 5xx — throws, and that is what gets retried.
 export async function getLiveDescriptor(): Promise<LiveDescriptor | null> {
   try {
     return (await api.get<LiveDescriptor | undefined>("/shop/v1/live")) ?? null

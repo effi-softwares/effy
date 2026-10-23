@@ -4,13 +4,9 @@ import { dirname, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * ⚠ 047 SC-008/SC-009: the SHOP service MUST expose NO delivery-configuration route — not same-day
- * eligibility or exceptions, and not any fee/factor/ring-price/slab/floor/cap. Fees and same-day are
- * back-office decisions ONLY (FR-045). This proves it by inspecting the shop's own deployment surface and
- * function handlers directly, not by trusting a UI to hide a control.
- *
- * ⚠ `weight_grams` on a product is NOT delivery config — a shop legitimately records what its own
- * products weigh (FR-054). The ban is on the fee/zone/same-day machinery, never on product weight.
+ * The shop service exposes no delivery-configuration route (coverage, today's delivery, any fee or band):
+ * those are back-office decisions. Proven on the shop's own deployment surface and handlers. A product's
+ * `weight_grams` is not delivery config.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -44,7 +40,7 @@ describe("shop service delivery-config isolation (047 SC-008/SC-009)", () => {
     expect(offenders, `shop functions expose delivery config: ${offenders.join(", ")}`).toEqual([])
   })
 
-  // ⚠ 080 — a shop now hands parcels to couriers. It may say "handed over"; it may not configure
+  // A shop now hands parcels to couriers. It may say "handed over"; it may not configure
   // courier services, change how an order reaches the courier, or record the courier's progress.
   it("080 — the one courier route a shop has is the handover; no courier service, mode or progress route", () => {
     const paths = [...yaml.matchAll(/path:\s*(\S+)/g)].map((m) => m[1] ?? "")

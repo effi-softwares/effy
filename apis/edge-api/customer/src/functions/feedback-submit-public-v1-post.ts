@@ -4,17 +4,7 @@ import { json, preamble } from "@effy/edge-shared"
 
 import { submitFeedback } from "../feedback/service"
 
-/**
- * POST /customer/v1/feedback/public — submit feedback as a GUEST (046 US1).
- *
- * ⚠ PUBLIC — no authorizer, deliberately. Being heard must not require an account (the checkout header
- * that links here is guest-reachable). A body email is UNVERIFIED and used only to send the
- * acknowledgement/reply; the submission is never linked to any account (research D2).
- *
- * ⚠ THE RATE LIMIT IS KEYED ON THE SOURCE IP, which — unlike 035's Cognito trigger — the HTTP API v2
- * event actually carries at `requestContext.http.sourceIp`. That is the one identifier available for a
- * caller with no `sub`.
- */
+/** Guests: public, never linked; the body email is unverified. Rate-limited by source IP. */
 export const handler = async (
   event: APIGatewayProxyEventV2,
   context: Context,
@@ -28,8 +18,7 @@ export const handler = async (
     return json(400, { status: "invalid", field: "message" }, scope)
   }
 
-  // ⚠ Fall back to a stable sentinel if the IP is somehow absent, so the rate-limit key is never empty
-  // (an empty key would disable the cap). "unknown" buckets all such callers together — conservative.
+  // A stable sentinel when the IP is absent, so the rate-limit key is never empty.
   const sourceIp = event.requestContext?.http?.sourceIp ?? "unknown"
 
   const result = await submitFeedback(body, { kind: "guest", sourceIp })

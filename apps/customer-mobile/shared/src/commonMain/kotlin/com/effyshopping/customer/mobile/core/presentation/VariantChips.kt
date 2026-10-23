@@ -14,9 +14,9 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ValueState
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The size selector on the product page (098): one row of chips per option ("Size: 1 kg"), drawn
+ * The size selector on the product page: one row of chips per option ("Size: 1 kg"), drawn
  * from [VariantSelection.rows] so the app and the storefront offer the same choices. A sold-out value
- * stays, struck through and announced (FR-015). Nothing at all for a product sold one way.
+ * stays, struck through and announced. Nothing at all for a product sold one way.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

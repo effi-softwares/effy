@@ -1,10 +1,4 @@
-// Vehicle register use-cases (061). The access decision lives in the handler's guard; this layer owns
-// the domain rules and the refusals.
-//
-// ⚠ EVERY REFUSAL NAMES THE SITUATION. A generic 409 is worse than useless here: 053 shipped a
-// console where every refusal collapsed into one sentence, because the screen tested
-// `e instanceof Error` while the client throws a plain object — the server got it right and the UI
-// discarded it. `fields` is what survives to the screen, so it is populated on purpose.
+// Every refusal names the situation, carried in `fields`.
 
 import type { RequestScope } from "@effy/edge-shared";
 import type {
@@ -24,8 +18,7 @@ const FUEL_TYPES = ["petrol", "diesel", "hybrid", "electric", "none"];
 const OWNERSHIPS = ["effy_owned", "driver_owned"];
 const STATUSES: VehicleStatus[] = ["active", "off_road", "retired"];
 
-/** ISO `YYYY-MM-DD`, or null. ⚠ Refuses anything else rather than letting PostgreSQL guess — a date
- *  the database interprets differently from the operator is a silent wrong answer. */
+/** ISO `YYYY-MM-DD` or null; anything else is refused rather than left for Postgres to guess. */
 function assertDate(value: unknown, field: string): void {
   if (value === null || value === undefined) return;
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -82,8 +75,7 @@ export async function createVehicle(
 ): Promise<VehicleDetail> {
   assertBody(body, true);
 
-  // ⚠ Checked here for a NAMED refusal; guaranteed by `vehicle_plate_active_uq` in the database, so
-  // two operators racing cannot both succeed. The check is for the message, not for the invariant.
+  // Checked for a named refusal; `vehicle_plate_active_uq` is the guarantee.
   const clash = await repo.plateInUse(body.registrationPlate);
   if (clash) {
     throw conflict(`a vehicle with plate ${clash} is already on the register`, [
@@ -165,10 +157,7 @@ export async function setVehicleStatus(
   const current = await repo.getVehicle(id);
   if (!current) throw notFound("vehicle not found");
 
-  // ⚠ RETIRING A VEHICLE THAT IS STILL OUT WITH A DRIVER IS REFUSED, NOT SILENTLY ALLOWED.
-  // The van is in a carpark somewhere. Retiring it would take it off the assignable fleet while a
-  // person still physically has it, and nothing would say so — 056's stranded-work shape, which was
-  // in no register because nobody knew. Take it back first; that is a real-world act, not a query.
+  // Retiring a vehicle still out with a driver is refused: take it back first.
   if (body.status === "retired" && current.currentHolderDriverId) {
     throw conflict(
       `${current.registrationPlate} is still out with ${current.currentHolderName}. Record its return before retiring it.`,

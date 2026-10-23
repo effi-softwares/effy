@@ -1,10 +1,7 @@
 /**
- * 071 — turn a burst of "something changed" into a few reads (FR-014, SC-012).
- *
- * The first update reads at once: an isolated change — the common case — is on screen as fast as
- * the network allows. Updates that follow are gathered: one more read once they have been quiet
- * for `quietMs`, or after `maxWaitMs` if they never go quiet. So the last update of a burst is
- * always followed by a read, and a ten-change burst over ten seconds costs three reads, not ten.
+ * Turns a burst of "something changed" into a few reads: the first update reads at once; later ones
+ * read once quiet for `quietMs`, or after `maxWaitMs`. The last update of a burst is always followed by
+ * a read.
  */
 export interface Coalescer {
   /** Something changed. */

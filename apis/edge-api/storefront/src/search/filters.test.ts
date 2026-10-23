@@ -24,7 +24,7 @@ describe("filters", () => {
     const { sql, args } = build({ q: "milk" });
     expect(args).toEqual(["%milk%", "milk"]);
     expect(sql).toContain("p.name ILIKE $1 OR p.brand ILIKE $1 OR p.short_description ILIKE $1");
-    // 098 — or the query IS an active variant's stock code or barcode, matched exactly.
+    // Or the query is an active variant's stock code or barcode, matched exactly.
     expect(sql).toContain("lower(cv.sku) = lower($2) OR cv.gtin = $2");
   });
 
@@ -46,8 +46,7 @@ describe("filters", () => {
   });
 
   it("⚠ a category means the category AND everything filed under it", () => {
-    // An aisle holds almost nothing directly — its products are filed in its leaves. An exact match
-    // on the aisle's own id showed an empty page for every aisle link in the header.
+    // An aisle's products are filed in its leaves.
     const { sql } = build({ categoryKey: "dairy_eggs" });
     expect(sql).toContain("p.primary_category_id IN (WITH RECURSIVE sub AS (");
     expect(sql).toContain("JOIN sub ON child.parent_id = sub.id");
@@ -57,7 +56,7 @@ describe("filters", () => {
   it("an attribute facet is one EXISTS covering text, multi-select and boolean values", () => {
     const { sql, args } = build({ attributes: { dietary: ["vegan", "halal"], organic: ["true"] } });
     expect(args).toEqual(["dietary", ["vegan", "halal"], "organic", ["true"]]);
-    expect(sql.match(/AND EXISTS/g)).toHaveLength(2); // AND across keys
+    expect(sql.match(/AND EXISTS/g)).toHaveLength(2); // And across keys
     expect(sql).toContain("pav.value_text = ANY($2::text[]) OR pav.value_options && $2::text[] OR pav.value_boolean::text = ANY($2::text[])");
   });
 

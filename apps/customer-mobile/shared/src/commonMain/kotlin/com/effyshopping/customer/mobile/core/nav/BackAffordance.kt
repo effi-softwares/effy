@@ -18,52 +18,32 @@ import androidx.navigation3.runtime.NavKey
 val LocalNavBack = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /**
- * Supplies [LocalNavBack] to every destination, from its position in the stack (026).
+ * Supplies [LocalNavBack] to every destination from its position in the stack, so no screen decides its own
+ * back arrow (several once forgot it and stranded the shopper). The same rule as the bottom bar
+ * ([CustomerNavState.showBottomBar]):
  *
- * ── ⚠ The defect this exists to make impossible ─────────────────────────────────────────────────
+ *  bottom of a stack → bottom bar, no back arrow
+ *  anywhere above it → back arrow, no bottom bar
  *
- * The back arrow used to be an argument each screen decided for itself, and five of them decided
- * wrong: Notifications, FAQs, Help Centre, Customer Service and the order detail rendered a plain
- * heading instead of an app bar, so a shopper who opened one was **stranded** — no arrow, and (since
- * the bottom bar hides below a tab root) no tab bar either. The Cart had an app bar but never passed
- * `onBack`, so its arrow was missing too. Every one of those was a screen author forgetting a
- * parameter, which is exactly what a per-screen argument invites.
- *
- * So the decision moved out of the screens. The rule is one line, and it is the *same* rule that
- * governs the bottom bar (see [CustomerNavState.showBottomBar]):
- *
- *     you are at the bottom of a stack  →  bottom bar, no back arrow
- *     you are anywhere above it         →  back arrow, no bottom bar
- *
- * A new screen is correct by existing. Getting it wrong now requires actively passing `onBack = null`.
- *
- * ── Why a decorator, and not a provider wrapped around NavDisplay ────────────────────────────────
- *
- * Because a decorator is evaluated **per entry**, this asks "is *this* destination the bottom of the
- * stack", not "does the stack currently have depth". The difference shows during the pop animation:
- * wrapped outside `NavDisplay`, popping the last screen flips one shared value the instant the stack
- * shrinks, and the screen still sliding off-screen loses its back arrow mid-flight. Per entry, the
- * departing screen is no longer in the stack at all, so it keeps its arrow all the way out.
- *
- * It also means "terminal" screens need no special case. The order confirmation is reached by
- * *replacing* the stack, so it IS the bottom — no arrow, and no dead arrow that pops nothing.
+ * A decorator, evaluated per entry, so a screen sliding off during a pop keeps its arrow all the way out.
+ * The order confirmation replaces the stack, so it is the bottom and has no arrow.
  */
 @Composable
 fun rememberBackAffordanceDecorator(navState: CustomerNavState): NavEntryDecorator<NavKey> =
     remember(navState) {
         NavEntryDecorator { entry ->
             // `NavEntry.key` is private; `contentKey` is the public identity Nav3 itself uses, and for
-            // our keys it is `key.toString()` (Nav3's `defaultContentKey`). Comparing through the same
-            // transformation is what makes this an identity check rather than a string coincidence —
+            // our keys it is `key.toString` (Nav3's `defaultContentKey`). Comparing through the same
+            // transformation is what makes this an identity check rather than a string coincidence
             // `CustomerNavKeyContentKeyTest` pins that every route stays distinguishable under it.
             val rootContentKey = navState.currentStack.firstOrNull()?.toString()
             val isStackRoot = entry.contentKey == rootContentKey
-            // `pop()`'s Boolean says whether it had anywhere to go; a back arrow that exists only
-            // because we are ABOVE the root always does, so the result is deliberately discarded.
+            // `pop`'s Boolean says whether it had anywhere to go; a back arrow that exists only
+            // because we are above the root always does, so the result is deliberately discarded.
             val back: (() -> Unit)? = if (isStackRoot) null else ({ navState.pop() })
             CompositionLocalProvider(
                 LocalNavBack provides back,
-                // 087 — the navigator's animated scope for THIS entry, so a picture marked with
+                // The navigator's animated scope for this entry, so a picture marked with
                 // `effySharedElement` can travel between pages (tile → product).
                 LocalEffyNavAnimatedScope provides LocalNavAnimatedContentScope.current,
             ) {

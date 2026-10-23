@@ -5,19 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAIL_ENV_KEYS } from "@effy/email-kit/send";
 
-/**
- * ⚠ THE MAIL DEPLOYMENT CONTRACT for edge-auth (038).
- *
- * The sign-in code — the only credential three of four audiences have — is now sent through
- * `@effy/email-kit/send`, which reads its configuration from the environment. This test reads the
- * ACTUAL `serverless.yml` and asserts it declares every variable email-kit reads.
- *
- * This is the FIFTH guard of one recurring defect (027 R13 → 029 → 033 → 035). In 035 an audience
- * map read four variables `serverless.yml` never declared: every pool resolved "unknown", no email
- * was ever sent, and 100 passing tests missed it because they set the variables themselves. A unit
- * test that supplies its own configuration can never notice the configuration does not exist — so
- * this test mocks nothing and reads the real files. Mirrors `audience.config.test.ts` on purpose.
- */
+/** Reads the real serverless.yml: it must declare every variable email-kit reads. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceRoot = resolve(here, "..", "..");
@@ -41,7 +29,7 @@ function readServerlessEnvKeys(): Set<string> {
 describe("mail deployment configuration", () => {
   it("⚠ declares every environment variable email-kit's send path reads", () => {
     const declared = readServerlessEnvKeys();
-    expect(MAIL_ENV_KEYS.length).toBeGreaterThan(0); // never vacuous
+    expect(MAIL_ENV_KEYS.length).toBeGreaterThan(0);
     const missing = MAIL_ENV_KEYS.filter((k) => !declared.has(k));
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([]);
   });

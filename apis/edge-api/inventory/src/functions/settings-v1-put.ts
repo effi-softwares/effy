@@ -1,4 +1,3 @@
-// PUT /inventory/v1/settings — set the shop's default low-stock threshold (054, FR-005).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

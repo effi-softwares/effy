@@ -1,10 +1,8 @@
-// Shared refusal mapping for the dispatch routes (063).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { problem, type RequestScope } from "@effy/edge-shared";
 
 import { DispatchError } from "../dispatch/service";
 
-/** Human wording for each reason a driver cannot take a round (FR-034). */
 const REASON_TEXT: Record<string, string> = {
   not_on_duty: "they are not on duty",
   not_employable: "they are stood down or no longer employed",
@@ -16,12 +14,7 @@ const REASON_TEXT: Record<string, string> = {
   cannot_meet_deadline: "they cannot finish it in time",
 };
 
-/**
- * ⚠ A REFUSAL MUST NAME THE CONDITION (FR-034). A uniform "not allowed" sends the operator hunting
- * through five screens for which of five things is wrong — and 053 found every console refusal
- * collapsing to one generic sentence because the screen matched on `instanceof Error` while the
- * api-client throws a plain object.
- */
+/** A refusal names the condition. */
 export function mapDispatchError(
   err: unknown,
   scope: RequestScope,
@@ -44,10 +37,7 @@ export function mapDispatchError(
           "That driver cannot take this round",
           named === "" ? err.detail : `That driver cannot take this round because ${named}.`,
           scope,
-          // ⚠ THE STABLE CODE GOES IN `field`, which is 032's convention for a whole-request
-          // refusal — `ProblemFieldIssue` has no `code`, and inventing one would have been a second
-          // shape for a thing the contract already expresses. The console maps this code to its OWN
-          // wording; `message` is a fallback for anything that reads the problem document raw.
+          // The stable code goes in `field` (`ProblemFieldIssue` has no `code`); the console words it, `message` is a fallback.
           err.reasons.map((r) => ({ field: r, message: REASON_TEXT[r] ?? r })),
         );
       }

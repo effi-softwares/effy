@@ -1,5 +1,3 @@
-// GET /commerce/v1/lists[?productId=] — every list the shopper has, default first. With a
-// productId, each list also says whether it contains that product (the list chooser).
 import { json } from "@effy/edge-shared";
 
 import { isUuid } from "../lib/ids";

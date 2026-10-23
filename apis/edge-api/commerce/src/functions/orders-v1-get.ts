@@ -1,4 +1,3 @@
-// GET /commerce/v1/orders — the shopper's order history, newest first.
 import { ConnectionLimitError, internal, json } from "@effy/edge-shared";
 
 import { customerRoute } from "../lib/route";

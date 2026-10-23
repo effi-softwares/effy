@@ -4,19 +4,12 @@ import type { Queryable } from "../lib/db";
 import { enqueueOrderDeliveredIfComplete } from "../lib/order-completion";
 
 /**
- * Courier consignments (080) — the ONE writer of `courier_consignment`, its events, a parcel's carrier
- * handover, and a courier order's collection mode. `consignment.guard.test.ts` fails a second one.
- *
- * ⚠ "HANDED OVER" IS STILL `carrier_handoff` AND "DELIVERED" IS STILL `package_arrival` (053). A
- * consignment holds the booking and the journey around those two facts; every function here that
- * moves a parcel past one of them writes it in the caller's transaction, so `packageStatus`, the
- * arrival guard and order completion read exactly what they always have.
- *
- * Every function takes the caller's transaction and does NOT announce: the caller announces after
- * it commits.
+ * The one writer of `courier_consignment`, its events, a parcel's carrier handover and a courier
+ * order's collection mode. "HANDED OVER" is still `carrier_handoff` and "delivered" `package_arrival`,
+ * written in the caller's transaction. Nothing here announces; the caller does after commit.
  */
 
-/** A refusal a person can act on. `code` is the API's problem code. */
+/** `code` is the api's problem code. */
 export class ConsignmentRefusal extends Error {
   constructor(readonly code: ConsignmentRefusalCode, message: string) {
     super(message);
@@ -30,11 +23,11 @@ export type ConsignmentRefusalCode =
 
 export type ConsignmentActor = { kind: "staff"; sub: string } | { kind: "shop"; sub: string; staffId: string | null };
 
-/** 'hub' | 'supplier' for the package joined as `sf` under its order `o` — the one definition. */
+/** 'hub' | 'supplier' for package `sf` under order `o`. */
 export const COURIER_COLLECTION_SQL = (orderAlias: string): string =>
   `public.courier_parcel_collection(${orderAlias}.delivery_type, ${orderAlias}.courier_collection)`;
 
-/** Problem steps: each keeps the parcel a Problem until a later `resolved` or `delivered`. */
+/** Each keeps the parcel a Problem until a later `resolved` or `delivered`. */
 export const PROBLEM_KINDS: ReadonlySet<string> = new Set(["failed", "lost", "damaged", "returned"]);
 
 interface PackageRow {
@@ -49,10 +42,7 @@ interface PackageRow {
   handed_over: boolean;
 }
 
-/**
- * The package, LOCKED. ⚠ The lock is its own statement, taken before the read (079's finding in the
- * arrival write): a caller that waited for the lock then reads everything the winner wrote.
- */
+/** Locked in its own statement before the read, so a waiter reads everything the winner wrote. */
 async function lockPackage(tx: Queryable, packageId: string): Promise<PackageRow> {
   await tx.query(`SELECT 1 FROM public.shop_fulfillment WHERE id = $1 FOR UPDATE`, [packageId]);
   const row = (
@@ -109,8 +99,6 @@ const trimmed = (v: string | null | undefined): string | null => {
   return t ? t : null;
 };
 
-// ── Booking ──────────────────────────────────────────────────────────────────────────────────────
-
 export interface BookConsignmentInput {
   packageId: string;
   serviceId: string;
@@ -122,10 +110,7 @@ export interface BookConsignmentInput {
   now: Date;
 }
 
-/**
- * Book a consignment, or edit the booking. After handover only the reference, tracking link and
- * label may change — the service and how it reached the courier are history by then.
- */
+/** After handover only the reference, tracking link and label may change. */
 export async function bookConsignment(tx: Queryable, input: BookConsignmentInput): Promise<{ consignmentId: string; created: boolean }> {
   const pkg = await lockPackage(tx, input.packageId);
   if (pkg.delivered_by !== "courier") throw new ConsignmentRefusal("not_courier", "Effy delivers this package; there is no courier to book");
@@ -183,19 +168,17 @@ export async function bookConsignment(tx: Queryable, input: BookConsignmentInput
   return { consignmentId: id, created: true };
 }
 
-// ── Handover ─────────────────────────────────────────────────────────────────────────────────────
-
 export interface HandOverInput {
   packageId: string;
   actor: ConsignmentActor;
-  /** 053's free-text fields, still accepted from the hub screen. Folded into the consignment. */
+  /** Free-text fields from the hub screen, folded into the consignment. */
   reference?: string | null;
   carrierName?: string | null;
   note?: string | null;
 }
 
 export interface HandOverResult {
-  /** false when it was already handed over — the idempotent replay. */
+  /** false when already handed over. */
   created: boolean;
   handedOverAt: string;
   reference: string | null;
@@ -205,15 +188,9 @@ export interface HandOverResult {
 }
 
 /**
- * A parcel leaves Effy's or the supplier's hands for a courier: writes `carrier_handoff` (053's one
- * record of it), creates or completes the consignment, and tells the customer (080 FR-022).
- *
- *   via the hub         the package must be `collected` (a driver brought it in) — 053's rule;
- *   from the supplier   the package must be `ready_for_pickup` or `collected`; it becomes `collected`
- *                       (it left the shop), with the shop's accountability event.
- *
- * ⚠ A package Effy delivers itself never passes to a carrier (`not_standard` for same-day,
- * `not_carrier` for a later-day window — 053/078's codes).
+ * Writes `carrier_handoff`, creates or completes the consignment, and tells the customer. Via the hub
+ * the package must be `collected`; from the supplier `ready_for_pickup` or `collected` (it becomes
+ * `collected`). A package Effy delivers is refused (`not_standard` / `not_carrier`).
  */
 export async function handOver(tx: Queryable, input: HandOverInput): Promise<HandOverResult> {
   const pkg = await lockPackage(tx, input.packageId);
@@ -243,8 +220,7 @@ export async function handOver(tx: Queryable, input: HandOverInput): Promise<Han
     if (input.actor.kind === "shop") throw new ConsignmentRefusal("not_found", "that package does not exist");
   }
 
-  // The consignment: the booked one, or — for a hub handover nobody booked — one from the service
-  // the order was sold. An order from before 080 has no service and gets none (FR-010).
+  // The booked consignment, or one from the service the order was sold; none if the order has no service.
   let consignmentId = live?.id ?? null;
   const serviceId = live?.courier_service_id ?? pkg.order_service_id;
   if (!consignmentId && serviceId) {
@@ -293,11 +269,7 @@ export async function handOver(tx: Queryable, input: HandOverInput): Promise<Han
   if (consignmentId) {
     await setState(tx, consignmentId, "handed_over");
     await appendEvent(tx, consignmentId, "handed_over", input.actor, trimmed(input.note));
-    // ⚠ ONE per consignment (the dedupe key is the consignment id). The payload names the
-    // consignment and nothing else; the worker reads what it may say.
-    // ⚠ PUSH AND EMAIL. The email is the per-parcel tracking the order page promises when an order
-    // travels as more than one consignment (Q8); a push alone would leave a web-only shopper with
-    // nothing. The address is snapshotted now (052's rule). Routing ids only in the payload.
+    // One per consignment, push and email (the email is the per-parcel tracking). Routing ids only; the address is snapshotted now.
     await tx.query(
       `INSERT INTO public.notification_request
            (recipient_sub, audience, type, channel, recipient_email, payload, dedupe_key)
@@ -321,8 +293,6 @@ export async function handOver(tx: Queryable, input: HandOverInput): Promise<Han
   };
 }
 
-// ── Progress ─────────────────────────────────────────────────────────────────────────────────────
-
 export interface ConsignmentStepInput {
   packageId: string;
   kind: "in_transit" | "delivered" | "failed" | "lost" | "damaged" | "returned" | "resolved" | "cancelled";
@@ -331,12 +301,8 @@ export interface ConsignmentStepInput {
 }
 
 /**
- * Record a step after booking. `delivered` writes the arrival (053), advances the package and, when
- * it was the last, the order's completion notice — the same writes as a staff-recorded arrival.
- *
- *   cancelled   only before handover;
- *   resolved    only while a problem is open — the parcel goes back to where it was before it;
- *   everything else only after handover.
+ * `delivered` writes the arrival and, for the last package, the order's completion notice. `cancelled`
+ * only before handover; `resolved` only while a problem is open; everything else after handover.
  */
 export async function recordConsignmentStep(tx: Queryable, input: ConsignmentStepInput): Promise<{ orderId: string; orderFinished: boolean }> {
   const pkg = await lockPackage(tx, input.packageId);
@@ -355,7 +321,7 @@ export async function recordConsignmentStep(tx: Queryable, input: ConsignmentSte
     refuse();
   } else if (input.kind === "resolved") {
     if (!PROBLEM_KINDS.has(live.state)) refuse();
-    // Back to where it was before the problem: in transit if it ever was, else handed over.
+    // Back to before the problem: in transit if it ever was, else handed over.
     const was = (
       await tx.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.courier_consignment_event WHERE consignment_id = $1 AND kind = 'in_transit'`, [live.id])
     ).rows[0]!.n;
@@ -364,7 +330,7 @@ export async function recordConsignmentStep(tx: Queryable, input: ConsignmentSte
     if (PROBLEM_KINDS.has(live.state)) refuse();
     next = "in_transit";
   } else {
-    next = input.kind; // delivered, or a problem
+    next = input.kind;
   }
 
   let orderFinished = false;
@@ -393,15 +359,7 @@ export async function recordConsignmentStep(tx: Queryable, input: ConsignmentSte
   return { orderId: pkg.order_id, orderFinished };
 }
 
-// ── The mode ─────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Change how one courier order's parcels reach the courier (080 FR-003).
- *
- * ⚠ REFUSED once anything has left: a handover recorded, or a driver has picked a package up. Moving
- * to `supplier` is also refused while a driver is ASSIGNED to collect one of its packages — staff
- * unassign it first (073's Unassign): this service does not own driver work.
- */
+/** Refused once anything has left, or (to `supplier`) while a driver is assigned to collect: unassign first. */
 export async function changeCourierCollection(
   tx: Queryable,
   input: { orderId: string; to: "hub" | "supplier"; actorSub: string; note?: string | null },
@@ -439,7 +397,7 @@ export async function changeCourierCollection(
     `INSERT INTO public.order_courier_collection_change (order_id, from_mode, to_mode, actor_sub, note) VALUES ($1, $2, $3, $4, $5)`,
     [input.orderId, order.courier_collection, input.to, input.actorSub, trimmed(input.note)],
   );
-  // A booking made for the other way is cancelled: a supplier pickup is not a hub collection.
+  // A booking made for the other way is cancelled.
   const booked = (
     await tx.query<{ id: string }>(
       `SELECT c.id::text AS id FROM public.courier_consignment c JOIN public.shop_fulfillment sf ON sf.id = c.shop_fulfillment_id
@@ -455,16 +413,9 @@ export async function changeCourierCollection(
 }
 
 /**
- * 081 — give an order its courier routing, or take it away, when back-office moves it between Effy and
- * courier delivery (`@effy/edge-shared/delivery` override.ts, in its transaction).
- *
- *   to courier (`routing` given): the courier service the customer is told about and how its parcels
- *     reach the courier. The order had no mode, so nothing is "changed" and no history row is written —
- *     the move itself is the record (`delivery_override`).
- *   back to Effy (`routing` null): both cleared, and every booking not yet handed over is cancelled.
- *     ⚠ REFUSED once any parcel has been handed to a courier: the courier has it.
- *
- * ⚠ It does not announce; the caller does after commit.
+ * Gives or takes courier routing when back-office moves an order (override.ts). To courier: the
+ * service and collection mode, no history row (the move is the record). Back to Effy: both cleared
+ * and unhanded bookings cancelled; refused once a parcel is with a courier. Does not announce.
  */
 export async function setCourierRouting(
   tx: Queryable,
@@ -507,8 +458,6 @@ export async function setCourierRouting(
   );
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────────────────────────
-
 export interface ConsignmentRow {
   id: string;
   package_id: string;
@@ -526,7 +475,7 @@ export interface ConsignmentRow {
   events: { kind: ConsignmentEventKind; actor_kind: "staff" | "shop"; actor_sub: string; note: string | null; at: string }[];
 }
 
-/** The live consignment of each package (cancelled ones are history and are not returned). */
+/** Cancelled ones are history and not returned. */
 export async function consignmentsFor(q: Queryable, packageIds: readonly string[]): Promise<Map<string, ConsignmentRow>> {
   if (packageIds.length === 0) return new Map();
   const rows = (

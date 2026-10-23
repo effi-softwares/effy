@@ -1,4 +1,3 @@
-// GET /admin/v1/delivery/coverage — the list of postcodes Effy delivers to, its groups and courier reach (076). Read.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

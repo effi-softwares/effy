@@ -71,8 +71,7 @@ function SidebarProvider({
   const isMobile = useIsMobile(mobileBreakpoint)
   const [openMobile, setOpenMobile] = React.useState(false)
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
+  // Internal state; openProp and setOpenProp control it from outside.
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open
   const setOpen = React.useCallback(
@@ -84,18 +83,17 @@ function SidebarProvider({
         _setOpen(openState)
       }
 
-      // This sets the cookie to keep the sidebar state.
+      // Persists the sidebar state in a cookie.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
     },
     [setOpenProp, open]
   )
 
-  // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen, setOpenMobile])
 
-  // Adds a keyboard shortcut to toggle the sidebar.
+  // Keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -111,8 +109,7 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [toggleSidebar])
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
+  // data-state="expanded" | "collapsed", for styling.
   const state = open ? "expanded" : "collapsed"
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -216,7 +213,7 @@ function Sidebar({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* This is what handles the sidebar gap on desktop */}
+      {/* The sidebar gap on desktop */}
       <div
         data-slot="sidebar-gap"
         className={cn(
@@ -233,7 +230,6 @@ function Sidebar({
         data-side={side}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
-          // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
@@ -468,11 +464,9 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   )
 }
 
-// ⚠ THE NAV ITEM (theme-adoption-prompt.md, Phase 2 §9). 32px tall, 6px radius, 13.5px.
-//   inactive → transparent, MUTED label, hover `--accent`
-//   active   → `--brand-soft` ground with `--brand-ink` at 600
-// The active state is a TINTED GROUND, not a fill: a solid cobalt nav item competes with the primary
-// button for "the one action colour", and a rail of them would make the whole sidebar an action.
+// The nav item: 32px, 6px radius, 13.5px. Inactive: muted label, `--accent` hover. Active: a
+// `--brand-soft` ground with `--brand-ink` at 600, a tint rather than a fill so it never competes with
+// the primary button.
 const sidebarMenuButtonVariants = cva(
   "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-muted-foreground ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground data-[active=true]:bg-brand-soft data-[active=true]:font-semibold data-[active=true]:text-brand-ink [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
@@ -483,8 +477,6 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
       },
       size: {
-        // ⚠ 057: 13.5px, the imported design's nav label size. The 32px height and 6px radius
-        // already matched; only the type was a step too large.
         default: "h-8 text-[13.5px]",
         sm: "h-7 text-xs",
         lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
@@ -574,15 +566,9 @@ function SidebarMenuAction({
 }
 
 /**
- * The nav count badge.
- *
- * ⚠ TWO TONES, AND WHICH ONE IS NOT A STYLE CHOICE. On the ACTIVE item the count sits on the brand
- * ground and takes a solid `--brand` fill with a white label; on every other item it takes the
- * `--accent2` attention tint. That is the design's rule and it carries meaning: orange on an
- * inactive item says "there is work over there that you are not looking at", which is exactly when a
- * count is worth a pixel. Once you are on the screen, the count is context, not a summons.
- *
- * It reads the item's state via the `peer/menu-button` sibling, so the caller passes no tone.
+ * The nav count badge. On the active item a solid `--brand` fill; elsewhere the `--accent2` attention
+ * tint ("work over there you are not looking at"). It reads the state from the `peer/menu-button`
+ * sibling, so the caller passes no tone.
  */
 function SidebarMenuBadge({
   className,
@@ -612,7 +598,7 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Random width between 50 to 90%.
+  // A random width between 50 and 90%.
   const [width] = React.useState(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`
   })

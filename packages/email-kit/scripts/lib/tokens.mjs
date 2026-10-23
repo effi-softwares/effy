@@ -1,12 +1,5 @@
-// EMAIL TOKENS — derived from packages/design-system/src/tokens.css, the brand SSOT
-// (constitution Principle V; specs/038-email-template-system/contracts/email-tokens.contract.md).
-//
-// ⚠ NOTHING HERE IS AUTHORED. Every value is looked up in tokens.css by role. A hand-written email
-// colour is a build failure, which is what makes SC-020 true: a change to the platform palette
-// reaches email with no edit.
-//
-// Zero dependencies by design — Node stdlib only, exactly like design-system/scripts/check-tokens.mjs
-// and packages/brand's generator. The generator must never become load-bearing in a build graph.
+// Email tokens, derived from packages/design-system/src/tokens.css by role. Nothing is authored here,
+// so a palette change reaches email with no edit. Node stdlib only.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,18 +22,9 @@ function parseBlock(css, selector) {
 }
 
 /**
- * The role map — email role → (light source token, dark source token).
- *
- * ⚠ THREE ROLES DEVIATE from the obvious design-system pick, and each deviation is a dark-mode
- * survival requirement rather than a taste call (contract §1):
- *
- *  1. `pageGround` is ramp-50 (#F5F5F5), NOT --background (#FFFFFF). Pure white inverts to EXACTLY
- *     #000000 — the one dark surface every designer avoids (halation on OLED, maximum eye strain
- *     against high-contrast text).
- *  2. `pageGround`'s dark value is --sidebar (#0A0A0A) and `canvas`'s is --background (#1A1A1A), so
- *     the authored dark ground is never pure black.
- *  3. `codeSurface` takes --accent on light but --secondary on dark: --accent's dark value (#4D4D4D)
- *     sits inside the banned mid-tone band (see MIDTONE_BAND).
+ * Email role → (light token, dark token). Three choices serve dark-mode survival: the page ground is
+ * not pure white (it would invert to pure black), the authored dark ground is not pure black, and the
+ * code surface avoids the mid-tone band (MIDTONE_BAND) in dark.
  */
 const ROLE_MAP = {
   pageGround: { light: "accent", dark: "sidebar" },
@@ -56,12 +40,8 @@ const ROLE_MAP = {
 };
 
 /**
- * ⚠ THE BANNED MID-TONE BAND (research R13).
- *
- * #707070–#909090 is the FIXED POINT of lightness inversion (#808080 maps to #7F7F7F — it does not
- * move) and the ambiguity zone of PARTIAL inversion, where a client may or may not decide a value is
- * "a light thing". A load-bearing colour there is unpredictable in exactly the clients that are
- * hardest to test. Push muted text darker and dividers lighter.
+ * The banned mid-tone band: #707070–#909090 barely moves under inversion and is where partial inversion
+ * is unpredictable. Muted text goes darker and dividers lighter.
  */
 export const MIDTONE_BAND = { lo: 0x70, hi: 0x90 };
 
@@ -93,25 +73,16 @@ export function contrast(a, b) {
 }
 
 /**
- * ⚠ Per-channel inversion — `255 - v`.
- *
- * This models what a client that ignores our restatement and forces its own dark mode actually
- * shows. It is a VALID model here for one specific reason: for a colour with saturation 0,
- * HSL-lightness inversion and naive per-channel inversion produce EXACTLY THE SAME VALUE. The Effy
- * ramp is achromatic, so it has no hue to shift. The two semantic colours DO shift (error → cyan,
- * success → pink), which is precisely why neither may ever be the sole carrier of meaning (FR-028).
+ * Per-channel inversion (`255 - v`): what a client that forces its own dark mode shows. Equal to
+ * HSL-lightness inversion for greys; hues shift, which is why no colour is the sole carrier of meaning.
  */
 export function invert(hex) {
   return rgbToHex(hexToRgb(hex).map((v) => 255 - v));
 }
 
 /**
- * Text/surface pairs that must clear WCAG AA, checked in all three passes.
- * `min` is 4.5 for text and 3.0 for a non-text indicator.
- *
- * ⚠ `success` has NO foreground pair, deliberately and in both appearances: it clears 3:1 as an
- * indicator and fails 4.5:1 as text, so nothing may ever be written on it. design-system's
- * check-tokens.mjs fails the build if a --success-foreground appears; this inherits that rule.
+ * Text/surface pairs that must clear WCAG aa in all three passes (4.5 for text, 3.0 for an indicator).
+ * `success` has no foreground pair: nothing is written on it.
  */
 export const CONTRAST_PAIRS = [
   { fg: "ink", bg: "canvas", min: 4.5, what: "body text on the canvas" },
@@ -146,22 +117,13 @@ export function buildEmailTokens() {
     }
   }
 
-  // The radius scale, pinned in tokens.css as rem at a 16px root.
+  // The radius scale, rem at a 16px root.
   const remPx = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
     return m ? Math.round(parseFloat(m[1]) * 16) : null;
   };
-  // ⚠ EMAIL TAKES THE BUTTON STEP (--radius-lg, 8px), NOT --radius-sm.
-  //
-  // It used to read `--radius-sm` because under the old platform scale that WAS 6px — the control
-  // step — and the only radius email needs is the one on its call-to-action button. The theme
-  // adoption re-based the scale to sm 4 / md 6 / lg 8 / xl 10, which silently turned every email
-  // button into a 4px near-square: a value that is correct for a 16px checkbox and wrong for a 44px
-  // button. Reading the role rather than the old number is what stops that recurring.
-  //
-  // The exported key keeps the name `radiusSm` so the generated artifact and every template that
-  // interpolates it are unchanged — renaming it would rewrite ten committed files to say the same
-  // thing. What it MEANS is documented here and asserted below.
+  // Email takes the button step (--radius-lg). The exported key keeps the name `radiusSm` so the
+  // generated artifacts are unchanged.
   const radiusButton = remPx("--radius-lg");
   if (radiusButton !== 8)
     errors.push(`--radius-lg must be 0.5rem (8px, the button step), got ${radiusButton}px`);
@@ -177,18 +139,18 @@ export function buildEmailTokens() {
 export function validateEmailTokens(tokens) {
   const errors = [];
 
-  // ⚠ Deviation 1 — the page ground must not be pure white (it would invert to pure black).
+  // The page ground must not be pure white.
   if (tokens.light.pageGround === "#ffffff") {
     errors.push("light pageGround is #ffffff — it inverts to exactly #000000; use the ramp's 50 step");
   }
-  // ⚠ Deviation 2 — the authored dark ground must never be pure black.
+  // The authored dark ground must never be pure black.
   for (const role of ["pageGround", "canvas"]) {
     if (tokens.dark[role] === "#000000") {
       errors.push(`dark ${role} is #000000 — target #1A1A1A or #0A0A0A instead`);
     }
   }
 
-  // ⚠ Deviation 3 — the banned mid-tone band, on load-bearing roles only.
+  // The mid-tone band, on load-bearing roles only.
   for (const mode of ["light", "dark"]) {
     for (const role of MIDTONE_GUARDED) {
       const [r, g, b] = hexToRgb(tokens[mode][role]);
@@ -230,12 +192,12 @@ export function validateEmailTokens(tokens) {
   return errors;
 }
 
-/** The type scale. Sizes are email-specific and live here, not in tokens.css (contract §2). */
+/** The type scale: email-specific sizes, not in tokens.css. */
 export const TYPE = {
-  // ⚠ General Sans is NOT delivered by @font-face — see FONT_STACK_NOTE in gen-email.mjs.
+  // Not delivered by @font-face: no web font ships.
   stack:
     "'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  // ⚠ Weights 400/500/600 ONLY. The design language never uses 700; it would synthesise a faux bold.
+  // Weights 400/500/600 only; 700 would synthesise a faux bold.
   wordmark: { size: 22, line: 28, weight: 600, letterSpacing: "-0.01em" },
   h1: { size: 24, line: 32, weight: 600, letterSpacing: "-0.01em" },
   body: { size: 16, line: 24, weight: 400, letterSpacing: null },
@@ -245,7 +207,7 @@ export const TYPE = {
   button: { size: 16, line: 20, weight: 600, letterSpacing: null },
 };
 
-/** Layout constants (contract §1, spec § D4). */
+/** Layout constants. */
 export const LAYOUT = {
   width: "600px",
   gutter: "32px",

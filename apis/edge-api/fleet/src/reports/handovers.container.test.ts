@@ -9,7 +9,7 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { handoverReport } from "./handovers";
@@ -37,8 +37,8 @@ d("096 US6 — the hand-over report", () => {
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('RPT', 'Report Shop') RETURNING id`);
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c1', 'c1@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-RPT001', 10, 12, '{}'::jsonb, 'paid') RETURNING id`, [cust.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-RPT001', 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust.id]);
     const pkg = await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount) VALUES ($1, $2, 1, 10) RETURNING id`, [order.id, shop.id]);
     await createFirstParcels(pool, { packageIds: [pkg.id] });
@@ -64,7 +64,7 @@ d("096 US6 — the hand-over report", () => {
     await readRow("accepted", "accepted");
     await readRow("belongs_elsewhere", "belongs_elsewhere");
     await readRow("already_counted", "already_counted");
-    await readRow("accepted", "voided"); // voided while the phone was offline: a disagreement
+    await readRow("accepted", "voided");
 
     await pool.query(
       `INSERT INTO public.package_hold (shop_fulfillment_id, parcel_id, round_id, driver_id, step, reason, change_id)
@@ -81,7 +81,7 @@ d("096 US6 — the hand-over report", () => {
     ]);
     expect(r.refused.map((x) => [x.outcome, x.count]).sort()).toEqual([["already_counted", 1], ["belongs_elsewhere", 1], ["voided", 1]]);
     expect(r.missing).toEqual([{ reason: "not_at_shop", count: 1 }]);
-    // belongs_elsewhere + voided + the missing bag; the repeat scan is not an exception. 3 of 4 → 750.
+    // belongs_elsewhere + voided + the missing bag; a repeat scan is not an exception. 3 of 4 → 750.
     expect(r.exceptions).toBe(3);
     expect(r.exceptionsPer1000).toBe(750);
     expect(r.disagreements).toBe(1);

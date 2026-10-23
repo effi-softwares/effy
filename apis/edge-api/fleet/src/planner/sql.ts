@@ -1,29 +1,13 @@
-// The wave planner's reads (063). Raw parameterised SQL, no ORM, no query builder (Principle VI).
-//
-// ⚠ NO COORDINATE, DISTANCE OR TRAVEL-TIME COLUMN IS SELECTED ANYWHERE IN THIS FILE, and none exists
-// to select (D20/D22). A shop has an ADDRESS so a driver knows where to drive; nothing computes how
-// far it is.
+// No coordinate, distance or travel-time column exists or is selected: a shop has an address, nothing computes distance.
 
 import { COURIER_COLLECTION_SQL, heldSql, vehicleCheckStateSql } from "@effy/edge-shared/delivery";
 
-/** Who takes a parcel to the customer — 079's one definition, over the gathers' aliases. */
+/** Who takes a parcel to the customer, over the gathers' aliases. */
 
 /**
- * Packages a wave may pick up: ready, not already in an open assignment, and — for a delivery wave —
- * already checked in at the hub.
- *
- * ⚠ `ready_for_pickup` IS THE SHOP'S TERMINAL STATE (020). A package enters a wave there and nowhere
- * else; the planner never writes any other `shop_fulfillment` status, because the shop's lifecycle
- * belongs to the shop.
- *
- * ⚠ 082 — NO METHOD IS SELECTED. A run carries every parcel Effy delivers and every courier parcel
- * that goes via the hub; which of the two a parcel is comes from 079's one definition
- * (`delivered_by`), and WHEN an Effy parcel should travel comes from its window (`window_start`):
- * the service keeps it off a run that is earlier than it needs (`collectionRunFor`).
- *
- * ⚠ The `NOT EXISTS` is a read-side filter and is NOT what makes assignment exclusive — the partial
- * unique index `round_package_open_uq` is (FR-005). Two passes can both pass this check and only one
- * can win the insert. A check-then-write has never been a guarantee (039, 052, 054).
+ * Packages a wave may pick up: ready (`ready_for_pickup`, the shop's terminal state) and not in an
+ * open assignment. No method: `delivered_by` says whose it is, and `window_start` when it should
+ * travel. The not exists is a read filter; `round_package_open_uq` makes assignment exclusive.
  */
 export const GATHER_COLLECTION = `
   SELECT sf.id                                   AS package_id,
@@ -47,12 +31,9 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
-    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
-    -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
-    -- attribute value a product has and then test which one was 'storage'; a product with five
-    -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
-    -- gate judged a van against a multiple of what it was carrying. Unseen while the fixtures had no
-    -- order lines at all. The lateral yields exactly one row per line.
+    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
+    -- ⚠ ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES: a join over every attribute value
+    -- would count a line's weight once per value in the SUM above.
     LEFT JOIN LATERAL (
       SELECT bool_or(pav.value_text = 'chilled') AS chilled,
              bool_or(pav.value_text = 'frozen')  AS frozen
@@ -63,13 +44,13 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
-     -- 093 — a package a driver declared missing waits for a dispatcher's decision.
+     -- A package a driver declared missing waits for a dispatcher's decision.
      AND NOT ${heldSql("sf.id")}
-     -- ⚠ 080 — A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever — not in a
+     -- ⚠ A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever — not in a
      -- pass and not when staff ask "who can take this one?". Asked through the ONE fragment, so the
      -- planner and the shop console cannot disagree about which parcels are the supplier's to hand over.
      AND ${COURIER_COLLECTION_SQL("o")} <> 'supplier'
-     -- 073 — $1, when given, asks about ONE package and includes it even while it is assigned (the
+     -- $1, when given, asks about ONE package and includes it even while it is assigned (the
      -- driver list for "Assign to…" is asked about a package somebody already has). NULL = the pass.
      AND ($1::uuid IS NULL OR sf.id = $1::uuid)
      AND ($1::uuid IS NOT NULL OR NOT EXISTS (
@@ -84,41 +65,10 @@ export const GATHER_COLLECTION = `
 `;
 
 /**
- * Parcels EFFY DELIVERS that have ARRIVED at the hub, whose day has come, and that are not already
- * out for delivery.
- *
- * ⚠ 082 — "EFFY DELIVERS IT" IS 079's ONE DEFINITION (`package_delivered_by`), NOT THE METHOD. Until
- * 082 this selected `delivery_method = 'same_day'`. Since 078 a window on a later day is sold as
- * `standard` WITH a window, so that test gave such a parcel no delivery round at all — the reason the
- * new delivery model could not be switched on. A carrier's or a courier's parcel is still
- * structurally absent: the definition answers 'courier' for it.
- *
- * ⚠ 082 — AND ONLY ON ITS OWN DAY ($2 = the end of the local day). A parcel sold Thursday's window
- * may reach the hub on Tuesday; it waits there, on no round, until Thursday's first pass. Work is
- * given to drivers ON DUTY NOW and taken back when they clock off (072), so a round planned two days
- * early would be handed to one shift after another. A parcel with no window (an order placed before
- * 069) is due at once, as it always was.
- *
- * ⚠ THE HUB CHECK-IN IS THE PRECONDITION, not a `shop_fulfillment` status (research R9, and 053's
- * reasoning for `carrier_handoff`): a package on the hub floor and one in a driver's van are the same
- * fact to a shopper, so the status would exist only to be mapped. The check-in row's EXISTENCE is the
- * fact.
- *
- * ⚠ FIVE COLUMN NAMES IN THE FIRST DRAFT OF THIS FILE DID NOT EXIST, and every one of them
- * typechecked perfectly. Found only by running the queries against real PostgreSQL:
- *
- *   · `product.requires_chilled` / `requires_frozen`  → refrigeration is the `storage` PRODUCT
- *     ATTRIBUTE (`single_select`: ambient/chilled/frozen), not a column — and its value lives in
- *     `product_attribute_value.value_text`, not a column called `value`
- *   · `order.delivery_address_id`                     → `delivery_address` is a jsonb SNAPSHOT
- *   · `customer_address.postcode`                     → the column is `postal_code`, and `city` not
- *                                                       `suburb` (056 lost a container test here)
- *   · `delivery_collection_run.is_active`             → the column is `status`
- *   · `delivery_zone.postcode`                        → the mapping is `delivery_zone_postcode`
- *
- * 056 recorded two of these exact shapes (`order.reference` → `order_number`,
- * `customer_address.suburb` → `city`). A wrong column name is invisible to `tsc` and to every mocked
- * unit test, and fails the first time a real operator opens the screen.
+ * Parcels Effy delivers (by delivery type, never the method) that have been checked in at the hub
+ * (the check-in row's existence is the fact), whose day has come ($2 = the end of the local day), and
+ * that are not out for delivery. Refrigeration is the `storage` product attribute
+ * (`product_attribute_value.value_text`); the address is the order's jsonb snapshot.
  */
 export const GATHER_DELIVERY = `
   SELECT sf.id                       AS package_id,
@@ -135,11 +85,10 @@ export const GATHER_DELIVERY = `
          z.id                        AS zone_id,
          z.name                      AS zone_name,
          hc.checked_in_at            AS ready_since,
-         -- 093 — who brought it to the hub: preferred for taking it on to the customer (one trip).
+         -- Who brought it to the hub: preferred for taking it on to the customer (one trip).
          (array_agg(dr.driver_id ORDER BY hc.checked_in_at DESC))[1] AS collected_by,
-         -- 069 — the window the customer was sold. NULL for an order placed before 069. ⚠ Read as
-         -- stored INSTANTS: checkout turned the slot's wall-clock times into these once, and nothing
-         -- here rebuilds one (research R5) — which is why this needed no Go↔TypeScript duplicate.
+         -- The window the customer was sold. ⚠ Read as stored INSTANTS: checkout turned the slot's
+         -- wall-clock times into these once, and nothing here rebuilds one.
          opd.window_start            AS window_start,
          opd.window_end              AS window_end,
          COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
@@ -156,12 +105,9 @@ export const GATHER_DELIVERY = `
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
-    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
-    -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
-    -- attribute value a product has and then test which one was 'storage'; a product with five
-    -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
-    -- gate judged a van against a multiple of what it was carrying. Unseen while the fixtures had no
-    -- order lines at all. The lateral yields exactly one row per line.
+    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
+    -- ⚠ ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES: a join over every attribute value
+    -- would count a line's weight once per value in the SUM above.
     LEFT JOIN LATERAL (
       SELECT bool_or(pav.value_text = 'chilled') AS chilled,
              bool_or(pav.value_text = 'frozen')  AS frozen
@@ -174,23 +120,23 @@ export const GATHER_DELIVERY = `
    WHERE rp.state = 'picked_up'
      AND o.delivery_type = 'effy'
      AND (opd.window_start IS NULL OR opd.window_start <= $2::timestamptz)
-     -- 093 — declared missing at loading or check-in: held for a dispatcher, never re-planned by itself.
+     -- Declared missing at loading or check-in: held for a dispatcher, never re-planned by itself.
      AND NOT ${heldSql("sf.id")}
-     -- ⚠ 072 — STILL TO BE DELIVERED. Without this a package that HAS been delivered matches again:
+     -- ⚠ STILL TO BE DELIVERED. Without this a package that HAS been delivered matches again:
      -- its collection row is 'picked_up' for ever and its delivery row is 'delivered', not 'assigned',
      -- so the NOT EXISTS below passes and the next pass puts it on a new delivery round. Proof moves
-     -- the fulfillment 'collected' -> 'delivered' (064), which is the fact this reads.
+     -- the fulfillment 'collected' -> 'delivered', which is the fact this reads.
      AND sf.status = 'collected'
-     -- 073 — see GATHER_COLLECTION: $1 asks about one package, assigned or not.
+     -- See GATHER_COLLECTION: $1 asks about one package, assigned or not.
      AND ($1::uuid IS NULL OR sf.id = $1::uuid)
      AND ($1::uuid IS NOT NULL OR NOT EXISTS (
            SELECT 1
              FROM public.round_package open_rp
             WHERE open_rp.shop_fulfillment_id = sf.id AND open_rp.state = 'assigned'
          ))
-     -- ⚠ 088 — HELD FOR A PERSON. A parcel returned to the hub after a failed delivery waits until a
+     -- ⚠ HELD FOR A PERSON. A parcel returned to the hub after a failed delivery waits until a
      -- staff member chooses its next step (a new window, courier, or cancel and refund); choosing one
-     -- resolves the failure and releases it here. Never re-offered by itself (spec FR-010): the reason
+     -- resolves the failure and releases it here. Never re-offered by itself: the reason
      -- it failed — a wrong address, a refusal — usually needs a person to look at it.
      AND NOT EXISTS (
            SELECT 1
@@ -204,19 +150,9 @@ export const GATHER_DELIVERY = `
 `;
 
 /**
- * On-duty drivers with everything an eligibility decision needs, in ONE round trip.
- *
- * ⚠ ONE QUERY, NOT N+1. 029 found `GET /v1/storefront/home` intermittently 503-ing because it issued
- * eight serial queries against a Sydney database at ~135 ms each; 027 hit the same wall on the cart
- * write path. Clearances and the held vehicle are aggregated here rather than fetched per driver.
- *
- * ⚠ `packages_assigned_today` IS COUNTED, NEVER STORED (027's counted-not-stored rule, its fourth
- * application) — and it counts packages ASSIGNED TODAY, not packages currently outstanding
- * (research R7). Counting outstanding work hands the most work to whoever finishes fastest.
- *
- * ⚠ `c.zone_id IS NULL` MEANS EVERY ZONE, including zones created after the clearance was granted
- * (062 FR-011). It is carried through as NULL rather than expanded into today's zone list, because an
- * expansion is correct when written and quietly wrong the first time a zone is added.
+ * On-duty drivers with everything eligibility needs, in one round trip. `packages_assigned_today` is
+ * counted, not stored, and counts today's assignments (not outstanding work). `c.zone_id IS NULL`
+ * means every zone, including later ones, and stays null rather than expanding.
  */
 export const CANDIDATE_DRIVERS = `
   SELECT d.id                    AS driver_id,
@@ -230,7 +166,7 @@ export const CANDIDATE_DRIVERS = `
          COALESCE(v.can_carry_chilled, false) AS can_carry_chilled,
          COALESCE(v.can_carry_frozen,  false) AS can_carry_frozen,
          COALESCE(
-           -- ⚠ 082 — (function, area) ONLY. The method column is unread: a driver cleared under either
+           -- ⚠ (function, area) ONLY. The method column is unread: a driver cleared under either
            -- old method for a function and area is cleared for that function there. DISTINCT, because
            -- a driver cleared under both holds two rows for one clearance.
            (SELECT json_agg(json_build_object('function', g.function, 'zoneId', g.zone_id))
@@ -251,7 +187,7 @@ export const CANDIDATE_DRIVERS = `
                                     AT TIME ZONE 'Australia/Melbourne'),
            0
          )::bigint               AS packages_assigned_today,
-         -- 093 — today's check of the vehicle they hold.
+         -- Today's check of the vehicle they hold.
          ${vehicleCheckStateSql("d", "v")} AS vehicle_check
     FROM public.driver d
     LEFT JOIN public.driver_duty_session ds ON ds.driver_id = d.id AND ds.ended_at IS NULL
@@ -261,7 +197,7 @@ export const CANDIDATE_DRIVERS = `
    ORDER BY d.id
 `;
 
-/** The active collection schedule — the wave trigger's only input (research R1). */
+/** The wave trigger's only input. */
 export const COLLECTION_SCHEDULE = `
   SELECT EXTRACT(HOUR   FROM r.run_time)::int AS hour,
          EXTRACT(MINUTE FROM r.run_time)::int AS minute
@@ -270,7 +206,7 @@ export const COLLECTION_SCHEDULE = `
    ORDER BY r.run_time
 `;
 
-/** Planner configuration. ⚠ Values, never literals (research R11). */
+/** Values, never literals. */
 export const PLANNER_SETTINGS = `
   SELECT sameday_prep_buffer_min, planning_lead_min, per_stop_allowance_min,
          sameday_hub_turnaround_min, standard_no_delivery_weekdays
@@ -279,22 +215,9 @@ export const PLANNER_SETTINGS = `
 `;
 
 /**
- * The rounds that already exist for one run or one delivery window (072) — one row per
- * stop, oldest round first.
- *
- * ⚠ THE BUCKET IS (kind, deadline_at, window_start_at). For a collection round `deadline_at` IS the
- * run's instant, so no run reference is stored or needed. `IS NOT DISTINCT FROM` because a windowless
- * delivery round has NULL there and must still match itself.
- *
- * ⚠ 073 REMOVED THE ROUND LOCK. Since 072 the planner never moves assigned work, so the lock only
- * stopped it ADDING to a round; a person who wants a package somewhere puts it there by hand.
- *
- * ⚠ THE WEIGHT EXPRESSION IS THE GATHER'S, VERBATIM. A round's weight must be the sum of what the
- * gather said each package weighed, or the capacity gate compares two different quantities.
- *
- * ⚠ A LATE PACKAGE JOINS ONLY WHERE THE WORK IS STILL TO DO (063). `outstanding` names the FINISHED
- * states, not the open ones (2026-09-30), so a future in-progress stop state stays joinable without
- * anyone remembering to add it here.
+ * The rounds for one run or window, one row per stop, oldest first. The bucket is (kind, deadline_at,
+ * window_start_at), matched with `IS NOT DISTINCT FROM`. The weight expression is the gather's,
+ * verbatim. `outstanding` names the finished states, so any new in-progress state stays joinable.
  */
 export const BUCKET_ROUNDS = `
   SELECT dr.id          AS round_id,
@@ -311,7 +234,7 @@ export const BUCKET_ROUNDS = `
              JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
              JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
              JOIN public.product    p  ON p.id = oi.product_id
-             JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
+             JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
             WHERE rp.stop_id = rs.id AND rp.state IN ('assigned', 'picked_up')
          ), 0)::bigint  AS stop_weight_grams
     FROM public.driver_round dr
@@ -323,26 +246,15 @@ export const BUCKET_ROUNDS = `
    ORDER BY dr.created_at ASC, dr.id ASC, rs.id ASC
 `;
 
-/** When a round for this run or window opens — the database's one definition (072, research R3). */
+/** The database's one definition. */
 export const ROUND_OPENS_AT = `
   SELECT public.round_opens_at($1::text, $2::timestamptz, $3::timestamptz) AS opens_at
 `;
 
-/**
- * ⚠ ONE PASS AT A TIME (072, research R4). Find-then-create a driver's round is a check-then-write,
- * and a check-then-write has never been a guarantee (039, 052, 054). A transaction-scoped advisory
- * lock makes the whole pass exclusive without a unique index on the bucket — which would refuse a
- * dispatcher moving a round to a driver who already holds one for the same run.
- */
+/** One pass at a time: a transaction-scoped advisory lock, not a unique index (dispatchers may double up a driver). */
 export const TRY_PASS_LOCK = `SELECT pg_try_advisory_xact_lock(72063001) AS locked`;
 
-// ── Returning work nobody can do (072, research R10) ──────────────────────────────────────────────
-
-/**
- * Unfinished rounds held by a driver who cannot work them: no open duty session, or not
- * active. ⚠ 063 FR-035 required this and nothing implemented it; with rounds assigned hours ahead it
- * is the difference between a driver going home and a driver going home with tomorrow's run.
- */
+/** Unfinished rounds held by a driver with no open duty session, or not active. */
 export const UNWORKABLE_ROUNDS = `
   SELECT dr.id, dr.driver_id, dr.kind, dr.status
     FROM public.driver_round dr
@@ -354,20 +266,14 @@ export const UNWORKABLE_ROUNDS = `
    ORDER BY dr.created_at
 `;
 
-/** Not-yet-begun collection rounds — checked against the schedule as it now stands. */
+/** Checked against the schedule as it now stands. */
 export const PLANNED_COLLECTION_ROUNDS = `
   SELECT dr.id, dr.driver_id, dr.deadline_at
     FROM public.driver_round dr
    WHERE dr.kind = 'collection' AND dr.status = 'planned'
 `;
 
-/**
- * Take back what has NOT been collected.
- *
- * ⚠ ONLY `assigned` ROWS, AND ONLY AT STOPS STILL TO BE MADE (FR-034). A `picked_up` package is
- * physically in a van and no query can know otherwise — 056's stranded-work finding. Releasing it
- * would tell the planner to send a second driver for goods somebody already has.
- */
+/** Only `assigned` rows at stops still to make: a `picked_up` package is in a van. */
 export const RELEASE_ASSIGNED = `
   DELETE FROM public.round_package rp
    USING public.round_stop rs
@@ -377,8 +283,6 @@ export const RELEASE_ASSIGNED = `
      AND rs.status NOT IN ('done', 'skipped')
   RETURNING rp.shop_fulfillment_id
 `;
-
-// ── Standing reasons (072, research R9) ───────────────────────────────────────────────────────────
 
 export const STANDING_EXCLUSIONS = `
   SELECT shop_fulfillment_id, driver_id, reason

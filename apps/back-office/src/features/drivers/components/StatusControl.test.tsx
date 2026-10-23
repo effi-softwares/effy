@@ -102,16 +102,6 @@ describe("StatusControl — the employment lifecycle", () => {
     expect(confirm).toBeTruthy();
   });
 
-  /**
-   * ⚠ TWO CASES WERE REMOVED HERE, AND WHAT THEY PROVED IS WORTH RESTATING SO IT IS REBUILT.
-   * They asserted that a stand-down refused for held work ITEMISES the affected orders rather than
-   * saying only that something is held, and that going ahead takes a SECOND, DIFFERENTLY LABELLED
-   * button — because re-pressing an unchanged control is a reflex, while pressing one whose label
-   * names the consequence is a decision.
-   *
-   * Both tested a refusal the backend can no longer raise: `heldWorkFor` read `collection_task` and
-   * `delivery_task`, dropped with the work model, and nothing assigns work, so nothing can be held.
-   */
   it("sends the status and reason, and nothing else", async () => {
     const user = userEvent.setup();
     setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" });

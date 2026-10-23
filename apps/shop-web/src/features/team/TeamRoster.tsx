@@ -40,14 +40,14 @@ const ROLE_LABEL: Record<ShopRole, string> = {
 }
 
 /**
- * The shop's own team (US7, T066).
+ * The shop's own team.
  *
- * ⚠ THE ROSTER IS READABLE BY EVERYONE, THE ACTIONS ARE MANAGER-ONLY (FR-019b). Knowing who you work
- * with is not privileged; changing who can do what is. And this component is NOT the gate — the
+ * The roster is readable by everyone, the actions are manager-only. Knowing who you work
+ * with is not privileged; changing who can do what is. And this component is not the gate — the
  * backend re-checks `shop_manager` against the platform record on every write and refuses regardless.
  * Withholding the controls only spares a staff member a refusal they can do nothing about.
  *
- * ⚠ IT WRITES THE SAME RECORDS BACK-OFFICE OWNS. There is no shop-local roster (FR-019).
+ * It writes the same records back-office owns. There is no shop-local roster.
  */
 export function TeamRoster() {
   const { data, error, isPending, isError, refetch } = useQuery(teamQuery)
@@ -117,7 +117,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
 
   return (
     <TableRow>
-      {/* ⚠ EVERY LIST OF PEOPLE CARRIES AVATARS (adoption prompt, Phase 2 §8). Seeded on the STAFF
+      {/* Every list of people carries avatars (adoption prompt, Phase 2 §8). Seeded on the staff
           ID, so a colleague keeps one tint here and anywhere else they appear — and a rename does not
           re-colour them. */}
       <TableCell className="font-medium">
@@ -164,14 +164,14 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
         ) : null}
       </TableCell>
       <TableCell>
-        {/* ⚠ Status by word, never a hue (Principle V). */}
+        {/* Status by word, never a hue (Principle V). */}
         <Badge variant={member.status === "active" ? "success" : "muted"}>
           {member.status === "active" ? "Active" : "Stood down"}
         </Badge>
       </TableCell>
       {canManage ? (
         <TableCell className="text-right">
-          {/* ⚠ Withheld on your OWN row — a courtesy against locking yourself out. The backend also
+          {/* Withheld on your own row — a courtesy against locking yourself out. The backend also
               refuses removing the last manager, which is the actual protection. */}
           {member.status === "active" && !member.isSelf ? (
             <Button
@@ -217,7 +217,7 @@ function InviteDialog({
           setName("")
           onOpenChange(false)
         },
-        // ⚠ The server's own words are shown. "That email belongs to someone who was stood down here"
+        // The server's own words are shown. "That email belongs to someone who was stood down here"
         // is the whole point of the refusal — a generic "couldn't invite" would leave the manager
         // retrying an address that will never work.
         onError: (e) => setError(productMutationError(e)),

@@ -1,5 +1,4 @@
-// POST /commerce/v1/checkout/confirm — the shopper's return from the payment provider: re-read the
-// intent and settle the order. This is what lands a payment whose notification never arrives.
+// Called on return from the payment provider; settles a payment whose webhook never arrived.
 import { json, validationFailed } from "@effy/edge-shared";
 
 import { checkoutError } from "../checkout/respond";

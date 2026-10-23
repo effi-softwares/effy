@@ -84,14 +84,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import androidx.compose.foundation.layout.heightIn
 
 /**
- * THE CART TAB (Cart board; 087 — the cart is a tab, not a pushed page).
- *
- * One list of lines, an order summary, and a pinned bar with the total and "Go to checkout".
- *
- * ⚠ HIDDEN FULFILMENT (087 FR-031): the cart says NOTHING about how many suppliers or packages fill
- * the order. Until 087 it grouped lines under "Package 1 / Package 2" and said "Your order arrives in N
- * packages" — which tells a shopper how many shops are behind one brand. Lines are one list now;
- * `packageKey` stays on the line for the server and is never shown (`mobile-guard.sh` fails the words).
+ * The Cart tab: one list of lines, an order summary, and a pinned bar with the total and "Go to checkout".
+ * Nothing says how many suppliers or packages fill the order: `packageKey` stays on the line for the
+ * server and is never shown (`mobile-guard.sh` fails the words).
  */
 @Composable
 fun CartScreen(
@@ -110,10 +105,10 @@ fun CartScreen(
     val scope = rememberCoroutineScope()
     val collapse = rememberEffyCollapse()
 
-    // Re-price on open (027 FR-004): a cart restored from disk must show TODAY's prices.
+    // Re-price on open: a cart restored from disk must show today's prices.
     LaunchedEffect(Unit) { container.syncCart() }
 
-    /** Remove with UNDO (025 FR-041) — removing the wrong line is a one-tap mistake. */
+    /** Remove with undo — removing the wrong line is a one-tap mistake. */
     fun onRemoved(line: GuestCartLine) {
         scope.launch {
             val result = snackbarHost.showSnackbar("Removed ${line.name}", actionLabel = "Undo", duration = SnackbarDuration.Short)
@@ -124,7 +119,7 @@ fun CartScreen(
     if (lines.isEmpty()) {
         Column(modifier = Modifier.fillMaxSize()) {
             EffyLargeTitleBar(title = "Cart")
-            // ⚠ Pull-to-refresh on the EMPTY cart too: "empty" is what a shopper doubts after adding on
+            // Pull-to-refresh on the empty cart too: "empty" is what a shopper doubts after adding on
             // another device.
             EffyPullToRefresh(onRefresh = { container.syncCart() }, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
@@ -153,7 +148,7 @@ fun CartScreen(
         value = runCatching { container.searchProducts(query = "", saleOnly = true).items.take(10) }.getOrDefault(emptyList())
     }
 
-    // FR-032: emptying the cart is not recoverable, so it is confirmed — in a sheet (087: no dialogs).
+    // Emptying the cart is not recoverable, so it is confirmed — in a sheet (087: no dialogs).
     var confirmingClear by remember { mutableStateOf(false) }
     if (confirmingClear) {
         EffyConfirmSheet(
@@ -202,7 +197,7 @@ fun CartScreen(
                             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
                         ) {
                             Text("Order summary", style = MaterialTheme.typography.titleLarge)
-                            // Promotional code (027 US8) — signed-in only.
+                            // Promotional code — signed-in only.
                             if (signedIn) {
                                 PromoField(
                                     applied = cart.discount,
@@ -211,12 +206,12 @@ fun CartScreen(
                                 )
                             }
                             EffyDetailRow("Items (${cart.itemCount})", money(cart.itemSubtotalAmount, currency))
-                            // 094 — one entry per promotion applying (FR-045: its OWN entry, in Effy green).
+                            // One entry per promotion applying (FR-045: its own entry, in Effy green).
                             cart.promotions.filter { it.goodsAmount != "0.00" }.forEach { p ->
                                 val label = if (p.code != null) "${p.headline} (${p.code})" else p.headline
                                 EffyDetailRow(label, "−" + money(p.goodsAmount, currency), valueColor = com.effyshopping.customer.mobile.core.theme.EffyRoles.brand)
                             }
-                            // 094 — offers not applying yet, each with the one thing to do about it.
+                            // Offers not applying yet, each with the one thing to do about it.
                             cart.promotionsNotApplied.forEach { n ->
                                 Text("${n.headline}: ${n.detail}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -224,17 +219,17 @@ fun CartScreen(
                             EffyHairline(inset = false, modifier = Modifier.padding(vertical = EffySpacing.xs))
                             EffyDetailRow("Total", money(cart.grandTotalAmount, currency) + " + delivery", emphasised = true)
 
-                            // ⚠ FR-017/FR-019: a change that has not reached the platform yet, or was refused.
+                            // A change that has not reached the platform yet, or was refused.
                             cart.failureMessage?.let { EffyInlineError(it) }
                             if (cart.failureMessage == null && cart.unsavedCount > 0) {
                                 Text("Saving your changes…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            // 087 FR-032 — said only to a GUEST. A signed-in shopper was told this too.
+                            // Said only to a guest. A signed-in shopper was told this too.
                             if (!signedIn) {
                                 EffyNotice("You’ll sign in at checkout. Your cart is kept.", icon = Res.drawable.lucide_info)
                             }
                             // 087 (Cart board) — the points the shopper holds, said before checkout.
-                            // ⚠ Only when they have some; a guest has none to read.
+                            // Only when they have some; a guest has none to read.
                             points?.let { p ->
                                 EffyNotice(
                                     "You have ${formatPoints(p.points)} points (worth ${money(p.valueAmount, currency)}). Use them to pay at checkout.",
@@ -273,7 +268,7 @@ fun CartScreen(
                     Text("Total + delivery", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                     EffyNumberRoll(money(cart.grandTotalAmount, currency), style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"))
                 }
-                // FR-026/FR-054: checkout is offered only when the PLATFORM says so, with the reason when not.
+                // Checkout is offered only when the platform says so, with the reason when not.
                 when (cart.checkout.blockedReason) {
                     CartBlockedReason.NoPayableItems -> EffyInlineError("Nothing in your cart is available right now.")
                     CartBlockedReason.BelowMinimum -> EffyInlineError(
@@ -291,7 +286,7 @@ fun CartScreen(
 }
 
 /**
- * The promotional-code field (027 FR-041/FR-043). The refusal it shows is the PLATFORM's, verbatim.
+ * The promotional-code field. The refusal it shows is the platform's, verbatim.
  */
 @Composable
 private fun PromoField(
@@ -352,9 +347,9 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
             Row {
                 Column(Modifier.weight(1f)) {
                     Text(line.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    // 098 — the size chosen.
+                    // The size chosen.
                     line.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    // FR-023/FR-024: a price that moved is SAID, with what it was.
+                    // A price that moved is said, with what it was.
                     Text(
                         money(line.unitPriceAmount, line.currency) + " each" + (line.priceChangedFrom?.let { " · was ${money(it, line.currency)}" } ?: ""),
                         style = MaterialTheme.typography.bodySmall,
@@ -365,7 +360,7 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                 Spacer(Modifier.size(EffySpacing.s))
                 Text(money(lineTotal(line), line.currency), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"))
             }
-            // FR-022: an unavailable line stays visible, flagged, excluded from every total.
+            // An unavailable line stays visible, flagged, excluded from every total.
             if (!line.available) EffyInlineError("Unavailable — not included in your total")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (line.available) {

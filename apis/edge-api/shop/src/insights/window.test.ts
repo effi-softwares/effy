@@ -2,22 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { addLocalDays, bucketsFor, isoWeek, offsetMinutes, planFor, startOfLocalDay, startOfLocalWeek, windowLabel } from "./window";
 
-/**
- * The calendar arithmetic (058, US3).
- *
- * ⚠ THIS IS THE HEAVIEST PURE-TEST SURFACE IN THE SLICE, on purpose. Every bug available here
- * produces a number that looks entirely plausible: a day that starts at the wrong hour, a week that
- * begins on Sunday, an hour that vanishes in October, a shop in Adelaide whose hours are all thirty
- * minutes out. None of them throws, none of them fails a typecheck, and the only way to catch them
- * is to assert against real zone rules — which `Intl` has, so no container is needed.
- */
+/** The calendar arithmetic, against real zone rules via `Intl`: every bug here produces a plausible number. */
 
 const MELBOURNE = "Australia/Melbourne";
-const ADELAIDE = "Australia/Adelaide"; // UTC+9:30 / +10:30 — the half-hour zone that breaks assumptions
+const ADELAIDE = "Australia/Adelaide";
 
 describe("zone offsets", () => {
   it("tracks daylight saving rather than assuming one offset per zone", () => {
-    // Melbourne is +11 in January and +10 in July. A single constant is wrong for half of every year.
+    // Melbourne is +11 in January and +10 in July.
     expect(offsetMinutes(new Date("2026-01-15T00:00:00Z"), MELBOURNE)).toBe(11 * 60);
     expect(offsetMinutes(new Date("2026-07-15T00:00:00Z"), MELBOURNE)).toBe(10 * 60);
   });
@@ -29,7 +21,7 @@ describe("zone offsets", () => {
 
 describe("local day boundaries", () => {
   it("starts 'today' at the shop's midnight, not the server's", () => {
-    // 2026-09-14T04:00Z is 14:00 Monday in Melbourne; the day began at 00:00 local = 14:00Z on the 13th.
+    // 2026-09-14T04:00Z is 14:00 Monday Melbourne; the day began at 14:00Z on the 13th.
     const start = startOfLocalDay(new Date("2026-09-14T04:00:00Z"), MELBOURNE);
     expect(start.toISOString()).toBe("2026-09-13T14:00:00.000Z");
   });
@@ -40,9 +32,7 @@ describe("local day boundaries", () => {
   });
 
   it("⚠ adds days by the CALENDAR, so a 23-hour day still moves exactly one day", () => {
-    // 2026-10-04 is the spring-forward day in Melbourne: THAT local day is 23 hours long, so the step
-    // from its midnight to the next is 23 real hours. Adding 86,400,000 ms would land at 01:00 on the
-    // 5th and quietly shift every bucket after it.
+    // 2026-10-04 is 23 hours long in Melbourne; adding 86,400,000 ms would shift every later bucket.
     const springForward = startOfLocalDay(new Date("2026-10-04T06:00:00Z"), MELBOURNE);
     const next = addLocalDays(springForward, MELBOURNE, 1);
     expect((next.getTime() - springForward.getTime()) / 3_600_000).toBe(23);
@@ -77,8 +67,7 @@ describe("range plans", () => {
     expect(plan.window.from.toISOString()).toBe("2026-09-13T14:00:00.000Z"); // local midnight
     expect(plan.window.to).toEqual(now);
 
-    // ⚠ The comparison is TRUNCATED: 14 hours of last Monday against 14 hours of this one. A morning
-    // measured against a whole day would read as a collapse every morning.
+    // The comparison is truncated to the same time of day.
     const windowMs = plan.window.to.getTime() - plan.window.from.getTime();
     const comparisonMs = plan.comparison.to.getTime() - plan.comparison.from.getTime();
     expect(comparisonMs).toBe(windowMs);
@@ -110,7 +99,7 @@ describe("⚠ buckets across daylight saving", () => {
 
     expect(buckets).toHaveLength(25);
     expect(buckets.filter((b) => b.label === "02")).toHaveLength(2);
-    // Two DISTINCT instants sharing a label — the thing a 24-bucket implementation silently merges.
+    // Two distinct instants sharing a label.
     const [first, second] = buckets.filter((b) => b.label === "02");
     expect(first!.start.toISOString()).not.toBe(second!.start.toISOString());
   });

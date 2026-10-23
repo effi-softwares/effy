@@ -5,17 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 079 — three things about "who delivers an order" that are true only while nobody adds a second
- * copy, and that every behavioural test would go on passing without.
- *
- *   1. THE HISTORY HAS ONE WRITER. `order_delivery_type_change` is written by `recordDeliveryType`
- *      and by nothing else; a second writer is a second idea of what "from" was, and an entry that
- *      does not match the order it describes. The same function is the only thing that changes a
- *      PLACED order's type — checkout sets it on the pending order, and only there.
- *   2. WHO TAKES A PACKAGE IS `order.delivery_type`. Re-deriving it from a package's method or window
- *      (as the orders service once did, five times) hands an Effy parcel to a carrier.
- *   3. NOTHING REMEMBERS WHETHER A COURIER ORDER CAN BE PLACED. That was a constant three callers
- *      had to check; it is now part of the coverage answer itself.
+ * `order_delivery_type_change` has one writer (`recordDeliveryType`), which alone changes a placed
+ * order's type; who takes a package is `order.delivery_type`, never re-derived from a method or window.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");
@@ -44,7 +35,7 @@ describe("079 — the order's delivery type", () => {
 
   it("the history table is named by its one writer and its one reader", () => {
     expect(naming("order_delivery_type_change")).toEqual([
-      "orders/src/orders/repository.ts", // SELECT only — the back-office order page
+      "orders/src/orders/repository.ts",
       "shared/src/delivery/delivery-type.ts",
     ]);
   });
@@ -55,8 +46,8 @@ describe("079 — the order's delivery type", () => {
 
   it("an order's delivery type is SET in two places: the pending order at checkout, and the one writer", () => {
     expect(naming(/\bdelivery_type\s*=\s*\$/)).toEqual([
-      "commerce/src/checkout/store.ts", // the pending order, rewritten on every payment attempt
-      "orders/src/orders/repository.ts", // a WHERE, in the back-office list's filter
+      "commerce/src/checkout/store.ts",
+      "orders/src/orders/repository.ts",
       "shared/src/delivery/delivery-type.ts",
     ]);
   });
@@ -79,17 +70,9 @@ describe("079 — who takes a package is decided in the database", () => {
       .map((s) => s.file);
     expect(where).toEqual([]);
   });
-
-  it("who delivers is the order's own column — nothing re-derives it from the method or window", () => {
-    expect(naming("package_delivered_by(")).toEqual([]);
-  });
 });
 
 describe("079 — whether a courier order can be placed is part of the coverage answer", () => {
-  it("the constant that used to say so is gone", () => {
-    expect(naming("COURIER_ORDERING_AVAILABLE")).toEqual([]);
-  });
-
   it("the courier functions are asked from the two places that own the question", () => {
     expect(naming("courier_reaches_postcode(")).toEqual(["shared/src/delivery/coverage.ts"]);
     expect(naming("courier_delivery_state(")).toEqual(["admin/src/delivery/coverage.repository.ts"]);

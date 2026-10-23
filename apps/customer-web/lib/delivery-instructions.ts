@@ -9,10 +9,10 @@ import {
 } from "@effy/shared-types"
 
 /**
- * Delivery instructions on the storefront (066) — the draft a shopper edits, and the words shown
+ * Delivery instructions on the storefront — the draft a shopper edits, and the words shown
  * for a handover preference.
  *
- * ⚠ THE RULE IS NOT HERE. What is valid — the limit, what counts as blank, how whitespace is
+ * The rule is not here. What is valid — the limit, what counts as blank, how whitespace is
  * collapsed — is `normaliseDeliveryInstructions` in `@effy/shared-types`, the same function the
  * server's decision is pinned to. This file only holds what is genuinely the storefront's: the
  * editable draft and the display copy.
@@ -40,7 +40,7 @@ export function draftFrom(saved: DeliveryInstructionsDTO | null | undefined): In
 }
 
 /**
- * Keep typing inside the limit. ⚠ This clamps what can be TYPED, in the characters a person counts
+ * Keep typing inside the limit. This clamps what can be typed, in the characters a person counts
  * (code points), so the counter can reach zero and stop — it is not the validation, and nothing a
  * shopper submitted is ever silently shortened: the server refuses an over-long note outright.
  */
@@ -55,7 +55,7 @@ export function remainingCharacters(note: string): number {
 /**
  * The draft as the request carries it: normalised, or `null` when the shopper said nothing. A draft
  * that fails the rule (it cannot, while typing is clamped — but a paste into a future field might)
- * is sent as-is so the SERVER refuses it, rather than being quietly repaired here.
+ * is sent as-is so the server refuses it, rather than being quietly repaired here.
  */
 export function draftToRequest(draft: InstructionsDraft): DeliveryInstructionsDTO | null {
   const out = normaliseDeliveryInstructions({ handover: draft.handover, note: draft.note })

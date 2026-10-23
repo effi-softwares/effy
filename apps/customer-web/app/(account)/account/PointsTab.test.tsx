@@ -18,8 +18,7 @@ const PAGE = {
   nextCursor: "abc",
 }
 
-// ⚠ Braces: a beforeEach that RETURNS a function has it called as a cleanup hook — and mockReset
-// returns the mock itself.
+// Braces: a beforeEach that returns a function has it called as cleanup, and mockReset returns the mock.
 beforeEach(() => {
   apiGet.mockReset()
 })

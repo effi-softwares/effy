@@ -6,11 +6,11 @@ import { TaxInvoiceBlock } from "./TaxInvoiceBlock"
 const DAY = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeZone: "Australia/Melbourne" })
 
 /**
- * 096 US7 — the order's documents. The delivery note says what was supplied, line by line, once the
+ * The order's documents. The delivery note says what was supplied, line by line, once the
  * order has arrived; before that the section says when it will be ready. Digital only: there is no
- * paper note in the bag (FR-073).
+ * paper note in the bag.
  *
- * ⚠ NO PRICES AND NOTHING ABOUT HOW THE ORDER WAS FILLED: the note's lines are merged by the server,
+ * No prices and nothing about how the order was filled: the note's lines are merged by the server,
  * and this renders only what it is sent.
  */
 export function OrderDocuments({ orderId, note }: { orderId: string; note: DeliveryNoteDTO | null }) {
@@ -60,7 +60,7 @@ export function OrderDocuments({ orderId, note }: { orderId: string; note: Deliv
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">Your delivery note will be here once your order has arrived.</p>
       )}
-      {/* 096 US8 — the tax invoice, on request. */}
+      {/* The tax invoice, on request. */}
       <div className="mt-6 space-y-2 border-t pt-4">
         <h3 className="text-sm font-semibold">Tax invoice</h3>
         <TaxInvoiceBlock orderId={orderId} />

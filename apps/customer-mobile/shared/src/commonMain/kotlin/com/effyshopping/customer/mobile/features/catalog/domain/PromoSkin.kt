@@ -1,20 +1,16 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * 095 — how a promotion looks in one place: the skin staff designed in back-office, as the group read
- * resolved it for this placement.
- *
- * ⚠ THE RULES BELOW ARE THE TWIN OF `packages/shared-types/src/promotion-skins.ts` and are held to it by
- * `promotion-skins.fixtures.json` (embedded in `PromoSkinFixture.kt`): the website and this app draw the
- * same skin with the same sizes, words and colours. Change the TypeScript first.
- *
- * A [PromoLook] with [SkinLayout.CLASSIC] — or none at all — means "draw this place as before 095".
+ * How a promotion looks in one place: the skin staff designed, as the group read resolved it. The twin of
+ * `packages/shared-types/src/promotion-skins.ts`, held to it by `promotion-skins.fixtures.json` (embedded
+ * in `PromoSkinFixture.kt`). Change the TypeScript first. [SkinLayout.classic], or no [PromoLook], means the
+ * app's own look.
  */
 data class PromoLook(
     val skinId: String,
     val layout: SkinLayout,
     val size: SkinSize,
-    /** Null for [SkinLayout.CLASSIC]. */
+    /** Null for [SkinLayout.classic]. */
     val settings: SkinSettings?,
     val picture: SkinPicture?,
 )
@@ -134,7 +130,7 @@ object PromoSkinRules {
         SkinLayout.STRIP to mapOf(SkinSize.STRIP to SkinGeometry(64, 1.0, 0.7, false)),
     )
 
-    /** The geometry at a size the layout fits; null when it does not (or for CLASSIC). */
+    /** The geometry at a size the layout fits; null when it does not (or for classic). */
     fun geometry(layout: SkinLayout, size: SkinSize): SkinGeometry? = GEOMETRY[layout]?.get(size)
 
     /** The largest size the layout fits — what to draw at when the given size does not fit. */

@@ -63,7 +63,7 @@ import { promotionSkinQuery, useCreateSkin, useDeleteSkin, useDuplicateSkin, use
 import { LAYOUT_WORD, SIZE_WORD, SkinPreview } from "./SkinPreview";
 
 /**
- * The skin builder (095 US2): a layout, then every setting it has, with a live preview and the
+ * The skin builder: a layout, then every setting it has, with a live preview and the
  * readability of every piece of text shown as the colours change. The same checks run on the server,
  * which refuses an unreadable skin — this screen just says so first.
  */
@@ -492,7 +492,7 @@ function DuplicateDialog({ skin, open, onOpenChange }: { skin: AdminSkinDTO; ope
   );
 }
 
-// ── fields ──────────────────────────────────────────────────────────────────────────────────────
+// fields
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 

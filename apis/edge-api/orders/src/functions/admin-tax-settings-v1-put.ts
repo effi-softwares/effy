@@ -7,11 +7,7 @@ import { requireAdmin } from "../lib/guard";
 import { VALIDATION_FAILED } from "../lib/problems";
 import { TaxSettingsRefusal, putTaxSettings } from "../tax-settings/service";
 
-/**
- * PUT /orders/v1/admin/tax-settings — set Effy's legal name, ABN and fee treatment, and turn tax
- * invoices on or off (096 US8, FR-084). Admin only. 422 `abn_invalid`; 409 `tax_setup_incomplete`
- * (with `missing`) when turning invoices on before everything they need is set.
- */
+/** Admin only. 409 `tax_setup_incomplete` lists what is missing before invoices can be turned on. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireAdmin(event, context);
   if (!guard.ok) return guard.response;
@@ -21,7 +17,6 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     return json(200, await putTaxSettings(guard.sub, parsed.value), guard.scope);
   } catch (err) {
     if (err instanceof TaxSettingsRefusal) {
-      // What is missing travels as field issues — the shape every client already reads (`errors`).
       return problem(err.status, `https://effyshopping.com/problems/${err.code}`, "Refused", err.message, guard.scope,
         err.missing.map((m) => ({ field: "setup", message: m })));
     }

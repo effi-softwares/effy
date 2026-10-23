@@ -24,20 +24,13 @@ import { useSetPicks, useTransitionFulfillment } from "../queries"
 import { lineCodes } from "../codes";
 
 /**
- * "Items and fulfilment" — the design's merged section (057 A3 revision 2): the priced lines ARE the
- * pick list. One click on a line's box marks the whole line picked; clicking again clears it. "Select
- * all" / "Clear all" does every line. The exception path — part picked, unavailable, a note — is the
- * line's "Adjust" dialog. Below the totals, "Fulfil {n} items" hands the picked package over.
+ * "Items and fulfilment": the priced lines are the pick list. One click on a line's box marks the whole
+ * line picked (again clears it); "Select all" / "Clear all" does every line; part picked, unavailable or a
+ * note go through the line's "Adjust" dialog. A line's state is two absolute counts, one write per click
+ * (`setPicks`). "Fulfil {n} items" hands the package to Effy.
  *
- * ⚠ PICKING IS PER LINE, NOT PER UNIT. The steppers are gone; a line's state is still 020's two
- * absolute counts, set in one write per click (see `setPicks` on the server).
- *
- * ⚠ THE DESIGN'S "Edit order" IS NOT HERE. An order is a paid record 055 refuses to edit; a line the
- * shop cannot supply is marked Unavailable, and the money follows through a refund.
- *
- * ⚠ "Fulfil" HANDS THE PACKAGE TO EFFY, IT DOES NOT BOOK A CARRIER. A shop's package is collected by an
- * Effy driver (049) — so the design's carrier and tracking fields have nothing to hold, and its
- * "Shipments" block lists that handover (collected, delivered) instead.
+ * No "Edit order": an order is a paid record; an unsuppliable line is marked Unavailable and the money
+ * follows by refund. No carrier or tracking fields; "Shipments" lists the hand-over.
  */
 export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const picks = useSetPicks(detail.id)
@@ -116,12 +109,12 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
           ) : null}
           {Number(m.discount) > 0 ? (
             <TotalRow
-              // 094 FR-035 — the total only; a shop is never told which promotion it was.
+              // The total only; a shop is never told which promotion it was.
               label="Discount"
               value={`−${formatMoney(m.discount, m.currency)}`}
             />
           ) : null}
-          {/* ⚠ 077: no delivery row. A shop never sees what the customer paid for delivery (FR-038). */}
+          {/* No delivery row. A shop never sees what the customer paid for delivery. */}
           <tr className="border-border border-t">
             <td colSpan={3} className="pt-2.5 pr-2 text-sm font-semibold">
               Total
@@ -180,13 +173,13 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   )
 }
 
-// ── A line ────────────────────────────────────────────────────────────────────────────────────
+// A line
 
 /**
- * The line's box: 26px, 7px radius. Its four states by fill, border and glyph —
+ * The line's box: 26px, 7px radius. Its four states by fill, border and glyph
  * full ✓ on primary · part – · unavailable × in the error colour · none empty.
  *
- * ⚠ THE DESIGN'S PART-PICKED AMBER AND PICKED GREEN ARE NOT USED: amber is a third UI hue and
+ * The design's part-picked amber and picked green are not used: amber is a third UI hue and
  * `--success` may not be text (Principle V). Part-picked reads by its en dash and a foreground border;
  * the status words under the SKU carry every state, so nothing depends on colour.
  */
@@ -246,7 +239,7 @@ function LineRow({
         </div>
       </td>
       <td className="px-2 py-[18px]">
-        {/* 098 — the size sold is part of the name a picker reads: they must never guess it. */}
+        {/* The size sold is part of the name a picker reads: they must never guess it. */}
         <div className="text-sm font-medium">
           {line.name}
           {line.variantLabel ? <span className="text-foreground"> — {line.variantLabel}</span> : null}
@@ -325,7 +318,7 @@ function TextButton({
   )
 }
 
-// ── Refunded box ──────────────────────────────────────────────────────────────────────────────
+// Refunded box
 
 const REFUND_STATUS: Record<string, string> = {
   submitting: "sending",
@@ -370,7 +363,7 @@ function RefundedBox({ detail }: { detail: OrderDetail }) {
   )
 }
 
-// ── Shipments ─────────────────────────────────────────────────────────────────────────────────
+// Shipments
 
 /**
  * The design's "Shipments" block, in Effy's terms: one package, handed to an Effy driver. The row
@@ -388,7 +381,7 @@ function Shipments({ detail }: { detail: OrderDetail }) {
     detail.status === "delivered"
       ? `Delivered · ${formatWhen(detail.handoff.deliveredAt ?? detail.stateChangedAt)}`
       : detail.status === "collected"
-        ? `Collected · ${formatWhen(detail.handoff.collectedAt ?? detail.stateChangedAt)}`
+        ? `Collected · ${formatWhen(detail.stateChangedAt)}`
         : `Ready for pickup · ${formatWhen(detail.stateChangedAt)}`
   return (
     <div className="mt-[34px] grid">
@@ -406,7 +399,7 @@ function Shipments({ detail }: { detail: OrderDetail }) {
   )
 }
 
-// ── Dialogs ───────────────────────────────────────────────────────────────────────────────────
+// Dialogs
 
 const AVAILABILITY: { value: Exclude<PickMode, "none">; label: string }[] = [
   { value: "full", label: "Picked in full" },
@@ -515,7 +508,7 @@ function AdjustLineDialog({
 /**
  * "Fulfil" — the design's shipment dialog, as Effy's handover: what goes in the package (the picked
  * quantities, as ticked), and a note that the customer is told automatically. Saving marks the order
- * ready for an Effy driver to collect. ⚠ No carrier or tracking field: a shop never books either (049).
+ * ready for an Effy driver to collect. No carrier or tracking field: a shop never books either.
  */
 function FulfilDialog({
   detail,
@@ -530,7 +523,7 @@ function FulfilDialog({
   const picks = useSetPicks(detail.id)
   const inParcel = detail.lines.filter((l) => l.gatheredQuantity > 0)
   const short = detail.lines.reduce((n, l) => n + Math.max(0, l.orderedQuantity - l.gatheredQuantity), 0)
-  // ⚠ A line nobody touched is not going in the package. Handing over without recording it would
+  // A line nobody touched is not going in the package. Handing over without recording it would
   // short the customer with nothing on the record — 055's refund proposal keys on "unavailable".
   const untouched = detail.lines.filter((l) => pickModeOf(l) === "none")
 

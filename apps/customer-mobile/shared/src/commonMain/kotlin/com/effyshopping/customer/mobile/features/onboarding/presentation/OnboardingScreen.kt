@@ -52,12 +52,8 @@ import androidx.compose.foundation.layout.heightIn
 import com.effyshopping.customer.mobile.core.presentation.EffySize
 
 /**
- * The first-launch introduction (026 FR-033; restyled by 087 to the Onboarding board).
- *
- * ⚠ 087 — NO PHOTOGRAPHS AND NO GRADIENT. The old pages hot-linked three Unsplash photographs (network
- * at the very first screen, and someone else's CDN) under a vertical gradient (constitution: flat
- * fills only). The board's art is flat shapes in the storefront's colours on the green tint — drawn
- * here, so it costs nothing to download and cannot fail to load.
+ * The first-launch introduction. The art is flat shapes in the storefront's colours on the green tint,
+ * drawn here: nothing to download, nothing to fail.
  */
 private data class OnboardingPage(val headline: String, val body: String)
 
@@ -86,8 +82,8 @@ fun OnboardingScreen(onDone: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth()) { index ->
-            // ⚠ CLIPPED: the art is drawn on a Canvas, which does not clip, and its arcs ran out of the
-            // page over the panel below (operator, 2026-10-15). The panel sits ON TOP of the art.
+            // Clipped: the art is drawn on a Canvas, which does not clip, and its arcs ran out of the
+            // page over the panel below (operator, 2026-10-15). The panel sits on top of the art.
             Box(modifier = Modifier.fillMaxSize().clipToBounds().background(EffyRoles.brandMuted)) {
                 OnboardingArt(variant = index, modifier = Modifier.fillMaxSize())
                 EffyWordmark(size = 32.sp, modifier = Modifier.padding(start = 24.dp, top = 40.dp))
@@ -103,7 +99,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        // ⚠ ONE SIZE ON EVERY PAGE (operator, 2026-10-15): the panel's height followed the body's line
+        // One size on every page (operator, 2026-10-15): the panel's height followed the body's line
         // count and whether "Skip" was there, so the green area jumped between pages. The body always
         // takes three lines and "Skip" keeps its space on the last page (hidden, not removed).
         Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
@@ -115,7 +111,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = EffySize.target)) {
                 PageIndicator(count = pages.size, current = pagerState.currentPage, modifier = Modifier.weight(1f))
-                // Hidden on the last page — invisible AND silent to a screen reader.
+                // Hidden on the last page — invisible and silent to a screen reader.
                 Box(Modifier.alpha(if (onLastPage) 0f else 1f).then(if (onLastPage) Modifier.clearAndSetSemantics {} else Modifier)) {
                     EffyGhostButton("Skip", onClick = { if (!onLastPage) onDone() })
                 }
@@ -173,7 +169,7 @@ private fun OnboardingArt(variant: Int, modifier: Modifier = Modifier) {
         val flip = variant % 2 == 1
         fun x(f: Float) = if (flip) w * (1 - f) else w * f
         // Every shape sits in the band between the wordmark (top-left) and the headline (bottom
-        // ~40%) so none is drawn over words; the blue disc stays on the RIGHT on every page.
+        // ~40%) so none is drawn over words; the blue disc stays on the right on every page.
         arc(green.copy(alpha = 0.5f), Offset(x(1.02f), h * 0.12f), w * 0.32f, 26.dp.toPx(), if (flip) 0f else 90f)
         drawCircle(blue.copy(alpha = 0.85f), radius = 26.dp.toPx(), center = Offset(w * 0.8f, h * 0.16f))
         drawCircle(blue.copy(alpha = 0.45f), radius = 7.dp.toPx(), center = Offset(x(0.5f), h * 0.24f))

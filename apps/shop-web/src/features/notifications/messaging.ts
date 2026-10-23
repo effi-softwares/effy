@@ -1,17 +1,10 @@
 /**
- * FCM web push, from the console's side (059, US1).
+ * FCM web push, from the console's side. Firebase is imported dynamically everywhere here, keeping it out
+ * of the entry chunk for operators who never turn notifications on.
  *
- * ⚠ FIREBASE IS DYNAMICALLY IMPORTED, EVERYWHERE IN THIS FILE. `firebase/app` + `firebase/messaging`
- * are not small, and the one screen an operator waits on is sign-in. A static import would put them
- * in the entry chunk, where they would be downloaded by every operator on every cold load —
- * including the ones who never turn notifications on (SC-012 says those operators should see no
- * change at all).
- *
- * ⚠ `getToken` IS ALWAYS HANDED OUR OWN REGISTRATION. Without `serviceWorkerRegistration` the SDK
- * registers `/firebase-messaging-sw.js` ITSELF, which beside the Workbox worker is two workers on
- * one scope — and the documented symptom is the app reloading itself continuously after every
- * deploy (vite-plugin-pwa #777). A failure that appears only in a deployed console, never in a test.
- * `__tests__/registration.test.ts` reads this file and fails if the argument is ever dropped.
+ * `getToken` is always given our own registration: without it the SDK registers
+ * `/firebase-messaging-sw.js` beside the Workbox worker (two workers on one scope), and the deployed app
+ * reloads itself after every deploy. `__tests__/registration.test.ts` fails if the argument is dropped.
  */
 import { config } from "@/lib/env"
 import { getRegistration } from "@/lib/pwa"
@@ -27,7 +20,7 @@ export type PushSupport =
 /**
  * Can this device receive web push at all?
  *
- * ⚠ CHECKED BEFORE ANYTHING IS OFFERED, because the two unsupported cases need opposite messages.
+ * Checked before anything is offered, because the two unsupported cases need opposite messages.
  * "Add the console to your home screen first" is actionable; "your browser cannot do this" is not,
  * and showing the wrong one teaches an operator either to give up or to hunt for a setting that
  * does not exist.
@@ -39,7 +32,7 @@ export function pushSupport(): PushSupport {
     "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
   if (hasApi) return { supported: true }
 
-  // ⚠ On iOS/iPadOS in a browser tab, `PushManager` is simply ABSENT — there is no error to catch
+  // On iOS/iPadOS in a browser tab, `PushManager` is simply absent — there is no error to catch
   // and no permission to request. Installing to the home screen is the entire remedy, and on this
   // audience's primary device it is the only route to US1 existing at all.
   const ua = navigator.userAgent
@@ -62,8 +55,8 @@ export function permissionState(): NotificationPermission {
 /**
  * Ask for permission.
  *
- * ⚠ CALL THIS ONLY FROM A DELIBERATE OPERATOR ACTION (FR-023). There is exactly one prompt per
- * browser per lifetime, and a denial is NOT RECOVERABLE IN-APP on any browser — after it, nothing
+ * Call this only from a deliberate operator action. There is exactly one prompt per
+ * browser per lifetime, and a denial is not recoverable in-app on any browser — after it, nothing
  * this slice builds can reach that person until they change a browser setting they will never find.
  * Spending the prompt before the operator knows what they are agreeing to is how a console loses
  * the ability to notify permanently.
@@ -77,8 +70,8 @@ export async function requestPermission(): Promise<NotificationPermission> {
  * Obtain this browser's FCM registration token.
  *
  * Returns null when permission is not granted, when push is unsupported, or when the SDK cannot
- * produce a token. ⚠ On iOS the token is sometimes not obtainable until Safari has been closed and
- * reopened after granting permission (research R12) — a documented platform behaviour we cannot fix
+ * produce a token. On iOS the token is sometimes not obtainable until Safari has been closed and
+ * reopened after granting permission — a documented platform behaviour we cannot fix
  * from here, which is why the caller reports "not enabled yet" rather than an error.
  */
 export async function obtainToken(): Promise<string | null> {
@@ -86,7 +79,7 @@ export async function obtainToken(): Promise<string | null> {
   if (permissionState() !== "granted") return null
 
   const registration = getRegistration()
-  // ⚠ NO REGISTRATION MEANS NO TOKEN — we do NOT fall through and let the SDK make its own. That
+  // No registration means no token — we do not fall through and let the SDK make its own. That
   // would silently create the second service worker this whole design exists to prevent.
   if (!registration) return null
 
@@ -95,8 +88,8 @@ export async function obtainToken(): Promise<string | null> {
     import("firebase/messaging"),
   ])
 
-  // The SDK's own capability check — stricter than ours and worth asking, but useless on its own:
-  // it cannot tell us WHY, which is what `pushSupport()` is for.
+  // The sdk's own capability check — stricter than ours and worth asking, but useless on its own:
+  // it cannot tell us why, which is what `pushSupport` is for.
   if (!(await isSupported())) return null
 
   const fb = config.firebase()

@@ -4,7 +4,7 @@ import { starterSettings } from "@effy/shared-types";
 
 import { resolveSkin, type PictureRow, type Placement, type SkinRow } from "./skins";
 
-/** 095 — which skin and picture a placement wears (research R3, FR-016). */
+/** Which skin and picture a placement wears. */
 const classic: SkinRow = { id: "classic", layout: "classic", settings: {}, version: 1 };
 const panel: SkinRow = { id: "panel", layout: "panel", settings: starterSettings("panel"), version: 3 };
 const code: SkinRow = { id: "code", layout: "header_card", settings: starterSettings("header_card"), version: 1 };

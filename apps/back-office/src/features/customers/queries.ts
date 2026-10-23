@@ -6,7 +6,7 @@ import {
   creditPoints, debitPoints, getCustomer, getPointsHistory, getPointsSettings, searchCustomers, updatePointsSettings,
 } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Every key is under "customers",
+// Server state lives only in the TanStack Query cache (Principle VI). Every key is under "customers",
 // so the live `points` update (features/live/routes.ts) re-reads all of them at once.
 export const customersKeys = {
   all: ["customers"] as const,
@@ -40,7 +40,7 @@ export function usePointsHistory(id: string) {
 }
 
 /**
- * ⚠ BOTH INVALIDATE THE CUSTOMER, NOT JUST THE HISTORY. A credit changes the balance line, the next
+ * Both invalidate the customer, not just the history. A credit changes the balance line, the next
  * expiry and the search row; patching one of them would leave the others saying something else.
  */
 export function useCreditPoints(customerId: string) {

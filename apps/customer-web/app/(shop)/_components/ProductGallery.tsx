@@ -3,23 +3,9 @@ import type { StorefrontProductDetailDTO } from "@effy/shared-types"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 
 /**
- * The product gallery (025 US2 / FR-022), laid out from the reference template.
- *
- * The reference's arrangement: a VERTICAL THUMBNAIL RAIL on the left and a large square image on the
- * right, both sitting on tinted tiles rather than inside bordered boxes. Below `md` the rail moves
- * under the image and runs horizontally, because a vertical rail on a phone eats the width the
- * photograph needs.
- *
- * ⚠ What this replaced: a single image with the remaining images rendered as non-interactive `<div>`s.
- * They LOOKED like thumbnails, so tapping one did nothing — worse than not showing them, because it
- * reads as a broken page rather than a limited one.
- *
- * ── Zero client JavaScript ──────────────────────────────────────────────────────────────────────
- *
- * The slides live in a scroll-snap track and the thumbnails are same-page anchors, so selection,
- * keyboard access and swipe all come from the browser. This route has a measured byte budget
- * (contracts/customer-ui.contract.md §1) and a JS carousel would spend it on behaviour the platform
- * already implements.
+ * The product gallery: a vertical thumbnail rail beside a large square image (below `md`, the rail runs
+ * horizontally under it), on tinted tiles. Zero client JavaScript: slides in a scroll-snap track and
+ * thumbnails as same-page anchors, so selection, keyboard and swipe come from the browser.
  */
 export function ProductGallery({
   gallery,

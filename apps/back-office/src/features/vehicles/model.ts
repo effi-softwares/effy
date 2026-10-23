@@ -6,7 +6,7 @@ import type {
   VehicleStatus,
 } from "@effy/shared-types";
 
-// Screen-facing vocabulary for the vehicle register (061). The wire shapes come from
+// Screen-facing vocabulary for the vehicle register. The wire shapes come from
 // @effy/shared-types; this file holds the console's own copy and query shapes.
 
 export interface VehicleListParams {
@@ -33,7 +33,7 @@ export const FUEL_TYPE_LABEL: Record<VehicleFuelType, string> = {
   none: "None",
 };
 
-/** ⚠ Who owns it, said plainly. Both are ordinary — a driver-owned vehicle is managed identically. */
+/** Who owns it, said plainly. Both are ordinary — a driver-owned vehicle is managed identically. */
 export const OWNERSHIP_LABEL: Record<VehicleOwnership, string> = {
   effy_owned: "Effy owned",
   driver_owned: "Driver owned",
@@ -45,7 +45,7 @@ export const STATUS_LABEL: Record<VehicleStatus, string> = {
   retired: "Retired",
 };
 
-/** ⚠ `off_road` is NOT `retired`, and the words say so. Off the road is temporary and the vehicle
+/** `off_road` is not `retired`, and the words say so. Off the road is temporary and the vehicle
  *  comes back; retired is terminal and the record is kept for history. */
 export const STATUS_MEANING: Record<VehicleStatus, string> = {
   active: "In service and able to be issued to a driver.",
@@ -54,7 +54,7 @@ export const STATUS_MEANING: Record<VehicleStatus, string> = {
 };
 
 /**
- * ⚠ AN ENUMERATED CAUSE, NOT A BOOLEAN, and the wording names what to renew.
+ * An enumerated cause, not a boolean, and the wording names what to renew.
  *
  * "Not compliant" tells an operator nothing about what to do. The remedy differs per item: renew a
  * registration, renew a policy, book an inspection.

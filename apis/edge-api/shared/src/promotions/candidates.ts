@@ -8,9 +8,8 @@ import { loadPictures, loadSkins, type PictureRow, type Placement, PLACEMENT_COL
 import { type CodeRefusal, endsInOf, offerLabelOf, type PromotionWords, termsOf } from "./terms";
 
 /**
- * THE reader of the promotion tables (094 R2). The cart, the payment intent, both group reads and the
- * back-office preview load promotions here and nowhere else — `promotions.guard.test.ts` fails a
- * second reader — so "which promotions could apply to this shopper now" has one answer.
+ * The reader of the promotion tables: the cart, the payment intent, the group reads and the back-office
+ * preview load promotions here only (`promotions.guard.test.ts`).
  */
 
 export type PromotionStateName = "draft" | "scheduled" | "active" | "paused" | "used_up" | "out_of_budget" | "ended" | "archived";
@@ -38,7 +37,7 @@ export interface PromotionRecord {
   sharedCodeId: string | null;
   appliesTo: Candidate["appliesTo"];
   targets: { productIds: Set<string>; categoryIds: Set<string>; brands: Set<string> };
-  /** Where a tap on it goes, when it covers exactly one product or one category. */
+  /** Where a tap goes, when it covers exactly one product or category. */
   singleProductId: string | null;
   singleCategoryKey: string | null;
   words: PromotionWords;
@@ -196,11 +195,11 @@ export async function loadPromotions(db: Queryable, filter: { ids?: readonly str
   return res.rows.map(toRecord);
 }
 
-// ── who the shopper is ──────────────────────────────────────────────────────────────────────────
+// Who the shopper is
 
 export interface ShopperFacts {
   customerId: string;
-  /** Has an order that reached payment and was not cancelled (R14 "first order"). */
+  /** Has an order that reached payment and was not cancelled ("first order"). */
   hasOrdered: boolean;
   createdAt: Date;
   chosenIn: Set<string>;
@@ -278,7 +277,7 @@ export function toCandidate(rec: PromotionRecord, code: { id: string; text: stri
   };
 }
 
-// ── codes ───────────────────────────────────────────────────────────────────────────────────────
+// Codes
 
 export interface FoundCode {
   codeId: string;
@@ -289,7 +288,7 @@ export interface FoundCode {
   taken: boolean;
 }
 
-/** Matched without regard to case or spaces (FR-008). */
+/** Matched without regard to case or spaces. */
 export const normaliseCode = (raw: string): string => raw.replace(/\s+/g, "").toUpperCase();
 
 export async function findCode(db: Queryable, raw: string, now: Date, excludeOrderId: string | null = null): Promise<FoundCode | null> {
@@ -332,7 +331,7 @@ export function codeRefusal(rec: PromotionRecord | undefined, found: FoundCode, 
   return null;
 }
 
-// ── the candidates for a basket ─────────────────────────────────────────────────────────────────
+// The candidates for a basket
 
 export interface CandidateSet {
   candidates: Candidate[];
@@ -402,7 +401,7 @@ export async function basketLinesFor(
   }));
 }
 
-// ── what the clients are shown ──────────────────────────────────────────────────────────────────
+// What the clients are shown
 
 function targetOf(rec: PromotionRecord): BannerTarget {
   if (rec.singleProductId) return { kind: "product", productId: rec.singleProductId };
@@ -417,7 +416,7 @@ export function shopperPromotion(rec: PromotionRecord, now: Date): ShopperPromot
     headline: rec.headline ?? offerLabelOf(rec.words),
     supportingLine: rec.supportingLine,
     label: rec.label,
-    // FR-032: a promotion with only single-use codes shows none.
+    // A promotion with only single-use codes shows none.
     code: rec.trigger === "code" ? rec.sharedCode : null,
     terms: termsOf(rec.words),
     endsIn: endsInOf(rec.endsAt, now),
@@ -435,9 +434,8 @@ export function hiddenBecause(rec: PromotionRecord, facts: ShopperFacts | null, 
 }
 
 /**
- * Display groups by key (FR-026): each group's promotions in group order, only those this shopper could
- * use now. `personal` = the signed-in read (commerce); otherwise only everyone-audience ones (storefront).
- * An unknown key answers empty (FR-027).
+ * Display groups by key, each group's promotions in order, only those this shopper could use now.
+ * `personal` is the signed-in read; otherwise everyone-audience only. An unknown key answers empty.
  */
 export async function groupPromotions(
   db: Queryable,
@@ -474,7 +472,7 @@ export async function groupPromotions(
   }));
 }
 
-/** 095 — a promotion as shown in one place: the shopper's words plus the skin it wears there. */
+/** A promotion as shown in one place: the shopper's words plus its skin there. */
 export function placedPromotion(
   rec: PromotionRecord,
   placement: Placement,

@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 092 — as the customer app: installed BEFORE super.onCreate, and removed INSTANTLY once the first
+        // As the customer app: installed before super.onCreate, and removed instantly once the first
         // Compose frame is ready — that frame is the launch intro, drawn identically to the splash, so a
         // system fade would only cross-dissolve two identical images.
         installSplashScreen().setOnExitAnimationListener { it.remove() }
@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
         // Opened by tapping a notification: tell the shell, which goes to the driver's work.
         PushOpen.consume(intent)?.let { container.openedNotification.value = it }
         platformUiController = AndroidPlatformUiController(this, window)
-        // ⚠ Notification permission is NOT asked for here (backlog D5). It was, on every launch, before
+        // Notification permission is not asked for here (backlog D5). It was, on every launch, before
         // the permission explanation screen — so a driver saw two prompts, and one that came with no
         // reason. That screen asks, once; a refusal shows "Notifications are off" on Today and Account.
         setContent {

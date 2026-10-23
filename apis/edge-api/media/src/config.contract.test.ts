@@ -4,15 +4,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the media worker (086), read from the ACTUAL serverless.yml — a unit
- * test that sets its own environment cannot catch a variable the deployment never provides.
- */
+/** Reads the real serverless.yml: a unit test that sets its own environment cannot catch a missing variable. */
 const here = dirname(fileURLToPath(import.meta.url));
 const yaml = readFileSync(resolve(here, "..", "serverless.yml"), "utf8");
 const pkg = JSON.parse(readFileSync(resolve(here, "..", "package.json"), "utf8")) as { dependencies: Record<string, string> };
 
-/** Provided by the Lambda runtime, not by serverless.yml. */
 const RUNTIME_PROVIDED = new Set(["AWS_REGION", "AWS_LAMBDA_FUNCTION_NAME"]);
 
 function sourceFiles(dir: string): string[] {

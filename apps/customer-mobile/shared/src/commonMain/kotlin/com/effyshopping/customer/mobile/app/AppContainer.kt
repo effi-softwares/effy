@@ -129,31 +129,27 @@ import com.effyshopping.customer.mobile.core.storage.DevicePreferences
 import com.effyshopping.customer.mobile.core.storage.clearGuestData
 
 /**
- * The ONE hand-wired dependency container (constitution Principle VI — no DI framework). The whole
+ * The one hand-wired dependency container (constitution Principle VI — no DI framework). The whole
  * graph is greppable here, read top-to-bottom. The platform's [AuthDriver] is injected in (Amplify
  * Android on Android, a Swift driver on iOS), because it is the one dependency that cannot live in
- * common code (D5).
+ * common code.
  *
  * The graph is layered: data (repository) → domain (use cases) → presentation (ViewModels wire to the
  * use cases). The repository is **private** — nothing above the domain layer reaches it directly.
  */
 class AppContainer(
     val authDriver: AuthDriver,
-    // ⚠ THERE IS NO PAYMENT DRIVER HERE ANY MORE (051). 019 injected one per platform because paying
-    // meant asking the platform to PRESENT the provider's modal sheet. Paying now happens inside Effy's
-    // own screen, through a Compose-scoped element that cannot be built from a container at all — so the
-    // seam moved to an `expect`/`actual` composable (`rememberPaymentElement`) and this parameter went.
-    // Observability + push (050) — injected per platform like the drivers above. Android provides the
-    // Firebase/PostHog implementations; iOS defaults to no-ops until its Swift bridges land. NoOp
-    // defaults keep every capability fail-open when unconfigured (FR-005/FR-027).
+    // Observability and push, injected per platform: Android provides Firebase/PostHog; iOS uses no-ops
+    // until its bridges land. No-op defaults keep every capability fail-open. (Payment has no driver: the
+    // element is an `expect`/`actual` composable, `rememberPaymentElement`.)
     val crashReporter: CrashReporter = NoOpCrashReporter,
     val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
     val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
 ) {
-    // ── data ──────────────────────────────────────────────────────────────────────────────────────
-    // ONE client: every backend service is behind one gateway, and the path's first segment names
+    // data
+    // one client: every backend service is behind one gateway, and the path's first segment names
     // the service (storefront/…, commerce/…, customer/…). It carries the two-token protocol, sourced
     // from the driver's current session; a guest sends no auth, which is right for public routes.
     private val edgeClient by lazy {
@@ -165,13 +161,9 @@ class AppContainer(
     }
 
     /**
-     * 071 — the live-update channel. Tells the app when this customer's own orders change (packed,
-     * on the way, delivered, refunded, cancelled), so the order list and an open order re-read then
-     * — before 071 they changed only on pull-to-refresh. Independent of push (FR-007).
-     *
-     * ⚠ The customer is told "your orders changed" and nothing else — never which shop, or how many
-     * (FR-024). A guest has no channel: with no session there is no token, and the client stays off.
-     * Held only while the app is in the foreground and signed in (`LiveLifecycle` in [App]).
+     * The live-update channel: tells the app when this customer's own orders change, so the order list and
+     * an open order re-read; independent of push. It says "your orders changed" and nothing else. A guest has
+     * no channel. Held only while foregrounded and signed in (`LiveLifecycle` in [App]).
      */
     val live: LiveClient by lazy {
         LiveClient(
@@ -185,24 +177,15 @@ class AppContainer(
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(edgeClient) }
     private val checkoutRepo by lazy { HttpCheckoutRepository(edgeClient) }
-    // The address book (022) — customer profile management, on the customer service
+    // The address book — customer profile management, on the customer service
     // (`/customer/v1/addresses`, 011 FR-028). A full-CRUD repo, distinct from checkout's slim
     // pick-an-address `AddressRepository`.
     private val addressBookRepo: AddressRepository by lazy { HttpAddressRepository(edgeClient) }
 
-    // The cart mirror — ONE instance so the badge, the cart screen and checkout all read the same state.
-    //
-    // ⚠ 027: this replaced 019's in-memory `GuestCartStore`. It is hydrated from `DevicePreferences`
-    // before the first frame, so a force-quit no longer loses the shopper's cart (FR-001), and it is
-    // reconciled against the platform by [cartSync] rather than being the authority itself (FR-006).
-    /**
-     * The device store, exposed so the guest landing can offer "clear data on this device"
-     * (034 FR-046). One instance — `devicePreferences()` returns the platform store, and two callers
-     * building their own would be two views of the same underlying prefs, which is only confusing.
-     */
+    /** The device store, one instance (the guest landing offers "clear data on this device"). */
     val preferences: DevicePreferences by lazy { devicePreferences() }
 
-    /** 087 — the shopper's appearance choice (Account → Appearance), remembered on this device. */
+    /** The shopper's appearance choice (Account → Appearance), remembered on this device. */
     val appearance: kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.theme.AppearanceMode> by lazy {
         kotlinx.coroutines.flow.MutableStateFlow(
             com.effyshopping.customer.mobile.core.theme.AppearanceMode.fromStorage(
@@ -224,7 +207,7 @@ class AppContainer(
 
     /**
      * Keeps the mirror and the platform in agreement: sends what the shopper does, and re-prices what they
-     * come back to. `isSignedIn` is a lambda ON PURPOSE — it is read at call time, so a sign-in or sign-out
+     * come back to. `isSignedIn` is a lambda on purpose — it is read at call time, so a sign-in or sign-out
      * that happens between two taps is respected without anything having to re-wire itself.
      */
     val cartSync: CartSyncCoordinator by lazy {
@@ -236,7 +219,7 @@ class AppContainer(
         )
     }
 
-    // ── domain (use cases) — the layer the ViewModels and SessionManager depend on ──────────────────
+    // domain (use cases) — the layer the ViewModels and SessionManager depend on
     val registerWithPassword by lazy { RegisterWithPassword(authDriver) }
     val registerPasswordless by lazy { RegisterPasswordless(authDriver) }
     val confirmSignUp by lazy { ConfirmSignUp(authDriver) }
@@ -248,11 +231,11 @@ class AppContainer(
     val startPasswordReset by lazy { StartPasswordReset(authDriver) }
     val confirmPasswordReset by lazy { ConfirmPasswordReset(customers) }
 
-    // Catalog (019 US1/US2) — the customer storefront reads.
+    // Catalog — the customer storefront reads.
     val getHome by lazy { GetHome(catalog) }
     val getCategories by lazy { GetCategories(catalog) }
 
-    // 087 FR-036 — recent searches, device-only.
+    // Recent searches, device-only.
     val recentSearches by lazy { com.effyshopping.customer.mobile.features.catalog.data.DeviceRecentSearchRepository(preferences) }
     val recordSearch by lazy { com.effyshopping.customer.mobile.features.catalog.domain.RecordSearch(recentSearches) }
     val removeRecentSearch by lazy { com.effyshopping.customer.mobile.features.catalog.domain.RemoveRecentSearch(recentSearches) }
@@ -261,7 +244,7 @@ class AppContainer(
     val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
     val getFacets by lazy { GetFacets(catalog) }
-    // Cart (027). Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
+    // Cart. Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
     // so a tap never waits on the network.
     val addToCart by lazy { AddToCart(cart, cartSync) }
     val setCartQuantity by lazy { SetCartQuantity(cart, cartSync) }
@@ -277,12 +260,8 @@ class AppContainer(
     val syncCart by lazy { SyncCart(cartSync) }
     private val mergeCartOnSignIn by lazy { MergeCartOnSignIn(cart, cartRepository) }
 
-    // Saved items (033) — the watchlist. `savedStore` is the ONE mirror every save control on every
-    // screen reads, which is what stops two controls for the same product from disagreeing (FR-013)
-    // and what makes the heart tell the truth on first render (FR-019).
-    // ⚠ REAL persistence, not GuestPersistence.None. 030 shipped a whole feature whose store had this
-    // exact seam and got the no-op — nothing was ever written and three comments then explained the
-    // absence as "this app has no key-value persistence", which had been false since 026.
+    // Saved items: `savedStore` is the one mirror every save control reads, so two hearts for one product
+    // agree. Persisted through `preferences`.
     private val savedLocal by lazy { SavedLocalStore(preferences) }
     val savedStore: SavedStore by lazy {
         SavedStore(object : GuestPersistence {
@@ -298,7 +277,7 @@ class AppContainer(
     val addAllSavedToCart by lazy { AddAllSavedToCart(savedHttp) }
     val loadSavedMembership by lazy { LoadSavedMembership(savedRepository, savedStore) }
     val listSaved by lazy { ListSaved(savedRepository) }
-    // 068 lists. Removal is per LIST now: `removeFromList` + `addToList(restoreAddedAt)` replace the
+    // Lists. Removal is per list now: `removeFromList` + `addToList(restoreAddedAt)` replace the
     // heart-shaped RemoveSaved/UndoRemoveSaved the saved screen used, which the platform refuses for
     // a product in a named list.
     val loadLists by lazy { LoadLists(savedHttp) }
@@ -308,36 +287,30 @@ class AppContainer(
     val addToList by lazy { AddToList(savedHttp, loadSavedMembership) }
     val removeFromList by lazy { RemoveFromList(savedHttp, loadSavedMembership) }
 
-    // Feedback (046 US1) → the COLD path (edge-api/customer). The ViewModel reads `signedIn` at submit
+    // Feedback → the cold path (edge-api/customer). The ViewModel reads `signedIn` at submit
     // time to choose the authed vs public route.
     private val feedbackRepository: FeedbackRepository by lazy { HttpFeedbackRepository(edgeClient) }
     val submitFeedback by lazy { SubmitFeedback(feedbackRepository) }
     fun feedbackViewModel(): FeedbackViewModel = FeedbackViewModel(submitFeedback, isSignedIn = signedIn)
 
-
-    // Checkout (019 US3, reshaped by 051) — create the intent → hand off → Effy's own payment screen
-    // confirms it → receipt. The address picker + add-new reuse the 022 Address Book use cases below
-    // (023 US1–US4) — the same saved addresses the account page manages, on the cold path.
-    //
-    // ⚠ THERE IS NO LONGER A "PAY" USE CASE HERE. 019's `PayForOrder` created the intent AND presented
-    // the provider's modal sheet AND confirmed, in one call. 051 splits it: checkout creates, the
-    // payment screen confirms — because the element is now drawn inside a screen Effy owns.
+    // Checkout: create the intent → Effy's payment screen confirms it → receipt. The address picker reuses
+    // the address book's use cases.
     val createIntent by lazy { CreateIntent(checkoutRepo) }
     val confirmOrder by lazy { ConfirmOrder(checkoutRepo) }
 
     /**
-     * The in-memory carrier for an intent awaiting payment (051).
+     * The in-memory carrier for an intent awaiting payment.
      *
-     * ⚠ ONE instance, like the cart mirror: the checkout screen writes it and the payment screen reads
+     * One instance, like the cart mirror: the checkout screen writes it and the payment screen reads
      * it, and two of these would be two shoppers' worth of state disagreeing about one payment.
      */
     val paymentHandoff by lazy { PaymentHandoff() }
 
     /**
-     * The payment screen's ViewModel. A FACTORY, not a `by lazy` singleton — each one is bound to one
+     * The payment screen's ViewModel. A factory, not a `by lazy` singleton — each one is bound to one
      * intent, and reusing an instance across orders would confirm the wrong one.
      *
-     * The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
+     * The client carries its own publishable key — not the backend echo on the intent.
      */
     fun paymentViewModel(intent: CheckoutIntent): PaymentViewModel = PaymentViewModel(
         intent = intent,
@@ -349,48 +322,48 @@ class AppContainer(
         // carried on both platforms — one brand, not a per-shop name (hidden fulfilment).
         merchantName = MERCHANT_DISPLAY_NAME,
     )
-    val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // 047: delivery quote at checkout
+    val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // Delivery quote at checkout
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
 
     /**
-     * 052 US4 — resend a paid order's receipt. ⚠ COLD PATH (`edgeClient`): a low-frequency action
+     * Resend a paid order's receipt. Cold path (`edgeClient`): a low-frequency action
      * whose job is to enqueue an email, not a commerce read.
      */
     val resendReceipt: ResendReceipt by lazy { HttpReceiptResendRepository(edgeClient) }
 
-    /** 096 — the order's documents (the delivery note). */
+    /** The order's documents (the delivery note). */
     val orderDocuments: com.effyshopping.customer.mobile.features.checkout.domain.OrderDocumentsRepository by lazy {
         com.effyshopping.customer.mobile.features.checkout.data.HttpOrderDocumentsRepository(edgeClient)
     }
 
     /**
-     * 055 US2 — cancel an order. ⚠ Cancelling MOVES MONEY (it is a full refund); it lives with
+     * Cancel an order. Cancelling moves money (it is a full refund); it lives with
      * checkout on the commerce service.
      */
     val cancelOrder: CancelOrder by lazy { HttpCancelOrderRepository(edgeClient) }
 
     /**
-     * 055 US3 — ask for a refund. It moves no money: it records an ask that a person answers.
+     * Ask for a refund. It moves no money: it records an ask that a person answers.
      */
     val requestRefund: RequestRefund by lazy { HttpRefundRequestRepository(edgeClient) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
-    // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
+    // Address book — view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
 
-    // 051 US6 — payment methods, on the commerce service with checkout (070): listing a card is a
+    // Payment methods, on the commerce service with checkout: listing a card is a
     // provider call, and the provider secret has one custodian.
     private val paymentMethodsRepo by lazy { HttpPaymentMethodsRepository(edgeClient) }
     val listPaymentMethods by lazy { ListPaymentMethods(paymentMethodsRepo) }
 
-    // 074 — Effy points. The customer service, like the address book.
+    // Effy points. The customer service, like the address book.
     private val pointsRepo by lazy { HttpPointsRepository(edgeClient) }
     val getPoints by lazy { GetPoints(pointsRepo) }
     val getOlderPoints by lazy { GetOlderPoints(pointsRepo) }
     val removePaymentMethod by lazy { RemovePaymentMethod(paymentMethodsRepo) }
 
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }
-    /** 066 — checkout's "save to this address" for delivery instructions. */
+    /** Checkout's "save to this address" for delivery instructions. */
     val saveAddressInstructions by lazy { SaveAddressInstructions(addressBookRepo) }
     val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }
     val setDefaultAddress by lazy { SetDefault(addressBookRepo) }
@@ -399,7 +372,7 @@ class AppContainer(
     val getCustomer by lazy { GetCustomer(customers) }
     val updateProfile by lazy { UpdateProfile(customers) }
 
-    // 034 — account closure. Same cold-path client; a separate repository because closure is a
+    // Account closure. Same cold-path client; a separate repository because closure is a
     // different capability from the profile, not a fifth method on it.
     private val closures by lazy { HttpClosureRepository(edgeClient) }
     val previewAccountClosure by lazy { PreviewAccountClosure(closures) }
@@ -411,42 +384,42 @@ class AppContainer(
     val changePassword by lazy { ChangePassword(customers) }
     val signOutEverywhere by lazy { SignOutEverywhere(customers) }
 
-    // ── app services / presentation wiring ──────────────────────────────────────────────────────────
+    // app services / presentation wiring
     /**
-     * ⚠ The two cart hooks are what make a cart cross devices (027 US2/US3).
+     * The two cart hooks are what make a cart cross devices.
      *
-     * On SIGN-IN the device's lines are merged into the account cart and the result adopted — union with
+     * On sign-in the device's lines are merged into the account cart and the result adopted — union with
      * maximum quantity, so nothing is lost from either side and a repeated sign-in changes nothing. Without
      * this hook a shopper signing in on a second phone correctly sees an empty cart, because their device
      * cart was never sent anywhere.
      *
-     * On SIGN-OUT the mirror resets to an empty guest cart. The ACCOUNT cart is untouched — it is a row in
-     * the platform, and signing back in restores it (FR-013).
+     * On sign-out the mirror resets to an empty guest cart. The account cart is untouched — it is a row in
+     * the platform, and signing back in restores it.
      */
     val session: SessionManager by lazy {
         SessionManager(
             authDriver = authDriver,
             getCustomer = getCustomer,
             scope = appScope,
-            // ⚠ BOTH merges run on sign-in. The saved merge is idempotent, so it is safe on every
-            // sign-in including a repeat on a device that already merged (FR-029).
+            // Both merges run on sign-in. The saved merge is idempotent, so it is safe on every
+            // sign-in including a repeat on a device that already merged.
             onAuthenticated = {
                 mergeCartOnSignIn()
                 runCatching { mergeSavedOnSignIn() }
-                // 050 — associate telemetry with the subject and register this device for push. The
+                // Associate telemetry with the subject and register this device for push. The
                 // record id is a stable, opaque, non-PII identifier (Principle VII). Best-effort:
-                // failures must never break sign-in (FR-024/FR-027).
+                // failures must never break sign-in.
                 (session.state.value as? SessionState.Authenticated)?.customer?.id?.let { id ->
                     runCatching { analyticsDriver.identify(id) }
                     runCatching { crashReporter.setSubject(id) }
                 }
                 runCatching { registerDeviceToken() }
             },
-            // ⚠ SIGN-OUT CLEARS EVERYTHING THIS DEVICE HOLDS FOR THE SHOPPER (FR-031, 034).
+            // Sign-out clears everything this device holds for the shopper.
             //
-            // The in-memory stores are reset AND the persisted keys are removed. The store resets
+            // The in-memory stores are reset and the persisted keys are removed. The store resets
             // alone write an empty envelope back to preferences, which is functionally clear but
-            // leaves the keys behind; the offline CART QUEUE was not covered by either, so a change
+            // leaves the keys behind; the offline cart queue was not covered by either, so a change
             // made just before signing out could still have been drained afterwards — on a shared
             // device, into the next person's session.
             //
@@ -456,10 +429,10 @@ class AppContainer(
                 cart.reset()
                 savedStore.reset()
                 preferences.clearGuestData()
-                // 087 — the in-memory copy of recent searches follows the store it mirrors.
+                // The in-memory copy of recent searches follows the store it mirrors.
                 recentSearches.reload()
-                // 050 — clear telemetry identity and this device's push token so a shared device does
-                // not deliver the previous user's notifications (FR-020). Best-effort.
+                // Clear telemetry identity and this device's push token so a shared device does
+                // not deliver the previous user's notifications. Best-effort.
                 runCatching { analyticsDriver.reset() }
                 runCatching { crashReporter.setSubject(null) }
                 appScope.launch { runCatching { unregisterDeviceToken() } }
@@ -467,10 +440,10 @@ class AppContainer(
         )
     }
 
-    // ── observability & push (050) ──────────────────────────────────────────────────────────────
+    // observability & push
     private val devices: DeviceRepository by lazy { HttpDeviceRepository(edgeClient) }
 
-    /** The customer's persisted analytics-consent choice (T030). Public audience → consent-gated. */
+    /** The customer's persisted analytics-consent choice. Public audience → consent-gated. */
     val consentStore: ConsentStore by lazy { ConsentStore(preferences) }
 
     /** The current consent state, for the Account toggle + the first-run banner. */
@@ -478,7 +451,7 @@ class AppContainer(
 
     /**
      * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, if
-     * the customer has GRANTED consent, product analytics. Called by each platform entry point after
+     * the customer has granted consent, product analytics. Called by each platform entry point after
      * first frame; all init runs off the main thread (performance, R11).
      */
     fun startObservability() {
@@ -487,7 +460,7 @@ class AppContainer(
             appScope.launch { runCatching { analyticsDriver.init() } }
         }
         // Re-register the device whenever FCM rotates its token, but only for a signed-in session
-        // (the endpoint is authenticated; a guest post would 401). Best-effort (FR-024/FR-027).
+        // (the endpoint is authenticated; a guest post would 401). Best-effort.
         pushTokenProvider.onTokenRefresh { token ->
             if (session.state.value is SessionState.Authenticated) {
                 appScope.launch { runCatching { devices.register(token, platformTag()) } }

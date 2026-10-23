@@ -1,5 +1,3 @@
-// GET /fleet/v1/coverage — every zone that cannot be served, and why (062 FR-016).
-// Read = any active back-office staff, including csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

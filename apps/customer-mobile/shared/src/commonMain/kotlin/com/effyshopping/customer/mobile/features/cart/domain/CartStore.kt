@@ -10,29 +10,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The cart mirror — the ONE thing the UI reads (027).
- *
- * ── Why a mirror and not just "the cart" ────────────────────────────────────────────────────────
- *
- * For a signed-in shopper the platform is authoritative (research R0). But a tap must land immediately
- * (FR-014) and the badge must be right without a network round trip (FR-015), so the UI cannot read the
- * platform directly. It reads this: an immutable, observable snapshot that is updated synchronously on
- * every action, persisted, and then reconciled against the platform.
- *
- * Two rules keep the mirror honest, and they are the whole design:
- *
- *  1. **[adopt] only ever moves forward.** A platform response is taken ONLY when its revision exceeds
- *     what the mirror holds. Without that single comparison, a slow response to an old tap landing after a
- *     fast response to a new one would resurrect a stale cart — which is FR-009's failure mode arriving
- *     from the client side rather than from a second device.
- *  2. **Local edits never invent money the platform has not confirmed.** They recompute the item subtotal
- *     for display, and they DROP any applied discount, because a discount the platform has not re-approved
- *     against the changed cart is a number we would be making up (FR-042, research R10).
- *
- * MVVM (Principle VI): this is a domain-layer store exposing immutable state, not component state, and not
- * a hand-rolled cache of server data inside a ViewModel.
- *
- * ⚠ Replaces 019's `GuestCartStore`, which was an in-memory `MutableStateFlow` and nothing more.
+ * The cart mirror, the one thing the UI reads: an immutable, observable snapshot updated synchronously on
+ * every action (a tap lands at once, the badge needs no round trip), persisted, and reconciled against the
+ * platform.
+ *  1. [adopt] only moves forward: a platform answer is taken only when its revision exceeds the
+ *  mirror's, so a slow response to an old tap cannot resurrect a stale cart.
+ *  2. Local edits never invent money: they recompute the item subtotal for display and drop any applied
+ *  discount the platform has not re-approved.
  */
 class CartStore(
     private val local: CartLocalStore,
@@ -53,12 +37,12 @@ class CartStore(
         syncPendingIntoState()
     }
 
-    /** Changes not yet accepted by the platform. Drained by the sync coordinator (US2/US4). */
+    /** Changes not yet accepted by the platform. Drained by the sync coordinator. */
     val queue: StateFlow<List<PendingChange>> = _queue.asStateFlow()
 
     private var persistJob: Job? = null
 
-    // ── Local edits (applied to the mirror first, always) ────────────────────────────────────────
+    // Local edits (applied to the mirror first, always)
 
     /** Add or increment a line locally. */
     fun add(line: GuestCartLine) = edit { it.copy(lines = addLine(it.lines, line)) }
@@ -70,16 +54,16 @@ class CartStore(
     /** Remove a line locally. */
     fun remove(variantId: String) = edit { it.copy(lines = removeLine(it.lines, variantId)) }
 
-    /** Empty the payable cart locally. Set-aside items survive, exactly as on the platform (FR-030). */
+    /** Empty the payable cart locally. Set-aside items survive, exactly as on the platform. */
     fun clear() = edit { it.copy(lines = emptyList()) }
 
     /** The current cart, for a caller that needs a value rather than a stream (a merge payload). */
     fun snapshot(): CartSnapshot = _state.value
 
-    // ── Reconciliation with the platform ────────────────────────────────────────────────────────
+    // Reconciliation with the platform
 
     /**
-     * Take the platform's cart — but ONLY when it is newer than what we hold.
+     * Take the platform's cart — but only when it is newer than what we hold.
      *
      * Returns true when adopted. A false is not an error: it is an out-of-order response being correctly
      * ignored, which is the entire reason `revision` exists.
@@ -92,10 +76,9 @@ class CartStore(
     }
 
     /**
-     * Take a re-priced GUEST cart. A guest has no server cart, so `POST /v1/cart/preview` answers with
-     * revision 0 and [adopt]'s forward-only rule would reject it against any non-zero mirror. The
-     * platform's prices and availability still have to win here — that is what makes FR-004 true for a
-     * guest — so this replaces the priced fields and keeps the mirror's own revision.
+     * Take a re-priced guest cart. The preview answers with revision 0, which [adopt] would reject, but the
+     * platform's prices and availability must still win, so this replaces the priced fields and keeps the
+     * mirror's revision.
      */
     fun adoptPreview(priced: CartSnapshot): Boolean {
         val current = _state.value
@@ -104,7 +87,7 @@ class CartStore(
         return true
     }
 
-    /** Back to an empty guest cart. Sign-out: the account's cart must not stay on the device (FR-013). */
+    /** Back to an empty guest cart. Sign-out: the account's cart must not stay on the device. */
     fun reset() {
         _state.value = CartSnapshot()
         _queue.value = emptyList()
@@ -112,7 +95,7 @@ class CartStore(
         local.clear()
     }
 
-    // ── The pending queue (drained in US2/US4) ──────────────────────────────────────────────────
+    // The pending queue (drained in US2/US4)
 
     fun enqueue(change: PendingChange) {
         _queue.value = _queue.value + change
@@ -121,15 +104,8 @@ class CartStore(
     }
 
     /**
-     * Queue a change, REPLACING any queued change of the same kind for the same product.
-     *
-     * ⚠ This is what makes ten taps on a quantity stepper cost one request instead of ten (FR-016). It is
-     * only safe because the payload is ABSOLUTE: dropping the intermediate values loses nothing, because
-     * the last one already says everything. With increments it would corrupt the total, which is exactly
-     * why 027 made quantities absolute in the first place.
-     *
-     * A change already in flight is left alone — it is being sent, and cancelling it mid-request is how you
-     * end up not knowing whether it applied.
+     * Queue a change, replacing any queued change of the same kind for the same line, so ten stepper taps
+     * cost one request (safe because the payload is absolute). A change already in flight is left alone.
      */
     fun enqueueConflating(change: PendingChange) {
         val superseded = _queue.value.filterNot {
@@ -154,7 +130,7 @@ class CartStore(
 
     /**
      * Mark a change the platform definitively refused. It stays in the queue — deliberately — because it
-     * is the only record the shopper has that something they did did not stick (FR-019). It is skipped by
+     * is the only record the shopper has that something they did did not stick. It is skipped by
      * the drain, so it costs nothing to keep, and [acknowledgeFailures] clears it once seen.
      */
     fun markFailed(changeId: String, reason: String) {
@@ -175,7 +151,7 @@ class CartStore(
     /**
      * Project the queue onto the snapshot the UI reads.
      *
-     * The UI must have ONE source. Making the screen collect both the cart and the queue and combine them
+     * The UI must have one source. Making the screen collect both the cart and the queue and combine them
      * would put that join in the presentation layer, where two screens would do it two different ways.
      */
     private fun syncPendingIntoState() {
@@ -186,7 +162,7 @@ class CartStore(
         )
     }
 
-    // ── Internals ───────────────────────────────────────────────────────────────────────────────
+    // Internals
 
     private inline fun edit(transform: (CartSnapshot) -> CartSnapshot) {
         _state.value = recompute(transform(_state.value))
@@ -198,15 +174,15 @@ class CartStore(
      * checkout is worth offering. Everything else the platform owns.
      *
      * Unavailable lines are excluded from the subtotal here for the same reason the platform excludes them
-     * — a shopper must never be shown a total that includes something they cannot buy (FR-022).
+     * — a shopper must never be shown a total that includes something they cannot buy.
      */
     private fun recompute(cart: CartSnapshot): CartSnapshot {
         val payable = cart.lines.filter { it.available }
         val subtotal = computeTotals(payable).itemSubtotal
         return cart.copy(
             itemSubtotalAmount = subtotal,
-            // A discount the platform has not re-approved against THIS cart is a number we would be
-            // inventing. Drop it and let the next platform response restore it (FR-042/FR-047).
+            // A discount the platform has not re-approved against this cart is a number we would be
+            // inventing. Drop it and let the next platform response restore it.
             discount = null,
             promotions = emptyList(),
             promotionsNotApplied = emptyList(),

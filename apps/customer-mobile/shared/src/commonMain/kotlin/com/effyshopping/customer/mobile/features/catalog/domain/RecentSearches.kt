@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.features.catalog.domain
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * A search the shopper ran (087 FR-036). DEVICE-ONLY: never sent to a server, never in analytics.
+ * A search the shopper ran. Device-only: never sent to a server, never in analytics.
  */
 data class RecentSearch(val text: String, val at: Long)
 

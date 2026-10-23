@@ -12,13 +12,13 @@ import { SendByCourierDialog } from "./SendByCourierDialog";
 import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model";
 
 /**
- * Who delivers this order, why, and every change since (079 US7).
+ * Who delivers this order, why, and every change since.
  *
- * ⚠ A LIST OF FACTS AND A LIST OF CHANGES, not a card and not a timeline widget — the question staff
+ * A list of facts and a list of changes, not a card and not a timeline widget — the question staff
  * are asked is "why did this go by courier?", and the answer is one line. The history is rows of
- * WHEN / WHAT / WHY / WHO like the order's own history below it.
+ * when / what / why / who like the order's own history below it.
  *
- * ⚠ NOTHING IS SHOWN FOR AN ORDER PLACED BEFORE ORDERS HAD A DELIVERY TYPE except that plain fact.
+ * Nothing is shown for an order placed before orders had a delivery type except that plain fact.
  * Its packages still say who took them (the Packages section); a type and a history are not invented
  * for it.
  */
@@ -76,11 +76,11 @@ export function DeliveryTypeSection({
             {order.courierEstimate ? (
               <div className="bo-dl__row">
                 <dt>Customer was told</dt>
-                {/* The estimate AS SOLD — the order's own copy, in the sentence the customer read. */}
+                {/* The estimate as sold — the order's own copy, in the sentence the customer read. */}
                 <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
               </div>
             ) : null}
-            {/* 085 — what an Effy order was sold. The packages show the day and window it is planned for. */}
+            {/* What an Effy order was sold. The packages show the day and window it is planned for. */}
             {order.promise ? (
               <div className="bo-dl__row">
                 <dt>Sold as</dt>
@@ -97,7 +97,7 @@ export function DeliveryTypeSection({
 
           {children}
 
-          {/* 081 — an emergency move, and back. Offered to admins and managers; the preview says if it may not. */}
+          {/* An emergency move, and back. Offered to admins and managers; the preview says if it may not. */}
           {order.deliveryType && canMove && order.status === "paid" ? (
             <div className="grid gap-2">
               {order.deliveryType === "effy" ? (
@@ -128,7 +128,7 @@ export function DeliveryTypeSection({
           ) : null}
           <DeliveryHistory moves={order.deliveryMoves ?? []} formatDateTime={(iso) => formatDateTime(iso)} />
 
-          {/* 080 US3 — only on a courier order. */}
+          {/* Only on a courier order. */}
           <CourierCollection order={order} canChange={canChangeCollection} formatDateTime={(iso) => formatDateTime(iso)} />
         </div>
       </section>

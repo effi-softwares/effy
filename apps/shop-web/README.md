@@ -9,7 +9,7 @@ Spec: [specs/007-shop-web](../../specs/007-shop-web/). Its sibling surface is
 
 > **Naming, once**: it is `shop` everywhere — the surfaces, the pool, the gateway authorizer, the
 > backend service, its route paths, its tables, its roles, and the audience in prose. The earlier
-> `shop`/`store` split was retired by 008-shop-naming-unification; `make verify-naming` enforces it.
+> `shop`/`store` split was retired.
 
 ## Run it locally (target: signed in within 15 minutes of a fresh clone)
 

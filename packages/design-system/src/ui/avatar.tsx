@@ -3,17 +3,9 @@ import { Avatar as AvatarPrimitive } from "radix-ui"
 
 import { cn } from "../cn"
 
-// THE AVATAR (theme-adoption-prompt.md, Phase 2 §8).
-//
-// ⚠ A ROUNDED SQUARE, NOT A DISC. The design squares every avatar at 8–9px; a circle reads as a
-// social-product convention and sits oddly beside squared controls. 057 already made this change for
-// the brand mark and the user row; this completes it in the primitive.
-//
-// ⚠ THE TINT IS DETERMINISTIC, AND THAT IS THE WHOLE POINT. The same person must get the same colour
-// in the orders table, the team roster and the activity sheet, or the tint becomes noise that
-// actively misleads — two rows the same colour suggest the same person. `tintFor()` hashes a stable
-// seed (an id, or failing that the display name) so the mapping survives re-renders, re-sorts and
-// re-fetches. Never pass an array index.
+// The avatar: a rounded square, not a disc, to sit with squared controls. The tint is deterministic
+// (`tintFor` hashes an id, or the name), so one person has one colour everywhere. Never seed it with
+// an array index.
 
 /** The five-entry palette, in fixed order. Adding a sixth changes every existing person's colour. */
 const TINTS = [
@@ -24,11 +16,7 @@ const TINTS = [
   "bg-success-soft text-success",
 ] as const
 
-/**
- * Stable tint for a seed. A plain FNV-1a-style fold: cheap, dependency-free, and — unlike
- * `String.prototype.hashCode` shims — defined for every UTF-16 code unit, so a name with an accent or
- * an emoji cannot produce `NaN` and collapse every such person onto tint 0.
- */
+/** Stable tint for a seed: an FNV-1a-style fold, defined for every UTF-16 code unit. */
 export function tintFor(seed: string): string {
   let h = 2166136261
   for (let i = 0; i < seed.length; i++) {
@@ -91,12 +79,7 @@ function AvatarFallback({
   )
 }
 
-/**
- * The common case: initials on a deterministic tint, no image.
- *
- * `seed` should be the person's stable id where one exists. It falls back to `name`, which is stable
- * enough for display but WILL re-colour someone who is renamed — pass the id when you have it.
- */
+/** Initials on a deterministic tint. Pass the person's id as `seed` when there is one; a name re-colours on rename. */
 function InitialsAvatar({
   name,
   seed,

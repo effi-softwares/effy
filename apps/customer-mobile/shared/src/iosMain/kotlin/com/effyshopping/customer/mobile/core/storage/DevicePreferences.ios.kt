@@ -20,8 +20,8 @@ private object IosDevicePreferences : DevicePreferences {
     }
 
     /**
-     * ⚠ `boolForKey` returns `false` for an ABSENT key, which is indistinguishable from a stored
-     * `false`. Checking `objectForKey` first is what makes a non-false [default] actually honoured —
+     * `boolForKey` returns `false` for an absent key, which is indistinguishable from a stored
+     * `false`. Checking `objectForKey` first is what makes a non-false [default] actually honoured
      * without it, `getBoolean(key, default = true)` would wrongly return false on first launch.
      */
     override fun getBoolean(key: String, default: Boolean): Boolean =

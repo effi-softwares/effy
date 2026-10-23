@@ -1,6 +1,4 @@
-// 096 — the shop's side of bags: declare how many were packed per zone, void one, record prints, and
-// pack-scan labels (spec US1, US2, US4). Thin over the repository; each write announces the order so
-// every open console re-reads it (071).
+// The shop's side of bags: declare per zone, void, record prints, pack-scan. Each write announces the order.
 
 import { announceMoves } from "@effy/edge-shared/live";
 import { emitMetric, metricNamespace } from "@effy/edge-shared";
@@ -32,7 +30,6 @@ function count(body: Record<string, unknown>, field: "ambient" | "chilled" | "fr
 const announce = (fulfillmentIds: readonly string[]) =>
   announceMoves(fulfillmentIds.map((fulfillmentId) => ({ fulfillmentId, from: null })), { ops: false });
 
-/** PUT …/parcels — set the bag counts per zone. */
 export async function declare(actor: Actor, fulfillmentId: string, body: Record<string, unknown>): Promise<OrderDetail> {
   changeIdOf(body);
   const counts = { ambient: count(body, "ambient"), chilled: count(body, "chilled"), frozen: count(body, "frozen") };
@@ -45,7 +42,6 @@ export async function declare(actor: Actor, fulfillmentId: string, body: Record<
   return orders.readOrder(fulfillmentId, actor.shopId);
 }
 
-/** POST …/parcels/{parcelId}/void — remove one bag. */
 export async function voidBag(actor: Actor, fulfillmentId: string, parcelId: string, body: Record<string, unknown>): Promise<OrderDetail> {
   changeIdOf(body);
   if (!UUID.test(parcelId)) throw new FulfillmentError("not_found", "order not found");
@@ -57,7 +53,7 @@ export async function voidBag(actor: Actor, fulfillmentId: string, parcelId: str
 const LAYOUTS = new Set(["a6", "a4x4", "roll62"]);
 const PATHS = new Set(["browser", "zpl"]);
 
-/** POST /shop/v1/fulfillments/parcels/prints — record that these labels were sent to a printer. */
+/** Records that these labels were sent to a printer. */
 export async function recordPrints(actor: Actor, body: Record<string, unknown>): Promise<{ recorded: number }> {
   const changeId = changeIdOf(body);
   const ids = body.parcelIds;
@@ -76,7 +72,6 @@ export async function recordPrints(actor: Actor, body: Record<string, unknown>):
   return { recorded: out.recorded };
 }
 
-/** POST …/parcels/pack-scans — confirm bags as they are packed. */
 export async function packScan(actor: Actor, fulfillmentId: string, body: Record<string, unknown>): Promise<OrderDetail> {
   const changeId = changeIdOf(body);
   const reads = body.reads;

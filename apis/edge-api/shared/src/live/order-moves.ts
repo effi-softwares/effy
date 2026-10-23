@@ -4,23 +4,10 @@ import { customerViewChanged } from "../lib/order-completion";
 import { announce, type LiveChange } from "./announce";
 
 /**
- * 071 — tell whoever is watching that packages (shop portions of an order) have moved.
- *
- * One function for every service that moves a package — the shop packing it, a driver collecting
- * or delivering it, back-office recording a carrier handover — so the rule for who hears is written
- * once (constitution Principle III):
- *
- *   · the shop holding each moved package        → `orders`
- *   · operations                                  → `orders`  (unless `ops: false`)
- *   · the customer                                → `orders`, ONLY if what their order page says
- *                                                   has changed (`customerViewChanged`)
- *
- * ⚠ CALL IT AFTER THE COMMIT, with each moved package and the status it moved FROM. It reads the
- * packages as they now are; the "before" picture is reconstructed by putting the moved ones back,
- * so no caller has to read anything before its own write.
- *
- * ⚠ IT NEVER THROWS (FR-006). It makes one read, and if that read fails the move it follows has
- * still happened; the failure is logged and the screens catch up on their next read.
+ * Tells whoever is watching that packages moved: the shop holding each, operations (unless
+ * `ops: false`) and the customer only if their order page changed (`customerViewChanged`). Call it
+ * after the commit with each package's previous status; the "before" picture is rebuilt from that.
+ * It never throws: a failed read is logged and screens catch up.
  */
 
 export interface PackageMove {
@@ -30,9 +17,7 @@ export interface PackageMove {
 }
 
 export interface AnnounceMovesOptions {
-  /**
-   * False for changes operations has no screen for — per-item pick progress. Default true.
-   */
+  /** False for changes operations has no screen for (pick progress). Default true. */
   ops?: boolean;
   /** Further changes to send in the same publish (a driver's `work`, operations' `dispatch`). */
   also?: readonly LiveChange[];
@@ -96,10 +81,8 @@ export async function announceMoves(moves: readonly PackageMove[], options: Anno
   }
 }
 
-// ── Whole-order changes: a refund, a cancellation, a request ─────────────────────────────────────
-
 export interface AnnounceOrderOptions {
-  /** False when no shop's screen shows the change (a customer's refund REQUEST moves nothing). */
+  /** False when no shop's screen shows it (a refund request). */
   shops?: boolean;
   /** True when the change frees or takes a same-day place. */
   slots?: boolean;
@@ -124,12 +107,8 @@ SELECT c.cognito_sub,
  WHERE o.id = $1`;
 
 /**
- * Tell everyone an ORDER concerns that it changed: a refund issued or settled, a cancellation, a
- * refund request raised or answered. The customer always hears — each of these is on their own
- * order page, and it is their money. They are told once, as one update naming no shop, however
- * many shops fulfil the order (FR-024).
- *
- * ⚠ After the commit, and it never throws — same contract as `announceMoves`.
+ * An order changed: a refund, a cancellation, a refund request. The customer always hears, once,
+ * naming no shop. After the commit; never throws.
  */
 export async function announceOrder(orderId: string, options: AnnounceOrderOptions = {}): Promise<void> {
   try {

@@ -1,5 +1,3 @@
-// GET /fleet/v1/drivers — the driver register (056 US1, FR-001…FR-005).
-// Read = any active back-office staff, INCLUDING csa (FR-022).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -22,7 +20,7 @@ export const handler = async (
   if (denied(g)) return g.deny;
 
   const qs = event.queryStringParameters ?? {};
-  // API Gateway collapses a repeated key into a comma-joined value; both forms are accepted.
+  // API Gateway joins a repeated key with commas; both forms are accepted.
   const requested = (qs.status ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const statuses = requested.filter((s): s is DriverEmploymentStatus =>
     (STATUSES as string[]).includes(s),

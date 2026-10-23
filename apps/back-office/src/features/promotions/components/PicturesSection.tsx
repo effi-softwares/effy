@@ -30,7 +30,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_PICTURES = 10;
 
 /**
- * 095 US1 — a promotion's pictures. Each has a description for people who cannot see it, and a focus
+ * A promotion's pictures. Each has a description for people who cannot see it, and a focus
  * point (click the picture) that every crop keeps in view. A skin that shows a picture uses the one a
  * group chose for it, or the one that best fits its shape.
  */

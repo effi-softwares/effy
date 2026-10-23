@@ -1,6 +1,4 @@
-// POST /shop/v1/products/{id}/withdraw — 067-product-approval-margin.
-// Withdraw: take a submitted product back out of Effy's queue, or discard the pending change on an
-// approved one. The live product — if there is one — is never touched, so there is nothing to undo.
+// Takes a submission back out of the queue, or discards a pending change; the live product is untouched.
 import { announce } from "@effy/edge-shared/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -19,7 +17,7 @@ export const handler = async (
   if ("deny" in g) return g.deny;
   try {
     const withdrawn = await withdraw(g.shopId, event.pathParameters?.id ?? "");
-    await announce([{ scope: "ops", kind: "review" }]); // 071 — committed; the item left back-office's review queue
+    await announce([{ scope: "ops", kind: "review" }]);
     return json(200, toDetailDTO(withdrawn), scope);
   } catch (err) {
     return mapProductError(err, scope);

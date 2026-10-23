@@ -41,8 +41,7 @@ function row(over: Partial<Record<string, unknown>> = {}) {
 }
 
 beforeEach(() => {
-  // ⚠ Without this, call COUNTS accumulate across tests and every `not.toHaveBeenCalled()`
-  // assertion below silently stops meaning anything — which is most of this file's value.
+  // Clears call counts so `not.toHaveBeenCalled` means something.
   vi.clearAllMocks()
   vi.mocked(isPasswordBreached).mockResolvedValue(false)
   vi.mocked(markPasswordSet).mockResolvedValue(row({ has_password: true }))
@@ -59,8 +58,7 @@ describe("writePassword — mode: set (THE SECURITY CORE, SC-004)", () => {
 
     await writePassword(SUB, TOKEN, { mode: "set", code: "123456", newPassword: GOOD })
 
-    // ⚠ THE ASSERTION THIS WHOLE SLICE EXISTS FOR. If these ever invert, a session alone can plant a
-    // password on a passwordless account and the true owner never finds out.
+    // A session alone must never plant a password on a passwordless account.
     expect(order).toEqual(["verify", "write"])
   })
 
@@ -74,7 +72,7 @@ describe("writePassword — mode: set (THE SECURITY CORE, SC-004)", () => {
       writePassword(SUB, TOKEN, { mode: "set", code: "000000", newPassword: GOOD }),
     ).rejects.toThrow()
 
-    // A valid session, without the inbox, buys NOTHING.
+    // A valid session without the inbox buys nothing.
     expect(cognito.unsafeSetFirstPassword).not.toHaveBeenCalled()
     expect(markPasswordSet).not.toHaveBeenCalled()
   })
@@ -86,12 +84,11 @@ describe("writePassword — mode: set (THE SECURITY CORE, SC-004)", () => {
 
     await writePassword(SUB, TOKEN, { mode: "set", code: "123456", newPassword: GOOD })
 
-    expect(cognito.globalSignOut).toHaveBeenCalledWith(TOKEN) // FR-024
-    expect(markPasswordSet).toHaveBeenCalledWith(SUB) // FR-013
+    expect(cognito.globalSignOut).toHaveBeenCalledWith(TOKEN)
+    expect(markPasswordSet).toHaveBeenCalledWith(SUB)
   })
 
-  // FR-014 — the platform refuses the flow that does not apply, even though no UI would offer it.
-  // A Server Action is a public endpoint; so is this.
+  // The flow that does not apply is refused even when submitted directly.
   it("refuses `set` on an account that ALREADY has a password", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(row({ has_password: true }))
 
@@ -123,8 +120,7 @@ describe("writePassword — mode: change (SC-005)", () => {
     })
 
     expect(cognito.changePassword).toHaveBeenCalledWith(TOKEN, "the-old-one", GOOD)
-    // ⚠ The set path must NEVER be reachable from a `change` request — it is the one that omits the
-    // previous password.
+    // `change` must never reach the set path, which omits the previous password.
     expect(cognito.unsafeSetFirstPassword).not.toHaveBeenCalled()
   })
 
@@ -161,8 +157,7 @@ describe("the password rules (FR-022) run BEFORE Cognito is touched", () => {
     expect(cognito.changePassword).not.toHaveBeenCalled()
   })
 
-  // ⚠ FAIL CLOSED. A third-party outage must not silently disable the platform's only defence
-  // against breached passwords — least of all at a moment when nobody is watching.
+  // Fail closed: an outage must not disable the breach check.
   it("refuses the password when the breach service is UNAVAILABLE (fail-closed, FR-022a)", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(row({ has_password: true }))
     vi.mocked(isPasswordBreached).mockRejectedValue(new BreachCheckUnavailableError())

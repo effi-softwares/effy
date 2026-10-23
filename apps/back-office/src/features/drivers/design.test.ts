@@ -4,17 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Principle V, mechanically (056).
- *
- * ⚠ THIS FEATURE TAKES NO EXCEPTION TO THE NO-CARD RULE, and this test is what makes that claim
- * checkable rather than a comment. The driver console is the most card-shaped screen on the platform:
- * "drivers on duty", "unresolved reports", "uncovered zones" as tiles across the top is the obvious
- * design, and the constitution forbids it. A future edit that reaches for the Card primitive should
- * fail here and be forced to record a justification in the plan — which is exactly what the
- * constitution's escape clause requires and what a comment could never enforce.
- *
- * The one permitted card application on this platform is the console dashboard overview (041), which
- * this feature does not touch.
+ * No cards on the driver console, mechanically: an edit that reaches for the Card primitive fails here
+ * and must record its justification in the plan.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -40,7 +31,7 @@ const FILES = sourceFiles(resolve(here)).map((path) => ({
 
 describe("driver console — Principle V, no exception claimed", () => {
   it("has source files to check (a passing-because-empty test proves nothing)", () => {
-    // ⚠ 054 found `TestRailsCarryOnlyAvailableProducts` passing VACUOUSLY once the rails emptied.
+    // Found `TestRailsCarryOnlyAvailableProducts` passing vacuously once the rails emptied.
     // A guard over a file list must assert the list is not empty, or it silently stops guarding.
     expect(FILES.length).toBeGreaterThan(10);
   });

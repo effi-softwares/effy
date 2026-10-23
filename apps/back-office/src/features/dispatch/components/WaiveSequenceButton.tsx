@@ -4,7 +4,7 @@ import { sequenceActionError } from "@/features/exceptions/SequenceSections";
 import { useWaiveSequence } from "../queries";
 
 /**
- * 093 — a driver cannot load (parcels still to check in or return) or collect (deliveries still open),
+ * A driver cannot load (parcels still to check in or return) or collect (deliveries still open),
  * and the reason is outside the app — a phone that died at the hub. Let this one run go ahead; the
  * reason is kept with it and shown on the run.
  */

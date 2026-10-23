@@ -1,9 +1,6 @@
-// What a dispatcher does about the order of a driver's work (093): waive the cross-run gate for one
-// run, decide a held package, clear an unsafe vehicle check — and the lists the Exceptions screen reads.
-//
-// Each action is an assertion about the physical world (the phone died at the hub, the package turned
-// up, the brakes were fixed) that no query can verify, so each writes who said it to the audit log in
-// the same transaction.
+// Waive the cross-run gate for one run, decide a held package, clear an unsafe vehicle check, and the
+// Exceptions screen's lists. Each action asserts something about the physical world, so it is audited
+// in the same transaction.
 
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import { stageOfRound, type RoundStageRow } from "@effy/edge-shared/delivery";
@@ -12,7 +9,7 @@ import type { HeldPackageDTO, OverdueRunDTO, VehicleCheckDTO } from "@effy/share
 import { recordAudit } from "../shared/audit";
 import { HELD_PACKAGES, OVERDUE_CROSSED_SINCE, OVERDUE_RUNS, VEHICLE_CHECKS_TODAY } from "./sql";
 
-/** A staff action that could not be done, with one line a person can read. */
+/** With one line a person can read. */
 export class SequenceActionError extends Error {
   constructor(readonly status: 404 | 409, readonly code: string, readonly sentence: string) {
     super(code);
@@ -21,8 +18,6 @@ export class SequenceActionError extends Error {
 }
 
 const iso = (v: Date | string) => (v instanceof Date ? v : new Date(v)).toISOString();
-
-// ── Waive the cross-run gate for one run ─────────────────────────────────────────────────────────
 
 export async function waiveSequence(roundId: string, reason: string, actorSub: string): Promise<{ message: string; driverId: string }> {
   return withTransaction(async (tx: any) => {
@@ -52,8 +47,6 @@ export async function waiveSequence(roundId: string, reason: string, actorSub: s
   });
 }
 
-// ── Decide a held package ────────────────────────────────────────────────────────────────────────
-
 export async function resolveHold(holdId: string, resolution: "found" | "lost", actorSub: string): Promise<{ message: string }> {
   return withTransaction(async (tx: any) => {
     const upd = await tx.query(
@@ -77,8 +70,6 @@ export async function resolveHold(holdId: string, resolution: "found" | "lost", 
   });
 }
 
-// ── Clear an unsafe vehicle check ────────────────────────────────────────────────────────────────
-
 export async function clearVehicleCheck(checkId: string, note: string, actorSub: string): Promise<{ message: string; driverId: string }> {
   return withTransaction(async (tx: any) => {
     const upd = await tx.query(
@@ -101,8 +92,6 @@ export async function clearVehicleCheck(checkId: string, note: string, actorSub:
     return { message: `Cleared — ${r.driver_name} can take work from the next planning pass.`, driverId: r.driver_id };
   });
 }
-
-// ── The lists ────────────────────────────────────────────────────────────────────────────────────
 
 export async function heldPackages(): Promise<HeldPackageDTO[]> {
   const res = await query<any>(HELD_PACKAGES);
@@ -137,7 +126,7 @@ export async function overdueRuns(now = new Date()): Promise<OverdueRunDTO[]> {
   });
 }
 
-/** How many rounds crossed into overdue since `since` — the planner pass announces when this is > 0. */
+/** Rounds that crossed into overdue since `since`; the planner pass announces when > 0. */
 export async function overdueCrossedSince(db: Queryable, since: Date): Promise<number> {
   const res = await db.query<{ n: number }>(OVERDUE_CROSSED_SINCE, [since.toISOString()]);
   return Number(res.rows[0]?.n ?? 0);

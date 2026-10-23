@@ -1,12 +1,8 @@
-// Attention-occurrence state, and the recipients an occurrence is announced to (059, US3).
-//
-// Raw SQL, no ORM (Principle VI). Every write in one transaction per shop, so a partial failure
-// leaves neither a notified row without an intent nor an intent without a notified row.
+// One transaction per shop, so a notified row and its intent are written together or not at all.
 import type { PoolClient } from "pg";
 
 import { query, withTransaction, type AttentionKind } from "@effy/edge-shared";
 
-/** One live attention occurrence, as the evaluator needs to compare it. */
 export interface StoredOccurrence {
   id: string;
   kind: AttentionKind;
@@ -14,17 +10,11 @@ export interface StoredOccurrence {
   notifiedAt: Date | null;
 }
 
-/** A shop the evaluator should look at. */
 export interface ActiveShop {
   id: string;
 }
 
-/**
- * Every active shop.
- *
- * ⚠ ACTIVE ONLY. A suspended or disabled shop has no operators who should be interrupted, and
- * notifying one would be telling somebody to go and pick for a shop the platform has stood down.
- */
+/** Active only: a stood-down shop has nobody who should be interrupted. */
 export async function activeShops(): Promise<ActiveShop[]> {
   const res = await query<ActiveShop>(
     `SELECT id FROM public.shop WHERE status = 'active' ORDER BY id`,
@@ -56,12 +46,8 @@ export async function storedOccurrences(
 }
 
 /**
- * Record an occurrence that has just appeared, and return its id.
- *
- * ⚠ THE RETURNED ID IS THE OCCURRENCE IDENTITY, and it is what `dedupe_key` is built from. Never
- * the product or order id: a product that goes out of stock, is restocked and goes out again is TWO
- * occurrences and must notify twice (FR-019). Keying the dedupe on the product would let the very
- * uniqueness that makes retries safe swallow the recurrence instead.
+ * The returned id is the occurrence identity that `dedupe_key` is built from, never the product or
+ * order id: out, restocked and out again is two occurrences and notifies twice.
  */
 export async function insertOccurrence(
   tx: PoolClient,
@@ -76,12 +62,11 @@ export async function insertOccurrence(
      RETURNING id`,
     [shopId, kind, subjectKey],
   );
-  // No row means a concurrent run inserted it first — which is a correct outcome, not a failure:
-  // that run owns announcing it.
+  // No row: a concurrent run inserted it first and owns announcing it.
   return res.rows[0]?.id ?? null;
 }
 
-/** The condition is still true; nothing to announce, but record that we saw it. */
+/** Still true: nothing to announce, but record that we saw it. */
 export async function touchOccurrences(
   tx: PoolClient,
   ids: readonly string[],
@@ -93,14 +78,7 @@ export async function touchOccurrences(
   );
 }
 
-/**
- * The condition has cleared.
- *
- * ⚠ DELETED, NOT MARKED RESOLVED, and that delete is what makes FR-019 a consequence of the design
- * rather than a rule somebody has to remember. A condition that comes back gets a NEW row with a
- * NEW id, so its dedupe key is one the outbox has never seen, and it notifies. Keeping the row with
- * a `resolved_at` and comparing timestamps would have needed a rule instead.
- */
+/** Deleted, not marked resolved: a recurrence gets a new row, a new id and so a new notification. */
 export async function deleteOccurrences(tx: PoolClient, ids: readonly string[]): Promise<void> {
   if (ids.length === 0) return;
   await tx.query(`DELETE FROM public.shop_attention_state WHERE id = ANY($1::uuid[])`, [ids]);
@@ -114,23 +92,12 @@ export async function markNotified(tx: PoolClient, ids: readonly string[]): Prom
   );
 }
 
-/** A person who should be told, and whether they may act on a manager-only kind. */
 export interface Recipient {
   sub: string;
   isManager: boolean;
 }
 
-/**
- * Who to tell about this shop.
- *
- * ⚠ RESOLVED AT ENQUEUE TIME, not when the occurrence was recorded (FR-016). Staff membership can
- * change between the two, and the moment of sending is the one that has to be right — a stood-down
- * operator must not be told to go and pick.
- *
- * ⚠ THE MANAGER FLAG COMES FROM THE PLATFORM RECORD, never from a `cognito:groups` claim. There is
- * no request here and no token to read; the record is the only authority, which is also the one
- * Principle IV says decides.
- */
+/** Resolved at enqueue time, so a stood-down operator is never told. The manager flag comes from the platform record. */
 export async function recipientsForShop(tx: PoolClient, shopId: string): Promise<Recipient[]> {
   const res = await tx.query<{ cognito_sub: string; is_manager: boolean }>(
     `SELECT ss.cognito_sub,
@@ -146,12 +113,7 @@ export async function recipientsForShop(tx: PoolClient, shopId: string): Promise
   return res.rows.map((r) => ({ sub: r.cognito_sub, isManager: r.is_manager }));
 }
 
-/**
- * Enqueue one notification intent.
- *
- * ⚠ `ON CONFLICT DO NOTHING` on the UNIQUE `dedupe_key` is what makes a re-run a no-op. Combined
- * with the occurrence id in the key, that gives "once per occurrence, again on recurrence" for free.
- */
+/** `ON CONFLICT DO NOTHING` on `dedupe_key` makes a re-run a no-op. */
 export async function enqueueIntent(
   tx: PoolClient,
   v: {

@@ -1,14 +1,14 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
 /**
- * The words of the delivery-window picker (078).
+ * The words of the delivery-window picker.
  *
- * ⚠ A MIRROR, NOT A SOURCE. These are `DELIVERY_WINDOW_WORDS` in
+ * A mirror, not a source. These are `DELIVERY_WINDOW_WORDS` in
  * `packages/shared-types/src/delivery.ts`, the one place they are written; the website renders those
- * constants and `effy-windows.test.ts` reads THIS file and fails if a single character differs. Change
+ * constants and `effy-windows.test.ts` reads this file and fails if a single character differs. Change
  * the TypeScript, then this.
  *
- * ⚠ "Standard delivery" kept its name and changed its meaning: Effy, on a later day, in a window.
+ * "Standard delivery" kept its name and changed its meaning: Effy, on a later day, in a window.
  */
 object DeliveryWindowWords {
     const val SECTION_SAME_DAY = "Same-day delivery"
@@ -19,7 +19,7 @@ object DeliveryWindowWords {
     const val NO_WINDOWS = "There are no delivery windows available in the next few days. Please try again later."
     const val CUTOFF_PREFIX = "Order by"
 
-    // 085 — Standard delivery without a time. A day is a complete choice; a time is optional.
+    // Standard delivery without a time. A day is a complete choice; a time is optional.
     const val ANY_TIME_DAY = "Any time during the day"
     const val TIME_OPTION_OPEN = "Need a specific time?"
     const val TIME_OPTION_HINT = "Optional. Pick a window and we'll deliver in it."

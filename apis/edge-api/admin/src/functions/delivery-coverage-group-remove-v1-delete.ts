@@ -1,4 +1,4 @@
-// DELETE /admin/v1/delivery/coverage/groups/{groupId} — remove a group; its postcodes stay listed (076 FR-015). Mutate.
+// Its postcodes stay listed.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

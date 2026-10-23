@@ -2,7 +2,7 @@ import { srcSet } from "@effy/shared-types"
 import { clsx } from "clsx"
 
 /**
- * A shopper picture — catalogue or promotion — at the size it is shown (086).
+ * A shopper picture — catalogue or promotion — at the size it is shown.
  *
  * `src` is the picture's permanent public address, so the browser keeps it. When the server says
  * smaller WebP copies exist (`widths`), they are offered first and the browser picks the smallest
@@ -10,7 +10,7 @@ import { clsx } from "clsx"
  * a browser without WebP, or a picture whose copies are not made yet, shows. Nothing is named that
  * does not exist: a `<source>` naming a missing file shows a broken picture, it does not fall back.
  *
- * ⚠ Plain `<picture>`, NOT `next/image`. Its loader cannot emit a format-typed `<source>`, so WebP
+ * Plain `<picture>`, not `next/image`. Its loader cannot emit a format-typed `<source>`, so WebP
  * could not fall back to the original; and every picture here was `unoptimized` anyway. This also
  * keeps the component free of client JavaScript — it is on `/search`, which has the least room
  * under the bundle budget.

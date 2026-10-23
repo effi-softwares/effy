@@ -1,4 +1,4 @@
-// DELETE /admin/v1/promotions/{id} — delete a promotion nobody has used (094; a used one is archived).
+// Only a promotion nobody has used; a used one is archived.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

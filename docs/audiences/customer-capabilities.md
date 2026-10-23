@@ -935,10 +935,6 @@ change, no storefront DTO touched (FR-003). The newsletter is the single new cap
 | 039.9 | Subscribing **never reveals whether an address is already on the list** | 🔒 | ➖ | uniform result for new/pending/confirmed (FR-032); no `already` state exists in the contract |
 | 039.10 | Every section **hides itself** when it has no data | 🔒 | ✅ | structural — `SectionShell` returns null, and the composer never emits an empty section |
 
-**Unchanged by operator lock (FR-002)**: the header, top navigation, information strip, the **product
-card**, and the footer. Now enforced mechanically by `make storefront-locks` — a sha256 baseline that
-fails and names any locked file that drifted, rather than a comment nobody runs.
-
 ⚠ **The value panels are the platform's only coloured chrome** — a recorded Principle V exception
 (FR-005a), taken on operator direction and bounded to one component: component-local values, never
 design tokens, `tokens:check` passing unchanged. Deleting one constant is the entire revert.

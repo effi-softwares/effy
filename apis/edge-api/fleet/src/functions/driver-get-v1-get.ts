@@ -1,5 +1,3 @@
-// GET /fleet/v1/drivers/{driverId} — the profile of record (056 US1, FR-006).
-// Read = any active back-office staff, including csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

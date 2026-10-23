@@ -56,7 +56,7 @@ describe("066 — the checkout delivery-instructions control", () => {
     expect(screen.getByText("241 characters left")).toBeInTheDocument()
   })
 
-  /** FR-004 — typing stops at the limit; nothing longer can be submitted from this control. */
+  /** Typing stops at the limit; nothing longer can be submitted from this control. */
   it("⚠ stops at 250 characters, counted as a person counts them", async () => {
     const user = userEvent.setup()
     let last: InstructionsDraft = EMPTY_DRAFT
@@ -71,7 +71,7 @@ describe("066 — the checkout delivery-instructions control", () => {
   })
 
   /**
-   * ⚠ SC-006. The note is customer-authored text. It must come back as the characters typed — no
+   * SC-006. The note is customer-authored text. It must come back as the characters typed — no
    * element created, nothing linked, nothing run.
    */
   it("⚠ markup typed into the note stays text", () => {

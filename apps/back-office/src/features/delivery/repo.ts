@@ -1,4 +1,4 @@
-// Data layer for back-office delivery configuration (047). Every call goes through the shared api
+// Data layer for back-office delivery configuration. Every call goes through the shared api
 // client to the admin cold-path service (contracts/delivery-admin-api). Screens never touch `api`
 // directly (Principle VI). DTOs double as the domain shapes here (identity map).
 import type {
@@ -26,9 +26,9 @@ import type {
 
 import { api } from "@/lib/api";
 
-// ── request payloads (match the edge service's parsed bodies) ─────────────────────────────────────
+// request payloads (match the edge service's parsed bodies)
 
-// ── fee plans (077) ─────────────────────────────────────────────────────────────────────────────
+// fee plans
 
 export async function listPlans(kind: FeePlanKind): Promise<FeePlanDTO[]> {
   return (await api.get<{ items: FeePlanDTO[] }>(`/admin/v1/delivery/plans?kind=${kind}`)).items;
@@ -47,7 +47,7 @@ export function simulateFee(body: FeeSimulationRequest): Promise<FeeSimulationDT
   return api.post<FeeSimulationDTO>("/admin/v1/delivery/plans/simulate", body);
 }
 
-// ── settings ────────────────────────────────────────────────────────────────────────────────────
+// settings
 
 // The GET may return nulls when the hub has never been set — treat that as "not configured yet".
 export type SettingsRead = {
@@ -62,7 +62,7 @@ export function putSettings(body: DeliverySettingsDTO): Promise<DeliverySettings
   return api.put<DeliverySettingsDTO>("/admin/v1/delivery/settings", body);
 }
 
-// ── Collection runs (047 US2) ────────────────────────────────────────────
+// Collection runs
 
 export interface CollectionRun {
   id: string;
@@ -79,17 +79,17 @@ export async function createCollectionRun(runTime: string, label: string | null)
 export async function deleteCollectionRun(id: string): Promise<CollectionRun[]> {
   return (await api.delete<{ items: CollectionRun[] }>(`/admin/v1/delivery/collection-runs/${id}`)).items;
 }
-// ── 069: same-day slots and the standard-delivery calendar ────────────────────────────────────────
+// Same-day slots and the standard-delivery calendar
 //
-// ⚠ THESE LIVE ON THE `fleet` SERVICE, not `admin` like everything above. The admin stack is at its
-// CloudFormation resource ceiling, and slots are delivery CAPACITY — the planner that must respect
+// These live on the `fleet` service, not `admin` like everything above. The admin stack is at its
+// CloudFormation resource ceiling, and slots are delivery capacity — the planner that must respect
 // them is in fleet. The operator sees one Delivery console; which service answers is not their concern.
 
 export async function listSlots(): Promise<DeliverySlotDTO[]> {
   return (await listSlotGrid()).items;
 }
 /**
- * 078 — the same route, whole: every window with how full it is on today and on each Effy delivery
+ * The same route, whole: every window with how full it is on today and on each Effy delivery
  * day after it.
  */
 export function listSlotGrid(): Promise<DeliverySlotsResponseDTO> {
@@ -98,7 +98,7 @@ export function listSlotGrid(): Promise<DeliverySlotsResponseDTO> {
 export function createSlot(body: DeliverySlotInput): Promise<DeliverySlotDTO> {
   return api.post<DeliverySlotDTO>("/fleet/v1/delivery-slots", body);
 }
-/** ⚠ There is no delete: a slot is switched off (`status: "disabled"`), because bookings reference it. */
+/** There is no delete: a slot is switched off (`status: "disabled"`), because bookings reference it. */
 export function patchSlot(slotId: string, body: DeliverySlotPatch): Promise<DeliverySlotDTO> {
   return api.patch<DeliverySlotDTO>(`/fleet/v1/delivery-slots/${slotId}`, body);
 }
@@ -116,9 +116,9 @@ export function removeNonDeliveryDate(day: string): Promise<void> {
   return api.delete<void>(`/fleet/v1/delivery-days/dates/${day}`);
 }
 
-// ── 076: Effy delivery coverage ───────────────────────────────────────────────────────────────────
+// Effy delivery coverage
 //
-// ONE list of postcodes Effy delivers to, optionally filed under groups, plus courier reach. These
+// One list of postcodes Effy delivers to, optionally filed under groups, plus courier reach. These
 // replace the 047 zone, ring-create, suggest-ring, postcode-check and same-day-exception calls.
 
 export interface CoverageFilters {
@@ -127,9 +127,9 @@ export interface CoverageFilters {
   q?: string;
   source?: "computed" | "manual";
   review?: boolean;
-  /** 097 — only postcodes where delivery today is (not) offered. */
+  /** Only postcodes where delivery today is (not) offered. */
   today?: "offered" | "not_offered";
-  /** 097 — only postcodes at least this many km from the hub. */
+  /** Only postcodes at least this many km from the hub. */
   minKm?: string;
 }
 
@@ -169,7 +169,7 @@ export function renameCoverageGroup(id: string, name: string): Promise<void> {
 export function removeCoverageGroup(id: string, confirmNoDrivers: boolean): Promise<{ ungrouped: number }> {
   return api.delete<{ ungrouped: number }>(`/admin/v1/delivery/coverage/groups/${id}${confirmNoDrivers ? "?confirmNoDrivers=true" : ""}`);
 }
-/** 079 — courier delivery on or off, the estimate customers are shown, the no-window fallback. Any of the three. */
+/** Courier delivery on or off, the estimate customers are shown, the no-window fallback. Any of the three. */
 export function updateCourier(change: CourierReachUpdateDTO): Promise<Pick<CourierReachDTO, "offered" | "whenNoWindows">> {
   return api.put("/admin/v1/delivery/coverage/courier", change);
 }
@@ -180,7 +180,7 @@ export function removeCourierExclusion(postcode: string): Promise<void> {
   return api.delete<void>(`/admin/v1/delivery/coverage/courier/exclusions/${postcode}`);
 }
 
-// ── 080 — courier services ───────────────────────────────────────────────────────────────────────
+// Courier services
 export function listCourierServices(): Promise<CourierServiceListDTO> {
   return api.get<CourierServiceListDTO>("/admin/v1/delivery/courier-services");
 }

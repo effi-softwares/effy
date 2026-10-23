@@ -13,23 +13,9 @@ vi.mock("../sequence/service", () => ({ overdueCrossedSince: async () => 0 }));
 
 import { handler } from "./plan-waves-scheduled";
 
-/**
- * ⚠ THE TEST WHOSE ABSENCE LET THE PLANNER SHIP DEAD.
- *
- * The first version of this handler called `preamble(event as never, context)`. `preamble` reads
- * `event.requestContext.requestId` — it exists to correlate an HTTP request — and an EventBridge
- * event has no `requestContext`. So EVERY invocation since deploy died on the handler's first line,
- * three times per tick because Lambda retries an async invocation twice, and the engine never ran.
- *
- * Nothing else could have caught it. The planner's own tests exercise `planWave`, which is pure. The
- * container tests call the repository and service directly. The config-contract test reads the YAML.
- * `tsc` was silenced by `event as never`, which is the whole lesson: a cast that asserts a shape the
- * runtime never produces turns a compile-time check into a runtime crash.
- *
- * So this file invokes the handler with the REAL event shape AWS sends.
- */
+/** Invokes the handler with the real EventBridge event (no `requestContext`), which a cast once hid. */
 
-/** What EventBridge actually delivers for `- schedule: rate(5 minutes)`. */
+/** What EventBridge delivers for `- schedule: rate(5 minutes)`. */
 const SCHEDULED_EVENT: ScheduledEvent = {
   id: "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
   version: "0",
@@ -93,12 +79,11 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     runPass.mockResolvedValue(pass());
     const c = ctx();
     await invoke(c);
-    // ⚠ Left true, a warm container's idle pool connection holds the invocation open to its timeout.
+    // Left true, a warm container's idle pool connection holds the invocation to its timeout.
     expect(c.callbackWaitsForEmptyEventLoop).toBe(false);
   });
 
-  // ⚠ 072 — the pass runs all day. Telling every screen "changed" when nothing did is a refresh
-  // timer with extra steps.
+  // The pass runs all day: no announcement when nothing changed.
   it("announces NOTHING when the pass changed nothing", async () => {
     announceDispatch.mockReset();
     runPass.mockResolvedValue(pass({ collection: kind("collection", { considered: 4, unassigned: 4 }) }));
@@ -134,7 +119,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     spy.mockRestore();
   });
 
-  // ⚠ The alarm target since 072: the run has OPENED and nobody has the package.
+  // The alarm target: the run has opened and nobody has the package.
   it("reports packages still unassigned after their round has opened", async () => {
     runPass.mockResolvedValue(
       pass({ collection: kind("collection", { considered: 9, unassigned: 9, unassignedPastOpening: 9 }) }),
@@ -146,7 +131,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     spy.mockRestore();
   });
 
-  // ⚠ Ready at 20:00 for tomorrow with nobody on duty is unassigned and is NOT a failure.
+  // Ready at 20:00 for tomorrow with nobody on duty is unassigned, not a failure.
   it("does not count packages waiting for a round that has not opened", async () => {
     runPass.mockResolvedValue(pass({ collection: kind("collection", { considered: 9, unassigned: 9 }) }));
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -163,7 +148,7 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     await invoke();
     const emf = spy.mock.calls.map((c) => String(c[0])).filter((s) => s.includes("_aws"));
     expect(emf.length).toBeGreaterThan(0);
-    // A dimensioned metric is a DIFFERENT metric in CloudWatch; the alarm would go blind.
+    // A dimension would blind the undimensioned alarm.
     for (const record of emf) expect(JSON.parse(record)._aws.CloudWatchMetrics[0].Dimensions).toEqual([[]]);
     spy.mockRestore();
   });

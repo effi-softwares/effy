@@ -33,10 +33,10 @@ import { VariantEditor } from "./VariantEditor";
 import { draftFromDetail, toInputs, variantSetErrors, type VariantSetDraft } from "./variants";
 import { track } from "@/lib/telemetry";
 
-// The four focused-edit dialogs (US4). Each is scoped to ONE section, seeds its local form state from
+// The four focused-edit dialogs. Each is scoped to one section, seeds its local form state from
 // the loaded detail, PATCHes only its changed subset (diffScalarFields) with the detail's `updatedAt`
 // as `expectedUpdatedAt`, and on a 409 shows "reload" instead of a doomed retry (FR-023a, via
-// useFocusedEdit + FocusedEditDialog). No cards — plain form rows (DOCTRINE-2).
+// useFocusedEdit + FocusedEditDialog). No cards — plain form rows (doctrine-2).
 
 interface EditProps {
   detail: ProductDetail;
@@ -50,7 +50,7 @@ function useSeedKey(detail: ProductDetail, open: boolean) {
   return `${open ? "open" : "closed"}:${detail.updatedAt}`;
 }
 
-// ── Basics (name / brand / GST / descriptions) ───────────────────────────────────────────────────
+// Basics (name / brand / GST / descriptions)
 
 export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
@@ -60,7 +60,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   const [brand, setBrand] = useState(detail.brand ?? "");
   const [shortDescription, setShort] = useState(detail.shortDescription);
   const [longDescription, setLong] = useState(detail.longDescription ?? "");
-  // 096 — "" when the product predates GST status: the operator chooses, nothing is assumed.
+  // "" when the product predates GST status: the operator chooses, nothing is assumed.
   const [gstStatus, setGst] = useState<"" | GstStatus>(detail.gstStatus ?? "");
 
   useEffect(() => {
@@ -138,12 +138,12 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   );
 }
 
-// ── Sizes and prices (098 — options, and each variant's price, codes, weight and pack size) ──────
+// Sizes and prices (098 — options, and each variant's price, codes, weight and pack size)
 
 export function SizesEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
   const seedKey = useSeedKey(detail, open);
-  // ⚠ Opens on the shop's own latest version: the pending proposal when there is one (067).
+  // Opens on the shop's own latest version: the pending proposal when there is one.
   const [set, setSet] = useState<VariantSetDraft>(() => draftFromDetail(detail));
   const [touched, setTouched] = useState(false);
 
@@ -201,7 +201,7 @@ export function SizesEditDialog({ detail, open, onOpenChange }: EditProps) {
   );
 }
 
-// ── Categorization (product type / primary category) ─────────────────────────────────────────────
+// Categorization (product type / primary category)
 
 export function CategorizationEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
@@ -275,7 +275,7 @@ export function CategorizationEditDialog({ detail, open, onOpenChange }: EditPro
   );
 }
 
-// ── Attributes (the type's EAV fields, reusing AttributeField) ────────────────────────────────────
+// Attributes (the type's EAV fields, reusing AttributeField)
 
 export function AttributesEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
@@ -355,7 +355,7 @@ export function AttributesEditDialog({ detail, open, onOpenChange }: EditProps) 
   );
 }
 
-// ── Shared field row ─────────────────────────────────────────────────────────────────────────────
+// Shared field row
 
 function Field({
   id,
@@ -380,7 +380,7 @@ function Field({
 }
 
 /**
- * 067 — what saving DOES, said before the shop saves. Editing a product Effy has approved does not
+ * What saving does, said before the shop saves. Editing a product Effy has approved does not
  * change the storefront; it sends a change for review. A dialog that saved silently into a queue
  * would leave the shop wondering why its storefront still shows the old name.
  */

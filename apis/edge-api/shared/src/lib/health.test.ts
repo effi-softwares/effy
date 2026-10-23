@@ -24,9 +24,7 @@ describe("livenessHandler", () => {
     expect(JSON.parse(res.body as string)).toEqual({ status: "ok", service: "admin" });
   });
 
-  // The whole point of liveness: it answers even when everything it depends on is broken. If it
-  // ever touched the database, it would report "down" for a fault that is not its own — which is
-  // precisely the confusion the healthz/readyz split exists to remove.
+  // Liveness answers even when its dependencies are broken.
   it("does NOT touch the database — that is what makes it a liveness probe", async () => {
     pingDatabase.mockRejectedValue(new Error("database is on fire"));
 
@@ -65,8 +63,7 @@ describe("readinessHandler", () => {
     });
   });
 
-  // The body is public and unauthenticated. A driver error leaks hosts, ports, and sometimes
-  // credentials — so it is logged, never returned.
+  // The body is public: a driver error is logged, never returned.
   it("never leaks the underlying error into the public body", async () => {
     pingDatabase.mockRejectedValue(
       new Error("connect ECONNREFUSED effy-dev-db.abc123.ap-southeast-2.rds.amazonaws.com:5432"),

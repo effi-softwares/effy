@@ -1,14 +1,14 @@
 /**
- * 096 — printing bag labels, end to end (spec US2, research R9–R11):
+ * Printing bag labels, end to end:
  *
- *   1. render each bag's label SVG (the one renderer);
- *   2. SEND it — to a Zebra printer through Zebra Browser Print's local service (ZPL), or through the
- *      browser's print window at the exact label size;
- *   3. ONLY THEN record the print (`POST /shop/v1/fulfillments/parcels/prints`). A print that never
- *      started records nothing (FR-018); a record that failed to send is kept and sent with the next one.
+ *  1. render each bag's label SVG (the one renderer);
+ *  2. Send it — to a Zebra printer through Zebra Browser Print's local service (ZPL), or through the
+ *  browser's print window at the exact label size;
+ *  3. Only then record the print (`POST /shop/v1/fulfillments/parcels/prints`). A print that never
+ *  started records nothing; a record that failed to send is kept and sent with the next one.
  *
- * The printer choice and the label size are remembered on THIS computer — each shop PC drives its own
- * printer (FR-012). Storage can be refused (private windows, policy); every read and write is guarded and
+ * The printer choice and the label size are remembered on this computer — each shop PC drives its own
+ * printer. Storage can be refused (private windows, policy); every read and write is guarded and
  * printing works without it.
  */
 import type { ShopLabelCommonDTO, ShopParcelLabelDTO } from "@effy/shared-types"
@@ -17,7 +17,7 @@ import { printBrowser } from "./print"
 import { renderLabelSvg, type LabelDocument, type LabelLayout, type PrinterDpi } from "./render"
 import { svgsToZpl } from "./zpl"
 
-// ── Settings on this computer ──────────────────────────────────────────────────────────────────────
+// Settings on this computer
 
 const LAYOUT_KEY = "effy.shop.labelLayout"
 const PRINTER_KEY = "effy.shop.labelPrinter"
@@ -57,7 +57,7 @@ export function rememberedPrinter(): PrinterChoice {
 }
 export const rememberPrinter = (choice: PrinterChoice) => write(PRINTER_KEY, choice)
 
-// ── Zebra Browser Print (the operator's local helper; nothing bundled) ─────────────────────────────
+// Zebra Browser Print (the operator's local helper; nothing bundled)
 
 export interface ZebraDevice {
   name: string
@@ -93,7 +93,7 @@ async function sendZebra(device: ZebraDevice, zpl: string): Promise<void> {
   await zebra("/write", { method: "POST", body: JSON.stringify({ device, data: zpl }), headers: { "Content-Type": "text/plain" } })
 }
 
-// ── Printing ───────────────────────────────────────────────────────────────────────────────────────
+// Printing
 
 export interface PrintJob {
   common: ShopLabelCommonDTO

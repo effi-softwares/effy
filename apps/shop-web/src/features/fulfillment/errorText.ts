@@ -4,24 +4,19 @@ import { isDomainError } from "@effy/api-client";
 // `errorText` idiom: key off `DomainError.kind` and the HTTP status only, never the raw `detail`.
 
 /**
- * A 409 conflict — the portion moved under us.
- *
- * `@effy/api-client` maps 409 to `DomainErrorKind "unknown"`, so a conflict is detected by STATUS,
- * not kind. Every 409 in this slice means the same thing: another operator (or the implicit
- * `received` transition) changed the state between our read and our write. The answer is always to
- * RELOAD and look again — never a blind retry, which would just re-apply a decision made against a
- * state that no longer exists.
+ * A 409: the portion moved under us (`@effy/api-client` maps 409 to kind "unknown", so it is detected by
+ * status). The answer is to reload and look again, never to retry.
  */
 export function isConflict(err: unknown): boolean {
   return isDomainError(err) && err.status === 409;
 }
 
-/** Copy for a stale transition/progress write (FR-014, SC-005). */
+/** Copy for a stale transition/progress write. */
 export const STALE_STATE_MESSAGE =
   "This order changed elsewhere — someone else may be working it. Reload to see its current state.";
 
 /**
- * 096 — the named refusals for bags, in our own words (keyed on the problem `type`, never on the server's
+ * The named refusals for bags, in our own words (keyed on the problem `type`, never on the server's
  * `detail`, which FR-008 keeps off the screen).
  */
 const BAG_REFUSALS: Record<string, string> = {
@@ -62,8 +57,8 @@ export function fulfillmentMutationError(err: unknown): string {
 }
 
 /**
- * Inline copy for a failed tag or note save (057 A3). Distinct from `fulfillmentMutationError`, whose
- * 400 copy talks about QUANTITIES — right for a pick write, nonsense under a note.
+ * Inline copy for a failed tag or note save. Distinct from `fulfillmentMutationError`, whose
+ * Copy talks about quantities — right for a pick write, nonsense under a note.
  */
 export function orderEditError(err: unknown): string {
   if (isDomainError(err)) {
@@ -76,7 +71,7 @@ export function orderEditError(err: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-/** 080 — a refused "Handed over to courier". */
+/** A refused "Handed over to courier". */
 export function courierHandoverError(err: unknown): string {
   if (isConflict(err)) return "This pickup isn't booked any more, or the parcel isn't marked ready. Refresh and check with Effy."
   if (isDomainError(err)) {

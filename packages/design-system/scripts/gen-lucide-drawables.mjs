@@ -1,17 +1,12 @@
-// GENERATOR — converts the Lucide icons the customer app uses into Android/Compose vector drawables
-// (087 research D4). Lucide is the icon set of the storefront identity (the web and the design canvas
-// use it); the customer mobile app takes the same glyphs.
+// Converts the Lucide icons the mobile apps use into Android/Compose vector drawables.
 //
 // Usage: node scripts/gen-lucide-drawables.mjs <path-to-lucide-static>/icons
-//   (`npm pack lucide-static@0.469.0` and untar it; the version is pinned below so a re-run is
-//   reproducible). Output: mobile-assets/drawable/lucide_<name>.xml, then run mobile-assets:sync.
+//  (`npm pack lucide-static@0.469.0` and untar it). Output: mobile-assets/drawable/lucide_<name>.xml,
+//  then run mobile-assets:sync. The output is committed, the source is not; the licence travels in
+//  mobile-assets/drawable/lucide-license.txt.
 //
-// ⚠ The output is COMMITTED and the source is not: Lucide is a build-time input, like the Geist TTFs.
-// The licence travels with the files (mobile-assets/drawable/LUCIDE-LICENSE.txt).
-//
-// Lucide draws with strokes only (fill none, stroke 2, round caps and joins). A vector drawable can
-// stroke a <path>, so every primitive (circle, rect, line, polyline, polygon, ellipse) is rewritten as
-// path data. The stroke colour is black; screens tint it (Icon(tint = …)).
+// Lucide draws with strokes only, so every primitive (circle, rect, line, polyline, polygon, ellipse)
+// becomes path data. The stroke is black; screens tint it.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
@@ -19,23 +14,22 @@ import { fileURLToPath } from "node:url";
 
 export const LUCIDE_VERSION = "0.469.0";
 
-/** Every Lucide glyph the customer (087) and driver (092) apps draw. Add a name here, re-run, sync. */
+/** Every Lucide glyph the customer and driver apps draw. Add a name here, re-run, sync. */
 export const ICONS = [
-  "arrow-right", "arrow-up-down", "bell", "bell-off", "check", "chevron-down", "chevron-left", "chevron-right",
-  "chevron-up", "circle-alert", "circle-check", "circle-help", "clock", "coins", "copy", "credit-card",
-  "eye", "eye-off", "file-text", "gift", "heart", "history", "house", "image", "info", "key-round",
-  "list-plus", "lock", "log-out", "mail", "map-pin", "message-square", "minus", "package", "pencil",
-  "plus", "receipt", "refresh-cw", "search", "settings", "shield", "shopping-bag", "shopping-cart",
-  "sliders-horizontal", "smartphone", "sparkles", "store", "tag", "trash-2", "triangle-alert", "truck",
-  "user-round", "wifi-off", "x",
-  // Aisles (087 T057) — the 084 aisle keys mapped to food-first glyphs.
-  "apple", "baby", "beef", "carrot", "coffee", "cookie", "croissant", "cup-soda", "egg", "fish",
-  "milk", "paw-print", "pill", "sandwich", "snowflake", "soup", "spray-can", "wheat", "wine",
-  "shopping-basket", "scroll-text", "sun-moon",
-  // 092 — the driver app's redesign canvas (Navigate, Call, the hub, scanning, proof, offline).
-  "arrow-left", "camera", "circle-x", "cloud-off", "door-open", "ellipsis", "external-link", "flashlight",
-  "flashlight-off", "hand", "inbox", "keyboard", "list-checks", "navigation", "pause", "pen-line", "phone",
-  "refresh-ccw", "rotate-ccw", "scan-line", "signature", "undo-2", "warehouse", "power", "search-x",
+  "arrow-right", "bell", "check", "chevron-down", "chevron-left", "chevron-right", "chevron-up",
+  "circle-alert", "circle-check", "circle-help", "clock", "coins", "copy", "credit-card", "eye", "eye-off",
+  "file-text", "gift", "heart", "history", "house", "info", "key-round", "list-plus", "lock", "log-out",
+  "mail", "map-pin", "message-square", "minus", "package", "plus", "refresh-cw", "search", "settings",
+  "shield", "shopping-cart", "sliders-horizontal", "smartphone", "sparkles", "store", "tag", "trash-2",
+  "triangle-alert", "truck", "user-round", "wifi-off", "x",
+  // Aisles: food-first glyphs for the aisle keys.
+  "apple", "baby", "beef", "carrot", "coffee", "cookie", "croissant", "cup-soda", "fish", "milk",
+  "paw-print", "sandwich", "snowflake", "soup", "spray-can", "wheat", "shopping-basket", "scroll-text",
+  "sun-moon",
+  // Driver app: navigate, call, the hub, scanning, proof, offline.
+  "camera", "circle-x", "door-open", "ellipsis", "external-link", "flashlight", "flashlight-off", "hand",
+  "inbox", "navigation", "pause", "pen-line", "phone", "refresh-ccw", "rotate-ccw", "scan-line",
+  "warehouse", "power", "search-x",
 ];
 
 const num = (s) => Number.parseFloat(s);
@@ -90,8 +84,7 @@ export function convert(svg, name) {
   const body = paths
     .map((d) => `    <path android:pathData="${d}" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" />`)
     .join("\n");
-  // ⚠ No XML comment before <vector>: the non-Android resource parser is minimal; provenance lives in
-  // LUCIDE-LICENSE.txt and this script.
+  // No XML comment before <vector>: the non-Android resource parser is minimal.
   return `<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
 ${body}
 </vector>

@@ -90,7 +90,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const scanTotal = scanning ? scanning.scanned + scanning.notScanned : 0;
   const low = (lowStock.data ?? []).filter((r) => r.severity !== "out").length;
   const out = (lowStock.data ?? []).filter((r) => r.severity === "out").length;
-  // ⚠ 061 — where a driver is told to collect from. A MISSING address is a NAMED GAP (FR-030).
+  // Where a driver is told to collect from. A missing address is a named gap.
   const address = shop.address?.addressLine1
     ? [shop.address.addressLine1, shop.address.addressLine2, shop.address.suburb, shop.address.state, shop.address.postcode].filter(Boolean).join(", ")
     : null;
@@ -180,7 +180,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 />
               </Panel>
 
-              {/* 091 — a shop whose labels often fail to scan is printing them badly. */}
+              {/* A shop whose labels often fail to scan is printing them badly. */}
               {scanning ? (
                 <Panel
                   title="Label scanning"
@@ -211,7 +211,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 </Panel>
               ) : null}
 
-              {/* 096 — the shop may not mark an order ready until every bag is scanned as packed. */}
+              {/* The shop may not mark an order ready until every bag is scanned as packed. */}
               <Panel title="Packing" description="What this shop must do before an order can be marked ready.">
                 <label className="flex items-start justify-between gap-4">
                   <span className="space-y-1">
@@ -272,7 +272,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               <Roster shop={shop} canManage={canManage} onAdd={() => setAddUserOpen(true)} />
             </TabsContent>
 
-            {/* 054 US4: the assisted stock path. Reading is open to any active staff incl. csa. */}
+            {/* The assisted stock path. Reading is open to any active staff incl. csa. */}
             <TabsContent value="stock" className="bo-tabpanel">
               <Panel title="Stock" description="Products at or below their low-stock threshold, out of stock first.">
                 <ShopStockPanel shopId={shop.id} canManage={canManage} />
@@ -510,7 +510,7 @@ function formatTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
-/** 091 — "8 scanned · 2 not scanned (20%) · last 30 days", or that nothing is recorded yet. */
+/** "8 scanned · 2 not scanned (20%) · last 30 days", or that nothing is recorded yet. */
 export function labelScanningText(l: { scanned: number; notScanned: number; sinceDays: number }): string {
   const total = l.scanned + l.notScanned;
   if (total === 0) return `No scanning recorded in the last ${l.sinceDays} days`;

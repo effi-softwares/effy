@@ -59,7 +59,7 @@ describe("PromoSkin (095) — the web renderer", () => {
       "https://media.example.test/renditions/promotions/p/a/w320.webp 320w, https://media.example.test/renditions/promotions/p/a/w640.webp 640w",
     );
     expect(img.style.objectPosition).toBe("30% 60%");
-    // The colour is under the picture while it loads (FR-021).
+    // The colour is under the picture while it loads.
     expect(screen.getByTestId("promo-skin").style.background).toBe("rgb(24, 24, 27)");
   });
 

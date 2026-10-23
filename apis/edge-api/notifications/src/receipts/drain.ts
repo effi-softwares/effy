@@ -1,23 +1,16 @@
-// Pure drain orchestration for the RECEIPT EMAIL outbox — the decision logic, dependency-injected so
-// it is unit-testable with fakes (no DB, no SES). 052-order-confirmation-invoice, US3.
-//
-// ⚠ A DELIBERATE SIBLING OF ../worker/drain.ts, NOT A REUSE OF IT. The mechanics are the same
-// (claim → act → mark, with an attempt cap and a fail-open posture) but the two outboxes differ in
-// ways that matter: push is exactly-once per (type, recipient, entity) and can never be re-sent on
-// purpose, while a receipt CAN — a resend is a first-class feature (FR-027). Research R2 records why
-// `notification_request` could not carry this.
+// The receipt outbox drain. A sibling of../worker/drain.ts rather than a reuse: push is exactly-once,
+// while a receipt can be re-sent on purpose.
 
-/** One claimed row from `public.receipt_dispatch`. */
 export interface PendingReceipt {
   id: string;
   orderId: string;
-  /** ⚠ The address SNAPSHOTTED at enqueue time — never re-resolved here (data-model §2). */
+  /** Snapshotted at enqueue time, never re-resolved. */
   recipient: string;
   reason: "order_paid" | "customer_request";
   attempts: number;
 }
 
-/** What the mailer reports back. `messageId` joins to `email_delivery_event` (037). */
+/** `messageId` joins to `email_delivery_event`. */
 export interface ReceiptSendResult {
   ok: boolean;
   messageId?: string;
@@ -25,15 +18,12 @@ export interface ReceiptSendResult {
 }
 
 export interface ReceiptDrainDeps {
-  /** False when mail is not configured — the worker then does nothing at all (see below). */
+  /** False when mail is not configured; the worker then does nothing. */
   mailerConfigured: boolean;
   maxAttempts: number;
   batchSize: number;
   claimPending(limit: number): Promise<PendingReceipt[]>;
-  /**
-   * Render + send one receipt. Returns `null` when the order can no longer be read — an order that
-   * vanished is not a failure to retry forever.
-   */
+  /** `null` when the order can no longer be read: not a failure to retry. */
   send(req: PendingReceipt): Promise<ReceiptSendResult | null>;
   markSent(id: string, messageId: string | undefined): Promise<void>;
   markSkipped(id: string, reason: string): Promise<void>;
@@ -50,13 +40,7 @@ export interface ReceiptDrainSummary {
   disabled: boolean;
 }
 
-/**
- * Drain one batch.
- *
- * ⚠ IDEMPOTENT BY CONSTRUCTION, not by remembering. Rows are claimed `FOR UPDATE SKIP LOCKED` (the
- * repository) and only `pending` rows are ever claimed, so a re-run never re-sends a row that already
- * reached `sent`, `skipped` or `failed`. Two overlapping invocations cannot claim the same row.
- */
+/** Rows are claimed `FOR UPDATE SKIP LOCKED` and only when pending, so a re-run never re-sends. */
 export async function drainReceiptsOnce(deps: ReceiptDrainDeps): Promise<ReceiptDrainSummary> {
   const s: ReceiptDrainSummary = {
     claimed: 0,
@@ -67,9 +51,7 @@ export async function drainReceiptsOnce(deps: ReceiptDrainDeps): Promise<Receipt
     disabled: false,
   };
 
-  // ⚠ FAIL-OPEN: not configured → leave EVERYTHING pending and do nothing (050 FR-027's posture).
-  // The alternative — marking rows failed because this deployment lacks a mail identity — would burn
-  // the attempt budget on a misconfiguration and lose receipts that were never actually attempted.
+  // Fail open: not configured leaves everything pending, so no attempts are burnt.
   if (!deps.mailerConfigured) {
     s.disabled = true;
     return s;
@@ -79,8 +61,7 @@ export async function drainReceiptsOnce(deps: ReceiptDrainDeps): Promise<Receipt
   s.claimed = batch.length;
 
   for (const req of batch) {
-    // No address on the account. A VALID OUTCOME, not a failure — the 050 `no_token` precedent. There
-    // is nothing to retry and nothing broken; the row records why nothing was sent.
+    // No address on the account: a valid outcome, recorded.
     if (!req.recipient) {
       await deps.markSkipped(req.id, "no_recipient");
       s.skipped += 1;
@@ -94,8 +75,7 @@ export async function drainReceiptsOnce(deps: ReceiptDrainDeps): Promise<Receipt
       result = { ok: false, error: err instanceof Error ? err.message : "unknown" };
     }
 
-    // ⚠ The order could not be read. Retrying forever would not help, and the row must not sit
-    // `pending` for eternity making the queue look permanently backed up.
+    // The order cannot be read; retrying forever would not help.
     if (result === null) {
       await deps.markSkipped(req.id, "order_unavailable");
       s.skipped += 1;

@@ -1,5 +1,4 @@
-// POST /admin/v1/delivery/plans — create a DRAFT fee plan (077). Mutate: admin/manager.
-// Value errors are a 422 naming each field; missing bands are not refused — they come back as gaps.
+// Value errors are a 422 naming each field; missing bands come back as gaps.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

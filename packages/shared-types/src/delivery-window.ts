@@ -1,22 +1,14 @@
 /**
- * The delivery window — what a same-day customer was sold, and how every surface says it (069).
- *
- * Contract: `specs/069-delivery-slots-dates/contracts/delivery-slots-dates.md`.
- *
- * ⚠ ONE WORDING, IN ONE PLACE. The confirmation page, the order page and the emailed receipt all call
- * `formatArrival`; the two Kotlin apps carry a twin pinned to `delivery-window.fixtures.json`. 052
- * deleted a second implementation of one rule (`summarizeFulfillment`) for exactly the reason this
- * exists: two surfaces that each render SOMETHING never fail when they disagree.
- *
- * ⚠ NOTHING HERE USES `Intl` TO PRODUCE TEXT. ICU's output for "5 pm" differs between runtimes (a
- * narrow no-break space on some, "p.m." on others), and a fixture shared with Kotlin cannot depend on
- * which ICU a Lambda shipped with. `Intl` is used only to read the Melbourne wall clock.
+ * The delivery window: what a customer was sold, and how every surface says it. The confirmation page,
+ * the order page and the receipt call `formatArrival`; both Kotlin apps carry a twin pinned to
+ * `delivery-window.fixtures.json`. `Intl` reads the Melbourne wall clock only, never produces text: ICU
+ * output differs between runtimes.
  */
 
-/** The platform's operating timezone. A delivery happens in Melbourne, wherever the device is (FR-029). */
+/** The operating timezone: a delivery happens in Melbourne, wherever the device is. */
 export const DELIVERY_TZ = "Australia/Melbourne";
 
-/** A same-day delivery window, as two instants. */
+/** A delivery window, as two instants. */
 export interface DeliveryWindow {
   /** ISO-8601 instant. */
   startAt: string;
@@ -28,10 +20,8 @@ export interface DeliveryWindow {
 export type DeliveryWindowState = "upcoming" | "due" | "late";
 
 /**
- * Upcoming until the window opens, due while it is open, late once it has closed (FR-032).
- *
- * ⚠ Derived where it is SHOWN, never stored and never sent: it changes while a screen is open.
- * The window's end is inclusive — a drop completed on the stroke of the end is on time.
+ * Upcoming until the window opens, due while it is open, late once it has closed. Derived where shown,
+ * never stored or sent. The end is inclusive.
  */
 export function windowStateAt(now: Date, window: DeliveryWindow): DeliveryWindowState {
   const t = now.getTime();
@@ -79,7 +69,7 @@ function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** "Thu 8 Oct" — a calendar date has no timezone, so this is pure arithmetic on the ISO string. */
+/** "Thu 8 Oct": a calendar date has no timezone, so this is arithmetic on the ISO string. */
 export function formatDeliveryDay(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return isoDate;
@@ -103,12 +93,8 @@ function clock(hour: number, minute: number): string {
 
 /** "5 pm – 7 pm", in Melbourne time. */
 /**
- * A moment in words, in Melbourne time, relative to today (072): "1:15 pm" when it is today,
- * "tomorrow 11:15 am", otherwise "Thu 9 Oct 11:15 am".
- *
- * ⚠ WRITTEN BY THE SERVER FOR THE DRIVER APP, which never formats a time itself — it has no timezone
- * database, and a second wording is how two screens end up disagreeing about one instant (see
- * `DeliveryWindow.kt`). The console may call it directly.
+ * A moment in words, Melbourne time, relative to today: "1:15 pm" today, "tomorrow 11:15 am", otherwise
+ * "Thu 9 Oct 11:15 am". Written by the server for the driver app, which never formats a time.
  */
 export function formatMoment(at: Date | string, now: Date): string {
   const instant = at instanceof Date ? at : new Date(at);
@@ -126,7 +112,7 @@ export function formatDeliveryWindow(window: DeliveryWindow): string {
   return `${clock(s.hour, s.minute)} – ${clock(e.hour, e.minute)}`;
 }
 
-/** The fields `formatArrival` reads — the customer's `ArrivalEstimateDTO` satisfies it. */
+/** The fields `formatArrival` reads; the customer's `ArrivalEstimateDTO` satisfies it. */
 export interface ArrivalPromise {
   promisedFrom: string | null;
   promisedTo: string | null;
@@ -134,17 +120,12 @@ export interface ArrivalPromise {
   windowEnd?: string | null;
 }
 
-/** What is said when the platform has made no promise. Every order placed before 069 reads this. */
+/** What is said when the platform has made no promise. */
 export const ARRIVAL_UNCONFIRMED = "We'll confirm your delivery date";
 
 /**
- * One entry per DISTINCT promise (078).
- *
- * An order's delivery is recorded per package, and under the new delivery model every package of an
- * order carries the same window. Said once per package, one delivery reads as several — and the
- * number of lines is the number of suppliers, which a customer is never told. Identical promises
- * are one promise; different ones (an order sold before the new model, split across today and a
- * later day) stay apart. Order is kept.
+ * One entry per distinct promise, in order. Every package of an order carries the same window, so a
+ * line per package would read as several deliveries and reveal the number of suppliers.
  */
 export function distinctArrivals<T extends ArrivalPromise & { method?: string | null }>(arrivals: readonly T[]): T[] {
   const seen = new Set<string>();
@@ -159,16 +140,13 @@ export function distinctArrivals<T extends ArrivalPromise & { method?: string | 
 }
 
 /**
- * The arrival, in the plainest words the DATA supports.
- *
- *   window, today        → "Today, 5 pm – 7 pm"
- *   window, another day  → "Thu 8 Oct, 5 pm – 7 pm"
- *   no window, one day   → "Today" / "Tomorrow" / "Thu 8 Oct"
- *   no window, a range   → "Thu 8 Oct – Sat 10 Oct"
- *   no dates             → "We'll confirm your delivery date"
- *
- * ⚠ When there is no promise this SAYS SO rather than inventing one. A fabricated date on a receipt
- * is a false fact on the one document a customer treats as a record (052 research R4).
+ * The arrival, in the plainest words the data supports:
+ *  window, today → "Today, 5 pm – 7 pm"
+ *  window, another day → "Thu 8 Oct, 5 pm – 7 pm"
+ *  no window, one day → "Today" / "Tomorrow" / "Thu 8 Oct"
+ *  no window, a range → "Thu 8 Oct – Sat 10 Oct"
+ *  no dates → "We'll confirm your delivery date"
+ * With no promise it says so rather than inventing a date.
  */
 export function formatArrival(a: ArrivalPromise, now: Date): string {
   if (a.windowStart && a.windowEnd) {

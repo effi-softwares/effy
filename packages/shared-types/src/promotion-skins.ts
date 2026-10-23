@@ -1,21 +1,18 @@
 /**
- * PROMOTION SKINS (095) — how a promotion looks in one place, as data.
+ * Promotion skins: how a promotion looks in one place, as data. A skin is one layout from the closed
+ * list plus a settings document; the website, back-office's previews and the customer app all draw from
+ * this declaration. Every function is pure and runs on both sides:
  *
- * A skin is one LAYOUT from the closed list below plus a settings document. Staff design skins in
- * back-office; the customer website, back-office's previews and the customer app all draw them from
- * this one declaration. Every function here is pure and runs on both sides of the wire:
+ *  validateSkin — the shape, the bounds and the layout's own rules;
+ *  skinContrast — WCAG aa for every piece of text on what it sits on (the server refuses an unreadable skin);
+ *  skinGeometry — the sizes both renderers draw, pinned by `promotion-skins.fixtures.json`;
+ *  buttonWords / labelWords / pickPicture — choices both renderers make the same way.
  *
- *   validateSkin  — the shape, the bounds and the layout's own rules;
- *   skinContrast  — WCAG AA on every piece of text against what it sits on (constitution v3.6.0: a skin's
- *                   colours are content, and the server refuses one that is not readable);
- *   skinGeometry  — the sizes both renderers draw, pinned by `promotion-skins.fixtures.json`;
- *   buttonWords / labelWords / pickPicture — the choices both renderers must make the same way.
- *
- * ⚠ `classic` is the one built-in skin: "draw this place exactly as before 095". It has no settings,
- * every client keeps its own drawing for it, and the admin service never updates or removes it.
+ * `classic` is the one built-in skin: each client keeps its own drawing for it, and the admin service
+ * never updates or removes it.
  */
 
-// ── The closed lists ─────────────────────────────────────────────────────────────────────────────
+// The closed lists
 
 export const SKIN_LAYOUTS = ["classic", "panel", "header_card", "full_picture", "picture_beside", "tile", "strip"] as const;
 export type SkinLayout = (typeof SKIN_LAYOUTS)[number];
@@ -91,7 +88,7 @@ export interface SkinSettings extends SkinColours {
 /** `label.words` / `button.words` value meaning "the promotion's own word". */
 export const AUTO = "auto";
 
-// ── Layout facts ────────────────────────────────────────────────────────────────────────────────
+// Layout facts
 
 /** The sizes of place each layout fits. A group offers only skins whose layout fits its size. */
 export const LAYOUT_FITS: Record<SkinLayout, readonly GroupSize[]> = {
@@ -114,7 +111,7 @@ export const LAYOUT_SHOWS_PICTURE: Record<DesignedLayout, "required" | "optional
   strip: "optional",
 };
 
-/** The picture shape each layout prefers (width ÷ height) — used to pick the best-fitting picture. */
+/** The picture shape each layout prefers (width ÷ height), for picking the best-fitting picture. */
 export const LAYOUT_RATIO: Record<DesignedLayout, number> = {
   panel: 16 / 9,
   header_card: 16 / 9,
@@ -133,7 +130,7 @@ export function layoutFits(layout: SkinLayout, size: GroupSize): boolean {
   return LAYOUT_FITS[layout].includes(size);
 }
 
-// ── Geometry (both renderers draw these numbers; px on the web, dp in the app) ─────────────────
+// Geometry (both renderers draw these numbers: px on the web, dp in the app)
 
 export const TEXT_PX: Record<TextSize, number> = { xs: 12, sm: 14, md: 16, lg: 20, xl: 24, "2xl": 32 };
 export const SPACING_PX: Record<Spacing, number> = { compact: 16, regular: 24, roomy: 32 };
@@ -147,7 +144,7 @@ export interface SkinGeometry {
   minHeight: number;
   /** Width ÷ height of the picture region (the whole box, or the header, or the picture half). */
   pictureRatio: number;
-  /** The share of the width the words may use (0–1) — the rest is decorations or picture. */
+  /** The share of the width the words may use (0–1); the rest is decorations or picture. */
   wordsWidth: number;
   /** Decorations are drawn at all at this size. */
   decorations: boolean;
@@ -185,12 +182,12 @@ export function skinGeometry(layout: DesignedLayout, size: GroupSize): SkinGeome
   return GEOMETRY[layout][size] ?? null;
 }
 
-/** Any size the layout fits, largest first — what a client uses when it is not told the size. */
+/** Every size the layout fits, largest first, for a client not told the size. */
 export function defaultSize(layout: DesignedLayout): GroupSize {
   return (GROUP_SIZES.find((s) => GEOMETRY[layout][s]) ?? "medium") as GroupSize;
 }
 
-// ── Words both renderers choose the same way ────────────────────────────────────────────────────
+// Words both renderers choose the same way
 
 /** The button's words, or null when the skin shows no button. */
 export function buttonWords(settings: Pick<SkinSettings, "button">, hasCode: boolean): string | null {
@@ -229,10 +226,7 @@ export interface PictureChoice {
   position: number;
 }
 
-/**
- * Which of a promotion's pictures a placement shows (FR-016): the chosen one if it still exists; else the
- * one closest to the layout's preferred shape (the lowest position on a tie); else none.
- */
+/** Which picture a placement shows: the chosen one if it still exists, else the closest to the layout's preferred shape (lowest position on a tie), else none. */
 export function pickPicture<T extends PictureChoice>(
   layout: DesignedLayout,
   settings: Pick<SkinSettings, "background">,
@@ -251,7 +245,7 @@ export function pickPicture<T extends PictureChoice>(
   })[0]!;
 }
 
-// ── Readability (WCAG 2.x) ──────────────────────────────────────────────────────────────────────
+// Readability (WCAG 2.x)
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -316,9 +310,9 @@ const GROUNDS: Record<string, string> = {
 };
 
 /**
- * Every piece of text against what it sits on (research R2). Text over a picture is judged twice — on
- * the tint over pure black and over pure white — so it reads whatever picture is used. The background
- * colour is always judged too: it is what shows before a picture loads, and when there is none.
+ * Every piece of text against what it sits on. Text over a picture is judged twice, on the tint over
+ * black and over white, so it reads on any picture; the background colour is always judged too (it
+ * shows before a picture loads, and when there is none).
  */
 export function skinContrast(layout: DesignedLayout, settings: SkinSettings): ContrastPair[] {
   const out: ContrastPair[] = [];
@@ -361,7 +355,7 @@ export function skinContrast(layout: DesignedLayout, settings: SkinSettings): Co
   return out.filter((p, i) => out.findIndex((q) => q.pair === p.pair) === i);
 }
 
-// ── Validation ──────────────────────────────────────────────────────────────────────────────────
+// Validation
 
 export interface SkinIssue {
   field: string;
@@ -491,10 +485,7 @@ const LAYOUT_KEYS: Record<DesignedLayout, readonly string[]> = {
   strip: [],
 };
 
-/**
- * Everything wrong with a skin's settings, as `{ field, message }` — empty when it may be saved
- * (readability is `skinContrast`, checked separately so the editor can show each pair).
- */
+/** Everything wrong with a skin's settings as `{ field, message }`; empty when it may be saved (readability is `skinContrast`). */
 export function validateSkin(layout: unknown, settings: unknown): SkinIssue[] {
   const issues: SkinIssue[] = [];
   if (!oneOf(DESIGNED_LAYOUTS, layout)) return [{ field: "layout", message: `One of: ${DESIGNED_LAYOUTS.join(", ")}.` }];
@@ -523,7 +514,7 @@ export function validateSkin(layout: unknown, settings: unknown): SkinIssue[] {
   if (layout === "strip" && isObj(settings.headline) && settings.headline.lines !== 1) {
     issues.push({ field: "headline.lines", message: "A strip has one line." });
   }
-  // Words over a picture need a tint (FR-010).
+  // Words over a picture need a tint.
   const shows = LAYOUT_SHOWS_PICTURE[layout] === "required" || (isObj(settings.background) && settings.background.picture === "show");
   if (shows && wordsOverPicture(layout) && isObj(settings.background) && settings.background.tint === undefined) {
     issues.push({ field: "background.tint", message: "Words over a picture need a tint under them." });
@@ -548,9 +539,9 @@ export function skinProblems(layout: DesignedLayout, settings: SkinSettings): { 
   return { issues, unreadable: [...unreadable, ...dark] };
 }
 
-// ── Starting points ─────────────────────────────────────────────────────────────────────────────
+// Starting points
 
-/** A sensible new skin of each layout — what the editor starts from (readable as it stands). */
+/** A readable new skin of each layout, where the editor starts. */
 export function starterSettings(layout: DesignedLayout): SkinSettings {
   const base: SkinSettings = {
     background: { colour: "#1d4ed8", picture: "none" },

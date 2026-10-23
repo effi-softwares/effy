@@ -109,7 +109,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
       paidAt: "2026-09-10T02:14:05Z",
     },
     refunds: [],
-    handoff: { collectedAt: null, deliveredAt: null, unfulfillableReason: null },
+    handoff: { deliveredAt: null, unfulfillableReason: null },
     tags: [],
     notes: [],
     ...over,

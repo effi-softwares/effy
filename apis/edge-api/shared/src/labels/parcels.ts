@@ -1,10 +1,6 @@
-// The bags a step expects, and whether a request accounted for every one of them (096, research R6).
-//
-// ⚠ ONE DEFINITION OF "WHAT THIS STEP STILL NEEDS". Every driver step and the hub station call
-// `expectedParcels` and then `accountFor`; `labels.guard.test.ts` fails a route that judges
-// completeness any other way. A request that leaves a live bag neither handed over nor declared missing
-// is refused (409 `parcels_unaccounted`) — the server, not the app, is what makes a left-behind bag
-// impossible to miss (SC-003).
+// What a step still needs: every driver step and the hub station call `expectedParcels` then
+// `accountFor` (`labels.guard.test.ts`). A request leaving a live bag neither handed over nor declared
+// missing is refused (409 `parcels_unaccounted`).
 
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
@@ -17,7 +13,7 @@ import type { HandoverStep } from "./handovers";
 
 type Db = { query: (text: string, values?: unknown[]) => Promise<any> };
 
-/** A live bag as a step sees it: the wire parcel plus the package it belongs to. */
+/** The wire parcel plus its package. */
 export interface StepParcel extends ParcelDTO {
   packageId: string;
 }
@@ -30,7 +26,7 @@ function toParcel(r: any): StepParcel {
   return { parcelId: r.parcel_id, code: r.parcel_code, seq: Number(r.seq), of: Number(r.of), zone: r.zone as ParcelZone, packageId: r.package_id };
 }
 
-/** Every live bag of these packages, in package then bag order. */
+/** In package then bag order. */
 export async function liveParcels(db: Db, packageIds: readonly string[]): Promise<StepParcel[]> {
   if (packageIds.length === 0) return [];
   const res = await db.query(
@@ -43,7 +39,7 @@ export async function liveParcels(db: Db, packageIds: readonly string[]): Promis
   return res.rows.map(toParcel);
 }
 
-/** `liveParcels`, grouped by package. */
+/** Grouped by package. */
 export async function liveParcelsByPackage(db: Db, packageIds: readonly string[]): Promise<Map<string, ParcelDTO[]>> {
   const out = new Map<string, ParcelDTO[]>();
   for (const p of await liveParcels(db, packageIds)) {
@@ -53,7 +49,7 @@ export async function liveParcelsByPackage(db: Db, packageIds: readonly string[]
   return out;
 }
 
-/** SQL: true when bag `parcelId` or its whole package `packageId` is held (open, or resolved lost). */
+/** SQL: bag `parcelId` or its whole package `packageId` is held (open, or resolved lost). */
 export function parcelHeldSql(parcelId: string, packageId: string): string {
   return `EXISTS (SELECT 1 FROM public.package_hold ph
                    WHERE ph.shop_fulfillment_id = ${packageId}
@@ -64,17 +60,11 @@ export function parcelHeldSql(parcelId: string, packageId: string): string {
 export interface ExpectedScope {
   step: HandoverStep;
   packageIds: readonly string[];
-  /**
-   * The round this step is on. A bag already handed over at this step ON THIS ROUND is not expected
-   * again (a retry); a bag re-delivered on a later round is expected afresh.
-   */
+  /** A bag already handed over at this step on this round is not expected again; on a later round it is. */
   roundId: string | null;
 }
 
-/**
- * The live bags of these packages that this step still needs: not voided, not held, and not yet handed
- * over at this step on this round. A bag resolved FOUND is expected again.
- */
+/** Not voided, not held, not yet handed over at this step on this round. A bag resolved found is expected again. */
 export async function expectedParcels(db: Db, scope: ExpectedScope): Promise<StepParcel[]> {
   if (scope.packageIds.length === 0) return [];
   const res = await db.query(
@@ -92,7 +82,7 @@ export async function expectedParcels(db: Db, scope: ExpectedScope): Promise<Ste
   return res.rows.map(toParcel);
 }
 
-/** Where each reason may be said — the same rule the database CHECKs (`package_hold_reason_step`). */
+/** Where each reason may be said, as the check `package_hold_reason_step`. */
 export const MISSING_REASONS_BY_STEP: Readonly<Record<string, ReadonlySet<ParcelMissingReason>>> = {
   collect: new Set(["not_at_shop", "damaged", "wrong_temperature", "other"]),
   checkin: new Set(["not_in_van"]),
@@ -101,7 +91,6 @@ export const MISSING_REASONS_BY_STEP: Readonly<Record<string, ReadonlySet<Parcel
   return: new Set(["not_in_van", "damaged", "wrong_temperature", "other"]),
 };
 
-/** A step that did not account for every bag. */
 export class ParcelsUnaccounted extends Error {
   constructor(
     readonly step: HandoverStep,
@@ -117,7 +106,7 @@ export class ParcelsUnaccounted extends Error {
   }
 }
 
-/** A hand-over where every bag was declared missing — nothing can be handed over (use "Can't deliver"). */
+/** Every bag declared missing: nothing can be handed over (use "Can't deliver"). */
 export class NothingToHandOver extends Error {
   constructor() {
     super("Every bag is marked missing, so nothing can be handed over. Use Can't deliver instead.");
@@ -126,17 +115,13 @@ export class NothingToHandOver extends Error {
 }
 
 export interface Accounted {
-  /** Bags handed over, by parcel id, with how. */
+  /** By parcel id, with how. */
   handed: Array<{ parcel: StepParcel; method: ParcelHandover["method"] }>;
-  /** Bags declared missing, with a reason valid at this step. */
+  /** With a reason valid at this step. */
   missing: Array<{ parcel: StepParcel; reason: ParcelMissingReason; note: string | null }>;
 }
 
-/**
- * Match a request's bags against what the step expects. Throws `ParcelsUnaccounted` (and emits
- * `ParcelsUnaccounted{step}`) when any expected bag is neither handed over nor validly declared
- * missing. Bags the step does not expect are ignored — a stray name invents nothing.
- */
+/** Throws `ParcelsUnaccounted` (emitting `ParcelsUnaccounted{step}`) when an expected bag is unaccounted. Unexpected bags are ignored. */
 export function accountFor(
   step: HandoverStep,
   expected: readonly StepParcel[],
@@ -175,11 +160,7 @@ export function accountFor(
   return { handed, missing: declared };
 }
 
-/**
- * Write the holds for bags declared missing (093's `package_hold`, per parcel since 096). When EVERY
- * bag of a package this step expected is missing, the package itself is held (parcel_id NULL) — exactly
- * 093's shape, which the planners already exclude. Returns the package ids held whole.
- */
+/** Holds per missing bag; when every expected bag of a package is missing, the package is held (parcel_id null). Returns those package ids. */
 export async function writeParcelHolds(
   tx: Db,
   input: {
@@ -188,7 +169,7 @@ export async function writeParcelHolds(
     roundId: string;
     changeId: string;
     missing: Accounted["missing"];
-    /** How many bags of each package this step expected, to tell "some" from "all". */
+    /** Bags of each package this step expected, to tell some from all. */
     expectedCount: ReadonlyMap<string, number>;
   },
 ): Promise<{ parcelsHeld: number; packagesHeld: string[] }> {
@@ -223,7 +204,7 @@ export async function writeParcelHolds(
   return { parcelsHeld, packagesHeld };
 }
 
-/** How many of `parcels` belong to each package — "every bag this step expected" per package. */
+/** Per package: "every bag this step expected". */
 export function countByPackage(parcels: readonly StepParcel[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const p of parcels) out.set(p.packageId, (out.get(p.packageId) ?? 0) + 1);
@@ -231,10 +212,8 @@ export function countByPackage(parcels: readonly StepParcel[]): Map<string, numb
 }
 
 /**
- * Give every package that has none its bag 1, carrying the package's own 089 code (research R1), in the
- * coldest zone of its lines (`package_coldest_zone`). Called by the one writer of `shop_fulfillment`
- * (payment finalisation) in its own transaction; `labels.guard.test.ts` fails a writer that does not.
- * Idempotent: a package that already has a bag is left alone.
+ * Gives each package without one its bag 1, carrying the package's code, in the coldest zone of its
+ * lines. Called by payment finalisation (the one `shop_fulfillment` writer). Idempotent.
  */
 export async function createFirstParcels(tx: Db, scope: { orderId: string } | { packageIds: readonly string[] }): Promise<number> {
   const res = await tx.query(
@@ -248,10 +227,7 @@ export async function createFirstParcels(tx: Db, scope: { orderId: string } | { 
   return res.rowCount ?? 0;
 }
 
-/**
- * The 409 every route answers for `ParcelsUnaccounted`: the sentence as `detail` (the carrier
- * `round_not_open` and the sequence gates use, so the app reads all three alike) and the bags by code.
- */
+/** The sentence as `detail` (like `round_not_open` and the sequence gates) and the bags by code. */
 export function parcelsUnaccountedProblem(err: ParcelsUnaccounted, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   const res = problem(409, "parcels_unaccounted", "Bags not accounted for", err.message, scope);
   const body = { ...JSON.parse(String(res.body)), parcels: err.body().parcels };

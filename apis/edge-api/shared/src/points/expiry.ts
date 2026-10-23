@@ -1,12 +1,6 @@
 /**
- * When a credited lot of points stops counting (074, research R2).
- *
- * Points credited on 8 Oct 2026 with a 12-month period are usable THROUGH 8 Oct 2027 and stop at
- * 00:00 Australia/Melbourne on 9 Oct 2027 — "expires 8 Oct 2027" means what a customer reads it to mean.
- *
- * ⚠ BUILT FROM `instantAtLocalTime` / `localDateParts`, the platform's one home of operating-zone
- * arithmetic, whose DST fixtures already exist. A month-end credit lands on the target month's last
- * day (31 Jan + 1 month → 28/29 Feb), never spilling into the month after.
+ * When a credited lot stops counting. Credited 8 Oct 2026 for 12 months: usable through 8 Oct 2027,
+ * stops at 00:00 Melbourne on 9 Oct. A month-end credit lands on the target month's last day.
  */
 import { instantAtLocalTime, localDateParts } from "../lib/collection-deadline";
 

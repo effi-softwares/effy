@@ -1,34 +1,18 @@
-/* Effy STOREFRONT identity — the one file (constitution v3.3.0, Principle V; feature 084).
+/* The Effy storefront identity: customer-web and the customer and driver apps. A surface imports this
+ * file or `../tokens.css`, never both (they declare the same names).
  *
- * The customer-facing surfaces carry their own identity, adopted from the "Effy Design System"
- * reference (docs/reference-screens/Effy Design System/tokens.css). `../tokens.css` beside this
- * folder is the CONSOLE identity (shop console, back-office, the mobile apps) and is untouched.
+ * Five values: black, white, zinc greys, Effy blue, Effy green.
+ *   --primary      blue, the action colour: buttons, links, selection, focus, points, courier.
+ *   --brand        green: the wordmark's full stop, Sale, savings, "Delivered by Effy", paid,
+ *                  progress. Never an action, so --brand is not --primary.
+ *   --destructive  the foreground black: no red; errors are said with an icon and words.
  *
- * ⚠ THIS IS NOT A SECOND COPY OF THE PLATFORM PALETTE. Different greys (zinc, no blue tint), a green
- * brand, a black destructive, no dark block. A surface imports ONE of the two files, never both: both
- * declare `--primary`, `--brand`, `--border`…, and the second import would silently win.
- *
- * Colour is rationed to five values: black, white, zinc greys, Effy blue, Effy green.
- *   --primary  blue. THE action colour: buttons, links, selection, focus, points, courier.
- *   --brand    green. The wordmark's full stop, Sale, savings, "Delivered by Effy", paid, progress.
- *              Never an action — which is why, unlike the console file, --brand is NOT --primary.
- *   --destructive  the foreground black. There is no red on the storefront: an error or a destructive
- *              action is said with an icon and its wording.
- *
- * ⚠ THE WEBSITE IS LIGHT ONLY; THE MOBILE APP HAS A DARK APPEARANCE TOO (087, constitution v3.4.0).
- * The `.dark` block below is read ONLY by the mobile theme generator (gen-compose-theme.mjs).
- * customer-web never sets a `dark` class and its source has no `dark:` variant (check-no-storefront-red),
- * so the block is inert on the web. It is here, not in a second file, because a palette lives once.
- *
- * ⚠ KEEP `:root` A PLAIN BLOCK OF HEX VALUES. The Compose theme generator parses that shape; the
- * customer mobile app is expected to take this file as its input in a later feature (084 research D14).
- *
- * Ratios below are re-derived by scripts/check-storefront-tokens.mjs, which is the authority. */
+ * The website is light only; the `.dark` block is read only by the mobile generators. Keep `:root` a
+ * plain block of hex values (the generators parse it). scripts/check-storefront-tokens.mjs re-derives
+ * every ratio. */
 
-/* ⚠ NO @font-face HERE (PERF-17). The faces are the two files in ./fonts, loaded by customer-web through
- * `next/font/local` (apps/customer-web/app/fonts.ts) — which preloads Geist and gives it a
- * metric-matched fallback, so text no longer paints in a system face and then shifts. It sets
- * `--font-geist` / `--font-geist-mono` on <html>; the two font tokens below read them. */
+/* No @font-face: customer-web loads Geist through `next/font/local` (apps/customer-web/app/fonts.ts),
+ * which sets `--font-geist` / `--font-geist-mono` for the font tokens below. */
 
 :root {
   --background: #ffffff;
@@ -52,8 +36,7 @@
   --destructive: #09090b;
   --destructive-foreground: #ffffff;
 
-  /* Hairlines. Deliberately light and not contrast-tested (the border exception); every field
-     therefore carries a visible label, and focus adds the ring plus a halo. */
+  /* Hairlines, not contrast-tested: every field has a visible label, and focus adds the ring and a halo. */
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #1d4ed8;
@@ -66,9 +49,8 @@
 
   --radius: 0.5rem;
 }
-/* The mobile app's DARK appearance (087). Zinc on near-black, the same five values: the blue and the
-   green LIFT so they read on the dark ground, and the ink on them turns dark. Every pair is held to AA
-   by scripts/check-storefront-tokens.mjs, exactly as the light block is. */
+/* The mobile apps' dark appearance: zinc on near-black; the blue and green lift and the ink on them
+   turns dark. Held to AA like the light block. */
 .dark {
   --background: #09090b;
   --foreground: #fafafa;
@@ -101,11 +83,10 @@
   --radius-md: 0.375rem; /* 6px — buttons, inputs */
   --radius-lg: 0.5rem; /* 8px — cards, dialogs, image wells */
   --radius-xl: 0.75rem; /* 12px — hero banners */
-  /* 16px — the top corners of a bottom sheet. The customer mobile app's only (087, canvas Foundations
-     board); the web draws no bottom sheet. Here so every shape the app uses has one source. */
+  /* 16px: the top corners of a mobile bottom sheet. */
   --radius-sheet: 1rem;
 
-  /* ⚠ --font-mono must stay MONOSPACE: one-time codes are read out and compared digit by digit. */
+  /* --font-mono must stay monospace: one-time codes are compared digit by digit. */
   --font-sans: var(--font-geist, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono, ui-monospace), ui-monospace, SFMono-Regular, Menlo, monospace;
 

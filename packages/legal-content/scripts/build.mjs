@@ -1,7 +1,4 @@
-/**
- * Shared build logic for legal:gen and legal:check, so they cannot diverge.
- * Produces the TS (web) and Kotlin (mobile) generated sources from the canonical Markdown.
- */
+/** Shared build for legal:gen and legal:check: the generated TS (web) and Kotlin (mobile) from the Markdown. */
 import { readFileSync, readdirSync, existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"

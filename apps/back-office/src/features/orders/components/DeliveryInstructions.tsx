@@ -1,16 +1,9 @@
 import { HANDOVER_LABEL, hasDeliveryInstructions, type DeliveryInstructionsDTO } from "@effy/shared-types";
 
 /**
- * What the customer told the driver (066) — shown to staff so "I said leave it at the door" can be
- * answered without asking the customer to repeat it.
- *
- * Renders NOTHING when the customer said nothing: no heading, no "none given". Every order placed
- * before 066 is in that state, and the console must look exactly as it did for them.
- *
- * ⚠ `note` IS CUSTOMER-AUTHORED TEXT RENDERED INSIDE AN INTERNAL CONSOLE — the classic stored-XSS
- * position: an attacker types it on the public storefront and a signed-in admin's browser shows it.
- * It goes through a React text node and nowhere else. `whitespace-pre-line` keeps the line breaks
- * they typed without interpreting a single character.
+ * What the customer told the driver, so staff can answer "I said leave it at the door". Renders nothing
+ * when the customer said nothing. `note` is customer text in an internal console (the stored-XSS
+ * position), so it goes through a React text node only; `whitespace-pre-line` keeps their line breaks.
  */
 export function DeliveryInstructions({ instructions }: { instructions?: DeliveryInstructionsDTO | null }) {
   if (!hasDeliveryInstructions(instructions)) return null;

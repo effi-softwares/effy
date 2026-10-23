@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// PERF-20 — the storefront's lab baseline: Lighthouse, mobile, throttled, on three pages.
+// The storefront's lab baseline: Lighthouse, mobile, throttled, on three pages.
 //
-//   node scripts/lighthouse.mjs [--base https://dev.effyshopping.com] [--label before-p2] [--runs 3]
+//  node scripts/lighthouse.mjs [--base https://dev.effyshopping.com] [--label before-p2] [--runs 3]
 //
-// Each page is measured `--runs` times and the MEDIAN run is kept — one Lighthouse run on a shared
+// Each page is measured `--runs` times and the median run is kept — one Lighthouse run on a shared
 // network varies by a second or more, and a single number would be a coin toss. The summary is written
 // to docs/perf/lighthouse/<date>-<label>/ (the full reports are large and are not kept; rerun to see one).
 //
-// ⚠ LAB NUMBERS, NOT FIELD NUMBERS. A simulated slow phone on this machine's network. Compare runs of
+// Lab numbers, not field numbers. A simulated slow phone on this machine's network. Compare runs of
 // this script with each other; what real customers get is the web-vitals events in PostHog.
 //
 // Needs Google Chrome installed (CHROME_PATH, or the default macOS location) and network access to npm
@@ -69,7 +69,7 @@ for (const page of PAGES) {
     process.stderr.write(`${page.name} run ${i + 1}/${runs}…\n`)
     all.push(measure(url))
   }
-  // The median run BY LCP — one whole run, so its numbers belong together.
+  // The median run by lcp — one whole run, so its numbers belong together.
   const lcps = all.map((m) => m.lcp)
   const pick = all[lcps.indexOf(median(lcps))]
   results.push({ ...page, url, ...pick, lcpRuns: lcps })

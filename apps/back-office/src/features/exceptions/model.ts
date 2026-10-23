@@ -1,7 +1,7 @@
 import type { DeliveryExceptionDTO, DeliveryFailureReason } from "@effy/shared-types";
 
 /**
- * ⚠ WORDS A PERSON CAN ACT ON, NOT ENUM VALUES. The wire carries a closed set so the mix is
+ * Words a person can ACT on, not enum values. The wire carries a closed set so the mix is
  * reportable in aggregate; a screen showing `customer_refused` makes the reader translate.
  */
 const REASON_LABEL: Record<DeliveryFailureReason, string> = {
@@ -17,13 +17,13 @@ export function reasonLabel(reason: DeliveryFailureReason): string {
 }
 
 /**
- * ⚠ THE URGENCY DISTINCTION (FR-020). "The goods are in a van" is a different problem from "they are
+ * The urgency distinction. "The goods are in a van" is a different problem from "they are
  * back at the hub" — one is time-critical and the other is a queue. The list is useless for triage
  * without it, which is why it is derived server-side rather than guessed here.
  */
 export function locationLabel(e: DeliveryExceptionDTO): string {
   if (e.packageLocation === "with_driver") return `With ${e.driverName} — to return`;
-  // 088 — back at the hub; when, if a return recorded it.
+  // Back at the hub; when, if a return recorded it.
   return e.returnedAt ? `Returned ${new Date(e.returnedAt).toLocaleString()}` : "At hub";
 }
 

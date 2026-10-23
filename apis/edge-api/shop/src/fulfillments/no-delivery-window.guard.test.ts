@@ -4,22 +4,12 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ A SHOP IS NEVER TOLD WHEN THE CUSTOMER'S DELIVERY IS (069 contract §5, research R2).
- *
- * From 069 an order carries the customer's delivery day and, for same-day, a time window. Neither is
- * the shop's business, and one of them is actively harmful there: a shop shown "Thursday" on an
- * order placed Monday will reasonably pick it on Thursday — but a standard package waits at the HUB,
- * not at the shop, and must be picked now. The shop's own ready-by (`promised_ready_at`, and the
- * rule in `promise.ts`) is untouched by 069 for exactly that reason.
- *
- * So no file in this service may read the columns that carry the customer's promise. This is a guard
- * over SOURCE, because the failure it prevents produces no error: the query would run, the console
- * would render a date, and the shop would simply start working to the wrong one.
+ * A shop is never told when the customer's delivery is: shown "Thursday", it would pick on Thursday
+ * when the package must go to the hub now. No source here may read the promise columns.
  */
 
 const ROOT = resolve(__dirname, "..");
 
-/** The customer's promise: where it is stored, and the tables that exist only to carry it. */
 const FORBIDDEN = [
   /\bwindow_start\b/,
   /\bwindow_end\b/,
@@ -43,7 +33,7 @@ function sources(dir: string): string[] {
   return out;
 }
 
-/** Comments may NAME a column to say why it is not read; only code may not read it. */
+/** Comments may name a column; only code may not read it. */
 function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/--.*$/gm, "");
 }

@@ -4,17 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ EVERY ALARM WATCHES A METRIC THE CODE ACTUALLY EMITS (070 FR-031).
- *
- * An alarm on a metric name nobody emits — or on a dimension value nobody writes — is green
- * forever. It does not fail, it does not warn, and it pages nobody on the day it was meant to.
- * This platform has already run four alerting files for months that nothing loaded.
- *
- * So this reads the Terraform and the source and holds them to each other: every alarm's metric
- * name appears in an `emitMetric` call, and every dimension value an alarm names is a value the
- * source can produce.
- */
+/** Every alarm watches a metric name and dimension value the source actually emits; otherwise it is green forever. */
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../..");
 const tf = readFileSync(resolve(repoRoot, "infra/envs/dev/commerce-alarms.tf"), "utf8");
@@ -28,8 +18,7 @@ function sources(dir: string): string {
     })
     .join("\n");
 }
-// Everything that emits into the commerce namespace: this service, and the shared money and
-// delivery code the three money-moving services bundle.
+// This service plus the shared money and delivery code it bundles.
 const emitted = [sources(here), sources(resolve(repoRoot, "apis/edge-api/shared/src")), sources(resolve(repoRoot, "apis/edge-api/shop/src/functions"))].join("\n");
 
 /** `{ metric = "X" dimensions = { k = "v" } }` from the locals map, plus the metric_query blocks. */
@@ -46,23 +35,18 @@ describe("the commerce alarms watch what the code emits", () => {
 
   it("found the alarms — twelve conditions over thirteen series", () => {
     expect(alarms.map((a) => a.metric).sort()).toEqual([
-      // 074 added the two points alarms: a late payer's shortfall, and a ledger that does not add up.
-      // 078 added one: a covered address offered no window because none is switched on.
       "DeliveryQuoteFailures", "EffyWindowsNoneDefined", "PointsHoldShortfall", "PointsInvariantViolations", "RefundOutcomes", "RefundSubmitFailures",
       "RefundSubmitFailures", "RefundsStuck", "SlotBookings", "StockBlocked",
-      // 096 added two: a tax invoice asked for while Effy's tax details are unset, and a checkout refused
-      // over an unclassified product while invoices are on.
       "TaxInvoiceRequestedWhileDisabled", "UnclassifiedProductRefused",
       "WebhookFailures",
     ]);
-    // Eleven in the map and the two-series one: twelve alarms.
+    // Eleven in the map plus the two-series one.
     expect((tf.match(/^ {4}[a-z-]+ = \{$/gm) ?? []).length + (tf.match(/resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures"/g) ?? []).length).toBe(12);
   });
 
   it.each(alarms)("$metric $dimensions is emitted", ({ metric, dimensions }) => {
     expect(emitted, `nothing emits "${metric}"`).toMatch(new RegExp(`emitMetric\\([\\w.]+(?:\\(\\))?,\\s*"${metric}"`));
     for (const [key, value] of Object.entries(dimensions)) {
-      // The dimension key is written beside the metric, and the value is one the source can produce.
       expect(emitted, `"${metric}" is never emitted with a "${key}" dimension`).toMatch(new RegExp(`"${metric}"[^\\n]*\\b${key}\\b|"${metric}"[\\s\\S]{0,160}\\b${key}\\b`));
       expect(emitted, `nothing produces ${key}="${value}"`).toContain(`"${value}"`);
     }
@@ -70,7 +54,6 @@ describe("the commerce alarms watch what the code emits", () => {
 
   it("a metric alarmed with NO dimensions is emitted with none", () => {
     for (const { metric } of alarms.filter((a) => Object.keys(a.dimensions).length === 0)) {
-      // `emitMetric(ns, "X")`, or with a count and an explicitly empty set.
       expect(emitted, `"${metric}" must have an emission with no dimensions, or its alarm matches no series`).toMatch(
         new RegExp(`emitMetric\\([^,]+,\\s*"${metric}"\\s*(\\)|,\\s*[\\w.]+\\s*(\\)|,\\s*\\{\\s*\\}\\s*\\)))`),
       );
@@ -85,7 +68,7 @@ describe("the commerce alarms watch what the code emits", () => {
       expect(r).toContain('treat_missing_data  = "notBreaching"');
     }
     expect(tf).toContain('commerce_metric_namespace = "Effy/Commerce"');
-    // No address is written here: the topic's subscriber is the operator's, set elsewhere.
+    // No address here: the topic's subscriber is set elsewhere.
     expect(tf).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
   });
 });

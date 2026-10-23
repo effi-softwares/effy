@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { initialsFor } from "./initials"
 
 /**
- * SC-010 — "zero blank circles, zero mangled glyphs, and no letter ever guessed from the email".
+ * "zero blank circles, zero mangled glyphs, and no letter ever guessed from the email".
  *
  * These cases are not exotic. They are ordinary customers, and every one of them is a bug that ships
  * in real products constantly.
@@ -13,7 +13,7 @@ describe("initialsFor", () => {
     expect(initialsFor("Janith", "Madarasinghe")).toBe("JM")
   })
 
-  // ⚠ ONE word → ONE initial. Not "CH". Taking two letters from a single word is how you get
+  // One word → one initial. Not "CH". Taking two letters from a single word is how you get
   // "CHer" and "MAdonna".
   it("takes ONE initial from a one-word name", () => {
     expect(initialsFor("Cher", null)).toBe("C")
@@ -26,7 +26,7 @@ describe("initialsFor", () => {
     expect(initialsFor("   ", "  ")).toBeNull()
   })
 
-  // ⚠ `str[0]` on this returns HALF AN EMOJI — a lone surrogate, which renders as a replacement
+  // `str[0]` on this returns half an emoji — a lone surrogate, which renders as a replacement
   // glyph. This is the single most common initials bug in the wild.
   it("NEVER returns half an emoji", () => {
     expect(initialsFor("👨‍👩‍👧", "Smith")).toBe("S") // the emoji yields nothing; the surname still works
@@ -42,9 +42,9 @@ describe("initialsFor", () => {
     expect(initialsFor("आर्यन", null)).toBeNull()
   })
 
-  // ⚠ Turkish: dotless ı uppercases to İ in tr, to I in en. `toLocaleUpperCase()` gets this right;
-  // `toUpperCase()` does not. We assert only that a letter comes back, since the runtime locale
-  // decides which — the point is that it is NOT dropped and NOT mangled.
+  // Turkish: dotless ı uppercases to İ in tr, to I in en. `toLocaleUpperCase` gets this right;
+  // `toUpperCase` does not. We assert only that a letter comes back, since the runtime locale
+  // decides which — the point is that it is not dropped and not mangled.
   it("handles the Turkish dotless i without dropping the initial", () => {
     expect(initialsFor("ırmak", "Yılmaz")).toMatch(/^.Y$/u)
   })

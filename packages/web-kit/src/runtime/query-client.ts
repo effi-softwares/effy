@@ -2,11 +2,8 @@ import { isDomainError } from "@effy/api-client";
 import { QueryClient } from "@tanstack/react-query";
 
 /**
- * The server-state cache — the source of truth for all server data (constitution Principle VI).
- *
- * A denial is a correct answer, not a transient failure: retrying `forbidden` / `unauthenticated` /
- * `not-found` wastes the operator's time and hammers the gate. Everything else gets two retries,
- * because the cost-optimized backend is allowed to be slow on first wake.
+ * The server-state cache, the source of truth for server data. Denials (`forbidden`, `unauthenticated`,
+ * `not-found`) are answers and are not retried; everything else gets two retries for a slow first wake.
  */
 export function createQueryClient(): QueryClient {
   return new QueryClient({

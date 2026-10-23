@@ -1,19 +1,10 @@
 import { pooled, type Queryable } from "../lib/db";
 
 /**
- * 071 — whose updates a signed-in person may hear. ONE rule, read twice: by the audience's own
- * service when it tells an app which channel is its own, and by the live authorizer when the app
- * subscribes to it. If the two disagreed an app would be handed a channel it is then refused, or —
- * worse — refused nothing.
- *
- * Each rule NAMES THE PERMITTED STATE (`= 'active'`) rather than excluding forbidden ones: a status
- * added later is refused by default instead of admitted by default (the 055 / 056 lesson).
- *
- * The platform record is authoritative (constitution Principle IV). No token claim is consulted —
- * a shop id is not a claim, and a group claim outlives the suspension that should end it.
- *
- * A customer has no entry here on purpose: their scope is their own token subject, checked by
- * equality with no database read, so shopper traffic cannot reach the database through this.
+ * Whose updates a signed-in person may hear: one rule, read by the audience's service and by the live
+ * authorizer. Each rule names the permitted state (`= 'active'`), so a new status is refused by
+ * default. The platform record decides; no token claim is consulted. A customer's scope is their own
+ * subject, checked with no database read.
  */
 
 const SHOP_SCOPE = `

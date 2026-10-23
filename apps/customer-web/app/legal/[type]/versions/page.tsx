@@ -24,7 +24,7 @@ const EFFECTIVE = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "sho
 /**
  * Every published version of one document, newest first (reference: Help & info · Previous versions).
  *
- * ⚠ No "what changed" column: a version records its text and its date, and a summary written here
+ * No "what changed" column: a version records its text and its date, and a summary written here
  * would be ours, not the document's.
  */
 export default async function LegalVersionsPage({ params }: { params: Promise<{ type: string }> }) {

@@ -1,31 +1,12 @@
 /**
- * Shop fulfillment contracts — 020-shop-order-fulfillment.
- *
- * What a SHOP sees of a customer order: its own portion, its own lines, and nothing else. 019's
- * fan-out writes one `shop_fulfillment` per (order, shop); this is the wire shape the shop surfaces
- * read and act on.
- *
- * Two hard rules are encoded structurally rather than left to handler discipline:
- *  1. NO shop identifier appears in ANY request type here. A shop's scope is resolved server-side
- *     from the operator's record, so cross-shop access is un-representable on the wire (FR-019).
- *  2. NO payment field appears in ANY response type here — no intent id, no amount paid, no payment
- *     status, and no ORDER-level total (a total would leak the existence of other shops' lines).
- *     A shop sees only its own line values (FR-007/FR-008, SC-007).
- *
- * The delivery promise is READ-ONLY here and owned by 021-delivery-zones-pricing (FR-009a). It
- * deliberately says nothing about WHO performs the delivery — that distinction does not exist in the
- * product (FR-002a, SC-021).
- *
- * Contract detail: specs/020-shop-order-fulfillment/contracts/fulfillment-api.contract.md
+ * Shop fulfilment contracts: what a shop sees of an order, its own portion and lines only. No shop
+ * identifier in any request (scope comes from the operator's record), and no payment field or
+ * order-level total in any response (a total would reveal other shops' lines).
  */
 
 /**
- * The fulfillment state machine (FR-011).
- *
- * `pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until now —
- * it means a human acknowledged the order, which is what distinguishes untouched work from work in
- * progress. `collected` (picked up) and `delivered` are reachable ONLY via the dev-only driver stubs
- * (FR-030) and are terminal + immutable (FR-011f) — a placeholder for the real driver slice.
+ * The fulfilment state machine. `pending` is written at payment; `received` means a person opened it.
+ * `collected` and `delivered` are written by the driver flow and are terminal.
  */
 import type { DeliveredBy } from "./delivery-type";
 import type { CourierPickupDTO } from "./shop-order-console";
@@ -37,45 +18,15 @@ export type FulfillmentStatus =
   | "ready_for_pickup"
   | "collected"
   | "delivered"
-  /**
-   * 055 US6 — the exit a shop that cannot supply its portion previously lacked.
-   *
-   * ⚠ Before it, a shop holding an order it could not fill had no state to move it to: the portion
-   * sat in the queue forever, and the only way out was for someone to stop looking at it.
-   *
-   * ⚠ IT MOVES NO MONEY (FR-031). It says "we cannot supply this"; a person decides the refund.
-   */
+  /** A shop cannot supply its portion: out of the queue. Moves no money; a person decides the refund. */
   | "unfulfillable"
-  /**
-   * 055 US2 — set by CANCELLATION, never by a shop.
-   *
-   * ⚠ DELIBERATELY A DIFFERENT STATE FROM `unfulfillable`. The shop did not fail to supply anything —
-   * the order was called off. Conflating them would tell a shop it failed at something nobody wanted,
-   * and would make shop-reliability reporting count cancellations as shop failures.
-   */
+  /** Set by cancellation, never by a shop. Not `unfulfillable`: the shop failed nothing. */
   | "withdrawn";
 
-export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
-  "pending",
-  "received",
-  "picking",
-  "ready_for_pickup",
-  "collected",
-  "delivered",
-  "unfulfillable",
-  "withdrawn",
-];
-
-export function toFulfillmentStatus(v: string | null | undefined): FulfillmentStatus | null {
-  return v && (FULFILLMENT_STATUSES as readonly string[]).includes(v)
-    ? (v as FulfillmentStatus)
-    : null;
-}
-
-/** Which slice of the queue to read (FR-016). */
+/** Which slice of the queue to read. */
 export type FulfillmentQueueState = "active" | "completed";
 
-/** States that count as outstanding work vs. finished business. */
+/** States that count as outstanding work vs finished business. */
 export const ACTIVE_STATUSES: readonly FulfillmentStatus[] = ["pending", "received", "picking"];
 export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = [
   "ready_for_pickup",
@@ -84,39 +35,35 @@ export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = [
 ];
 
 /**
- * What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).
- *
- * `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by
- * arrival (FR-001b, SC-020).
- *
- * ⚠ 079 — it says who takes the package away as ONE OF TWO WORDS (`deliveredBy`), and nothing more:
- * there is still no driver's name, no courier company and no reference here, by design.
+ * What the customer bought and when this shop must be ready, read-only. `readyBy` is a constant offset
+ * from placement, so ordering by promise is ordering by arrival. Who takes the package away is one of
+ * two words (`deliveredBy`); no driver name, courier company or reference.
  */
 export interface DeliveryPromiseDTO {
-  /** 079 — who takes this package away from the shop. Print it through `DELIVERED_BY_WORDS`. */
+  /** Who takes this package away. Print it through `DELIVERED_BY_WORDS`. */
   deliveredBy: DeliveredBy;
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  /** ISO-8601. The time by which THIS shop must be ready. */
+  /** ISO 8601: when this shop must be ready. */
   readyBy: string;
 }
 
 /** A row in the shop's order queue (GET /shop/v1/fulfillments). */
 export interface FulfillmentSummaryDTO {
-  /** shop_fulfillment.id — the portion, not the order. */
+  /** shop_fulfillment.id: the portion, not the order. */
   id: string;
   orderNumber: string;
-  /** ISO-8601, when the customer placed the order. */
+  /** ISO 8601: when the customer placed the order. */
   placedAt: string;
   status: FulfillmentStatus;
-  /** ISO-8601, when the portion last changed state — drives time-in-state (FR-011c). */
+  /** ISO 8601: when the portion last changed state (time-in-state). */
   stateChangedAt: string;
-  /** Items THIS shop must gather. Never the order's total item count. */
+  /** Items this shop must gather; never the order's total count. */
   itemCount: number;
   gatheredCount: number;
   unavailableCount: number;
   promise: DeliveryPromiseDTO;
-  /** Computed against the promise — drives in-place escalation, never reordering (FR-001a, SC-018). */
+  /** Computed against the promise: drives in-place escalation, never reordering. */
   atRisk: boolean;
 }
 
@@ -124,10 +71,7 @@ export interface FulfillmentQueueDTO {
   items: FulfillmentSummaryDTO[];
 }
 
-/**
- * The delivery context a shop needs to prepare and label the order (FR-009).
- * Snapshotted onto the order at placement by 019, so it never changes retroactively.
- */
+/** The delivery context a shop needs to prepare and label the order, snapshotted at placement. */
 export interface FulfillmentDeliveryDTO {
   recipientName: string;
   phone: string | null;
@@ -140,21 +84,18 @@ export interface FulfillmentDeliveryDTO {
 }
 
 /**
- * One line to pick. Quantities are absolute, never deltas.
- *
- * `orderedQuantity - gatheredQuantity` on a terminal portion is the SHORTFALL — what the customer
- * paid for and will not receive. It carries no financial effect in this slice (FR-010b) and exists
- * to be resolved by a later refunds slice, which is why it must stay queryable rather than implied.
+ * One line to pick, in absolute quantities. On a terminal portion `orderedQuantity - gatheredQuantity`
+ * is the shortfall: what the customer paid for and will not receive.
  */
 export interface FulfillmentItemDTO {
   orderItemId: string;
   name: string;
-  /** 098 — the variant's label as sold ("1 kg"); null with no options. A picker must never guess the size. */
+  /** The variant's label as sold ("1 kg"); null with no options. A picker never guesses the size. */
   variantLabel?: string | null;
-  /** 098 — Effy's code for the variant as sold (V + 6). */
+  /** Effy's code for the variant as sold (V + 6). */
   variantCode?: string | null;
   sku: string | null;
-  /** 098 — the variant's barcode as sold. */
+  /** The variant's barcode as sold. */
   gtin?: string | null;
   /** Presigned; may be absent. */
   imageUrl: string | null;
@@ -167,13 +108,8 @@ export interface FulfillmentItemDTO {
 export interface FulfillmentDetailDTO {
   id: string;
   /**
-   * ⚠ 057 — THE ORDER'S OWN ID, added because `orderNumber` is a human reference and cannot address a
-   * resource. The shop refund route is `POST /shop/v1/orders/{orderId}/refunds`, and
-   * without this the console had literally no way to name the order it was looking at.
-   *
-   * ⚠ It is NOT a disclosure: the shop already sees this order's number, its items and its delivery
-   * address. What stays absent is every OTHER shop's portion and any order-level money — the
-   * projection does not select them (FR-007/FR-008).
+   * The order's own id, for routes addressed by order (`POST /shop/v1/orders/{orderId}/refunds`). Not a
+   * disclosure: other shops' portions and order-level money stay absent.
    */
   orderId: string;
   orderNumber: string;
@@ -182,54 +118,19 @@ export interface FulfillmentDetailDTO {
   stateChangedAt: string;
   promise: DeliveryPromiseDTO;
   delivery: FulfillmentDeliveryDTO;
-  /** THIS shop's lines only. Never another shop's, and never an order-level total. */
+  /** This shop's lines only; never another shop's, never an order-level total. */
   items: FulfillmentItemDTO[];
 }
 
 /**
- * Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).
- *
- * `pending` is the fan-out's, `received` is implicit on first open (FR-011a), and `collected`
- * belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted
- * reversal (FR-011d).
- *
- * ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously lacked.
- * ⚠ `withdrawn` is deliberately NOT requestable and must never become so: it is written by the platform's
- * cancellation when an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
+ * Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status). `ready_for_pickup → picking` is
+ * the one reversal. `withdrawn` is never requestable: only an order's cancellation writes it.
  */
 export type RequestableTransition = "picking" | "ready_for_pickup" | "unfulfillable";
 
 export interface TransitionRequest {
   to: RequestableTransition;
-  /**
-   * ⚠ REQUIRED when `to` is `unfulfillable`, and enforced by a CHECK constraint underneath. A portion
-   * that leaves the shop's queue unexplained is one back-office cannot decide a refund on: they are
-   * being asked to return a customer's money on the strength of it.
-   */
+  /** Required when `to` is `unfulfillable` (a check enforces it): back-office decides a refund on it. */
   reason?: string;
 }
 
-/**
- * Record picking progress (PATCH /shop/v1/fulfillments/{id}/items/{orderItemId}).
- *
- * Absolute values, not deltas — idempotent under retry, which matters on a shop tablet with a flaky
- * connection. Lowering `unavailableQuantity` is how an item is un-flagged when it turns up (FR-010d).
- * `gathered + unavailable <= ordered` is enforced server-side and by a DB CHECK.
- */
-export interface ItemProgressRequest {
-  gatheredQuantity?: number;
-  unavailableQuantity?: number;
-}
-
-/**
- * ⚠ DEV-ONLY SCAFFOLD (POST /shop/v1/fulfillments/{id}/pickup) — FR-030…FR-034.
- *
- * Stands in for a driver collecting the order so the lifecycle is exercisable before a driver
- * surface exists. The endpoint is STRUCTURALLY ABSENT outside local development (FR-031): it accepts
- * a caller-supplied identity, so a reachable deployed instance would be an order-state forgery
- * primitive. Scheduled for deletion when the driver slice ships (FR-034).
- */
-export interface PickupStubRequest {
-  /** Stored MARKED AS A PLACEHOLDER so stub collections never resemble a real dispatch (FR-033). */
-  driverRef: string;
-}

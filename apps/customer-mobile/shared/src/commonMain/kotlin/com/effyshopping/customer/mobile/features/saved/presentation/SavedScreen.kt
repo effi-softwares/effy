@@ -79,28 +79,13 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.foundation.horizontalScroll
 
 /**
- * Saved items (033) — the watchlist.
+ * Saved items: a vertical list built from the cart's primitives, not a product grid. This screen answers
+ * "what changed, and can I buy it yet?", and every part of that is text (the price now, the price when
+ * saved, one sentence per verdict), which a full-width row holds and a half-width tile wraps. The same as
+ * customer-web's saved list.
  *
- * ⚠ A VERTICAL LIST, built from the same primitives as the cart — NOT a product grid.
- *
- * It was a two-column `EffyProductCard` grid, and research R18 justified that as "the platform's one
- * product presentation". That justification held for a *catalogue* surface, where the question a
- * shopper is asking is "which of these do I want?" and a big photograph answers it. This screen
- * answers a different question — "what changed, and can I buy it yet?" — and every part of that
- * answer is TEXT: the price now, the price when it was saved, and one sentence per verdict. A tile
- * gives that text a half-width column under a square photograph, so a struck-through was-price and a
- * verdict note wrap into three ragged lines and the two tiles in a row disagree in height. The cart
- * already solved the same problem for the same shopper: a full-width row, a small thumbnail, and the
- * controls on their own line underneath where their width is not somebody else's leftovers. Reusing
- * that composition is Principle II's rule applied to layout, and it moves the screen TOWARD Principle
- * V's "prefer tables, lists, sectioned pages and detail rows" rather than away from it — it is also
- * what `customer-web`'s saved list has always done, so the two surfaces now read the same.
- *
- * ⚠ PULL TO REFRESH IS AVAILABLE IN EVERY STATE, including loading and error. "Is this list stale?"
- * is a question a shopper asks hardest exactly when the screen is showing them nothing — and the
- * gesture needs something SCROLLABLE to hang off, which is why the loading state is a column of
- * skeleton rows and the empty/error states scroll inside a centred column (the 027 cart fix: a plain
- * `verticalScroll` Column top-aligns, so `fillMaxSize` + `Arrangement.Center` keeps the composition).
+ * Pull to refresh works in every state: loading is a column of skeleton rows, and the empty and error states
+ * scroll inside a centred column (`fillMaxSize` + `Arrangement.Center`).
  */
 @Composable
 fun SavedScreen(
@@ -123,7 +108,7 @@ fun SavedScreen(
         )
     }
     val state by vm.state.collectAsState()
-    // 068: every list the shopper has, and the one on screen. `lists` is empty for a guest, and the
+    // Every list the shopper has, and the one on screen. `lists` is empty for a guest, and the
     // screen is then exactly the single saved list it was before lists existed.
     val lists by vm.lists.collectAsState()
     val selectedId by vm.selected.collectAsState()
@@ -133,9 +118,9 @@ fun SavedScreen(
     var naming by remember { mutableStateOf<Naming?>(null) }
     var deleting by remember { mutableStateOf(false) }
     val pendingUndo by vm.undo.collectAsState()
-    // ⚠ WHAT IS ALREADY IN THE CART, read from the cart's own mirror — never a second copy.
+    // What is already in the cart, read from the cart's own mirror — never a second copy.
     //
-    // An item STAYS on the list after being added (FR-050): this is a watchlist, and the save-time
+    // An item stays on the list after being added: this is a watchlist, and the save-time
     // price it is watching against would be destroyed by consuming the entry. eBay's watchlist behaves
     // the same way, and the constitution names eBay as this capability's reference.
     //
@@ -146,22 +131,22 @@ fun SavedScreen(
     val inCart = cart.lines.associate { it.productId to it.quantity }
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // ⚠ CLIENT-SIDE (FR-056). The set is capped at 200 and already in memory, so a round trip per
+    // Client-side. The set is capped at 200 and already in memory, so a round trip per
     // sort would be latency the shopper feels on a control that should be instant.
     var order by remember { mutableStateOf(SavedOrder.RECENT) }
     var bulk by remember { mutableStateOf<SavedAddToCartOutcome?>(null) }
     var bulkBusy by remember { mutableStateOf(false) }
 
-    // ⚠ The mirror is re-checked on arrival, because this screen now RENDERS from it. A cart filled on
+    // The mirror is re-checked on arrival, because this screen now renders from it. A cart filled on
     // another device would otherwise leave every row offering "Add to cart" for something already in
     // there — which is the defect this whole feature exists to remove, one list over. A failure changes
     // nothing: the mirror stays and the rows degrade to "Add to cart", never to a false "in your cart".
     LaunchedEffect(Unit) { runCatching { container.syncCart() } }
 
     /**
-     * Removal offers UNDO (FR-017), and the item comes back in the position it held (FR-018).
+     * Removal offers undo, and the item comes back in the position it held.
      *
-     * ⚠ The ViewModel has published this since the slice was built and nothing rendered it, so a
+     * The ViewModel has published this since the slice was built and nothing rendered it, so a
      * mis-tap on the list was unrecoverable — the same one-tap mistake the cart's own undo exists to
      * forgive.
      */
@@ -170,20 +155,20 @@ fun SavedScreen(
         val result = snackbarHost.showSnackbar(
             message = if (undo.listId == DEFAULT_LIST_ID) "Removed ${undo.item.name}"
             else "Removed ${undo.item.name} from this list",
-            actionLabel = "Undo", // at most ONE action
+            actionLabel = "Undo", // at most one action
             duration = SnackbarDuration.Short,
         )
         if (result == SnackbarResult.ActionPerformed) vm.undoRemoval() else vm.dismissUndo()
     }
 
     /**
-     * Add one saved item to the cart (FR-049).
+     * Add one saved item to the cart.
      *
-     * ⚠ It stays on the list (FR-050). A watchlist entry is not consumed by being bought — the whole
+     * It stays on the list. A watchlist entry is not consumed by being bought — the whole
      * point is to keep watching what it costs.
      */
     fun addOne(item: SavedItem) {
-        // 098 — no remembered size on a product sold in several: the row offers "Choose size" instead.
+        // No remembered size on a product sold in several: the row offers "Choose size" instead.
         val variantId = item.variantId ?: return onOpen(item.productId)
         container.addToCart(
             GuestCartLine(
@@ -196,35 +181,24 @@ fun SavedScreen(
                 unitPriceAmount = item.priceAmount,
                 currency = item.currency,
                 quantity = 1,
-                // ⚠ The saved-item contract carries no package token — it is captured at add time from
+                // The saved-item contract carries no package token — it is captured at add time from
                 // a storefront read, and this list is not one. A blank key degrades to a single
-                // anonymous package (021 FR-005a), which the platform re-decides on the next re-price.
+                // anonymous package, which the platform re-decides on the next re-price.
             ),
         )
         scope.launch { snackbarHost.showSnackbar("${item.name} added to your cart") }
     }
 
     /**
-     * Add everything purchasable in one action (FR-051).
-     *
-     * ⚠ THE SERVER decides what goes in. A client filtering by its own copy of the verdict would be
-     * re-implementing the predicate and the two would drift — the exact class of defect this feature
-     * exists to remove.
-     *
-     * ⚠ HOW THE OUTCOME IS REPORTED, and why it changed. FR-052 forbids silent omission, and the first
-     * build met that with a block of prose pinned above the list: a count, "These weren't added:", and
-     * one line per item. On a phone that pushed the products themselves below the fold and stayed there
-     * — a transient result occupying permanent space, saying at the top of the screen what belongs
-     * beside the item it is about. Now the outcome is a **toast** (the count, which is the part a
-     * shopper reads once) and the reason travels **to the row it concerns** as [bulkSkips]. Nothing is
-     * omitted; it is simply said where it means something.
+     * Add everything purchasable in one action. The server decides what goes in. The count is a toast, and
+     * each item left out says why on its own row ([bulkSkips]); nothing is omitted silently.
      */
     fun addAll() {
         if (bulkBusy) return
         bulkBusy = true
         scope.launch {
             try {
-                // ⚠ THE LIST ON SCREEN, and only it (068 FR-028). Nothing from another list goes in.
+                // The list on screen, and only it. Nothing from another list goes in.
                 val outcome = container.addAllSavedToCart(listId = selectedId, changeId = newUuid())
                 bulk = outcome
                 // The platform wrote to the account cart; the local mirror has not heard about it yet.
@@ -239,7 +213,7 @@ fun SavedScreen(
         }
     }
 
-    // ⚠ The snackbar is an OVERLAY at the bottom, not a row in the column.
+    // The snackbar is an overlay at the bottom, not a row in the column.
     //
     // As a column child it reserved layout space at the TOP of the screen and shoved the content down
     // whenever it appeared — which is a banner, not a toast. Over the bottom of the screen it covers
@@ -269,7 +243,7 @@ fun SavedScreen(
         }
 
         when (val s = state) {
-            // ⚠ A CONTENT-SHAPED skeleton, not an empty box. The old loading state rendered a bare
+            // A content-shaped skeleton, not an empty box. The old loading state rendered a bare
             // `Column {}` inside the refresh container — nothing to scroll, so the gesture it was
             // wrapped in could not fire, and nothing to look at while it could not.
             is SavedUiState.Loading -> EffyPullToRefresh(
@@ -302,15 +276,8 @@ fun SavedScreen(
             }
 
             is SavedUiState.Ready -> when {
-                // ⚠ ONE empty state, and it means ONE thing: the shopper has saved nothing.
-                //
-                // ⚠ THERE USED TO BE A SECOND. When nothing in the list could be delivered, this
-                // screen replaced the WHOLE LIST with "Nothing here reaches your address" — hiding
-                // items the shopper had deliberately saved and making it look like the list had been
-                // lost. That is FR-041's rule ("a withdrawn product must not silently vanish") broken
-                // one level up, and it over-read FR-057: the spec asks for a distinct MESSAGE, not for
-                // the list to be replaced by one. The per-item verdict already says which items
-                // cannot come, and the items always render.
+                // One empty state: the shopper has saved nothing. Items that cannot come to this address
+                // still render, each with its own verdict.
                 s.items.isEmpty() -> EffyPullToRefresh(
                     onRefresh = { vm.refresh() },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -322,7 +289,7 @@ fun SavedScreen(
                         if (isDefault) {
                             EffyEmptyState(
                                 title = "Nothing saved yet",
-                                // ⚠ FR-027: guest saves are DEVICE-HELD, and saying so is the difference
+                                // Guest saves are device-held, and saying so is the difference
                                 // between a deliberate design and an apparent bug when they sign in on
                                 // another phone.
                                 body = "Tap the heart on anything you want to keep an eye on. " +
@@ -333,7 +300,7 @@ fun SavedScreen(
                                 onAction = onBrowse,
                             )
                         } else {
-                            // ⚠ A DIFFERENT message (068 FR-026). "Nothing saved yet" on an empty
+                            // A different message. "Nothing saved yet" on an empty
                             // named list would tell a shopper with a full "Saved" list that they
                             // had lost everything.
                             EffyEmptyState(
@@ -383,7 +350,7 @@ fun SavedScreen(
                                     modifier = Modifier.padding(top = EffySpacing.s),
                                 )
                             }
-                            // ⚠ Only shown when there is enough to sort. A control over three items is
+                            // Only shown when there is enough to sort. A control over three items is
                             // noise. It scrolls with the list — unlike the bulk action below, it is not
                             // worth permanent space. Chips, as the board draws them.
                             if (s.items.size > 3) {
@@ -420,20 +387,14 @@ fun SavedScreen(
                         }
                     }
 
-                    // ── The one committing action, PINNED (025 FR-030's rule for the cart, here too) ──
-                    //
-                    // ⚠ It used to be the list's first item, which is where the screen's most
-                    // important control is least reachable: it scrolled away the moment the shopper
-                    // started reading, and it sat at the TOP of a phone, furthest from the thumb. The
-                    // cart puts "Go To Checkout" in a fixed bar for exactly these reasons and this is
-                    // the same kind of action — one that commits everything on the screen at once.
+                    // The one committing action, pinned within the thumb's reach like the cart's checkout bar.
                     if (anyPurchasable) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Column(modifier = Modifier.padding(EffySpacing.lg)) {
-                            // ⚠ The bar answers the same question the rows do. When everything
-                            // available is ALREADY in the cart, "Add everything available to cart" is
+                            // The bar answers the same question the rows do. When everything
+                            // available is already in the cart, "Add everything available to cart" is
                             // an invitation to buy two of each — the bulk add is not idempotent across
-                            // taps (each tap is a new batch; only a retry of ONE batch is deduped). So
+                            // taps (each tap is a new batch; only a retry of one batch is deduped). So
                             // at that point the action becomes the useful one instead of the harmful
                             // one.
                             if (everythingAvailableInCart) {
@@ -500,7 +461,7 @@ private enum class Naming { New, Rename }
 /**
  * One saved item — the cart row's composition, carrying the watchlist's own facts.
  *
- * ⚠ TWO STACKED ROWS, for the reason `CartRow` records: controls sharing a row with a two-line
+ * Two stacked rows, for the reason `CartRow` records: controls sharing a row with a two-line
  * product name get whatever width is left after a thumbnail and a price, which on a phone is not
  * enough, and Compose then squeezes the labels into wrapped nonsense. The actions get their own
  * full-width line.
@@ -509,9 +470,9 @@ private enum class Naming { New, Rename }
 private fun SavedRow(
     item: SavedItem,
     /**
-     * Why the last bulk add left this item out (FR-052), or null.
+     * Why the last bulk add left this item out, or null.
      *
-     * ⚠ It belongs HERE rather than in a report above the list. "SunRice Premium Long Grain White Rice
+     * It belongs here rather than in a report above the list. "SunRice Premium Long Grain White Rice
      * 1kg — couldn't be added right now" printed at the top of the screen makes the shopper match a
      * name to a row; on the row it names nothing and simply says what happened.
      */
@@ -559,17 +520,13 @@ private fun SavedRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                // 098 — the size remembered with the save.
+                // The size remembered with the save.
                 item.variantLabel?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                // ⚠ ONE SENTENCE PER OUTCOME, and they are deliberately different sentences.
-                // "Out of stock" and "no longer sold" imply different next actions — wait, versus give
-                // up — and a shopper who cannot tell them apart cannot act (FR-036).
-                //
-                // ⚠ The words carry the whole meaning. The palette is monochrome, so colour is not
-                // available to say this and is not asked to (SC-009).
+                // One distinct sentence per outcome ("out of stock": wait; "no longer sold": give up); the
+                // words carry the meaning.
                 val note = when (item.verdict) {
                     SavedVerdict.PURCHASABLE -> null
                     SavedVerdict.TEMPORARILY_UNAVAILABLE -> "Out of stock right now"
@@ -577,7 +534,7 @@ private fun SavedRow(
                 }
                 if (note != null) EffyInlineError(note)
 
-                // ⚠ The bulk add's own refusal, which is NOT the same thing as the verdict above. An
+                // The bulk add's own refusal, which is not the same thing as the verdict above. An
                 // item can be perfectly purchasable and still be turned away by the cart — because the
                 // cart is full, say — and flattening the two would tell the shopper the product is
                 // unavailable when it is their cart that is.
@@ -590,11 +547,11 @@ private fun SavedRow(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 )
                 UnitPriceText(item.unitPrice)
-                // ⚠ The watchlist's whole reason for existing: what CHANGED since it was saved. There
-                // is deliberately no equivalent for a rise (FR-044) — the current price is always
+                // The watchlist's whole reason for existing: what changed since it was saved. There
+                // is deliberately no equivalent for a rise — the current price is always
                 // shown, so nothing is concealed, but a rise is not something a shopper can act on.
                 if (item.priceDropped) {
-                    // 087 — a price drop is a saving: said in Effy green.
+                    // A price drop is a saving: said in Effy green.
                     Text("Price dropped", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brand)
                     Text(
                         "was ${money(item.savedPriceAmount, item.currency)}",
@@ -611,47 +568,37 @@ private fun SavedRow(
             modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // ⚠ Offered ONLY when the platform says the item is purchasable. Offering it otherwise is
-            // the predecessor's defect in miniature: an invitation into a checkout that refuses you.
-            //
-            // ⚠ ONCE IT IS IN THE CART THE ACTION CHANGES — eBay's watchlist pattern, and the reason
-            // is not tidiness. The item deliberately STAYS on this list (FR-050), so a row that went on
-            // saying "Add to cart" would be inviting a tap that does not no-op: `addLine` increments,
-            // so the shopper quietly ends up with two. Saying where it went, and offering the way
-            // there, is the whole fix.
-            //
-            // ⚠ NOT a quantity stepper. That is the grocery pattern (Woolworths, Coles) and it belongs
-            // on a catalogue tile, where the shopper is deciding how much to buy. Here they are
-            // reviewing a watchlist, and quantity is the cart's business — putting a stepper on this
-            // screen would make two places responsible for one number.
+            // Offered only when the platform says the item is purchasable. Once it is in the cart, the row
+            // says so and links there (the item stays on this list, and `addLine` increments, so a second
+            // "Add to cart" would add two). No stepper: quantity is the cart's business.
             when {
                 !item.verdict.isPurchasable -> Unit
                 // The count is stated: "in your cart" is not the same fact as "two of these are".
                 cartQuantity > 0 -> EffyTextLink(if (cartQuantity == 1) "In your cart · View" else "$cartQuantity in your cart · View", onClick = onGoToCart)
-                // 098 — sold in several sizes and none remembered: the shopper chooses (never a guess).
+                // Sold in several sizes and none remembered: the shopper chooses (never a guess).
                 item.variantId == null -> EffyTextLink("Choose size", onClick = { onOpen(item.productId) })
                 else -> EffyTextLink("Add to cart", onClick = onAddToCart)
             }
             Spacer(Modifier.weight(1f))
-            // 068 FR-014: the labelled way into the list chooser from a row.
+            // The labelled way into the list chooser from a row.
             if (onAddToList != null) EffyTextLink("Add to list", onClick = onAddToList)
             // The cart's destructive icon, in the cart's error tint — one visual language for "this
-            // takes the thing away", both places it can happen. Removal is undoable (FR-017).
-            // Black, not red (the storefront has no red); removal is undoable (FR-017).
+            // takes the thing away", both places it can happen. Removal is undoable.
+            // Black, not red (the storefront has no red); removal is undoable.
             EffyIconButton(Res.drawable.lucide_trash_2, contentDescription = removeLabel, onClick = onRemove)
         }
     }
 }
 
 /**
- * What a bulk add did, in one line a shopper reads once (FR-052).
+ * What a bulk add did, in one line a shopper reads once.
  *
- * ⚠ THE COUNTS ONLY. Every omission is still accounted for — the *reason* goes to the row it concerns
+ * The counts only. Every omission is still accounted for — the *reason* goes to the row it concerns
  * (see [SavedRow]'s `skipNote`), which is where it can be acted on. A toast listing three product
  * names is a toast nobody finishes reading, and the previous block that did list them held permanent
  * space at the top of the screen for a transient result.
  *
- * ⚠ "None" is stated plainly rather than dressed up as success. "0 items added to your cart" was
+ * "None" is stated plainly rather than dressed up as success. "0 items added to your cart" was
  * literally true and read as a bug; if nothing went in, the sentence says so.
  */
 private fun bulkSummary(outcome: SavedAddToCartOutcome): String {
@@ -670,8 +617,8 @@ private fun bulkSummary(outcome: SavedAddToCartOutcome): String {
 }
 
 /**
- * ⚠ A skip reason is either one of the verdicts — so the bulk add and the list can never explain the
- * same item differently — or one of the CART's own refusals, which mean different things and must not
+ * A skip reason is either one of the verdicts — so the bulk add and the list can never explain the
+ * same item differently — or one of the cart's own refusals, which mean different things and must not
  * be flattened into "couldn't add". Mirrors `saved-display.ts` / `SavedList.tsx` on the web.
  */
 private fun skipReason(reason: String): String = when (reason) {
@@ -679,7 +626,7 @@ private fun skipReason(reason: String): String = when (reason) {
     "not_found" -> "no longer available"
     "temporarily_unavailable" -> "out of stock right now"
     "no_longer_sold" -> "no longer sold"
-    // 098 — several sizes and none remembered.
+    // Several sizes and none remembered.
     "choose_variant" -> "choose a size on its page"
     else -> "couldn't be added right now"
 }
@@ -687,7 +634,7 @@ private fun skipReason(reason: String): String = when (reason) {
 /** How many placeholder rows a loading list reserves — roughly one phone's worth. */
 private const val SkeletonRowCount = 6
 
-/** The loading placeholder, built from the SAME row geometry so the content does not jump into it. */
+/** The loading placeholder, built from the same row geometry so the content does not jump into it. */
 @Composable
 private fun SavedRowSkeleton() {
     Row(
@@ -705,7 +652,7 @@ private fun SavedRowSkeleton() {
     }
 }
 
-/** How the saved list is ordered (FR-056). */
+/** How the saved list is ordered. */
 enum class SavedOrder(val label: String) {
     RECENT("Recently saved"),
     AVAILABLE("Available first"),
@@ -713,7 +660,7 @@ enum class SavedOrder(val label: String) {
 }
 
 /**
- * ⚠ `sortedBy` returns a NEW list rather than sorting in place — the state list must not be mutated
+ * `sortedBy` returns a new list rather than sorting in place — the state list must not be mutated
  * out from under Compose.
  *
  * "By aisle" is grocery-native: a shopper walking a list thinks in categories, not in save order.

@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("subscribeToNewsletter — re-validates on the server (FR-030)", () => {
   /**
-   * ⚠ The form's `type="email" required` is a CONVENIENCE, not a control. Anything can POST to a
+   * The form's `type="email" required` is a convenience, not a control. Anything can POST to a
    * Server Action, so an empty or absent value must be refused here without reaching the backend.
    */
   it("rejects a missing or blank address without calling the edge API", async () => {
@@ -51,7 +51,7 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
   })
 
   /**
-   * ⚠ THE DISTINCTION THAT MATTERS. A 400 means the ADDRESS was refused; anything else means WE
+   * The distinction that matters. A 400 means the address was refused; anything else means WE
    * failed. Collapsing them would tell a visitor their address is wrong when the service is simply
    * down — and they would sit there retyping a perfectly good address.
    */
@@ -73,7 +73,7 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
   })
 
   /**
-   * ⚠ NEVER RETHROW. An uncaught Server Action error replaces the page with an error boundary, which
+   * Never rethrow. An uncaught Server Action error replaces the page with an error boundary, which
    * would discard everything the visitor typed — the exact opposite of FR-033's "preserve the
    * visitor's input on failure".
    */
@@ -86,7 +86,7 @@ describe("subscribeToNewsletter — failure is distinguished correctly (FR-033)"
 
 describe("subscribeToNewsletter — the address never leaks (FR-042)", () => {
   /**
-   * ⚠ A newsletter subscriber is not even an account holder, so their email is not "the auth subject
+   * A newsletter subscriber is not even an account holder, so their email is not "the auth subject
    * id" that Principle VII permits — it is plain PII. This pins that the action returns only a status
    * and carries nothing else back into the page.
    */
@@ -100,12 +100,7 @@ describe("subscribeToNewsletter — the address never leaks (FR-042)", () => {
     expect(JSON.stringify(failed)).not.toContain("person@example.com")
   })
 
-  /**
-   * ⚠ The Server Action deliberately emits NO analytics event. `lib/telemetry.ts` is `"use client"`
-   * and `capture()` returns early off the browser — and returns early in the browser too, because
-   * PostHog has never been initialised on this surface (CLAUDE.md §033). A call here would be a no-op
-   * that reads as measurement. The newsletter's real signal is the backend structured log.
-   */
+  /** No analytics event: `lib/telemetry.ts` is client-only, so a call here would be a no-op. The signal is the backend's structured log. */
   it("imports no client telemetry", async () => {
     const { readFileSync } = await import("node:fs")
     const { join } = await import("node:path")

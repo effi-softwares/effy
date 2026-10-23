@@ -22,14 +22,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.concurrent.Executors
 
 /**
- * A live CameraX viewfinder (060 T046).
+ * A live CameraX viewfinder.
  *
- * ⚠ **It reports `false` — and draws nothing — when the camera permission has not been granted.**
+ * **It reports `false` — and draws nothing — when the camera permission has not been granted.**
  * The caller then renders its stand-in and the shutter hands off to the system camera, which
  * prompts for permission itself. Rendering a black rectangle while silently failing is the worse
  * outcome: the driver sees a broken screen with nothing telling them why.
  *
- * ⚠ **Binding is tied to the composable's lifetime, not the Activity's.** `DisposableEffect`
+ * **Binding is tied to the composable's lifetime, not the Activity's.** `DisposableEffect`
  * unbinds on leaving the screen; without that the camera stays open behind the rest of the app,
  * holding the hardware and the battery for the remainder of a shift.
  */
@@ -75,7 +75,7 @@ actual fun CameraPreviewSurface(
 
         val main = ContextCompat.getMainExecutor(context)
         controller.capture = {
-            // ⚠ The frame is decoded and re-encoded on the worker, never the main thread (backlog B1).
+            // The frame is decoded and re-encoded on the worker, never the main thread (backlog B1).
             imageCapture.takePicture(
                 worker,
                 object : ImageCapture.OnImageCapturedCallback() {
@@ -85,7 +85,7 @@ actual fun CameraPreviewSurface(
                         if (bytes != null) main.execute { onCaptured(bytes) }
                     }
 
-                    // ⚠ Swallowed deliberately: a failed shutter must not crash a driver mid-drop.
+                    // Swallowed deliberately: a failed shutter must not crash a driver mid-drop.
                     // The screen stays on the viewfinder so they can simply press it again.
                     override fun onError(exception: ImageCaptureException) = Unit
                 },

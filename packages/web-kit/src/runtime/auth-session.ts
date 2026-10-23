@@ -1,11 +1,8 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
 /**
- * Session/token accessors.
- *
- * The ACCESS token is the bearer for every API call — never the ID token (research R6). The ID
- * token is read only for the operator's email, which the access token does not carry on a pool
- * that uses email-as-username.
+ * Session and token accessors. The access token is the bearer for every API call; the ID token is read
+ * only for the operator's email.
  */
 
 export async function getAccessToken(forceRefresh = false): Promise<string | null> {

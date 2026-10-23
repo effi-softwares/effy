@@ -5,7 +5,7 @@ import android.content.Intent
 import android.net.Uri
 
 /**
- * Android external-maps hand-off (049 US4, FR-022). Opens the device maps app with a geo query, or
+ * Android external-maps hand-off. Opens the device maps app with a geo query, or
  * falls back to a generic maps web URL if no maps app handles the geo scheme.
  */
 class AndroidMapLauncher(private val context: Context) : MapLauncher {

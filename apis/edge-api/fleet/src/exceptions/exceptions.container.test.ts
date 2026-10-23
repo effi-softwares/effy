@@ -4,15 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { recordParcelReturn } from "@effy/edge-shared/delivery";
 
-/**
- * Delivery exceptions against real PostgreSQL (064, US3).
- *
- * ⚠ THE `package_location` COLUMN IS A CORRELATED EXISTS OVER FOUR TABLES, and it is the one field
- * that makes this list triageable (FR-020): "still in a van" and "back at the hub" are different
- * problems with different urgency. It cannot be unit-tested — there is nothing to stub that would
- * still be the thing under test — and it is exactly the shape 056 found two wrong column names in,
- * both of which typechecked perfectly and failed only at runtime.
- */
+/** Delivery exceptions against real Postgres; `package_location` (in a van vs at the hub) is a correlated exists over four tables. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -38,7 +30,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { ExceptionNotFoundError, ExceptionOutcomeError, listExceptions, resolveException } from "./service";
 
@@ -88,8 +80,8 @@ d("064 — delivery exceptions", () => {
        VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
     )).rows[0]!.id;
     const orderId = (await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-EXC01', 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid') RETURNING id`, [cust],
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-EXC01', 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust],
     )).rows[0]!.id;
     const shopId = (await pool.query<{ id: string }>(
       `INSERT INTO public.shop (code, name) VALUES ('SEX', 'Exception Shop') RETURNING id`,
@@ -107,7 +99,7 @@ d("064 — delivery exceptions", () => {
        VALUES ($1, $2, 'delivery', now() + interval '6 hours') RETURNING id`, [waveId, driverId],
     )).rows[0]!.id;
     dropId = (await pool.query<{ id: string }>(
-      // A failed drop is `skipped`, its parcel still `assigned` (what the planner writes, 088).
+      // A failed drop is `skipped`, its parcel still `assigned`.
       `INSERT INTO public.round_stop (round_id, kind, order_id, status) VALUES ($1, 'customer_drop', $2, 'skipped') RETURNING id`,
       [roundId, orderId],
     )).rows[0]!.id;
@@ -200,8 +192,7 @@ d("064 — delivery exceptions", () => {
     });
 
     it("⚠ records THAT a note was given, never the driver's own words", async () => {
-      // The driver's note is free text typed at a doorstep and may name a person or a property
-      // (FR-028, 050's no-PII rule). The audit says a note existed; it does not quote anything.
+      // The driver's note may name a person or property: the audit says one existed, never quotes it.
       const id = (await addFailure("other", "left with Mrs Patel at number 12")).rows[0]!.id;
       await resolveException(id, "staff-sub-1", "spoke to the customer");
 
@@ -222,7 +213,7 @@ d("064 — delivery exceptions", () => {
       expect(audit.rows[0].actor_sub).toBe("staff-first");
     });
 
-    // Redesign — "Mark dealt with — outcome": how it ended is kept on the failure, for the next person.
+    // How it ended is kept on the failure, for the next person.
     it("keeps the outcome and the operator's note on the failure", async () => {
       const id = (await addFailure()).rows[0]!.id;
       await resolveException(id, "staff-sub-1", "Picked up from the hub at 5", "collected");

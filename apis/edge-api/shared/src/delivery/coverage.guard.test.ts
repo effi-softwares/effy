@@ -5,12 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 076 — three things about coverage that are true only while nobody adds a second copy, and that
- * every behavioural test would go on passing without.
- *
- *   P10  the refusal sentence is written in ONE file (FR-022, SC-004);
- *   P11  a customer contract carries the answer and nothing about why (FR-023, SC-010);
- *   P12  coverage is decided in ONE place (FR-020).
+ * The refusal sentence is written in one file; a customer contract carries the answer and nothing
+ * about why; coverage is decided in one place.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../../../..");
@@ -36,15 +32,15 @@ const services = readdirSync(edgeApi).filter((d) => {
 });
 
 describe("P10 — the refusal is written once", () => {
-  /** The one file that may hold it, and its mirror in the app (held to it by coverage-words.test.ts). */
+  /** The one file that may hold it, and its app mirror (held by coverage-words.test.ts). */
   const HOLDERS = new Set([
     "packages/shared-types/src/delivery.ts",
     "apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/delivery/CoverageWords.kt",
   ]);
-  /** About EMAIL the platform cannot deliver, not parcels. */
+  /** About email the platform cannot deliver, not parcels. */
   const NOT_ABOUT_DELIVERY = new Set(["apps/customer-web/app/(account)/account/EmailDeliveryNotice.tsx"]);
 
-  // Any wording of "we do not / cannot deliver to this address", straight or curly apostrophe.
+  // "we do not / cannot deliver to this address", straight or curly apostrophe.
   const REFUSAL = /(?:don['’]t|do not|can['’]t|cannot|can not)\s+deliver\s+(?:to\s+)?(?:this|that|your)\s+address|deliver to this address yet/i;
 
   const sources = [
@@ -65,7 +61,7 @@ describe("P10 — the refusal is written once", () => {
     const strays = sources
       .filter((f) => !HOLDERS.has(rel(f)) && !NOT_ABOUT_DELIVERY.has(rel(f)))
       .filter((f) => {
-        // Comments may talk about the sentence; only code may not restate it.
+        // Comments may discuss the sentence; only code may not restate it.
         const code = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*(\/\/|\*).*$/gm, "");
         return REFUSAL.test(code);
       })
@@ -95,13 +91,11 @@ describe("P11 — a customer is told who delivers, never why", () => {
 });
 
 describe("P12 — coverage is decided in one place", () => {
-  /**
-   * Files that may name the list's table, each for a reason that is not "decide coverage again":
-   */
+  /** Files that may name the list's table, each for a reason other than deciding coverage: */
   const MAY_READ_THE_LIST: Record<string, string> = {
     "apis/edge-api/admin/src/delivery/coverage.repository.ts": "maintains the list (add, remove, group, distance)",
     "apis/edge-api/admin/src/delivery/repository.ts": "recalculates distances when the hub moves",
-    "apis/edge-api/shared/src/lib/load-migrations.ts": "TEST SUPPORT only — the fixture statement that lists a postcode for services forbidden to name its distance column",
+    "apis/edge-api/shared/src/testing/migrations.ts": "TEST SUPPORT only — the fixture statement that lists a postcode for services forbidden to name its distance column",
     "apis/edge-api/fleet/src/planner/sql.ts": "which GROUP a delivery belongs to, for driver clearances (082: a clearance is a function and a group, or everywhere)",
     "apis/edge-api/fleet/src/dispatch/sql.ts": "which GROUP a delivery belongs to, for the dispatch board",
     "apis/edge-api/fleet/src/dispatch/windows.ts": "which GROUP a parcel's address is in, on dispatch's day view (082) — a name to read, never a coverage decision",
@@ -131,8 +125,7 @@ describe("P12 — coverage is decided in one place", () => {
       .filter((f) => /coverage_for_postcode\(/.test(readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*(\/\/|\*).*$/gm, "")))
       .map(rel)
       .sort();
-    // `coverage.ts` is the wrapper. The address book calls the function inside its own row read so
-    // the answer arrives with the row it describes, in one statement.
+    // `coverage.ts` is the wrapper; the address book calls the function in its own row read.
     expect(callers).toEqual(["apis/edge-api/customer/src/addresses/model.ts", "apis/edge-api/shared/src/delivery/coverage.ts"]);
   });
 });

@@ -1,4 +1,4 @@
-// public.media_rendition — THE ONE WRITER (086). Raw SQL.
+// The one writer of public.media_rendition.
 import { pooled, type Queryable } from "@effy/edge-shared";
 
 export type RenditionFailure = "unsupported" | "corrupt" | "too_large";

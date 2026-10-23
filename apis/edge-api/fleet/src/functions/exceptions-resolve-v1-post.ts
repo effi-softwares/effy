@@ -9,13 +9,7 @@ import { ExceptionNotFoundError, ExceptionOutcomeError, resolveException } from 
 import { mapDispatchError } from "../shared/dispatch-handler-support";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * POST /fleet/v1/exceptions/{exceptionId}/resolve (064, FR-021/FR-022).
- *
- * ⚠ MUTATE, NOT READ. Closing an exception asserts something about the physical world that no query
- * can verify — the package came back, went out again, or was written off — and it takes the item off
- * the list everyone else is working from. A `csa` may read every exception and may close none.
- */
+/** Admin/manager: it asserts something about the physical world. A csa may read every exception and close none. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -35,7 +29,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
 
   try {
     const result = await resolveException(exceptionId, g.sub, body.note?.trim() || null, body.outcome ?? null);
-    await announceDispatch(); // 071 — committed; the exceptions list is shorter
+    await announceDispatch();
     return json(200, result, scope);
   } catch (err) {
     if (err instanceof ExceptionOutcomeError) {

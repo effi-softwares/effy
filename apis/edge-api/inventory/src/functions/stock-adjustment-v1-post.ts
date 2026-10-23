@@ -1,4 +1,3 @@
-// POST /inventory/v1/variants/{variantId}/stock/adjustments — record a relative change (054 US1, FR-006).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

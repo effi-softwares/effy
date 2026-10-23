@@ -1,5 +1,3 @@
-// Module-scope wiring (cached singleton pattern — ARCHITECTURE.md): built once per container and
-// reused across warm invocations. No DI framework; the graph is this file, top to bottom.
 import { createCatalogRepository } from "../catalog/repository";
 import { createCatalogService } from "../catalog/service";
 import { createFacetRepository } from "../facets/repository";

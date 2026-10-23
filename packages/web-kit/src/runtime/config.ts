@@ -1,10 +1,6 @@
 /**
- * Build-time config, with a loud failure on a missing key.
- *
- * The failure mode this guards against is not "someone forgot a variable" — it is pointing a
- * console at the WRONG POOL. Sign-in would succeed and every API call would then 401 from an
- * authorizer scoped to a different audience, which reads like a backend bug. Presence is checked
- * here; correctness is caught by the isolation contract, loudly.
+ * Build-time config that fails loudly on a missing key. The real risk is a console pointed at the wrong
+ * pool: sign-in works and every API call 401s, which reads like a backend bug.
  */
 
 export type EnvRecord = Record<string, string | undefined>;
@@ -12,7 +8,7 @@ export type EnvRecord = Record<string, string | undefined>;
 export interface Config<K extends string> {
   /** Throws if any required key is absent. Call before wiring anything else. */
   assert(): void;
-  /** Reads a required key. Only safe after `assert()`. */
+  /** Reads a required key. Only safe after `assert`. */
   require(key: K): string;
   /** Reads an optional key. */
   optional(key: string): string | undefined;

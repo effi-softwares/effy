@@ -32,16 +32,16 @@ data class CollectionUiState(
     val isWorking: Boolean = false,
     val message: String? = null,
     /**
-     * Which packages the driver has ticked off at the current stop (060 FR-019). The manifest was
+     * Which packages the driver has ticked off at the current stop. The manifest was
      * read-only before: a driver confirmed the whole stop with one button and had no way to work
      * through the packages as they loaded them.
      *
-     * ⚠ **Ticking sends nothing.** Every package's outcome goes with the one "collect" call on the
+     * **Ticking sends nothing.** Every package's outcome goes with the one "collect" call on the
      * swipe commit. Until then the ticks and reports are kept on the phone ([StopDrafts]), so they
      * are still there if the app is closed while the driver is loading.
      */
     val confirmedPackageIds: Set<String> = emptySet(),
-    /** Packages the driver said they are NOT collecting, by [CollectionPackage.key]. Sent with the collect. */
+    /** Packages the driver said they are not collecting, by [CollectionPackage.key]. Sent with the collect. */
     val reportedPackages: Map<String, PackageProblem> = emptyMap(),
     /**
      * The check-in was made with no signal and is saved to send (backlog C2). The split it answers
@@ -62,7 +62,7 @@ class CollectionViewModel(
     private val collectStop: CollectStop,
     private val checkInHub: CheckInHub,
     private val newChangeId: () -> String,
-    /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
+    /** "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
     /** Where the stop in progress is kept across the app being closed. Null in tests that do not care. */
     private val drafts: StopDrafts? = null,
@@ -91,8 +91,8 @@ class CollectionViewModel(
      * A dispatcher changed this round (re-ordered its stops, moved it, withdrew it). Re-read the
      * round the driver is looking at, quietly.
      *
-     * ⚠ NEVER WHILE THE DRIVER IS MID-ACTION (FR-016): a load or a submission of theirs is in
-     * flight and its own answer is about to replace this state. And only once a round has loaded —
+     * Never while the driver is mid-action: a load or a submission of theirs is in
+     * flight and its own answer is about to replace this state. And only once a round has loaded
      * the first load is `loadRun`'s, with its own loading and error states.
      */
     private suspend fun reloadRunQuietly() {
@@ -105,10 +105,8 @@ class CollectionViewModel(
     }
 
     /**
-     * 092 rev 2 — the stop on screen is re-read too: a package dispatch withdrew, or one the shop has
-     * only now made ready, shows without the driver leaving the screen. ⚠ The driver's ticks and
-     * reports are KEPT for every package still there (they are the work in progress); one for a package
-     * that has gone is dropped, so the collect never names a package the stop no longer has.
+     * The stop on screen is re-read too, so a withdrawn or newly ready package shows in place. Ticks and
+     * reports are kept for packages still there and dropped for any that have gone.
      */
     private suspend fun reloadStopQuietly() {
         val open = _state.value.stop ?: return
@@ -126,8 +124,8 @@ class CollectionViewModel(
     }
 
     /**
-     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
-     * time after, it re-reads quietly. ⚠ A FALLBACK: the driver's own writes already re-read every
+     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
      * This catches what slips past that — a write made before the app last closed, a missed signal.
      */
@@ -155,7 +153,7 @@ class CollectionViewModel(
     }
 
     fun loadStop(stopId: String) {
-        // ⚠ Ticks and reports belong to ONE stop. They are dropped when a different stop opens — and
+        // Ticks and reports belong to one stop. They are dropped when a different stop opens — and
         // kept when the same one is opened again, which is what coming back from the problem screen is.
         _state.update {
             if (it.stop?.stopId == stopId) it.copy(isLoading = true, message = null)
@@ -179,7 +177,7 @@ class CollectionViewModel(
     }
 
     /**
-     * Commit the stop. ⚠ Every package's outcome goes IN this one request (063 FR-026): a package the
+     * Commit the stop. Every package's outcome goes IN this one request: a package the
      * driver reported is sent as not collected with what was wrong, and the rest as collected.
      */
     fun collect(stopId: String, onDone: () -> Unit) = collect(stopId, emptyMap(), emptyList(), onDone)
@@ -204,7 +202,7 @@ class CollectionViewModel(
             PackageOutcome(packageId = id, collected = problem == null, note = problem?.asNote())
         }
         val missingCodes = missing.map { it.code }.toSet()
-        // 096 — every bag of every collected package: scanned, typed, ticked by hand, or declared missing.
+        // Every bag of every collected package: scanned, typed, ticked by hand, or declared missing.
         val handed = packages.filter { it.key !in now.reportedPackages }.flatMap { it.bags }
             .filter { it.code !in missingCodes }
             .map { com.effyshopping.driver.mobile.core.scan.HandedOver(it.code, methods[it.code] ?: com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL) }
@@ -217,7 +215,7 @@ class CollectionViewModel(
                 val result = collectStop(runId, stopId, ids.of(action), outcomes, handed, missing)
                 ids.settled(action)
                 if (result.remaining > 0) {
-                    // 093 — a package was added while the driver was here. Only what they were shown is
+                    // A package was added while the driver was here. Only what they were shown is
                     // collected; the stop stays open and shows it. The ticks so far are kept.
                     _state.update { it.copy(isWorking = false) }
                     reloadStopQuietly()
@@ -236,7 +234,7 @@ class CollectionViewModel(
     }
 
     /**
-     * Tick or untick one package at the current stop (060 FR-019). A memory aid while loading: the
+     * Tick or untick one package at the current stop. A memory aid while loading: the
      * stop screen asks before committing with a package neither ticked nor reported. Ticking a
      * reported package withdraws the report — it is in the van after all.
      */
@@ -263,9 +261,9 @@ class CollectionViewModel(
     }
 
     /**
-     * Record that one package is not being collected, and why (060 FR-021).
+     * Record that one package is not being collected, and why.
      *
-     * ⚠ NOTHING IS SENT HERE. The report rides the stop's collect, so it can never arrive without
+     * Nothing is sent here. The report rides the stop's collect, so it can never arrive without
      * the collect or the collect without it. Until this, the report was its own request that named no
      * package, and the platform marked every package at the stop unavailable.
      */
@@ -309,7 +307,7 @@ class CollectionViewModel(
     }
 
     /**
-     * The saved check-in has left the queue: ask again under the SAME changeId. Check-in is
+     * The saved check-in has left the queue: ask again under the same changeId. Check-in is
      * idempotent, so this answers with the split without checking in twice.
      */
     private suspend fun readSavedCheckIn(id: String) {

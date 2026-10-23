@@ -6,16 +6,7 @@ import { groups, json, preamble, problem, ProblemType, subject, unavailable } fr
 import { resolveEmail } from "../staff/email";
 import { recordAndLoad } from "../staff/service";
 
-/**
- * GET /shop/v1/me — the record-backed identity read, and the JIT touchpoint that records the
- * operator in the platform's own system of record.
- *
- * Admits ANY authenticated shop-pool caller, including role-less and shop-unassigned operators:
- * its job is to *record* them. Privilege gating lives on /shop/v1/manager-ping.
- *
- * A token from another pool never reaches this handler — the gateway's shop JWT authorizer rejects
- * it on issuer and audience (contracts/cross-pool-isolation.contract.md).
- */
+/** Records the operator in the platform's record; admits any shop-pool caller, including role-less and unassigned ones. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -48,7 +39,7 @@ export const handler = async (
       scope,
     );
   } catch (err) {
-    // `subject` only — the email is PII and never reaches a log line (Principle VII).
+    // `subject` only: the email never reaches a log line.
     scope.log.error({ err, sub }, "me: shop staff record upsert failed");
     return unavailable(scope);
   }

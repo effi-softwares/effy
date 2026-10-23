@@ -14,15 +14,15 @@ import { Field, btnClass, input, select } from "@/components/storefront/kit"
 import { submitFeedbackAction } from "../actions"
 
 /**
- * The feedback form (046 US1) — the ONE client island on `/feedback`.
+ * The feedback form — the one client island on `/feedback`.
  *
- * ⚠ CONTROLLED FIELDS, for the same reason NewsletterForm holds its email in state: React resets an
+ * Controlled fields, for the same reason NewsletterForm holds its email in state: React resets an
  * uncontrolled form once its action completes, so an uncontrolled form would wipe everything the
- * shopper typed on a FAILED submit — the outcome whose whole point is that their words survive. Holding
+ * shopper typed on a failed submit — the outcome whose whole point is that their words survive. Holding
  * the values in state takes them out of React's reset path; only success clears them (by swapping to
  * the confirmation view).
  *
- * ⚠ For a signed-in shopper the email is shown read-only from their profile and NOT posted — the
+ * For a signed-in shopper the email is shown read-only from their profile and not posted — the
  * authed route takes the trusted profile email regardless. A guest gets an editable, optional email.
  */
 export function FeedbackForm({
@@ -47,8 +47,8 @@ export function FeedbackForm({
   const [name, setName] = useState(prefillName ?? "")
   const [email, setEmail] = useState(prefillEmail ?? "")
 
-  // ⚠ Telemetry through a DYNAMIC import so it never lands in the guest bundle (the 027 pattern), and
-  // fired once per outcome. No PII: category/flags/source/outcome only. A no-op until PostHog inits (039).
+  // Telemetry through a dynamic import so it never lands in the guest bundle (the 027 pattern), and
+  // fired once per outcome. No PII: category/flags/source/outcome only. A no-op until PostHog inits.
   const lastReported = useRef<string | null>(null)
   useEffect(() => {
     if (!state) return
@@ -77,7 +77,7 @@ export function FeedbackForm({
 
   return (
     <form action={formAction} className="mt-8 flex flex-col gap-5">
-      {/* Source travels as a hidden field so the server records where the feedback came from (FR-011). */}
+      {/* Source travels as a hidden field so the server records where the feedback came from. */}
       <input type="hidden" name="source" value={source} />
 
       <Field
@@ -174,7 +174,7 @@ export function FeedbackForm({
 
       {signedIn ? (
         <Field label="We'll reply to" htmlFor="feedback-email-readonly">
-          {/* ⚠ Not posted — the authed route uses the verified profile email. Shown so the shopper
+          {/* Not posted — the authed route uses the verified profile email. Shown so the shopper
               knows where a reply would land. */}
           <input
             id="feedback-email-readonly"
@@ -218,7 +218,7 @@ export function FeedbackForm({
 }
 
 /**
- * ⚠ Typed as a Record over the non-ok statuses, so adding a status to the shared result without wording
+ * Typed as a Record over the non-ok statuses, so adding a status to the shared result without wording
  * it here is a compile error rather than a blank message. Meaning never rests on colour (the words
  * carry it); the tint is redundant reinforcement.
  */

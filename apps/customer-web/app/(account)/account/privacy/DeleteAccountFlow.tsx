@@ -13,16 +13,10 @@ import { LoadingArea } from "@/components/Spinner"
 
 import { closeAccount, loadClosurePreview, requestClosureCode } from "./actions"
 
-/**
- * The account-deletion flow (034 US3), web half.
- *
- * ⚠ THE WORD IS "DELETE" THROUGHOUT (FR-037/SC-009). There is no "deactivate" alternative offered
- * anywhere in this component, and no such state exists to reach — which is the specific difference
- * between this and the two flows on record that App Review rejected.
- */
+/** The account-deletion flow. The word is "DELETE" throughout; no deactivate alternative exists. */
 export function DeleteAccountFlow() {
   const [preview, setPreview] = useState<ClosurePreviewDTO | null>(null)
-  /** A failure of the preview or the send — belongs on the page, where the control that failed is. */
+  /** A failure of the preview or the send, shown on the page. */
   const [error, setError] = useState<string | null>(null)
   const [masked, setMasked] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -35,11 +29,7 @@ export function DeleteAccountFlow() {
     })
   }, [])
 
-  // ── Still loading ───────────────────────────────────────────────────────────────────────────
-  //
-  // ⚠ A FAILED PREVIEW IS NOT A LOADING STATE. This slot used to render `{error ?? "Loading…"}`, so
-  // a preview that failed outright sat in the loading region — silent to assistive technology,
-  // indistinguishable from a slow network, and with nothing to retry. The two are separated below.
+  // Still loading. A failed preview is shown as a failure, not as loading.
   if (!preview && error) {
     return (
       <p role="alert" data-testid="closure-error" className="mt-2 text-sm text-destructive">
@@ -58,11 +48,7 @@ export function DeleteAccountFlow() {
     )
   }
 
-  // ── Blocked (FR-042) ────────────────────────────────────────────────────────────────────────
-  //
-  // ⚠ Each blocker NAMES the obligation, LINKS straight to it, and SAYS WHEN IT CLEARS. A refusal
-  // with no way forward is the dead end this requirement forbids — and the clause that catches it is
-  // Apple's "apps that make it unnecessarily difficult … will not pass review".
+  // Blocked: each blocker names the obligation, links to it and says when it clears.
   if (preview.blockers.length > 0) {
     return (
       <div className="mt-2 space-y-4" data-testid="closure-blocked">
@@ -90,14 +76,14 @@ export function DeleteAccountFlow() {
 
   return (
     <div className="mt-2 space-y-6" data-testid="closure-flow">
-      {/* What happens (FR-040) */}
+      {/* What happens */}
       <div className="space-y-2">
         <p className="text-sm">
           Your account, your saved items, your addresses and your personal details are removed. This
           can&rsquo;t be undone after{" "}
           <strong>{preview.eraseAfterIfRequestedNow.slice(0, 10)}</strong>.
         </p>
-        {/* 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose. */}
+        {/* Said before they confirm; absent when there is nothing to lose. */}
         {preview.pointsHeld ? (
           <p className="text-sm">
             You&rsquo;ll also lose your{" "}
@@ -110,13 +96,10 @@ export function DeleteAccountFlow() {
         ) : null}
       </div>
 
-      {/* What is kept, and why (FR-045). Rendered from the contract so the two surfaces cannot
-          drift, and so SC-010 can be checked against ONE list rather than two renderings. */}
+      {/* What is kept, and why, from the contract. */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium">What we need to keep, and why</h3>
-        {/* ⚠ The category is its own line, not a lead-in joined by a dash. A label and a sentence do
-            different jobs, and running them together made each entry read as one long clause that a
-            skimming eye slides off. Stacked, the three categories can be scanned on their own. */}
+        {/* Each category on its own line, so they can be scanned. */}
         <ul className="space-y-3">
           {preview.retained.map((r) => (
             <li key={r.category}>
@@ -127,7 +110,7 @@ export function DeleteAccountFlow() {
         </ul>
       </div>
 
-      {/* Proof of control (FR-043). ⚠ A valid session is NOT sufficient. */}
+      {/* Proof of control: a valid session is not sufficient. */}
       <div className="space-y-3">
         <p className="text-sm">
           To continue, we&rsquo;ll email a code to make sure it&rsquo;s really you.
@@ -158,10 +141,7 @@ export function DeleteAccountFlow() {
 
       <ConfirmCodeModal
         destination={masked}
-        // ⚠ Dismissing throws the whole attempt away — `masked` back to null, so the page returns to
-        // "Email me a code" rather than to a re-entry point holding a code the shopper may no longer
-        // have. Deletion is the one action on this platform where resuming a half-finished attempt
-        // is worth less than restarting a clean one.
+        // Dismissing discards the attempt: deletion restarts clean rather than resuming.
         onClose={() => setMasked(null)}
       />
     </div>
@@ -169,17 +149,8 @@ export function DeleteAccountFlow() {
 }
 
 /**
- * The code step, in a {@link ResponsiveModal} — centred Dialog at/above the mobile breakpoint, bottom
- * Drawer below it. Same container as `FieldEditor` and the address form (Principle II).
- *
- * ⚠ IT IS A MODAL BECAUSE THE ACTION IS IRREVERSIBLE. Inline, the confirm button sat in the page
- * among the "what we keep" prose, competing with two policy links for attention. An overlay makes
- * the commit a deliberate, foregrounded act with nothing else on screen to mis-tap.
- *
- * ⚠ THE FIELD IS THE PLATFORM'S OWN `OtpInput` in its `cells` variant — the same control the sign-in
- * code page uses, not a bare text input. That is not cosmetic: it brings `inputMode="numeric"`,
- * `autoComplete="one-time-code"` (OS message autofill), `dir="ltr"`, and ONE accessibility node
- * rather than six.
+ * The code step in a {@link ResponsiveModal}, so the irreversible commit is a foregrounded act. The field
+ * is the platform's `OtpInput` (cells): numeric, one-time-code autofill, LTR, one accessibility node.
  */
 function ConfirmCodeModal({
   destination,
@@ -194,8 +165,7 @@ function ConfirmCodeModal({
 
   const open = destination !== null
 
-  // The modal stays mounted across opens, so a code typed and abandoned must not survive into the
-  // next attempt.
+  // The modal stays mounted, so an abandoned code is cleared.
   useEffect(() => {
     if (open) {
       setCode("")
@@ -203,21 +173,17 @@ function ConfirmCodeModal({
     }
   }, [open])
 
-  // ⚠ Digits only, and NEVER truncated (035 FR-004). A longer value is kept, shown in full, and
-  // blocks submission — a code that is not six digits did not come from us, and quietly reshaping it
-  // into something submittable is the exact defect 035 existed to fix.
+  // Digits only, never truncated: a longer value is shown and blocks submission.
   const tooLong = code.length > OTP_LENGTH
   const complete = code.length === OTP_LENGTH
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    // ⚠ NO AUTO-SUBMIT. Codes die after three wrong attempts, so a mistyped last digit that submits
-    // itself spends an attempt the shopper never chose to spend — and here the attempt being spent
-    // is on deleting their account.
+    // No auto-submit: a mistyped last digit would spend one of three attempts on deleting the account.
     if (!complete || pending) return
     setError(null)
     start(async () => {
-      // On success this REDIRECTS — control does not come back here.
+      // On success this redirects.
       const res = await closeAccount(code)
       if (!res.ok) setError(res.error)
     })
@@ -227,8 +193,7 @@ function ConfirmCodeModal({
     <ResponsiveModal
       open={open}
       onOpenChange={(next) => {
-        // A dismissal mid-request would leave the shopper with no idea whether their account was
-        // deleted — the one outcome they must never be uncertain about.
+        // No dismissal mid-request: the shopper must never be unsure whether the account was deleted.
         if (!next && !pending) onClose()
       }}
     >
@@ -241,16 +206,14 @@ function ConfirmCodeModal({
         </ResponsiveModalHeader>
 
         <form id="closure-code-form" onSubmit={submit} noValidate className="px-4 sm:px-0">
-          {/* ⚠ Explicit margin rather than `space-y` — the label heads a 56px-tall control and needs
-              room to read as one, while the message below must stay tight to the field it is about.
-              One gap value cannot be right for both (the same reasoning as the sign-in code step). */}
+          {/* An explicit margin: the label heads a tall control; the message stays tight to it. */}
           <label htmlFor="closure-code" className="mb-4 block text-sm font-medium">
             Code from your email
           </label>
           <CodeField
             id="closure-code"
             name="code"
-            // A value longer than a code is shown in full as plain text by the field itself (FR-004).
+            // An over-length value is shown in full as plain text by the field.
             invalid={error !== null}
             aria-describedby={tooLong ? "closure-code-too-long" : undefined}
             autoFocus
@@ -278,9 +241,7 @@ function ConfirmCodeModal({
           </p>
         </form>
 
-        {/* Cancel on the LEFT and de-weighted as a ghost; the destructive confirm on the RIGHT — the
-            only destructive-styled control in the customer account area (sign out gave up its red so
-            this one could have it, FR-030). */}
+        {/* Cancel on the left as a ghost; the destructive confirm on the right. */}
         <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
           <Button
             type="button"

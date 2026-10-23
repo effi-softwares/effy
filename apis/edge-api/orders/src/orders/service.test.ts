@@ -3,18 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { COUNTED_REFUND_STATUSES, stageFor } from "./service";
 
-/**
- * The console shows an operator the word the CUSTOMER is currently being shown, and a refund ceiling
- * the server will actually honour.
- *
- * ⚠ UNTIL 070 BOTH WERE SECOND IMPLEMENTATIONS of rules owned by the Go backend, and this file kept
- * them honest by READING THE GO SOURCE and comparing. That backend is retired. The rules now live
- * once, in the shared library, where their behaviour is tested (`order-completion.test.ts`).
- *
- * What is left to guard here is the thing that would bring the hazard back: this service growing
- * its OWN copy again. So the assertion is identity, not behaviour — a local re-implementation that
- * happened to agree today would still fail.
- */
+/** The stage word and refund ceiling must be the shared library's own functions, not a local copy. */
 describe("the console's order rules are the shared ones, not a copy", () => {
   it("stageFor is the function the shopper's own order page calls", () => {
     expect(stageFor).toBe(shared.stageFor);

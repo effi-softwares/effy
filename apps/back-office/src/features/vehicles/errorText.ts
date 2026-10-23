@@ -1,18 +1,10 @@
 import { isDomainError } from "@effy/api-client";
 
 /**
- * Uniform, non-leaking failure copy for the vehicle register (061).
- *
- * ⚠ SHAPED DELIBERATELY LIKE `features/drivers/errorText.ts`, INCLUDING ITS RESTRAINT. Two rules,
- * and the second is the one that is easy to get wrong:
- *
- *   1. `@effy/api-client` throws a `DomainError` — a PLAIN OBJECT, not an `Error` instance. Testing
- *      `e instanceof Error` is always false, which is how 053's order console threw away every
- *      refusal the server had got right, with a fully green suite.
- *   2. `detail` is NOT rendered verbatim as a rule (005 FR-008 — server prose can leak internals).
- *      It is rendered only for the conflicts THIS console's own API defines, because only the
- *      service knows which driver holds the vehicle or which vehicle the driver already has, and a
- *      generic sentence there destroys the entire point of FR-014.
+ * Failure copy for the vehicle register, shaped like `features/drivers/errorText.ts`:
+ *  1. `@effy/api-client` throws a plain-object `DomainError`; `e instanceof Error` is always false.
+ *  2. `detail` is shown only for the conflicts this console's API defines (which driver holds the vehicle,
+ *  which vehicle the driver has); otherwise our own copy.
  */
 
 export type VehicleAction = "create" | "update" | "status" | "issue" | "return";
@@ -42,8 +34,8 @@ export function vehicleActionError(err: unknown, action: VehicleAction): string 
       return "The service is waking up or unreachable. Try again in a moment.";
 
     if (err.status === 409) {
-      // ⚠ THE CONFLICTS THIS CONSOLE CANNOT PHRASE BETTER THAN THE SERVICE CAN. Only the service
-      // knows WHO holds the vehicle, WHICH vehicle the driver already has, and WHETHER a plate is
+      // The conflicts this console cannot phrase better than the service can. Only the service
+      // knows who holds the vehicle, which vehicle the driver already has, and whether a plate is
       // taken. All three are composed for a person, on purpose, and all three are useless generic.
       if ((action === "issue" || action === "return" || action === "status" || action === "create") && err.detail) {
         return err.detail;
@@ -90,13 +82,7 @@ function fieldLabel(field: string): string {
   return FIELD_LABEL[field] ?? field;
 }
 
-/**
- * The per-field messages from a refusal.
- *
- * ⚠ These are what make a 409 actionable — "currently held by Sam Rivers" beside the driver picker,
- * rather than a sentence at the top of a form. 053's console had the same information arriving and
- * rendered none of it.
- */
+/** The per-field messages from a refusal ("currently held by Sam Rivers" beside the driver picker): what make a 409 actionable. */
 export function vehicleFieldErrors(err: unknown): { field: string; message: string }[] {
   if (!isDomainError(err)) return [];
   return (err.fields ?? []).filter((f) => Boolean(f?.message));

@@ -1,11 +1,7 @@
 import type { Basket, BasketLine, Candidate, EngineContext } from "./engine";
 import data from "./engine.fixtures.json";
 
-/**
- * 094 — the engine fixtures and the ONE builder that fills their defaults. Used by the engine's own
- * tests and by the cart and payment-intent tests, so all three price the same baskets the same way
- * (SC-003).
- */
+/** The engine fixtures and their one builder, shared by the engine, cart and payment-intent tests. */
 
 export type FixtureCandidate = Partial<Omit<Candidate, "targets" | "endsAt" | "createdAt">> & {
   id: string;

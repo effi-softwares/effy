@@ -1,5 +1,3 @@
-// The DB half of the receipt drain: claim rows, read the order the receipt describes, mark outcomes.
-// 052-order-confirmation-invoice, US3. Raw SQL, no ORM (Principle VI).
 import { query, withTransaction } from "@effy/edge-shared";
 
 import type { PendingReceipt, ReceiptDrainDeps } from "./drain";
@@ -12,13 +10,7 @@ interface PendingRow {
   attempts: number;
 }
 
-/**
- * Claim up to `limit` pending rows.
- *
- * ⚠ `FOR UPDATE SKIP LOCKED` so two overlapping worker invocations never claim the same row — the
- * property that makes a re-run safe without any bookkeeping. Only `pending` rows are claimed, so a
- * row that already reached a terminal status is invisible here forever.
- */
+/** `FOR UPDATE SKIP LOCKED`, pending rows only, so overlapping runs never claim the same row. */
 async function claimPending(limit: number): Promise<PendingReceipt[]> {
   return withTransaction(async (tx) => {
     const res = await tx.query<PendingRow>(
@@ -74,7 +66,7 @@ async function markFailed(id: string, error: string): Promise<void> {
   );
 }
 
-/** Everything the template needs, read from the order's own snapshot. */
+/** Read from the order's own snapshot. */
 export interface ReceiptOrderRow {
   order_number: string;
   placed_at: string | null;
@@ -82,22 +74,16 @@ export interface ReceiptOrderRow {
   item_subtotal_amount: string;
   discount_amount: string | null;
   promo_code: string | null;
-  /** 094 — delivery promotions' share, and the headlines of every promotion as sold. */
+  /** Delivery promotions' share, and every promotion's headline as sold. */
   delivery_discount_amount?: string | null;
   promotion_names?: string[] | null;
   delivery_fee_amount: string | null;
-  /**
-   * 077 — the delivery charge as the lines the customer was sold. ⚠ Only the
-   * `lines` key of `delivery_fee_breakdown`: the rest is the business's pricing, never mailed.
-   */
+  /** Only the `lines` key: the rest is pricing, never mailed. */
   delivery_fee_lines: { kind: string; amount: string }[];
-  /**
-   * 079 — who delivers the order, and a courier's timeframe AS SOLD (the order's own copy). ⚠ Never
-   * the reason: a customer is not told why.
-   */
+  /** As sold; never the reason. */
   delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
+  /** Null for a courier order. */
   delivery_promise?: "window" | "day" | "asap" | null;
   asap_estimate?: string | null;
   grand_total_amount: string;
@@ -106,7 +92,6 @@ export interface ReceiptOrderRow {
   method_type: string | null;
   method_brand: string | null;
   method_last4: string | null;
-  /** 074 — points the order was part-paid with, their value, and what the card paid. */
   points_used?: number;
   points_value_amount?: string;
   card_paid_amount?: string | null;
@@ -123,18 +108,12 @@ export interface ReceiptArrivalRow {
   method: string;
   promised_from: string | null;
   promised_to: string | null;
-  /** 069 — the same-day window the customer was sold. Null for standard and for every earlier order. */
+  /** The window the customer was sold. */
   window_start: Date | null;
   window_end: Date | null;
 }
 
-/**
- * Read the order a receipt describes. Returns null when it can no longer be read — the drain treats
- * that as `skipped`, not as a failure to retry forever.
- *
- * ⚠ EVERY FIGURE COMES FROM THE ORDER'S OWN SNAPSHOT (FR-011), never from the live catalogue or a
- * re-derived promotion. That is what lets a receipt still explain itself years later.
- */
+/** Null when unreadable (the drain skips it). Every figure is the order's own snapshot. */
 export async function loadReceipt(orderId: string): Promise<{
   order: ReceiptOrderRow;
   items: ReceiptItemRow[];
@@ -163,16 +142,13 @@ export async function loadReceipt(orderId: string): Promise<{
   if (!order) return null;
 
   const itemsRes = await query<ReceiptItemRow>(
-    // 098 — the line as sold, with its variant.
     `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' — ' || variant_label END AS product_name, unit_price_amount::text AS unit_price_amount,
             quantity, line_subtotal_amount::text AS line_subtotal_amount
        FROM public.order_item WHERE order_id = $1 ORDER BY created_at ASC`,
     [orderId],
   );
 
-  // ⚠ `shop_id` is neither selected nor ordered by — the customer must never learn which node handles
-  // which package (FR-009). Ordered by the promise so the output is stable and says nothing about
-  // internal grouping.
+  // No `shop_id`: ordered by the promise, so nothing reveals internal grouping.
   const arrivalsRes = await query<ReceiptArrivalRow>(
     `SELECT method, promised_from::text AS promised_from, promised_to::text AS promised_to,
             window_start, window_end
@@ -185,7 +161,6 @@ export async function loadReceipt(orderId: string): Promise<{
   return { order, items: itemsRes.rows, arrivals: arrivalsRes.rows };
 }
 
-/** Build the DB-backed drain deps around an injected sender (so the handler wires the mailer in). */
 export function receiptRepositoryDeps(
   sender: Pick<ReceiptDrainDeps, "send" | "mailerConfigured">,
   opts: { maxAttempts: number; batchSize: number },

@@ -4,20 +4,20 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * When a round OPENS (072) — present only while the round has not opened yet.
+ * When a round opens — present only while the round has not opened yet.
  *
  * Work is given to a driver the moment a driver can take it, hours before it can be done. The round
  * is on the phone in full from then on; what the driver may not do yet is act on it. This is the
  * moment that changes.
  *
- * ⚠ THE SERVER DECIDES WHETHER A ROUND IS OPEN, and sends no opening at all once it is. So a null
+ * The server decides whether a round is open, and sends no opening at all once it is. So a null
  * [Opening] always means "open" — including on a phone whose clock is wrong, which could otherwise
- * show an open round as locked. The clock here is used for ONE thing: noticing, while the screen is
+ * show an open round as locked. The clock here is used for one thing: noticing, while the screen is
  * open, that the moment has arrived (see `rememberIsOpen`), so the controls come alive without the
  * driver doing anything. If the phone is ahead of the server and a tap arrives early, the server
  * still refuses it and says when.
  *
- * ⚠ [label] IS THE SERVER'S WORDING, in Melbourne time ("1:15 pm", "tomorrow 11:15 am"). This app
+ * [label] is the server's wording, in Melbourne time ("1:15 pm", "tomorrow 11:15 am"). This app
  * has no timezone database and never formats a time — the same rule as `DeliveryWindow`.
  */
 data class Opening(
@@ -27,12 +27,12 @@ data class Opening(
     /** Has the moment arrived, by this device's clock? */
     fun isOpenAt(nowEpochMillis: Long): Boolean = nowEpochMillis >= atEpochMillis
 
-    /** "Opens 1:15 pm" — what every locked control says beside itself (FR-025). */
+    /** "Opens 1:15 pm" — what every locked control says beside itself. */
     val sentence: String get() = "Opens $label"
 
     companion object {
         /**
-         * From the wire. Null unless BOTH parts are present and readable: an instant with no words
+         * From the wire. Null unless both parts are present and readable: an instant with no words
          * could not be shown, and words with no instant could never unlock. Either way the round is
          * treated as open here and the server remains the judge.
          */

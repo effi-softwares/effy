@@ -20,16 +20,16 @@ suspend fun HttpResponse.toAppException(): AppException {
 
 /**
  * The status-and-problem → [AppError] rule, with no transport in it — so the one mapping that
- * depends on the BODY (072's "not open yet") can be tested without a server.
+ * depends on the body (072's "not open yet") can be tested without a server.
  */
 internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (status) {
     401 -> AppError.Unauthenticated
     403 -> AppError.Forbidden
     404 -> AppError.NotFound
-    // 072 — "not open yet" is its own answer, not a conflict: see AppError.NotOpenYet.
+    // "not open yet" is its own answer, not a conflict: see AppError.NotOpenYet.
     409 -> when {
         problem?.type == ROUND_NOT_OPEN -> AppError.NotOpenYet(problem.opening())
-        // 093 — out of turn: the server's sentence says what to do first.
+        // Out of turn: the server's sentence says what to do first.
         problem?.type in OUT_OF_TURN -> AppError.OutOfTurn(problem?.detail ?: "Do the step before this one first.")
         else -> AppError.Conflict
     }
@@ -40,10 +40,10 @@ internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (s
     else -> AppError.Unexpected
 }
 
-/** The problem type every route that progresses a round answers with before the round opens (072). */
+/** The problem type every route that progresses a round answers with before the round opens. */
 private const val ROUND_NOT_OPEN = "round_not_open"
 
-/** 093 — the order-of-work refusals (`sequence.ts` in the driver service). */
+/** The order-of-work refusals (`sequence.ts` in the driver service). */
 private val OUT_OF_TURN = setOf(
     "stops_outstanding", "run_not_loaded", "finish_collection_first", "return_parcels_first", "finish_deliveries_first",
 )

@@ -1,28 +1,12 @@
-// Repository layer: SQL only. The server cart stores ONLY variant + quantity + the price the line
-// was added at; the price a shopper is CHARGED is always re-read from public.product_variant at read
-// time. One cart per customer.
+// One cart per customer. A line stores variant, quantity and its add-time price; the charged price
+// is always re-read from product_variant.
 //
-// ⚠ 098 — A LINE IS A VARIANT. Every line carries `variant_id` (and the `product_id` it belongs to,
-// held equal by a composite FK); lines are unique per (cart, variant), so two sizes of one product are
-// two lines. Routes and mutations are keyed by the variant id.
-//
-// ── Two rules every mutation in this file obeys (027) ──────────────────────────────────────────────
-//
-//  1. It runs in a TRANSACTION, and that transaction carries the `cart.revision` bump and the
-//     `cart_change_log` guard with it. The bump cannot be skipped, because a mutation the client
-//     cannot detect is a mutation the client's mirror will happily overwrite. The guard cannot be a
-//     check-then-write, because that is a race — hence one transaction, not two statements.
-//
-//  2. It is IDEMPOTENT, or it carries a change id. Quantities are absolute; merge and reorder take
-//     the MAXIMUM, never a sum. The single exception is add, which must increment, and which
-//     therefore always has a change id to dedupe on.
-//
-// ⚠ There is NO whole-cart replace. Merge has no "delete what is absent" clause — that clause is
-// what would let a stale device wipe lines it had never heard of (027 FR-010).
+// Every mutation runs in one transaction with the `cart.revision` bump and the `cart_change_log`
+// guard, and is either idempotent (absolute quantities; merge and reorder take the maximum) or
+// carries a change id (add). There is no whole-cart replace: a stale device must not wipe lines.
 import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { PackUnit, UnitBasis } from "@effy/shared-types";
-
 
 /**
  * The wire shape of a cart read (cart_item ⋈ product ⋈ primary media). The same shape serves
@@ -31,44 +15,34 @@ import type { PackUnit, UnitBasis } from "@effy/shared-types";
 export interface CartLineRow {
   id: string;
   product_id: string;
-  /** 098 — the variant this line buys. */
   variant_id: string;
-  /** 098 — "1 kg"; NULL for a product with no options. */
   variant_label: string | null;
-  /** 098 — active | inactive | removed. */
   variant_state: string;
   shop_id: string;
   quantity: number;
   name: string;
-  /** The VARIANT's current customer price. NULL only for a never-approved product (never sold). */
+  /** The variant's current customer price. Null only for a never-approved product (never sold). */
   unit_price_amount: string;
   currency: string;
   status: string;
   stock_tracked: boolean;
-  /** NULL exactly when the variant is untracked. */
+  /** Null exactly when the variant is untracked. */
   stock_on_hand: number | null;
-  /** 098 — for the unit price. */
   pack_quantity: string | null;
   pack_unit: PackUnit | null;
   unit_basis: UnitBasis | null;
   storage_key: string | null;
-  /** 086 — the line picture's ready copies; NULL for none. */
   image_widths: number[] | null;
-  /**
-   * The price when the line was added — NULL for a line predating 027, and NULL is not
-   * "unchanged", it is "unknown": the service must not fabricate a price-change notice from it.
-   */
+  /** Null means unknown, not unchanged: never infer a price-change notice from it. */
   unit_price_at_add: string | null;
 }
 
 export interface CartMeta {
   revision: number;
-  /** 094 — the code the shopper entered; null when none. */
   promotionCodeId: string | null;
   customerId: string | null;
 }
 
-/** 098 — what an add needs to judge a variant: its product's status and its own state, price and stock. */
 export interface VariantStatusRow {
   product_id: string;
   status: string;
@@ -81,15 +55,14 @@ export interface VariantStatusRow {
 /** One line of a past order as a candidate for re-adding. */
 export interface ReorderCandidate {
   product_id: string;
-  /** 098 */
   variant_id: string;
-  /** The label it was SOLD with (the order line's snapshot). */
+  /** The label it was sold with. */
   variant_label: string | null;
   quantity: number;
   name: string;
-  /** NULL when the product row is gone (the LEFT JOIN missed). */
+  /** Null when the product row is gone (the left join missed). */
   status: string | null;
-  /** NULL when the variant row is gone. */
+  /** Null when the variant row is gone. */
   variant_state: string | null;
   stock_tracked: boolean | null;
   stock_on_hand: number | null;
@@ -117,7 +90,7 @@ const LINE_PROJECTION = `
        m.storage_key          AS storage_key,
        m.image_widths         AS image_widths`;
 
-/** The line's picture: the variant's own if it has one (098), else the product's primary. */
+/** The variant's own picture if it has one, else the product's primary. */
 const PRIMARY_MEDIA_JOIN = `
 LEFT JOIN LATERAL (
     SELECT pm.storage_key, ${renditionWidthsSql("pm.storage_key")} AS image_widths
@@ -131,15 +104,13 @@ export interface CartRepository {
   getOrCreateCartId(customerId: string): Promise<string>;
   meta(cartId: string): Promise<CartMeta>;
   lines(cartId: string): Promise<CartLineRow[]>;
-  /** Payable lines, set-aside lines and the revision in ONE round trip. */
+  /** Payable lines, set-aside lines and the revision in one round trip. */
   allLines(cartId: string): Promise<{ lines: CartLineRow[]; saved: CartLineRow[]; revision: number }>;
-  /** 098 — keyed by VARIANT id. */
   variantStatus(variantId: string): Promise<VariantStatusRow | null>;
   variantSnapshots(variantIds: readonly string[]): Promise<CartLineRow[]>;
   orderItemsForReorder(customerId: string, orderId: string): Promise<ReorderCandidate[] | null>;
 
-  // Mutations report whether the change was APPLIED (false = this change id was already applied).
-  // 098 — every line mutation is keyed by the VARIANT id.
+  // Mutations return whether they applied (false: this change id was already applied).
   addItem(cartId: string, variantId: string, changeId: string, qty: number, max: number): Promise<boolean>;
   setQty(cartId: string, variantId: string, changeId: string, qty: number): Promise<boolean>;
   removeItem(cartId: string, variantId: string, changeId: string): Promise<boolean>;
@@ -151,17 +122,12 @@ export interface CartRepository {
   restoreSaved(cartId: string, variantId: string, changeId: string, max: number): Promise<boolean>;
   deleteSaved(cartId: string, variantId: string, changeId: string): Promise<boolean>;
 
-  /** 094 — the code the shopper entered (null clears it). Only the CHOICE is stored. */
   setCartPromo(cartId: string, promotionCodeId: string | null): Promise<boolean>;
 }
 
 /**
- * Run a mutation in a transaction with the revision bump, guarded by the change id when there is
- * one. Returns whether it was applied: a change id already recorded means this exact mutation
- * happened before, so it — and its revision bump — are skipped.
- *
- * ⚠ THE GUARD IS THE FIRST STATEMENT OF THE SAME TRANSACTION. Two deliveries of one change race on
- * the log's primary key: one inserts, the other waits, sees the row, and applies nothing.
+ * Runs a mutation with the revision bump, guarded by the change id when given. The guard insert is
+ * the transaction's first statement, so two deliveries of one change race on its primary key.
  */
 async function guarded(
   transact: Transactor,
@@ -177,8 +143,7 @@ INSERT INTO public.cart_change_log (cart_id, change_id) VALUES ($1, $2)
 ON CONFLICT (cart_id, change_id) DO NOTHING`,
         [cartId, changeId],
       );
-      // ⚠ NO PRUNE HERE. Retention is a housekeeping concern, not a request-time one: a second
-      // statement on every guarded write is a round trip on the shopper's critical path.
+      // No prune here: retention is housekeeping, not a round trip on every write.
       if ((res.rowCount ?? 0) === 0) return false;
     }
     await fn(tx);
@@ -207,10 +172,7 @@ ORDER BY ci.added_at ASC, ci.id ASC`,
     ).rows;
 
   const repo: CartRepository = {
-    /**
-     * The customer's cart id, creating the cart on first use (one cart per customer). The no-op
-     * DO UPDATE is what makes RETURNING yield the existing row.
-     */
+    /** The customer's cart id, created on first use. The no-op do UPDATE makes RETURNING yield it. */
     async getOrCreateCartId(customerId) {
       const row = (
         await db.query<{ id: string }>(
@@ -261,8 +223,7 @@ ORDER BY saved, added_at ASC, id ASC`,
         )
       ).rows;
 
-      // An EMPTY cart returns no rows at all, so the revision has to come from somewhere. One
-      // extra trip, and only for a cart with nothing in it.
+      // An empty cart returns no rows, so its revision needs its own read.
       const revision = all.length > 0 ? all[0]!.revision : (await repo.meta(cartId)).revision;
       return { lines: all.filter((r) => !r.saved), saved: all.filter((r) => r.saved), revision };
     },
@@ -282,10 +243,7 @@ WHERE v.id = $1`,
       );
     },
 
-    /**
-     * Current price/status/image for a set of VARIANTS, in the line shape, with no cart behind it
-     * (the PUBLIC preview): a guest's cart lives on their device. `quantity` is set by the caller.
-     */
+    /** Lines for variants with no cart behind them (the public preview). The caller sets `quantity`. */
     async variantSnapshots(variantIds) {
       if (variantIds.length === 0) return [];
       return (
@@ -319,14 +277,8 @@ WHERE v.id = ANY($1::uuid[])`,
     },
 
     /**
-     * A past order's lines, scoped to its owner.
-     *
-     * ⚠ The scope is IN THE WHERE CLAUSE, not a check after the read. A lookup by order id alone
-     * followed by "is it theirs?" is the IDOR shape: it turns "not found" and "not yours" into two
-     * different answers. `null` means either — both are a 404, deliberately.
-     *
-     * LEFT JOIN, because a product can be deleted outright after an order: the order line still
-     * names it, and the service reports it as removed rather than silently dropping it.
+     * A past order's lines, scoped to its owner in the where clause so "not found" and "not yours" are
+     * the same null. Left join: a deleted product is reported as removed, not dropped.
      */
     async orderItemsForReorder(customerId, orderId) {
       const rows = (
@@ -353,11 +305,7 @@ ORDER BY oi.id ASC`,
       return rows.length > 0 ? rows : null;
     },
 
-    /**
-     * Increment a line by `qty`, capped at `max`, creating it if absent. THE ONLY NON-IDEMPOTENT
-     * MUTATION, which is why it always carries a change id. The current price is captured as
-     * `unit_price_at_add` on insert and left alone on conflict.
-     */
+    /** The only non-idempotent mutation, hence the change id. Captures the add-time price on insert. */
     addItem: (cartId, variantId, changeId, qty, max) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
@@ -370,7 +318,6 @@ DO UPDATE SET quantity = LEAST(public.cart_item.quantity + EXCLUDED.quantity, $4
         );
       }),
 
-    /** An ABSOLUTE quantity — naturally idempotent. Never touches the add-time price. */
     setQty: (cartId, variantId, changeId, qty) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
@@ -386,11 +333,7 @@ WHERE cart_id = $1 AND variant_id = $2`,
         await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
-    /**
-     * Empty the payable cart. Set-aside lines survive: clearing a cart is not "forget everything I
-     * was considering". The applied promotion is dropped with the lines — an empty cart with a
-     * code still applied would be a discount on nothing.
-     */
+    /** Set-aside lines survive. The applied code goes too: a discount on nothing makes no sense. */
     deleteAllItems: (cartId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1`, [cartId]);
@@ -407,15 +350,10 @@ WHERE cart_id = $1 AND variant_id = $2`,
       });
     },
 
-    /**
-     * Union the given lines into the cart with MAXIMUM-quantity semantics (027 FR-009), capped at
-     * `max`. A line only in the cart is untouched — there is no delete clause — and repeating the
-     * merge changes nothing: max(a, a) = a. Summing would double a product the shopper already
-     * holds on another device. Lines whose variant no longer exists are dropped by the join.
-     */
+    /** Maximum-quantity union, capped at `max`; no delete clause, so repeating it changes nothing. */
     mergeItems: (cartId, changeId, variantIds, quantities, max) =>
       inTx(cartId, changeId, async (tx) => {
-        // Merging nothing is a legitimate no-op: an empty guest cart must not empty the account's.
+        // An empty guest cart must not empty the account's.
         if (variantIds.length === 0) return;
         await tx.query(
           `
@@ -430,10 +368,9 @@ DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quan
         );
       }),
 
-    /** Move a line from the payable cart to "saved for later". No-op if it is not in the cart. */
     setAside: (cartId, variantId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
-        // The add-time price travels with the line, so a price change is still reported while aside.
+        // The add-time price travels with the line, so a price change is still reported.
         await tx.query(
           `
 INSERT INTO public.cart_saved_item (cart_id, product_id, variant_id, quantity, unit_price_at_add)
@@ -446,11 +383,7 @@ DO UPDATE SET quantity = GREATEST(public.cart_saved_item.quantity, EXCLUDED.quan
         await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
-    /**
-     * Move a set-aside line back into the payable cart. The add-time price is REFRESHED to the
-     * current price: the shopper is choosing it again, at today's price, and reporting a "price
-     * change" against a number they saw weeks ago would be noise.
-     */
+    /** Refreshes the add-time price: the shopper is choosing it again at today's price. */
     restoreSaved: (cartId, variantId, changeId, max) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
@@ -473,11 +406,7 @@ DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quan
         await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
-    /**
-     * Record which code is applied (null clears it). Only the CHOICE is stored; the amount it is
-     * worth is derived on every read. Setting the same code twice is a no-op in effect, so it
-     * carries no change id.
-     */
+    /** Only the choice is stored; its worth is derived on every read. */
     setCartPromo: (cartId, promotionCodeId) =>
       inTx(cartId, "", async (tx) => {
         await tx.query(

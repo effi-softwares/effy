@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** 065 — the manifest's wire mapping and the summary a driver reads without opening a package. */
+/** The manifest's wire mapping and the summary a driver reads without opening a package. */
 class ManifestTest {
     private fun dto(cls: TemperatureClassDto, qty: Long = 1, ordered: Long = qty, included: Boolean = qty > 0) =
         ManifestLineDto(included = included, name = "Item", orderedQty = ordered, qty = qty, temperatureClass = cls)
@@ -22,14 +22,6 @@ class ManifestTest {
         assertEquals(TemperatureClass.Frozen, TemperatureClassDto.Frozen.toDomain())
         assertEquals(TemperatureClass.Chilled, TemperatureClassDto.Chilled.toDomain())
         assertEquals(TemperatureClass.Normal, TemperatureClassDto.Normal.toDomain())
-    }
-
-    /** SC-008 — a line sold before the class was recorded must never read as Normal. */
-    @Test
-    fun `not recorded stays not recorded - it is never Normal`() {
-        val line = dto(TemperatureClassDto.NotRecorded).toDomain()
-        assertEquals(TemperatureClass.NotRecorded, line.temperatureClass)
-        assertEquals("Class not recorded", line.temperatureClass.label)
     }
 
     @Test
@@ -48,13 +40,13 @@ class ManifestTest {
 
     @Test
     fun `the summary is the server's - mapped field for field`() {
-        assertEquals(ClassSummary(2, 3, 6, 1), ClassSummaryDto(chilled = 3, frozen = 2, normal = 6, notRecorded = 1).toDomain())
+        assertEquals(ClassSummary(2, 3, 6), ClassSummaryDto(chilled = 3, frozen = 2, normal = 6).toDomain())
     }
 
     /** FR-015 — a class with nothing in it is left out, not shown as zero. */
     @Test
     fun `only classes that are present are listed - cold first`() {
-        val s = ClassSummary(frozen = 0, chilled = 3, normal = 6, notRecorded = 0)
+        val s = ClassSummary(frozen = 0, chilled = 3, normal = 6)
         assertEquals(listOf(TemperatureClass.Chilled to 3, TemperatureClass.Normal to 6), s.present)
         assertEquals("3 chilled, 6 normal", s.spoken)
         assertTrue(s.hasCold)
@@ -62,7 +54,7 @@ class ManifestTest {
 
     @Test
     fun `a package of shelf goods carries no cold signal`() {
-        val s = ClassSummary(frozen = 0, chilled = 0, normal = 4, notRecorded = 0)
+        val s = ClassSummary(frozen = 0, chilled = 0, normal = 4)
         assertFalse(s.hasCold)
         assertEquals(4, s.total)
     }

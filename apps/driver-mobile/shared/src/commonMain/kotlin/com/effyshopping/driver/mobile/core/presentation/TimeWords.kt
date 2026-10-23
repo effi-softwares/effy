@@ -5,12 +5,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-/**
- * How this app says WHEN something happened.
- *
- * ⚠ Every record used to print its timestamp as the wire sent it — `2026-10-12 03:35:07`, in UTC,
- * which in Melbourne is the wrong hour and sometimes the wrong day.
- */
+/** How this app says when something happened, in Melbourne time (the wire is UTC). */
 
 @OptIn(ExperimentalTime::class)
 fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()

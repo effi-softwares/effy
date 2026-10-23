@@ -2,15 +2,9 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { migrationSql } from "../../../fleet/src/shared/load-migrations";
+import { migrationSql } from "@effy/edge-shared/testing";
 
-/**
- * Hub check-in and collection against real PostgreSQL (063, US2).
- *
- * ⚠ C14 EXISTS BECAUSE ITS ABSENCE WAS FOUND BY A NEGATIVE PROOF. NP9 loosened the delivery gather
- * to admit standard packages and NOTHING FAILED — the test the quickstart listed had never been
- * written. A negative proof is only worth the guard it exercises.
- */
+/** Hub check-in and collection against real Postgres. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -38,10 +32,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { collectStop, hubCheckin } from "./complete";
 import { collectionRun, NotFoundError, today } from "./service";
-// ⚠ THE REAL GATHER QUERY, NOT A COPY OF IT. The first version of C14 asserted against its own
-// hand-written equivalent — so loosening the actual query changed nothing and the negative proof
-// (NP9) sailed through. A test that agrees with a duplicate of the code proves only that the
-// duplicate is consistent with itself: 028 recorded that shape five times in one slice.
+// The real gather query, not a copy, so loosening it fails this test.
 import { gatherDeliveryWork } from "../../../fleet/src/planner/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -50,7 +41,7 @@ async function q(sql: string, params: unknown[] = []) {
   return holder.pool!.query(sql, params as never[]);
 }
 
-/** 093 — a collect names every package the driver was shown: here, all those still waiting. */
+/** A collect names every package still waiting. */
 async function shown(stopId: string) {
   const { rows } = await q(`SELECT shop_fulfillment_id AS id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`, [stopId]);
   return rows.map((r: any) => ({ packageId: r.id as string, outcome: "picked_up" as const }));
@@ -58,7 +49,6 @@ async function shown(stopId: string) {
 
 let seq = 0;
 
-/** A collection round with one stop and two packages: one same-day, one standard. */
 async function aCollectedRound(): Promise<{ runId: string; stopId: string; driverId: string; ids: string[] }> {
   seq += 1;
   const shop = await q(
@@ -92,9 +82,11 @@ async function aCollectedRound(): Promise<{ runId: string; stopId: string; drive
     ]);
     const o = await q(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-                                   delivery_fee_amount, grand_total_amount, delivery_address)
-       VALUES ($1, $2, 'paid', 10, 0, 10, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb) RETURNING id`,
-      [c.rows[0].id, `EFY-${seq}${method === "same_day" ? "S" : "T"}`],
+                                   delivery_fee_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason,
+                                   courier_estimate, delivery_promise)
+       VALUES ($1, $2, 'paid', 10, 0, 10, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, $3, $4, $5, $6) RETURNING id`,
+      [c.rows[0].id, `EFY-${seq}${method === "same_day" ? "S" : "T"}`,
+       ...(method === "same_day" ? ["effy", "in_coverage", null, "window"] : ["courier", "out_of_coverage", "2–4 business days", null])],
     );
     const sf = await q(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, delivery_method, item_count,
@@ -146,34 +138,29 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
     const row = await q(`SELECT packages_expected, packages_arrived FROM public.hub_checkin`);
     expect(row.rows[0].packages_expected).toBe(2);
-    // ⚠ The discrepancy is the point. Recording only what arrived makes a short count look like a
-    // small round, and a package nobody is looking for is 056's finding all over again.
+    // The discrepancy is recorded: a short count must not look like a small round.
     expect(row.rows[0].packages_arrived).toBe(1);
 
     const note = await q(`SELECT note FROM public.round_package WHERE state = 'not_available'`);
     expect(note.rows[0].note).toBe("Shelf was empty");
   });
 
-  // ⚠ C14 — THE TEST NP9 PROVED WAS MISSING.
   it("C14 — a standard package is checked in and enters NO delivery round (FR-024, SC-010)", async () => {
     const { runId, stopId, driverId } = await aCollectedRound();
     await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
     expect(res.scannedTotal).toBe(2);
-    // 080 P14 — the driver is told "Courier" for the parcel a courier takes from the hub.
     expect(res.courierCount).toBe(1);
     expect(res.effyCount).toBe(1);
-    // 092 — no courier service is set up here, so there is no pickup to tell.
+    // No courier service is set up here, so there is no pickup to tell.
     expect(res.nextCourierPickupLabel).toBeNull();
 
-    // The REAL delivery gather is the thing under test: a standard package must be STRUCTURALLY
-    // absent from it, not filtered out somewhere later.
+    // A standard package must be structurally absent from the real delivery gather.
     const eligible = await gatherDeliveryWork(holder.pool!, null, new Date("9999-12-31T00:00:00Z"));
     expect(eligible).toHaveLength(1);
     expect(eligible[0]!.deliveredBy).toBe("effy");
 
-    // 082 P7 — and the driver is shown the two groups: one Effy parcel (sold no window), one courier's.
     expect(res.effyCount).toBe(1);
     expect(res.effyGroups).toEqual([{ date: null, windowStart: null, windowEnd: null, label: "Effy delivery", count: 1, dueToday: true }]);
   });
@@ -192,21 +179,20 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     await q(`DELETE FROM public.courier_service`);
   });
 
-  /**
-   * ⚠ 082 P7 — EFFY'S PARCELS BY THE DAY AND WINDOW EACH WAITS FOR. A window sold for a later day is
-   * stored `standard` with a window (078); it is Effy's, it is shelved for that day, and the driver is
-   * told which — in words the SERVER wrote. Nothing is a courier's here, so that group is empty.
-   */
+  /** Effy's parcels grouped by day and window, in the server's words. */
   it("082 P7 — check-in groups Effy's parcels by day and window; a later-day window is Effy's, not a courier's", async () => {
     const { runId, stopId, driverId, ids } = await aCollectedRound();
     const slot = async (start: string) =>
       (await q(`INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ($1::time, $1::time + interval '2 hours', '00:00', 9, 'test') RETURNING id`, [start])).rows[0].id;
-    const sell = async (sfId: string, method: string, slotId: string, start: string, end: string) =>
-      q(`INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+    const sell = async (sfId: string, method: string, slotId: string, start: string, end: string) => {
+      await q(`INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
          SELECT order_id, shop_id, $2, $3, $4::timestamptz, $5::timestamptz FROM public.shop_fulfillment WHERE id = $1`, [sfId, method, slotId, start, end]);
-    // Far enough ahead that neither is "today" whenever this runs: fixed days in 2031.
-    await sell(ids[0]!, "same_day", await slot("16:00"), "2031-03-04T05:00:00Z", "2031-03-04T07:00:00Z"); // Tue 4 Mar, 4–6 pm
-    await sell(ids[1]!, "standard", await slot("10:00"), "2031-03-06T23:00:00Z", "2031-03-07T01:00:00Z"); // Fri 7 Mar, 10 am–12 pm
+      await q(`UPDATE public."order" SET delivery_type = 'effy', delivery_type_reason = 'in_coverage', courier_estimate = NULL
+                WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [sfId]);
+    };
+    // Fixed days in 2031, so neither is ever "today".
+    await sell(ids[0]!, "same_day", await slot("16:00"), "2031-03-04T05:00:00Z", "2031-03-04T07:00:00Z");
+    await sell(ids[1]!, "standard", await slot("10:00"), "2031-03-06T23:00:00Z", "2031-03-07T01:00:00Z");
     await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
@@ -216,8 +202,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
       { date: "2031-03-04", windowStart: "2031-03-04T05:00:00.000Z", windowEnd: "2031-03-04T07:00:00.000Z", label: "Tue 4 Mar, 4 pm – 6 pm", count: 1, dueToday: false },
       { date: "2031-03-07", windowStart: "2031-03-06T23:00:00.000Z", windowEnd: "2031-03-07T01:00:00.000Z", label: "Fri 7 Mar, 10 am – 12 pm", count: 1, dueToday: false },
     ]);
-    // The counts an older app reads are still there, by the method, unchanged.
-    expect(res).toMatchObject({ sameDayCount: 1, standardCount: 1, scannedTotal: 2 });
+    expect(res.scannedTotal).toBe(2);
   });
 
   it("advances the fulfillment out of ready_for_pickup, or the planner re-collects it forever", async () => {
@@ -239,8 +224,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     });
 
     const s = await q(`SELECT status FROM public.shop_fulfillment WHERE id = $1`, [ids[0]]);
-    // ⚠ A shop that could not supply it today may supply it tomorrow. The discrepancy is recorded;
-    // the work is not thrown away — which is why the unique index is partial.
+    // A shop may supply it tomorrow: the work is kept, hence the partial unique index.
     expect(s.rows[0].status).toBe("ready_for_pickup");
   });
 
@@ -260,12 +244,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     expect(again).toEqual(first);
   });
 
-  // ⚠ C17 — I MARKED THIS DONE AND NEVER WROTE IT, and NP11 is what found that out. A negative proof
-  // aimed at `ownsRound` passed happily because nothing exercised it.
-  //
-  // FR-038: a run belonging to ANOTHER driver must answer EXACTLY as a non-existent one does.
-  // Distinguishing them turns the route into an oracle for which run ids are real — 052 made the same
-  // two refusals byte-identical for that reason.
+  // Another driver's run must answer exactly as a missing one.
   describe("C17 — a driver sees only their own work (FR-038)", () => {
     it("refuses another driver's round identically to a round that does not exist", async () => {
       const mine = await aCollectedRound();
@@ -287,7 +266,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
       expect(refusedForTheirs).toBeInstanceOf(NotFoundError);
       expect(refusedForNonsense).toBeInstanceOf(NotFoundError);
-      // ⚠ The SAME refusal, not merely both refusals. Different messages would leak existence.
+      // The same refusal, not merely two refusals.
       expect((refusedForTheirs as Error).message).toBe((refusedForNonsense as Error).message);
     });
 

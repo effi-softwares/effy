@@ -3,16 +3,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * 067 FR-023 — STOCK IS NEVER REVIEWED, against the real migrations.
- *
- * The client's own words: every change to a product's details needs Effy's approval, "except stock
- * quantity". A shop receiving a delivery at 6 am cannot wait for someone at Effy to approve the
- * number on its shelf.
- *
- * ⚠ THIS IS NOT THE GUARD. `stock-no-review.guard.test.ts` reads this service's source and fails if
- * it names the review tables. This runs the four stock writes against a product that HAS a change
- * pending and proves what the guard can only imply: the count moves at once, no change is created,
- * and the one that is waiting is left exactly as the shop wrote it.
+ * Stock is never reviewed: the four stock writes on a product with a pending change move the count
+ * at once, create no change, and leave the pending one untouched.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -39,7 +31,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { adjustCount, setCount, setThreshold, setTracking } from "./service";
 import type { Actor } from "./types";
@@ -51,10 +43,8 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 let actor: Actor;
 let productId: string;
-/** 098 — stock is counted per variant; this product has one. */
 let variantId: string;
 
-/** Everything about the product that a customer sees, and the change waiting on Effy. */
 async function snapshot() {
   const live = (await pool.query(
     `SELECT p.name, v.price_amount, v.shop_price_amount, p.status, p.approved_at, p.review_state, p.updated_at::text AS v
@@ -94,7 +84,7 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
       `INSERT INTO public.shop (code, name) VALUES ('ST', 'Stock shop') RETURNING id`,
     )).rows[0]!.id;
     actor = { sub: "sub-shop", shopId, kind: "shop" };
-    // An APPROVED product, on sale, with a change to its name and price waiting on Effy.
+    // An approved product, on sale, with a change to its name and price waiting on Effy.
     productId = (await pool.query<{ id: string }>(
       `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Sourdough', 'A loaf', 'seed', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 11.50)::numeric, (11.50)::numeric FROM p RETURNING id)
@@ -144,8 +134,7 @@ SELECT id FROM p`, [shopId],
     expect((await pool.query(`SELECT count(*) AS n FROM public.product_change`)).rows[0].n).toBe("0");
   });
 
-  // A product Effy has not approved yet still has a shelf. Counting it must not wait on review,
-  // and must not quietly submit or un-submit it.
+  // A product not yet approved still has a shelf; counting must not submit or un-submit it.
   it("stock can be set on a product still in review, without moving its review state", async () => {
     await pool.query("DELETE FROM public.product_change");
     await pool.query(

@@ -9,7 +9,7 @@ import { useUpdateVehicle } from "../queries";
 
 const FUEL_TYPES = Object.keys(FUEL_TYPE_LABEL) as VehicleFuelType[];
 
-/** An empty box means CLEAR. ⚠ `null`, not `undefined` — see the note on submit. */
+/** An empty box means clear. `null`, not `undefined` — see the note on submit. */
 function orNull(v: string): string | null {
   const t = v.trim();
   return t === "" ? null : t;
@@ -58,10 +58,7 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
     setSaved(false);
 
     /**
-     * ⚠ EVERY KEY IS SENT, AND `null` MEANS CLEAR. Do NOT "tidy" this object by dropping nulls:
-     * `COALESCE($n, col)` on the server cannot tell "leave alone" from "clear", which is exactly the
-     * defect 056 fixed on drivers, where a zone once assigned could never be un-assigned. The server
-     * reads the PRESENCE of a key, so an absent key and a null key mean different things.
+     * Every key is sent, and `null` means clear: the server reads the presence of a key. Do not drop nulls.
      */
     const body: VehicleUpdateRequest = {
       updatedAt: vehicle.updatedAt,

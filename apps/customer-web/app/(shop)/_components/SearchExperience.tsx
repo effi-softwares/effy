@@ -19,30 +19,13 @@ import { SaveControl } from "./SaveControl"
 import type { SelectedFilters } from "./filters/FilterControls"
 
 /**
- * Search and refinement (019 US4, 025 US1, advanced filters 043).
- *
- * ── The URL IS the refinement state (FR-015/FR-017) ──────────────────────────────────────────────
- * Every facet lives in the URL so a refined search can be shared, bookmarked and restored: `q`,
- * `categoryKey`, `saleOnly`, `minPrice`/`maxPrice`, `sort`, plus (043) repeated `brand` and
- * `attr.<key>` params (OR within a facet, AND across).
- *
- * ── Who reads the first page (PERF-09/10) ────────────────────────────────────────────────────────
- * The SERVER does, and hands it over as `initial`; the page arrives with its products in it. From
- * there the browser refines and pages on its own, straight to the backend.
- *
- * ⚠ A REFINEMENT REWRITES THE ADDRESS WITH `history.replaceState`, NOT THE ROUTER. The page reads
- * its search params on the server, so a router navigation would render — and read the listing — on
- * the server for every tick of a filter, beside the browser's own read of the same thing.
- *
- * ⚠ `initial` IS SHOWN ONLY WHEN IT ANSWERS THE QUERY THIS ADDRESS ASKS (`initial.query`), and only
- * while it is fresh: Back replays a render from the router's memory, however old. A listing may be
- * 60 seconds late and no more (054 FR-015a) — `FRESH_MS`.
- *
- * ── Bundle (043) ─────────────────────────────────────────────────────────────────────────────────
- * The filter controls are fetched on demand (`useOnDemand`) — /search sits 0.2 KB under the 174 KB
- * guest budget, so the facet UI must NOT enter the first-load chunk. The phone sheet's chrome (`FilterSheet`: a
- * native overlay, no vaul) rides in the same on-demand chunk — it was inline until the first page
- * moved to the server and the route had no room left for it.
+ * Search and refinement. Every facet is in the URL (`q`, `categoryKey`, `saleOnly`,
+ * `minPrice`/`maxPrice`, `sort`, repeated `brand` and `attr.<key>`), so a search can be shared and
+ * restored. The server reads the first page and hands it over as `initial`; from there the browser
+ * refines and pages directly, rewriting the address with `history.replaceState` (a router navigation
+ * would re-render on the server for every filter tick). `initial` is used only for its own query and
+ * while fresh (`FRESH_MS`, 60 s). The filter controls and the phone sheet load on demand
+ * (`useOnDemand`): /search is near its bundle budget.
  */
 
 const loadFilterControls = () => import("./filters/FilterControls").then((m) => m.default)
@@ -55,7 +38,7 @@ const SORT_LABELS: Record<ProductSort, string> = {
   price_desc: "Price: high to low",
 }
 
-/** How late a listing may be shown (054 FR-015a). */
+/** How late a listing may be shown. */
 const FRESH_MS = 60_000
 
 /** One listing as it stands on screen: the pages loaded so far and where the next one starts. */
@@ -102,7 +85,7 @@ const read = <T,>(path: string, signal?: AbortSignal): Promise<T> =>
     r.ok ? (r.json() as Promise<T>) : Promise.reject(r.status),
   )
 
-/** What the page needs to NAME a category: its own name and where it sits. */
+/** What the page needs to name a category: its own name and where it sits. */
 export interface CategoryName {
   key: string
   name: string
@@ -119,7 +102,7 @@ export function SearchExperience({
   const pathname = usePathname()
   const params = useSearchParams()
 
-  // ── Refinement state, read from the URL ───────────────────────────────────────────────────────
+  // Refinement state, read from the URL
   const refinement = useMemo(() => readRefinement(params), [params])
   const { q, category, saleOnly, minPrice, maxPrice, sort, brands, attributes } = refinement
   const query = useMemo(() => productsQuery(refinement), [refinement])
@@ -129,7 +112,7 @@ export function SearchExperience({
   /** The query whose results are on screen; null while there are none to show. */
   const shown = useRef(start ? query : null)
   const firstPageAt = useRef(start?.at ?? 0)
-  /** The query the address asks for NOW — a page that comes back for an earlier one is dropped. */
+  /** The query the address asks for now — a page that comes back for an earlier one is dropped. */
   const asked = useRef(query)
   asked.current = query
 
@@ -164,7 +147,7 @@ export function SearchExperience({
         if (Array.isArray(value)) for (const v of value) next.append(key, v)
         else if (value !== null && value !== "") next.set(key, value)
       }
-      // The cursor is NEVER URL state — a shared link opens at the first page (FR-015).
+      // The cursor is never URL state — a shared link opens at the first page.
       go(next)
     },
     [params, go],
@@ -180,7 +163,7 @@ export function SearchExperience({
     [params, setParam],
   )
 
-  /** All active filters, and how many — drives the mobile trigger badge (FR-014). */
+  /** All active filters, and how many — drives the mobile trigger badge. */
   const activeCount =
     (category ? 1 : 0) +
     (saleOnly ? 1 : 0) +
@@ -200,13 +183,13 @@ export function SearchExperience({
     [category, brands, attributes, saleOnly],
   )
 
-  // value → label lookup per facet, so a chip reads "Vegan", not "vegan" (FR-012). A selected value is
+  // value → label lookup per facet, so a chip reads "Vegan", not "vegan". A selected value is
   // always present in its facet (own-selection is excluded from that facet's counts), so it resolves.
   /**
    * The chosen category and the aisles above it, outermost first.
    *
-   * ⚠ FROM THE CATEGORY TREE, NOT FROM THE FACET COUNTS. The counts only list categories that have a
-   * product filed DIRECTLY in them, and an aisle ("Fruit & veg") holds everything in its sub-aisles
+   * From the category tree, not from the facet counts. The counts only list categories that have a
+   * product filed directly in them, and an aisle ("Fruit & veg") holds everything in its sub-aisles
    * and nothing itself — so naming the page from the counts called every such aisle "All products"
    * and labelled its filter chip with the raw key.
    */
@@ -226,7 +209,7 @@ export function SearchExperience({
     return m
   }, [facetSet])
 
-  /** Every applied filter as an individually removable chip (FR-012). */
+  /** Every applied filter as an individually removable chip. */
   const chips = useMemo(() => {
     const out: { key: string; label: string; remove: () => void }[] = []
     if (category)
@@ -243,7 +226,7 @@ export function SearchExperience({
     return out
   }, [category, categoryTrail, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
 
-  // ── Reading ───────────────────────────────────────────────────────────────────────────────────
+  // Reading
   const show = useCallback(
     (next: Shown) => {
       shown.current = next.query
@@ -261,9 +244,9 @@ export function SearchExperience({
     [facetsFor],
   )
 
-  // Reload from the first page whenever ANY refinement changes (FR-016b: a cursor is sort/filter
+  // Reload from the first page whenever any refinement changes (FR-016b: a cursor is sort/filter
   // specific, so restarting is required, not merely convenient). Debounced so a burst of ticks
-  // becomes ONE refresh (FR-025/SC-007) — ⚠ but only a refinement waits: arriving at a listing the
+  // becomes one refresh — but only a refinement waits: arriving at a listing the
   // server could not read asks at once.
   const arrived = useRef(false)
   useEffect(() => {
@@ -301,7 +284,7 @@ export function SearchExperience({
     // `attempt` is "Try again": the same query, asked once more.
   }, [query, initial, show, attempt])
 
-  // Facets recompute on filter change (NOT on paginate — loadMore never touches this). Debounced with
+  // Facets recompute on filter change (not on paginate — loadMore never touches this). Debounced with
   // the same rhythm so rapid ticking makes one facets refresh.
   const facetsArrived = useRef(false)
   useEffect(() => {
@@ -335,7 +318,7 @@ export function SearchExperience({
   }, [items, total, appliedSort, cursor])
 
   /**
-   * ⚠ A page that fails is NOT the end of the list. It says so and offers the page again; until the
+   * A page that fails is not the end of the list. It says so and offers the page again; until the
    * shopper asks, scrolling does not — the sentinel is still on screen, and would ask without pause.
    */
   const loadMore = useCallback(

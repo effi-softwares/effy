@@ -8,13 +8,13 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * What a shopper is told about a refund on mobile (055 US5, T061) — at parity with customer-web's
+ * What a shopper is told about a refund on mobile — at parity with customer-web's
  * `RefundBlock.test.tsx`.
  */
 class RefundViewTest {
 
     /**
-     * ⚠ T059 / SC-009 — NO PROVIDER FAILURE REASON MAY REACH A CUSTOMER. "Your bank rejected the
+     * No provider failure reason may reach a customer. "Your bank rejected the
      * refund" is staff information: a shopper cannot act on it, and surfacing it invites them to
      * argue with a message that will not change.
      */
@@ -30,7 +30,7 @@ class RefundViewTest {
     }
 
     /**
-     * ⚠ ONLY `Completed` MAY SAY THE MONEY ARRIVED. Everything else is a claim about the future, and
+     * Only `Completed` may say the money arrived. Everything else is a claim about the future, and
      * telling a shopper their refund is done is precisely what stops them looking for it.
      */
     @Test
@@ -42,7 +42,7 @@ class RefundViewTest {
         )
     }
 
-    /** ⚠ Every state must have a label — an unhandled one would render nothing at all. */
+    /** Every state must have a label — an unhandled one would render nothing at all. */
     @Test
     fun everyStateHasALabel() {
         CustomerRefundState.entries.forEach { state ->

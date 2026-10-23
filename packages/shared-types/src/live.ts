@@ -1,9 +1,6 @@
-// 071-live-updates — the live channel's two wire shapes.
-//
-// ⚠ An update carries the KIND of thing that changed and nothing else (FR-002). No id, no status, no
-// amount, no time. That is what makes a duplicate, late or reordered update harmless (FR-003) and
-// what keeps a customer's update from saying anything about a shop (FR-024). Adding a field here is
-// a spec change, not a convenience.
+// The live channel's two wire shapes. An update carries the kind of thing that changed and nothing else
+// (no id, status, amount or time), so a duplicate, late or reordered one is harmless and a customer's
+// says nothing about a shop.
 
 /** Every kind of thing an update may name. The list is closed. */
 export const LIVE_KINDS = [
@@ -14,34 +11,23 @@ export const LIVE_KINDS = [
   "dispatch",
   "slots",
   "review",
-  // 074 — a customer's points balance changed (the customer's own channel, and back-office's).
+  // A customer's points balance changed (their own channel, and back-office's).
   "points",
-  // 076 — where Effy delivers changed. Back-office (ops) only: a customer's answer is re-read when
-  // they next ask, and on their channel this word would say only "something, somewhere".
+  // Where Effy delivers changed. Back-office only: customers re-read when they next ask.
   "coverage",
-  // 077 — a delivery fee plan was saved or made active. Back-office (ops) only: a customer's next
-  // quote reads the new plan, and a quote already on screen is caught at the intent call.
+  // A delivery fee plan was saved or made active. Back-office only: the intent catches a stale quote.
   "pricing",
-  // 094 — a promotion or a display group changed. Back-office (ops) only: customers re-read a group
-  // whenever they show it (no channel reaches every shopper at once).
+  // A promotion or display group changed. Back-office only: customers re-read a group whenever shown.
   "promotions",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];
 
-/** The whole of an update, as published and as received. */
-export interface LiveUpdate {
-  k: LiveKind;
-}
-
 export function isLiveKind(value: unknown): value is LiveKind {
   return typeof value === "string" && (LIVE_KINDS as readonly string[]).includes(value);
 }
 
-/**
- * Read one received event. Anything that is not exactly a known kind yields `null` and is ignored
- * by the caller — an unknown kind is a newer backend, not an error.
- */
+/** Reads one received event: anything but a known kind is `null` (a newer backend, not an error). */
 export function parseLiveUpdate(raw: string): LiveKind | null {
   try {
     const value: unknown = JSON.parse(raw);
@@ -53,11 +39,7 @@ export function parseLiveUpdate(raw: string): LiveKind | null {
   }
 }
 
-/**
- * What `GET /{audience}/v1/live` answers: where the channel is and which one is this person's.
- * `channelPrefix` is opaque — the client appends `/{epoch}` and nothing else, and never builds a
- * channel from an id it holds.
- */
+/** What `GET /{audience}/v1/live` answers. `channelPrefix` is opaque: the client appends `/{epoch}` and nothing else. */
 export interface LiveDescriptor {
   /** Host used for the handshake's authorization header. */
   httpHost: string;

@@ -1,13 +1,7 @@
 /**
- * The points vocabulary (074, research R11): what kinds of change exist, which reasons each may carry,
- * and the words a CUSTOMER is shown for each.
- *
- * ⚠ THE LISTS ARE CLOSED, and the database CHECK on points_entry.reason holds the same set. A new
- * automatic flow (080's courier override is the first) adds its reason here AND to that CHECK in its
- * own migration — never a free-text reason, because the customer's words are looked up from it.
- *
- * ⚠ THE STAFF NOTE IS NEVER A CUSTOMER WORD. A customer sees the sentence for the reason; the note is
- * internal context and stays in back-office.
+ * The points vocabulary: the kinds of change, the reasons each may carry, and the customer's words for
+ * each. Closed lists, matching the check on points_entry.reason: a new flow adds its reason to both.
+ * The staff note is never shown to the customer.
  */
 
 export const CREDIT_KINDS = ["staff_credit", "auto_credit", "returned"] as const;
@@ -23,7 +17,7 @@ export const STAFF_DEBIT_REASONS = ["credited_in_error", "correction", "other"] 
 /** Reasons a platform flow may credit for. Closed: a new flow adds its own. */
 export const AUTO_CREDIT_REASONS = ["courier_override_compensation"] as const;
 
-/** Kinds whose reason is the kind itself — nobody chooses it. */
+/** Kinds whose reason is the kind itself. */
 const FIXED: ReadonlySet<EntryKind> = new Set(["returned", "spent", "expired", "forfeited"]);
 
 /** Whether `reason` may be recorded on an entry of `kind`. */
@@ -44,10 +38,7 @@ const CREDIT_WORDS: Readonly<Record<string, string>> = {
   courier_override_compensation: "Your delivery changed",
 };
 
-/**
- * The sentence a customer reads for one history line. `orderNumber` is the order's own number, never
- * a shop's — an entry names at most one order and no shop.
- */
+/** The sentence a customer reads for one history line. Names at most the order's own number, never a shop. */
 export function customerWords(kind: EntryKind, reason: string, orderNumber: string | null): string {
   const on = orderNumber ? ` ${orderNumber}` : "";
   switch (kind) {

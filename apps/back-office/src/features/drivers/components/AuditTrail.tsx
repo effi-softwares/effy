@@ -3,17 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "../model";
 import { driverAuditQuery } from "../queries";
 
-/**
- * The driver's change history (FR-025).
- *
- * ⚠ THIS CLOSES A DEFECT RATHER THAN ADDING A FEATURE. Driver management was the only privileged
- * back-office domain writing NO audit row at all — shops, promotions and catalog schema all do.
- * Standing someone down is a decision about a person's employment; "who did this, and when" should
- * never have been unanswerable.
- *
- * ⚠ Readable by every role including csa. Accountability is not an admin-only privilege — a CSA
- * asked "who suspended this driver" should be able to answer it.
- */
+/** The driver's change history: who did what, and when. Readable by every role including csa. */
 
 const ACTION_LABEL: Record<string, string> = {
   "driver.created": "Added to the platform",
@@ -38,8 +28,8 @@ function describe(action: string, detail: Detail): string | null {
     return [status ? `now ${status}` : null, reason].filter(Boolean).join(" — ") || null;
   }
   if (action === "driver.updated" || action === "driver.created") {
-    // ⚠ FIELD NAMES ONLY, never values. The audit payload deliberately omits the value of every PII
-    // field (FR-050), so rendering values here would show some fields' contents and silently omit
+    // Field names only, never values. The audit payload deliberately omits the value of every PII
+    // field, so rendering values here would show some fields' contents and silently omit
     // others — which reads as data loss rather than as a privacy rule.
     const changed = detail.changed ?? [];
     return changed.length > 0 ? `changed: ${changed.join(", ")}` : null;

@@ -124,7 +124,7 @@ private sealed interface ReceiptUiState {
 private class ReceiptViewModel(
     private val orderId: String,
     private val getReceipt: GetReceipt,
-    /** 071 — "your orders changed, or the channel just (re)connected: read now". */
+    /** "your orders changed, or the channel just (re)connected: read now". */
     private val liveChanges: Flow<Unit>,
 ) : ViewModel() {
     private val _state = MutableStateFlow<ReceiptUiState>(ReceiptUiState.Loading)
@@ -140,15 +140,15 @@ private class ReceiptViewModel(
                 _state.value = ReceiptUiState.Pending
             }
         }
-        // 071 — the order's progress changes while the shopper is looking at it; re-read quietly when
+        // The order's progress changes while the shopper is looking at it; re-read quietly when
         // told. It is also what turns a `Pending` receipt into the real one the moment payment lands.
         viewModelScope.launch { liveChanges.collect { refresh() } }
     }
 
     /**
-     * Re-read the receipt WITHOUT clearing the screen.
+     * Re-read the receipt without clearing the screen.
      *
-     * ⚠ Worth having on this screen in particular: a receipt carries the order's fulfilment progress, which
+     * Worth having on this screen in particular: a receipt carries the order's fulfilment progress, which
      * changes while the shopper is looking at it — a shop receives it, picks it, marks it ready. It is also
      * the natural place to retry from when the receipt was still `Pending` (the webhook had not landed yet).
      */
@@ -164,21 +164,9 @@ private class ReceiptViewModel(
 }
 
 /**
- * The receipt (019 US3). Reads the WEBHOOK-AUTHORITATIVE order (R4) — ONE Effy order itemized by
- * product, NO shop identity (FR-029). A read failure/lag shows a "confirming" state.
- *
- * ── ⚠ This screen serves TWO destinations, and they are not the same screen ──────────────────────
- *
- * As `Receipt` it is the end of checkout: the stack was REPLACED to get here, so there is nothing
- * behind it, no back arrow, and the only way on is the action at the bottom.
- *
- * As `OrderDetail` it is opened from order history: it sits on top of the Orders tab, so it gets a
- * back arrow (supplied by the navigator — see `LocalNavBack`) and [onDone] is null, because a second
- * button that does exactly what the arrow does is noise.
- *
- * It previously rendered NEITHER an app bar nor a title in either role, so opening a past order gave
- * a shopper a bare wall of numbers with no heading and — since the tab bar hides above a tab root —
- * no visible way back at all.
+ * The receipt: the webhook-authoritative order, itemized by product, with no shop identity; a read failure
+ * or lag shows "confirming". As `Receipt` it ends checkout (the stack was replaced: no back arrow, one
+ * action at the bottom); as `OrderDetail` it sits on the Orders tab with a back arrow and [onDone] null.
  */
 @Composable
 fun ReceiptScreen(
@@ -198,8 +186,8 @@ fun ReceiptScreen(
     val snackbarHost = remember { SnackbarHostState() }
 
     /**
-     * Put this order back in the cart, and TELL the shopper what could not come (FR-035) — the same
-     * report the Orders list gives. ⚠ Silently adding a subset is the one outcome they cannot detect.
+     * Put this order back in the cart, and tell the shopper what could not come — the same
+     * report the Orders list gives. Silently adding a subset is the one outcome they cannot detect.
      */
     fun buyAgain() {
         scope.launch {
@@ -249,7 +237,7 @@ fun ReceiptScreen(
         }
         }
 
-        // 087 — the way on is PINNED (Confirmation / Order boards): "Track this order" + "Keep
+        // The way on is pinned (Confirmation / Order boards): "Track this order" + "Keep
         // shopping" at the end of checkout; "Buy again" on a past order.
         val ready = state is ReceiptUiState.Ready
         if (onDone != null) {
@@ -281,14 +269,14 @@ private fun ReceiptBody(
 ) {
     val savedIds by container.savedStore.saved.collectAsState()
     val scope = rememberCoroutineScope()
-    // 068: the list chooser, for a line whose product is in a list the shopper named.
+    // The list chooser, for a line whose product is in a list the shopper named.
     var chooserFor by remember { mutableStateOf<String?>(null) }
     chooserFor?.let { productId ->
         ListChooserSheet(container = container, productId = productId, onDismiss = { chooserFor = null })
     }
 
-    // ── Confirmation (Confirmation board) vs details (Order board) ──────────────────────────────
-    // ⚠ 087: "Thank you" and the drawn tick belong to the END OF CHECKOUT only. Order details said
+    // Confirmation (Confirmation board) vs details (Order board)
+    // "Thank you" and the drawn tick belong to the end of checkout only. Order details said
     // "Thank you" every time a past order was opened.
     if (confirmation) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
@@ -316,7 +304,7 @@ private fun ReceiptBody(
         }
     }
 
-    // ── When it arrives + how far along (FR-007 / FR-008) ───────────────────────────────────────
+    // When it arrives + how far along
     EffyCard(padding = EffySpacing.lg) {
         ArrivalSection(receipt)
         if (!confirmation) {
@@ -331,19 +319,15 @@ private fun ReceiptBody(
         OrderTracker(receipt.stage)
     }
 
-    // ── The document ────────────────────────────────────────────────────────────────────────────
+    // The document
     EffyCard(padding = EffySpacing.lg) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
             Text("Receipt", style = MaterialTheme.typography.titleMedium)
             if (receipt.paid) EffyStatusPill("Paid", EffyStatusKind.Done)
             Spacer(Modifier.weight(1f))
         }
-        // ── Who sold this (FR-030) ──────────────────────────────────────────────────────────────
-        // ⚠ THE TRADING NAME AND THE CUSTOMER-FACING MAILBOX, AND NOTHING ELSE. No ABN, no legal
-        // entity name, no registered address — those are operator-supplied and still unset, and FR-031
-        // requires their ABSENCE rather than a placeholder. Mobile has no access to
-        // `@effy/legal-content`, so this is the ONE place this app states them.
-        // ── Send the receipt again (052 US4, FR-027) — beside it, as the board draws it.
+        // Who sold this: the trading name and the customer mailbox only (no legal identifiers until the
+        // operator supplies them). Then "Send the receipt again".
         ResendReceiptLine(container, receipt.id, sellerLine = "Sold by Effy · hello@effyshopping.com")
         if (confirmation && receipt.placedAt.isNotBlank()) {
             Text(receipt.placedAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -357,7 +341,7 @@ private fun ReceiptBody(
                 onToggleSaved = { wanted ->
                     scope.launch {
                         val outcome = runCatching { container.toggleSaved(item.productId, wanted) }.getOrNull()
-                        // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
+                        // In a list the shopper named, so the tap removed nothing.
                         if (outcome == ToggleOutcome.OPEN_CHOOSER) chooserFor = item.productId
                     }
                 },
@@ -366,10 +350,10 @@ private fun ReceiptBody(
 
         HorizontalDivider(Modifier.padding(vertical = EffySpacing.s), color = MaterialTheme.colorScheme.outlineVariant)
 
-        // ⚠ EVERY LINE MUST ADD UP (FR-004): items − discount + delivery = total = what was charged.
+        // Every line must add up: items − discount + delivery = total = what was charged.
         SummaryRow("Items subtotal", money(receipt.itemSubtotalAmount, receipt.currency))
-        // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order.
-        // 094 — one row per promotion as sold; an order from before 094 has one code.
+        // What the code took off, as computed at payment and stored on the order.
+        // One row per promotion as sold; an order from before 094 has one code.
         val sold = receipt.promotions.filter { it.goodsAmount != "0.00" }
         if (sold.isNotEmpty()) {
             sold.forEach { p ->
@@ -389,8 +373,8 @@ private fun ReceiptBody(
         receipt.deliveryDiscountAmount?.takeIf { it != "0.00" }?.let {
             SummaryRow("Delivery offer", "−" + money(it, receipt.currency), valueColor = EffyRoles.brand)
         }
-        // ⚠ 052 — a zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
-        // 077 — an order placed since the fee engine shows the lines it was SOLD with, in the shared
+        // A zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
+        // An order placed since the fee engine shows the lines it was sold with, in the shared
         // words; a free delivery is shown as what was waived. Before 077, the single row.
         val feeLines = receipt.deliveryFee?.lines.orEmpty()
         if (feeLines.isNotEmpty()) {
@@ -407,7 +391,7 @@ private fun ReceiptBody(
         }
         SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)
 
-        // 074 — points are a way of PAYING: a line beside the card's, never a discount above the total.
+        // Points are a way of paying: a line beside the card's, never a discount above the total.
         // One sentence, as the Confirmation board writes it: points, then the card.
         val split = receipt.paymentSplit
         val method = receipt.paymentMethod?.let { paymentLabel(it) }
@@ -416,7 +400,7 @@ private fun ReceiptBody(
                 "(${money(split.pointsAmount, receipt.currency)})" +
                 (if (split.cardAmount != "0.00") " and ${money(split.cardAmount, receipt.currency)} by card" else "") +
                 (if (method != null && split.cardAmount != "0.00") " · $method" else "")
-            // How it was paid (FR-006). Absent when never captured — omitted, never blanked.
+            // How it was paid. Absent when never captured — omitted, never blanked.
             method != null -> "Paid with $method"
             else -> null
         }
@@ -424,9 +408,9 @@ private fun ReceiptBody(
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.s))
         }
 
-        // ── What this document is (FR-032) ──────────────────────────────────────────────────────
-        // ⚠ NO ABN, no GST amount, and it does not call itself a tax invoice (research R13). The
-        // reserved tax-invoice block (052 FR-033/FR-034) is deliberately NOT RENDERED: the ABN is an
+        // What this document is
+        // no ABN, no GST amount, and it does not call itself a tax invoice. The
+        // reserved tax-invoice block is deliberately not rendered: the ABN is an
         // unsupplied operator identifier and per-item GST treatment is unmodelled.
         Text(
             "This is a record of payment. Prices include GST where it applies. " +
@@ -437,12 +421,12 @@ private fun ReceiptBody(
         )
     }
 
-    // ── Addresses ───────────────────────────────────────────────────────────────────────────────
+    // Addresses
     EffyCard(padding = EffySpacing.lg) {
         SectionLabel("Delivering to")
         Text("${receipt.recipientName} · ${receipt.addressLine}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        // 066 — ONLY when the shopper said something. No heading and no "none given" otherwise (SC-003).
+        // Only when the shopper said something. No heading and no "none given" otherwise.
         receipt.deliveryInstructions?.takeUnless { it.isEmpty }?.let { said ->
             SectionLabel("Delivery instructions", topPadding = EffySpacing.md)
             DeliveryInstructionsText(handover = said.handover, note = said.note)
@@ -462,22 +446,22 @@ private fun ReceiptBody(
         }
     }
 
-    // 096 US7 — the delivery note, on a paid order seen from history (not at the end of checkout).
+    // The delivery note, on a paid order seen from history (not at the end of checkout).
     if (receipt.paid && !confirmation) {
         EffyCard(padding = EffySpacing.lg) { OrderDocumentsSection(container, receipt.id) }
     }
 
-    // ⚠ NOTHING AT ALL when there are no refunds (FR-028) — not an empty section.
+    // Nothing at all when there are no refunds — not an empty section.
     if (receipt.refunds.isNotEmpty()) {
         EffyCard(padding = EffySpacing.lg) { RefundSection(receipt) }
     }
 
-    // ⚠ 055 US3 — the ask arrives attached to THIS order. Only on a PAID order.
+    // The ask arrives attached to this order. Only on a paid order.
     if (receipt.paid && !confirmation) {
         RequestRefundRow(container, receipt)
     }
 
-    // ⚠ ONLY WHEN THE SERVER SAYS SO (FR-012). Never worked out here from `stage`.
+    // Only when the server says so. Never worked out here from `stage`.
     if (receipt.cancellable) {
         CancelOrderRow(container, currency = receipt.currency, orderId = receipt.id)
     }
@@ -495,7 +479,7 @@ private fun stagePill(stage: OrderStage): Pair<String, EffyStatusKind>? = when (
 /**
  * The progress tracker (Order / Confirmation boards): Confirmed → Being packed → On the way →
  * Delivered, each with its line. Reached steps are Effy green with a tick, the current one is ringed in
- * blue. ⚠ The stage is the SERVER's (FR-008) — rendered, never recomputed. An unknown stage draws every
+ * blue. The stage is the server's — rendered, never recomputed. An unknown stage draws every
  * step as not yet reached rather than asserting progress it cannot justify.
  */
 @Composable
@@ -575,20 +559,20 @@ private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp =
 /**
  * The paid indicator.
  *
- * ⚠ The DOT carries the colour and the LABEL stays on the ramp (FR-015). Remove the hue and this
+ * The DOT carries the colour and the label stays on the ramp. Remove the hue and this
  * still reads correctly, which is what keeps the bounded palette inside Principle V.
  */
 
 /**
  * When the order arrives, and how far along it is.
  *
- * ⚠ DATES, NEVER TIMES (research R4). The platform has no delivery time window; an earlier draft of
+ * Dates, never times. The platform has no delivery time window; an earlier draft of
  * this design showed a "5–8 pm" slot, which is a promise the business has not made.
  */
 @Composable
 private fun ArrivalSection(receipt: Receipt) {
-    // 079 — a courier delivers: no window and no day to state. Who delivers, and the ESTIMATE the
-    // order was sold, in the words the website prints. ⚠ Never the arrival estimates — a courier
+    // A courier delivers: no window and no day to state. Who delivers, and the estimate the
+    // order was sold, in the words the website prints. Never the arrival estimates — a courier
     // order has none, and "We'll confirm your delivery date" would be a promise nobody made.
     val delivery = receipt.delivery
     if (delivery.type == DeliveryType.COURIER && delivery.courierEstimate != null) {
@@ -602,7 +586,7 @@ private fun ArrivalSection(receipt: Receipt) {
             Text(partner, style = MaterialTheme.typography.titleMedium)
             Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             // 080 Q8 — one consignment: its tracking link; several: each parcel's tracking by email.
-            // ⚠ Never a count.
+            // Never a count.
             when (val t = delivery.tracking) {
                 is OrderTracking.Link -> {
                     val uriHandler = LocalUriHandler.current
@@ -637,8 +621,8 @@ private fun ArrivalSection(receipt: Receipt) {
 }
 
 /**
- * 081 — Effy moved the order to courier delivery (or back): what changed, and what the customer
- * received, in the one wording (`DeliveryTypeWords.movedLines`, pinned to the website's). ⚠ Never why.
+ * Effy moved the order to courier delivery (or back): what changed, and what the customer
+ * received, in the one wording (`DeliveryTypeWords.movedLines`, pinned to the website's). Never why.
  */
 @Composable
 private fun MovedNote(delivery: OrderDelivery?) {
@@ -647,7 +631,7 @@ private fun MovedNote(delivery: OrderDelivery?) {
     }
 }
 
-/** One item row: image, name, unit price × qty, line total, and the save control (033 FR-008). */
+/** One item row: image, name, unit price × qty, line total, and the save control. */
 @Composable
 private fun ReceiptLine(
     item: ReceiptItem,
@@ -660,17 +644,17 @@ private fun ReceiptLine(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
-        // 087 — the item's picture (it was a grey box though `imageUrl` was on the line since 052).
-        // ⚠ Decoration only: a line with no picture is still a whole line (FR-003).
+        // The item's picture (it was a grey box though `imageUrl` was on the line since 052).
+        // Decoration only: a line with no picture is still a whole line.
         Box(Modifier.size(56.dp).clip(EffyStorefrontShape.card).background(EffySurface.tint)) {
             ProductImage(item.imageUrl, item.productName, modifier = Modifier.fillMaxSize())
         }
         Column(Modifier.weight(1f)) {
             Text(item.productName, style = MaterialTheme.typography.bodyMedium)
-            // 098 — the size as it was sold.
+            // The size as it was sold.
             item.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            // ⚠ The unit price. It has been on the wire since 019 and this screen never showed it —
-            // it is what makes a line checkable rather than merely stated (FR-003).
+            // The unit price. It has been on the wire since 019 and this screen never showed it
+            // it is what makes a line checkable rather than merely stated.
             Text(
                 money(item.unitPriceAmount, currency) + " each · Qty " + item.quantity,
                 style = MaterialTheme.typography.bodySmall,
@@ -678,13 +662,13 @@ private fun ReceiptLine(
             )
         }
         Text(money(item.lineSubtotalAmount, currency), style = MaterialTheme.typography.bodyMedium)
-        // 033 FR-008: save from a past order. ⚠ The product may have been archived since, so the save
+        // Save from a past order. The product may have been archived since, so the save
         // can 404 — runCatching swallows it and the control simply does not stick.
         SaveControl(saved = saved, onToggle = onToggleSaved)
     }
 }
 
-/** "Visa ending 4242" / "Klarna" — never any card field beyond last4 (051). */
+/** "Visa ending 4242" / "Klarna" — never any card field beyond last4. */
 private fun paymentLabel(m: PaymentMethodSummary): String {
     val base = m.brand?.replace('_', ' ')
         ?: if (m.type == "pay_over_time") "pay over time" else m.type
@@ -692,15 +676,7 @@ private fun paymentLabel(m: PaymentMethodSummary): String {
     return ReceiptText.cardLabel(nice, m.last4)
 }
 
-/**
- * The arrival, in the plainest words the DATA supports.
- *
- * ⚠ THE WORDING IS [DeliveryWindowText]'s (069) — the Kotlin twin of the function the web page and the
- * emailed receipt call, tested against the same fixture. This used to print the raw ISO date.
- *
- * ⚠ When there is no promise it SAYS SO. Inventing a date on a receipt would be a false fact on a
- * financial record; every order placed before 069 reads that line.
- */
+/** The arrival, in [DeliveryWindowText]'s words; with no promise it says so rather than inventing a date. */
 @OptIn(kotlin.time.ExperimentalTime::class)
 internal fun arrivalLabel(a: ArrivalEstimate?): String {
     if (a == null) return DeliveryWindowText.UNCONFIRMED
@@ -721,13 +697,7 @@ private fun SummaryRow(label: String, value: String, bold: Boolean = false, valu
     }
 }
 
-/**
- * "Send the receipt again" (052 US4).
- *
- * ⚠ EVERY OUTCOME IS SAID OUT LOUD, refusals included. A rate-limited tap that silently does nothing
- * is indistinguishable from a broken button — the failure 033 recorded when a guest cap refused
- * without telling anyone. The row reports success, the limit, and failure in the shopper's own terms.
- */
+/** "Send the receipt again": success, the limit and failure are all said in the shopper's terms. */
 @Composable
 private fun ResendReceiptLine(container: AppContainer, orderId: String, sellerLine: String) {
     var state by remember(orderId) { mutableStateOf<ResendUiState>(ResendUiState.Idle) }
@@ -736,7 +706,7 @@ private fun ResendReceiptLine(container: AppContainer, orderId: String, sellerLi
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(sellerLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            // 087 (Order board): "Send again" beside the seller line. ⚠ 48dp tall — the minimum target,
+            // 087 (Order board): "Send again" beside the seller line. 48dp tall — the minimum target,
             // stated in the modifier (033 once shipped a 32dp control under a comment claiming otherwise).
             EffyTextLink(
                 when (state) {
@@ -761,7 +731,7 @@ private fun ResendReceiptLine(container: AppContainer, orderId: String, sellerLi
                 },
             )
         }
-        // ⚠ EVERY OUTCOME IS SAID OUT LOUD, refusals included — a silent rate-limited tap reads as broken.
+        // Every outcome is said out loud, refusals included — a silent rate-limited tap reads as broken.
         when (val st = state) {
             is ResendUiState.Sent -> Text("Sent — check your inbox", style = MaterialTheme.typography.bodySmall, color = EffyRoles.brand)
             is ResendUiState.Message -> Text(st.text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -777,20 +747,19 @@ private sealed interface ResendUiState {
     data class Message(val text: String) : ResendUiState
 }
 
-
 /**
- * Cancelling an order (055 US2, FR-012).
+ * Cancelling an order.
  *
- * ⚠ IT CONFIRMS FIRST, because this returns money and empties an order the shopper may have spent
- * time building. The confirmation NAMES WHAT HAPPENS rather than asking "are you sure?", which tells
+ * It confirms first, because this returns money and empties an order the shopper may have spent
+ * time building. The confirmation names what happens rather than asking "are you sure?", which tells
  * nobody anything.
  *
- * ⚠ AND IT SAYS A REFUND IS COMING. Cancelling *is* refunding on this platform — the money was taken
- * when the order was paid (research R3) — and a shopper who believes nothing was charged will not go
+ * And it says a refund is coming. Cancelling *is* refunding on this platform — the money was taken
+ * when the order was paid — and a shopper who believes nothing was charged will not go
  * looking for a refund that has not arrived.
  *
- * ⚠ THE REFUSAL POINTS AT A HUMAN. A shop can start preparing between this screen loading and the
- * tap, and staff can still cancel after that (FR-018) — so the wording must never say the order can
+ * The refusal points at a human. A shop can start preparing between this screen loading and the
+ * tap, and staff can still cancel after that — so the wording must never say the order can
  * never be cancelled, or a shopper who would have rung up simply gives up.
  */
 @Composable
@@ -798,7 +767,7 @@ private fun CancelOrderRow(container: AppContainer, orderId: String, currency: S
     var state by remember(orderId) { mutableStateOf<CancelUiState>(CancelUiState.Idle) }
     val scope = rememberCoroutineScope()
 
-    // 087 (Order board): a row that opens a confirm SHEET with its actions pinned — no inline buttons,
+    // 087 (Order board): a row that opens a confirm sheet with its actions pinned — no inline buttons,
     // no dialog. The sheet names what happens (refund of everything) rather than asking "are you sure?".
     when (val current = state) {
         is CancelUiState.Done -> EffyNotice(current.text, icon = Res.drawable.lucide_circle_check, positive = true)
@@ -826,7 +795,7 @@ private fun CancelOrderRow(container: AppContainer, orderId: String, currency: S
                 state = CancelUiState.Cancelling
                 scope.launch {
                     state = when (val result = container.cancelOrder(orderId)) {
-                        // ⚠ "on its way", never "refunded" — the bank has not moved it.
+                        // "on its way", never "refunded" — the bank has not moved it.
                         is CancelOrderResult.Cancelled -> CancelUiState.Done(ReceiptText.cancelled(result.amount, currency))
                         CancelOrderResult.AlreadyBeingPrepared -> CancelUiState.Message(
                             "Someone has already started preparing this order. Contact us and we'll see what we can do.",
@@ -848,16 +817,15 @@ private sealed interface CancelUiState {
     data class Message(val text: String) : CancelUiState
 }
 
-
 /**
- * What happened to the shopper's money (055 US5, FR-023) — the mobile half of customer-web's
+ * What happened to the shopper's money — the mobile half of customer-web's
  * `RefundBlock`, at parity.
  *
- * ⚠ IT SITS ALONGSIDE THE RECEIPT AND NEVER INSIDE IT (FR-024). What was charged is a historical
+ * It sits alongside the receipt and never inside it. What was charged is a historical
  * record; a document that silently rewrote itself after a refund could not be reconciled against a
  * bank statement, which is the one thing a receipt is for.
  *
- * ⚠ NO COLOUR CARRIES MEANING. A refund that had a problem is marked by the words, not by a tint a
+ * No colour carries meaning. A refund that had a problem is marked by the words, not by a tint a
  * colour-blind reader loses entirely.
  */
 @Composable
@@ -885,7 +853,7 @@ private fun RefundSection(receipt: Receipt) {
             }
         }
 
-        // ⚠ The arithmetic a shopper checks against their bank. 051 and 052 EACH shipped a receipt
+        // The arithmetic a shopper checks against their bank. 051 and 052 each shipped a receipt
         // whose lines did not add up, and a refund puts a second set of figures on the same document.
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
@@ -906,13 +874,13 @@ private fun RefundSection(receipt: Receipt) {
             Text(money(receipt.amountPaidAfterRefunds, receipt.currency), style = MaterialTheme.typography.titleSmall)
         }
 
-        // ⚠ THE PUBLISHED POLICY'S OWN SENTENCE, and the SAME one customer-web renders (FR-026).
+        // The published policy's own sentence, and the same one customer-web renders.
         // Three places describing this timing would drift; the one that drifts is whichever a
         // developer edits without opening the legal document.
         //
-        // ⚠ IT PROMISES NO CREDIT LINE. A refund issued soon after payment often appears as a
-        // REVERSAL — the original charge simply vanishes and no separate credit ever shows up
-        // (research R2). A shopper told to look for a credit will not find one, and will contact us
+        // It promises no credit line. A refund issued soon after payment often appears as a
+        // reversal — the original charge simply vanishes and no separate credit ever shows up.
+        // A shopper told to look for a credit will not find one, and will contact us
         // about money that has already been returned.
         Text(
             "Refunds go back to the card or payment method you paid with, usually within a few " +
@@ -926,9 +894,9 @@ private fun RefundSection(receipt: Receipt) {
 }
 
 /**
- * ⚠ FIVE INTERNAL STATES ARRIVE AS THREE, and none of them says why. "Your bank rejected the refund"
+ * Five internal states arrive as three, and none of them says why. "Your bank rejected the refund"
  * is staff information: a shopper cannot act on it, and surfacing it invites them to argue with a
- * message that will not change (FR-026).
+ * message that will not change.
  */
 internal fun refundStateLabel(state: CustomerRefundState): String = when (state) {
     CustomerRefundState.OnItsWay -> "On its way back to you"
@@ -936,15 +904,14 @@ internal fun refundStateLabel(state: CustomerRefundState): String = when (state)
     CustomerRefundState.ThereWasAProblem -> "There was a problem — we're looking into it"
 }
 
-
 /**
- * Asking for a refund (055 US3, FR-005r) — the mobile half of customer-web's `RequestRefund`.
+ * Asking for a refund — the mobile half of customer-web's `RequestRefund`.
  *
- * ⚠ IT MOVES NO MONEY AND MUST NOT READ AS A DECISION. The confirmation says the ask was received,
+ * It moves no money and must not read as a decision. The confirmation says the ask was received,
  * never that a refund is coming: a person decides, and promising one here would be a commitment
  * nobody has made.
  *
- * ⚠ NAMING ITEMS IS OPTIONAL. A shopper who cannot point at one line — "the whole thing arrived
+ * Naming items is optional. A shopper who cannot point at one line — "the whole thing arrived
  * warm" — must still be able to ask, or they are pushed back to the generic inbox this replaces.
  */
 @Composable
@@ -954,7 +921,7 @@ private fun RequestRefundRow(container: AppContainer, receipt: Receipt) {
     val selected = remember(receipt.id) { mutableStateMapOf<String, Int>() }
     val scope = rememberCoroutineScope()
 
-    // 087 (Order board): the row opens a full-height SHEET — message, optional items, pinned Send.
+    // 087 (Order board): the row opens a full-height sheet — message, optional items, pinned Send.
     when (val current = state) {
         is RequestUiState.Done -> EffyNotice(current.text, icon = Res.drawable.lucide_circle_check, positive = true)
         // 087 (Order board): a card that says what it is for, with its one action.
@@ -1012,10 +979,10 @@ private fun RequestRefundRow(container: AppContainer, receipt: Receipt) {
                 singleLine = false,
             )
             if (receipt.items.isNotEmpty()) {
-                // ⚠ NAMING ITEMS IS OPTIONAL — "the whole thing arrived warm" must still be askable.
+                // Naming items is optional — "the whole thing arrived warm" must still be askable.
                 Text("Which items, if it helps?", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 receipt.items.forEach { item ->
-                    // ⚠ Keyed on the LINE id, never the product id — see ReceiptItem.orderItemId.
+                    // Keyed on the line id, never the product id — see ReceiptItem.orderItemId.
                     EffyCheckboxRow(
                         label = item.productName,
                         checked = selected.containsKey(item.orderItemId),
@@ -1040,11 +1007,10 @@ private sealed interface RequestUiState {
 internal fun trackingLinkLabel(t: OrderTracking.Link): String =
     if (t.courierName.isBlank()) DeliveryTypeWords.TRACK_PARCEL else "${DeliveryTypeWords.TRACK_PARCEL} with ${t.courierName}"
 
-
 /**
- * The receipt's own sentences, as pure functions (087 T085).
+ * The receipt's own sentences, as pure functions.
  *
- * ⚠ WHY THESE EXIST: four of them were written `"Order ${'$'}{receipt.orderNumber}"` — an ESCAPED
+ * Why these exist: four of them were written `"Order ${'$'}{receipt.orderNumber}"` — an escaped
  * dollar, which Kotlin prints literally. Every receipt said "Order ${receipt.orderNumber}" instead of the
  * number, and the cancel confirmation printed the template instead of the amount. Pulled out here so
  * `ReceiptTextTest` can render each one and fail on any `$`-template left in the output.
@@ -1062,7 +1028,7 @@ internal object ReceiptText {
 
     fun cardLabel(brand: String, last4: String?): String = last4?.let { "$brand ending $it" } ?: brand
 
-    /** ⚠ "on its way", never "refunded" — the bank has not moved it yet. */
+    /** "on its way", never "refunded" — the bank has not moved it yet. */
     fun cancelled(amount: String, currency: String): String =
         "Your order is cancelled. ${money(amount, currency)} is on its way back to you."
 }

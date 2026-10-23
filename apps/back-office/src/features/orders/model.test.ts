@@ -16,7 +16,7 @@ const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   status: "collected",
   itemCount: 2,
   subtotalAmount: "20.00",
-  // A carrier's package from an order placed before delivery types: who delivers is the SERVER's answer.
+  // A carrier's package from an order placed before delivery types: who delivers is the server's answer.
   deliveredBy: "courier",
   consignment: null,
   dueOut: null,
@@ -60,10 +60,8 @@ describe("nextActionFor — which control the operator is offered", () => {
   });
 
   /**
-   * ⚠ 079 — WHO DELIVERS IS THE SERVER'S ANSWER. The console no longer works it out from the method
-   * and the window, so the two cases that used to need care here are simply what `deliveredBy` says:
-   * a paid Effy order moved to a courier keeps its window and IS handed over; an Effy package with
-   * no window recorded is not.
+   * Who delivers is the server's answer (`deliveredBy`): a paid Effy order moved to a courier keeps its
+   * window and is handed over; an Effy package with no window recorded is not.
    */
   it("079 — follows `deliveredBy`, not the method or the window", () => {
     const window = { startAt: "2026-10-09T16:00:00+11:00", endAt: "2026-10-09T18:00:00+11:00" };
@@ -93,7 +91,7 @@ describe("nextActionFor — which control the operator is offered", () => {
   });
 
   /**
-   * ⚠ FR-003 / SC-009. A handover with NO reference must behave EXACTLY like one with a reference.
+   * FR-003 / SC-009. A handover with NO reference must behave exactly like one with a reference.
    * If a missing reference left the package still offering "record handover", an operator would
    * record it twice looking for the field to stick.
    */
@@ -118,7 +116,7 @@ describe("nextActionFor — which control the operator is offered", () => {
   });
 });
 
-// 073 — `packagePositionFor` is gone. It guessed position from the shop's status and said "At hub"
+// `packagePositionFor` is gone. It guessed position from the shop's status and said "At hub"
 // the moment a driver picked a package up; the status is now derived on the server and pinned by
 // `apis/edge-api/shared/src/status/status.test.ts` and the orders service's status container test.
 

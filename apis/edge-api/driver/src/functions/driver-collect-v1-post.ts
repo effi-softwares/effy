@@ -12,12 +12,7 @@ import { NotFoundError } from "../work/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
-/**
- * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect (063, FR-026).
- *
- * ⚠ Idempotent on the stop's own state — a retry from a loading bay with bad signal reads as success,
- * not as a conflict the driver has to reason about (027's changeId rule, applied by state).
- */
+/** Idempotent on the stop's state: a retry reads as success. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -40,18 +35,17 @@ export const handler = async (
   if (!body.changeId) {
     return problem(400, "invalid_request", "Missing changeId", "A changeId is required so a retry is recognised.", guard.scope);
   }
-  // 093 — every package the driver was shown, each with its outcome. Only these are settled.
+  // Every package the driver was shown, each with its outcome; only these are settled.
   if (!Array.isArray(body.packages) || body.packages.length === 0) {
     return problem(400, "invalid_request", "Missing packages", "Say what happened to each package at this stop.", guard.scope);
   }
 
   try {
     const result = await collectStop(runId, stopId, guard.driver.id, body);
-    // 071 — committed; tell the screens that show it.
     await announceCollected(stopId);
     return json(200, { status: "collected", ...result }, guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);

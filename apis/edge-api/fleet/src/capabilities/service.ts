@@ -1,6 +1,3 @@
-// Driver clearance use-cases (062). The access decision lives in the handler's guard; this layer owns
-// the domain rules and the refusals.
-
 import type { RequestScope } from "@effy/edge-shared";
 import type { DriverCapability, GrantCapabilityRequest } from "@effy/shared-types";
 
@@ -17,14 +14,7 @@ export async function listCapabilities(driverId: string): Promise<DriverCapabili
   return repo.listForDriver(driverId);
 }
 
-/**
- * Grant one clearance.
- *
- * ⚠ GRANTING A CLEARANCE THE DRIVER ALREADY HOLDS IS A SUCCESS, NOT A CONFLICT (FR-005). Two
- * operators doing it at the same moment both succeed, and the outcome is correct either way. A 409
- * here would be a refusal with nothing to fix — and would make the console show an error for an
- * action that achieved exactly what the operator wanted.
- */
+/** A clearance already held is a success, not a conflict. */
 export async function grantCapability(
   driverId: string,
   body: GrantCapabilityRequest,
@@ -38,10 +28,7 @@ export async function grantCapability(
   if (!CAPABILITY_FUNCTIONS.includes(body?.function as never)) {
     fields.push({ field: "function", message: `must be one of ${CAPABILITY_FUNCTIONS.join(", ")}` });
   }
-  // 082 — a `method` an older console still sends is ignored: a clearance is (function, area).
-  // ⚠ `zoneId` must be PRESENT, and may be explicitly null. A key absent and a key present-with-null
-  // must not be conflated, or "every zone" becomes indistinguishable from "the operator forgot to
-  // choose" — and the platform would silently grant the broadest possible clearance by accident.
+  // `zoneId` must be present and may be null: absent and null must not be conflated, or "every zone" is granted by accident.
   if (!(body && "zoneId" in body)) {
     fields.push({
       field: "zoneId",
@@ -57,10 +44,7 @@ export async function grantCapability(
         { field: "zoneId", message: "that zone does not exist" },
       ]);
     }
-    // ⚠ A disabled zone is refused at GRANT time, because clearing somebody for an area the platform
-    // does not currently serve is almost always a mistake. Existing clearances for a zone that is
-    // later disabled are NOT deleted — disable is reversible, and re-enabling must restore cover
-    // without anybody re-granting by hand.
+    // A disabled zone is refused at grant time; existing clearances survive a disable so re-enabling restores cover.
     if (zone.status !== "active") {
       throw validationError("the clearance could not be granted", [
         { field: "zoneId", message: `${zone.name} is disabled and is not currently served` },
@@ -79,13 +63,7 @@ export async function grantCapability(
   return repo.listForDriver(driverId);
 }
 
-/**
- * Revoke one clearance.
- *
- * ⚠ REVOKING A CLEARANCE THE DRIVER DOES NOT HOLD IS A SUCCESS, NOT A 404 (FR-006). The operator's
- * intent — "this driver should not be cleared for that" — is already true. Erroring would make two
- * operators tidying the same record fight each other.
- */
+/** Revoking one not held is a success, not a 404. */
 export async function revokeCapability(
   driverId: string,
   capabilityId: string,

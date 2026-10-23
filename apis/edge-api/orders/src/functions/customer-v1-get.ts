@@ -7,7 +7,7 @@ import { pointsProblem } from "../customers/respond";
 import { customerService } from "../customers/service";
 import { requireStaff } from "../lib/guard";
 
-/** GET /orders/v1/customers/{customerId} — who they are, their points, their last orders (074). Read = any active staff. */
+/** Any active staff. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireStaff(event, context);
   if (!guard.ok) return guard.response;

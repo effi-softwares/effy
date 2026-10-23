@@ -1,11 +1,5 @@
-# edge-customer — Effy CUSTOMER service (011-customer-storefront-web).
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
-# under /customer/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
-#
-# ⚠ THIS SERVICE CARRIES CUSTOMER PROFILE / ACCOUNT MANAGEMENT ONLY (011 FR-028). The catalogue
-# is `storefront`; cart, checkout, payment and a shopper's orders are `commerce`. A route goes with
-# the code that already owns its rule (docs/api/path-assignment.md) — do not add commerce here.
+# Customer profile and account management, on the shared gateway under /customer/. The catalogue is
+# `storefront`; cart, checkout, payment and orders are `commerce` (docs/api/path-assignment.md).
 service: effy-edge-customer
 frameworkVersion: "3"
 
@@ -16,9 +10,7 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
-    # 052 — receipt resend rate limit (FR-028).
     receiptResendWindowMinutes: "60"
     receiptResendMaxPerWindow: "3"
   dev:
@@ -37,14 +29,12 @@ provider:
     project: effy
     slice: 011-customer-storefront-web
     service: customer
-  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
@@ -53,57 +43,33 @@ provider:
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
     CUSTOMER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_id}
-    # 012 — the recovery-confirm route calls the UNAUTHENTICATED `ConfirmForgotPassword`, which is
-    # keyed on the app client id rather than the pool id.
+    # ConfirmForgotPassword is keyed on the app client id.
     CUSTOMER_APP_CLIENT_ID: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id}
-    # 012 FR-025 — the "your password changed" notification. Branded sender comes from 010.
-    # ⚠ 037: from the SSM contract, not a literal — same change as edge-auth. `NOTIFY_SENDER` is
-    # REMOVED rather than kept as a fallback: a fallback preserves exactly the drift this ends.
+    # The sender comes from /effy/<env>/ses/*, never a literal.
     MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
     MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
-    # ⚠ 038 FR-037: internal audiences reply to the operational mailbox once the operator
-    # publishes /effy/<env>/ses/reply_to_internal (= workspace-admin@). Empty until then; email-kit
-    # falls back to the public reply address, so behaviour is unchanged until the value is set.
+    # Internal audiences reply to the operational mailbox once set; empty falls back to the public address.
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
-    # 052 — the resend rate limit (FR-028). Generous to a person, useless to a script. Declared here
-    # rather than left as a literal so the deployment states what it enforces.
+    # Receipt resend rate limit: generous to a person, useless to a script.
     RECEIPT_RESEND_WINDOW_MINUTES: ${param:receiptResendWindowMinutes}
     RECEIPT_RESEND_MAX_PER_WINDOW: ${param:receiptResendMaxPerWindow}
-    # ── 039: newsletter double opt-in (US6) ──────────────────────────────────────────────────────
-    #
-    # ⚠ DECLARED HERE OR THE SERVICE SENDS NOTHING. This is 035's defect verbatim — four env vars the
-    # code read and `serverless.yml` never declared, so every lookup resolved "unknown", no email was
-    # ever sent, and 100 passing tests missed it because they set the vars themselves. A
-    # config-contract test (src/newsletter/config.contract.test.ts) now reads THIS FILE and fails if a
-    # key the service reads is missing from it.
-    #
-    # ⚠ The confirm base URL is the WEB page, not this API. The emailed link goes to the storefront,
-    # which calls the confirm route server-side and renders the outcome.
+    # Newsletter: every key the service reads (newsletter/config.contract.test.ts checks). The confirm
+    # base URL is the storefront page, which calls the confirm route server-side.
     NEWSLETTER_CONFIRM_BASE_URL: ${ssm:/effy/${sls:stage}/web/site_url, 'http://localhost:3000'}/newsletter/confirm
     NEWSLETTER_TOKEN_TTL_HOURS: "24"
     NEWSLETTER_RESEND_COOLDOWN_MINUTES: "60"
-    # ── 046: customer feedback ─────────────────────────────────────────────────────────────────────
-    #
-    # ⚠ DECLARED HERE OR THE SERVICE MISBEHAVES SILENTLY (035's defect verbatim). A config-contract test
-    # (src/feedback/config.contract.test.ts) reads THIS FILE and fails if a key the service reads is
-    # missing. The rate-limit window + quota are the whole of FR-016's abuse resistance (research D5);
-    # both are env, not literals in a query. The salt only keeps the stored source_key from being the
-    # raw IP (PII) — it is not a security secret, so it carries a safe empty default.
+    # Feedback: every key the service reads (feedback/config.contract.test.ts checks). The salt only keeps
+    # the stored source key from being a raw IP; it is not a secret.
     FEEDBACK_RATE_WINDOW_MINUTES: "60"
     FEEDBACK_RATE_MAX: "5"
     FEEDBACK_SOURCE_SALT: ${ssm:/effy/${sls:stage}/feedback/source_salt, ''}
-    # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
-    # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
-    # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
-    # in src/functions/pre-sign-up.ts. It NEVER auto-verifies the email — only our own OTP does.
+    # Auto-confirm in the pre-sign-up trigger: off (email-squatting risk). It never auto-verifies the email.
     AUTO_CONFIRM_SIGNUP: "false"
   iam:
     role:
       statements:
-        # 074 — publish live updates, to this environment's channel only: the points expiry job tells a
-        # customer's open app that their balance changed. (Until 074 this service announced nothing.)
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
@@ -111,35 +77,15 @@ provider:
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
 
-        # 012 FR-025 — the password-change notification. THE ONLY NEW PERMISSION IN THE 012 SLICE.
-        #
-        # ⚠ Worth pausing on: the four Cognito calls 012 adds (ChangePassword,
-        # GetUserAttributeVerificationCode, VerifyUserAttribute, GlobalSignOut) need NO IAM AT ALL.
-        # AWS is explicit — "Amazon Cognito doesn't evaluate IAM policies in requests for this API
-        # operation." They are authorized by the CUSTOMER'S OWN ACCESS TOKEN, so this service is
-        # relaying the customer's authority rather than exercising its own. A compromised customer
-        # Lambda still cannot touch an account whose token it does not hold.
-        #
-        # That is why the block below is about EMAIL, and not about passwords.
-        # ⚠ 037 FR-043: was `Resource: "*"` — a grant to send as ANY verified identity in the
-        # account, including the future production one. edge-auth's own comment called this out and
-        # declined to copy it; nobody had fixed it. Now scoped to this environment's identity.
-        #
-        # ⚠ AND TO THE CONFIGURATION SET — both, or the send is denied. `ses:SendEmail` authorizes
-        # against every resource the request touches, and 037 made every send name a configuration
-        # set. Narrowing from `"*"` to the identity alone therefore did not tighten this grant; it
-        # BROKE it. Same defect as edge-auth's, same fix, found the same day.
+        # Password and closure Cognito calls need no IAM (the customer's own access token). This is for the
+        # notification email: the identity and the configuration set, never `*`.
         - Effect: Allow
           Action: ses:SendEmail
           Resource:
             - ${ssm:/effy/${sls:stage}/ses/identity_arn}
             - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
 
-        # Account linking (FR-011). An authorized ADMINISTRATIVE write against the CUSTOMER pool
-        # — the same shape as 006's first-admin bootstrap and 009's shop-user provisioning. It is
-        # NOT cross-pool auth: the resource below is the customer pool ARN and nothing else, so
-        # Principle IV holds. A token from another audience still cannot reach this service at all
-        # — the gateway authorizer refuses it before any of this code runs.
+        # Account linking: an administrative write on the customer pool ARN only.
         - Effect: Allow
           Action:
             - cognito-idp:ListUsers
@@ -148,8 +94,7 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12), same as
-  # edge-admin/edge-shop. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc (dev only).
 
 custom:
   esbuild:
@@ -216,10 +161,9 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── 022: address book (customer profile management, per 011 FR-028) ────────────────────────────
+  # Address book
 
-  # ── 074: the customer's own points — balance AND history on ONE route (the shared gateway was at
-  #    its 300-route / 300-integration ceilings). The reads are @effy/edge-shared/points.
+  # Points: balance and history on one route.
   customerPointsV1Get:
     handler: src/functions/customer-points-v1-get.handler
     description: The customer's points - balance, value, next expiry and a page of history (074 US1)
@@ -275,16 +219,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── 046: customer feedback (US1) ───────────────────────────────────────────────────────────────
-  #
-  # ⚠ TWO ROUTES, ONE SERVICE — because API Gateway authorizers are per-route and all-or-nothing
-  # (research D2). The authenticated route links the verified sub → customer and uses the trusted
-  # profile email; the public route is for guests (no account required to be heard) and treats a body
-  # email as UNVERIFIED. Same split healthz/newsletter already establish on this service.
-  #
-  # ⚠ Per-source rate limiting is buildable HERE (unlike 035's Cognito trigger): the HTTP API v2 event
-  # carries requestContext.http.sourceIp. The public route keys the cooldown on it; the authed route on
-  # the sub. No per-stage throttle is set here (the stage is Terraform-owned — see the newsletter note).
+  # Feedback: an authenticated route (linked, verified email) and a public one for guests (unverified
+  # email, rate-limited by source IP).
   customerFeedbackV1Post:
     handler: src/functions/feedback-submit-v1-post.handler
     description: Submit feedback (signed-in) — linked to the customer, trusted profile email (046 US1)
@@ -304,13 +240,9 @@ functions:
           method: POST
           path: /customer/v1/feedback/public
 
-  # ── 012: password & sessions ────────────────────────────────────────────────────────────────
+  # Password and sessions
 
-  # Sends the STEP-UP CODE that setting a first password costs (012 FR-017).
-  #
-  # ⚠ It GRANTS NOTHING — it puts a code in an inbox. No grant is minted and no state is stored, so
-  # there is nothing here for an attacker to steal. The code is only worth something when presented
-  # back, WITH a new password, to the route below, in ONE request.
+  # Sends the step-up code for setting a first password; it grants nothing on its own.
   customerPasswordV1Challenge:
     handler: src/functions/customer-password-v1-challenge.handler
     description: Step-up — email a single-purpose code before a FIRST password may be set (012 FR-017)
@@ -322,13 +254,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ⚠⚠ THE SECURITY CORE OF 012. ⚠⚠
-  #
-  # Cognito will let ANY bearer of a valid access token silently plant a permanent password on a
-  # PASSWORDLESS account — its own docs say `PreviousPassword` may be omitted when the user has none.
-  # That converts a borrowed session into durable, credentialed access, and an OTP-only customer would
-  # never notice. This route is where that is refused: `mode: set` verifies a freshly emailed code
-  # IMMEDIATELY BEFORE writing the password, in the same request.
+  # `mode: set` verifies a freshly emailed code immediately before writing the password, in the same request.
   customerPasswordV1Put:
     handler: src/functions/customer-password-v1-put.handler
     description: Set (step-up gated) or change (current-password gated) the password (012 FR-016/FR-017)
@@ -351,16 +277,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── 034: account closure (in-app account deletion) ──────────────────────────────────────────
-  #
-  # ⚠ NO NEW IAM IS REQUIRED BY ANY OF THESE. Every Cognito call they make
-  # (GetUserAttributeVerificationCode, VerifyUserAttribute, GlobalSignOut) is TOKEN-AUTHORIZED —
-  # they relay the customer's own authority. If a deploy of this service starts asking for new
-  # permissions, something has drifted from the plan; stop and reconcile before granting anything.
-  #
-  # ⚠ Apple has required in-app account deletion since 30 June 2022, and Google Play requires it in
-  # TWO places — this in-app path AND a public web URL declared in the Data safety form. The web half
-  # lives in customer-web; it is the most commonly missed half of the requirement.
+  # Account closure. No new IAM: every Cognito call is token-authorized. Store rules require in-app
+  # deletion and (Google Play) a public web URL, which lives in customer-web.
 
   customerClosureV1Get:
     handler: src/functions/customer-closure-v1-get.handler
@@ -373,11 +291,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # Sends the STEP-UP CODE that closing an account costs (034 FR-043).
-  #
-  # ⚠ Keyed on the account's verified EMAIL attribute, never on a password — which is what lets a
-  # customer whose only credential is Google complete it. A password prompt here would be an
-  # unresolvable dead end for that entire cohort.
+  # The step-up code for closing an account, keyed on the verified email (works for Google-only customers).
   customerClosureV1Challenge:
     handler: src/functions/customer-closure-v1-challenge.handler
     description: Step-up — email a single-purpose code before an account may be closed (034 FR-043)
@@ -389,15 +303,8 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ⚠ Verifies the code and closes the account in ONE request, then revokes every session.
-  # Erasure runs automatically thereafter — NO human step, and no support agent, stands between the
-  # customer's confirmation and it. Both documented App Review rejections in this area were
-  # deactivation flows with a person in the loop; that is the specific shape that fails.
-  # 052 US4 — send the receipt for a paid order again.
-  #
-  # ⚠ NO REQUEST BODY. The recipient is resolved server-side from the authenticated subject; an
-  # `email` field would make this an open relay for a personalised document (contract § 2).
-  # ⚠ It ENQUEUES only — `edge-notifications` sends — so a shopper never waits on SES.
+  # Verifies the code and closes the account, then revokes every session; erasure follows with no human step.
+  # Receipt resend: no body (the recipient is the account's), and it only enqueues.
   customerOrdersV1IDReceiptPost:
     handler: src/functions/customer-orders-v1-id-receipt-post.handler
     description: Enqueue a resend of a paid order's receipt to the account address (052 US4)
@@ -420,10 +327,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ⚠ The ONE exception to "a closing account is refused everywhere" (034 FR-041a), and the only way
-  # back. Deliberately an EXPLICIT call: making restore implicit on sign-in is both unimplementable
-  # (the gate would refuse the request meant to restore) and unsafe (anyone holding the token would
-  # silently un-delete the account).
+  # The one way back from `closing`, and an explicit call.
   customerClosureV1Restore:
     handler: src/functions/customer-closure-v1-restore.handler
     description: Cancel a pending deletion during the grace window (034 FR-041a)
@@ -435,15 +339,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ⚠ DELIBERATELY PUBLIC — note the ABSENT `authorizer` block. This is not an omission.
-  #
-  # The caller has NO SESSION; that is the entire point of account recovery. They prove the INBOX
-  # instead, and Cognito checks the emailed code. The Cognito API it wraps (ConfirmForgotPassword) is
-  # itself unauthenticated and needs no IAM, so this route holds no privilege at all.
-  #
-  # It exists because leaving recovery client-side (as 011 did) caused two defects at once: it
-  # BYPASSED the breach screening, and it left `has_password` permanently WRONG — so the account page
-  # went on offering "Set a password" to someone who had one (012 FR-022b).
+  # Public: recovery has no session; the caller proves the inbox, and the wrapped API needs no IAM.
   customerPasswordResetConfirm:
     handler: src/functions/customer-password-reset-confirm.handler
     description: PUBLIC — complete "forgot password"; screens the new password + records the state (012 FR-022b)
@@ -452,18 +348,8 @@ functions:
           method: POST
           path: /customer/v1/password/reset-confirm
 
-  # ── 039: newsletter (US6) ──────────────────────────────────────────────────────────────────────
-  #
-  # ⚠ BOTH DELIBERATELY PUBLIC — note the ABSENT `authorizer` blocks, as with healthz/readyz and the
-  # password-reset-confirm route above. Subscribing must work for an anonymous visitor who has no
-  # account and may never have one; behind the customer JWT authorizer it would be unreachable by the
-  # people it exists for. Neither route holds any privilege: subscribe writes one row keyed on an
-  # address the caller supplied, and confirm consumes a single-use token from an email.
-  #
-  # ⚠ NO PER-ROUTE THROTTLE, and that is not an oversight. HTTP API throttling is a *stage*
-  # `route_settings` property; the stage is Terraform-owned (infra/envs/<env>/edge-gateway.tf) and this
-  # service attaches via an external `httpApi.id`, so nothing written here could set it — it would
-  # silently do nothing. FR-035 was narrowed to the per-address cooldown, which lives in SQL.
+  # Newsletter: both public. No per-route throttle: HTTP API throttling is a stage setting owned by
+  # Terraform; the cooldown is per address, in SQL.
   customerNewsletterV1Post:
     handler: src/functions/customer-newsletter-v1-post.handler
     description: PUBLIC — subscribe to Effy updates; uniform, non-enumerating response (039 FR-030/FR-032)
@@ -480,15 +366,8 @@ functions:
           method: GET
           path: /customer/v1/newsletter/confirm
 
-  # ⚠ NOT an HTTP route. This is a COGNITO TRIGGER — it is invoked by the customer user pool
-  # itself, immediately before a profile is created. It has no `events` block on purpose; the
-  # pool is wired to it in infra/envs/<env>/auth-customer.tf, and Cognito's permission to invoke
-  # it is granted there too.
-  #
-  # It is the ACCOUNT-LINKING trigger: without it, a customer who signs in with Google gets a
-  # SECOND, duplicate account, and there is no retroactive merge (FR-011). It also REFUSES to
-  # link an identity whose email the provider has not verified — see src/lib/account-linking.ts
-  # for why that refusal is the difference between a feature and an account-takeover primitive.
+  # A Cognito trigger, not a route (wired in auth-customer.tf): links Google sign-ins to the native
+  # profile, refusing unverified emails (src/lib/account-linking.ts).
   preSignUp:
     handler: src/functions/pre-sign-up.handler
     description: Cognito pre-sign-up — links a federated identity into the NATIVE profile (011 FR-011/FR-012)
@@ -515,10 +394,9 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── 074: points housekeeping. ⚠ NOT ROUTES — nothing calls these but their schedules.
+  # Points housekeeping: scheduled, not routes.
 
-  # Writes the "Expired" history line and queues the one warning before points expire. ⚠ Expiry itself
-  # does not depend on it: a lot stops counting the instant its expires_at passes.
+  # Writes "Expired" history lines and the warning; expiry itself does not depend on it.
   pointsExpiry:
     handler: src/functions/points-expiry-scheduled.handler
     description: Daily — record expired points in customers' history and queue expiry warnings (074 US4).
@@ -527,7 +405,7 @@ functions:
       - schedule:
           rate: rate(1 day)
 
-  # Checks the points ledger still adds up and reports the count every run, zero included.
+  # Checks the ledger adds up, reporting the count every run, zero included.
   pointsReconcile:
     handler: src/functions/points-reconcile-scheduled.handler
     description: Hourly — check the points ledger's invariants and report violations (074 SC-001).

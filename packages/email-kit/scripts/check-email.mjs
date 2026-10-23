@@ -1,18 +1,7 @@
 #!/usr/bin/env node
-// EMAIL GUARD — `make email-check`.
-//
-// ⚠ EVERY FAILURE NAMES THE TEMPLATE. A guard that says "something is wrong" is a guard nobody acts
-// on. Proven by deliberately breaking each check (spec SC-010) — the method 024 established, which
-// found a live defect the first time it was applied.
-//
-// Zero dependencies (Node stdlib + mjml, which is already a build dep), like
-// design-system/scripts/check-tokens.mjs and packages/brand's checker.
-//
-// ⚠ SCOPE SPLIT, deliberate: this script owns everything derivable from the TOKENS and the COMPILED
-// ARTIFACTS. Checks that need the catalogue's TypeScript (per-message size budgets, {####} placement,
-// category/unsubscribe, placeholder-vs-schema agreement) live in test/catalog.test.ts, because the
-// catalogue is the SSOT and must not be duplicated into a second parseable form just to satisfy a
-// .mjs script. `pnpm test` runs both.
+// email guard (`make email-check`); every failure names the template. It owns what derives from the
+// tokens and the compiled artifacts; checks that need the catalogue's TypeScript (size budgets, {####}
+// placement, category/unsubscribe, placeholders) are in test/catalog.test.ts. `pnpm test` runs both.
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,14 +18,11 @@ const SRC = resolve(PKG, "src");
 const failures = [];
 const fail = (template, msg) => failures.push(`[${template}] ${msg}`);
 
-// ── Budgets ───────────────────────────────────────────────────────────────────────────────────
-// ⚠ Gmail clips at ~102 KB of raw HTML and hides everything past the cut behind "[Message clipped]".
-// It is NOT deterministic — clipping below 102 KB has been observed with certain characters — so the
-// warn line carries 10% headroom.
+// Budgets. Gmail clips at ~102 KB of raw HTML, not deterministically, so the warn line has 10% headroom.
 const GMAIL_WARN = 90 * 1024;
 const GMAIL_FAIL = 102 * 1024;
 
-// ── The banned techniques (research: the caniemail-derived ban list) ───────────────────────────
+// Banned techniques (caniemail-derived)
 const BANNED = [
   [/display\s*:\s*(flex|grid|inline-flex|inline-grid)/i, "flex/grid layout — no Word-engine support"],
   [/\bfloat\s*:\s*(left|right)/i, "float — dropped in Outlook.com and the Word engine"],
@@ -50,38 +36,34 @@ const BANNED = [
   [/<svg[\s>]/i, "inline <svg> — same reason"],
 ];
 
-// ── Required head furniture ───────────────────────────────────────────────────────────────────
+// Required head furniture
 const REQUIRED_META = [
   ['name="color-scheme"', "the color-scheme declaration (it is what makes Apple Mail leave the palette alone)"],
   ['name="supported-color-schemes"', "the supported-color-schemes declaration"],
   ["x-apple-disable-message-reformatting", "the Apple Mail reformatting opt-out"],
   ["PixelsPerInch", "the 96-DPI block — without it the Word engine scales attributes by 1.25x at 120 DPI"],
-  // MJML emits this as `<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`,
-  // not as a standalone `<meta charset>`, so the probe matches the substring both forms share.
+  // MJML emits `<meta http-equiv="Content-Type" … charset=UTF-8>`, so match the substring both forms share.
   ["charset=UTF-8", "a charset declaration"],
   ['name="viewport"', "a viewport declaration"],
 ];
 
 function checkStructure(id, html) {
-  // Doctype.
   if (!/^\s*<!doctype html>/i.test(html)) fail(id, "does not begin with the HTML5 doctype");
 
-  // lang / dir.
   if (!/<html[^>]*\blang="[a-z-]+"/i.test(html)) fail(id, "the <html> element has no lang attribute");
   if (!/<html[^>]*\bdir="(ltr|rtl)"/i.test(html)) fail(id, "the <html> element has no dir attribute");
 
-  // Head furniture.
   for (const [probe, what] of REQUIRED_META) {
     if (!html.includes(probe)) fail(id, `is missing ${what}`);
   }
 
-  // ⚠ No <style> inside <body>: Gmail ignores it entirely.
+  // No <style> inside <body>: Gmail ignores it.
   const bodyStart = html.indexOf("<body");
   if (bodyStart > -1 && /<style[\s>]/i.test(html.slice(bodyStart))) {
     fail(id, "has a <style> element inside <body> — Gmail ignores it");
   }
 
-  // ⚠ A nested @ rule makes Gmail discard the ENTIRE style block.
+  // A nested @ rule makes Gmail discard the whole style block.
   for (const m of html.matchAll(/@media[^{]*\{([\s\S]*?)\n\s*\}/g)) {
     if (/@(media|font-face|import|supports)/.test(m[1])) {
       fail(id, "nests an @ rule inside @media — Gmail discards the whole style block");
@@ -95,33 +77,29 @@ function checkStructure(id, html) {
     fail(id, `has ${opens} conditional-comment openers and ${closes} closers`);
   }
 
-  // ⚠ Exactly one semantic heading. MJML renders mj-text as <div>, so this only passes because the
-  // generator promotes the e-h1 cell — see promoteHeading() in gen-email.mjs.
+  // Exactly one semantic heading (MJML renders mj-text as <div>; the generator promotes the e-h1 cell).
   const h1s = (html.match(/<h1[\s>]/g) ?? []).length;
   if (h1s !== 1) fail(id, `has ${h1s} <h1> elements — a message has exactly one`);
 
-  // Layout tables must be marked presentational or a screen reader reads them cell by cell.
+  // Layout tables must be presentational, or a screen reader reads them cell by cell.
   const tables = (html.match(/<table[\s>]/g) ?? []).length;
   const presentational = (html.match(/<table[^>]*role="presentation"/g) ?? []).length;
   if (tables !== presentational) {
     fail(id, `${tables - presentational} of ${tables} tables lack role="presentation"`);
   }
 
-  // Every image needs alt (empty is fine and meaningful; missing is not).
+  // Every image needs alt (empty is meaningful; missing is not).
   for (const m of html.matchAll(/<img\b[^>]*>/g)) {
     if (!/\balt=/.test(m[0])) fail(id, "has an <img> with no alt attribute");
     if (!/\bwidth=/.test(m[0])) fail(id, "has an <img> with no width attribute");
   }
 
-  // The Word engine must not be left to pick a font.
+  // The Word engine must not pick a font.
   if (!/font-family:\s*Arial, Helvetica, sans-serif !important/.test(html)) {
     fail(id, "has no <!--[if mso]> font override — classic Outlook would render it in Times New Roman");
   }
 
-  // ⚠ NO EXTERNAL REQUESTS FROM THE HEAD. MJML injects a Google Fonts link/@import for any family
-  // in its default map that appears in a font-family — our stack names Roboto, so every message
-  // silently carried a request to fonts.googleapis.com until `fonts: {}` was set. That is a
-  // third-party dependency and a privacy leak on the platform's most sensitive mail.
+  // No external requests from the head (MJML would add Google Fonts for Roboto in our stack).
   if (/<link[^>]+href=["']https?:/i.test(html)) {
     fail(id, "loads an external stylesheet — email must carry no third-party requests");
   }
@@ -132,13 +110,11 @@ function checkStructure(id, html) {
     fail(id, "references Google Fonts — set `fonts: {}` on the MJML compile");
   }
 
-  // Banned techniques.
   for (const [re, why] of BANNED) {
     if (re.test(html)) fail(id, `uses a banned technique: ${why}`);
   }
 
-  // ⚠ Internal commentary must not ship inside customer email. This shipped once (MJML's
-  // keepComments defaults to true) and put reasoning about phishing primitives into every message.
+  // No internal commentary may ship inside customer email.
   const comments = html.match(/<!--(?!\[if|<!\[endif)[\s\S]*?-->/g) ?? [];
   const prose = comments.filter((c) => c.length > 120);
   if (prose.length) {
@@ -171,7 +147,7 @@ function checkText(id, text) {
 }
 
 function main() {
-  // ── 1. Tokens ───────────────────────────────────────────────────────────────────────────────
+  // 1. Tokens
   let tokens;
   try {
     tokens = buildEmailTokens();
@@ -181,7 +157,7 @@ function main() {
   }
   for (const e of validateEmailTokens(tokens)) failures.push(`[tokens] ${e}`);
 
-  // ── 2. Artifacts exist ──────────────────────────────────────────────────────────────────────
+  // 2. Artifacts exist
   if (!existsSync(DIST) || !existsSync(resolve(DIST, "manifest.json"))) {
     console.error("✗ dist/ is missing or has no manifest — run `make email-gen`");
     process.exit(1);
@@ -199,7 +175,7 @@ function main() {
     );
   }
 
-  // ── 3. Per-template checks ──────────────────────────────────────────────────────────────────
+  // 3. Per-template checks
   const bundleSrc = existsSync(resolve(DIST, "templates.generated.ts"))
     ? readFileSync(resolve(DIST, "templates.generated.ts"), "utf8")
     : "";
@@ -218,9 +194,7 @@ function main() {
     checkSize(id, html);
     checkText(id, text);
 
-    // ⚠ THE TWO-ARTIFACT GUARD. dist/<id>.html is the review artifact; templates.generated.ts is what
-    // the Lambda bundler sees. They are written by one generator pass and MUST carry identical
-    // content — otherwise a reviewer approves one thing and recipients receive another.
+    // dist/<id>.html (reviewed) and templates.generated.ts (bundled) must carry identical content.
     if (bundleSrc && !bundleSrc.includes(JSON.stringify(html))) {
       fail(id, "dist/<id>.html and templates.generated.ts disagree — the reviewed HTML is not the shipped HTML");
     }
@@ -238,9 +212,7 @@ function main() {
     }
   }
 
-  // ── 4. Drift ────────────────────────────────────────────────────────────────────────────────
-  // ⚠ Regenerate and compare. Snapshotting the committed artifacts and re-running the generator is
-  // what makes this reliable in a dirty worktree, rather than depending on git staging state.
+  // 4. Drift: regenerate and compare, independent of git staging state.
   const before = ids.map((id) => [
     readFileSync(resolve(DIST, `${id}.html`), "utf8"),
     readFileSync(resolve(DIST, `${id}.txt`), "utf8"),
@@ -274,7 +246,7 @@ function main() {
     failures.push("[tokens] src/generated/tokens.generated.ts is STALE — run `make email-gen`");
   }
 
-  // ── Report ──────────────────────────────────────────────────────────────────────────────────
+  // Report
   if (failures.length) {
     console.error(`✗ email-check — ${failures.length} problem(s):\n`);
     for (const f of failures) console.error("  " + f);

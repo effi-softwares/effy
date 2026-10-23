@@ -13,7 +13,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// The data layer for product review (067). Screens never touch the api client directly (Principle
+// The data layer for product review. Screens never touch the api client directly (Principle
 // VI). Every endpoint is on the `edge-catalog` cold-path service behind the shared gateway — see
 // specs/067-product-approval-margin/contracts/review-admin.md.
 
@@ -40,12 +40,12 @@ export async function listMarginNotSet(cursor?: string | null): Promise<MarginNo
   );
 }
 
-/** 096 — live products with no GST status yet. */
+/** Live products with no GST status yet. */
 export async function listGstMissing(): Promise<GstMissingDTO> {
   return api.get<GstMissingDTO>("/catalog/v1/gst/missing");
 }
 
-/** 096 — set one GST status on many products; each is recorded. */
+/** Set one GST status on many products; each is recorded. */
 export async function setGstBulk(body: GstBulkRequest): Promise<{ changed: number }> {
   return api.post<{ changed: number }>("/catalog/v1/gst/bulk", body);
 }

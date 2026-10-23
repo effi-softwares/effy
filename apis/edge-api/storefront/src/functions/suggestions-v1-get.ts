@@ -1,7 +1,4 @@
-// GET /storefront/v1/suggestions?q= — phrases and products for the text typed so far. Public.
-//
-// Under two characters answers empty lists (not an error: the field is still being typed in).
-// Cached for a minute: the same few characters are typed by many shoppers.
+// Under two characters answers empty lists.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";

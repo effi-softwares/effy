@@ -1,25 +1,13 @@
 #!/usr/bin/env bash
-# db-schedules.sh <pause|resume|status> [env] — pause or resume the backend's SCHEDULED functions.
+# db-schedules.sh <pause|resume|status> [env] — pause or resume the backend's scheduled functions.
 #
-# WHY THIS EXISTS. Stopping the dev database saves the instance cost. But the backend has functions
-# that run on a timer and each one opens a database connection — two of them every minute. With the
-# database stopped, every run waits out the connection timeout, fails, and is retried by the
-# platform. In September that was about 217,000 GB-seconds of compute — nearly two thirds of the
-# month's whole free allowance — spent failing to reach a database that was switched off on purpose
-# to save money. It also raises every "this scheduled function keeps failing" alarm.
+# With the dev database stopped, every scheduled run waits out its connection timeout and fails (most of a
+# month's free compute, and every failure alarm), so the schedules stop and start with the database. Nothing
+# is lost: each works from a queue or table and resumes where it left off. The mail-sender health probe
+# keeps running: it uses no database, and its alarm treats "no data" as failure.
 #
-# So the timers are switched off with the database and back on with it. Nothing is lost: each of
-# these functions works from a queue or a table in the database, and picks up where it left off.
-#
-# ⚠ ONE SCHEDULE IS LEFT RUNNING: the mail-sender health probe. It does not use the database, and
-# its alarm treats "no data" as a failure — pausing it would page for a problem that does not exist.
-#
-# ⚠ A `make edge-deploy` of a service while its schedules are paused may switch them back on.
-# `resume` is idempotent and `pause` can simply be run again.
-#
-# Rules are found by what they are, not by a list of names: every schedule belonging to an
-# `effy-edge-*` service in this environment. A scheduled function added later is covered without
-# editing this file.
+# A `make edge-deploy` while paused may switch a service's schedules back on; `pause` again. Rules are found
+# as every schedule of an `effy-edge-*` service in this environment, so new ones are covered.
 set -euo pipefail
 
 ACTION="${1:-status}"

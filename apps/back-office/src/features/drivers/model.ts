@@ -3,7 +3,7 @@ import type {
   DriverEmploymentStatus,
 } from "@effy/shared-types";
 
-// Screen-facing vocabulary for the driver console (056). The wire shapes come from
+// Screen-facing vocabulary for the driver console. The wire shapes come from
 // @effy/shared-types; this file holds the console's own copy and query shapes.
 
 export interface DriverListParams {
@@ -27,15 +27,10 @@ export const STATUS_MEANING: Record<DriverEmploymentStatus, string> = {
   offboarded: "No longer employed. Record and history kept; sign-in ends permanently.",
 };
 
-/**
- * ⚠ Why a driver cannot be given work, in words an operator can act on.
- *
- * FR-044 says the reason must be STATED, not implied by a flag. Each of these has a different
- * remedy, and "cannot receive work" on its own tells nobody which one to apply.
- */
+/** Why a driver cannot be given work, in words an operator can act on: each has a different remedy. */
 export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
-  // ⚠ 062 replaced `no_zone` with this. The old reason named a single-zone field that no
-  // assignment code ever read; the remedy now is to GRANT a clearance, not to assign a zone.
+  // Replaced `no_zone` with this. The old reason named a single-zone field that no
+  // assignment code ever read; the remedy now is to grant a clearance, not to assign a zone.
   no_capabilities: "Not cleared for any work — cannot be given work",
   suspended: "Suspended — cannot be given work",
   offboarded: "Offboarded — cannot be given work",
@@ -43,11 +38,6 @@ export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
   no_vehicle: "No vehicle assigned — cannot be given work",
   vehicle_non_compliant: "Assigned vehicle is not roadworthy — cannot be given work",
 };
-
-// ⚠ The exception and run-type vocabularies stood here — "Delivery failed" / "Nobody home" /
-// "Collection round" and the rest. They named states in the 049 work model, dropped whole by
-// db/migrations/20260920101500_remove_driver_work_model.sql, and are removed rather than kept as
-// labels with nothing to label.
 
 /** "6:30 pm" in Melbourne — the operator's own clock, never UTC. */
 export function formatTime(iso: string): string {

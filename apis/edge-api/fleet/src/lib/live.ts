@@ -1,21 +1,12 @@
 import { logger, query } from "@effy/edge-shared";
 import { announceDispatch, announceSlots } from "@effy/edge-shared/live";
 
-/**
- * 071 — what a dispatcher's action (or a planning pass) changes on other screens.
- *
- * Called by a handler straight after its service call has returned, i.e. after the transaction has
- * committed — never inside it. Nothing here throws: the assignment has already happened (FR-006).
- */
+/** What a dispatcher's action or a planning pass changes on other screens. Called after commit; never throws. */
 
-// announceDispatch and announceSlots moved to @effy/edge-shared/live (081) — one definition.
+// announceDispatch and announceSlots live in @effy/edge-shared/live.
 export { announceDispatch, announceSlots };
 
-/**
- * Who holds a round right now. Read BEFORE a reassignment or an unassignment so the driver losing
- * it can be told afterwards. `null` if it cannot be read — the action still goes ahead, and that
- * driver's app catches up on its next read.
- */
+/** Read before a reassignment so the losing driver can be told. `null` if unreadable: the action still goes ahead. */
 export async function driverOfRound(roundId: string): Promise<string | null> {
   try {
     const { rows } = await query<{ driver_id: string }>(
@@ -29,7 +20,7 @@ export async function driverOfRound(roundId: string): Promise<string | null> {
   }
 }
 
-/** The driver a duty session belongs to. Same contract as `driverOfRound`. */
+/** Same contract as `driverOfRound`. */
 export async function driverOfDutySession(sessionId: string): Promise<string | null> {
   try {
     const { rows } = await query<{ driver_id: string }>(

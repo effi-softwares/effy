@@ -32,13 +32,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.io.IOException
 
 /**
- * The catalog repository over the `storefront` service (070). [edge] is the client built for
- * `EDGE_API_BASE_URL` — the platform's one backend. These reads are PUBLIC (no session needed); the
- * client adds its auth headers only when signed in, which the public routes ignore. Transport
- * failures become `AppError.Network` via [request], exactly like the account repository (013 pattern).
- *
- * ⚠ Until 070 these were `v1/storefront/…` on a second, always-on backend, since retired. The paths
- * moved under the service prefix and the second base URL is gone; the wire shapes did not change.
+ * The catalog over the `storefront` service. These reads are public; the client adds auth headers only when
+ * signed in, which the public routes ignore. Transport failures become `AppError.Network` via [request].
  */
 private const val HOME_HERO = "home-hero"
 private const val HOME_BETWEEN = "home-between"
@@ -46,7 +41,7 @@ private const val HOME_BETWEEN = "home-between"
 class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
 
     /**
-     * 094 — Home's rails from the storefront, and its promotions from the display groups (`home-hero`
+     * Home's rails from the storefront, and its promotions from the display groups (`home-hero`
      * for the carousel, `home-between` between sections), so back-office decides what appears where.
      * A failed group read keeps the rails and the server's own banners: promotions never take Home down.
      */
@@ -68,7 +63,7 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         val personal = edge.get("commerce/v1/promotion-groups") { parameter("keys", joined) }
         val response = if (personal.status.isSuccess()) personal
         else edge.get("storefront/v1/promotion-groups") { parameter("keys", joined) }.ensureSuccess()
-        // 095 — read leniently: a skin this build does not understand must not cost it the promotion.
+        // Read leniently: a skin this build does not understand must not cost it the promotion.
         return decodePromotionGroups(effyJson, response.body<JsonElement>())
     }
 
@@ -81,11 +76,8 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
     }
 
     /**
-     * ⚠ Re-read at tap time rather than carried over from the banner already on screen. Home is a
-     * snapshot: a promotion can expire, be exhausted by other shoppers, or be withdrawn while a
-     * shopper scrolls. The server applies the same visibility predicate it used for Home, so a
-     * promotion that is no longer live comes back 404 — and `ensureSuccess` turns that into the
-     * not-found error the screen shows, instead of terms that stopped being true.
+     * Re-read at tap time: a promotion can end while Home is on screen. The server applies Home's
+     * visibility rule, so one no longer live is a 404, which the screen shows as not found.
      */
     override suspend fun promotion(id: String): Promotion = request {
         edge.get("storefront/v1/promotions/$id").ensureSuccess().body<PromotionDTO>().toDomain()
@@ -105,8 +97,8 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         val dto = edge.get("storefront/v1/products") {
             applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice)
             parameter("sort", sort.wire)
-            // ⚠ A cursor is minted under ONE ordering and the server rejects it under another (400
-            // cursor_sort_mismatch, FR-016b). Callers must drop the cursor when the sort changes —
+            // A cursor is minted under one ordering and the server rejects it under another (400
+            // cursor_sort_mismatch, FR-016b). Callers must drop the cursor when the sort changes
             // which they do by restarting the list, the same thing the UI does anyway.
             if (cursor != null) parameter("cursor", cursor)
             parameter("limit", "24")
@@ -115,7 +107,7 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
             items = dto.items.map { it.toDomain() },
             nextCursor = dto.nextCursor,
             total = dto.total.toInt(),
-            // The ordering the server APPLIED, which may differ from the request.
+            // The ordering the server applied, which may differ from the request.
             sort = ProductSortOption.fromWire(dto.sort.value),
         )
     }
@@ -135,8 +127,8 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
     }
 
     /**
-     * The filter query params shared by search and facets (043). Repeated `brand` / `attr.<key>`
-     * params encode OR-within-a-facet; `parameter` APPENDS, so multiple calls produce multiple params.
+     * The filter query params shared by search and facets. Repeated `brand` / `attr.<key>`
+     * params encode OR-within-a-facet; `parameter` appends, so multiple calls produce multiple params.
      */
     private fun HttpRequestBuilder.applyFilterParams(
         query: String,

@@ -7,12 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ProductStockDetailDTO } from "@effy/shared-types"
 
 /**
- * 057 — the rebuilt Inventory section and the two writes it puts behind named verbs.
- *
- * ⚠ THESE REPLACE `StockPanel.test.tsx`, WHICH TESTED A COMPONENT THAT NO LONGER EXISTS. Everything
- * that file asserted about behaviour is asserted here against the new shape: the FR-003 opening-count
- * rule, the threshold's shop-default fallback, the untracked state, and that a refusal reaches the
- * operator in the server's own words rather than one generic sentence (053).
+ * The Inventory section and its writes: the opening-count rule, the threshold's shop-default fallback,
+ * the untracked state, and a refusal said in the server's own reason.
  */
 
 const getVariantStock = vi.hoisted(() => vi.fn())
@@ -58,7 +54,7 @@ function stockDetail(over: Partial<ProductStockDetailDTO["stock"]> = {}): Produc
 
 const PRODUCT = {
   id: "p1",
-  // 098 — stock is per size; this product is sold in one.
+  // Stock is per size; this product is sold in one.
   options: [],
   variants: [{ id: "v1", state: "active", label: null, stock: {} }],
   name: "Barossa Free-Range Eggs 700g",
@@ -86,9 +82,9 @@ beforeEach(() => {
   setStockThreshold.mockResolvedValue(stockDetail())
 })
 
-// ── The section states the numbers ───────────────────────────────────────────────────────────────
+// The section states the numbers
 
-/** 098 — a product in three sizes: counted with stock, counted and empty, and not counted yet. */
+/** A product in three sizes: counted with stock, counted and empty, and not counted yet. */
 const SIZED = {
   ...PRODUCT,
   options: [{ id: "o1", position: 1, name: "Size", values: [] }],
@@ -169,7 +165,7 @@ describe("the Inventory section — every size in one table (098)", () => {
   })
 })
 
-// ── Receiving ────────────────────────────────────────────────────────────────────────────────────
+// Receiving
 
 describe("receiving stock", () => {
   it("adds units with reason 'received' and shows the arithmetic before the write", async () => {
@@ -183,7 +179,7 @@ describe("receiving stock", () => {
     )
 
     await userEvent.type(screen.getByLabelText(/units received/i), "24")
-    // ⚠ Shown BEFORE committing. It is the only thing standing between a mistyped 240 and a shelf
+    // Shown before committing. It is the only thing standing between a mistyped 240 and a shelf
     // count nobody questions afterwards.
     expect(screen.getByText("12 → 36")).toBeInTheDocument()
 
@@ -209,7 +205,7 @@ describe("receiving stock", () => {
   })
 
   it("does not imitate purchasing with free-text supplier and reference boxes", async () => {
-    // ⚠ The mockup's receive sheet has Supplier and Reference boxes. Where stock came from belongs to
+    // The mockup's receive sheet has Supplier and Reference boxes. Where stock came from belongs to
     // purchasing (deferred to its own feature); two free-text boxes here would record that intent as
     // unjoinable prose while leaving the operator believing the delivery had been reconciled.
     wrap(
@@ -220,8 +216,8 @@ describe("receiving stock", () => {
   })
 
   it("shows the server's own refusal, not one generic sentence", async () => {
-    // 053: the console collapsed every refusal because it tested `e instanceof Error` while the api
-    // client throws a PLAIN OBJECT. `stockErrorText` keys off structure so that cannot happen here.
+    // The console collapsed every refusal because it tested `e instanceof Error` while the api
+    // client throws a plain object. `stockErrorText` keys off structure so that cannot happen here.
     adjustStock.mockRejectedValue({
       kind: "conflict",
       status: 409,
@@ -240,7 +236,7 @@ describe("receiving stock", () => {
   })
 })
 
-// ── Adjusting ────────────────────────────────────────────────────────────────────────────────────
+// Adjusting
 
 describe("adjusting stock", () => {
   it("writes an absolute count when the operator counted the shelf", async () => {
@@ -261,7 +257,7 @@ describe("adjusting stock", () => {
   })
 
   it("writes a signed delta when the operator knows the movement but not the count", async () => {
-    // ⚠ Both modes are kept because they answer different questions. "Three were dropped" must not
+    // Both modes are kept because they answer different questions. "Three were dropped" must not
     // require knowing a current count that a sale may have moved while they walked back from the aisle.
     const user = userEvent.setup()
     wrap(
@@ -296,7 +292,7 @@ describe("adjusting stock", () => {
   })
 
   it("previews the server's floor at zero rather than promising a negative shelf", async () => {
-    // The floor lives in the STATEMENT (`GREATEST(0, …)`), so a preview of "5 → -3" would show the
+    // The floor lives in the statement (`GREATEST(0, …)`), so a preview of "5 → -3" would show the
     // operator a number the database will never write.
     const user = userEvent.setup()
     wrap(
@@ -314,10 +310,10 @@ describe("adjusting stock", () => {
   })
 })
 
-// ── Starting a count from the header ─────────────────────────────────────────────────────────────
+// Starting a count from the header
 
 describe("the header stock action on an untracked product", () => {
-  // ⚠ TRACKING IS OFF BY DEFAULT (054), so this is the state MOST products are in — the header's
+  // Tracking is off by default, so this is the state most products are in — the header's
   // stock button used to be dead on nearly every product page, with its only explanation in a `title`
   // attribute no touch device shows. These assertions pin the replacement: the label says which
   // action is coming, and the action itself is reachable in one step.
@@ -331,7 +327,7 @@ describe("the header stock action on an untracked product", () => {
   })
 
   it("keeps Receive stock where a count already exists", async () => {
-    // ⚠ Waited for, not read once: the loading state ALSO reads "Receive stock" (deliberately — see
+    // Waited for, not read once: the loading state also reads "Receive stock" (deliberately — see
     // below), so a bare findByRole resolves against the disabled placeholder and asserts nothing.
     getVariantStock.mockResolvedValue(stockDetail({ tracked: true, onHand: 12 }))
     wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
@@ -341,7 +337,7 @@ describe("the header stock action on an untracked product", () => {
   })
 
   it("stays disabled and keeps the tracked label while the stock read is in flight", () => {
-    // ⚠ Defaulting to "Add stock" would flip the wording under the operator's cursor a moment later,
+    // Defaulting to "Add stock" would flip the wording under the operator's cursor a moment later,
     // and on a tracked product a fast click would open the wrong dialog.
     getVariantStock.mockReturnValue(new Promise(() => {}))
     wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
@@ -349,7 +345,7 @@ describe("the header stock action on an untracked product", () => {
   })
 
   it("turns tracking on and records the opening count in ONE request", async () => {
-    // ⚠ One request, not a turn-on followed by an adjust: a failed second call would leave the
+    // One request, not a turn-on followed by an adjust: a failed second call would leave the
     // product tracked at zero — briefly unbuyable — which is the state FR-003 refuses to create by
     // accident.
     const user = userEvent.setup()
@@ -366,7 +362,7 @@ describe("the header stock action on an untracked product", () => {
   })
 
   it("says that selling behaviour changes, before the write", async () => {
-    // ⚠ An operator who typed a number into something called "Add stock" has not consented to the
+    // An operator who typed a number into something called "Add stock" has not consented to the
     // product going unbuyable at zero unless it is written next to the field.
     wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
     expect(screen.getByText(/deducts a unit, and the product stops selling at zero/i)).toBeInTheDocument()
@@ -400,7 +396,7 @@ describe("the header stock action on an untracked product", () => {
   })
 })
 
-// ── The standing rules ───────────────────────────────────────────────────────────────────────────
+// The standing rules
 
 describe("inventory rules", () => {
   function openRules(over: Partial<ProductStockDetailDTO["stock"]> = {}, product = PRODUCT) {
@@ -434,7 +430,7 @@ describe("inventory rules", () => {
   })
 
   it("sends only the rule that actually changed", async () => {
-    // ⚠ A write that resends untouched fields is how one operator's save silently reverts another's.
+    // A write that resends untouched fields is how one operator's save silently reverts another's.
     const user = userEvent.setup()
     openRules({ tracked: true, onHand: 12, threshold: null, effectiveThreshold: 8 })
 
@@ -458,7 +454,7 @@ describe("inventory rules", () => {
   })
 
   it("turns tracking on BEFORE writing a threshold that depends on it", async () => {
-    // ⚠ The server refuses a threshold write while tracking is off, so the reverse order turns one
+    // The server refuses a threshold write while tracking is off, so the reverse order turns one
     // operator action into a confusing refusal for a product that is by then tracked perfectly well.
     const user = userEvent.setup()
     const order: string[] = []
@@ -481,13 +477,13 @@ describe("inventory rules", () => {
   })
 })
 
-// ── The header chip ──────────────────────────────────────────────────────────────────────────────
+// The header chip
 
 const { ProductStatusBadge } = await import("../components/ProductStatusBadge")
 
 describe("the product state chip", () => {
   it("says the shelf is empty rather than that the product is active", async () => {
-    // ⚠ A product whose shelf is empty is `active` in the database and UNBUYABLE in the shop. A chip
+    // A product whose shelf is empty is `active` in the database and unbuyable in the shop. A chip
     // reading "active" beside an empty shelf answers a question nobody asked.
     wrap(<ProductStatusBadge status="active" stock={stockDetail({ onHand: 0, outOfStock: true }).stock} />)
     expect(screen.getByText("Out of stock")).toBeInTheDocument()
@@ -500,7 +496,7 @@ describe("the product state chip", () => {
   })
 
   it("falls back to the lifecycle label where the count is unknown", () => {
-    // ⚠ The catalog table carries no per-row count. Degrading is right; inventing one is not.
+    // The catalog table carries no per-row count. Degrading is right; inventing one is not.
     wrap(<ProductStatusBadge status="active" />)
     expect(screen.getByText("active")).toBeInTheDocument()
   })
@@ -516,15 +512,7 @@ describe("the product state chip", () => {
     }
   })
 
-  // ⚠ THIS TEST WAS REVERSED BY THE THEME ADOPTION, AND REWRITTEN RATHER THAN DELETED. It used to
-  // assert the chip carried NO hue at all, which was the monochrome constitution (041): amber was
-  // banned and `--success` was a 4.00:1 non-text indicator. The adopted theme supplies `--warning`
-  // and re-tunes `--success` to clear 4.5:1 on its own tint, so a hue is now correct here.
-  //
-  // What survived the reversal is the requirement that actually protects anyone: THE COLOUR IS NEVER
-  // THE ONLY CARRIER. A chip must still say its state in words, so it reads identically to a
-  // colour-blind operator, in greyscale, and to a screen reader. Deleting this test because its
-  // premise changed would have taken that guarantee with it.
+  // The chip may carry a hue, but never as the only carrier: it says its state in words.
   it("never lets colour be the only carrier of the state", () => {
     const cases = [
       { status: "active" as const, stock: stockDetail({ onHand: 0, outOfStock: true }).stock, word: "Out of stock" },
@@ -540,7 +528,7 @@ describe("the product state chip", () => {
     }
   })
 
-  // ⚠ EMPTY AND LOW MUST NOT LOOK THE SAME. The monochrome version had to collapse them into one
+  // Empty and low must not look the same. The monochrome version had to collapse them into one
   // "urgent" treatment; conflating them again would cost the operator the distinction that decides
   // whether to reorder today or this week — so the two chips are asserted to differ.
   it("distinguishes an empty shelf from a low one", () => {
@@ -552,7 +540,7 @@ describe("the product state chip", () => {
   })
 })
 
-// ── The Activity sheet (057 revision) ────────────────────────────────────────────────────────────
+// The Activity sheet (057 revision)
 
 describe("the Activity sheet", () => {
   function movement(i: number) {
@@ -571,7 +559,7 @@ describe("the Activity sheet", () => {
   }
 
   it("shows the WHOLE change log, not the old rail's newest four", async () => {
-    // ⚠ The reason the log moved into a sheet: a rail could only ever fit four entries.
+    // The reason the log moved into a sheet: a rail could only ever fit four entries.
     getVariantStock.mockResolvedValue({
       ...stockDetail(),
       movements: Array.from({ length: 9 }, (_, i) => movement(i)),

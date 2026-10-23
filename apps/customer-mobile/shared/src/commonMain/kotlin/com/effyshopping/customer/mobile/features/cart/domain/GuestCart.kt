@@ -4,66 +4,59 @@ import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
 import kotlinx.serialization.Serializable
 
 /**
- * The cart's line shape and the pure operations over it.
- *
- * ⚠ NAME (027): `GuestCartLine` is now a misnomer kept deliberately for one slice. Since 027 the PLATFORM
- * is authoritative for a signed-in shopper's cart and this type is the line shape of BOTH the guest cart
- * and the mirror of the account cart. The rename belongs with the presentation rewrite (Phase 5), not
- * scattered through a contract change.
- *
- * Lines still carry name/price/image captured at add time, but their meaning has changed: they are a
- * MIRROR to render instantly, reconciled against the platform on read — never the authority on what a
- * shopper pays (027 FR-006/FR-027). The ops below are pure + unit-tested.
+ * The cart's line shape and the pure operations over it: the line of both the guest cart and the mirror
+ * of the account cart (the name predates that). Name, price and image are captured at add time for instant
+ * rendering, reconciled on read; never the authority on what a shopper pays.
  */
 
 const val MAX_CART_QTY = 99
 
 @Serializable
 data class GuestCartLine(
-    /** 098 — the line's identity: the size being bought. */
+    /** The line's identity: the size being bought. */
     val variantId: String,
     /** The product it is a size of — for opening its page. */
     val productId: String,
     val name: String,
-    /** 098 — the size's words ("1 kg"); null for a product sold one way. */
+    /** The size's words ("1 kg"); null for a product sold one way. */
     val variantLabel: String? = null,
-    /** 098 — the comparison price, as the platform gave it. */
+    /** The comparison price, as the platform gave it. */
     val unitPrice: UnitPrice? = null,
     val imageUrl: String?,
     val unitPriceAmount: String,
     val currency: String,
     val quantity: Int,
     /**
-     * OPAQUE package grouping token (021 FR-005a), captured at add-time from the product — NOT a shop id,
+     * Opaque package grouping token, captured at add-time from the product — not a shop id,
      * name, or location. Items sharing a `packageKey` ship together as one anonymous "package" (one per
-     * fulfilling shop). It lets the cart show the split (021 US1) while revealing no shop (SC-006). Blank
+     * fulfilling shop). It lets the cart show the split while revealing no shop. Blank
      * when the storefront read carries no token yet — those lines degrade to a single anonymous package.
      */
     val packageKey: String = "",
     /**
-     * 027 — whether the platform still considers this purchasable. An unavailable line stays visible and
-     * flagged (a temporary state may be waited out) but contributes to NO total and cannot be paid for
-     * (FR-022). Defaults true so a line built locally before the platform has spoken renders normally.
+     * Whether the platform still considers this purchasable. An unavailable line stays visible and
+     * flagged (a temporary state may be waited out) but contributes to NO total and cannot be paid for.
+     * Defaults true so a line built locally before the platform has spoken renders normally.
      */
     val available: Boolean = true,
     /**
-     * 027 — the price this line was added at, when the platform reports it differs from the current one
-     * (FR-023). Null means there is no change to report. The shopper always pays [unitPriceAmount].
+     * The price this line was added at, when the platform reports it differs from the current one.
+     * Null means there is no change to report. The shopper always pays [unitPriceAmount].
      */
     val priceChangedFrom: String? = null,
 )
 
 /**
- * One anonymous package in the cart (021 FR-005a) — the items sharing a `packageKey`, shown WITHOUT any
+ * One anonymous package in the cart — the items sharing a `packageKey`, shown without any
  * shop identity or location. `index` is a 1-based ordinal used only to label it "Package N".
  */
 data class CartPackage(val packageKey: String, val index: Int, val lines: List<GuestCartLine>)
 
 /**
- * Group cart lines into anonymous packages by `packageKey` (021 US1). Lines with a blank key (no token
- * from the storefront read yet) collapse into ONE package, so a single-shop / untagged cart degrades
- * gracefully to one part with no artificial "package 1 of 1" framing (SC-011). Order is stable (first
- * appearance). NEVER exposes a shop — only an ordinal.
+ * Group cart lines into anonymous packages by `packageKey`. Lines with a blank key (no token
+ * from the storefront read yet) collapse into one package, so a single-shop / untagged cart degrades
+ * gracefully to one part with no artificial "package 1 of 1" framing. Order is stable (first
+ * appearance). Never exposes a shop — only an ordinal.
  */
 fun packagesOf(lines: List<GuestCartLine>): List<CartPackage> {
     val order = mutableListOf<String>()

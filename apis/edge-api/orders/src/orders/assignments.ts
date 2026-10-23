@@ -1,19 +1,12 @@
-// Who has each package, and how it got there (073) — the back-office order read's assignment lines.
-//
-// ⚠ READ-ONLY. Assigning and unassigning are the fleet service's (it owns the planner and its lock);
-// this only shows the result, so the order screens stay one service and one request.
+// Read-only: assigning is the fleet service's (it owns the planner and its lock).
 
 import { query, reasonWords, type ExclusionReason } from "@effy/edge-shared";
 import type { OrderAssignment } from "@effy/shared-types";
 
 /**
- * ⚠ 082 — "THIS PARCEL IS DELIVERY WORK NOW", in ONE place: Effy delivers it (079's definition — never
- * the method: since 078 a later-day window is sold as `standard`), and its round has OPENED (the
- * database's one definition of that, `public.round_opens_at`). A parcel sold no window is due at once.
- *
- * A parcel at the hub waiting for a later day is NOT delivery work yet: it is waiting, not unassigned,
- * and neither the order page nor the "needs a driver" filter says otherwise. Both read this fragment,
- * over a fulfilment `sf`, its order `o` and its captured delivery row `opd`.
+ * "THIS PARCEL IS DELIVERY WORK NOW": Effy delivers it and its round has opened
+ * (`public.round_opens_at`). A parcel waiting at the hub for a later day is waiting, not unassigned.
+ * Over a fulfilment `sf`, its order `o` and its delivery row `opd`.
  */
 export const DELIVERY_DUE_SQL = `(
   o.delivery_type = 'effy'
@@ -22,14 +15,9 @@ export const DELIVERY_DUE_SQL = `(
 )`;
 
 /**
- * Every package's current collection and delivery assignment — the LATEST round row of each kind —
- * with the round's opening time (the database's one definition), and the standing reasons for any
- * package nobody has.
- *
- * ⚠ "MOVABLE" IS DECIDED HERE, AND ONLY CONSERVATIVELY. A package can be reassigned while its row is
- * still `assigned` — except on a delivery round already under way, whose goods have left the hub in a
- * van even though no proof is in yet. The fleet route enforces the same rule; this only decides
- * whether the screen OFFERS it.
+ * Each package's latest collection and delivery round row, its opening time, and why nobody has it.
+ * The screen offers a move only while the row is `assigned` and not on a delivery round under way;
+ * the fleet route enforces the same rule.
  */
 const ASSIGNMENTS = `
   SELECT sf.id::text AS package_id,
@@ -86,7 +74,6 @@ interface Row {
   nobody: boolean;
 }
 
-/** The one line shown for a package nobody has. */
 function whyUnassigned(r: Row): string {
   if (r.nobody) return "No driver is on duty";
   if (r.reasons.length === 0) return "Waiting for auto-assign (every 5 minutes)";
@@ -95,7 +82,7 @@ function whyUnassigned(r: Row): string {
 
 function toAssignment(r: Row): OrderAssignment | null {
   const open = r.state === "assigned";
-  // Taken and on its way: the driver who has it, not movable by a click.
+  // Taken and on its way: not movable by a click.
   if (r.state === "picked_up" || r.state === "delivered" || (open && r.stage === "delivery" && r.round_status === "in_progress")) {
     return {
       assignmentId: r.round_package_id,
@@ -120,7 +107,6 @@ function toAssignment(r: Row): OrderAssignment | null {
       movable: true,
     };
   }
-  // Nobody has it. Is it waiting for a driver at THIS stage?
   const waiting =
     r.stage === "collection"
       ? r.shop_status === "ready_for_pickup"
@@ -138,7 +124,7 @@ function toAssignment(r: Row): OrderAssignment | null {
   };
 }
 
-/** packageId → its collection and delivery assignment. `null` = nothing to show for that stage. */
+/** `null` means nothing to show for that stage. */
 export async function assignmentsFor(
   packageIds: readonly string[],
 ): Promise<Map<string, { collect: OrderAssignment | null; deliver: OrderAssignment | null }>> {

@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * SC-004 / FR-002 / FR-008 — the storefront's central promise.
+ * The storefront's central promise.
  *
  * These assertions cannot be made by a unit test, and they cannot be made by a browser test
- * either. They require fetching the RAW HTTP RESPONSE and looking at the bytes the server
- * actually sent, before any JavaScript has run. That is the only way to know what a crawler —
+ * either. They require fetching the raw HTTP response and looking at the bytes the server
+ * actually sent, before any JavaScript has run. That is the only way to know what a crawler
  * or a link preview bot, or a customer on a flaky connection — actually receives.
  *
  * If these fail, the surface has failed the thing it exists for, no matter how good it looks in
@@ -83,21 +83,8 @@ test.describe("crawl directives (FR-004)", () => {
 })
 
 /**
- * FR-008 — NO CLOAKING.
- *
- * Serving different CONTENT to crawlers than to shoppers is a Google Search spam-policy
- * violation and grounds for manual action. It is also the tempting "fix" whenever SSR gets
- * hard, which is why it is asserted rather than merely promised.
- *
- * ⚠ What we assert is CONTENT equality, not byte equality — and the distinction is real, not a
- * convenience. Next.js legitimately varies the TRANSPORT by user-agent: it detects HTML-limited
- * bots and INLINES the streamed content and metadata into the initial HTML, while browsers
- * receive the same material through streaming machinery. The bytes therefore differ; the page
- * does not. Per the Next docs, that is a flush-timing optimization, not cloaking — the crawler
- * ends up with strictly MORE of the page up-front, never different content.
- *
- * Asserting byte equality here would fail forever while proving nothing. So we compare what
- * FR-008 actually protects: the title, the description, the canonical, and the visible copy.
+ * No cloaking: crawlers and shoppers get the same content. Content equality, not bytes (Next inlines
+ * streamed content for HTML-limited bots): the title, description, canonical and visible copy.
  */
 test.describe("no cloaking (FR-008)", () => {
   const CONTENT_MARKERS: Record<(typeof PUBLIC_PAGES)[number], string[]> = {
@@ -136,8 +123,8 @@ test.describe("no cloaking (FR-008)", () => {
       )
       expect(canonical(botHtml)).toBe(canonical(humanHtml))
 
-      // 2. Every piece of visible copy is present for BOTH. The crawler is not being fed a
-      //    different store than the shopper.
+      // 2. Every piece of visible copy is present for both. The crawler is not being fed a
+      //  different store than the shopper.
       for (const marker of CONTENT_MARKERS[path]) {
         expect(botHtml, `bot is missing: ${marker}`).toContain(marker)
         expect(humanHtml, `human is missing: ${marker}`).toContain(marker)

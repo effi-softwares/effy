@@ -1,12 +1,12 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * Cancel an order (055 US2, FR-012).
+ * Cancel an order.
  *
- * ⚠ Cancelling MOVES MONEY — it is a full refund. It goes to the commerce service, where checkout
+ * Cancelling moves money — it is a full refund. It goes to the commerce service, where checkout
  * and payment live.
  *
- * ⚠ NO BODY. There is nothing for the caller to say: which order is in the path, who they are comes
+ * No body. There is nothing for the caller to say: which order is in the path, who they are comes
  * from the session, and the amount is the platform's arithmetic. A field here would be a field
  * somebody could use to redirect somebody else's money.
  */

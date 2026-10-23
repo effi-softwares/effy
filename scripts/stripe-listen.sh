@@ -1,31 +1,22 @@
 #!/usr/bin/env bash
-# stripe-listen.sh — dev-only Stripe webhook helper (019 checkout / 020 fulfilment).
+# stripe-listen.sh — dev-only Stripe webhook helper.
 #
-# WHY THIS EXISTS: `stripe listen` signs every forwarded webhook with the CLI account's webhook
-# signing secret. The commerce service verifies against the secret in Secrets Manager
-# (/effy/<env>/stripe/webhook_secret). If the two disagree, EVERY webhook fails signature
-# verification with a 400 and every paid order waits at `pending_payment` until the shopper's own
-# return confirms it. This script removes the drift by syncing the secret into Secrets Manager
-# BEFORE it starts forwarding.
+# `stripe listen` signs forwarded webhooks with the CLI account's secret, and the commerce service verifies
+# against /effy/<env>/stripe/webhook_secret; if they differ, every webhook fails with a 400 and paid orders
+# wait at `pending_payment`. So this:
+# 1. reads the account's current webhook signing secret (stripe listen --print-secret)
+# 2. syncs it into Secrets Manager /effy/<env>/stripe/webhook_secret (only if it changed)
+# 3. records the forward URL in SSM Parameter Store /effy/<env>/stripe/webhook_url
+# 4. execs `stripe listen --forward-to <url>` (Ctrl-C to stop)
 #
-# It does three things, then forwards in the foreground:
-#   1. reads the account's current webhook signing secret     (stripe listen --print-secret)
-#   2. syncs it into Secrets Manager /effy/<env>/stripe/webhook_secret  (only if it changed)
-#   3. records the forward URL in SSM Parameter Store /effy/<env>/stripe/webhook_url
-#   4. execs `stripe listen --forward-to <url>`                (Ctrl-C to stop)
+# No restart after step 2: the service re-reads the secret once when a signature fails.
 #
-# No restart is needed after step 2: the service re-reads the secret once when a signature fails,
-# so the first forwarded event after a change is verified against the new value (070).
+# The deployed endpoint registered in the Stripe dashboard signs with its own secret and reads the same
+# entry, so while this runs its events fail verification until that secret is put back. Local work only.
 #
-# ⚠ ONE SECRET, TWO POSSIBLE SIGNERS. The DEPLOYED webhook endpoint registered in the Stripe
-# dashboard signs with ITS OWN secret, and it reads the same Secrets Manager entry. Running this
-# script points that entry at the CLI's secret, so dashboard-delivered events to the deployed
-# endpoint will fail verification until the dashboard endpoint's secret is put back. Use this for
-# local work; do not leave it running against an environment whose deployed endpoint is in use.
-#
-# Usage:  ./scripts/stripe-listen.sh [forward-url]
-#   forward-url defaults to localhost:3000/commerce/v1/stripe/webhook — the commerce service under
-#   `make edge-offline SERVICE=commerce`. Pass a tunnel URL to forward somewhere else.
+# Usage: ./scripts/stripe-listen.sh [forward-url]
+# forward-url defaults to localhost:3000/commerce/v1/stripe/webhook — the commerce service under
+# `make edge-offline SERVICE=commerce`. Pass a tunnel URL to forward somewhere else.
 #
 # Env overrides: ENV (default dev), AWS_PROFILE (default ef), AWS_REGION (default ap-southeast-2).
 set -euo pipefail
@@ -44,8 +35,8 @@ aws_sm()  { aws secretsmanager "$@" --profile "$PROFILE" --region "$REGION"; }
 command -v stripe >/dev/null || { echo "stripe-listen: stripe CLI not installed (brew install stripe/stripe-cli/stripe)"; exit 1; }
 command -v aws    >/dev/null || { echo "stripe-listen: aws CLI not installed"; exit 1; }
 
-# 1. The account's webhook signing secret. --print-secret reveals the SAME secret `listen` will sign
-#    with, then exits — so what we store below is exactly what the service will need to verify.
+# 1. The account's webhook signing secret. --print-secret reveals the same secret `listen` will sign
+# with, then exits — so what we store below is exactly what the service will need to verify.
 echo "stripe-listen: reading the account webhook signing secret…"
 WHSEC="$(stripe listen --print-secret)"
 [[ "$WHSEC" == whsec_* ]] || { echo "stripe-listen: unexpected value from 'stripe listen --print-secret' — are you logged in? run: stripe login"; exit 1; }

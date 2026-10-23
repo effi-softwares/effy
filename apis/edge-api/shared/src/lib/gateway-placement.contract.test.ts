@@ -6,22 +6,12 @@ import { describe, expect, it } from "vitest";
 import { EDGE_API_DIR, functionsOf, httpRoutes, INFRA_DEV_DIR, listStacks, type Gateway } from "./serverless-stacks.js";
 
 /**
- * ⚠ WHICH GATEWAY A SERVICE IS ON IS A SECURITY BOUNDARY, NOT A DEPLOYMENT DETAIL (075).
- *
- * There are two gateways. The STAFF gateway carries exactly one authorizer — the back-office
- * pool's — and the SHARED gateway carries none for back-office. So a customer, shop or driver
- * token has nothing on the staff gateway that could accept it, and a staff token has nothing on
- * the shared one. That holds whatever any single route's configuration says.
- *
- * It holds only while every stack is on the right gateway and names the right authorizer. Both are
- * one line of YAML each, in thirteen files, and a wrong one deploys cleanly: a back-office stack
- * left on the shared gateway fails only at the move's last step, and a shop route pointed at a
- * staff parameter resolves, deploys and 401s every shop in the country.
- *
- * Placement rule and what to do with a new service: docs/api/path-assignment.md.
+ * Which gateway a stack is on is a security boundary: the staff gateway carries only the back-office
+ * authorizer, the shared one none for back-office. A wrong line deploys cleanly, so every stack is
+ * pinned here. Placement rules: docs/api/path-assignment.md.
  */
 
-/** ⚠ THE PLACEMENT TABLE. A new stack must be added to exactly one line — that is the point. */
+/** A new stack must be added to exactly one line. */
 const PLACEMENT: Record<string, Gateway | null> = {
   // customers and the public
   storefront: "shared",
@@ -44,7 +34,7 @@ const PLACEMENT: Record<string, Gateway | null> = {
   // no route at all
   auth: null,
   live: null,
-  // 086 — fed by the bucket's upload notifications through a queue
+  // Fed by the bucket's upload notifications through a queue.
   media: null,
 };
 
@@ -87,8 +77,7 @@ describe("⚠ the audiences stay apart — per gateway, not only per route", () 
   });
 
   it("no stack reads an AUTHORIZER from the other gateway's prefix", () => {
-    // Authorizers only. A gateway's id may be read by a stack that is not on it — the hourly usage
-    // check in `admin` counts both — but an authorizer id is only ever meaningful on its own gateway.
+    // Authorizers only: a gateway id may be read by a stack not on it (the usage check counts both).
     for (const s of stacks) {
       if (s.gateway === "staff") expect(s.yml, `${s.dir}/${s.file} is on the staff gateway but reads an /edge/ authorizer`).not.toMatch(/\/effy\/\$\{sls:stage\}\/edge\/authorizer\//);
       if (s.gateway === "shared") expect(s.yml, `${s.dir}/${s.file} is on the shared gateway but reads a /staff/ authorizer`).not.toMatch(/\/effy\/\$\{sls:stage\}\/staff\/authorizer\//);
@@ -150,10 +139,6 @@ describe("inventory — one service, two stacks, nothing declared twice and noth
 });
 
 describe("the move is over — no environment carries the machinery for it (FR-025)", () => {
-  // 075 moved back-office in stages, driven by a `staff_gateway_cutover` variable and five temporary
-  // forwarding routes on the shared gateway. Both were removed once dev had moved: a new environment
-  // is created in the finished state and has nothing to step through. If a staged move is ever
-  // needed again, how it was done is in specs/075-staff-gateway/ (research R5, quickstart).
   const infraEnvs = resolve(INFRA_DEV_DIR, "..");
 
   it("no Terraform or tfvars file mentions the cutover variable or declares a forwarding route", () => {

@@ -1,9 +1,5 @@
-// Checkout: the amount, the pending order, the payment intent, and the routes into payment
-// finalisation. No HTTP, no SQL.
-//
-// ⚠ THE AMOUNT IS DECIDED HERE AND NOWHERE ELSE (070 FR-014). Prices come from the catalogue, the
-// discount from the cart's applied code re-evaluated now, the fee from the delivery engine. No
-// figure a client sends is ever used.
+// The amount is decided here and nowhere else: catalogue prices, promotions re-evaluated now, the
+// delivery engine's fee. No figure a client sends is used.
 import { PromotionsChangedError } from "@effy/edge-shared/promotions";
 import {
   CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, withTransaction, type RequestScope, type Transactor,
@@ -25,35 +21,22 @@ import {
   DeliveryChoiceError, resolveCourier, resolveEffyChoice, type ChosenWindow,
 } from "./delivery-choice";
 import {
-  AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
+  AddressNotFoundError, CARD_MINIMUM_CENTS, destinationPostcode, packagesFromLines, type DeliveryQuoter,
   type PromoSource,
 } from "./quote";
 import { SlotUnavailableError, type CheckoutStore, type PackageDelivery, type SlotHold, type SoldDelivery } from "./store";
 
 export { AddressNotFoundError };
 
-/** The cart has nothing that can be bought. */
 export class EmptyCartError extends Error {}
-/**
- * 096 FR-093 — while tax invoices are on, a product nobody has classified as taxable or GST-free is
- * not sold: its invoice could not say how much GST it carried. The customer is told only that it is
- * unavailable.
- */
+/** While tax invoices are on, a product with no GST class is not sold; the customer sees only "unavailable". */
 export class ProductUnavailableError extends Error {}
-/** The destination is in no active delivery zone — the single "not there yet" outcome (047). */
 export class NotServiceableError extends Error {}
-/** Raised for a missing order AND for someone else's. */
 export class OrderNotFoundError extends Error {}
-/**
- * Covers BOTH "no such card" and "not this shopper's card" (051). Deliberately indistinguishable:
- * separating them would make the route an oracle for whether a payment-method id exists.
- */
+/** "No such card" and "not yours" alike, so the route reveals nothing about card ids. */
 export class PaymentMethodNotFoundError extends Error {}
 
-/**
- * 074 — the points asked for cannot be used as asked. Carries the most that CAN be, so the client can
- * offer it ("Use 4,750 points instead") rather than send the shopper back to guess.
- */
+/** Carries the most points that can be used, so the client can offer it. */
 export class PointsExceedTotalError extends Error {
   constructor(readonly maxPoints: number) {
     super("checkout: more points than the order total");
@@ -64,15 +47,11 @@ export class PointsCardRemainderTooSmallError extends Error {
     super("checkout: the card would be left less than the provider can charge");
   }
 }
-/**
- * 074 — a payment for this order is already in flight with the provider, so it cannot switch to being
- * paid entirely with points. The client re-reads; nothing was charged twice and no points were spent.
- */
+/** A provider payment is already in flight, so the order cannot switch to points only. */
 export class PaymentInProgressError extends Error {}
 
 export { CARD_MINIMUM_CENTS };
 
-/** The order is below the minimum. Carries how much more is needed — never a shop. */
 export class BelowMinimumError extends Error {
   constructor(readonly minimumCents: number, readonly remainingCents: number) {
     super("checkout: order below the minimum");
@@ -81,57 +60,35 @@ export class BelowMinimumError extends Error {
 
 export interface IntentInput {
   addressId: string;
-  /** Empty, or equal to `addressId`, means "billing same as shipping". Never affects the amount. */
+  /** Empty, or equal to `addressId`, means billing same as shipping. */
   billingAddressId: string;
-  /**
-   * The ONE window chosen for the order (078); null when the client sent none. Required when Effy
-   * delivers; a courier order has none.
-   */
+  /** Required when Effy delivers; a courier order has none. */
   deliveryWindow?: ChosenWindow | null;
-  /**
-   * 079 — the delivery type the client is SHOWING; null/absent when it said nothing. A courier order
-   * requires "courier"; a type that is not the one that applies now is refused before anything is
-   * written, so nobody pays a courier fee for a screen that showed Effy's windows, or the reverse.
-   */
+  /** The type the client is showing; a mismatch is refused before anything is written. */
   deliveryType?: "effy" | "courier" | null;
-  /** 085 — "as soon as possible": sent INSTEAD of a window. */
+  /** Sent instead of a window. */
   deliveryPromise?: "asap" | null;
-  /** ALREADY validated and normalised. The only source of an order's instructions (066). */
+  /** Already validated and normalised. */
   deliveryInstructions: DeliveryInstructionsDTO;
   /** Set only by a client that renders a provider-owned payment-method list (mobile). */
   wantsProviderMethodList: boolean;
-  /** 074 — whole points to pay with; 0 for none. Validated by the handler as a non-negative integer. */
   pointsToUse: number;
-  /**
-   * 077 — the delivery total the client is showing, as a 2-dp amount; "" when it sent none (a client
-   * built before 077). Validated by the handler.
-   */
+  /** The delivery total the client shows, as a 2-dp amount; "" when none was sent. */
   shownDeliveryAmount: string;
-  /**
-   * 094 — the promotions total (goods + delivery) the client is showing, as a 2-dp amount; "" when it
-   * sent none (a client built before 094, priced without the check). Validated by the handler.
-   */
+  /** The promotions total (goods + delivery) the client shows; "" when none was sent. */
   expectedDiscount?: string;
 }
 
 export type { PromoSource };
 
-/**
- * 094 — the promotions total is not the one the client showed (a promotion ended, its budget ran out,
- * another shopper took the last use, or the cart changed). NOTHING the shopper pays for has been
- * taken: they are shown the cart as it stands and decide again (FR-037).
- */
+/** The promotions total differs from what the client showed; nothing was taken. */
 export class PromotionsChangedRefusal extends Error {
   constructor(readonly shownCents: number | null, readonly nowCents: number | null) {
     super(`checkout: promotions changed (shown ${shownCents}, now ${nowCents})`);
   }
 }
 
-/**
- * 077 — the delivery total is not the one the client showed (a new fee plan went live, or the
- * basket crossed a threshold, between the quote and the pay button). NOTHING has been written: the
- * shopper is shown the new total and decides again. Never charged an amount they did not see.
- */
+/** The delivery total differs from what the client showed; nothing was written. */
 export class DeliveryFeeChangedError extends Error {
   constructor(readonly shownCents: number, readonly nowCents: number) {
     super(`checkout: delivery fee changed (shown ${shownCents}, now ${nowCents})`);
@@ -141,10 +98,8 @@ export class DeliveryFeeChangedError extends Error {
 const PAY_OVER_TIME = new Set(["klarna", "zip", "afterpay_clearpay"]);
 
 /**
- * Deterministic, so a retried create returns the SAME intent rather than a second charge.
- *
- * ⚠ It covers the order, the AMOUNT and the provider customer. A basket that changed has a
- * different amount and gets a new intent; the same basket retried gets the one it already has.
+ * Deterministic over the order, the amount and the provider customer, so a retry returns the same
+ * intent and a changed basket gets a new one.
  */
 export function idempotencyKey(orderId: string, amountCents: number, providerCustomerId: string): string {
   return createHash("sha256").update(`pi:${orderId}:${amountCents}:${providerCustomerId}`).digest("hex");
@@ -156,16 +111,12 @@ export function paymentStatusFor(s: IntentStatus): string {
 
 function deliveryOutcome(q: QuoteResult): string {
   if (!q.serviced) return "unserviced";
-  // 079 — a courier delivers: because Effy does not go there, or because Effy has no window left.
+  // Effy does not deliver there, or has no window left.
   if (q.coverage === "courier") return q.reason === "no_window" ? "courier_fallback" : "courier";
-  // Whether any window can be chosen, and if not, which kind of nothing (078).
   return q.effyWindows.unavailable ?? "windows_offered";
 }
 
-/**
- * What the client passes back at confirmation, derived from the order's own snapshot — the payment
- * step no longer asks the shopper for a country, a postcode or a name (051).
- */
+/** Billing details for confirmation, derived from the order's address snapshot. */
 export function billingDetailsFrom(snapshot: Record<string, unknown> | null, name: string, email: string) {
   const text = (v: unknown) => (typeof v === "string" ? v : "");
   const out = { name, email, address: { line1: "", line2: "", city: "", state: "", postalCode: "", country: "AU" } };
@@ -173,16 +124,14 @@ export function billingDetailsFrom(snapshot: Record<string, unknown> | null, nam
   out.address = {
     line1: text(snapshot.line1), line2: text(snapshot.line2), city: text(snapshot.city),
     state: text(snapshot.region), postalCode: text(snapshot.postalCode),
-    // Effy sells in one country; a snapshot may predate the field.
     country: text(snapshot.country) || "AU",
   };
-  // The recipient on the order is a better name for a receipt than a profile name, which may be
-  // empty on the one-time-code and federated sign-in routes.
+  // The order's recipient: a profile name may be empty after code or federated sign-in.
   if (text(snapshot.recipientName) !== "") out.name = text(snapshot.recipientName);
   return out;
 }
 
-/** A card whose expiry month has passed. A card is good THROUGH its expiry month. */
+/** A card is good through its expiry month. */
 export function cardExpired(expMonth: number, expYear: number, now: Date): boolean {
   const y = now.getUTCFullYear();
   if (expYear !== y) return expYear < y;
@@ -202,7 +151,6 @@ export function createCheckoutService(deps: {
   const transact = deps.transact ?? withTransaction;
   const ns = () => metricNamespace();
 
-  /** Run the paid transition in its own transaction and meter it once it has committed. */
   async function settlePaid(orderId: string): Promise<FinalizeOutcome> {
     const out = await transact((tx) => finalizeSucceeded(tx, orderId));
     meterFinalize(ns(), out);
@@ -211,9 +159,8 @@ export function createCheckoutService(deps: {
   }
 
   /**
-   * Record how the order was paid, for the receipt (052). AFTER the commit, best-effort: the order
-   * is already paid, a receipt without a payment line is a supported state, and a provider read
-   * inside the payment transaction would hold its locks across a network call.
+   * Records how the order was paid, after the commit and best-effort: a provider read inside the
+   * payment transaction would hold its locks across a network call.
    */
   async function capturePaymentMethod(scope: Pick<RequestScope, "log">, orderId: string, intentId: string): Promise<void> {
     if (intentId === "") return;
@@ -226,38 +173,31 @@ export function createCheckoutService(deps: {
   }
 
   /**
-   * MAY THIS CHECKOUT RECYCLE THE CUSTOMER'S OPEN ORDER?
-   *
-   * Recycling is right only while that order's payment attempt is still LIVE. Recycling one whose
-   * intent has already settled is what makes a second checkout resolve to the FIRST one's payment
-   * — the shopper pays once and their second basket is never charged, or the reverse. Only the
-   * provider knows which it is, so it is asked.
+   * Recycles the open order only while its payment attempt is live: reusing one whose intent settled
+   * would tie a second basket to the first payment. Only the provider knows, so it is asked.
    */
   async function mayReusePendingOrder(customerId: string): Promise<boolean> {
     const pending = await store.pendingOrderIntent(customerId);
-    // No open order, or one that never reached an intent: nothing exists that could collide.
     if (!pending) return true;
 
     let status: IntentStatus;
     try {
       status = (await gateway.retrievePaymentIntent(pending.intentId)).status;
     } catch {
-      // Could not ask. Not reusing is the safe direction: a fresh order cannot inherit a payment.
+      // Could not ask: a fresh order cannot inherit a payment.
       return false;
     }
     if (status === "succeeded") {
-      // Paid, and nothing told the database. Settle it here so it reaches order history and the
-      // shops. Idempotent; a notification that arrives later changes nothing.
+      // Paid but unrecorded: settle it now. Idempotent.
       await settlePaid(pending.orderId);
       return false;
     }
     if (status === "failed" || status === "canceled") {
-      // ⚠ A cancelled intent can never be paid: recycling this row would hand the shopper a dead
-      // intent and a pay button that cannot work. Release it.
+      // A cancelled intent can never be paid: release the order.
       await transact((tx) => finalizeFailed(tx, pending.orderId));
       return false;
     }
-    // Live. Same order, same key, same intent — exactly what the double-charge guard depends on.
+    // Live: same order, key and intent, which the double-charge guard depends on.
     return true;
   }
 
@@ -277,82 +217,65 @@ export function createCheckoutService(deps: {
   return {
     mayReusePendingOrder,
 
-    /**
-     * Compute the charge, write the pending order, hold the delivery place, and create the payment
-     * intent. Safe to call again for the same basket: it resolves to the same order and intent.
-     */
+    /** Safe to call again for the same basket: it resolves to the same order and intent. */
     async createIntent(customerId: string, input: IntentInput, now: Date) {
       if (!isUuid(input.addressId)) throw new AddressNotFoundError();
 
       const lines = await store.cartLines(customerId);
       const address = await store.addressSnapshot(customerId, input.addressId);
       if (!address) throw new AddressNotFoundError();
-      // ⚠ Refused HERE rather than left to the provider (070): an empty cart used to reach the
-      // intent call with a zero amount and come back as an unexplained failure.
+      // Refused here: the provider would fail a zero amount without explanation.
       if (lines.length === 0) throw new EmptyCartError();
       if (lines.some((l) => l.gstClassified === false) && (await store.invoicesEnabled())) {
         emitMetric(ns(), "UnclassifiedProductRefused");
         throw new ProductUnavailableError();
       }
 
-      // ⚠ 054: lines that are out of stock have already dropped out of `cartLines`, and a
-      // partly-supplied line arrives with its quantity already capped. So the subtotal — and
-      // therefore the charge — can only cover units the platform believes exist.
+      // Out-of-stock lines are already gone and partial lines capped, so the charge covers only stock.
       const itemSubtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.quantity, 0);
-      // One increment per checkout that had to be trimmed, not one per line.
       if (lines.some((l) => l.requestedQuantity > l.quantity)) emitMetric(ns(), "StockBlocked", 1, { stage: "checkout" });
 
-      // ⚠ The minimum is re-decided HERE, not trusted from the cart's `checkout.allowed` (027
-      // FR-056): a client that ignores the cart's own gate must still be refused.
+      // Re-decided here, so a client that ignores the cart's gate is still refused.
       const policy = await deps.policy();
       if (!meetsMinimum(policy, itemSubtotalCents)) {
         throw new BelowMinimumError(policy.minimumSubtotalCents, remainingToMinimum(policy, itemSubtotalCents));
       }
 
-      // 094 — promotions are RECOMPUTED here through the one engine — never carried from the cart
-      // response and never taken from the request. First on the goods alone (the fee's basket rules
-      // judge goods after promotions), then again below once who delivers and the fee are known.
+      // Recomputed here, never taken from the cart or the request: first on goods alone (the fee judges
+      // goods after promotions), then again once the delivery type and fee are known.
       const pendingBefore = await store.pendingOrderIntent(customerId);
       const goodsPriced = await deps.promos({ customerId, lines, deliveryType: null, deliveryFeeCents: null, now, excludeOrderId: pendingBefore?.orderId ?? null });
       const discount = { cents: goodsPriced.outcome.goodsDiscountCents };
 
-      // The delivery fee: from the destination postcode and the cart's per-shop weights.
       const postcode = destinationPostcode(address);
       if (!postcode) throw new AddressNotFoundError();
       let quote: QuoteResult;
       try {
-        // The basket as the fee's rules judge it: goods after the promotion, before delivery (077
-        // FR-005). Points are not in it — they are how the order is paid, further down.
+        // Goods after promotions, before delivery. Points are payment, not part of it.
         quote = await deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, discount.cents));
       } catch (err) {
-        // ⚠ A listed postcode that could not be priced must never happen; it is a page, not a
-        // number to watch idly (047 FR-029, 077 FR-009). Never free delivery.
+        // A listed postcode that cannot be priced must never happen; it pages. Never free delivery.
         if (err instanceof ListedPostcodeUnpricedError || err instanceof NoActivePlanError || err instanceof CourierNotPurchasableError) emitMetric(ns(), "DeliveryQuoteFailures");
         throw err;
       }
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });
       if (!quote.serviced) throw new NotServiceableError();
-      // ⚠ A page, not a number to watch: a covered address and not one window switched on (078 FR-020).
+      // Pages: a covered address with no window switched on.
       if (quote.coverage === "effy" && quote.effyWindows.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
 
-      // ⚠ 079 FR-005 — WHO DELIVERS MUST BE WHAT THE SHOPPER WAS SHOWN. Refused HERE, before anything
-      // is written: a courier order has to be asked for by name (a client built before 079 cannot
-      // draw one, so it cannot buy one), and a client showing "Courier delivery" for an address Effy
-      // now delivers to is shown the windows first. Same idea as the shown delivery total below.
+      // The delivery type must be the one the shopper was shown, refused before anything is written: a
+      // courier order is asked for by name, and a stale "Courier delivery" screen sees the windows first.
       if (quote.coverage === "courier" ? input.deliveryType !== "courier" : input.deliveryType === "courier") {
         const changed = new DeliveryChoiceError("delivery_type_changed");
         meterChoiceRefusal(changed);
         throw changed;
       }
-      // What the order is recorded as. Every order has a delivery type since 083; only orders placed
-      // before delivery types have none, and they keep it that way.
       const soldType: SoldDelivery =
         quote.coverage === "courier"
           ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate, courierServiceId: quote.serviceId, courierCollection: quote.collection }
           : { type: "effy", reason: "in_coverage", courierEstimate: null };
 
-      // ⚠ Refused HERE, before the order is written and long before a payment intent exists, when
-      // the window is no longer on offer (069, 078).
+      // Refused before anything is written when the window is no longer offered.
       let packages: PackageDelivery[];
       let hold: SlotHold | null;
       let fee: PricedFee;
@@ -360,37 +283,32 @@ export function createCheckoutService(deps: {
       let asapEstimate: string | null;
       try {
         ({ packages, hold, fee, promise, asapEstimate } = quote.coverage === "courier"
-          // 079 — nothing to choose, nothing to hold: the cart's shops, each sent by courier.
+          // Nothing to choose or hold: each shop's package goes by courier.
           ? resolveCourier(quote, packagesFromLines(lines))
           : resolveEffyChoice(quote, input.deliveryWindow ?? null, input.deliveryPromise === "asap", now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;
       }
-      // 085 — what was sold goes on the order with who delivers, in the same write.
       const sold: SoldDelivery = { ...soldType, promise, asapEstimate };
-      // ONE fee for the order (077) — never a sum over packages.
+      // One fee for the order, never a sum over packages.
       const deliveryFeeCents = fee.totalCents;
 
-      // 094 — the final price: every promotion judged with who delivers and the fee known (R3).
+      // The final price, with the delivery type and fee known.
       const priced = await deps.promos({
         customerId, lines, deliveryType: soldType.type, deliveryFeeCents, now, excludeOrderId: pendingBefore?.orderId ?? null,
       });
       const goodsDiscountCents = priced.outcome.goodsDiscountCents;
       const deliveryDiscountCents = priced.outcome.deliveryDiscountCents;
-      // ⚠ Refused HERE, before anything is written (FR-037): the client says what promotions total it
-      // is showing; a different one is shown to the shopper first. A client built before 094 sends none.
+      // Refused before anything is written when the promotions total differs from the one shown.
       const expected = input.expectedDiscount ?? "";
       if (expected !== "" && parseCents(expected) !== goodsDiscountCents + deliveryDiscountCents) {
         emitMetric(ns(), "PromotionsChanged");
         throw new PromotionsChangedRefusal(parseCents(expected), goodsDiscountCents + deliveryDiscountCents);
       }
-      // A discount larger than the basket cannot produce a negative charge.
       let grandTotalCents = Math.max(0, itemSubtotalCents - goodsDiscountCents);
 
-      // ⚠ Refused HERE, before anything is written (077 FR-031): the client says what delivery total
-      // it is showing, and if that is not what the order would be charged, the shopper sees the new
-      // one first. A client built before 077 sends nothing and is priced without the check.
+      // Refused before anything is written when the delivery total differs from the one shown.
       if (input.shownDeliveryAmount !== "" && parseCents(input.shownDeliveryAmount) !== deliveryFeeCents) {
         emitMetric(ns(), "DeliveryFeeChanged");
         throw new DeliveryFeeChangedError(parseCents(input.shownDeliveryAmount), deliveryFeeCents);
@@ -398,8 +316,7 @@ export function createCheckoutService(deps: {
       if (fee.breakdown.freeApplied) emitMetric(ns(), "FreeDeliveryOrders");
       grandTotalCents += deliveryFeeCents - deliveryDiscountCents;
 
-      // 074 — points are a WAY OF PAYING (FR-018): the order total above is final, and the card pays
-      // what the points do not. Refused, never clamped, so the shopper is shown the real figures.
+      // Points pay part of the final total; refused, never clamped, so the shopper sees real figures.
       let pointsUsed = input.pointsToUse;
       let centsPerPoint = 1;
       if (pointsUsed > 0) {
@@ -422,7 +339,7 @@ export function createCheckoutService(deps: {
         customerId,
         {
           itemSubtotalCents, deliveryFeeCents, deliveryFeeBreakdown: storedBreakdown(fee), discountCents: goodsDiscountCents,
-          // 094 — the code's text stays on the order for the readers that name it; `order_promotion` has the rest.
+          // The code's text stays on the order; `order_promotion` has the rest.
           promoCode: entered?.codeText ?? null,
           grandTotalCents, currency: CURRENCY,
           pointsUsed, pointsCentsPerPoint: pointsUsed > 0 ? centsPerPoint : null, pointsValueCents,
@@ -430,9 +347,8 @@ export function createCheckoutService(deps: {
         address, lines, reusePending,
       );
 
-      // 094 — what each promotion took off each line and the fee is kept on the order, and its uses
-      // are HELD — under a lock on each promotion, so the last use or the last of a budget goes to one
-      // shopper (R5). A promotion that no longer fits refuses the intent with the cart as it stands.
+      // What each promotion took is kept and its uses held under a lock per promotion, so the last use
+      // goes to one shopper. A promotion that no longer fits refuses the intent.
       try {
         await store.recordPromotions(orderId, customerId, priced, now);
       } catch (err) {
@@ -443,17 +359,14 @@ export function createCheckoutService(deps: {
         throw err;
       }
 
-      // 074 — the points are SET ASIDE here, before the delivery place and long before any charge, at
-      // the same "last moment the server can refuse" as the slot (research R3). Zero releases any hold
-      // this order had from an earlier attempt. ⚠ A refusal here (InsufficientPointsError) leaves the
-      // order pending with nothing held, and the handler re-shows the shopper what they have.
+      // Points are set aside before the delivery place and any charge; zero releases an earlier hold. A
+      // refusal leaves the order pending with nothing held.
       await store.holdPoints(orderId, customerId, pointsUsed, now);
 
-      // ⚠ The place is HELD here, under the slot's row lock, BEFORE the payment intent is created:
-      // a shopper who loses the last place is refused while there is still nothing for them to pay.
+      // Held under the slot's row lock before the intent, so losing the last place costs nothing.
       let slotHeldUntil: Date | null;
       try {
-        slotHeldUntil = await store.captureDelivery(orderId, capturedQuote(quote), new Date(now.getTime() + QUOTE_VALIDITY_MS), packages, hold, sold);
+        slotHeldUntil = await store.captureDelivery(orderId, packages, hold, sold);
       } catch (err) {
         if (err instanceof SlotUnavailableError) {
           const choice = new DeliveryChoiceError("slot_unavailable");
@@ -464,8 +377,7 @@ export function createCheckoutService(deps: {
       }
       if (slotHeldUntil) emitMetric(ns(), "SlotBookings", 1, { outcome: "held" });
 
-      // Billing (023): a snapshot when the shopper diverged from shipping; otherwise NULL. Written
-      // on every intent, so toggling "same as shipping" back ON clears a prior value.
+      // Written on every intent, so switching back to "same as shipping" clears it.
       let billingSnapshot = address;
       if (input.billingAddressId === "" || input.billingAddressId === input.addressId) {
         await store.setOrderBilling(orderId, null);
@@ -477,19 +389,17 @@ export function createCheckoutService(deps: {
         billingSnapshot = billing;
       }
 
-      // Delivery instructions (066): written on EVERY intent, including with nothing — a shopper
-      // who clears the note and pays must not have the earlier draft delivered with their order.
+      // Written on every intent, so a cleared note is not delivered from an earlier draft.
       await store.setOrderDeliveryInstructions(orderId, input.deliveryInstructions.handover, input.deliveryInstructions.note);
 
       const pointsSplit = {
         pointsUsed, pointsAmount: formatCents(pointsValueCents), cardAmount: formatCents(cardCents),
       };
 
-      // 074 — POINTS COVER EVERYTHING: no provider, no intent, no card. The order is placed now.
+      // Points cover everything: no provider, no intent, no card.
       if (cardCents === 0 && pointsUsed > 0) {
-        // ⚠ An intent this order made on an earlier attempt must not stay payable: paying it would
-        // charge a card for an order already paid with points. Cancel it; if the provider says it was
-        // already paid, settle THAT and refuse this — the shopper re-reads and sees one paid order.
+        // An earlier attempt's intent must not stay payable. Cancel it; if it was already paid, settle that
+        // and refuse this one.
         if (pendingBefore && pendingBefore.orderId === orderId) {
           const status = await gateway.cancelPaymentIntent(pendingBefore.intentId);
           if (status === "succeeded" || status === "requires_action") {
@@ -506,28 +416,23 @@ export function createCheckoutService(deps: {
           grandTotalAmount: formatCents(grandTotalCents), currency: CURRENCY,
           deliveryFee: feeDTO(fee),
           ...pointsSplit, paidWithPoints: true,
-          // Nothing is confirmed with the provider, so there is nothing to pass back.
           billingDetails: null,
-          // Already confirmed by the paid transition above; carried for a client that shows it.
           ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
           ...(sold ? { deliveryType: sold.type } : {}),
         };
       }
 
-      // The provider customer, resolved before the intent so a kept card can attach to it.
+      // Resolved before the intent so a kept card can attach to it.
       const profile = await store.paymentProfile(customerId);
       const providerCustomerId = await gateway.ensureCustomer({
         existing: profile.providerCustomerId, email: profile.email, name: profile.name, customerId,
       });
       if (providerCustomerId !== profile.providerCustomerId) await store.setProviderCustomerId(customerId, providerCustomerId);
 
-      // The session is minted CONCURRENTLY with the intent, and only for a client that renders a
-      // provider-owned method list.
-      // ⚠ `setup_future_usage` is deliberately NOT set: whether the card is kept is the shopper's
-      // choice, made at confirmation; setting it here would keep a card they declined (051).
+      // The session is created alongside the intent, only for clients with a provider-owned method list.
+      // `setup_future_usage` is not set: keeping the card is the shopper's choice at confirmation.
       const [intent, session] = await Promise.all([
-        // ⚠ The CARD amount — the order total less points (074). The key covers it, so changing the
-        // points chosen gets a fresh intent exactly as changing the basket does.
+        // The card amount (total less points). The key covers it, so changing points gets a new intent.
         gateway.createPaymentIntent({
           amountMinor: cardCents, currency: CURRENCY,
           idempotencyKey: idempotencyKey(orderId, cardCents, providerCustomerId),
@@ -545,28 +450,20 @@ export function createCheckoutService(deps: {
         publishableKey: deps.publishableKey,
         grandTotalAmount: formatCents(grandTotalCents),
         currency: CURRENCY,
-        // ⚠ Omitted, not null, when there is no session — the web response stays byte-identical to
-        // before. The provider customer id accompanies the session and ONLY the session.
+        // Omitted when there is no session; the provider customer id goes only with it.
         ...(session ? { customerSessionSecret: session.clientSecret, customerId: providerCustomerId } : {}),
-        // A BOOLEAN, not the list: which instalment providers are offered is the payment element's
-        // business, and the raw list would leak account configuration.
+        // A boolean: the raw list would leak account configuration.
         payOverTimeAvailable: intent.availableMethods.some((m) => PAY_OVER_TIME.has(m)),
         billingDetails: billingDetailsFrom(billingSnapshot, profile.name, profile.email),
-        // 077 — the delivery charge inside the total, as the lines the shopper was shown.
         deliveryFee: feeDTO(fee),
         ...pointsSplit,
         paidWithPoints: false,
-        // Omitted when no package is same-day.
         ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
-        // 079 — who delivers the order as written. Absent under the checkout that predates the model.
         ...(sold ? { deliveryType: sold.type } : {}),
       };
     },
 
-    /**
-     * The shopper's return from the provider: re-read the intent and settle the order. This is
-     * what makes a payment land even if the provider's notification never does.
-     */
+    /** Settles the order even if the provider's webhook never arrives. */
     async confirm(scope: Pick<RequestScope, "log">, customerId: string, orderId: string): Promise<{ orderId: string; paid: boolean }> {
       if (!isUuid(orderId)) throw new OrderNotFoundError();
       const intentId = await store.orderIntentForCustomer(customerId, orderId);
@@ -584,12 +481,7 @@ export function createCheckoutService(deps: {
 
     capturePaymentMethod,
 
-    /**
-     * The shopper's kept cards, read live from the provider.
-     *
-     * ⚠ A provider failure PROPAGATES. It is never an empty list: "you have no cards" and "we
-     * could not ask" are different facts (051 FR-036).
-     */
+    /** A provider failure propagates: "no cards" and "could not ask" are different facts. */
     async listKeptCards(customerId: string, now: Date) {
       const { providerCustomerId } = await store.paymentProfile(customerId);
       if (!providerCustomerId) return [];
@@ -598,18 +490,16 @@ export function createCheckoutService(deps: {
         return {
           id: c.id, brand: c.brand, last4: c.last4, expMonth: c.expMonth, expYear: c.expYear, isDefault: c.isDefault,
           usable: !expired,
-          // Omitted when usable.
           ...(expired ? { unusableReason: "This card has expired." } : {}),
         };
       });
     },
 
-    /** Remove a kept card. Ownership is proven by re-listing the shopper's own cards first. */
+    /** Ownership is proven by re-listing the shopper's own cards first. */
     async removeKeptCard(customerId: string, paymentMethodId: string): Promise<void> {
       const { providerCustomerId } = await store.paymentProfile(customerId);
       if (!providerCustomerId) throw new PaymentMethodNotFoundError();
       const cards = await gateway.listSavedCards(providerCustomerId);
-      // ⚠ The id is client-supplied; a detach that trusted it would be a cross-customer write.
       if (!cards.some((c) => c.id === paymentMethodId)) throw new PaymentMethodNotFoundError();
       await gateway.detachPaymentMethod(paymentMethodId);
     },

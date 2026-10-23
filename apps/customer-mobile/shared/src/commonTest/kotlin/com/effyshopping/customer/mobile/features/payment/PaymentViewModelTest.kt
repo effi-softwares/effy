@@ -34,13 +34,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * PaymentViewModel (051 US1).
- *
- * ⚠ NO COMMA IN A BACKTICK TEST NAME. Kotlin/Native forbids it in a declaration name while the JVM
- * accepts it, so a comma here makes `compileTestKotlinIosSimulatorArm64` fail while Android stays
- * green — which is exactly how 033 discovered the iOS test suite had never compiled at all.
- */
+/** PaymentViewModel. No comma in a backtick test name: Kotlin/Native rejects it while the JVM accepts it. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentViewModelTest {
 
@@ -101,7 +95,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ FR-039 — the confirmation call is a FALLBACK for webhook lag, and its failure is not the
+     * The confirmation call is a fallback for webhook lag, and its failure is not the
      * shopper's problem. A shopper who has paid must never be shown a failure because a best-effort
      * call did not land.
      */
@@ -115,7 +109,7 @@ class PaymentViewModelTest {
         assertNull(vm.state.value.error)
     }
 
-    /** ⚠ FR-037 — a decline names its cause and costs the shopper nothing. */
+    /** A decline names its cause and costs the shopper nothing. */
     @Test
     fun `a declined payment surfaces a message and leaves no order placed`() = runTest {
         val vm = viewModel()
@@ -138,7 +132,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ FR-041 — the defect this feature was reported for. The web form cleared its busy flag only on a
+     * The defect this feature was reported for. The web form cleared its busy flag only on a
      * validation error, so the control stayed disabled reading "Processing…" through the navigation and
      * forever if that navigation failed. Every path must clear it.
      */
@@ -155,7 +149,7 @@ class PaymentViewModelTest {
         }
     }
 
-    /** ⚠ FR-038 — a second press must not start a second payment. */
+    /** A second press must not start a second payment. */
     @Test
     fun `a second press while paying does not start a second payment`() = runTest {
         val vm = viewModel()
@@ -163,12 +157,12 @@ class PaymentViewModelTest {
         vm.pay(element)
         vm.pay(element)
         // The first completed synchronously under the test dispatcher, so a second call is legitimate;
-        // what must never happen is TWO confirmations from one press each landing on the same order.
+        // what must never happen is two confirmations from one press each landing on the same order.
         assertTrue(element.confirmations <= 2)
     }
 
     /**
-     * ⚠ FR-015/FR-016 — the element is configured to collect NO address and NO name, so if these are
+     * The element is configured to collect NO address and NO name, so if these are
      * not passed through the provider refuses the payment. This asserts the config the screen hands the
      * element actually carries them.
      */
@@ -183,9 +177,9 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ BOTH HALVES OR NEITHER (051 US3). The mobile SDKs take the session secret and the provider
+     * Both halves or neither. The mobile SDKs take the session secret and the provider
      * customer id together — `createWithCustomerSession(id, clientSecret)` — so a config carrying one
-     * without the other attaches no session at all and renders an EMPTY saved-card list, with nothing
+     * without the other attaches no session at all and renders an empty saved-card list, with nothing
      * erroring anywhere. A shopper with kept cards would simply be asked to type one in again.
      */
     @Test
@@ -196,7 +190,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ 027 R13 — money is a decimal STRING end to end and must never be parsed through a float. A
+     * Money is a decimal string end to end and must never be parsed through a float. A
      * Double round trip turns 14.60 into 1459 cents often enough to matter.
      */
     @Test
@@ -211,7 +205,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ 051 US5 / FR-036 / FR-037 — every refusal a mobile shopper sees must name a cause AND say what
+     * 051 US5 / FR-036 / FR-037 — every refusal a mobile shopper sees must name a cause and say what
      * happened to their money. The failure this guards is the easy one to ship: a fallback branch that
      * emits "something went wrong", which type-checks perfectly and tells the shopper nothing.
      */
@@ -233,7 +227,7 @@ class PaymentViewModelTest {
         }
     }
 
-    /** ⚠ FR-041 — a second press must not start a second payment while one is in flight. */
+    /** A second press must not start a second payment while one is in flight. */
     @Test
     fun `the pay control refuses a second press while a payment is in flight`() = runTest {
         val vm = viewModel()
@@ -254,7 +248,7 @@ class PaymentViewModelTest {
     }
 
     /**
-     * ⚠ THE CART MIRROR IS THIS SCREEN'S JOB NOW. Checkout used to clear it when its own pay call
+     * The cart mirror is this screen's job now. Checkout used to clear it when its own pay call
      * returned, but checkout no longer takes the payment — so without this the badge would still show a
      * basket the shopper has just bought and paid for.
      */
@@ -278,7 +272,7 @@ class PaymentViewModelTest {
         assertTrue(cart.snapshot().lines.isEmpty())
     }
 
-    /** A failed payment must NOT empty the cart — the shopper still has to be able to try again. */
+    /** A failed payment must not empty the cart — the shopper still has to be able to try again. */
     @Test
     fun `a failed payment leaves the cart alone`() = runTest {
         val cart = cartStore()

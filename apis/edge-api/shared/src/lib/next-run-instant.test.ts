@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { nextRunInstant, type CollectionRun } from "./collection-deadline";
 
-// The live dev schedule: five runs a day.
+// Five runs a day.
 const RUNS: CollectionRun[] = [
   { hour: 12, minute: 0 },
   { hour: 14, minute: 0 },
@@ -11,7 +11,7 @@ const RUNS: CollectionRun[] = [
   { hour: 23, minute: 0 },
 ];
 
-/** An instant expressed in Melbourne winter wall-clock (AEST +10), for readability. */
+/** In Melbourne winter wall-clock (AEST +10). */
 function melb(iso: string): Date {
   return new Date(`${iso}+10:00`);
 }
@@ -36,8 +36,7 @@ describe("nextRunInstant — which run a package made ready now belongs to (072)
   });
 
   it("is the NEXT run between two runs — however far away it is", () => {
-    // 16:05: the 16:00 run has gone; the next is 21:00, nearly five hours off. Until 072 nothing
-    // would have been planned for it before 20:15.
+    // 16:05: the 16:00 run has gone; the next is 21:00.
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T16:05:00"))!)).toBe("2026-09-22 21:00");
   });
 
@@ -45,7 +44,7 @@ describe("nextRunInstant — which run a package made ready now belongs to (072)
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T23:30:00"))!)).toBe("2026-09-23 12:00");
   });
 
-  // ⚠ Strictly after: nothing assigned AT the run time can be collected by that run.
+  // Strictly after: nothing assigned at the run time can be collected by that run.
   it("does not return a run whose time is exactly now", () => {
     expect(melbStamp(nextRunInstant(RUNS, melb("2026-09-22T14:00:00"))!)).toBe("2026-09-22 16:00");
   });

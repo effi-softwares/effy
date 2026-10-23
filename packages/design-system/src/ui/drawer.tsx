@@ -44,19 +44,9 @@ function DrawerOverlay({
 }
 
 /**
- * ⚠ TWO SHADCN DEFAULTS ARE DELIBERATELY ABSENT: the bottom sheet's rounded top corners, and the
- * grab handle (a `h-2 w-[100px]` pill) that sat above every bottom drawer's content.
- *
- * The reason is `ResponsiveModal`, which renders a Dialog at/above the mobile breakpoint and this
- * Drawer below it. That is ONE control at two sizes, and it did not look like one: resizing the
- * window swapped a square-cornered centred panel for a round-topped sheet wearing a handle.
- *
- * The handle in particular promised something the platform does not do. A grab bar is the affordance
- * that means drag-to-dismiss; this drawer is closed by its own controls, the scrim and Escape. On a
- * phone, a shopper's first instinct on seeing one is to drag it.
- *
- * ⚠ vaul's drag behaviour itself is untouched — this removes the pill, not the capability. A drawer
- * that genuinely wants a handle renders one as a child.
+ * No rounded top corners and no grab handle: `ResponsiveModal` swaps this for a Dialog above the mobile
+ * breakpoint and the two should look like one control, and nothing here is dismissed by dragging the
+ * handle. vaul's drag behaviour is untouched.
  */
 function DrawerContent({
   className,
@@ -70,7 +60,7 @@ function DrawerContent({
         data-slot="drawer-content"
         className={cn(
           "group/drawer-content bg-background fixed z-50 flex h-auto flex-col",
-          // ⚠ NO `rounded-t-lg` / `rounded-b-lg`, and no grab handle above `{children}` — see above.
+          // No rounded corners and no grab handle (see above).
           "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:border-t",
           "data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=top]:border-b",
           className

@@ -1,17 +1,17 @@
 /**
- * The `?next=` destination validator (FR-020, FR-022).
+ * The `?next=` destination validator.
  *
  * When a guest is asked to sign in at the point of ordering, we carry their intended
  * destination through the sign-in and send them back to it afterwards. That parameter is
- * ATTACKER-CONTROLLED — it arrives in a URL anyone can craft and send to anyone.
+ * attacker-controlled — it arrives in a URL anyone can craft and send to anyone.
  *
- * The bug this prevents is an OPEN REDIRECT: `/sign-in?next=https://evil.example/login` gets
+ * The bug this prevents is an open redirect: `/sign-in?next=https://evil.example/login` gets
  * the customer a real Effy sign-in page, then lands them on a convincing fake — with the
  * referrer proving they just came from us. It is the single most common vulnerability in
  * exactly this feature, which is why the validation lives in one tested function rather than
  * being re-derived at each call site.
  *
- * The rule is a strict allowlist, not a blocklist: we accept ONLY a same-origin relative path.
+ * The rule is a strict allowlist, not a blocklist: we accept only a same-origin relative path.
  * If anything at all is off, we return the fallback rather than trying to sanitize — a
  * redirect target we do not fully understand is one we do not use.
  */
@@ -42,7 +42,7 @@ export function safeNextTarget(
   // `//evil.com` (protocol-relative, the one people forget), `javascript:...`, `data:...`.
   if (!candidate.startsWith("/")) return fallback
 
-  // `//evil.com` and `/\evil.com` are protocol-relative URLs, NOT paths. Browsers treat both
+  // `//evil.com` and `/\evil.com` are protocol-relative URLs, not paths. Browsers treat both
   // as absolute. This is the check that most hand-rolled validators miss.
   if (candidate.startsWith("//") || candidate.startsWith("/\\")) return fallback
 

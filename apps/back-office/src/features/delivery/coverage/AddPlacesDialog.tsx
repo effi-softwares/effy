@@ -21,16 +21,11 @@ function useDebounced(value: string, ms = 250) {
 }
 
 /**
- * Add places to Effy's delivery area (076 US1) — by NAME. Nobody types a postcode or a distance for
- * a place the platform can locate.
- *
- * What gets listed is the POSTCODE, so each result shows every place that comes with it (FR-003),
- * and two places of one name are told apart by state and postcode (FR-002). A postcode with no
- * located place asks for its distance; one already listed cannot be picked again.
- *
- * ⚠ It searches AS THE PERSON TYPES, and a whole postcode that answers exactly itself is ticked for
- * them. It used to need a Search press and then a tick, and "type 3108, press Add" did nothing at all
- * — Add stayed disabled with no word as to why.
+ * Add places to Effy's delivery area by name; nobody types a postcode or distance for a place the platform
+ * can locate. The postcode is what is listed, so each result shows every place with it, and same-named
+ * places are told apart by state and postcode. A postcode with no located place asks for its distance;
+ * one already listed cannot be picked. It searches as the person types, and a whole postcode matching
+ * exactly is ticked for them.
  */
 export function AddPlacesDialog({
   open, onOpenChange, groups,
@@ -80,7 +75,7 @@ export function AddPlacesDialog({
           manualDistanceKm: r.computedDistanceKm === null ? (manual[r.postcode] ?? "").trim() : null,
         })),
         groupId: groupId || null,
-        // 097 — sent only when it is not the default, so the request reads as it always did otherwise.
+        // Sent only when it is not the default, so the request reads as it always did otherwise.
         ...(todayOffered ? {} : { todayOffered: false }),
         ...(confirmNoDrivers ? { confirmNoDrivers: true } : {}),
       });

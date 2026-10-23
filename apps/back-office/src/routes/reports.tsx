@@ -4,7 +4,7 @@ import { HandoverReportScreen } from "@/features/reports/handovers/HandoverRepor
 
 import { appRoute } from "./app";
 
-// 096 US6 — the hand-over report. Every back-office role may read it (the fleet route allows any
+// The hand-over report. Every back-office role may read it (the fleet route allows any
 // active staff), like Dispatch.
 export const handoverReportRoute = createRoute({
   getParentRoute: () => appRoute,

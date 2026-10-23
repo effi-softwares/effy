@@ -12,11 +12,11 @@ import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { CopyCodeButton } from "../../_components/CopyCodeButton"
 
 /**
- * ⚠ UNCACHED, and that is the one caching decision on this page worth arguing about.
+ * Uncached, and that is the one caching decision on this page worth arguing about.
  *
  * Every other public storefront read here is shared across all customers and therefore cacheable. So
  * is this one — but its content is a live claim that a promotion is still available, and it can stop
- * being true at any moment because OTHER shoppers are redeeming it. A cached "still available" sends
+ * being true at any moment because other shoppers are redeeming it. A cached "still available" sends
  * someone to the cart with a code that will be refused. The read is a single indexed row; the server
  * sends no cache headers for the same reason.
  */
@@ -27,7 +27,7 @@ async function fetchPromotion(id: string): Promise<PromotionDTO | null> {
       uncached(),
     )
   } catch (err) {
-    // 404 is BOTH "no such promotion" and "no longer advertised" — the server refuses to distinguish
+    // Is both "no such promotion" and "no longer advertised" — the server refuses to distinguish
     // them, so that nobody can enumerate the operator's private codes by id.
     if ((err as { status?: number }).status === 404) return null
     throw err // a real outage bubbles to the error boundary
@@ -43,7 +43,7 @@ export async function generateMetadata({
   return {
     title: "Offer",
     alternates: { canonical: `/promotions/${id}` },
-    // ⚠ NOINDEX. A promotion is temporary by nature: indexing it means a search result promising a
+    // Noindex. A promotion is temporary by nature: indexing it means a search result promising a
     // discount that has expired, which is worse than not being found at all. The store's evergreen
     // pages are what should rank.
     robots: { index: false, follow: true },
@@ -51,29 +51,12 @@ export async function generateMetadata({
 }
 
 /**
- * The promotion detail — where a banner tap leads (028 FR-034a).
- *
- * ── ⚠ WHY THIS PAGE EXISTS ──────────────────────────────────────────────────────────────────────
- *
- * A banner's `href` was `/search` for EVERY promotion, so tapping one opened the unfiltered store,
- * carrying none of the promotion's own facts — not the code, not the terms. The shopper lost the
- * offer on the way to it. Customer mobile hit the same defect through the same server field and was
- * fixed first; this closes it on the web.
- *
- * The reason no better destination existed is in the data model, not the routing: `promo_code` has no
- * product or category scoping. A promotion is a whole-cart discount with an optional minimum, so
- * there is no set of qualifying products to filter a results page to. A cart-level code is a message,
- * and the destination for a message is the message itself, stated in full.
- *
- * ⚠ It also closes half of a 028 carry-forward. `customer-web` still does not render `terms` on the
- * BANNER FACE — but FR-037d requires a shopper to learn of a condition "from the banner or from where
- * it leads, never first at payment", and this is now where it leads. The banner face remains
- * outstanding.
- *
- * Sectioned detail rows, never cards (Principle V / DOCTRINE-2).
+ * The promotion detail, where a promotion tap leads: its code, terms and validity in full. A promotion
+ * has no product or category scope, so there is no product list to send a shopper to; the message is the
+ * destination. Sectioned detail rows, never cards.
  */
 export default function PromotionPage({ params }: { params: Promise<{ id: string }> }) {
-  // Do NOT await params here — reading it outside <Suspense> makes the whole route blocking under
+  // Do not await params here — reading it outside <Suspense> makes the whole route blocking under
   // cacheComponents. Pass the promise in and await it inside the boundary.
   return (
     <Suspense fallback={<PromotionSkeleton />}>
@@ -85,8 +68,8 @@ export default function PromotionPage({ params }: { params: Promise<{ id: string
 async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const promotion = await fetchPromotion(id)
-  // ⚠ 404, not an error page. A promotion that expired or was fully claimed between the home page
-  // being rendered and this link being followed is a NORMAL outcome, and `not-found` is the honest
+  // 404, not an error page. A promotion that expired or was fully claimed between the home page
+  // being rendered and this link being followed is a normal outcome, and `not-found` is the honest
   // response — it says "this isn't here" rather than "something broke, try again", which would invite
   // a retry that can never succeed.
   if (!promotion) notFound()

@@ -38,13 +38,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * 095 — reading a group response so a skin the app does not understand can never cost it the promotion.
- *
- * ⚠ WHY NOT `body<PromotionGroupsDTO>()`. The generated skin types are enums all the way down (layout,
- * sizes, decoration sets…). kotlinx fails the WHOLE response on an enum value it does not know — so the
- * first layout added after this build would empty Home on every installed copy. Each promotion is read
- * without its `skin`, and the skin is read on its own: if that fails, the promotion is drawn in the app's
- * own look, exactly as before 095 (FR-023).
+ * Reads a group response so a skin the app does not understand never costs it the promotion. The skin
+ * types are enums throughout, and kotlinx fails a whole response on an unknown value, so a new layout would
+ * empty Home on every installed copy. Each promotion is read without its `skin`, and the skin on its own;
+ * if that fails, the promotion is drawn in the app's own look.
  */
 internal fun decodePromotionGroups(json: Json, root: JsonElement): Map<String, List<ShopperPromotionDTO>> =
     root.jsonObject["groups"]?.jsonArray.orEmpty().associate { g ->

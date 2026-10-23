@@ -1,9 +1,5 @@
-// Insights' service: turn rollup rows into the figures the screen renders (058, US3).
-//
-// ⚠ EVERY COMPARISON IS COMPUTED HERE, NOT ON THE CLIENT (FR-024). Two surfaces doing their own
-// arithmetic on the same pair of numbers is how two screens come to disagree about one figure; and
-// the client cannot do it correctly anyway, because the comparison window is a calendar question
-// (the same weekday last week, truncated to the same time of day) that needs the shop's zone.
+// Every comparison is computed here, not on the client: the comparison window (same weekday last week,
+// truncated to the same time) needs the shop's zone.
 import type {
   InsightsFigureDTO,
   InsightsRange,
@@ -16,7 +12,6 @@ import { addLocalDays, bucketsFor, localParts, planFor } from "./window";
 
 export const TOP_PRODUCT_LIMIT = 5;
 
-/** Money in, money out, and everything counted — the totals a window reduces to. */
 interface Totals {
   gross: number;
   refunds: number;
@@ -55,21 +50,14 @@ function sum(rows: readonly HourRow[]): Totals {
   );
 }
 
-/** Revenue = goods sold, less refunds ISSUED in the window (FR-032, research R4). */
+/** Goods sold, less refunds issued in the window. */
 function revenueOf(t: Totals): number {
   return t.gross - t.refunds;
 }
 
 const money = (n: number): string => n.toFixed(2);
 
-/**
- * A figure and its comparison.
- *
- * ⚠ `kind: "none"` IS A REAL ANSWER. When the previous window has nothing to compare against — a new
- * shop, a quiet week — a percentage is either a division by zero or the meaningless "+100%". Saying
- * "nothing to compare yet" is the honest reading, and the UI renders it as such rather than as a
- * triumphant increase.
- */
+/** `kind: "none"` when there is nothing to compare against, rather than a division by zero or "+100%". */
 function figure(current: number, previous: number, kind: "pct" | "abs", asMoney = false): InsightsFigureDTO {
   const fmt = (n: number) => (asMoney ? money(n) : String(Math.round(n)));
 
@@ -134,16 +122,14 @@ export async function readInsights(
   const topRows = await readTopProducts(
     actor.shopId,
     localDate(plan.window.from),
-    // The window's last day, inclusive — `to` is "now", which is inside today.
+    // The window's last day, inclusive.
     localDate(addLocalDays(plan.window.to, timezone, 0)),
     TOP_PRODUCT_LIMIT,
   );
   const thumbnails = await signThumbnails(topRows);
   const topRevenue = topRows.length > 0 ? Number(topRows[0]!.revenue) : 0;
 
-  // The chart series: every bucket the window contains, including the empty ones — a missing bar and
-  // a zero bar say different things, and a chart that silently omits quiet hours misreports the shape
-  // of a day.
+  // Every bucket, empty ones included: a missing bar and a zero bar say different things.
   const buckets = bucketsFor(plan, timezone);
   const series = buckets.map((b) => {
     const inBucket = currentRows.filter(
@@ -162,7 +148,6 @@ export async function readInsights(
   const aov = current.orders > 0 ? current.gross / current.orders : 0;
   const previousAov = previous.orders > 0 ? previous.gross / previous.orders : 0;
 
-  // "6 in the last hour" on today; "23 per day on average" on the longer ranges.
   const lastHourRow = currentRows.at(-1);
   const days = range === "today" ? 1 : range === "7d" ? 7 : 30;
 
@@ -210,7 +195,7 @@ export async function readInsights(
       thumbnailUrl: thumbnails[i] ?? null,
       units: r.units,
       revenue: r.revenue,
-      // A bar width relative to the top row, not a figure to read off the screen.
+      // A bar width relative to the top row.
       share: topRevenue > 0 ? Number(r.revenue) / topRevenue : 0,
     })),
   };

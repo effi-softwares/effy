@@ -26,7 +26,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { checkIn, expected } from "./service";
@@ -39,14 +39,14 @@ let pool: Pool;
 const one = async <T,>(sql: string, params: unknown[] = []) => (await pool.query(sql, params as never[])).rows[0] as T;
 const read = (raw: string, method: "scan" | "typed" = "scan") => ({ clientReadId: crypto.randomUUID(), raw, method, deviceAt: new Date().toISOString() });
 
-/** A collection run that picked up one package of two bags, plus a voided third. */
+/** One package of two bags picked up, plus a voided third. */
 async function aRun() {
   const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('H' || substr(gen_random_uuid()::text, 1, 5), 'Hub Shop') RETURNING id`);
   const cust = await one<{ id: string }>(
     `INSERT INTO public.customer (cognito_sub, email) VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`);
   const order = await one<{ id: string; order_number: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, 'EFY-' || upper(substr(md5(random()::text), 1, 6)), 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid')
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, 'EFY-' || upper(substr(md5(random()::text), 1, 6)), 10, 12, '{"city":"Fitzroy","postalCode":"3065"}'::jsonb, 'paid', 'effy', 'in_coverage')
      RETURNING id, order_number`, [cust.id]);
   const pkg = await one<{ id: string }>(
     `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, delivery_method)
@@ -103,10 +103,10 @@ d("096 US5 — the hub station", () => {
     expect(first.results[0]).toMatchObject({ outcome: "accepted", words: "Bag 1 of 2", orderNumber: r.order, runClosed: false });
     expect(first.results[0]!.sort?.label).toMatch(/^LOAD NOW/);
     expect(first.drivers).toEqual([r.driver]);
-    // A second scan of the same bag is already counted, and checks nothing in twice.
+    // A second scan of the same bag is already counted.
     expect((await checkIn("hub-1", [read(`EFY1:${r.bag1}`)])).results[0]).toMatchObject({ outcome: "already_counted", words: "Already scanned" });
 
-    // The last bag, typed: the run closes, recorded as hub staff's, with the run's own driver.
+    // The last bag, typed: the run closes, recorded as hub staff's with the run's driver.
     const last = await checkIn("hub-1", [read(r.bag2.toLowerCase(), "typed")]);
     expect(last.results[0]).toMatchObject({ outcome: "accepted", runClosed: true });
     const hc = await one<{ closed_by: string; closed_by_sub: string; driver_id: string }>(`SELECT closed_by, closed_by_sub, driver_id FROM public.hub_checkin WHERE round_id = $1`, [r.run]);

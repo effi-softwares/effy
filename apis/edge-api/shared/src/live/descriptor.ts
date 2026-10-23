@@ -7,10 +7,7 @@ export interface LiveDescriptorInput {
   scopeId: string;
 }
 
-/**
- * What an audience's `GET /…/v1/live` answers. `null` when this environment has no live channel —
- * the route then answers 204 and the app shows that live updates are off (FR-015).
- */
+/** What `GET /…/v1/live` answers; `null` with no live channel (the route answers 204). */
 export function describeLive(
   input: LiveDescriptorInput,
   env: NodeJS.ProcessEnv = process.env,

@@ -67,8 +67,8 @@ export async function createProduct(body: CreateProductRequest): Promise<Product
 }
 
 /**
- * Focused edit (US4). The body carries only the subset of fields the operator changed PLUS the
- * required `expectedUpdatedAt` — the `updatedAt` the client last read (FR-023a). A stale token means
+ * Focused edit. The body carries only the subset of fields the operator changed plus the
+ * required `expectedUpdatedAt` — the `updatedAt` the client last read. A stale token means
  * the row moved under us: the backend affects 0 rows and returns 409, surfaced to the UI as
  * "changed elsewhere — reload".
  */
@@ -79,7 +79,7 @@ export async function updateProduct(
   return api.patch<ProductDetailDTO>(`/shop/v1/products/${id}`, body);
 }
 
-/** Lifecycle transition (US5). Publish (→active) re-validates mandatory fields → 400 field errors. */
+/** Lifecycle transition. Publish (→active) re-validates mandatory fields → 400 field errors. */
 export async function changeProductStatus(
   id: string,
   body: ChangeProductStatusRequest,
@@ -88,7 +88,7 @@ export async function changeProductStatus(
 }
 
 /**
- * 098 — put one size on or off sale, or remove it. Immediate, never reviewed; 409 when it is the last
+ * Put one size on or off sale, or remove it. Immediate, never reviewed; 409 when it is the last
  * size on sale (the product is made unavailable instead).
  */
 export async function setVariantState(
@@ -100,24 +100,24 @@ export async function setVariantState(
 }
 
 /**
- * Send a never-approved product to Effy for review (067). Runs the same completeness checks publish
- * used to → 400 field errors. It is NOT on sale afterwards; approval puts it there.
+ * Send a never-approved product to Effy for review. Runs the same completeness checks publish
+ * used to → 400 field errors. It is not on sale afterwards; approval puts it there.
  */
 export async function submitProductForReview(id: string): Promise<ProductDetail> {
   return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/submit`, {});
 }
 
-/** Take a submitted product back out of review, or discard a pending change (067). */
+/** Take a submitted product back out of review, or discard a pending change. */
 export async function withdrawProductReview(id: string): Promise<ProductDetail> {
   return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/withdraw`, {});
 }
 
-/** Hard delete (US5). The backend refuses (409 "archive instead") anything but an unreferenced draft. */
+/** Hard delete. The backend refuses (409 "archive instead") anything but an unreferenced draft. */
 export async function deleteProduct(id: string): Promise<void> {
   return api.delete<void>(`/shop/v1/products/${id}`);
 }
 
-/** Set a product's whole section membership (US5) — the backend replaces, not merges. */
+/** Set a product's whole section membership — the backend replaces, not merges. */
 export async function setProductSections(
   id: string,
   body: SetProductSectionsRequest,
@@ -125,7 +125,7 @@ export async function setProductSections(
   return api.patch<ProductDetailDTO>(`/shop/v1/products/${id}/sections`, body);
 }
 
-// ── Media (presigned direct-to-S3) ──────────────────────────────────────────────────────────────
+// Media (presigned direct-to-S3)
 
 /** Ask the backend for a presigned PUT (validates content-type + size server-side, FR-026). */
 async function presignUpload(
@@ -139,7 +139,7 @@ async function presignUpload(
 }
 
 /**
- * PUT the raw bytes straight to S3 with progress. Deliberately NOT via the api client: this request
+ * PUT the raw bytes straight to S3 with progress. Deliberately not via the api client: this request
  * carries no Effy bearer (the presigned URL is the credential) and must send the file body verbatim
  * with the content-type S3 signed for. XHR (not fetch) is used only because it exposes upload
  * progress, which the contract asks the UI to show.
@@ -202,12 +202,12 @@ export async function updateProductMedia(
   return api.patch<ProductMediaDTO>(`/shop/v1/products/${productId}/media/${mediaId}`, body);
 }
 
-/** Remove one media object; the backend refuses the last/primary image of an active product (400). */
+/** Remove one media object; the backend refuses the last/primary image of an active product. */
 export async function deleteProductMedia(productId: string, mediaId: string): Promise<void> {
   return api.delete<void>(`/shop/v1/products/${productId}/media/${mediaId}`);
 }
 
-// ── Shop sections (shop-local grouping — US5) ─────────────────────────────────────────────────────
+// Shop sections (shop-local grouping — US5)
 
 export async function listSections(): Promise<ShopSection[]> {
   return api.get<ShopSectionDTO[]>("/shop/v1/sections");

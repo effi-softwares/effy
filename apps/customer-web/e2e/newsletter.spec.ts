@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * The newsletter section and its confirm page (039 US6).
+ * The newsletter section and its confirm page.
  *
- * ⚠ These are the assertions no unit test can make: that the browser's own validation fires before any
+ * These are the assertions no unit test can make: that the browser's own validation fires before any
  * request leaves, and that the confirm page renders a real outcome from a real round trip.
  *
- * ⚠ The subscribe path needs the `edge-customer` service deployed. Where it is not, the form correctly
+ * The subscribe path needs the `edge-customer` service deployed. Where it is not, the form correctly
  * reports the retryable error — so the tests that need a working backend skip rather than fail, and the
  * ones that do not (native validation, the confirm page's expired branch) always run.
  */
@@ -22,7 +22,7 @@ test.describe("newsletter form (US6)", () => {
   })
 
   /**
-   * ⚠ FR-030 — "inline validation and NO backend request". This asserts the *absence* of a request,
+   * "inline validation and NO backend request". This asserts the *absence* of a request,
    * which is the whole point: catching a typo must not cost a round trip or record anything.
    */
   test("an invalid address is refused by the browser, with no request sent", async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe("newsletter form (US6)", () => {
   })
 
   /**
-   * ⚠ FR-033 — whatever the outcome, the visitor is TOLD something, and on failure their address is
+   * Whatever the outcome, the visitor is told something, and on failure their address is
    * still in the field. Both branches are acceptable here: with the edge service deployed this is the
    * success surface, without it the retryable error. What is not acceptable is silence.
    */
@@ -73,7 +73,7 @@ test.describe("newsletter form (US6)", () => {
 
 test.describe("newsletter confirm page (US6)", () => {
   /**
-   * ⚠ A tampered token must land on a clear, non-disclosing outcome — never an error page and never a
+   * A tampered token must land on a clear, non-disclosing outcome — never an error page and never a
    * hint that some other token would have worked.
    */
   test("a bogus token renders 'this link has expired'", async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe("newsletter confirm page (US6)", () => {
   })
 
   /**
-   * ⚠ EVERY URL OF THIS PAGE CARRIES A LIVE SINGLE-USE TOKEN. A crawler that indexed one would publish
+   * Every URL of this page carries a live single-use token. A crawler that indexed one would publish
    * a working confirmation link, and following it would burn a real subscriber's token before they ever
    * opened the email.
    */
@@ -102,15 +102,15 @@ test.describe("newsletter confirm page (US6)", () => {
   })
 
   /**
-   * ⚠ THIS ASSERTS WHAT IS TRUE, AND THE ORIGINAL VERSION DID NOT. It first read "never echoes the
+   * This asserts what is true, and the original version did not. It first read "never echoes the
    * token back into the page", which fails: Next serialises `searchParams` into the RSC flight payload
    * whether or not anything renders them, so the token appears three times in the HTML.
    *
-   * A confirm-then-redirect was built to remove it and reverted — `redirect()` inside a streamed
+   * A confirm-then-redirect was built to remove it and reverted — `redirect` inside a streamed
    * Suspense boundary returns 200, not a 3xx, so the token stayed anyway, and a client without
    * JavaScript was left on "Confirming…" forever. See the note in `confirm/page.tsx`.
    *
-   * What actually matters, and is asserted here: the token is never rendered as CONTENT — not in the
+   * What actually matters, and is asserted here: the token is never rendered as content — not in the
    * visible text, not in a link, not in a form. By the time this HTML exists the token has already
    * been consumed and is worthless.
    */

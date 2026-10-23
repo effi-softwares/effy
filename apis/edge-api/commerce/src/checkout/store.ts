@@ -1,5 +1,5 @@
-// The checkout store: SQL only. What the charge is computed from, and the pending order it is
-// recorded against. Payment FINALISATION is not here — it is `@effy/edge-shared/payments`.
+// What the charge is computed from and the pending order it is recorded against. Payment
+// finalisation lives in `@effy/edge-shared/payments`.
 import {
   formatCents, parseCents, pooled, variantPurchasableSql, withTransaction, type Queryable, type Transactor,
 } from "@effy/edge-shared";
@@ -17,31 +17,29 @@ import type { Pricing } from "../promotions/pricing";
 
 export interface CheckoutLine {
   productId: string;
-  /** 098 — the variant bought; the line's identity. */
   variantId: string;
-  /** 098 — its label as it is NOW, snapshotted onto the order line ("1 kg"); null with no options. */
+  /** Its current label, snapshotted onto the order line; null with no options. */
   variantLabel: string | null;
-  /** 098 — its stock code and barcode now, snapshotted for the picker. */
+  /** Snapshotted for the picker. */
   sku: string | null;
   gtin: string | null;
   shopId: string;
   name: string;
   unitCents: number;
-  /** What will be CHARGED — already capped at what the shop can supply (054 FR-020). */
+  /** What will be charged, already capped at stock. */
   quantity: number;
-  /** What the cart asked for, before that cap. */
+  /** What the cart asked for, before the cap. */
   requestedQuantity: number;
-  /** Per-unit logistics weight (the VARIANT's, 098); a package's weight is Σ(weight × quantity) per shop (047). */
+  /** The variant's per-unit weight. */
   weightGrams: number;
-  /** frozen | chilled | ambient — snapshotted so a driver is told what was SOLD (065). */
+  /** frozen | chilled | ambient, snapshotted so a driver is told what was sold. */
   storageClass: string;
-  /** What the SHOP is owed per unit, beside what the customer pays (067). */
+  /** What the shop is owed per unit. */
   shopUnitCents: number;
-  /** 096 — false for a product nobody has classified as taxable or GST-free. */
+  /** False for a product with no GST class. */
   gstClassified?: boolean;
 }
 
-/** One package's resolved delivery, as captured on the order. */
 export interface PackageDelivery {
   shopId: string;
   method: string;
@@ -52,33 +50,29 @@ export interface PackageDelivery {
   windowEnd: Date | null;
 }
 
-/**
- * 079 — who delivers the order, as the checkout decided it. Null for an order sold by the checkout
- * that predates the new delivery model: it has no delivery type, and is never given one.
- */
 export interface SoldDelivery {
   type: "effy" | "courier";
   reason: "in_coverage" | "out_of_coverage" | "no_window";
-  /** The courier's timeframe as the customer was shown it; null unless a courier delivers. */
+  /** The courier timeframe as shown; null unless a courier delivers. */
   courierEstimate: string | null;
-  /** 080 — the default courier service whose timeframe that was; null unless a courier delivers. */
+  /** The default courier service behind that timeframe. */
   courierServiceId?: string | null;
-  /** 080 — how the order's parcels reach the courier; null unless a courier delivers. */
+  /** How the parcels reach the courier. */
   courierCollection?: "hub" | "supplier" | null;
-  /** 085 — what an Effy order was sold; null for a courier order. */
+  /** Null for a courier order. */
   promise?: DeliveryPromise | null;
-  /** 085 — the estimate the customer was told; set exactly when `promise` is `asap`. */
+  /** Set exactly when `promise` is `asap`. */
   asapEstimate?: string | null;
 }
 
 export interface SlotHold {
   slotId: string;
-  /** The delivery day, yyyy-mm-dd (Melbourne) — today, or since 078 a later delivery day. */
+  /** yyyy-mm-dd (Melbourne). */
   date: string;
   now: Date;
 }
 
-/** The place could not be held. Nothing was written. */
+/** Nothing was written. */
 export class SlotUnavailableError extends Error {
   constructor(readonly verdict: Exclude<SlotVerdict, "open">) {
     super(`checkout: delivery slot unavailable (${verdict})`);
@@ -87,28 +81,23 @@ export class SlotUnavailableError extends Error {
 
 export interface OrderAmounts {
   itemSubtotalCents: number;
-  /** The delivery TOTAL for the order (077): one fee, small-order fee included. */
+  /** One fee for the order, small-order fee included. */
   deliveryFeeCents: number;
-  /**
-   * How that total was built, exactly as sold — `storedBreakdown(...)`. Written with the amount and
-   * never recomputed, so the receipt still explains itself after the plan changes (077 FR-034).
-   */
+  /** Stored with the amount and never recomputed, so the receipt explains itself after plan changes. */
   deliveryFeeBreakdown: unknown;
-  /** The platform's own discount computation at the moment of payment (027). */
   discountCents: number;
-  /** The literal text, denormalised so the receipt can still name it. */
+  /** Denormalised so the receipt can still name it. */
   promoCode: string | null;
   grandTotalCents: number;
   currency: string;
-  /** 074 — points chosen to pay with; 0 when none. ⚠ They do NOT reduce grandTotalCents (FR-018). */
+  /** Points do not reduce grandTotalCents; 0 when none. */
   pointsUsed: number;
-  /** The value of a point at this moment, snapshotted on the order. Null when no points are used. */
+  /** Snapshotted; null when no points are used. */
   pointsCentsPerPoint: number | null;
   pointsValueCents: number;
 }
 
 export interface PaymentProfile {
-  /** null when the shopper has never paid. */
   providerCustomerId: string | null;
   email: string;
   name: string;
@@ -133,15 +122,15 @@ interface LineRow {
 
 const storageClassOrAmbient = (c: string) => (c === "frozen" || c === "chilled" ? c : "ambient");
 
-/** `EFY-` + six characters from an alphabet with no look-alikes (no I, L, O, U). */
+/** `EFY-` + six characters with no look-alikes (no I, L, O, U). */
 export function generateOrderNumber(): string {
-  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"; // 32 symbols: a byte maps onto it without bias
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   return `EFY-${[...randomBytes(6)].map((b) => alphabet[b % alphabet.length]).join("")}`;
 }
 
 export interface CheckoutStore {
   cartLines(customerId: string): Promise<CheckoutLine[]>;
-  /** 096 — whether tax invoices are on (`business_tax.invoices_enabled`); false while it is unset. */
+  /** False while tax details are unset. */
   invoicesEnabled(): Promise<boolean>;
   addressSnapshot(customerId: string, addressId: string): Promise<Record<string, unknown> | null>;
   paymentProfile(customerId: string): Promise<PaymentProfile>;
@@ -151,28 +140,21 @@ export interface CheckoutStore {
   ): Promise<{ orderId: string; orderNumber: string }>;
   setOrderBilling(orderId: string, billing: Record<string, unknown> | null): Promise<void>;
   setOrderDeliveryInstructions(orderId: string, handover: string | null, note: string | null): Promise<void>;
-  captureDelivery(
-    orderId: string, quote: unknown, expiresAt: Date, pkgs: readonly PackageDelivery[], hold: SlotHold | null, sold: SoldDelivery | null,
-  ): Promise<Date | null>;
+  captureDelivery(orderId: string, pkgs: readonly PackageDelivery[], hold: SlotHold | null, sold: SoldDelivery | null): Promise<Date | null>;
   upsertPayment(orderId: string, intentId: string, amountCents: number, status: string): Promise<void>;
-  /** 074 — the customer's usable points and the value of one, for the quote and the intent. */
   pointsFor(customerId: string, now: Date): Promise<{ usable: number; centsPerPoint: number }>;
-  /** 074 — set this order's points aside (0 releases any earlier hold). Throws InsufficientPointsError. */
+  /** 0 releases any earlier hold. Throws InsufficientPointsError. */
   holdPoints(orderId: string, customerId: string, points: number, now: Date): Promise<void>;
-  /** 074 — a points-only order's payment row: provider `points`, nothing charged, no intent. */
+  /** A points-only order's payment row: provider `points`, nothing charged. */
   placePointsOnly(orderId: string): Promise<void>;
   orderIntentForCustomer(customerId: string, orderId: string): Promise<string | null>;
   pendingOrderIntent(customerId: string): Promise<{ orderId: string; intentId: string } | null>;
-  /**
-   * 094 — write what each promotion took off each line and the fee, the order's promotion records,
-   * and HOLD their uses (R5, R7) — one transaction. Throws `PromotionsChangedError` when one no longer
-   * fits; nothing of it is then written.
-   */
+  /** Writes the promotion records and holds their uses in one transaction; throws `PromotionsChangedError`. */
   recordPromotions(orderId: string, customerId: string, priced: Pricing, now: Date): Promise<void>;
   savePaymentMethod(orderId: string, m: PaymentMethodSummary): Promise<void>;
 }
 
-/** The order a PaymentIntent belongs to. Takes the caller's connection: the webhook runs it in a transaction. */
+/** Takes the caller's connection: the webhook runs it in a transaction. */
 export async function findOrderByIntent(q: Queryable, intentId: string): Promise<string | null> {
   return (
     (await q.query<{ order_id: string }>(`SELECT order_id::text AS order_id FROM public.payment WHERE stripe_payment_intent_id = $1`, [intentId]))
@@ -182,7 +164,7 @@ export async function findOrderByIntent(q: Queryable, intentId: string): Promise
 
 export function createCheckoutStore(db: Queryable = pooled, transact: Transactor = withTransaction): CheckoutStore {
   return {
-    /** The customer's PAYABLE cart lines, each already capped at what the shop can supply. */
+    /** Payable lines, already capped at stock. */
     async invoicesEnabled() {
       const r = await db.query<{ on: boolean }>(`SELECT invoices_enabled AS on FROM public.business_tax LIMIT 1`);
       return r.rows[0]?.on === true;
@@ -199,11 +181,11 @@ SELECT ci.product_id::text AS product_id,
        v.gtin              AS gtin,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
-       -- 098 — the VARIANT's prices. price_amount is what the CUSTOMER pays and is what is charged
-       -- (067); the shop's own price rides beside it.
+       -- The VARIANT's prices. price_amount is what the CUSTOMER pays and is what is charged
+       -- ; the shop's own price rides beside it.
        v.price_amount::text AS unit_price_amount,
        v.shop_price_amount::text AS shop_unit_price_amount,
-       -- ⚠ 054 FR-020: the quantity PAID FOR is capped at what the shop can supply. Without this a
+       -- ⚠ the quantity PAID FOR is capped at what the shop can supply. Without this a
        -- line asking for 5 with 2 on the shelf would create a charge for 5, and the shopper would
        -- pay in full for three units that do not exist.
        -- ⚠ In SQL, not in code, so it cannot be forgotten by a second caller of this read.
@@ -211,7 +193,7 @@ SELECT ci.product_id::text AS product_id,
              CASE WHEN v.stock_tracked THEN v.stock_on_hand ELSE ci.quantity END) AS quantity,
        ci.quantity         AS requested_quantity,
        v.weight_grams      AS weight_grams,
-       -- ⚠ 065: storage is a product ATTRIBUTE, not a column. Anything that is not exactly frozen
+       -- ⚠ storage is a product ATTRIBUTE, not a column. Anything that is not exactly frozen
        -- or chilled is ambient, INCLUDING a value the back office adds later: the order line's
        -- CHECK admits three values, and an unrecognised fourth must not fail a shopper's payment.
        COALESCE((
@@ -239,7 +221,7 @@ ORDER BY ci.added_at ASC`,
       }));
     },
 
-    /** The address as it will be snapshotted onto the order, scoped to its owner; null if absent. */
+    /** Scoped to its owner; null if absent. */
     async addressSnapshot(customerId, addressId) {
       return (
         (
@@ -256,13 +238,7 @@ FROM public.customer_address WHERE id = $1 AND customer_id = $2`,
       );
     },
 
-    /**
-     * What the provider needs to identify this shopper.
-     *
-     * ⚠ The email and name come from the PLATFORM RECORD, never from a token claim or a request
-     * body — they are what the provider shows on a receipt, and a client must not be able to set
-     * them. ⚠ The name is TWO columns (given + family); a single display-name column was dropped.
-     */
+    /** Email and name come from the platform record, never a token or request: the provider prints them. */
     async paymentProfile(customerId) {
       const row = (
         await db.query<{ provider: string; email: string; name: string }>(
@@ -277,7 +253,7 @@ FROM public.customer WHERE id = $1`,
       return { providerCustomerId: row?.provider ? row.provider : null, email: row?.email ?? "", name: row?.name ?? "" };
     },
 
-    /** First-wins: a retried intent cannot overwrite the reference or trip its UNIQUE constraint. */
+    /** First-wins: a retried intent cannot overwrite the reference. */
     async setProviderCustomerId(customerId, providerCustomerId) {
       await db.query(
         `UPDATE public.customer SET stripe_customer_id = $2, updated_at = now()
@@ -287,22 +263,15 @@ FROM public.customer WHERE id = $1`,
     },
 
     /**
-     * Locate or create the pending order, set its amounts and address snapshot, and replace its
-     * lines — the intent-time snapshot that fixes the charge.
-     *
-     * ⚠ `reusePending` IS A SAFETY DECISION, AND IT IS NOT THE STORE'S TO MAKE. Recycling the
-     * customer's open order is right only while that order's payment attempt is still LIVE;
-     * recycling one whose intent has already settled is what makes a second checkout resolve to the
-     * FIRST one's payment. Only the service can decide, because only the provider knows.
+     * Locates or creates the pending order and replaces its lines: the snapshot that fixes the charge.
+     * Whether to reuse an existing pending order is the service's call (only the provider knows).
      */
     upsertPendingOrder: (customerId, a, address, lines, reusePending) =>
       transact(async (tx) => {
         let existing: { id: string; order_number: string } | undefined;
         if (reusePending) {
-          // ⚠ `ORDER BY created_at DESC`: a customer CAN hold more than one pending order (a row
-          // that could not be safely recycled is left behind), so a bare LIMIT 1 is a coin toss.
-          // ⚠ `FOR UPDATE` serialises two concurrent checkouts for one shopper. Without it both
-          // read the same row and both rewrite its lines, and which basket survives is a race.
+          // A customer can hold several pending orders, hence the order by; for UPDATE serialises two
+          // concurrent checkouts so one basket does not overwrite another.
           existing = (
             await tx.query<{ id: string; order_number: string }>(
               `
@@ -360,9 +329,7 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
         }
 
         for (const l of lines) {
-          // 067 — BOTH prices are fixed here, at placement. unit_price_amount is the customer's and
-          // is what is charged; shop_unit_price_amount is what the shop is owed. Neither may move
-          // once the order exists.
+          // Both prices are fixed at placement: what the customer is charged and what the shop is owed.
           await tx.query(
             `
 INSERT INTO public.order_item
@@ -370,12 +337,12 @@ INSERT INTO public.order_item
      storage_class, shop_unit_price_amount, shop_line_subtotal_amount, gst_status,
      variant_id, variant_label, sku, gtin, variant_code)
 VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric,
-        -- 096 — the product's GST status as it is NOW, frozen on the line: a later change to the
+        -- The product's GST status as it is NOW, frozen on the line: a later change to the
         -- product never alters what this order's tax invoice says.
         (SELECT p.gst_status FROM public.product p WHERE p.id = $2),
-        -- 098 — the variant, and its label and codes AS SOLD (snapshots, like the name and price).
+        -- The variant, and its label and codes AS SOLD (snapshots, like the name and price).
         $11, $12, $13, $14,
-        -- 098 — Effy's code for the variant (never changes, but kept beside its siblings).
+        -- Effy's code for the variant (never changes, but kept beside its siblings).
         (SELECT v.code FROM public.product_variant v WHERE v.id = $11))`,
             [
               orderId, l.productId, l.shopId, l.name, formatCents(l.unitCents), l.quantity, formatCents(l.unitCents * l.quantity),
@@ -387,7 +354,7 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
         return { orderId, orderNumber };
       }),
 
-    /** null writes NULL — "billing is the same as shipping" (023). Idempotent. */
+    /** null means billing is the same as shipping. */
     async setOrderBilling(orderId, billing) {
       await db.query(`UPDATE public."order" SET billing_address = $2::jsonb, updated_at = now() WHERE id = $1`, [
         orderId,
@@ -395,11 +362,7 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
       ]);
     },
 
-    /**
-     * What the customer told the driver (066). ⚠ Only a PENDING order is written: once an order is
-     * paid nothing may change its instructions, and the predicate makes that true even for a caller
-     * that tries.
-     */
+    /** Only a pending order is written: once paid, the instructions cannot change. */
     async setOrderDeliveryInstructions(orderId, handover, note) {
       await db.query(
         `UPDATE public."order" SET delivery_handover = $2, delivery_note = $3, updated_at = now()
@@ -409,31 +372,22 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
     },
 
     /**
-     * Write the captured per-package delivery and, with a hold, take a place in that slot.
-     *
-     * ⚠ THIS IS WHERE "NEVER CHARGED FOR A SLOT YOU DID NOT GET" IS DECIDED (069). The client
-     * confirms payment with the provider directly, so this is the last moment the server can refuse
-     * before the money moves. It runs before the payment intent is created; a refusal here rolls
-     * back everything and leaves the order's previous capture — and any place it already held —
-     * exactly as it was.
+     * The last moment the server can refuse before money moves (the client confirms payment directly).
+     * A refusal rolls back and leaves any previously held place as it was.
      */
-    captureDelivery: (orderId, quote, expiresAt, pkgs, hold, sold) =>
+    captureDelivery: (orderId, pkgs, hold, sold) =>
       transact(async (tx) => {
-        // The order's own place is given up FIRST so it is not counted against itself: a shopper
-        // refreshing the payment step in a capacity-1 slot must not be refused by their own hold.
+        // The order's own place is released first, so it does not count against itself.
         await tx.query(`DELETE FROM public.delivery_slot_booking WHERE order_id = $1`, [orderId]);
 
         let heldUntil: Date | null = null;
         if (hold) {
-          // ⚠ The slot's row lock is the capacity guarantee: two shoppers taking the last place
-          // are serialised here, and the second counts the first's hold.
+          // The slot's row lock is the capacity guarantee.
           const slot = await lockSlot(tx, hold.slotId);
           if (!slot) throw new SlotUnavailableError("cutoff");
           const { runs, bufferMin } = await collectionSchedule(tx);
           const settings = await loadSlotSettings(tx);
-          // ⚠ Judged for the day the place is ON, against that day's load — the same rule the quote
-          // offered it by (`judgeWindow`), so a window is never offered and then refused for a
-          // reason that was already true.
+          // The same rule the quote offered it by, judged for that day.
           const load = await slotLoad(tx, hold.date);
           const judged = judgeWindow(hold.now, hold.date, slot, load.get(slot.id) ?? 0, runs, bufferMin, settings.turnaroundMin);
           if (judged.verdict !== "open") throw new SlotUnavailableError(judged.verdict);
@@ -451,18 +405,14 @@ VALUES ($1, $2::date, $3, 'held', $4, $5, $6)`,
         await tx.query(
           `
 UPDATE public."order"
-   SET delivery_quote = $2::jsonb, delivery_quote_expires_at = $3,
-       -- 079 — WHO DELIVERS, rewritten on every payment attempt like everything else here: between
-       -- two attempts the shopper may have changed address, and with it the answer. ⚠ This is the
-       -- PENDING order. Once it is paid, only the delivery-type writer changes these three.
-       delivery_type = $4, delivery_type_reason = $5, courier_estimate = $6,
-       -- 080 — the service whose timeframe the customer was told, and how the parcels reach the courier.
-       courier_service_id = $7::uuid, courier_collection = $8,
-       -- 085 — what was sold; rewritten with the type on every attempt, for the same reason.
-       delivery_promise = $9, asap_estimate = $10,
+   -- Rewritten on every payment attempt (the address, and with it the answer, may have changed). Once
+   -- paid, only the delivery-type writer changes them.
+   SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4,
+       courier_service_id = $5::uuid, courier_collection = $6,
+       delivery_promise = $7, asap_estimate = $8,
        updated_at = now()
 WHERE id = $1`,
-          [orderId, JSON.stringify(quote), expiresAt, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null,
+          [orderId, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null,
            sold?.courierServiceId ?? null, sold?.courierCollection ?? null,
            sold?.type === "effy" ? (sold.promise ?? "window") : null, sold?.promise === "asap" ? (sold.asapEstimate ?? null) : null],
         );
@@ -475,14 +425,13 @@ INSERT INTO public.order_package_delivery
      slot_id, window_start, window_end)
 VALUES ($1, $2, $3, NULLIF($4, '')::date, NULLIF($4, '')::date,
         $5::uuid, $6, $7)`,
-            // ⚠ No fee: delivery is priced once per order (077). A package says WHEN, not how much.
+            // No fee: delivery is priced once per order.
             [orderId, p.shopId, p.method, p.promisedDay, p.slotId, p.windowStart, p.windowEnd],
           );
         }
         return heldUntil;
       }),
 
-    /** One payment per order: record or update it with the intent id and status. */
     async upsertPayment(orderId, intentId, amountCents, status) {
       await db.query(
         `
@@ -504,10 +453,7 @@ ON CONFLICT (order_id) DO UPDATE SET stripe_payment_intent_id = EXCLUDED.stripe_
         await holdLedgerPoints(tx, { customerId, orderId, points, now });
       }),
 
-    /**
-     * ⚠ NO INTENT, NOTHING CHARGED. The row exists so the order has a payment record like every other —
-     * the paid transition marks it succeeded — and so a refund later finds what the card paid: nothing.
-     */
+    /** No intent and nothing charged; the row gives refunds a payment record to find. */
     async placePointsOnly(orderId) {
       await db.query(
         `
@@ -519,7 +465,7 @@ ON CONFLICT (order_id) DO UPDATE SET provider = 'points', stripe_payment_intent_
       );
     },
 
-    /** The order's PaymentIntent id, scoped to the owner; null for another shopper's order. */
+    /** Scoped to the owner; null for another shopper's order. */
     async orderIntentForCustomer(customerId, orderId) {
       return (
         (
@@ -534,10 +480,7 @@ WHERE o.id = $1 AND o.customer_id = $2 AND pay.stripe_payment_intent_id IS NOT N
       );
     },
 
-    /**
-     * The customer's lingering `pending_payment` order and the intent recorded against it. null
-     * when there is no such order, or it never got as far as an intent.
-     */
+    /** null when there is none, or it never reached an intent. */
     recordPromotions: (orderId, customerId, priced, now) =>
       transact(async (tx) => {
         const o = priced.outcome;
@@ -546,7 +489,6 @@ WHERE o.id = $1 AND o.customer_id = $2 AND pay.stripe_payment_intent_id IS NOT N
           formatCents(o.deliveryDiscountCents),
         ]);
         await tx.query(`UPDATE public.order_item SET discount_amount = 0 WHERE order_id = $1`, [orderId]);
-        // The cart has one line per VARIANT (098), and the order's lines were written from it (pricing.ts).
         for (const [variantId, cents] of Object.entries(o.lineDiscounts)) {
           await tx.query(`UPDATE public.order_item SET discount_amount = $3::numeric WHERE order_id = $1 AND variant_id = $2`, [
             orderId,
@@ -592,7 +534,7 @@ LIMIT 1`,
       return row && row.intent !== "" ? { orderId: row.order_id, intentId: row.intent } : null;
     },
 
-    /** How an order was paid, for the receipt (052). Called AFTER the payment has committed. */
+    /** Called after the payment has committed. */
     async savePaymentMethod(orderId, m) {
       await db.query(
         `

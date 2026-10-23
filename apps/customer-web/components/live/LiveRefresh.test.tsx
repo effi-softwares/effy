@@ -153,7 +153,7 @@ describe("LiveRefresh", () => {
 })
 
 describe("the import quarantine", () => {
-  // The package ROOT of @effy/web-kit imports the auth SDK. This app may import only `/live`.
+  // The package root of @effy/web-kit imports the auth SDK. This app may import only `/live`.
   it("no file in this app imports @effy/web-kit except through /live", () => {
     const source = readFileSync(resolve(__dirname, "LiveRefresh.tsx"), "utf8")
     const imports = [...source.matchAll(/from "(@effy\/web-kit[^"]*)"/g)].map((m) => m[1])

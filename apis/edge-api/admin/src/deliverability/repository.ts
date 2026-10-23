@@ -1,7 +1,4 @@
-// Repository for email deliverability: raw parameterised SQL, explicit row → domain mapping
-// (constitution Principle VI, no ORM). Reads/writes public.email_delivery_{status,event} and the
-// back-office audit log. The repair writes its audit row inside the SAME transaction as the change
-// it records, following the shops slice's rule.
+// The repair writes its audit row in the same transaction as the change.
 import type { PoolClient } from "pg"
 
 import { query, withTransaction } from "@effy/edge-shared"
@@ -17,8 +14,6 @@ import {
   type EmailDeliveryState,
 } from "./types"
 
-// ── Row shapes (internal; never exported) ────────────────────────────────────────────────────
-
 interface StatusRow {
   address: string
   raw_address: string
@@ -33,10 +28,7 @@ interface StatusRow {
   repaired_by: string | null
 }
 
-/**
- * One list, referenced by every statement, so a column added to the row type cannot be silently
- * half-added to only some of the queries (the convention from customer/src/customer/model.ts).
- */
+/** One column list for every statement, so a column cannot be half-added. */
 const STATUS_COLUMNS = `
   address, raw_address, state, reason, diagnostic, last_event_at, last_message_id,
   bounce_count, complaint_count, repaired_at, repaired_by
@@ -58,16 +50,7 @@ function toStatus(r: StatusRow): DeliveryStatusRow {
   }
 }
 
-// ── Ingest ───────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Record one outcome. Returns `true` when it was NEW.
- *
- * ⚠ THE RETURN VALUE IS THE IDEMPOTENCY MECHANISM (FR-028). Outcome publication is at-least-once,
- * unordered, and may duplicate. `ON CONFLICT DO NOTHING` makes the insert safe, and the caller
- * advances the status row ONLY when this returns true — otherwise a redelivered bounce increments
- * bounce_count twice and inflates the number an operator is reading to make a decision.
- */
+/** `true` when new. Outcomes arrive at least once, so the caller advances status only on true. */
 export async function insertEvent(e: DeliveryEvent): Promise<boolean> {
   const res = await query<{ id: string }>(
     `INSERT INTO public.email_delivery_event
@@ -81,14 +64,8 @@ export async function insertEvent(e: DeliveryEvent): Promise<boolean> {
 }
 
 /**
- * Advance the conclusion for one address.
- *
- * ⚠ OUT-OF-ORDER SAFE. The `WHERE` on the DO UPDATE refuses to move the state backwards in time: a
- * Delivery for an OLDER message that arrives after a Bounce must not resurrect an address that has
- * since permanently failed. Counters still increment — they are history, and history is not ordered.
- *
- * ⚠ `repaired_at` is CLEARED whenever a failure lands, so a stale "repaired" stamp can never sit
- * beside a broken address.
+ * Out-of-order safe: the do update's where never moves the state back in time, though counters still
+ * increment. `repaired_at` is cleared whenever a failure lands.
  */
 export async function upsertStatus(e: DeliveryEvent, state: EmailDeliveryState): Promise<void> {
   const isBounce = e.eventType === "bounce"
@@ -131,8 +108,6 @@ export async function upsertStatus(e: DeliveryEvent, state: EmailDeliveryState):
   )
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────────────────────
-
 export async function getStatus(address: string): Promise<DeliveryStatusRow | null> {
   const res = await query<StatusRow>(
     `SELECT ${STATUS_COLUMNS} FROM public.email_delivery_status WHERE address = $1`,
@@ -145,8 +120,7 @@ export async function getStatus(address: string): Promise<DeliveryStatusRow | nu
 export async function listStatuses(
   params: DeliveryListParams,
 ): Promise<{ items: DeliveryStatusRow[]; total: number }> {
-  // "problems" is the default view: a list of every address ever delivered to answers no question
-  // anyone has.
+  // "problems" is the default view.
   const stateClause =
     params.state === "all"
       ? "TRUE"
@@ -205,18 +179,8 @@ export async function listEvents(address: string, limit = 50): Promise<DeliveryE
 }
 
 /**
- * Who, if anyone, owns this address on the platform.
- *
- * ⚠ RETURNS null LEGITIMATELY. An address can fail before its account exists, after it is deleted,
- * or for the DRIVER audience — which has a Cognito pool and no platform table at all. The console
- * renders "—"; it must not invent an owner.
- *
- * ⚠ THE STAFF JOINS ARE WEAK, and that is stated rather than hidden. `public.customer.email` is
- * citext and uniquely indexed, so that join is exact and cheap. `public.shop_staff.email` is
- * nullable text with no index and `admin.staff.email` is text with no index, so those are sequential
- * scans over tables holding tens of rows. Fine now; not fine at scale. No index is added here —
- * that would be scope creep into two tables this feature does not otherwise touch, and an honest
- * note is more useful than a speculative index.
+ * The address's owner, or null legitimately (before an account exists, after deletion, or a driver,
+ * who has no platform table). The staff joins are unindexed scans over small tables.
  */
 export async function findSubject(address: string): Promise<DeliverySubject | null> {
   const res = await query<{ kind: string; id: string; name: string | null }>(
@@ -240,18 +204,9 @@ export async function findSubject(address: string): Promise<DeliverySubject | nu
   return row ? { kind: row.kind as DeliverySubject["kind"], id: row.id, name: row.name } : null
 }
 
-// ── Repair ───────────────────────────────────────────────────────────────────────────────────
-
 /**
- * Clear the platform's half of a repair, and record it.
- *
- * ⚠ THIS IS ONLY HALF THE REPAIR (FR-034). The caller MUST have already removed the mail service's
- * own suppression entry — using `raw_address`, case intact. Clearing only this half leaves the mail
- * service still accepting-and-dropping every send; clearing only the other half leaves the console
- * and the customer's account page still reporting the person as unreachable. Neither alone restores
- * anyone, which is why SC-013 requires this be demonstrated by doing one and watching it fail.
- *
- * The audit row is written inside the SAME transaction as the status change, per the shops slice.
+ * The platform's half of a repair, with its audit row in the same transaction. The caller must first
+ * remove the SES suppression entry (by `raw_address`); either half alone restores nobody.
  */
 export async function markRepaired(
   address: string,
@@ -279,16 +234,14 @@ export async function markRepaired(
         actorSub,
         "email_delivery.repair",
         "email_address",
-        // ⚠ The address IS in the audit detail, deliberately: an audit row that does not say WHAT was
-        // repaired cannot be audited. This is a privileged, access-controlled table — unlike logs,
-        // which this feature never puts an address into.
+        // The address is in the audit detail on purpose: an access-controlled table, unlike logs.
         JSON.stringify({ address, previousState, note }),
       ],
     )
   })
 }
 
-/** Map a status row to the list DTO. Subject is resolved separately so the list can batch it. */
+/** The subject is resolved separately so the list can batch it. */
 export function toListItemDTO(
   s: DeliveryStatusRow,
   subject: DeliverySubject | null,

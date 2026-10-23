@@ -27,8 +27,8 @@ const FIELDS: { key: Field; label: string; help: string }[] = [
 const when = (iso: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
 /**
- * The points rules (074 US6). Everyone can read them; only an admin can change them, and every change
- * is listed below with who made it (FR-025).
+ * The points rules. Everyone can read them; only an admin can change them, and every change
+ * is listed below with who made it.
  */
 export function PointsSettingsPanel() {
   const { data: session } = useQuery(sessionQuery);

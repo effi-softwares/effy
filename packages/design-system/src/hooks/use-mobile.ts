@@ -3,9 +3,8 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 768
 
 /**
- * `breakpoint` defaults to shadcn's 768px. The consoles pass their own (1100px), because below it
- * they navigate by a bottom bar and the sidebar must become the off-canvas sheet at the SAME width —
- * otherwise, between the two breakpoints, the icon rail and the bottom bar both render.
+ * `breakpoint` defaults to shadcn's 768px. The consoles pass 1100px, where they switch to a bottom bar,
+ * so the sidebar becomes the off-canvas sheet at the same width.
  */
 export function useIsMobile(breakpoint: number = MOBILE_BREAKPOINT) {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)

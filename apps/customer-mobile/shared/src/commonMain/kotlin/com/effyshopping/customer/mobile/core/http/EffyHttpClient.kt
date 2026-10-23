@@ -15,7 +15,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-/** `X-Effy-Access-Token` — the second header of the two-token protocol (013 D2). Lowercase on the wire. */
+/** `X-Effy-Access-Token` — the second header of the two-token protocol. Lowercase on the wire. */
 const val ACCESS_TOKEN_HEADER = "X-Effy-Access-Token"
 
 internal val effyJson = Json {
@@ -24,8 +24,8 @@ internal val effyJson = Json {
 }
 
 /**
- * [sessionProvider] delegates to the AuthDriver — Amplify OWNS refresh, so we never refresh over HTTP
- * (D21). A guest (null session) sends no auth headers, which is correct for public routes.
+ * [sessionProvider] delegates to the AuthDriver — Amplify owns refresh, so we never refresh over HTTP.
+ * A guest (null session) sends no auth headers, which is correct for public routes.
  */
 private fun effyAuth(sessionProvider: suspend () -> Session?) =
     createClientPlugin("EffyAuth") {
@@ -36,19 +36,10 @@ private fun effyAuth(sessionProvider: suspend () -> Session?) =
     }
 
 /**
- * Which auth headers a request carries.
- *
- * The backend sits behind an API Gateway JWT authorizer that pins the app-client id as the
- * **audience**. Only an **ID token** carries `aud`, so the bearer is the ID token. The access token
- * rides along in `X-Effy-Access-Token` because Cognito's privileged calls (change password, global
- * sign-out) are access-token-authorized and the backend relays it (013's two-token protocol, D2).
- *
- * ⚠ A PURE function, separated from the plugin on purpose. Until 070 there were TWO backends that
- * wanted DIFFERENT bearers, and for two slices this file sent the wrong one to the second: every
- * authenticated commerce call from this app answered 401 from 019 until 027, silently, because the
- * choice lived inside a Ktor plugin nothing could test. There is one backend and one answer now —
- * and it stays a tested function, because "which token" is exactly the kind of thing that is wrong
- * without anything failing.
+ * Which auth headers a request carries. The gateway's JWT authorizer pins the app-client id as audience,
+ * and only an ID token carries `aud`, so the bearer is the ID token; the access token rides in
+ * `X-Effy-Access-Token` for the Cognito calls the backend relays. A pure, tested function, because the
+ * wrong token fails every authenticated call silently.
  */
 internal fun authHeadersFor(session: Session): Map<String, String> = mapOf(
     HttpHeaders.Authorization to "Bearer ${session.idToken}",
@@ -57,8 +48,8 @@ internal fun authHeadersFor(session: Session): Map<String, String> = mapOf(
 
 /**
  * The client for the backend gateway. [debug]
- * gates request logging — NEVER `BODY` in release, and the Authorization header is redacted even in
- * debug (FR-038): no password, code, or token reaches a log.
+ * gates request logging — never `BODY` in release, and the Authorization header is redacted even in
+ * debug: no password, code, or token reaches a log.
  */
 fun createHttpClient(
     baseUrl: String,

@@ -1,4 +1,3 @@
-// PATCH /admin/v1/catalog/attributes/{id} — edit an attribute definition. Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

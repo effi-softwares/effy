@@ -23,12 +23,12 @@ import { formatPointsValue, parsePoints } from "./points-format";
 const NO_ORDER = "none";
 
 /**
- * Credit points to a customer (074 US1).
+ * Credit points to a customer.
  *
- * ⚠ THE NOTE IS INTERNAL, and the form says so. The customer is told the REASON in Effy's own words;
+ * The note is internal, and the form says so. The customer is told the reason in Effy's own words;
  * what is typed here stays in back-office.
  *
- * ⚠ A csa sees their limit before they hit it. The server refuses above it anyway — this is the
+ * A csa sees their limit before they hit it. The server refuses above it anyway — this is the
  * courtesy, not the gate.
  */
 export function CreditPointsSheet({

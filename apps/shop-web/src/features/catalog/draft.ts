@@ -1,14 +1,14 @@
 /**
- * Device-local create draft (FR-012).
+ * Device-local create draft.
  *
  * A half-finished product survives a closed dialog, a refresh, or a crashed tab, because it lives in
- * `localStorage` — NOT the server (an unpublished product does not exist to the backend yet). It is
+ * `localStorage` — not the server (an unpublished product does not exist to the backend yet). It is
  * pure client state, so it never touches the TanStack Query cache (Principle VI).
  *
  * Keyed per **shop + subject**: two operators sharing a workplace browser never see each other's
  * in-progress product, and switching the active shop starts a clean draft.
  *
- * The chosen primary image (a `File`) is deliberately NOT persisted — a `File` cannot be revived
+ * The chosen primary image (a `File`) is deliberately not persisted — a `File` cannot be revived
  * from storage across a reload. The text fields restore; the operator re-picks the image on reopen.
  */
 
@@ -32,12 +32,12 @@ export interface ProductDraft {
   brand: string;
   longDescription: string;
   /**
-   * 098 — the options and variants: each variant's price, codes, shipping weight and pack size. ⚠ Every
-   * variant field is a STRING here: "" must survive localStorage as "not answered" (a zero weight
+   * The options and variants: each variant's price, codes, shipping weight and pack size. Every
+   * variant field is a string here: "" must survive localStorage as "not answered" (a zero weight
    * ships free).
    */
   variantSet: VariantSetDraft;
-  /** 096 — taxable or GST-free; "" until the operator chooses (required to create). */
+  /** Taxable or GST-free; "" until the operator chooses (required to create). */
   gstStatus: "" | "taxable" | "gst_free";
   attributes: Record<string, AttributeDraftValue>;
 }

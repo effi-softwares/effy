@@ -18,11 +18,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 /**
- * The Android implementation of [AuthDriver], over Amplify Android (Kotlin coroutines facade).
- *
- * Amplify must be configured before this is used (done at app startup from the in-code config string,
- * 013 D12). NOTE the interface's deliberate absences — no sign-up, no password sign-in, no recovery, no
- * password write, no global sign-out (014 FR-008/FR-028). The ONLY credential flow is email → code.
+ * [AuthDriver] over Amplify Android, configured at startup from the in-code config string. The only
+ * credential flow is email → code.
  */
 class AmplifyAuthDriver : AuthDriver {
 
@@ -64,7 +61,7 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     /**
-     * `isSignedIn` is read from the credentials stored on the device, so it answers with no signal —
+     * `isSignedIn` is read from the credentials stored on the device, so it answers with no signal
      * when `currentSession` cannot, because the tokens could not be refreshed (backlog C3).
      */
     override suspend fun holdsSignIn(): Boolean = try {
@@ -74,19 +71,11 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
-        // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP.
-        // The managed factor's length is not configurable by any setting on any object, so the only
-        // route to a consistent code length is a custom challenge (specs/035-six-digit-otp/).
-        //
-        // ⚠ WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
-        // returning DONE from the first signIn — issuing tokens without ever presenting the
-        // challenge (amplify-android #2331/#2566, fixed twice, reported recurring at 2.11.2).
-        // There is no password on this pool for SRP to verify in any case.
-        //
-        // ⚠ The `null` password argument is an artefact of Amplify Android's overload, which takes
-        // one positionally even for a passwordless flow. It stays INSIDE this driver — the
-        // commonMain AuthDriver interface has no password parameter, and must not grow one
-        // (constitution Principle IV: there are no passwords on the internal audiences).
+        // The platform's own six-digit code (a custom challenge), not Cognito's eight-digit EMAIL_OTP.
+        // CUSTOM_AUTH_WITHOUT_SRP, never WITH_SRP, which has returned done from the first signIn without
+        // presenting the challenge (amplify-android #2331/#2566); there is no password to verify anyway.
+        // The `null` password is Amplify's positional overload and stays inside this driver: the
+        // interface has no password parameter and must not grow one.
         val options = AWSCognitoAuthSignInOptions.builder()
             .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
             .build()
@@ -98,24 +87,24 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signOut() {
-        // Local token purge only. There is no "everywhere" sign-out on this audience (014 FR-028).
+        // Local token purge only. There is no "everywhere" sign-out on this audience.
         runCatching { Amplify.Auth.signOut() }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────────────────────────
+    // helpers
 
-    // ⚠ THE `else` BELOW IS WHY THIS MAPPING IS DANGEROUS TO EDIT. Kotlin does not require a `when`
+    // The `else` below is why this mapping is dangerous to edit. Kotlin does not require a `when`
     // over an enum to be exhaustive once an `else` exists, so a new Cognito step compiles perfectly
-    // and fails at RUNTIME as an "Unexpected" dead end — no build error, no test failure, just a
+    // and fails at runtime as an "Unexpected" dead end — no build error, no test failure, just a
     // shopper stuck on a screen. Every step this app accepts is therefore named explicitly, and
     // AuthStepMappingTest pins the ones that must map a particular way.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
-        // 035 — the platform's own 6-digit code.
+        // The platform's own 6-digit code.
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
-        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
-        // change above (FR-033) and an in-flight managed-factor session still completes (FR-034).
+        // Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above and an in-flight managed-factor session still completes.
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_OTP ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
         else -> AuthStep.Failed(AuthError.Unexpected)
@@ -132,7 +121,7 @@ class AmplifyAuthDriver : AuthDriver {
         }
 
     /** Map Amplify exceptions to the closed [AuthError] — matching by simple name to avoid a fragile
-     *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value (FR-011). */
+     *  import of every subtype. `UserNotFound` and `NotAuthorized` collapse to one value. */
     private fun mapError(e: Throwable): AuthError = when (e::class.simpleName) {
         "UserNotFoundException", "NotAuthorizedException", "UserNotConfirmedException" -> AuthError.InvalidCredentials
         "CodeMismatchException" -> AuthError.CodeIncorrect

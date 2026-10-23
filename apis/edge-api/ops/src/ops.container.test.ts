@@ -2,17 +2,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { staffRecords } from "./admin-bootstrap";
 import { loadLocalities } from "./localities";
 
-/**
- * 070 — the operator tools' SQL against the REAL schema. A wrong column in a tool run twice a year
- * is found the day it is needed, by the person who is locked out.
- */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 

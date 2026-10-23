@@ -33,7 +33,7 @@ import java.util.concurrent.Executors
  * Android: CameraX frames into ML Kit's bundled barcode model (works offline from first launch),
  * restricted to QR and Code 128 so a product's EAN in view is never even decoded.
  *
- * ⚠ Bound to the composable's lifetime, like the photo viewfinder: leaving the screen releases the
+ * Bound to the composable's lifetime, like the photo viewfinder: leaving the screen releases the
  * camera, or it would stay open behind the app for the rest of a shift.
  */
 @OptIn(ExperimentalGetImage::class)

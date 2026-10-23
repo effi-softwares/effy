@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { nextCourierPickup } from "./courier-pickup";
 import { melbourne, wallClock } from "./test-clock";
 
-/** 080 P1 — when a courier parcel is due out. Days are Melbourne days; the cutoff is the service's. */
+/** When a courier parcel is due out. Melbourne days; the cutoff is the service's. */
 describe("nextCourierPickup", () => {
-  const weekdays = [1, 2, 3, 4, 5]; // Mon–Fri
+  const weekdays = [1, 2, 3, 4, 5];
   const cutoff = { hour: 14, minute: 0 };
   const iso = (d: Date) => `${d.toISOString()}`;
 

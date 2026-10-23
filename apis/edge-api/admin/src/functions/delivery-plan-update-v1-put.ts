@@ -1,5 +1,4 @@
-// PUT /admin/v1/delivery/plans/{planId} — replace a draft fee plan whole (077). Mutate.
-// ⚠ 409 plan_not_draft once the plan has ever been active: it is a record of what was charged.
+// Plan_not_draft once the plan was ever active: it is a record of what was charged.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

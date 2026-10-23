@@ -23,7 +23,7 @@ describe("previewCustomerPrice", () => {
 });
 
 describe("toMargin", () => {
-  // ⚠ Blank and zero are different answers. Zero is "Effy takes nothing"; blank is "nobody decided".
+  // Blank and zero are different answers. Zero is "Effy takes nothing"; blank is "nobody decided".
   it("sends zero, refuses blank", () => {
     expect(toMargin({ kind: "percent", value: "0" })).toEqual({ kind: "percent", value: "0" });
     expect(toMargin({ kind: "percent", value: "" })).toBeNull();

@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CUSTODY_BY_DRIVER } from "../lib/custody";
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import {
   ParcelReturnRoundNotFoundError,
   completeDeliveryRoundIfFinished,
@@ -11,10 +11,7 @@ import {
   toReturnOnRound,
 } from "./parcel-return";
 
-/**
- * 088 — a parcel from a failed drop is in the driver's van until it is returned to the hub, and the
- * round is not finished until then (quickstart P2–P4).
- */
+/** A failed drop's parcel is in the van until returned, and the round is not finished until then. */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -41,7 +38,7 @@ async function tx<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
   }
 }
 
-/** A drop on the round with one package, its stop in `stopStatus`. Returns the package's fulfillment id. */
+/** Returns the package's fulfillment id. */
 async function drop(stopStatus: string, packageState = "assigned"): Promise<string> {
   n += 1;
   const cust = (await pool.query<{ id: string }>(
@@ -49,8 +46,8 @@ async function drop(stopStatus: string, packageState = "assigned"): Promise<stri
     [`sub-c-${n}-${crypto.randomUUID()}`],
   )).rows[0]!.id;
   const order = (await pool.query<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, $2, 10, 15, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid') RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 10, 15, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust, `EFY-R${String(n).padStart(4, "0")}`],
   )).rows[0]!.id;
   const shop = (await pool.query<{ id: string }>(

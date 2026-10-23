@@ -41,14 +41,14 @@ const PAGE_SIZE = 20;
 const ALL = "all";
 
 /**
- * The catalog list, rebuilt to the imported design (057).
+ * The catalog list, rebuilt to the imported design.
  *
- * ⚠ THE STATUS FILTER IS A SEGMENTED CONTROL, NOT A SELECT. The mockup leads with `catTabs` because
+ * The status filter is a segmented control, not A SELECT. The mockup leads with `catTabs` because
  * "what is live vs. what is a draft" is the question an operator opens this screen asking; burying it
  * as the fourth dropdown in a row of six makes it the hardest filter to reach. The remaining filters
  * stay as selects — they are refinements, not the primary axis.
  *
- * ⚠ SEARCH IS SERVER-SIDE HERE AND CLIENT-SIDE ON THE ORDER QUEUE, deliberately. The catalog is paged
+ * Search is server-side here and client-side on the order queue, deliberately. The catalog is paged
  * and runs to thousands of rows, so filtering one page in the browser would silently search only what
  * is visible and report "no matches" for a product that exists. The queue is tens of rows and its
  * ordering is load-bearing, so it filters in place.
@@ -62,12 +62,8 @@ const STATUS_TABS: readonly { value: ProductStatus | typeof ALL; label: string }
 ];
 
 /**
- * The design's tints, now that the platform has them. Matches `ProductStatusBadge` exactly — the
- * catalog table and a product's own header must not disagree about what "draft" looks like.
- *
- * ⚠ THE TABLE HAS NO STOCK COUNT (054 keeps inventory off the catalog read), so unlike
- * `ProductStatusBadge` this can never say "Low stock". That is the correct degradation: it shows the
- * lifecycle state it actually knows rather than inventing a stock claim.
+ * The status tints, matching `ProductStatusBadge`. The catalog read carries no stock, so this never says
+ * "Low stock"; it shows the lifecycle state it knows.
  */
 function statusPill(status: ProductStatus): PillTone {
   switch (status) {
@@ -236,7 +232,7 @@ export function CatalogListScreen() {
           options={sectionList.map((s) => ({ value: s.id, label: s.name }))}
           allLabel="All sections"
         />
-        {/* 067 — "what is Effy still looking at, and what did it send back". */}
+        {/* "what is Effy still looking at, and what did it send back". */}
         <FilterSelect
           label="Review"
           value={review}
@@ -364,9 +360,9 @@ export function CatalogListScreen() {
 }
 
 function ProductRow({ product }: { product: ProductListItem }) {
-  // ⚠ THE LIST DTO CARRIES NO STOCK COUNT (054 keeps inventory off the catalog read), so the mockup's
+  // The list dto carries no stock count (054 keeps inventory off the catalog read), so the mockup's
   // per-row inventory meter has nothing to draw from here. Rather than invent a figure — which is the
-  // "fixture agreed with the code instead of with the world" defect this codebase keeps recording —
+  // "fixture agreed with the code instead of with the world" defect this codebase keeps recording
   // the column states what IS known: whether the product is purchasable at all. The real meter lives
   // on the product's Inventory tab, where the count actually is.
   const available = product.status === "active";
@@ -383,16 +379,16 @@ function ProductRow({ product }: { product: ProductListItem }) {
               className="size-8 shrink-0 rounded-[7px] border border-border object-cover"
             />
           ) : (
-            // ⚠ The design's image placeholder: a --brand-soft tile at the 7px small-tile radius,
+            // The design's image placeholder: a --brand-soft tile at the 7px small-tile radius,
             // not a bordered grey box. It reads as "an image belongs here" rather than as an empty
             // cell, which is what the bordered version looked like beside rows that had photos.
             <div className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-brand-soft text-brand">
               <ImageOff className="size-3.5" />
             </div>
           )}
-          {/* ⚠ The mockup's Product cell is one line. The BRAND is kept as a muted second line
+          {/* The mockup's Product cell is one line. The brand is kept as a muted second line
               anyway: it is the field an operator scans to tell two similar products apart, and the
-              mockup's own sample data simply has no brands in it. Its TYPE column is genuinely gone —
+              mockup's own sample data simply has no brands in it. Its type column is genuinely gone
               Category answers the same question for scanning, and the mockup drops it. */}
           <div className="min-w-0">
             <Link
@@ -408,7 +404,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
           </div>
         </div>
       </Td>
-      {/* 098 — stock codes are each size's; the list says how many sizes the product is sold in. */}
+      {/* Stock codes are each size's; the list says how many sizes the product is sold in. */}
       <Td className="text-muted-foreground truncate text-[12.5px]">
         {product.variantCount === 1 ? "One size" : `${product.variantCount} sizes`}
       </Td>

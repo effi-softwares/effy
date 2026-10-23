@@ -1,9 +1,5 @@
-// GET /storefront/v1/products — two modes on one route. Public.
-//
-//   ?ids=a,b,c           hydrate a specific set (recently viewed), preserving the caller's order.
-//   ?q=&categoryKey=…    search/browse with filters, an ordering, a total, and keyset paging.
-//
-// `brand` and `attr.<key>` may repeat (OR within one, AND across).
+// ?ids=a,b,c hydrates a set in the caller's order; otherwise search with filters, a total and keyset
+// paging. `brand` and `attr.<key>` may repeat (OR within one, and across).
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";
@@ -20,14 +16,13 @@ export const handler = shopperHandler(async (event, context) => {
     const idsParam = (q.get("ids") ?? "").trim();
     if (idsParam !== "") {
       const items = await searchService.cardsByIds(splitCsv(idsParam));
-      // An id-hydration is a fixed set: nothing more to page, and the total is the set itself.
       return cacheable(json(200, { items, nextCursor: null, total: items.length, sort: SORT_NEWEST }, scope), "listing");
     }
 
     const sort = parseSort(q.get("sort"));
     if (!sort) return badRequest("invalid_sort", scope.requestId);
 
-    // A price bound that is not a number is the caller's error, not an outage (070 FR-025).
+    // A non-numeric price bound is the caller's error, not an outage.
     const minPrice = q.get("minPrice") ?? "";
     const maxPrice = q.get("maxPrice") ?? "";
     if (!validPrice(minPrice) || !validPrice(maxPrice)) return badRequest("invalid_price", scope.requestId);

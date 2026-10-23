@@ -4,7 +4,7 @@ import type { ProductDetail } from "./model";
 import { isApproved, proposedRows, reviewChip, workingDetail } from "./review";
 import { visibilityAction } from "./statusControl";
 
-// 067 — a shop submits; Effy approves. These pin what the shop is TOLD, and what its editors open on.
+// A shop submits; Effy approves. These pin what the shop is told, and what its editors open on.
 
 const live = {
   id: "p1",
@@ -15,7 +15,7 @@ const live = {
   status: "active",
   reviewState: "live_change_pending",
   currency: "AUD",
-  // 098 — one size; its shop price is 4.00, customers pay 4.60.
+  // One size; its shop price is 4.00, customers pay 4.60.
   options: [],
   variants: [{ id: "v1", optionValueIds: [null, null], label: null, sku: null, gtin: null, shopPriceAmount: "4.00", customerPriceAmount: "4.60", state: "active" }],
   typeName: "Drink",
@@ -80,7 +80,7 @@ describe("workingDetail", () => {
     expect(w.brand).toBe("Oatly");
   });
 
-  // ⚠ The attributes editor re-sends the COMPLETE set. Seeded from the live product it would send
+  // The attributes editor re-sends the complete set. Seeded from the live product it would send
   // yesterday's proposed value back as "chilled" and drop the newly proposed attribute entirely.
   it("carries proposed attribute values, including one the live product never had", () => {
     const w = workingDetail(live);
@@ -122,7 +122,7 @@ describe("proposedRows", () => {
 });
 
 describe("visibilityAction (067)", () => {
-  // ⚠ The server refuses draft → active for a product Effy never approved. A button that says
+  // The server refuses draft → active for a product Effy never approved. A button that says
   // "Publish" there is a control that cannot do what it says.
   it("never offers Publish for a never-approved product", () => {
     for (const s of ["draft", "in_review", "sent_back", undefined] as const) {
@@ -139,7 +139,7 @@ describe("visibilityAction (067)", () => {
   it("says it is NOT on sale until approved", () => {
     expect(visibilityAction("draft", "draft")?.confirmBody).toMatch(/when it is approved — not before/);
   });
-  // FR-025 — taking a product off sale and putting it back is the shop's own call.
+  // Taking a product off sale and putting it back is the shop's own call.
   it("leaves an approved product's on/off sale moves immediate", () => {
     expect(visibilityAction("active", "live_change_pending")).toMatchObject({ kind: "status", target: "unavailable" });
     expect(visibilityAction("unavailable", "live")).toMatchObject({ kind: "status", target: "active" });

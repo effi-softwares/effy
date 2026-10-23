@@ -10,13 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
-/**
- * 087 T057 — aisle glyphs follow the website's word rules, so a re-seeded catalogue still gets icons.
- *
- * ⚠ CHANGED BY 087: this pinned a twelve-key table from the 2026-07 taxonomy; 084 re-seeded the
- * catalogue and every top-level aisle fell through to the fallback. It now pins the 084 seed's
- * top-level aisles (`db/seeds/084_storefront_catalogue_dev.sql`) against the rules.
- */
+/** Aisle glyphs follow the website's word rules; pinned against the seed's top-level aisles (`db/seeds/084_storefront_catalogue_dev.sql`). */
 class CategoryIconsTest {
 
     @Test

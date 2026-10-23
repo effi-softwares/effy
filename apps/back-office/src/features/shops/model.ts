@@ -11,13 +11,7 @@ import type {
   UpdateShopUserRequest,
 } from "@effy/shared-types";
 
-/**
- * Domain shapes for back-office shop management (009).
- *
- * The wire DTOs (specs/009 contracts, already written in @effy/shared-types) are the domain shapes
- * here — they carry no wire-only encoding to strip. We still route every read/write through the
- * repo layer (Principle VI), so if a DTO and its domain model ever diverge, only the repo changes.
- */
+/** Domain shapes for shop management: the `@effy/shared-types` DTOs double as them, read through the repo layer. */
 export type ShopListItem = ShopListItemDTO;
 export type ShopDetail = ShopDetailDTO;
 export type ShopUser = ShopUserDTO;

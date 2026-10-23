@@ -1,6 +1,4 @@
-// POST /shop/v1/products/{id}/submit — 067-product-approval-margin.
-// Submit a never-approved product for Effy's review. Runs the same readiness checks "publish" used to
-// run; the product stays off sale until an Effy admin approves it and sets the margin.
+// Submits a never-approved product for review; it stays off sale until Effy approves it and sets the margin.
 import { announce } from "@effy/edge-shared/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -19,7 +17,7 @@ export const handler = async (
   if ("deny" in g) return g.deny;
   try {
     const submitted = await submitForReview(g.shopId, event.pathParameters?.id ?? "");
-    await announce([{ scope: "ops", kind: "review" }]); // 071 — committed; back-office's review queue gained an item
+    await announce([{ scope: "ops", kind: "review" }]);
     return json(200, toDetailDTO(submitted), scope);
   } catch (err) {
     return mapProductError(err, scope);

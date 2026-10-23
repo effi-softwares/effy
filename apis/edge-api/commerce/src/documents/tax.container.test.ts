@@ -25,7 +25,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { BusinessIdentityInvalid, DocumentNotFound, DocumentNotReady, setBusinessIdentity, taxDocumentPdf, taxDocuments } from "./service";
 
@@ -56,11 +56,11 @@ SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email, given_name) VALUES ('me', 'me@effyshopping.com', 'Ada') RETURNING id`);
     const them = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('them', 'them@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, delivery_fee_amount, grand_total_amount, delivery_address, status, placed_at)
-       VALUES ($1, 'EFY-CTX001', 1100, 0, 1100, '{}'::jsonb, 'paid', now()) RETURNING id`, [me.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, delivery_fee_amount, grand_total_amount, delivery_address, status, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-CTX001', 1100, 0, 1100, '{}'::jsonb, 'paid', now(), 'effy', 'in_coverage') RETURNING id`, [me.id]);
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
-       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', 1100, 1, 1100, 'taxable')`, [order.id, product.id, shop.id]);
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', 1100, 1, 1100, 'taxable', 1100, 1100)`, [order.id, product.id, shop.id]);
 
     await expect(taxDocuments(them.id, order.id)).rejects.toBeInstanceOf(DocumentNotFound);
     await expect(taxDocuments(me.id, order.id)).rejects.toMatchObject({ code: "invoices_unavailable" });

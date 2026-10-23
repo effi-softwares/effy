@@ -13,24 +13,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Owns [SessionState] (013 data-model § 4). The single source of truth for "who is using the app".
- *
- * It reads the session from the [authDriver] (Amplify owns the tokens) and the record via
- * [getCustomer] — because identity is displayed from the RECORD, never the token (FR-032), and the
- * record decides access (FR-033). It also listens for SDK-initiated session drops (Android Keystore
- * failure, D11): "signed out unexpectedly" is a real transition, not a swallowed error.
+ * Owns [SessionState], the one answer to "who is using the app". The session comes from [authDriver]
+ * (Amplify owns the tokens) and the record from [getCustomer]: identity is shown from the record, which
+ * decides access. An SDK-initiated session drop (Keystore failure) is a real transition, not a swallowed
+ * error.
  */
 class SessionManager(
     private val authDriver: AuthDriver,
     private val getCustomer: GetCustomer,
     scope: CoroutineScope,
     /**
-     * Fired once per Guest/Restoring → Authenticated transition (027). The cart uses it to merge the
+     * Fired once per Guest/Restoring → Authenticated transition. The cart uses it to merge the
      * device's lines into the account cart — which is what makes a cart built on one phone appear on
      * another. Deliberately a lambda rather than a cart dependency: the session manager has no business
      * knowing what a cart is, and a later feature can hang its own sign-in work here the same way.
      *
-     * ⚠ It is NOT fired on `refreshRecord()` (a name change, say). The merge is idempotent so a spurious
+     * It is not fired on `refreshRecord` (a name change, say). The merge is idempotent so a spurious
      * call would be harmless, but it would cost a request on every profile edit for nothing.
      */
     private val onAuthenticated: suspend () -> Unit = {},
@@ -70,11 +68,11 @@ class SessionManager(
         _state.value = if (customer.isBarred) SessionState.Barred else SessionState.Authenticated(customer)
     }
 
-    /** A control refused with 403 mid-session (FR-033a) — the record now bars this customer. */
+    /** A control refused with 403 mid-session — the record now bars this customer. */
     /**
-     * The record says this account is being deleted (034 FR-041a).
+     * The record says this account is being deleted.
      *
-     * ⚠ Set from the SAME 403 that raises [setBarred] — the backend deliberately does not disclose
+     * Set from the same 403 that raises [setBarred] — the backend deliberately does not disclose
      * which condition applied, so the client cannot tell them apart from the refusal alone. It is set
      * when the closure preview confirms a live request, which is the one place the truth is available.
      */
@@ -86,11 +84,11 @@ class SessionManager(
         _state.value = SessionState.Barred
     }
 
-    /** Local sign-out (this device). Purges the driver's tokens and returns to Guest (FR-021/FR-030). */
+    /** Local sign-out (this device). Purges the driver's tokens and returns to Guest. */
     suspend fun signOutLocally() {
         runCatching { authDriver.signOut() }
         _state.value = SessionState.Guest
-        // 027: the account's cart must not stay on the device. The account cart itself is untouched.
+        // The account's cart must not stay on the device. The account cart itself is untouched.
         runCatching { onSignedOut() }
     }
 
@@ -100,7 +98,7 @@ class SessionManager(
             try {
                 val wasAuthenticated = _state.value is SessionState.Authenticated
                 setAuthenticated(getCustomer(seedPassword))
-                // 027: a genuine SIGN-IN (not a record refresh) — hand off to whoever needs to react. The
+                // A genuine sign-in (not a record refresh) — hand off to whoever needs to react. The
                 // cart merges the device's lines into the account cart here. A failure must not undo the
                 // sign-in: the shopper is authenticated either way, and the merge retries on the next
                 // cart open.
@@ -111,7 +109,7 @@ class SessionManager(
             } catch (e: AppException) {
                 val error = e.error
                 when {
-                    // Barred mid-session (FR-033a): refuse, destroy the local session, say why via Barred.
+                    // Barred mid-session: refuse, destroy the local session, say why via Barred.
                     error == AppError.Forbidden -> {
                         runCatching { authDriver.signOut() }
                         _state.value = SessionState.Barred
@@ -121,7 +119,7 @@ class SessionManager(
                         signOutLocally()
                         return
                     }
-                    // A TRANSIENT failure on a valid credential: retry a couple of times before giving
+                    // A transient failure on a valid credential: retry a couple of times before giving
                     // up, so a launch-time 5xx/429/blip doesn't masquerade as a sign-out.
                     error == AppError.Network || error == AppError.Unavailable || error is AppError.RateLimited -> {
                         if (attempt++ < MAX_BOOTSTRAP_RETRIES) {

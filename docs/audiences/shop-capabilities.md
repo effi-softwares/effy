@@ -17,11 +17,7 @@ otherwise slides into silently.
 its route paths, its tables, its roles, and the audience in prose. There is no second word for this
 audience anywhere in the platform.
 
-This is normative (constitution v1.6.0, Principle IV) and enforced mechanically: `make verify-naming`
-fails on any occurrence of the retired token that is not attributable to a documented exclusion —
-the TanStack Store library, the customer "storefront", AWS "Parameter Store", or the English verb.
-The earlier `shop`/`store` split was retired by
-[specs/008-shop-naming-unification](../../specs/008-shop-naming-unification/).
+This is normative (constitution v1.6.0, Principle IV).
 
 ## Legend
 

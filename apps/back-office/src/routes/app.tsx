@@ -50,7 +50,7 @@ function AppShellRoute() {
   const identity = data?.status === "signed-in" ? data.identity : null;
 
   return (
-    // 071 — orders, dispatch and drivers, slot load and the review queue re-read when the platform
+    // Orders, dispatch and drivers, slot load and the review queue re-read when the platform
     // says they changed; nothing here refreshes on a timer. Open only while signed in.
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
       <AppShell

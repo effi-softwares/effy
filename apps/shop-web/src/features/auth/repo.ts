@@ -4,7 +4,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import type { Session } from "./model";
 
 // The EMAIL_OTP flow is identical on every pool, so it lives in the kit. What is surface-specific
-// is the SHAPE of a session — which role union it narrows the `cognito:groups` claim to.
+// is the shape of a session — which role union it narrows the `cognito:groups` claim to.
 export { signOutUser, startSignIn, submitOtp, type SignInOutcome } from "@effy/web-kit";
 
 export async function loadSession(): Promise<Session> {
@@ -16,7 +16,7 @@ export async function loadSession(): Promise<Session> {
   const groupsClaim = access.payload["cognito:groups"];
   const roles = toShopRoles(Array.isArray(groupsClaim) ? groupsClaim.map(String) : undefined);
 
-  // The access token carries no `email` on an email-as-username pool (research R6); the ID token
+  // The access token carries no `email` on an email-as-username pool; the ID token
   // does. This is display only — the platform record is what authorization reads.
   const emailClaim = tokens?.idToken?.payload.email;
   const email = typeof emailClaim === "string" ? emailClaim : "";

@@ -37,7 +37,7 @@ import {
   updateProductType,
 } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Each list/detail query keys
+// Server state lives only in the TanStack Query cache (Principle VI). Each list/detail query keys
 // on the entity + id; mutations invalidate the whole catalog root — a schema write can move data
 // across all three tables at once (assigning an attribute changes both the type and the attribute's
 // in-use count; retiring a category or attribute is validated against products), so a coarse
@@ -79,7 +79,7 @@ function invalidateCatalog(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: CATALOG_ROOT });
 }
 
-// ── Product-type mutations ────────────────────────────────────────────────────────────────────
+// Product-type mutations
 
 export function useCreateProductType() {
   const queryClient = useQueryClient();
@@ -130,7 +130,7 @@ export function useUnassignAttribute(id: string) {
   });
 }
 
-// ── Attribute-definition mutations ────────────────────────────────────────────────────────────
+// Attribute-definition mutations
 
 export function useCreateAttribute() {
   const queryClient = useQueryClient();
@@ -164,7 +164,7 @@ export function useDeleteAllowedValue(id: string) {
   });
 }
 
-// ── Category mutations ────────────────────────────────────────────────────────────────────────
+// Category mutations
 
 export function useCreateCategory() {
   const queryClient = useQueryClient();

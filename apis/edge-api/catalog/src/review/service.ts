@@ -1,9 +1,3 @@
-// Product review — service layer (067).
-//
-// A reviewer sees what a shop submitted, decides, and — when approving — sets what Effy adds on top.
-// This file turns rows into what a reviewer reads (a list of details, a before/after of only what
-// changed) and turns a decision into one transaction.
-
 import {
   customerPrice,
   pooled,
@@ -54,8 +48,6 @@ function limitOf(raw: unknown): number {
   return Number.isInteger(n) && n > 0 ? Math.min(n, MAX_LIMIT) : DEFAULT_LIMIT;
 }
 
-// ── Cursors ────────────────────────────────────────────────────────────────────────────────────
-
 /** Opaque to the client; the timestamp travels as the database's own text, never through a Date. */
 function encodeCursor(parts: string[]): string {
   return Buffer.from(JSON.stringify(parts), "utf8").toString("base64url");
@@ -73,8 +65,6 @@ function decodeCursor(raw: unknown, size: number): string[] | null {
   }
   throw new ReviewError("validation", "the paging cursor is not valid");
 }
-
-// ── Queue ──────────────────────────────────────────────────────────────────────────────────────
 
 export async function queue(params: Record<string, string | undefined>): Promise<ReviewQueueDTO> {
   const limit = limitOf(params.limit);
@@ -109,8 +99,7 @@ export async function queue(params: Record<string, string | undefined>): Promise
       submittedAt: r.submitted_at.toISOString(),
       waitingHours: Number(r.waiting_hours),
     })),
-    // ⚠ Minted from the LAST ROW RETURNED and the column the query ORDERS BY (053 shipped a cursor
-    // built from a different column than the sort, and pages re-showed rows).
+    // Minted from the last row returned and the order by column.
     nextCursor: rows.length > limit && last ? encodeCursor([last.submitted_at_text, last.product_id]) : null,
     total,
   };
@@ -137,8 +126,6 @@ export async function marginNotSet(params: Record<string, string | undefined>): 
 }
 
 export const oldestWaitingHours = repo.oldestWaitingHours;
-
-// ── One item ───────────────────────────────────────────────────────────────────────────────────
 
 /** numeric(12,4) comes back as "20.0000"; a reviewer typed "20". */
 function trimDecimal(v: string): string {
@@ -189,15 +176,13 @@ function detailsOf(p: repo.ProductRow, attrs: repo.AttributeRow[], set: VariantS
     { label: "Brand", value: p.brand },
     { label: "Category", value: p.category_name },
     { label: "Product type", value: p.type_name },
-    // 098 — prices, codes and weights are per variant, in `variants` beside these rows.
+    // Prices, codes and weights are per variant, in `variants`.
     { label: "Options", value: optionsText(set.options) ?? "None — one variant" },
     { label: "Unit pricing", value: basisWords(p.unit_basis) },
     { label: "GST", value: p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set" },
     ...attrs.map((a) => ({ label: a.name, value: attributeText(a) })),
   ];
 }
-
-// ── 098 — variants as a reviewer sees them ─────────────────────────────────────────────────────
 
 type SetInput = { options: OptionInputDTO[]; variants: VariantInputDTO[] };
 
@@ -224,7 +209,7 @@ function proposedSetOf(proposed: Proposed): SetInput | null {
 
 const moneyOrNull = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v).toFixed(2));
 
-/** Under the margin (the shop's own price when none is set). A malformed amount shows as itself. */
+/** The shop's own price when no margin is set. A malformed amount shows as itself. */
 function underMargin(shop: string | null | undefined, margin: Margin | null): string | null {
   if (shop === null || shop === undefined || shop === "") return null;
   return MONEY.test(shop) ? customerPrice(shop, margin) : shop;
@@ -240,10 +225,7 @@ const VARIANT_FIELDS: readonly { key: keyof VariantInputDTO; label: string; show
   { key: "mediaStorageKey", label: "Picture", show: (v) => (v.mediaStorageKey ? "Own picture" : null) },
 ];
 
-/**
- * Every variant the decision would make live, with what it will sell at under `margin`, and — for a
- * change — whether the change adds, removes or alters it (FR-011).
- */
+/** Every variant the decision would make live, its price under `margin`, and what the change does to it. */
 function reviewVariants(live: VariantSet, target: SetInput | null, margin: Margin | null): ReviewVariantDTO[] {
   const liveSet = liveSetOf(live);
   const set = target ?? liveSet;
@@ -315,7 +297,7 @@ function variantChanges(live: VariantSet, target: SetInput): ReviewFieldChangeDT
   return out;
 }
 
-/** Whether a change moves any shop price (a new variant has one): the margin must then be confirmed (FR-031). */
+/** A new shop price (or variant) means the margin must be confirmed. */
 function changesShopPrices(live: VariantSet, target: SetInput | null): boolean {
   if (!target) return false;
   const liveById = new Map(liveSetOf(live).variants.map((v) => [v.id, v]));
@@ -331,7 +313,7 @@ async function images(rows: repo.MediaRow[], liveKeys: Set<string> | null): Prom
       url: await presignRead(m.storage_key),
       isPrimary: m.is_primary,
       altText: m.alt_text,
-      // "New" = this change adds it. Judged by the OBJECT, so re-registering a live image is not new.
+      // New by object, so re-registering a live image is not new.
       isNew: liveKeys !== null && !liveKeys.has(m.storage_key),
     })),
   );
@@ -346,7 +328,6 @@ type Proposed = {
   productTypeId?: unknown;
   gstStatus?: unknown;
   attributes?: unknown;
-  /** 098 */
   unitBasis?: unknown;
   options?: unknown;
   variants?: unknown;
@@ -369,7 +350,7 @@ function proposedAttributes(p: Proposed): ProposedAttribute[] {
   );
 }
 
-/** Only what the shop is asking to change, in the words a reviewer reads (FR-010). */
+/** Only what the shop is asking to change. */
 async function changesOf(
   p: repo.ProductRow,
   attrs: repo.AttributeRow[],
@@ -399,10 +380,8 @@ async function changesOf(
     add("productTypeId", "Product type", p.type_name, t?.name ?? null);
   }
   if ("unitBasis" in proposed) add("unitBasis", "Unit pricing", basisWords(p.unit_basis), basisWords(str(proposed.unitBasis)));
-  // 098 — sizes added, removed or changed, and the options they are chosen by.
   const target = proposedSetOf(proposed);
   if (target) out.push(...variantChanges(live, target));
-  // 096 — the shop's GST status for a live product is reviewed like every other detail.
   if ("gstStatus" in proposed && isGstStatus(proposed.gstStatus)) {
     add("gstStatus", "GST", p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set", GST_STATUS_WORDS[proposed.gstStatus]);
   }
@@ -477,8 +456,6 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
   };
 }
 
-// ── Decisions ──────────────────────────────────────────────────────────────────────────────────
-
 const STALE = "this item changed, or was already decided — reload it and look again";
 
 function requireVersion(v: unknown): string {
@@ -504,17 +481,13 @@ function requireMargin(input: unknown): Margin {
 
 const marginWrite = (margin: Margin | null): repo.MarginWrite => ({ marginKind: margin?.kind ?? null, marginValue: margin?.value ?? null });
 
-/**
- * 098 — every live variant's prices after a decision. The customer prices were written by
- * `priceVariants` (lib/margin.ts is the arithmetic); ⚠ FR-035 — the "was" price carries the SAME
- * margin, so "was 12, now 10" never becomes "was 12, now 12" once Effy adds 20%.
- */
+/** The "was" price carries the same margin, so a discount survives Effy's margin. */
 async function decidedVariants(tx: Parameters<typeof readVariantSets>[0], productId: string): Promise<ReviewDecisionDTO["variants"]> {
   const set = (await readVariantSets(tx, [productId], { states: ["active", "inactive"] })).get(productId)!;
   return set.variants.map((v) => ({ id: v.id, label: v.label, shopPriceAmount: v.shopPriceAmount, customerPriceAmount: v.priceAmount ?? v.shopPriceAmount }));
 }
 
-/** A set the one writer refused at approval — the shop must change it, so it goes back. */
+/** Refused by the one writer at approval, so it goes back to the shop. */
 function asReviewError(err: unknown): never {
   if (err instanceof VariantSetInvalid) {
     throw new ReviewError("validation", "the proposed sizes are no longer valid — send this back", err.errors);
@@ -541,13 +514,11 @@ export async function approve(
       const p = await repo.readProduct(productId, tx, true);
       if (!p) throw new ReviewError("not_found", "no such review item");
 
-      // ── A new product ──
       if (!p.approved) {
         if (p.review_state !== "in_review" || p.version !== version) throw new ReviewError("conflict", STALE);
-        // FR-028 — no approval without a margin. Zero is a margin; absent is not.
+        // Zero is a margin; absent is not.
         const margin = requireMargin(body.margin);
         if (!(await repo.approveNewProduct(tx, productId, version, marginWrite(margin)))) throw new ReviewError("conflict", STALE);
-        // 098 — the ONE margin prices EVERY variant (R7).
         await priceVariants(tx, productId, margin);
         const variants = await decidedVariants(tx, productId);
 
@@ -561,7 +532,6 @@ export async function approve(
         return { productId, margin, variants };
       }
 
-      // ── A change to a live product ──
       const change = await repo.readChange(productId, tx, true);
       if (!change || change.state !== "in_review" || change.version !== version) {
         throw new ReviewError("conflict", STALE);
@@ -575,7 +545,7 @@ export async function approve(
         [],
         tx,
       );
-      // A category or type Effy retired AFTER the shop proposed it cannot become live.
+      // A category or type retired after the proposal cannot become live.
       if ("primaryCategoryId" in proposed && names.categories.get(String(proposed.primaryCategoryId))?.status !== "active") {
         throw new ReviewError("validation", "the proposed category is no longer available — send this back");
       }
@@ -586,7 +556,7 @@ export async function approve(
       const live = (await readVariantSets(tx, [productId])).get(productId)!;
       const target = proposedSetOf(proposed);
       const current = marginOf(p);
-      // FR-031 — a new shop price (or a new variant) reopens the margin; so does a product that never had one.
+      // A new shop price or variant reopens the margin, as does a product that never had one.
       const marginRequired = changesShopPrices(live, target) || current === null;
       const supplied = body.margin !== undefined && body.margin !== null;
       if (marginRequired && !supplied) {
@@ -619,27 +589,22 @@ export async function approve(
         })),
         change.media_changed,
       );
-      // 096 — through the one writer, recorded as approved in review.
       if (isGstStatus(proposed.gstStatus)) {
         await setGstStatus(tx, productId, proposed.gstStatus, { kind: "admin_staff", sub: actorSub }, "review");
       }
-      // 098 — the proposed sizes become the live ones through the ONE writer (after the images, which
-      // a variant may name); a variant the proposal drops is REMOVED, kept for history. A basis that
-      // changed alone is checked against the sizes as they are.
+      // After the images (a variant may name one); a dropped variant is removed but kept for history.
       if (target) {
         await applyVariantSet(tx, { productId, shopId: p.shop_id, options: target.options, variants: target.variants, unitBasis, mode: "live" }).catch(asReviewError);
       } else if ("unitBasis" in proposed) {
         const errors = validateVariantSet(liveSetOf(live).options, liveSetOf(live).variants, unitBasis);
         if (errors.length > 0) throw new ReviewError("validation", "the proposed unit pricing does not fit the sizes — send this back", errors);
       }
-      // 098 — the ONE margin prices EVERY variant (R7), new ones included.
       await priceVariants(tx, productId, margin);
       const variants = await decidedVariants(tx, productId);
 
       await repo.audit(tx, actorSub, "product.change_approved", productId, {
         shopId: p.shop_id,
-        // WHICH details changed, never their values: a description is not audit data, and the
-        // prices after are carried explicitly below.
+        // Which details changed, never their values.
         changed: [...Object.keys(proposed).filter((k) => k !== "attributes"), ...(pAttrs.length ? ["attributes"] : []), ...(change.media_changed ? ["images"] : [])].sort(),
         variants: variants.map((v) => ({ id: v.id, shopPriceAmount: v.shopPriceAmount, customerPriceAmount: v.customerPriceAmount })),
         marginBefore: marginDetail(current),
@@ -664,7 +629,6 @@ export async function sendBack(
   const productId = requireProductId(rawProductId);
   const version = requireVersion(body.version);
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-  // FR-012 — a refusal with no reason leaves the shop guessing.
   if (reason === "" || Array.from(reason).length > REVIEW_REASON_MAX) {
     const message = reason === "" ? "say why this is being sent back" : `keep the reason under ${REVIEW_REASON_MAX} characters`;
     throw new ReviewError("validation", message, [{ field: "reason", message }]);
@@ -689,12 +653,7 @@ export async function sendBack(
   });
 }
 
-/**
- * Set or change Effy's margin on a product that is already approved (FR-032).
- *
- * The customer price follows at once. ⚠ The shop is NOT notified: this is Effy's own number, and a
- * push saying "your margin changed" would publish the very figure FR-039 keeps from them.
- */
+/** The shop is not notified: the margin is Effy's figure and is kept from shops. */
 export async function setMargin(
   rawProductId: string | undefined,
   body: { margin?: unknown; expectedCurrent?: unknown },
@@ -714,7 +673,6 @@ export async function setMargin(
     const before = await decidedVariants(tx, productId);
     const ok = await repo.setMargin(tx, productId, { kind: expected?.kind ?? null, value: expected?.value ?? null }, marginWrite(margin));
     if (!ok) throw new ReviewError("conflict", "the margin was changed by someone else — reload and look again");
-    // 098 — the customer price of EVERY variant follows at once.
     await priceVariants(tx, productId, margin);
     const variants = await decidedVariants(tx, productId);
 

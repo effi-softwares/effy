@@ -17,16 +17,16 @@ export const metadata: Metadata = {
  * About Effy (reference: Help & info · About Effy): what Effy is, how an order reaches you, and who
  * the business is.
  *
- * ⚠ NOTHING HERE IS A NUMBER SOMEONE ELSE SETS. A courier's timeframe, what a point is worth and
+ * Nothing here is a number someone else sets. A courier's timeframe, what a point is worth and
  * where the vans go are the operator's settings and change without this page: it says what each
  * thing IS and leaves the figure to the place that knows it (checkout, the points page).
  *
- * ⚠ THE COMPANY DETAILS COME FROM `@effy/legal-content` AND ONLY WHAT IS RECORDED IS SHOWN — a
+ * The company details come from `@effy/legal-content` and only what is recorded is shown — a
  * missing ABN or address is left out, never filled with a placeholder. The authored "about"
  * document follows them, as written.
  */
 export default function AboutPage() {
-  // Fails the BUILD if the authored document is missing, rather than rendering a page without it.
+  // Fails the build if the authored document is missing, rather than rendering a page without it.
   getDocument("about")
   const seller = sellerIdentity()
   const details: Array<[string, string | null]> = [

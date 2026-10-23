@@ -1,13 +1,9 @@
-// PATCH /shop/v1/notification-preferences — mute or unmute types on ONE registration (059, FR-024).
-//
-// ⚠ REPLACES WHOLESALE. `[]` is a meaningful value — "everything on" — not an absence. That is the
-// inverse of 056's COALESCE defect, where a field could never be cleared at all; here the
-// requirement is that clearing works, and that omitting the CALL changes nothing.
+// Replaces wholesale: `[]` means everything on.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
 
-// `ProblemType` has no NotFound member; `products/handler-support.ts` declares the same literal.
+// `ProblemType` has no NotFound member.
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
 import {
   KNOWN_SHOP_NOTIFICATION_TYPES,
@@ -62,9 +58,7 @@ export const handler = async (
     );
   }
 
-  // ⚠ A CLOSED SET. An unknown type would mute nothing, so accepting it silently would leave the
-  // operator believing they had switched something off. Named in the refusal so a console version
-  // mismatch is legible rather than mysterious.
+  // A closed set: an unknown type would mute nothing, so it is refused by name.
   const unknown = raw.filter((t) => !KNOWN_SHOP_NOTIFICATION_TYPES.includes(t as never));
   if (unknown.length > 0) {
     return problem(
@@ -78,8 +72,7 @@ export const handler = async (
 
   const updated = await setMutedTypes(sub, fcmToken, raw as string[]);
   if (!updated) {
-    // ⚠ IDENTICAL for "not yours" and "no such token" — see the GET handler. A distinguishable
-    // refusal here is an oracle for which tokens are registered on the platform.
+    // Identical for "not yours" and "no such token".
     return problem(404, NOT_FOUND, "Not found", "no registration for that token", scope);
   }
 

@@ -1,8 +1,4 @@
-// POST /shop/v1/team/{staffId}/deactivate — stand a colleague down (057 US7).
-//
-// ⚠ It disables the platform record AND the Cognito identity. The record alone is authoritative for
-// access, but leaving a working identity behind means a valid session can still be minted — defense in
-// depth, the same reasoning 009 applied.
+// Disables the record and the Cognito identity, so no session can be minted.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

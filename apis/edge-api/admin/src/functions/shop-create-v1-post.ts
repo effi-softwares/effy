@@ -1,5 +1,4 @@
-// POST /admin/v1/shops — create a shop + provision its primary manager (US1/FR-001/FR-002).
-// Mutate access (admin/manager). One coherent, idempotent operation (research R4).
+// Creates the shop and provisions its primary manager, idempotently.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

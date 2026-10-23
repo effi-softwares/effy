@@ -23,8 +23,8 @@ describe("gateway usage — how full each gateway is", () => {
   it("⚠ rounds UP — one route from full never reads as under a threshold", () => {
     expect(percentOf(299)).toBe(100)
     expect(percentOf(300)).toBe(100)
-    expect(percentOf(269)).toBe(90) // 89.67 → 90: the critical alarm fires
-    expect(percentOf(223)).toBe(75) // 74.33 → 75: the warning fires
+    expect(percentOf(269)).toBe(90)
+    expect(percentOf(223)).toBe(75)
     expect(percentOf(0)).toBe(0)
     expect(percentOf(GATEWAY_CEILING + 5)).toBe(100)
   })

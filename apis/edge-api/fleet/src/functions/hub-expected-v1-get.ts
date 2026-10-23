@@ -1,5 +1,4 @@
-// GET /fleet/v1/hub/expected — the collection runs on their way in, with every bag and where it goes
-// (096 US5). Admin/manager: the hub station is for the people who run the hub.
+// Admin/manager: the hub station is for the people who run the hub.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

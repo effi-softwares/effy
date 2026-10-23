@@ -16,9 +16,7 @@ beforeEach(() => {
 
 describe("readDuty — FR-034…FR-036", () => {
   it("⚠ reports waiting work even when NOBODY is on duty", async () => {
-    // This is the state the screen exists for. With nobody working, the on-duty list is empty — and
-    // an empty list on its own reads as "nothing to see". The unassigned counts are what turn it
-    // into "nobody is working and 12 packages are waiting".
+    // Nobody on duty plus the unassigned counts reads "nobody is working and 12 packages are waiting".
     vi.mocked(repo.listOnDuty).mockResolvedValue([]);
     vi.mocked(repo.unassignedWork).mockResolvedValue({
       readyToCollect: 12,
@@ -48,8 +46,7 @@ describe("endDutySession — FR-037", () => {
   });
 
   it("audits the end inside the same transaction as the write", async () => {
-    // Passed as a callback so the audit row and the session close cannot end up in different
-    // transactions — a closed session with no record of who closed it is the failure mode.
+    // A callback, so the audit row and the session close share one transaction.
     vi.mocked(repo.endSession).mockImplementation(async (_id, write) => {
       await write({ query: vi.fn() } as never, "d-1");
       return "ended";

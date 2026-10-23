@@ -5,11 +5,11 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ LET THE MUTATION SETTLE BEFORE THE TEST ENDS.
+ * Let the mutation settle before the test ends.
  *
  * `mutate` is fire-and-forget: `onError` runs and the alert appears, but TanStack's own internal
  * promise settles a tick later. Asserting on the rendered alert and returning immediately leaves that
- * rejection to land after the test has finished, where vitest reports it as an UNHANDLED REJECTION
+ * rejection to land after the test has finished, where vitest reports it as an unhandled rejection
  * and fails the test that had already done its job — with the raw problem object and no stack, which
  * looks exactly like a component bug and is not one.
  */
@@ -52,7 +52,7 @@ function open() {
 }
 
 describe("ReassignDialog — FR-029 and FR-034", () => {
-  // ⚠ RESET THE HISTORY, THEN RESTORE A PROMISE. `mockReset` alone strips the IMPLEMENTATION too, so
+  // Reset the history, then restore a promise. `mockReset` alone strips the implementation too, so
   // the mocked repo function returns `undefined` — and a `mutationFn` returning a non-promise makes
   // TanStack raise an unhandled rejection that vitest attributes to whichever test is running. The
   // symptom was three failures showing the raw problem object with `stacks: []`, which reads exactly
@@ -73,7 +73,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     await user.click(screen.getByRole("button", { name: "Move the round" }));
 
     await waitFor(() =>
-      // ⚠ The token must carry MICROSECONDS. 056 lost a whole feature to `toISOString()` truncating
+      // The token must carry microseconds. 056 lost a whole feature to `toISOString` truncating
       // to milliseconds, so the optimistic lock never matched its own row.
       expect(reassign).toHaveBeenCalledWith("r-1", {
         driverId: "d-2",
@@ -82,11 +82,11 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     );
   });
 
-  // ⚠ THE POINT OF THE WHOLE DIALOG. A dispatcher may override a preference; they may not override a
-  // fact — and they must be told WHICH fact.
+  // The point of the whole dialog. A dispatcher may override a preference; they may not override a
+  // fact — and they must be told which fact.
   it("shows the named condition when the server refuses an ineligible driver", async () => {
     reassign.mockRejectedValue({
-      // ⚠ THE REAL SHAPE — `kind`, not `name`. `isDomainError` tests for `kind` and `status`, and my
+      // The real shape — `kind`, not `name`. `isDomainError` tests for `kind` and `status`, and my
       // first fixture invented `name: "DomainError"`, so the dialog silently showed the generic
       // message and the test caught a bug that did not exist while missing the one that did.
       kind: "unknown",
@@ -105,7 +105,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     const alert = await screen.findByRole("alert");
     await settle();
     expect(alert).toHaveTextContent(/licence expired/i);
-    // ⚠ Never collapsed to a generic sentence.
+    // Never collapsed to a generic sentence.
     expect(alert).not.toHaveTextContent(/^That change could not be made/);
   });
 
@@ -116,7 +116,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
       title: "That driver cannot take this round",
       detail: "That driver cannot take this round.",
       fields: [
-        // ⚠ 032's convention: for a whole-request refusal, `field` IS the stable code.
+        // 032's convention: for a whole-request refusal, `field` IS the stable code.
         { field: "licence_expired", message: "their licence has expired" },
         { field: "no_vehicle", message: "they are not holding a vehicle" },
       ],
@@ -130,7 +130,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
 
     await screen.findByRole("alert");
     await settle();
-    // ⚠ THIS CONSOLE'S WORDS, from REASON_TEXT — not the server's prose.
+    // This console's words, from REASON_TEXT — not the server's prose.
     expect(screen.getByText("Licence expired")).toBeInTheDocument();
     expect(screen.getByText("Holding no vehicle")).toBeInTheDocument();
   });
@@ -153,7 +153,7 @@ describe("ReassignDialog — FR-029 and FR-034", () => {
     const user = userEvent.setup();
     open();
     await user.click(screen.getByRole("button", { name: "Reassign" }));
-    // ⚠ Anchored on the SELECT's options, not on loose text — 062's console test passed vacuously
+    // Anchored on the select's options, not on loose text — 062's console test passed vacuously
     // because `findByText` matched an <option> while the empty state was on screen.
     const select = screen.getByLabelText("Driver") as HTMLSelectElement;
     const values = [...select.options].map((o) => o.value);

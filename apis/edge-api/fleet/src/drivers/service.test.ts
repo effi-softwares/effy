@@ -49,12 +49,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(recordAudit).mockResolvedValue(undefined);
   vi.mocked(repo.getDriver).mockResolvedValue(PROFILE);
-  // Default: the driver holds nothing, so the FR-019 guard is inert unless a test says otherwise.
+  // By default the driver holds nothing.
   vi.mocked(holdings.heldByDriver).mockResolvedValue(null);
   vi.mocked(cognito.lookupDriverUser).mockResolvedValue({ sub: "sub-1", enabled: true });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("createDriver — FR-014, a work email already in use is REFUSED", () => {
   it("⚠ refuses, and NAMES the existing driver so the operator can choose consciously", async () => {
     vi.mocked(repo.findByWorkEmail).mockResolvedValue({
@@ -76,10 +75,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
   });
 
   it("⚠ NEVER touches the existing driver — no identity call, no insert, no audit row", async () => {
-    // This is the whole defect. The predecessor's `ensureDriverUser` swallowed the exists exception,
-    // RE-ENABLED a disabled account, and the repository's `ON CONFLICT DO UPDATE` then overwrote the
-    // existing driver's name, zone and vehicle — reporting success. Asserting the refusal is not
-    // enough; the point is that nothing about that person moved.
+    // A duplicate is refused and nothing about the existing person moves.
     vi.mocked(repo.findByWorkEmail).mockResolvedValue({
       id: "d-existing",
       name: "Jo Chen",
@@ -97,9 +93,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
   });
 
   it("⚠ refuses an OFFBOARDED driver's address too, naming their status", async () => {
-    // The likeliest real case: someone left, and their address is being reused for a new hire. The
-    // refusal must say "offboarded" so the operator picks a re-hire or a different address on
-    // purpose, rather than silently resurrecting a stood-down sign-in.
+    // A reused address of someone who left: the refusal says "offboarded".
     vi.mocked(repo.findByWorkEmail).mockResolvedValue({
       id: "d-gone",
       name: "Pat Lee",
@@ -135,8 +129,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
 
     await createDriver({ name: "Sam Rivers", workEmail: "SAM@Effyshopping.com" }, "actor-1", scope);
 
-    // Lower-cased — Cognito treats email as a case-insensitive alias and the column is citext, so
-    // the two must agree or a "duplicate" can be created by changing the case.
+    // Lower-cased, matching Cognito and the citext column.
     expect(cognito.createDriverUser).toHaveBeenCalledWith("sam@effyshopping.com", "Sam Rivers");
     expect(repo.insertDriver).toHaveBeenCalledWith(
       expect.objectContaining({ sub: "sub-new", workEmail: "sam@effyshopping.com" }),
@@ -145,8 +138,7 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
   });
 
   it("logs the metric-filter string when the record write fails after the identity exists", async () => {
-    // ⚠ The one state an operator cannot repair from the console. The alarm's metric filter selects
-    // this exact string, so a rename here silently disarms the alarm.
+    // The alarm's metric filter selects this exact string.
     vi.mocked(repo.findByWorkEmail).mockResolvedValue(null);
     vi.mocked(cognito.createDriverUser).mockResolvedValue("sub-new");
     vi.mocked(repo.insertDriver).mockRejectedValue(new Error("db down"));
@@ -172,13 +164,9 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("updateDriver — FR-010/FR-012", () => {
   it("⚠ passes a null through to the repository so a field can be CLEARED", async () => {
-    // The defect FR-010 exists for: `COALESCE($n, col)` cannot distinguish "absent" from "null", so
-    // a field once set could never be cleared by any request the API accepted.
-    // ⚠ 062 — the original example was the driver's single zone, which no longer exists. The RULE is
-    // unchanged and is what this test is about, so it now uses a field that does.
+    // A field once set must be clearable.
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
 
     await updateDriver(
@@ -256,17 +244,8 @@ describe("updateDriver — FR-010/FR-012", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("setStatus — FR-015…FR-020", () => {
-  /**
-   * ⚠ FR-019 — THE MOST IMPORTANT REFUSAL IN THIS SLICE.
-   *
-   * Standing a driver down does not make their van appear at the hub, but it DOES remove them from
-   * every list an operator reads — so the vehicle silently stops being anybody's problem while
-   * remaining physically absent. 056 found this exact shape with collected packages and recorded
-   * that it strands goods "permanently and invisibly, and this was in no register because nobody
-   * knew".
-   */
+  /** Standing a driver down while they hold a vehicle is refused: it would vanish from every list. */
   it("⚠ REFUSES to stand down a driver holding a vehicle, and NAMES the vehicle", async () => {
     vi.mocked(holdings.heldByDriver).mockResolvedValue({
       vehicleId: "v-1",
@@ -281,10 +260,10 @@ describe("setStatus — FR-015…FR-020", () => {
     )) as FleetError;
 
     expect(err.kind).toBe("conflict");
-    // ⚠ "Record its return first" is only actionable if the operator is told WHICH vehicle.
+    // Names which vehicle.
     expect(err.message).toContain("EFY-001");
     expect(err.fields?.[0]?.message).toContain("EFY-001");
-    // ⚠ And nothing moved — neither the record nor the sign-in account.
+    // And nothing moved.
     expect(repo.setStatus).not.toHaveBeenCalled();
     expect(cognito.disableDriverUser).not.toHaveBeenCalled();
   });
@@ -298,7 +277,7 @@ describe("setStatus — FR-015…FR-020", () => {
     expect(repo.setStatus).toHaveBeenCalled();
   });
 
-  /** ⚠ Restoring a driver never asks about vehicles — they are coming back TO work, not leaving it. */
+  /** Restoring a driver never asks about vehicles. */
   it("does not check for a held vehicle when a driver is being RESTORED", async () => {
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
@@ -307,17 +286,6 @@ describe("setStatus — FR-015…FR-020", () => {
     expect(holdings.heldByDriver).not.toHaveBeenCalled();
   });
 
-  /**
-   * ⚠ TWO CASES WERE REMOVED HERE, AND THEIR SUBJECT IS RECORDED IN ORDER-FLOW-GAPS.md RATHER THAN
-   * LEFT AS A SKIPPED TEST. They asserted that standing down a driver holding already-picked-up work
-   * is REFUSED and itemised, and that acknowledging it proceeds. `heldWorkFor` read `collection_task`
-   * and `delivery_task`; with nothing assigning work, no driver can hold any, so the cases would have
-   * asserted a refusal that can never fire.
-   *
-   * A skipped test is the wrong shape for this: it looks like coverage in a summary line and passes
-   * review as "temporarily disabled" long after the reason is forgotten. The requirement belongs to
-   * the dispatch slice, in the register, where it is somebody's job.
-   */
   it("restores a driver, re-enabling their sign-in", async () => {
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
@@ -336,9 +304,7 @@ describe("setStatus — FR-015…FR-020", () => {
   });
 
   it("⚠ keeps the record change when the identity mirror fails, and logs it", async () => {
-    // The record is authoritative for the access decision (Principle IV), so a driver whose record
-    // says suspended is already refused. Rolling back a correct record change because an external
-    // service was briefly unavailable would leave them ABLE TO WORK — the worse of the two outcomes.
+    // The record already refuses a suspended driver; rolling it back on a Cognito blip would let them work.
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
     vi.mocked(cognito.disableDriverUser).mockRejectedValue(new Error("cognito down"));
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });

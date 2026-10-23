@@ -1,5 +1,4 @@
-// The saved-items and lists error mapping. A refusal's reason is the last segment of the problem
-// `type`, which is what every client switches on.
+// A refusal's reason is the last segment of the problem `type`, which clients switch on.
 import {
   ConnectionLimitError, internal, noContent, notFound, refused, type RequestScope,
 } from "@effy/edge-shared";
@@ -10,7 +9,6 @@ import {
   CapReachedError, DefaultListError, InNamedListsError, ListLimitError, ListNotFoundError, ProductNotFoundError,
 } from "./repository";
 
-/** Run a write that answers 204 on success. */
 export async function noContentOr(scope: RequestScope, work: () => Promise<void>): Promise<APIGatewayProxyStructuredResultV2> {
   try {
     await work();
@@ -29,8 +27,7 @@ export function savedError(scope: RequestScope, err: unknown, what: string): API
       "You have reached the maximum number of saved items. Remove one to save another.");
   }
   if (err instanceof InNamedListsError) {
-    // ⚠ 068 FR-020. Nothing was removed. A current client reads this as "open the list chooser"; a
-    // build from before lists reads any refusal as "revert the heart" — right for it too.
+    // Nothing was removed; the client opens the list chooser.
     return refused(scope, 409, "in_named_lists",
       "This item is in one of your lists. Remove it from the list to stop saving it.");
   }
@@ -40,12 +37,11 @@ export function savedError(scope: RequestScope, err: unknown, what: string): API
   if (err instanceof ListLimitError) return refused(scope, 400, "list_limit", "You have reached the maximum number of lists.");
   if (err instanceof DefaultListError) return refused(scope, 400, "default_list", "This list cannot be renamed or deleted.");
 
-  // ⚠ The error only. A list's name is the shopper's own text and is never logged (068 FR-040).
+  // A list name is the shopper's own text and is never logged.
   scope.log.error({ err }, `saveditems: ${what} failed`);
   return internal(scope);
 }
 
-/** A bare `{"error": "<code>"}` 400 — the shape these routes have always answered a bad body with. */
 export function badBody(scope: RequestScope, code: string): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 400,
@@ -56,7 +52,6 @@ export function badBody(scope: RequestScope, code: string): APIGatewayProxyStruc
 
 const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
-/** A strict RFC 3339 timestamp, or null. */
 export function parseRfc3339(v: unknown): Date | null {
   if (typeof v !== "string" || !RFC3339.test(v)) return null;
   const d = new Date(v);

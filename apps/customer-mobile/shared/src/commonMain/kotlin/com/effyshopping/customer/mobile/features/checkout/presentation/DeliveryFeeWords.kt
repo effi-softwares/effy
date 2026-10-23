@@ -3,11 +3,8 @@ package com.effyshopping.customer.mobile.features.checkout.presentation
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind
 
 /**
- * 077 — the delivery-fee words, EXACTLY as `packages/shared-types/src/delivery-fee.ts` writes them.
- *
- * ⚠ A MIRROR, NOT A SECOND SOURCE. The app cannot import the TypeScript, so the words live once
- * here for every mobile screen, and `DeliveryFeeWordsTest` reads that file and fails if any of them
- * differs (the 076 `CoverageWords.kt` pattern). Change the TypeScript first; then this.
+ * The delivery-fee words, exactly as `packages/shared-types/src/delivery-fee.ts` writes them;
+ * `DeliveryFeeWordsTest` reads that file and fails on any difference. Change the TypeScript first.
  */
 object DeliveryFeeWords {
     fun label(kind: DeliveryFeeLineKind): String = when (kind) {

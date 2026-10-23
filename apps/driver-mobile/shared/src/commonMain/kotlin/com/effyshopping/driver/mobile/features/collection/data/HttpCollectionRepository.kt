@@ -55,7 +55,7 @@ class HttpCollectionRepository(
         api.get("driver/v1/collection/runs/$runId").ensureSuccess().body<DriverCollectionRunDTO>().toDomain()
     }
 
-    /** 065 FR-024 — a stop the driver has already seen stays readable with no connection. */
+    /** A stop the driver has already seen stays readable with no connection. */
     private val lastStops = LastRead<String, ShopStop> { it.copy(stale = true) }
 
     override suspend fun getStop(runId: String, stopId: String): ShopStop = lastStops.fetch(stopId) {
@@ -73,7 +73,7 @@ class HttpCollectionRepository(
         missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>,
     ): Collected {
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
-        // ⚠ Each package's outcome travels IN the collect (063 FR-026). The separate `/issue` call
+        // Each package's outcome travels IN the collect. The separate `/issue` call
         // this app used to make named no package, and the platform reads "no package" as "every
         // package at this stop" — one report marked the whole stop unavailable.
         val body = CollectRequest(
@@ -85,7 +85,7 @@ class HttpCollectionRepository(
                     packageID = it.packageId,
                 )
             },
-            // 096 — every bag, handed over or declared missing, and every read made at the counter.
+            // Every bag, handed over or declared missing, and every read made at the counter.
             parcels = handed.toWire(),
             missingParcels = missing.toWireMissing(),
             reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain(),

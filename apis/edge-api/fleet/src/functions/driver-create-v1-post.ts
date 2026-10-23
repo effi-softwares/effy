@@ -1,5 +1,4 @@
-// POST /fleet/v1/drivers — provision a driver: record + sign-in, together (056 US2, FR-013/FR-014).
-// Write = admin/manager. A driver record is a credential; creating one is not a read-scoped action.
+// Admin/manager: a record plus a sign-in, together.
 import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -20,7 +19,7 @@ export const handler = async (
   try {
     const body = parseBody<AdminDriverCreateRequest>(event.body);
     const created = await createDriver(body, g.sub, scope);
-    await announceDispatch(); // 071 — committed; the roster gained a driver
+    await announceDispatch();
     return json(201, created, scope);
   } catch (err) {
     return mapFleetError(err, scope);

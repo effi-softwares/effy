@@ -1,8 +1,5 @@
-// POST /shop/v1/orders/{id}/picks — item-level picking from the order console (057 A3 revision 2).
-//
-// Body: `{ lines: [{ orderItemId, mode: "full"|"part"|"unavailable"|"none", units?, note? }] }`. One
-// line for a tick or an Adjust, every line for "Select all" / "Clear all" — all written in ONE
-// transaction with their log entries. Ticking a received order starts picking (the tick is the start).
+// Body: `{ lines: [{ orderItemId, mode: "full"|"part"|"unavailable"|"none", units?, note? }] }`. All lines
+// and their log entries in one transaction. Ticking a received order starts picking.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

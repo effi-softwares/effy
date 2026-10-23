@@ -14,18 +14,9 @@ const linkBase =
 const sectionLink = `${linkBase} aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground`
 
 /**
- * The account area's navigation (reference: Shared components · Account navigation).
- *
- * A sidebar from `lg`: who is signed in, then one entry per section, then sign-out.
- *
- * ⚠ BELOW `lg` IT IS NOT RENDERED AT ALL — the same entries are the account level of the menu drawer
- * (`MobileNavIsland`), which opens on that level on these pages. It used to be one scrolling row
- * above the page, and that row was the account area's responsive bug: a non-wrapping row inside a
- * grid track is that track's minimum width, so every account page was laid out ~1,450px wide on a
- * phone.
- *
- * ⚠ Sign-out is a POST form, never a link (a GET sign-out is a CSRF logout).
- * ⚠ The identity block reads the session, so it is its own Suspense island; the links are static.
+ * The account area's navigation: a sidebar from `lg` (who is signed in, the sections, sign-out). Below
+ * `lg` it is not rendered; the menu drawer opens on its account level instead. Sign-out is a POST form.
+ * The identity block reads the session, so it is its own Suspense island.
  */
 export function AccountNav() {
   return (

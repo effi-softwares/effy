@@ -3,12 +3,12 @@ import { Input, Label } from "@effy/design-system/ui";
 import { previewCustomerPrice, priceRange, type MarginEntry } from "./model";
 
 /**
- * Effy's margin, as a reviewer enters it (067 FR-029, FR-030): a percentage of the shop's price or
- * a fixed amount, with the price customers will pay shown BEFORE anything is confirmed.
+ * Effy's margin, as a reviewer enters it: a percentage of the shop's price or
+ * a fixed amount, with the price customers will pay shown before anything is confirmed.
  *
  * Controlled — the entry lives with the decision it belongs to.
  *
- * 098 — ONE margin prices every size (variant) of the product; the preview says the range customers
+ * One margin prices every size (variant) of the product; the preview says the range customers
  * will pay, and the sizes table beside it shows each size's own figure.
  */
 export function MarginField({

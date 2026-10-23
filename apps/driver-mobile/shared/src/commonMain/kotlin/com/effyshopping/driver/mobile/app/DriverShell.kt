@@ -86,8 +86,8 @@ import com.effyshopping.driver.mobile.resources.lucide_user_round
 import kotlinx.coroutines.flow.map
 
 /**
- * The signed-in driver shell: an adaptive bottom bar / navigation rail (mobile-kit) with three tabs —
- * Today, History, Account (092). Login-first: the whole shell is gated, so every tab is authenticated.
+ * The signed-in driver shell: an adaptive bottom bar / navigation rail (mobile-kit) with three tabs
+ * today, History, Account. Login-first: the whole shell is gated, so every tab is authenticated.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -96,7 +96,7 @@ fun DriverShell(
     session: SessionState.SignedIn,
     mapLauncher: com.effyshopping.driver.mobile.core.platform.MapLauncher =
         com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher(),
-    // 060 FR-009 — the OS-level reduced-motion preference, honoured by skeleton shimmer and the
+    // The OS-level reduced-motion preference, honoured by skeleton shimmer and the
     // idle pulse. Already plumbed to the sign-in flow since 049; the shell never received it.
     reducedMotion: Boolean = false,
 ) {
@@ -111,14 +111,14 @@ fun DriverShell(
     val scope = rememberCoroutineScope()
     val appearanceMode by container.appearance.mode.collectAsState()
     var signingOut by remember { mutableStateOf(false) }
-    // 092 — one snackbar for the whole shell, over the content and above the tab bar.
+    // One snackbar for the whole shell, over the content and above the tab bar.
     var snack by remember { mutableStateOf<DriverSnack?>(null) }
 
     BackHandler(enabled = tabs.canGoBack || tabs.currentTab != DriverTab.TODAY) {
         if (tabs.canGoBack) tabs.pop() else tabs.selectTab(DriverTab.TODAY)
     }
 
-    // Which SCREEN is up — its kind only, never the run or drop it is showing.
+    // Which screen is up — its kind only, never the run or drop it is showing.
     val screenName = tabs.currentRoute::class.simpleName.orEmpty().removeSuffix("Route").removeSuffix("Root")
     LaunchedEffect(screenName) {
         if (screenName.isNotEmpty()) container.analyticsDriver.screen(screenName.lowercase())
@@ -144,7 +144,7 @@ fun DriverShell(
         }
     }
 
-    // 092 rev 2 — the tab bar shows ONLY on the three tab roots; every screen pushed from a tab is a
+    // Rev 2 — the tab bar shows only on the three tab roots; every screen pushed from a tab is a
     // full-screen inner view with its own back bar (the redesign's navigation rule).
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -158,7 +158,7 @@ fun DriverShell(
                 TodayRoot -> {
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
-                    // FALLBACK only — the driver's own writes already re-read Today (`WorkChanges`); this
+                    // Fallback only — the driver's own writes already re-read Today (`WorkChanges`); this
                     // catches anything that slipped past it (a write made before the app last closed, say).
                     LaunchedEffect(Unit) { vm.shown() }
                     TodayScreen(
@@ -212,7 +212,7 @@ fun DriverShell(
                 is ShopStopRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    // The ViewModel is keyed per RUN, so `loadStop` is what drops one stop's ticks when
+                    // The ViewModel is keyed per run, so `loadStop` is what drops one stop's ticks when
                     // a different stop opens — and keeps them when this one is come back to.
                     LaunchedEffect(route.stopId) {
                         vm.showRun(quiet = true)
@@ -408,7 +408,7 @@ fun DriverShell(
                 )
                 PermissionDeniedRoute -> PermissionDeniedScreen(onBack = { tabs.pop() })
 
-                // ⚠ `ComingSoonScreen` is DELETED (FR-003, SC-002): no destination in this app may
+                // `ComingSoonScreen` is deleted: no destination in this app may
                 // show a placeholder. This branch is unreachable — every AppNavKey above is
                 // handled and RouteSerializerGuardTest enumerates them — so it renders nothing
                 // rather than inventing a screen for a route that cannot occur.
@@ -427,8 +427,8 @@ fun DriverShell(
 private data class NavFrame(val tab: DriverTab, val depth: Int, val route: com.effyshopping.mobile.kit.nav.AppNavKey)
 
 /**
- * 092 — the canvas's Motion: a pushed screen slides in from the right over the one it leaves (which
- * drifts left), a pop is the reverse, and switching tabs is a short fade. ⚠ Reduced motion: nothing moves.
+ * The canvas's Motion: a pushed screen slides in from the right over the one it leaves (which
+ * drifts left), a pop is the reverse, and switching tabs is a short fade. Reduced motion: nothing moves.
  */
 private fun navTransition(from: NavFrame, to: NavFrame, reducedMotion: Boolean): androidx.compose.animation.ContentTransform {
     if (reducedMotion) return androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
@@ -460,7 +460,7 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
 )
 
 /**
- * 092 — the delivery run that follows a collection run, in the words the check-in screen says it:
+ * The delivery run that follows a collection run, in the words the check-in screen says it:
  * "Your delivery run opens at 3:15 pm" / "finish by 6 pm · 7 drops · it's on Today".
  */
 private fun com.effyshopping.driver.mobile.features.today.domain.Today.nextDeliveryRun(collectionRunId: String): Pair<String, String>? {

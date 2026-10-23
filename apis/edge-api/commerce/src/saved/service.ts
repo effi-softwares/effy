@@ -1,7 +1,4 @@
-// Saved items (033) and named lists (068): business shaping. No HTTP, no SQL.
-//
-// The service does NOT decide why an item is unavailable — the repository's query does, from the
-// product's status and stock, so the list and the bulk add-to-cart give the same explanation.
+// Why an item is unavailable is decided by the repository's query, so lists and bulk add agree.
 import { imageWidthsField, publicImageAddress } from "@effy/edge-shared";
 import {
   LIST_LIMIT, unitPrice,
@@ -18,19 +15,13 @@ import {
   type ListRow, type ListSummaryRow, type MergeItem, type SavedRepository,
 } from "./repository";
 
-/**
- * The platform's ceiling on DISTINCT saved products per account (033 FR-047). Generous — it exists
- * for abuse, not ordinary use. The server is authoritative: a client learns the cap from the
- * refusal, not from a copy of this number. (The list limit and name length ARE shared constants,
- * imported from `@effy/shared-types`, because clients count toward those in advance.)
- */
+/** Generous: it exists for abuse. Clients learn it from the refusal, not a copy of this number. */
 export const ACCOUNT_CAP = 200;
 
-/** What bulk add-to-cart needs from the cart: add one unit of a VARIANT, idempotently, or throw the refusal. */
 export type CartAdder = (customerId: string, variantId: string, changeId: string, quantity: number) => Promise<unknown>;
 export type ImageAddress = (storageKey: string | null | undefined) => Promise<string | null>;
 
-/** RFC 3339 at second precision — the form these timestamps have always had on the wire. */
+/** RFC 3339 at second precision. */
 const rfc3339 = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 function badges(r: ListRow): ProductBadge[] {
@@ -40,10 +31,7 @@ function badges(r: ListRow): ProductBadge[] {
   return out;
 }
 
-/**
- * ⚠ `priceDropped` and `categoryKey` are OMITTED, not null, when there is nothing to say. Absent
- * means "no drop"; there is deliberately no `priceRose` counterpart (033 FR-044).
- */
+/** `priceDropped` and `categoryKey` are omitted when there is nothing to say. */
 async function toItem(r: ListRow, imageAddress: ImageAddress): Promise<SavedItemDTO> {
   return {
     id: r.product_id,
@@ -60,7 +48,7 @@ async function toItem(r: ListRow, imageAddress: ImageAddress): Promise<SavedItem
     ...(r.price_dropped ? { priceDropped: true } : {}),
     verdict: r.verdict as SavedVerdict,
     ...(r.category_key !== null ? { categoryKey: r.category_key } : {}),
-    // The size "Add to cart" adds — remembered, else the only one; null = the shopper chooses.
+    // The remembered size, else the only one; null means the shopper chooses.
     variantId: variantToAdd(r),
     variantLabel: r.variant_label,
     variantCount: r.variant_count,
@@ -68,16 +56,11 @@ async function toItem(r: ListRow, imageAddress: ImageAddress): Promise<SavedItem
   };
 }
 
-/**
- * 098 — the variant a saved item adds to the cart: the remembered one, else the only one. A product
- * with several variants and none remembered asks the shopper to choose (FR-015a) — never a guess.
- */
 function variantToAdd(r: ListRow): string | null {
   if (r.variant_id) return r.variant_id;
   return r.variant_count === 1 ? r.shown_variant_id : null;
 }
 
-/** `containsProduct` appears only when the read named a product. */
 function toList(r: ListSummaryRow, withProduct: boolean): SavedListDTO {
   return {
     id: r.is_default ? DEFAULT_LIST_REF : r.id,
@@ -91,10 +74,7 @@ function toList(r: ListSummaryRow, withProduct: boolean): SavedListDTO {
 
 const EMPTY_DEFAULT: ListSummaryRow = { id: "", is_default: true, name: null, count: 0, only_here: 0, contains: false };
 
-/**
- * The cart's refusal, carried through rather than flattened: "your cart is full" and "that is out
- * of stock" need different things from the shopper.
- */
+/** Carried through: "cart is full" and "out of stock" need different things from the shopper. */
 function cartReason(err: unknown): string {
   if (err instanceof CartFullError) return "cart_full";
   if (err instanceof ProductUnavailableError) return "temporarily_unavailable";
@@ -108,7 +88,6 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
 
   async function listByid(customerId: string, id: string): Promise<SavedListDTO> {
     const row = (await repo.lists(customerId, null)).find((r) => r.id === id);
-    // Deleted on another device between the write and this read.
     if (!row) throw new ListNotFoundError();
     return toList(row, false);
   }
@@ -118,54 +97,38 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
   const rowsOf = (customerId: string, listRef: string) => repo.list(customerId, listRef);
 
   return {
-    /** What every heart on a screen is filled from: one read answers them all (033 FR-021). */
     async membership(customerId: string): Promise<SavedMembershipDTO> {
       const productIds = await repo.membershipIds(customerId);
-      // A second statement, skipped for a shopper with nothing saved — which is most page loads.
+      // Skipped for a shopper with nothing saved, which is most page loads.
       const namedProductIds = productIds.length > 0 ? await repo.namedProductIds(customerId) : [];
       return { productIds, count: productIds.length, namedProductIds };
     },
 
-    /** One list's items, newest-added first. `listRef` is a list id or "default". */
     list: items,
 
-    /**
-     * Save a product ("default" list). Idempotent. `restoreSavedAt` is only ever set by undo, to
-     * put the item back where it was. A malformed id names no product: not found, not invalid.
-     */
+    /** `restoreSavedAt` is set only by undo. A malformed id is not found, not invalid. */
     async save(customerId: string, productId: string, restoreSavedAt: Date | null, variantId: string | null = null): Promise<void> {
       if (!isUuid(productId)) throw new ProductNotFoundError();
       await repo.addEntry(customerId, DEFAULT_LIST_REF, productId, restoreSavedAt, ACCOUNT_CAP, variantId);
     },
 
-    /** The heart's un-save. A malformed id names no membership, so there is nothing to remove. */
     async remove(customerId: string, productId: string): Promise<void> {
       if (!isUuid(productId)) return;
       await repo.remove(customerId, productId);
     },
 
-    /**
-     * Fold a device's guest list into the account. Newest-first, so if the cap bites it is the most
-     * recent intent that survives; the sort is stable, so equal timestamps keep the device's order.
-     */
+    /** Newest first and stable, so when the cap bites the most recent survive. */
     async merge(customerId: string, incoming: readonly MergeItem[]): Promise<SavedMergeResultDTO> {
       const ordered = [...incoming].sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
       const res = await repo.merge(customerId, ordered, ACCOUNT_CAP);
       return { added: res.added, skipped: res.skipped as SavedMergeResultDTO["skipped"], productIds: res.productIds };
     },
 
-    /**
-     * Add every PURCHASABLE item of a list to the cart; report what was skipped and why.
-     *
-     * Neither an error nor an all-or-nothing operation: this lists 200 items and adds them one at
-     * a time, so being partway through is a normal state. A second attempt with the same change id
-     * adds nothing twice, because each item's id is derived from it.
-     */
+    /** Partial success is normal; each item's change id derives from the request, so retries add nothing twice. */
     async addAllToCart(customerId: string, listRef: string, changeId: string): Promise<SavedAddToCartResultDTO> {
       const res: SavedAddToCartResultDTO = { added: [], skipped: [] };
       for (const r of await rowsOf(customerId, listRef)) {
         if (r.verdict !== "purchasable") {
-          // The verdict IS the reason — the same thing the list already says about the item.
           res.skipped.push({ productId: r.product_id, reason: r.verdict as never });
           continue;
         }
@@ -184,13 +147,7 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
       return res;
     },
 
-    /**
-     * Every list the shopper has, default first.
-     *
-     * ⚠ The default list is ALWAYS in the answer: when no row exists yet it is synthesised, empty.
-     * A read never writes — which is what lets the mobile app warm its cache from this call without
-     * creating a row for every shopper who merely opens it.
-     */
+    /** The default list is always present, synthesised when it has no row: a read never writes. */
     async lists(customerId: string, productId: string | null): Promise<SavedListDTO[]> {
       if (productId !== null && !isUuid(productId)) throw new ProductNotFoundError();
       const rows = await repo.lists(customerId, productId);
@@ -200,17 +157,13 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
       return out;
     },
 
-    /** Create a named list and, when a product is given, place it there in the same step. */
     async createList(customerId: string, rawName: string, productId: string | null, variantId: string | null = null): Promise<SavedListDTO> {
       const name = normaliseListName(rawName);
       if (productId !== null && !isUuid(productId)) throw new ProductNotFoundError();
       return listByid(customerId, await repo.createList(customerId, name, productId, LIST_LIMIT, ACCOUNT_CAP, variantId));
     },
 
-    /**
-     * Rename a named list. The default is refused BEFORE the name is looked at: "you cannot rename
-     * this" outranks "that name is too long".
-     */
+    /** The default list is refused before the name is checked. */
     async renameList(customerId: string, listRef: string, rawName: string): Promise<SavedListDTO> {
       if (listRef === DEFAULT_LIST_REF) throw new DefaultListError();
       const name = normaliseListName(rawName);
@@ -220,13 +173,12 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
 
     deleteList: (customerId: string, listRef: string) => repo.deleteList(customerId, listRef),
 
-    /** Place a product in a list. `restoreAddedAt` is only ever set by undo. */
+    /** `restoreAddedAt` is set only by undo. */
     async addEntry(customerId: string, listRef: string, productId: string, restoreAddedAt: Date | null, variantId: string | null = null): Promise<void> {
       if (!isUuid(productId)) throw new ProductNotFoundError();
       await repo.addEntry(customerId, listRef, productId, restoreAddedAt, ACCOUNT_CAP, variantId);
     },
 
-    /** Take a product out of one list. Always succeeds. */
     async removeEntry(customerId: string, listRef: string, productId: string): Promise<void> {
       if (!isUuid(productId)) return;
       await repo.removeEntry(customerId, listRef, productId);

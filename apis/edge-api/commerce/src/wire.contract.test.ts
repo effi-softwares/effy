@@ -11,15 +11,8 @@ import type { ListRow, ListSummaryRow, SavedRepository } from "./saved/repositor
 import { createSavedService } from "./saved/service";
 
 /**
- * ⚠ WHAT THE MOBILE APP DECODES IS WHAT THIS SERVICE SENDS (070 FR-035).
- *
- * Each fixture below is read out of the mobile app's own contract test — the literal it proves it
- * can decode — and compared with what the REAL mapper here produces from equivalent data. Not a
- * hand-built object shaped like the fixture: 029 found a pair of tests agreeing with each other
- * about a payload no server had ever emitted.
- *
- * A renamed field typechecks on both sides and passes every unit test on both sides. The shopper
- * finds it.
+ * Each fixture is read from the mobile app's own contract test and compared with what the real mapper
+ * produces, so a renamed field fails here instead of in the app.
  */
 const SAVED = "features/saved/SavedWireContractTest.kt";
 const PAYMENT = "features/payment/PaymentWireContractTest.kt";
@@ -39,7 +32,7 @@ describe("saved items and lists", () => {
       product_id: EGGS, name: "Free Range Eggs 12pk", brand: "Effy", price_amount: "6.50", currency: "AUD", compare_at_amount: "8.00",
       storage_key: "eggs.jpg", image_widths: null, saved_at: new Date("2026-07-20T04:11:00.000Z"), saved_price_amount: "8.00", category_key: "dairy-eggs",
       is_new: false, price_dropped: true, verdict: "purchasable",
-      // 098 — the remembered variant and its pack size (12 each → $0.54 each).
+      // The remembered variant and its pack size (12 each → $0.54 each).
       variant_id: "9f2c1d4e-0000-0000-0000-0000000000a1", shown_variant_id: null, variant_label: "12 pack", variant_count: 2,
       pack_quantity: "12", pack_unit: "each", unit_basis: "each",
     };
@@ -54,7 +47,6 @@ describe("saved items and lists", () => {
       variant_id: null, shown_variant_id: "v1", variant_label: null, variant_count: 1, pack_quantity: null, pack_unit: null, unit_basis: null,
     };
     const [item] = await savedWith({ list: async () => [row] }).list("c", "default");
-    // The literal the mobile test decodes for exactly this case.
     expect(JSON.stringify(item)).toBe(
       `{"id":"p1","name":"Milk","brand":null,"imageUrl":null,"priceAmount":"3.10","currency":"AUD","compareAtAmount":null,"badges":[],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"3.10","verdict":"purchasable","variantId":"v1","variantLabel":null,"variantCount":1,"unitPrice":null}`,
     );
@@ -64,7 +56,7 @@ describe("saved items and lists", () => {
     const m = await savedWith({ membershipIds: async () => [EGGS, MILK], namedProductIds: async () => [EGGS] }).membership("c");
     expect(wire(m)).toEqual(kotlinFixtureJson(SAVED, "SAVED_MEMBERSHIP_WIRE_JSON"));
     expect(JSON.stringify(m)).toContain(`"count":2`);
-    // A shopper with nothing saved gets [], never null: a client iterating it must not crash.
+    // Nothing saved is [], never null.
     expect(JSON.stringify(await savedWith({}).membership("c"))).toBe(`{"productIds":[],"count":0,"namedProductIds":[]}`);
   });
 
@@ -99,7 +91,7 @@ describe("payment methods and billing details", () => {
 
   it("a usable card and an expired one", async () => {
     const [usable, expired] = await svc.listKeptCards("c", new Date("2026-10-05T00:00:00Z"));
-    // Byte-for-byte: the expiry fields must be integers, and `unusableReason` absent when usable.
+    // Byte-for-byte: expiry fields are integers, and `unusableReason` is absent when usable.
     expect(JSON.stringify(usable)).toBe(kotlinFixture(PAYMENT, "PAYMENT_METHOD"));
     expect(JSON.stringify(expired)).toBe(kotlinFixture(PAYMENT, "PAYMENT_METHOD_UNUSABLE"));
   });
@@ -118,7 +110,7 @@ describe("the delivery quote", () => {
     start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T03:00:00Z"),
   };
 
-  /** A priced fee as the quote carries it (077): only the lines and the total reach the wire. */
+  /** Only the lines and the total reach the wire. */
   const priced = (totalCents: number, withoutPremiumCents = totalCents) => ({
     planId: "p", planName: "P", slotId: null, windowIsToday: false, breakdown: {}, totalCents,
     lines: [
@@ -127,7 +119,6 @@ describe("the delivery quote", () => {
     ],
   });
 
-  /** The quote as the shared library hands it over when Effy delivers (083: windows, nothing else). */
   const effy = (over: Record<string, unknown>) => ({
     serviced: true, coverage: "effy", zoneId: null, shopIds: ["a-shop", "b-shop"], baseFee: priced(600), freeDeliveryRemainingCents: null, ...over,
   }) as unknown as QuoteResult;

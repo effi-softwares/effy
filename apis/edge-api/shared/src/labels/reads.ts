@@ -1,13 +1,6 @@
-// Every read of a bag label — scanned or typed, accepted or refused, on every surface (096, research R7).
-//
-// ⚠ ONE WRITER. `labels.guard.test.ts` fails any other INSERT into `label_read`, and any UPDATE or
-// DELETE of it: a correction is a new row. Until 096 a refused scan (the wrong shop's bag, a label for
-// nothing on the run) stopped the driver on screen and was never heard of again — the most useful
-// exception data there is.
-//
-// The client JUDGES a read with the shared scan rule (so it works with no signal) and REPORTS it; the
-// server records that outcome AND its own, re-judged against the database. When they differ — a bag
-// voided while the driver was offline — the disagreement is data, never a silent overwrite.
+// Every read of a bag label, scanned or typed, accepted or refused, on every surface. One writer; a
+// correction is a new row. The client judges a read offline and reports it; the server records that
+// outcome and its own, and a disagreement (a bag voided while offline) is data.
 
 import { readCode, type LabelReadDTO, type ReadMethod, type ReadOutcome } from "@effy/shared-types";
 
@@ -30,10 +23,7 @@ export interface RecordReadsInput {
   step: ReadStep;
   roundId?: string | null;
   reads: ReadonlyArray<Partial<LabelReadDTO>> | undefined;
-  /**
-   * The step's own judgement of a bag that exists, is live and is not cancelled (expected here? counted
-   * already? someone else's?). Without one the client's outcome stands for those cases.
-   */
+  /** The step's own judgement of a live bag (expected here? counted? someone else's?); without one the client's outcome stands. */
   judge?: (bag: ResolvedParcel, method: ReadMethod) => ReadOutcome;
 }
 
@@ -44,7 +34,7 @@ export interface RecordedRead {
   resolved: ResolvedParcel | ResolvedOrder | null;
 }
 
-/** Record each well-formed read once (`client_read_id`), with the server's own outcome. */
+/** Each well-formed read once (`client_read_id`), with the server's outcome. */
 export async function recordReads(tx: { query: (t: string, v?: unknown[]) => Promise<any> }, input: RecordReadsInput): Promise<RecordedRead[]> {
   const out: RecordedRead[] = [];
   for (const r of input.reads ?? []) {

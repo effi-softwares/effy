@@ -10,28 +10,11 @@ import { insightsQuery } from "@/features/insights/queries"
 import { unitsToPack } from "./model"
 
 /**
- * "Today at a glance" — a summary, with the analysis one click away (058, FR-014).
- *
- * ⚠ IT READS `insightsQuery("today")` — THE SAME CACHE ENTRY INSIGHTS READS. That is what makes
- * "these two screens agree" true by construction rather than by coincidence: there is one request,
- * one answer, and both screens render it. Computing today's revenue here from the operational
- * snapshot would be a second implementation of the same question, which is the exact mistake 052
- * deleted (`summarizeFulfillment`) and 033 found in the availability flag.
- *
- * ⚠ AND THE FOURTH CELL COMES FROM THE OPERATIONAL SNAPSHOT, for the opposite reason. "Awaiting pick"
- * is live work: a minute-old figure sends someone to a shelf for an order already packed.
- *
- * ⚠ FOUR FIGURES IN ONE BORDERED STRIP, not four cards (Principle V's layout doctrine).
- *
- * ⚠ EACH CELL CARRIES AN ICON CHIP, which is the design's metric-tile device and the platform's
- * primary way of putting colour in the UI. The glyphs are the design's own geometric set
- * (◈ ◫ ◎ ▤) — never emoji, which render in the system palette, ignore `currentColor` and look
- * different on every operating system.
- *
- * ⚠ THE CHIP TONES ARE NOT DECORATIVE AND NOT ARBITRARY. Money is brand (the shop's core figure),
- * volume is violet and average is teal (the two data-viz hues, used here as tints rather than
- * series), and Awaiting pick is the ATTENTION hue — the one cell on this strip that is a piece of
- * work rather than a result. That is the whole reason --accent2 is reserved.
+ * "Today at a glance": reads `insightsQuery("today")`, the same entry Insights reads, so the two agree by
+ * construction. "Awaiting pick" comes from the operational snapshot instead, because it is live work.
+ * Four figures in one bordered strip. Each cell has an icon chip with the design's geometric glyphs
+ * (◈ ◫ ◎ ▤, never emoji): money is brand, volume violet, average teal, and Awaiting pick the attention hue,
+ * as the one cell that is work rather than a result.
  */
 export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }) {
   const insights = useQuery(insightsQuery("today"))

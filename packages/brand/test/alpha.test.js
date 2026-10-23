@@ -14,9 +14,7 @@ const RGB = 2
 const RGBA = 6
 
 describe("rule T3 — the alpha policy holds on the WRITTEN BYTES", () => {
-  // Requesting `removeAlpha()` and getting it are different things. App Store Connect rejects an
-  // icon that CONTAINS an alpha channel — even a fully opaque one — days after the build is
-  // otherwise finished. Asserting the written bytes is what makes SC-006 provable up front.
+  // Requesting `removeAlpha` and getting it differ: assert the written bytes.
   const pngTargets = TARGETS.filter((t) => t.kind === KIND.PNG)
 
   for (const t of pngTargets) {
@@ -40,8 +38,7 @@ describe("every iOS app icon is submission-safe", () => {
   const iosIcons = TARGETS.filter((t) => t.slot.startsWith("ios-app-icon"))
 
   test("all three appearances exist for both mobile apps", () => {
-    // Six: {customer, driver} × {light, dark, tinted}. The dark and tinted slots were declared but
-    // EMPTY in the template Contents.json — FR-007a fills them.
+    // Six: {customer, driver} × {light, dark, tinted}.
     assert.equal(iosIcons.length, 6)
   })
 
@@ -55,7 +52,6 @@ describe("every iOS app icon is submission-safe", () => {
 describe("driver-mobile has its own mark (092)", () => {
   const of = (app) => TARGETS.filter((t) => t.path.includes(`apps/${app}/`))
   test("the driver app gets the same set of icon and splash slots as the customer app", () => {
-    // ⚠ Until 092 this asserted the OPPOSITE (024 FR-020 kept the driver app out of scope).
     assert.deepEqual(of("driver-mobile").map((t) => t.slot).sort(), of("customer-mobile").map((t) => t.slot).sort())
   })
   test("…drawn from the driver mark, with the blue full stop", () => {

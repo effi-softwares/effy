@@ -43,26 +43,8 @@ type Step = "identifier" | "password" | "code" | "name"
 type Route = "otp" | "password"
 
 /**
- * Sign-up as a STEP FORM, with the name asked LAST (036 US3).
- *
- * ⚠ THE ORDER IS THE FEATURE. A new shopper is asked for ONE thing — an email — then confirms a code,
- * and only then, with an account that already exists and a session already established, is asked what
- * to call them.
- *
- * Before this, First name and Last name sat ABOVE the email field: the very first thing a stranger
- * was asked for was personal data, before they had any reason to trust the form. `given_name` and
- * `family_name` are OPTIONAL Cognito attributes — there is no `schema {}` block on the pool — and
- * `public.customer.given_name/family_name` have been nullable since 019, deliberately, for the
- * federated route. So nothing had to change in Terraform or SQL for this to become possible; it was
- * only ever a form.
- */
-/**
- * ⚠ The password rule is built from `PASSWORD_MIN_LENGTH`, never a literal (044 FR-016).
- *
- * 036 already fixed this copy once: it read "at least 8 characters, with upper and lower case letters
- * and a number" against a real policy of twelve characters with NO composition rules — both too short
- * and falsely restrictive. Deriving the number from the shared constant is what stops it drifting a
- * second time.
+ * Sign-up as a step form with the name asked last: one email, a code, and only then (account and session
+ * established) what to call them. The password rule is built from `PASSWORD_MIN_LENGTH`.
  */
 const FIELDS = {
   email: {
@@ -99,13 +81,11 @@ export function SignUpForm() {
   const accountExists = useRef(false)
 
   const { step, go, back } = useStepHistory<Step>("identifier", {
-    // ⚠ The name step is reachable only once the account is real. A `popstate` landing there before
-    // that would offer to save a profile for an account that does not exist yet — which the PATCH
-    // answers with the barred-customer wording.
+    // The name step is reachable only once the account exists (a PATCH before then answers with the barred wording).
     canEnter: (target) => (target === "name" ? accountExists.current : true),
   })
 
-  // ⚠ Trimmed AND lowercased — the per-address rate limit is keyed on `HMAC(email)`.
+  // Trimmed and lowercased: the per-address rate limit keys on `HMAC(email)`.
   const address = email.trim().toLowerCase()
 
   const run = (fn: () => Promise<void>, context: "password" | "code" = "password") => {
@@ -121,10 +101,7 @@ export function SignUpForm() {
 
   const finish = useCallback(() => {
     capture({ name: "sign_up_completed", props: { route } })
-    // ⚠ 036 FR-037 — SIGN-UP DID NOT MERGE THE GUEST BASKET AND SIGN-IN DID.
-    //
-    // A guest who filled a basket and then registered lost it, while the same guest signing in kept
-    // it. Same union-with-maximum merge, same fire-and-forget, on both paths now.
+    // Merge the guest basket on sign-up as on sign-in (union with maximum, fire-and-forget).
     void mergeCartAfterSignIn()
     void mergeSavedAfterSignIn()
     if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
@@ -138,15 +115,7 @@ export function SignUpForm() {
       try {
         const res = await confirmSignUpCode(address, code)
 
-        // FR-009b — BOTH routes land the customer inside, signed in. `autoSignIn` was armed at
-        // sign-up, so confirming the code completes the session; there is no second code and no "now
-        // please sign in" detour.
-        //
-        // ⚠ UNVERIFIED AND ON THE SPIKE LIST (SPIKE-2 / 035 T003). What `autoSignIn` does now that
-        // custom-auth triggers are attached to this pool is documented nowhere. Source reading says
-        // the PASSWORD route is safe (`USER_SRP_AUTH`, triggers never invoked, no second code); the
-        // OTP route forwards the ConfirmSignUp session as `USER_AUTH`, which AWS documents as the
-        // no-second-code path — but not for a pool with `DefineAuthChallenge` attached.
+        // Both routes land signed in: `autoSignIn` was armed at sign-up, so confirming the code completes the session.
         if (res.nextStep?.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
           await completeAutoSignIn()
         }
@@ -158,9 +127,7 @@ export function SignUpForm() {
           return "failed"
         }
 
-        // 012 FR-013 — the platform CANNOT ask Cognito whether this customer has a password, so
-        // registration is the one moment it can learn. Seeded on the record's creating upsert.
-        // ⚠ Its result is now checked rather than swallowed; the name step needs the record to exist.
+        // Registration is the one moment the platform learns whether there is a password; seeded on the creating upsert. Checked, since the name step needs the record.
         await seedCredentialRoute(route)
 
         accountExists.current = true
@@ -168,8 +135,7 @@ export function SignUpForm() {
         return "accepted"
       } catch (err) {
         const name = (err as { name?: string })?.name
-        // ⚠ Sign-up confirmation runs Cognito's MANAGED flow, so unlike the sign-in route the cause
-        // here is REAL and the message may say which (FR-011).
+        // Sign-up confirmation is Cognito's managed flow, so the real cause may be said.
         if (name === "LimitExceededException" || name === "TooManyRequestsException") {
           setError(authErrorMessage(err, "code"))
           return "exhausted"
@@ -196,17 +162,14 @@ export function SignUpForm() {
     </AltJourney>
   )
 
-  // ── Step 4: who are you? ────────────────────────────────────────────────────────────────────────
+  // Step 4: who are you?
   if (step === "name") {
     return <NameStep onDone={finish} route={route} />
   }
 
-  // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
+  // Step 3: the code
   if (step === "code") {
-    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
-    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
-    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
-    // message is now handed to the step, which owns the single region (defect D-05).
+    // One error region: the journey's message is handed to the step.
     return (
       <CodeStep
         parentError={error}
@@ -219,13 +182,13 @@ export function SignUpForm() {
         flow="sign_up"
         purpose=" to confirm it is yours"
         footer={signInLink}
-        // ⚠ Managed flow → the refusals really are distinguishable here.
+        // Managed flow: the refusals really are distinguishable.
         distinguishableRefusals
       />
     )
   }
 
-  // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
+  // Steps 1 and 2: the credential
   const onPassword = step === "password"
   const changeAddress = () => {
     setError(null)
@@ -267,14 +230,11 @@ export function SignUpForm() {
 
         <form
           className="space-y-4"
-          // ⚠ `noValidate` — the attributes stay for autofill and semantics; only the browser's own
-          // bubble is replaced (V-06).
+          // `noValidate`: the attributes stay; only the browser's bubble is replaced.
           noValidate
           onSubmit={(e) => {
             e.preventDefault()
-            // ⚠ NOTHING IS SENT UNTIL THIS PASSES. On the shipped build this step accepted
-            // `person@example`, dispatched a real request for it, and ADVANCED the shopper to the
-            // code step — to wait for an email that could not arrive (BASELINE.md, D-08).
+            // Nothing is sent until this passes.
             if (
               !validation.check(
                 onPassword
@@ -282,15 +242,7 @@ export function SignUpForm() {
                   : [["email", address]],
               )
             ) {
-              // ⚠ THE MESSAGE HAS NOWHERE VISIBLE TO GO ON THE PASSWORD STEP. The email input is
-              // still mounted there (FR-040 — password managers pair it with the password to fill
-              // and to SAVE) but it is inside a hidden container, so its message renders hidden too.
-              // An invalid address at this point is a STEP-level problem, not a field-level one: go
-              // back to the step that asks for it, where the message is visible and actionable.
-              //
-              // ⚠ Found by the e2e, which reported "resolved to <p>Enter your email address.</p> —
-              // unexpected value hidden". Showing an invisible error is only marginally better than
-              // the "Something went wrong." this replaced.
+              // On the password step the email's message would render hidden, so an invalid address sends the shopper back to the email step.
               if (onPassword && messageFor(FIELDS.email, address)) back()
               return
             }
@@ -310,8 +262,7 @@ export function SignUpForm() {
             )
           }}
         >
-          {/* ⚠ Mounted on both steps with `autocomplete="username"` so a password manager can pair it
-              with the new password and offer to SAVE. Unmounting it is the classic breakage. */}
+          {/* Mounted on both steps with `autocomplete="username"`, so a password manager can pair and save. */}
           <div className={onPassword ? "hidden" : undefined}>
             <Field
               label="Email"
@@ -340,18 +291,7 @@ export function SignUpForm() {
               autoComplete="new-password"
               minLength={PASSWORD_MIN_LENGTH}
               required
-              // ⚠ THE RULE IS STATED BEFORE THEY TYPE, AND IT IS NOW TRUE (FR-029).
-              //
-              // This used to read "At least 8 characters, with upper and lower case letters and a
-              // number" from a local `MIN_PASSWORD = 8`. The real policy is 12 characters with NO
-              // composition rules, so the old copy was BOTH too short and falsely restrictive — the
-              // exact drift `authErrorMessage`'s own comment records ("The old text became a LIE the
-              // moment the policy changed"). Built from the shared constant so it cannot drift again.
-              // ⚠ FR-016 — THE RULE IS STATED BEFORE THEY TYPE, AND REFLECTED WHILE THEY TYPE.
-              // Before 044 the only signal that a password was too short was an action that stayed
-              // unavailable with nothing saying why. This is a count, not a strength meter: the
-              // policy is a length and nothing else, and a scored bar would imply a judgement the
-              // platform does not make (research R10).
+              // The rule is stated before they type and reflected while they type: a length count, not a strength meter.
               hint={
                 password.length > 0 && password.length < PASSWORD_MIN_LENGTH
                   ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
@@ -360,14 +300,9 @@ export function SignUpForm() {
             />
           )}
 
-          {/* ⚠ NO "CONFIRM PASSWORD" FIELD (FR-030 / 012 FR-023). The reveal toggle on the field above
-              replaces it — GOV.UK removed theirs on exactly that reasoning, the account page already
-              followed the rule, and mobile sign-up never had one. Web was the odd surface out. */}
+          {/* No "CONFIRM PASSWORD": the reveal toggle replaces it. */}
 
-          {/* ⚠ ABOVE the button, not below it. Below is the commoner convention, but on a phone the
-              footer group sits at the foot of the screen — so below the action it would be the first
-              thing pushed out of view, and "reasonably conspicuous notice" is the limb that
-              inquiry-notice contracts fail on. */}
+          {/* Above the button, so on a phone the terms notice is not the first thing pushed out of view. */}
           <TermsNotice />
           <Submit
             pending={pending}
@@ -375,17 +310,13 @@ export function SignUpForm() {
             testId={onPassword ? "submit-password" : "submit-email"}
           />
 
-          {/* The way back from the password step is the address row's "Change" (reference: Join —
-              password), so the route toggle is offered on the email step only. */}
+          {/* The way back from the password step is the address row's "Change", so the route toggle is on the email step only. */}
           {!onPassword && (
             <TextAction
               testId="toggle-route"
               onClick={() => {
                 setError(null)
-                // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
-                // without a usable address produces a screen that can refuse but cannot explain, and
-                // it is how the shopper ended up being told "Something went wrong." about an address
-                // they had never typed (BASELINE.md, D-11).
+                // The identifier comes first: no credential step without a usable address.
                 if (!validation.check([["email", address]])) return
                 validation.reset()
                 go("password")

@@ -1,14 +1,4 @@
-// Duty visibility (056 US4): raw parameterized SQL, no ORM.
-//
-// ⚠ WHY THIS SCREEN EXISTS, AND WHY IT SURVIVED THE TEARDOWN. It was built to make an automatic
-// assignment decision observable — a design that decides on its own is only safe if a human can see
-// what it decided. The deciding half is gone; the observing half is not only still correct but is now
-// the only place at Effy that can answer "is anybody working, and how much is piling up".
-//
-// ⚠ WHAT IT NO LONGER SHOWS: per-driver run progress (which run, how many stops done, next stop).
-// Those columns read `driver_run` / `collection_task` / `delivery_task`, which the work-model teardown
-// dropped. They are not stubbed to zero — a progress bar that is always empty is worse than no
-// progress bar, because it reads as "this driver is doing nothing" rather than "nothing here knows".
+// Who is on duty, and how much work is waiting for nobody.
 import { query, withTransaction } from "@effy/edge-shared";
 import type { OnDutyDriver, UnassignedWorkSummary } from "@effy/shared-types";
 
@@ -26,13 +16,7 @@ interface OnDutyRow {
   overdue: boolean;
 }
 
-/**
- * Who is on duty, and since when (FR-034, FR-035).
- *
- * ⚠ A driver on duty with nothing to do is a first-class row, not an omission — "on duty and idle
- * while work is waiting" is one of the two states this screen exists to expose, and after the
- * teardown it is the state EVERY on-duty driver is in.
- */
+/** On duty with nothing to do is a first-class row. */
 export async function listOnDuty(): Promise<OnDutyDriver[]> {
   const res = await query<OnDutyRow>(
     `SELECT d.id         AS driver_id,
@@ -41,14 +25,14 @@ export async function listOnDuty(): Promise<OnDutyDriver[]> {
             s.id         AS session_id,
             s.started_at AS on_duty_since,
             s.expected_end_at,
-            -- ⚠ 061: an overrun is VISIBLE, not alarming. A driver still working past their expected
+            -- ⚠ an overrun is VISIBLE, not alarming. A driver still working past their expected
             -- finish is ordinary; a driver who never said is NOT overrunning, which is why this is
             -- false rather than true when expected_end_at is NULL.
             (s.expected_end_at IS NOT NULL AND s.expected_end_at < now()) AS past_expected_end,
             (s.started_at < now() - make_interval(hours => $1::int)) AS overdue
        FROM public.driver_duty_session s
        JOIN public.driver d             ON d.id = s.driver_id
-       -- ⚠ 062 — a driver's zone line is DERIVED from clearances now. "Every zone" when they hold an
+       -- ⚠ a driver's zone line is DERIVED from clearances now. "Every zone" when they hold an
        -- every-zone grant, the zone's name when they cover exactly one, otherwise a count. The old
        -- single-zone column could not express any of the three.
        LEFT JOIN LATERAL (
@@ -72,21 +56,14 @@ export async function listOnDuty(): Promise<OnDutyDriver[]> {
     zone: r.zone_name,
     sessionId: r.session_id,
     onDutySince: r.on_duty_since.toISOString(),
-    // ⚠ null means the driver did not say. The console renders "unknown" — never a default (FR-033).
+    // null means the driver did not say; the console renders "unknown".
     expectedEndAt: r.expected_end_at ? r.expected_end_at.toISOString() : null,
     pastExpectedEnd: r.past_expected_end,
     overdue: r.overdue,
   }));
 }
 
-/**
- * Work that is ready and has nobody to do it (FR-036).
- *
- * ⚠ THIS USED TO BE PINNED TO THE SWEEP'S OWN CANDIDATE PREDICATES so the screen could not disagree
- * with what the sweep actually saw. There is no sweep, so there is nothing to agree with, and the
- * predicates in drivers/sql.ts now mean the plain backlog — see the comments there. Until dispatch is
- * rebuilt these numbers only ever grow, which is the point of showing them.
- */
+/** Work that is ready and has nobody to do it. */
 export async function unassignedWork(): Promise<UnassignedWorkSummary> {
   const res = await query<{ collect: string; deliver: string; on_duty: string }>(
     `SELECT (SELECT count(*) FROM (${READY_TO_COLLECT}) c)::text AS collect,
@@ -106,14 +83,7 @@ export async function unassignedWork(): Promise<UnassignedWorkSummary> {
 
 export type EndSessionOutcome = "ended" | "not_found" | "already_ended";
 
-/**
- * End a duty session by hand (FR-037).
- *
- * ⚠ The driver becomes ineligible immediately. With the work model gone this ends a session and
- * nothing else; when dispatch is rebuilt, whatever it does with a stood-down driver's claimed work is
- * that slice's decision to make, and the rule 056 established still holds — goods already in a van are
- * never silently discarded.
- */
+/** The driver becomes ineligible at once; goods already in a van are never silently discarded. */
 export async function endSession(
   sessionId: string,
   write: (tx: import("pg").PoolClient, driverId: string) => Promise<void>,

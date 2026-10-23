@@ -4,15 +4,8 @@ import type { DeliveryInstructionsDTO } from "@effy/shared-types";
 import { ADDRESS_COLUMNS, type AddressRow } from "./model";
 
 /**
- * The address repository. Raw SQL, no ORM (Principle VI).
- *
- * Every statement is scoped by the resolved INTERNAL customer id (`public.customer.id`), never a
- * client-supplied value — the caller's `sub` is resolved to that id (and gated on `active`) by the
- * service before any of these run (FR-020, SC-005).
- *
- * The first address becomes the default; at most one default per customer (a partial-unique index
- * backs it). Making one default clears the prior default in the same statement (a CTE), so the
- * invariant holds without a read-modify-write race.
+ * Every statement is scoped by the resolved internal customer id, never a client value. The first
+ * address becomes the default; a partial unique index allows at most one.
  */
 
 export interface AddressInput {
@@ -26,15 +19,7 @@ export interface AddressInput {
   postalCode: string | null;
   country: string | null;
   makeDefault: boolean;
-  /**
-   * 066 — the address's default delivery instructions.
-   *
-   * ⚠ `undefined` AND `null` ARE DIFFERENT INSTRUCTIONS TO THIS LAYER. `undefined` means the request
-   * did not mention them (leave the saved default alone); a value — including one whose parts are
-   * both null — means "set it to exactly this", which is how a customer CLEARS a saved default.
-   * Every other field here uses COALESCE, which cannot tell those apart; 056 recorded a profile
-   * field that could never be cleared for exactly that reason.
-   */
+  /** `undefined` leaves the saved default alone; a value, even both parts null, sets exactly that (null clears). */
   defaultDeliveryInstructions?: DeliveryInstructionsDTO;
 }
 
@@ -49,10 +34,7 @@ export async function listByCustomer(customerId: string): Promise<AddressRow[]> 
   return res.rows;
 }
 
-/**
- * Insert an address. It becomes the default when explicitly requested OR it is the customer's first
- * address; making it default clears any prior default in the same statement.
- */
+/** Default when requested or when it is the first; clears any prior default in the same statement. */
 export async function create(customerId: string, input: AddressInput): Promise<AddressRow> {
   const res = await query<AddressRow>(
     `WITH mkdefault AS (
@@ -83,22 +65,15 @@ export async function create(customerId: string, input: AddressInput): Promise<A
       input.defaultDeliveryInstructions?.note ?? null,
     ],
   );
-  // INSERT … RETURNING always yields exactly one row; the guard satisfies strict index typing.
   const row = res.rows[0];
   if (!row) throw new Error("addresses: create returned no row");
   return row;
 }
 
 /**
- * Patch provided fields (COALESCE keeps omitted ones) and optionally promote to default. Returns
- * null when the id is not the customer's (→ 404).
- *
- * Promoting to default is TWO ordered statements in one transaction — clear the prior default
- * first, then set this row. `customer_address_default_uq` is a NON-deferrable partial unique index,
- * and a data-modifying CTE cannot see its sibling's row changes (one snapshot), so a single-statement
- * "clear-then-set" trips the constraint (both the old and new row read as `is_default` at check
- * time → 23505). Ordering the clear before the set inside a transaction keeps at most one `true` row
- * visible to the index at any instant.
+ * COALESCE keeps omitted fields; null when the id is not the customer's. Promoting to default is two
+ * ordered statements in one transaction: `customer_address_default_uq` is not deferrable, and a single
+ * CTE would see both rows as default (23505).
  */
 export async function update(
   customerId: string,
@@ -107,8 +82,7 @@ export async function update(
 ): Promise<AddressRow | null> {
   return withTransaction(async (client) => {
     if (input.makeDefault) {
-      // Guard the clear on the target existing AND belonging to this customer — otherwise a 404
-      // patch (target not the customer's) would still wipe the existing default, leaving no default.
+      // Only when the target is the customer's, or a 404 patch would wipe the existing default.
       await client.query(
         `UPDATE public.customer_address SET is_default = false
           WHERE customer_id = $1 AND is_default AND id <> $2
@@ -128,7 +102,7 @@ export async function update(
           postal_code    = COALESCE($10, postal_code),
           country        = COALESCE($11, country),
           is_default     = CASE WHEN $2 = true THEN true ELSE is_default END,
-          -- 066: keyed on PRESENCE ($13), not COALESCE — a present null must clear the saved default.
+          -- Keyed on PRESENCE ($13), not COALESCE — a present null must clear the saved default.
           default_delivery_handover = CASE WHEN $13::boolean THEN $14 ELSE default_delivery_handover END,
           default_delivery_note     = CASE WHEN $13::boolean THEN $15 ELSE default_delivery_note END,
           updated_at     = now()
@@ -158,12 +132,7 @@ export async function update(
 
 export type DeleteOutcome = "deleted" | "not_found" | "default_blocked";
 
-/**
- * Delete an address, refusing to delete the default while others remain (022 FR-016a). The guard is
- * a single statement — the existence check, the "others remain" count, and the conditional DELETE
- * all resolve in one snapshot, so a racing device cannot slip past it. `existed`/`deleted`
- * disambiguate the three outcomes.
- */
+/** Refuses to delete the default while others remain, in one statement so a racing device cannot slip past. */
 export async function remove(customerId: string, id: string): Promise<DeleteOutcome> {
   const res = await query<{ existed: string; deleted: string }>(
     `WITH target AS (

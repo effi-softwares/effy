@@ -1,10 +1,8 @@
 import { formatCents } from "../lib/money";
 
 /**
- * THE words of a promotion (094) — what it gives, its conditions, how long it has left, its offer
- * label and why it does not apply. ONE composer, used by the storefront and commerce reads (both
- * clients), the cart's sentences and the back-office editor's summary, so a shopper and the staff
- * member who wrote the promotion read the same sentence.
+ * The words of a promotion: what it gives, its conditions, time left, its label and why it does not
+ * apply. One composer for the storefront, commerce, the cart and the back-office editor.
  */
 
 export interface PromotionWords {
@@ -99,7 +97,7 @@ export function termsOf(p: PromotionWords): string | null {
 const plural = (n: number, unit: string): string => (n === 1 ? `1 ${unit}` : `${n} ${unit}s`);
 const HOUR = 3_600_000;
 
-/** How long it has left, as a shopper says it (the 028 wording, kept). Null when it never ends. */
+/** How long it has left, as a shopper says it. Null when it never ends. */
 export function endsInOf(endsAt: Date | null, now: Date): string | null {
   if (!endsAt) return null;
   const left = endsAt.getTime() - now.getTime();
@@ -110,7 +108,7 @@ export function endsInOf(endsAt: Date | null, now: Date): string | null {
   return `Ends in ${plural(Math.floor(left / (24 * HOUR)), "day")}`;
 }
 
-/** Why it does not apply — the cart's sentence (FR-017, FR-033). */
+/** Why it does not apply: the cart's sentence. */
 export function notAppliedSentence(
   reason: "not_combined" | "below_minimum" | "below_quantity" | "wrong_time" | "wrong_delivery" | "sign_in",
   p: PromotionWords,

@@ -1,9 +1,4 @@
-// PATCH /fleet/v1/vehicles/{vehicleId} — edit a vehicle (061 US1, FR-007).
-// Mutate = admin/manager only.
-//
-// ⚠ The body is passed to the service EXACTLY as the form built it. A key present with `null` clears
-// the field; a key absent leaves it alone. Do not "clean" this object — dropping nulls here silently
-// restores the defect 056 fixed on drivers, where a zone once assigned could never be un-assigned.
+// Admin/manager. The body goes through as built: null clears, absent leaves alone. Do not drop nulls.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

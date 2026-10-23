@@ -1,11 +1,6 @@
-// The daily vehicle check (093) — one definition of "may this driver's vehicle take work today?", read
-// by the planner's candidates, the readiness list and the driver's own /me.
+// One definition of "may this driver's vehicle take work today?", for the planner, readiness and /me.
 
-/**
- * `none` (no vehicle held) | `ok` | `due` (not checked today) | `unsafe` (an unsafe answer not cleared),
- * for driver alias `d` and the vehicle they hold, alias `v` (NULL when none). `ok` whenever the business
- * has not turned the check on.
- */
+/** `none` | `ok` | `due` | `unsafe` for driver `d` and held vehicle `v`; `ok` whenever the check is off. */
 export function vehicleCheckStateSql(d = "d", v = "v"): string {
   const today = `(now() AT TIME ZONE 'Australia/Melbourne')::date`;
   return `CASE

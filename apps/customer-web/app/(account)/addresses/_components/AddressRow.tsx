@@ -9,13 +9,8 @@ import { chipForLabel, type Address } from "@/lib/addresses/model"
 import { CoverageNote } from "./CoverageNote"
 
 /**
- * One saved address (reference: Account · Address book): what it is called, who and where, who can
- * deliver there, and its own actions along the foot.
- *
- * ⚠ WHO DELIVERS IS THE SERVER'S ANSWER FOR THIS ADDRESS, printed through `CoverageNote` — the one
- * wording there is for it. Nothing here works it out.
- *
- * ⚠ "Set as default" is absent, not disabled, on the default address: there is nothing to do.
+ * One saved address: its name, who and where, who delivers there (`CoverageNote`, the server's answer),
+ * and its actions. "Set as default" is absent on the default address.
  */
 export function AddressRow({
   address,

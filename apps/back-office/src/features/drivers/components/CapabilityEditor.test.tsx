@@ -55,16 +55,16 @@ beforeEach(() => {
 describe("CapabilityEditor — what a driver is cleared for", () => {
   it("lists each clearance with its work and place", async () => {
     renderEditor();
-    // ⚠ ANCHOR ON THE REVOKE BUTTON, which exists ONLY once the list has rendered. Both the work
+    // Anchor on the revoke button, which exists only once the list has rendered. Both the work
     // label and the zone name also appear as <option>s in the grant form below, so awaiting either
-    // matches instantly — which is exactly how the first draft of this test passed VACUOUSLY while
+    // matches instantly — which is exactly how the first draft of this test passed vacuously while
     // the empty state was on screen, and then failed ambiguously when it did resolve.
     expect(await screen.findByRole("button", { name: "Revoke" })).toBeInTheDocument();
-    // ⚠ `getAllBy` throughout: every one of these strings ALSO appears as an <option> in the grant
+    // `getAllBy` throughout: every one of these strings also appears as an <option> in the grant
     // form below the list, and `getBy` would fail on the ambiguity rather than on the behaviour.
     expect(screen.getAllByText("Inner North").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Deliver to customers").length).toBeGreaterThan(0);
-    // 082 — two sections, Collects and Delivers; the clearance sits under what it is for.
+    // Two sections, Collects and Delivers; the clearance sits under what it is for.
     expect(screen.getByRole("region", { name: "Delivers" })).toHaveTextContent("Inner North");
     expect(screen.getByRole("region", { name: "Collects" })).toHaveTextContent("Nowhere.");
   });
@@ -78,7 +78,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
   });
 
   /**
-   * ⚠ FR-012 — "every zone" must be legible AS A FACT, not as an enumeration that happens to cover
+   * "every zone" must be legible AS A fact, not as an enumeration that happens to cover
    * everything today. An operator reading this screen has to be able to tell the two apart, because
    * only one of them stays true when a zone is added next month.
    */
@@ -91,7 +91,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
   });
 
   /**
-   * ⚠ FR-015 — a driver cleared for nothing is a STATED FACT, not blank space. It is the single
+   * A driver cleared for nothing is a stated fact, not blank space. It is the single
    * thing stopping them being given any work, and an empty area reads as "nothing to say here".
    */
   it("⚠ says so plainly when a driver is cleared for nothing", async () => {
@@ -101,8 +101,8 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
   });
 
   /**
-   * ⚠ THE GRANT SENDS `zoneId: null` EXPLICITLY. A key absent and a key present-with-null must not
-   * be conflated, or "everywhere" becomes indistinguishable from "the operator forgot to choose" —
+   * The grant sends `zoneId: null` explicitly. A key absent and a key present-with-null must not
+   * be conflated, or "everywhere" becomes indistinguishable from "the operator forgot to choose"
    * and the platform would grant the broadest clearance there is by accident.
    */
   it("⚠ sends zoneId: null — explicitly — when Every zone is chosen", async () => {
@@ -119,7 +119,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
         zoneId: null,
       });
     });
-    // The key must be PRESENT, not merely undefined.
+    // The key must be present, not merely undefined.
     expect("zoneId" in grantCapability.mock.calls[0]![1]).toBe(true);
   });
 
@@ -133,7 +133,7 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
   it("⚠ hides every mutating control from a csa — absent, not disabled", async () => {
     roles.current = ["csa"];
     renderEditor();
-    // ⚠ Wait for the LIST, then assert the controls are absent — otherwise this passes while the
+    // Wait for the list, then assert the controls are absent — otherwise this passes while the
     // component is still loading and nothing is on screen at all.
     await waitFor(() => expect(screen.getAllByText("Inner North").length).toBeGreaterThan(0));
     expect(screen.queryByRole("button", { name: /grant clearance/i })).not.toBeInTheDocument();

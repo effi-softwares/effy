@@ -2,13 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * 066 — back-office reads the customer's delivery instructions, against the REAL migrations.
- *
- * ⚠ `repository.container.test.ts` beside this file stands up a TRANSCRIBED schema, so it cannot
- * prove a column exists in the real one — 063 loaded the real migrations for exactly that reason and
- * surfaced ten fixture errors at once. This loads them.
- */
+/** Against the real schema (the transcribed schema beside it cannot prove a column exists). */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -20,7 +14,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { findOrder } from "./repository";
 
@@ -37,9 +31,9 @@ async function makeOrder(handover: string | null, note: string | null): Promise<
   );
   const o = await pool.query<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount,
-                                 delivery_address, status, delivery_handover, delivery_note)
+                                 delivery_address, status, delivery_handover, delivery_note, delivery_type, delivery_type_reason)
      VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 10, 12, '{"line1":"1 Test St"}'::jsonb,
-             'paid', $2, $3) RETURNING id`,
+             'paid', $2, $3, 'effy', 'in_coverage') RETURNING id`,
     [c.rows[0]!.id, handover, note],
   );
   return o.rows[0]!.id;
@@ -71,7 +65,7 @@ d("066 — delivery instructions on the back-office order read", () => {
     expect(row!.delivery_note).toBeNull();
   });
 
-  /** ⚠ The instructions are NOT inside the address snapshot other audiences read (research R1). */
+  /** Not inside the address snapshot other audiences read. */
   it("⚠ the address snapshot carries neither value", async () => {
     const row = await findOrder(await makeOrder("meet_at_door", "SENTINEL-NOTE"));
     expect(JSON.stringify(row!.delivery_address)).not.toContain("SENTINEL-NOTE");

@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * Trigger-level behaviour (contract invariants 2, 8, 10, 11).
- *
- * The adapters are mocked at the module seam — the convention this repo already uses — so these
- * tests exercise the real handler wiring without AWS. `policy.ts` and `codec.ts` are NOT mocked:
- * the security logic under test must be the real thing.
- */
+/** Adapters are mocked at the module seam; `policy.ts` and `codec.ts` are real. */
 
 vi.mock("../otp/mailer.js", () => ({ sendCode: vi.fn(), resetMailerForTests: vi.fn() }));
 vi.mock("../otp/issuance.js", () => ({ reserve: vi.fn(), resetIssuanceForTests: vi.fn() }));
@@ -66,8 +60,7 @@ describe("createAuthChallenge", () => {
   });
 
   it("⚠ a wrong answer does NOT trigger a second email or a second count (invariant 2)", async () => {
-    // Re-mailing on a typo puts several live-looking codes in one inbox and burns the shopper's
-    // hourly budget on their own mistake.
+    // Re-mailing on a typo would fill the inbox and burn the hourly budget.
     const { handler } = await import("./create-auth-challenge.js");
     const { sendCode } = await import("../otp/mailer.js");
     const { reserve } = await import("../otp/issuance.js");
@@ -92,7 +85,7 @@ describe("createAuthChallenge", () => {
 
     expect(sendCode).not.toHaveBeenCalled();
     expect(reserve).not.toHaveBeenCalled();
-    // ⚠ And the SAME code is still the valid one.
+    // And the same code is still the valid one.
     expect(retry.response.challengeMetadata).toBe(carried);
     expect(retry.response.privateChallengeParameters["digest"]).toBe(
       first.response.privateChallengeParameters["digest"],
@@ -111,8 +104,7 @@ describe("createAuthChallenge", () => {
   });
 
   it("⚠ reserves the counter for an UNKNOWN address, but mails the simulator (invariant 11, FR-016)", async () => {
-    // Two separate leaks closed at once: the row's absence would be an existence oracle, and
-    // skipping SES entirely would make the phantom path measurably faster.
+    // The row's absence and a skipped SES call would each reveal existence.
     const { handler } = await import("./create-auth-challenge.js");
     const { sendCode } = await import("../otp/mailer.js");
     const { reserve } = await import("../otp/issuance.js");
@@ -157,8 +149,7 @@ describe("createAuthChallenge", () => {
   });
 
   it("⚠ NEVER throws — not on a send failure, an unknown pool, or a missing attribute (invariant 10)", async () => {
-    // Cognito relays trigger error text to the client verbatim: `{{[trigger]}} failed with error
-    // {{[text]}}`. A thrown message is user-visible and an existence oracle.
+    // Cognito relays thrown text to the client verbatim.
     const { handler } = await import("./create-auth-challenge.js");
     const { sendCode } = await import("../otp/mailer.js");
 

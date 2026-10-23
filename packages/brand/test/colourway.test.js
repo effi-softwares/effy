@@ -20,7 +20,7 @@ const PKG = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MARK = readFileSync(resolve(PKG, "src/logo.svg"), "utf8")
 const WORDMARK_SVG = readFileSync(resolve(PKG, "src/wordmark.svg"), "utf8")
 
-/** WCAG relative luminance / contrast, so the polarity claim is measured rather than asserted. */
+/** WCAG relative luminance and contrast, so polarity is measured. */
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 const luminance = (hex) => {
   const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -36,7 +36,7 @@ const contrast = (a, b) => {
 describe("one identity — every surface carries the same icon (the driver app's variant aside, 092)", () => {
   test("there are exactly two colourways: the tile, and the driver app's blue full stop", () => {
     assert.deepEqual(Object.keys(COLOURWAYS), ["tile", "driver"])
-    // The driver variant changes the full stop ONLY: same ground, same letter.
+    // The driver variant changes the full stop only: same ground, same letter.
     assert.equal(COLOURWAYS.driver.ground, COLOURWAYS.tile.ground)
     assert.equal(COLOURWAYS.driver.letter, COLOURWAYS.tile.letter)
   })
@@ -97,7 +97,7 @@ describe("the wordmark's two appearances", () => {
 
 describe("rule C3 — retired palettes never appear", () => {
   test("no colourway carries a retired value", () => {
-    // COLOURWAYS only — the RETIRED_* arrays legitimately name these values in this same module.
+    // Colourways only: the RETIRED_* arrays name these values in the same module.
     const all = JSON.stringify(COLOURWAYS).toLowerCase()
     for (const hex of [...RETIRED_JADE, ...RETIRED_EMERALD]) {
       assert.ok(!all.includes(hex), `retired value ${hex} found in a colourway`)
@@ -112,9 +112,7 @@ describe("rule C3 — retired palettes never appear", () => {
   })
 
   test("RETIRED_EMERALD covers every value the previous brand shipped", () => {
-    // Both terracotta appearances, the dark-mode ring and BOTH splash grounds must be listed — those
-    // live in .mjs and .xml files that check-no-jade.sh's include list cannot see, so this array is
-    // the only thing standing between them and a silent survival.
+    // These live in.mjs and.xml files check-no-jade.sh cannot see, so this list is their only guard.
     for (const hex of ["#065f46", "#10b981", "#d0735a", "#bf5540", "#dd8368", "#4ade80", "#3b82f6"]) {
       assert.ok(RETIRED_EMERALD.includes(hex), `${hex} missing from RETIRED_EMERALD`)
     }
@@ -132,8 +130,7 @@ describe("colourway substitution", () => {
   })
 
   test("the two authored slot values are distinct", () => {
-    // applyColourway substitutes by exact string match. Two slots sharing a value would make the
-    // first substitution consume the second's occurrences, and the second would silently no-op.
+    // Two slots sharing a value would make the first substitution consume the second's.
     assert.notEqual(SLOTS.letter, SLOTS.dot)
   })
 
@@ -175,7 +172,7 @@ describe("rule C4 — mark colours are not design tokens", () => {
       for (const f of readdirSync(resolve(PKG, dir), { withFileTypes: true })) {
         if (!f.isFile() || !f.name.endsWith(".mjs")) continue
         const body = readFileSync(resolve(PKG, dir, f.name), "utf8")
-        // Skip the comment lines that NAME the rule in order to forbid it.
+        // Skip the comment lines that name the rule.
         const code = body
           .split("\n")
           .filter((l) => !l.trimStart().startsWith("//") && !l.trimStart().startsWith("*"))

@@ -2,8 +2,6 @@ import type { Banner } from "../promotion-groups"
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-
-
 import { OFFER_THEMES } from "@/components/storefront/PromoBanner"
 
 import { OfferBannerCard, OffersPanels } from "./OffersPanels"
@@ -48,7 +46,7 @@ describe("OffersPanels — the composition degrades, it never pads (FR-018)", ()
   })
 
   /**
-   * ⚠ NEVER A PLACEHOLDER TILE. An empty frame in a promotional block reads as a broken advert, and a
+   * Never a placeholder tile. An empty frame in a promotional block reads as a broken advert, and a
    * shopper cannot tell it from a promotion that failed to load.
    */
   it("renders NOTHING at all when there are no offers", () => {
@@ -64,12 +62,7 @@ describe("OffersPanels — the composition degrades, it never pads (FR-018)", ()
   })
 })
 
-/**
- * ⚠ THE DEFECT THIS BLOCK EXISTS NOT TO REPEAT. 029 shipped a banner that pointed EVERY promotion at
- * `/search` — the unfiltered store — for its entire life, carrying none of the promotion's facts. The
- * test that should have caught it asserted `kind === "search"`, encoding the same misreading as the
- * code. So these pin the destination against the banner's own data, not against a shape I chose.
- */
+/** The destination is pinned against the banner's own data, not a shape chosen by the test. */
 describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
   it("uses the server-composed href", () => {
     render(<OffersPanels banners={[banner({ key: "x", href: "/promotions/x" })]} />)
@@ -99,7 +92,7 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
   })
 
   /**
-   * ⚠ A tap that does nothing is worse than no tap (the rule `BannerTarget` states for mobile). A
+   * A tap that does nothing is worse than no tap (the rule `BannerTarget` states for mobile). A
    * promotion with no destination renders as a panel, not as a dead link.
    */
   it("renders a non-tappable panel when there is no destination at all", () => {
@@ -112,7 +105,7 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
 
 describe("OffersPanels — the message survives the artwork", () => {
   /**
-   * The words sit on a DRAWN banner — a flat promo colour and a decoration — so they read the same
+   * The words sit on a drawn banner — a flat promo colour and a decoration — so they read the same
    * whatever a promotion uploads. No artwork under them, and no gradient.
    */
   it("draws no artwork and no gradient under the words", () => {
@@ -165,7 +158,7 @@ describe("OffersPanels — the message survives the artwork", () => {
   })
 
   /**
-   * ⚠ 029's open carry-forward: `customer-web` advertised a promotion WITHOUT its terms, so a shopper
+   * 029's open carry-forward: `customer-web` advertised a promotion without its terms, so a shopper
    * with a minimum-spend offer learned of the condition first at payment. FR-037d forbids that.
    */
   it("shows the promotion's terms when it has any", () => {

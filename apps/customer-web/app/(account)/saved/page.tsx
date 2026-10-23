@@ -18,13 +18,7 @@ export const metadata: Metadata = {
 
 export default function SavedPage() {
   return (
-    // ⚠ This page had NO content column at all — it rendered edge-to-edge with no gutter, so on a
-    // phone the list ran into both screen edges. It was invisible under the old account layout only
-    // because that chrome was equally bare; against the real storefront header it reads as broken.
-    //
-    // `container` (80rem), not the `max-w-2xl` the other account pages use: those are forms and
-    // settings, where a narrow measure is correct. This is a LIST of products with prices and
-    // verdicts, and it is the same content the storefront lists at full width.
+    // `container` (80rem), not `max-w-2xl`: this is a product list, shown at the storefront's width.
     <div className="space-y-6">
       <Suspense fallback={<SavedSkeleton />}>
         <Saved />

@@ -13,13 +13,13 @@ import { useSetVariantState } from "./queries";
 import { isApproved } from "./review";
 
 /**
- * Sizes and prices (098) — every variant the product is sold as, one row each.
+ * Sizes and prices — every variant the product is sold as, one row each.
  *
- * ⚠ THE PRICES HERE ARE THE LIVE ONES. A pending change is shown by the review panel above, and the
+ * The prices here are the live ones. A pending change is shown by the review panel above, and the
  * sizes editor opens on it; this table answers "what is on sale right now, at what price".
  *
- * ⚠ ON / OFF SALE IS IMMEDIATE. Taking a size off sale never waits on Effy's review (FR-009) — the
- * row action does it at once, and the server keeps at least one size on sale (FR-019).
+ * On / off sale is immediate. Taking a size off sale never waits on Effy's review — the
+ * row action does it at once, and the server keeps at least one size on sale.
  */
 export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onEdit: () => void }) {
   const approved = isApproved(detail);
@@ -89,7 +89,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                     ) : null}
                   </Td>
                   <Td align="right" className="tabular-nums">
-                    {/* ⚠ BOTH PRICES, NEVER THE MARGIN (067 FR-033): before approval there is no customer price. */}
+                    {/* Both prices, never the margin: before approval there is no customer price. */}
                     {approved && v.customerPriceAmount ? formatMoney(v.customerPriceAmount, detail.currency) : "Set when approved"}
                     {unit ? <span className="text-muted-foreground block text-[12px]">{unitPriceText(unit)}</span> : null}
                   </Td>

@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import {
   BuyerIdentityRequired, InvoiceNotAvailableForOrder, InvoicesUnavailable,
   issueAdjustment, issueInvoice, orderTaxDocuments, renderTaxDocumentPdf,
@@ -22,7 +22,7 @@ async function product(name: string, gst: string) {
 SELECT id FROM p`, [shopId, name, gst])).id;
 }
 
-/** A paid order: Milk 2 × $4.50 (GST-free), Soap 1 × $5.50 less 50c (taxable), delivery $9.90. Total $23.90. */
+/** Milk 2 × $4.50 (GST-free), Soap 1 × $5.50 less 50c (taxable), delivery $9.90; total $23.90. */
 async function paidOrder(opts: { lineGst?: (string | null)[]; unit?: string; number?: string } = {}) {
   const [milkGst, soapGst] = opts.lineGst ?? ["gst_free", "taxable"];
   const milk = await product("Milk", "gst_free");
@@ -31,15 +31,15 @@ async function paidOrder(opts: { lineGst?: (string | null)[]; unit?: string; num
   const soapLine = Number(unit) - 0.5;
   const total = (9 + soapLine + 9.9).toFixed(2);
   const order = await one<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, discount_amount, delivery_fee_amount, grand_total_amount, delivery_address, status, placed_at)
-     VALUES ($1, $2, $3, 0.50, 9.90, $4, '{}'::jsonb, 'paid', now()) RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, discount_amount, delivery_fee_amount, grand_total_amount, delivery_address, status, placed_at, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, $3, 0.50, 9.90, $4, '{}'::jsonb, 'paid', now(), 'effy', 'in_coverage') RETURNING id`,
     [customerId, opts.number ?? `EFY-T${Math.random().toString(36).slice(2, 7).toUpperCase()}`, (9 + Number(unit)).toFixed(2), total]);
   const milkLine = await one<{ id: string }>(
-    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
-     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00, $4) RETURNING id`, [order.id, milk, shopId, milkGst]);
+    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status, shop_unit_price_amount, shop_line_subtotal_amount)
+     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00, $4, 4.50, 9.00) RETURNING id`, [order.id, milk, shopId, milkGst]);
   const soapRow = await one<{ id: string }>(
-    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, discount_amount, gst_status)
-     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', $5::numeric, 1, $5::numeric, 0.50, $4) RETURNING id`, [order.id, soap, shopId, soapGst, unit]);
+    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, discount_amount, gst_status, shop_unit_price_amount, shop_line_subtotal_amount)
+     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', $5::numeric, 1, $5::numeric, 0.50, $4, $5::numeric, $5::numeric) RETURNING id`, [order.id, soap, shopId, soapGst, unit]);
   await pool.query(`INSERT INTO public.payment (order_id, amount, status) VALUES ($1, $2, 'succeeded')`, [order.id, total]);
   return { order: order.id, milk, soap, milkLine: milkLine.id, soapLine: soapRow.id };
 }
@@ -92,7 +92,7 @@ d("096 US8 — tax invoices and adjustment notes", () => {
     });
     expect(inv.number).toMatch(/^EFY-INV-\d{6}$/);
 
-    // The product's status changes, the business's details change: the issued invoice does not.
+    // Later changes to the product or the business leave the issued invoice alone.
     await pool.query(`UPDATE public.product SET gst_status = 'taxable' WHERE id = $1`, [o.milk]);
     await pool.query(`UPDATE public.business_tax SET legal_name = 'Someone Else Pty Ltd'`);
     expect(await issueInvoice(pool, o.order)).toEqual(inv);
@@ -130,9 +130,9 @@ d("096 US8 — tax invoices and adjustment notes", () => {
     const itemised = await refund("item", "5.00", "item_unusable");
     await pool.query(`INSERT INTO public.refund_line (refund_id, order_item_id, quantity, amount) VALUES ($1, $2, 1, 5.00)`, [itemised, o.soapLine]);
     await refund("goodwill", "10.00", "goodwill");
-    await refund("item", "4.50", "item_not_supplied", "submitted"); // not settled: no note yet
+    await refund("item", "4.50", "item_not_supplied", "submitted");
 
-    // No invoice requested yet: the first adjustment issues it first.
+    // No invoice yet: the first adjustment issues it first.
     const adj = await issueAdjustment(pool, itemised);
     expect(adj).toMatchObject({ kind: "adjustment", lines: [{ name: "Soap", quantity: 1, amount: "5.00", taxable: true }], totals: { total: "5.00", gst: "0.45" } });
 
@@ -141,7 +141,7 @@ d("096 US8 — tax invoices and adjustment notes", () => {
     expect(all.adjustments).toHaveLength(2);
     expect(all.adjustments[1]).toMatchObject({ lines: [{ name: "Amount refunded", amount: "10.00" }], totals: { total: "10.00", gst: "0.56" } });
     expect(all.adjustments.map((a) => a.number)).toEqual([...new Set(all.adjustments.map((a) => a.number))]);
-    // Asked again: the same documents, nothing new.
+    // Asked again: the same documents.
     expect((await orderTaxDocuments(pool, o.order)).adjustments).toEqual(all.adjustments);
     expect((await pool.query(`SELECT count(*)::int AS n FROM public.tax_document WHERE order_id = $1`, [o.order])).rows[0].n).toBe(3);
   });

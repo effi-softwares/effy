@@ -20,7 +20,7 @@ describe("authorizeShopMember (catalog CRUD: active membership at an active shop
     await authorizeShopMember("sub-1");
     expect(sql()).toContain("ss.status = 'active'");
     expect(sql()).toContain("st.status = 'active'");
-    // any role — the query never consults shop_staff_role.
+    // Any role: the query never consults shop_staff_role.
     expect(sql()).not.toContain("role_key");
     expect(sql()).not.toContain("shop_staff_role");
   });

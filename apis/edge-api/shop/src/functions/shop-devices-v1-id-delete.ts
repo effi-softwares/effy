@@ -1,5 +1,4 @@
-// DELETE /shop/v1/devices/{token} — unregister a device token, only if it belongs to the caller
-// (050 FR-020; shared-device sign-out safety). Shared logic in @effy/edge-shared (Principle II).
+// Only a token that belongs to the caller.
 import { makeDeviceDeleteHandler } from "@effy/edge-shared";
 
 export const handler = makeDeviceDeleteHandler("shop");

@@ -23,11 +23,9 @@ import type { Promotion } from "./model";
 import { promotionQuery, useCreatePromotion, useUpdatePromotion } from "./queries";
 
 /**
- * Create or edit a promotion (094; redesign, board "Create a code" — now every kind of offer). A page,
- * not a dialog: the definition in sections on the left, and on the right the promotion read back in
- * words as it is typed. Once a promotion has been used, what it gives and who it is for are fixed and
- * shown locked, with the reason (FR-020).
- *
+ * Create or edit a promotion, as a page: the definition in sections on the left, and the promotion read
+ * back in words on the right as it is typed. Once used, what it gives and who it is for are locked, with the
+ * reason.
  */
 const KINDS_OFFERED: readonly PromotionKind[] = ["cart", "item", "bxgy", "delivery"];
 const KIND_LABEL: Record<PromotionKind, string> = { cart: "Off the cart", item: "Off items", bxgy: "Buy X get Y", delivery: "Off delivery" };

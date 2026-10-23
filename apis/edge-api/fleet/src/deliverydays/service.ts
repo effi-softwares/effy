@@ -1,6 +1,4 @@
-// Which days delivery runs, and the timings the day rules depend on (069 US6; Effy delivery days since 078).
-//
-// ⚠ LIVE ON SAVE, like the slots: the next checkout quote reads these. Every refusal names its field.
+// Live on save: the next checkout quote reads these. Every refusal names its field.
 
 import type { FieldError, RequestScope } from "@effy/edge-shared";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO, NonDeliveryDateInput } from "@effy/shared-types";
@@ -14,14 +12,14 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 function isRealDay(value: unknown): value is string {
   if (typeof value !== "string" || !ISO_DAY.test(value)) return false;
   const d = new Date(`${value}T00:00:00Z`);
-  // ⚠ Round-trips, so 2026-02-30 is refused rather than silently becoming 2 March.
+  // Round-trips, so 2026-02-30 is refused rather than becoming 2 March.
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
 const wholeNumber = (v: unknown, min: number, max: number): v is number =>
   typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
 
-/** The same limits the migration's CHECKs enforce, with a name on each. */
+/** The migration's check limits, each with a name. */
 export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   const errors: FieldError[] = [];
   if (!wholeNumber(v.effyLookaheadDays, 1, 14)) {
@@ -31,7 +29,7 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (!Array.isArray(w) || w.some((d) => !wholeNumber(d, 1, 7)) || new Set(w).size !== w.length) {
     errors.push({ field: "noDeliveryWeekdays", message: "weekdays must be numbers 1 (Monday) to 7 (Sunday), each once" });
   } else if (w.length === 7) {
-    // ⚠ A served address must always have a delivery day ahead of it (069 FR-020).
+    // A served address must always have a delivery day ahead of it.
     errors.push({ field: "noDeliveryWeekdays", message: "at least one day of the week must have delivery" });
   }
   if (!wholeNumber(v.slotHoldMin, 1, 60)) {
@@ -40,12 +38,12 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (!wholeNumber(v.hubTurnaroundMin, 0, 480)) {
     errors.push({ field: "hubTurnaroundMin", message: "the hub turnaround must be between 0 and 480 minutes" });
   }
-  // 085 — absent keeps the one saved; present, it is what customers are told and cannot be empty.
+  // Absent keeps the saved value; present, it is what customers are told and cannot be empty.
   const asap: unknown = v.asapEstimate;
   if (asap !== undefined && (typeof asap !== "string" || asap.trim() === "" || asap.trim().length > 80)) {
     errors.push({ field: "asapEstimate", message: "say what customers are told, in 1 to 80 characters" });
   }
-  // 093 — absent keeps the one saved.
+  // Absent keeps the saved value.
   if (v.loadOverdueMin !== undefined && !wholeNumber(v.loadOverdueMin, 5, 240)) {
     errors.push({ field: "loadOverdueMin", message: "between 5 and 240 minutes" });
   }
@@ -80,8 +78,7 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),
   );
   if (!saved) {
-    // ⚠ Named, not a 500. The row is created by Delivery › Settings (047), where the hub is set; this
-    // screen cannot create it without inventing the hub's coordinates.
+    // Named, not a 500: the row is created by Delivery › Settings, where the hub is set.
     throw conflict("set the delivery hub in Delivery settings first — these settings are saved with it");
   }
   scope.log.info("delivery days updated");

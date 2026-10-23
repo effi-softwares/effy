@@ -1,5 +1,3 @@
-// GET /commerce/v1/saved/ids — which products this shopper has saved, and which of those sit in a
-// named list. One read fills every heart on a screen.
 import { json } from "@effy/edge-shared";
 
 import { customerRoute } from "../lib/route";

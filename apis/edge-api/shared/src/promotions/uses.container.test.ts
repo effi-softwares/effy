@@ -3,17 +3,13 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "../lib/db";
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 
 import type { AppliedPromotion } from "./engine";
 import { candidatesFor, findCode, groupPromotions } from "./candidates";
 import { confirmUses, holdUses, PromotionsChangedError, releaseUses } from "./uses";
 
-/**
- * 094 — holds against the REAL schema (SC-004). "No promotion gives more than its cap or its budget,
- * even when many shoppers check out at the same moment" is a row lock and a re-count, so it is proven
- * with concurrent transactions, not mocks.
- */
+/** Caps and budgets under concurrent checkouts: a row lock and a re-count, proven with real transactions. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -32,8 +28,8 @@ async function customer() {
 async function order(customerId: string, status = "pending_payment") {
   return (
     await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-       VALUES ($1, $2, $3, 'AUD', 40.00, 40.00, 0, '{}'::jsonb) RETURNING id::text AS id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+       VALUES ($1, $2, $3, 'AUD', 40.00, 40.00, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
       [customerId, `EFY-PU${++seq}`, status],
     )
   ).id;

@@ -1,18 +1,5 @@
-# edge-orders — Effy orders service (053-order-lifecycle-completion).
-#
-# Attaches to the Terraform-owned STAFF HTTP API (075; docs/api/shared-gateway.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/staff-gateway.tf). Routes live
-# under /orders/. Authenticated routes use the Terraform-owned BACK-OFFICE JWT authorizer (by id
-# from SSM) — this is a new ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
-#
-# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R7, measured in T001):
-# `effy-edge-admin` packages to 434 of CloudFormation's 500 resources. A route costs ~5 (log group +
-# function + permission + integration + route). These routes would land admin at ~465 — about one
-# more feature of runway, in the domain where refunds, cancellation and returns are all queued next.
-# The cheap mitigation is already spent: admin carries `versionFunctions: false`, which 049 was
-# forced to add when the driver routes hit the ceiling. A3's decomposition exists for exactly this.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# Back-office order work: lookup, refunds, cancellation, handovers, arrivals, couriers, customers and
+# points. Staff gateway, back-office JWT authorizer.
 service: effy-edge-orders
 frameworkVersion: "3"
 
@@ -23,7 +10,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -37,43 +23,33 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # ⚠ Set from the START, not when it is needed. admin reached the CFN limit before anyone noticed
-  # and had to add this under pressure (049). Nothing here publishes aliases or uses provisioned
-  # concurrency, and every httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy
-  # Versions are dead weight from the first deploy onward.
   versionFunctions: false
   tags:
     project: effy
     slice: 053-order-lifecycle-completion
     service: orders
-  # Attach to the STAFF HTTP API (075). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # 070 — back-office refunds and cancellation are issued HERE now. ⚠ The ARN, never the secret:
-    # the value is fetched at runtime through the secrets extension. ⚠ The SECRET KEY ONLY — this
-    # service verifies no webhook, so it is not granted the webhook signing secret.
+    # The Stripe secret key's ARN only; no webhook is verified here.
     STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
-    # 080 — courier labels: uploaded by staff under courier-label/, read through presigned URLs only.
+    # Courier labels: uploaded under courier-label/, read through presigned URLs only.
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
-        # 080 — courier labels, and nothing else in the media bucket.
         - Effect: Allow
           Action:
             - s3:PutObject
@@ -86,9 +62,7 @@ provider:
             - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
-  # edge-shop/admin/driver: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev
-  # DB is reachable on its public endpoint. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -177,9 +151,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 070: money. Until 070 these three ran on the Go backend, because it alone held the payment
-  #    secret. The rules are @effy/edge-shared/payments; these are the back-office's routes into them.
-  #    timeout 25 on the two that call the payment provider (research R8).
+  # Money: routes into @effy/edge-shared/payments. Timeout 25 on the two that call Stripe.
 
   orderRefundV1:
     handler: src/functions/order-refund-v1-post.handler
@@ -360,8 +332,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 074: customers and their points. Every rule is @effy/edge-shared/points; these are the
-  #    back-office's routes into it.
+  # Customers and points: routes into @effy/edge-shared/points.
 
   customersV1:
     handler: src/functions/customers-v1-get.handler
@@ -440,7 +411,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── 080 — courier parcels that are late, by where they are ─────────────────────────────────────
+  # Late courier parcels by place
   courierLateSweep:
     handler: src/functions/courier-late-sweep.handler
     description: Counts courier parcels late at the hub, at a supplier, or with the courier (080) — emits CourierParcelsLate {where}.

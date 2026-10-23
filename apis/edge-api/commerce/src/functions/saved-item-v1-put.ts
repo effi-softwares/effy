@@ -1,6 +1,3 @@
-// PUT /commerce/v1/saved/{productId} — save a product. Idempotent. The optional body carries undo's
-// `restoreSavedAt` and (098) the `variantId` the shopper had selected; a missing or unparseable body
-// is fine.
 import { customerRoute, jsonBody, pathParam } from "../lib/route";
 import { savedService } from "../lib/wiring";
 import { badBody, noContentOr, parseRfc3339 } from "../saved/respond";

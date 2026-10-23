@@ -13,9 +13,9 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /**
- * Recent searches on THIS device (087 FR-036), in [DevicePreferences] under one key.
+ * Recent searches on this device, in [DevicePreferences] under one key.
  *
- * ⚠ A preference, not a record: unreadable data is treated as "no recent searches" rather than an
+ * A preference, not a record: unreadable data is treated as "no recent searches" rather than an
  * error, and sign-out clears it (`clearGuestData`) so the next person on a shared phone does not see
  * what the last one looked for.
  */

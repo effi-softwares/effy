@@ -1,8 +1,5 @@
-// Every five minutes: resolve refunds whose submission to the payment provider never got an answer
-// (070 FR-024). Not a route — nothing calls it but the schedule.
-//
-// A failure here is thrown, so the platform's own error metric and retry see it; the next run
-// starts from the database again, so nothing is lost by a run that dies.
+// Resolves refunds whose submission to the provider never got an answer. Failures are thrown; the
+// next run starts again from the database.
 import { logger } from "@effy/edge-shared";
 
 import { refundService } from "../lib/wiring";

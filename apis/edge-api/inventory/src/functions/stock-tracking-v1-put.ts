@@ -1,4 +1,3 @@
-// PUT /inventory/v1/variants/{variantId}/stock/tracking — turn stock tracking on or off (054 US1, FR-002/FR-003).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

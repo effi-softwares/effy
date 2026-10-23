@@ -4,9 +4,9 @@ import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * US4 / constitution Principle IV (T038) — the shop console must never grow a password.
+ * US4 / constitution Principle IV — the shop console must never grow a password.
  *
- * ⚠ THIS EXISTS BECAUSE THE DESIGN THIS CONSOLE WAS REBUILT FROM HAS ONE. The imported mockup's
+ * This exists because the design this console was rebuilt from has one. The imported mockup's
  * sign-in screen draws `<input type="password">`, a "Forgot?" link, and demotes the one-time code to a
  * secondary button. It is a perfectly ordinary SaaS sign-in and it is wrong for this audience: driver,
  * shop and admin are "strictly passwordless email one-time code, admin-provisioned", and the shop

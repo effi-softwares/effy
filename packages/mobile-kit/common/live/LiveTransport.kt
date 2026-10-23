@@ -1,9 +1,6 @@
 package com.effyshopping.mobile.kit.live
 
-/**
- * The socket, as much of it as the live client needs — so the client's rules can be tested against
- * a fake, and so the engine (CIO on Android, Darwin on iOS) is each app's concern, not this file's.
- */
+/** The socket, as much as the live client needs, so the client is testable against a fake and each app picks the engine. */
 interface LiveTransport {
     /**
      * Open `wss://{host}/event/realtime` offering `protocols` as WebSocket subprotocols, and run

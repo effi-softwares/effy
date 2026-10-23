@@ -8,8 +8,8 @@ import {
   seedAttributeDraft,
 } from "./focusedEdit";
 
-// T066: a focused edit must PATCH only the subset it touched, and every payload must carry the
-// `expectedUpdatedAt` concurrency token (FR-023a).
+// A focused edit must PATCH only the subset it touched, and every payload must carry the
+// `expectedUpdatedAt` concurrency token.
 
 function detail(over: Partial<ProductDetail> = {}): ProductDetail {
   return {
@@ -25,7 +25,7 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
     shortDescription: "Silky espresso",
     longDescription: null,
     gstStatus: "gst_free",
-    // 098 — price, codes and weight are each variant's, edited as a set (variants.test.ts).
+    // Price, codes and weight are each variant's, edited as a set (variants.test.ts).
     unitBasis: null,
     options: [],
     variants: [],

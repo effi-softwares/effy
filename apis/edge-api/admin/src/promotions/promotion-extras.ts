@@ -1,5 +1,4 @@
-// A promotion's chosen customers (US6), single-use code batches (US7) and performance (US9) — 094.
-// Repository and rules together: each is small, and each writes its audit row in the same transaction.
+// Chosen customers, single-use code batches and performance. Each write audits in the same transaction.
 import { randomInt, randomUUID } from "node:crypto";
 
 import { announce } from "@effy/edge-shared/live";
@@ -17,7 +16,7 @@ import { PromoError } from "./types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** R15 — no look-alikes (0/O, 1/I/L). */
+/** No look-alikes (0/O, 1/I/L). */
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 10;
 const MAX_BATCH = 10_000;
@@ -32,8 +31,6 @@ async function assertPromotion(id: string): Promise<{ trigger: string; audience:
   if (!r) throw notFound();
   return r;
 }
-
-// ── chosen customers ────────────────────────────────────────────────────────────────────────────
 
 export async function listCustomers(id: string, q: Record<string, string | undefined>): Promise<AdminPromotionCustomerListDTO> {
   await assertPromotion(id);
@@ -53,7 +50,7 @@ export async function listCustomers(id: string, q: Record<string, string | undef
   };
 }
 
-/** Add by id or by email; emails that match no customer are listed back, never invented. */
+/** By id or email; unmatched emails are listed back, never invented. */
 export async function addCustomers(id: string, body: Record<string, unknown>, actor: string): Promise<AdminAddPromotionCustomersResponse> {
   const p = await assertPromotion(id);
   if (p.audience !== "chosen") throw new PromoError(409, "not_chosen_audience", "This promotion is not for chosen customers. Change who it is for first.");
@@ -97,8 +94,6 @@ export async function removeCustomer(id: string, customerId: string, actor: stri
   await changed();
 }
 
-// ── single-use codes ────────────────────────────────────────────────────────────────────────────
-
 function newCode(prefix: string): string {
   let s = prefix;
   for (let i = 0; i < CODE_LENGTH; i++) s += ALPHABET[randomInt(ALPHABET.length)];
@@ -115,7 +110,7 @@ export async function generateCodes(id: string, body: Record<string, unknown>, a
   const batchId = randomUUID();
   return withTransaction(async (tx) => {
     let created = 0;
-    // Insert in chunks; a code that collides with one ever issued is simply drawn again.
+    // In chunks; a code colliding with one ever issued is drawn again.
     for (let tries = 0; created < count && tries < 20; tries++) {
       const want = Math.min(count - created, 1000);
       const codes = Array.from({ length: want }, () => newCode(prefix));
@@ -163,7 +158,7 @@ export async function listCodes(id: string, q: Record<string, string | undefined
   };
 }
 
-/** Every single-use code with its state, as CSV (R15 — no file storage). */
+/** As CSV; no file storage. */
 export async function exportCodes(id: string): Promise<string> {
   await assertPromotion(id);
   const rows = (
@@ -177,9 +172,7 @@ export async function exportCodes(id: string): Promise<string> {
   return ["code,state,order_id", ...rows.map((r) => `${r.code},${r.state},${r.order_id ?? ""}`)].join("\n") + "\n";
 }
 
-// ── performance ─────────────────────────────────────────────────────────────────────────────────
-
-/** Uses, customers, discount, orders and sales — lifetime, last 7 and last 30 days (FR-042). */
+/** Lifetime, last 7 and last 30 days. */
 export async function performance(id: string): Promise<AdminPromotionPerformanceDTO> {
   await assertPromotion(id);
   const win = async (days: number | null): Promise<PromotionPerformanceWindowDTO> => {

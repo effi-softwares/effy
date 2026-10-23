@@ -2,7 +2,7 @@ import type { PlanGapDTO } from "@effy/shared-types";
 
 import { gapText } from "./gapText";
 
-/** What a draft is missing, in sentences a manager can act on (077 FR-018). Nothing when ready. */
+/** What a draft is missing, in sentences a manager can act on. Nothing when ready. */
 export function GapList({ gaps }: { gaps: PlanGapDTO[] }) {
   if (gaps.length === 0) return <p className="text-sm text-muted-foreground">Ready to activate: this plan prices every distance and every weight.</p>;
   const blocking = gaps.filter((g) => g.blocking);

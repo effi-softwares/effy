@@ -9,9 +9,9 @@ import type { ProductDetail } from "./model";
 import { sectionsQuery, useSetProductSections } from "./queries";
 
 /**
- * Assign this product to the shop's sections (US5). The whole membership is set at once — the backend
+ * Assign this product to the shop's sections. The whole membership is set at once — the backend
  * replaces (not merges) — so this holds a local checked set and PATCHes it on save. No cards; a plain
- * checkbox list (DOCTRINE-2).
+ * checkbox list (doctrine-2).
  */
 export function SectionAssignment({ detail }: { detail: ProductDetail }) {
   const sections = useQuery(sectionsQuery);

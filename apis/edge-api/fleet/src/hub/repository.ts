@@ -1,10 +1,9 @@
-// 096 US5 — the hub station's reads. Raw SQL; every query names columns the migrations really have
-// (`hub.container.test.ts` runs them against the real ones).
+// The hub station's reads (`hub.container.test.ts` runs them against the real schema).
 import type { ParcelZone } from "@effy/shared-types";
 
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
 
-/** A collection run is "on its way in" from its first collected package until its check-in is written. */
+/** From its first collected package until its check-in is written. */
 const OPEN_RUN = `
   dr.kind = 'collection'
   AND NOT EXISTS (SELECT 1 FROM public.hub_checkin hc WHERE hc.round_id = dr.id)`;
@@ -25,7 +24,6 @@ export interface ExpectedBagRow {
   any_time: boolean;
 }
 
-/** Every live, unheld bag of every package an open collection run has picked up. */
 export async function expectedBags(tx: Tx): Promise<ExpectedBagRow[]> {
   const res = await tx.query(
     `SELECT dr.id::text AS run_id, d.name AS driver_name,
@@ -55,7 +53,7 @@ export async function expectedBags(tx: Tx): Promise<ExpectedBagRow[]> {
   return res.rows;
 }
 
-/** The open collection run that picked this package up, locked; null when none is on its way in. */
+/** Locked; null when none is on its way in. */
 export async function openRunFor(tx: Tx, packageId: string): Promise<{ runId: string; driverId: string } | null> {
   const res = await tx.query(
     `SELECT dr.id::text AS run_id, dr.driver_id::text AS driver_id
@@ -72,13 +70,11 @@ export async function openRunFor(tx: Tx, packageId: string): Promise<{ runId: st
   return r ? { runId: r.run_id, driverId: r.driver_id } : null;
 }
 
-/** True once this bag has been checked in at the hub on any run. */
 export async function everCheckedIn(tx: Tx, parcelId: string): Promise<boolean> {
   const res = await tx.query(`SELECT 1 FROM public.package_handover WHERE parcel_id = $1 AND step = 'checkin' LIMIT 1`, [parcelId]);
   return (res.rowCount ?? 0) > 0;
 }
 
-/** True when the run still has a package nobody has settled at its shop (picked up or not). */
 export async function runHasUnsettledStops(tx: Tx, runId: string): Promise<boolean> {
   const res = await tx.query(
     `SELECT 1 FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
@@ -97,7 +93,6 @@ export interface SortFactsRow {
   any_time: boolean;
 }
 
-/** What the sort instruction and the result line need for one bag's package. */
 export async function sortFacts(tx: Tx, packageId: string): Promise<SortFactsRow> {
   const res = await tx.query(
     `SELECT (SELECT count(*) FROM public.package_parcel l WHERE l.shop_fulfillment_id = sf.id AND l.voided_at IS NULL)::int AS of,

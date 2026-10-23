@@ -1,5 +1,3 @@
-// GET /shop/v1/products — backend search/filter/sort/pagination, shop-scoped (SC-004, SC-005).
-// Any active shop member; every row is this shop's only.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

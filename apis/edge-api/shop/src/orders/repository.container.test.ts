@@ -1,19 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * The shop order console's SQL, against real PostgreSQL 16 and THE REAL MIGRATIONS (057 A3).
- *
- * ⚠ WHY THIS FILE EXISTS. Every query in `repository.ts` is raw SQL across eleven tables that seven
- * slices own (019 order/payment, 020 fulfilment, 047 method, 049 collection, 053 arrival, 055 refunds,
- * this slice's tags and notes). A wrong column name TYPECHECKS PERFECTLY and passes every mocked test —
- * 056 caught two that way, and only here. The schema is applied from `db/migrations`, not transcribed,
- * so a fixture cannot agree with the code instead of with the platform (027 R13's failure mode).
- */
+/** The order console's SQL against the real migrations: a wrong column name typechecks and passes mocks. */
 
 const holder: { pool: Pool | null } = { pool: null };
 vi.mock("@effy/edge-shared", async () => {
@@ -55,21 +45,6 @@ import { toQueueDTO } from "../fulfillments/handler-support";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
-  if (files.length === 0) throw new Error("no migrations found — this harness would pass vacuously");
-  return files
-    .map((f) => {
-      const body = readFileSync(join(dir, f), "utf8");
-      const start = body.indexOf("-- +goose Up");
-      const rest = start < 0 ? body : body.slice(start);
-      const end = rest.indexOf("-- +goose Down");
-      return end < 0 ? rest : rest.slice(0, end);
-    })
-    .join("\n");
-}
-
 const CUST = "11111111-1111-4111-8111-111111111111";
 const SHOP = "33333333-3333-4333-8333-333333333333";
 const OTHER_SHOP = "33333333-3333-4333-8333-000000000000";
@@ -83,7 +58,7 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -108,7 +83,7 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
-  /** One paid order with a portion at `shop`. Returns the portion id and the order id. */
+  /** Returns the portion id and the order id. */
   async function order(opts: {
     number: string;
     recipient: string;
@@ -125,8 +100,8 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     const total = opts.total ?? subtotal;
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
-         delivery_fee_amount, grand_total_amount, delivery_address, placed_at)
-       VALUES ($1,$2,'paid',$3,$4,$5,$6::jsonb, now() - make_interval(mins => $7))
+         delivery_fee_amount, grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1,$2,'paid',$3,$4,$5,$6::jsonb, now() - make_interval(mins => $7), 'effy', 'in_coverage')
        RETURNING id`,
       [CUST, opts.number, subtotal, total - subtotal, total,
        JSON.stringify({ recipientName: opts.recipient, line1: "1 St", city: "Melbourne", postalCode: "3000", country: "AU" }),
@@ -147,8 +122,8 @@ SELECT id FROM p`,
         [shop, l.name, l.price],
       );
       const oi = await pool.query<{ id: string }>(
-        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5, $6, $7) RETURNING id`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5, $6, $7, $5, $7) RETURNING id`,
         [orderId, p.rows[0]!.id, shop, l.name, l.price, l.qty, l.price * l.qty],
       );
       itemIds.push(oi.rows[0]!.id);
@@ -163,7 +138,7 @@ SELECT id FROM p`,
 
   async function refund(orderId: string, amount: number, status: string, actorKind = "shop") {
     await pool.query(
-      // ⚠ The real schema requires a goodwill refund to explain itself (refund_goodwill_needs_note_ck).
+      // A goodwill refund must explain itself (refund_goodwill_needs_note_ck).
       `INSERT INTO public.refund (order_id, kind, amount, reason, note, status, idempotency_key, actor_kind, actor_sub, failure_reason)
        VALUES ($1, 'goodwill', $2, 'goodwill', 'seed', $3, gen_random_uuid()::text, $4, $5,
                CASE WHEN $3 = 'failed' THEN 'bank said no' END)`,
@@ -184,13 +159,13 @@ SELECT id FROM p`,
   });
 
   it("composes search and filters, and the counts reflect the combination", async () => {
-    await order({ number: "EFY-A1", recipient: "Ann Lee", method: "same_day" });
-    await order({ number: "EFY-A2", recipient: "Ann Park", method: "standard" });
-    await order({ number: "EFY-B1", recipient: "Bo", method: "same_day" });
+    await order({ number: "EFY-A1", recipient: "Ann Lee", status: "picking" });
+    await order({ number: "EFY-A2", recipient: "Ann Park", status: "received" });
+    await order({ number: "EFY-B1", recipient: "Bo", status: "picking" });
 
-    const out = await listOrders(SHOP, parseListQuery({ q: "ann", method: "same_day" }));
+    const out = await listOrders(SHOP, parseListQuery({ q: "ann", tab: "picking" }));
     expect(out.items.map((r) => r.orderNumber)).toEqual(["EFY-A1"]);
-    expect(out.counts.all).toBe(1);
+    expect(out.counts).toMatchObject({ all: 2, picking: 1 });
   });
 
   it("summarises this shop's lines for the Items column, and searches item names", async () => {
@@ -200,7 +175,6 @@ SELECT id FROM p`,
       lines: [{ name: "Oat milk, 1L", price: 3, qty: 2 }, { name: "Bread", price: 5, qty: 1 }],
     });
     const out = await listOrders(SHOP, parseListQuery({}));
-    // The design's "name ×qty" — the part before the first comma, as it does.
     expect(out.items[0]!.itemsSummary).toBe("Bread ×1, Oat milk ×2");
     expect((await listOrders(SHOP, parseListQuery({ q: "oat" }))).items).toHaveLength(1);
     expect((await listOrders(SHOP, parseListQuery({ q: "cheese" }))).items).toHaveLength(0);
@@ -237,9 +211,7 @@ SELECT id FROM p`,
     for (let i = 0; i < 27; i++) {
       await order({ number: `EFY-${String(i).padStart(2, "0")}`, recipient: "R" });
     }
-    // ⚠ `dir: "asc"` is said out loud: the DEFAULT became newest-first on 2026-09-19 (operator
-    // direction, see parseListQuery) and this test went on expecting oldest-first — red from then
-    // until 079 looked at it. What it proves is the paging, not the default.
+    // `dir: "asc"` explicitly: the default is newest-first, and this test is about paging.
     const p1 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
     const p2 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", page: "2" }));
     expect(p1.items).toHaveLength(25);
@@ -268,7 +240,7 @@ SELECT id FROM p`,
 
     const d = await readOrder(o.fulfillmentId, SHOP);
     expect(d.money).toMatchObject({ shopSubtotal: "39.00", itemSubtotal: "39.00", total: "44.00", refunded: "10.00", net: "34.00" });
-    // ⚠ 077: what the customer paid for delivery is never sent to a shop (FR-038).
+    // Delivery money is never sent to a shop.
     expect(d.money).not.toHaveProperty("deliveryFee");
     expect(JSON.stringify(d)).not.toMatch(/delivery_?fee/i);
     expect(d.payment).toMatchObject({ state: "partially_refunded", methodBrand: "visa", methodLast4: "4242", amount: "44.00" });
@@ -277,13 +249,12 @@ SELECT id FROM p`,
     expect(d.refunds[0]).toMatchObject({ amount: "10.00", actorKind: "shop", actorLabel: "Maya" });
   });
 
-  /** 098 T062 — a line is a variant: two sizes of one product are two lines, each named by its size. */
+  /** A line is a variant: two sizes are two lines, each named by its size. */
   it("098 — two sizes of one product are two labelled lines, in the detail and on the pick list", async () => {
     const o = await order({ number: "EFY-V", recipient: "V", lines: [{ name: "Rice", price: 3, qty: 2 }] });
     const first = (await pool.query<{ product_id: string; variant_id: string }>(
       `SELECT product_id::text, variant_id::text FROM public.order_item WHERE id = $1`, [o.itemIds[0]],
     )).rows[0]!;
-    // Two variants of one product are told apart by an option.
     const size = (await pool.query<{ id: string }>(
       `INSERT INTO public.product_option (product_id, position, name) VALUES ($1, 1, 'Size') RETURNING id`, [first.product_id],
     )).rows[0]!.id;
@@ -297,8 +268,8 @@ SELECT id FROM p`,
     )).rows[0]!.id;
     await pool.query(`UPDATE public.order_item SET variant_label = '500 g', sku = 'R-500' WHERE id = $1`, [o.itemIds[0]]);
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, variant_label, sku, gtin, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, $3, $4, 'Rice', '1 kg', 'R-1K', '9300000000014', 5.5, 1, 5.5)`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, variant_label, sku, gtin, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, $3, $4, 'Rice', '1 kg', 'R-1K', '9300000000014', 5.5, 1, 5.5, 5.5, 5.5)`,
       [o.orderId, first.product_id, second, SHOP],
     );
 
@@ -333,7 +304,7 @@ SELECT id FROM p`,
     expect(d.notes[0]).toMatchObject({ body: "Call on arrival", authorLabel: "Maya" });
 
     const log = (await readActivity(o.fulfillmentId, SHOP))!.map(toEntry);
-    // ⚠ The idempotent second save wrote NOTHING — one tags entry, not two.
+    // The idempotent second save wrote nothing.
     expect(log.filter((e) => e.title.startsWith("Tags")).map((e) => e.title)).toEqual(["Tags set to fragile, vip"]);
     expect(log.some((e) => e.title === "Internal note added" && e.actorLabel === "Maya")).toBe(true);
 
@@ -360,7 +331,7 @@ SELECT id FROM p`,
     const titles = log.map((e) => e.title);
     expect(titles).toContain("Marked picking");
     expect(titles).toContain("Delivered to the customer");
-    // ⚠ The staff-recorded arrival wrote BOTH rows; it appears once.
+    // The arrival wrote both rows; it appears once.
     expect(titles.filter((t) => /deliver/i.test(t))).toHaveLength(1);
     expect(log.find((e) => e.title.startsWith("Refund"))?.actorLabel).toBe("Effy");
   });
@@ -383,7 +354,7 @@ SELECT id FROM p`,
 
     const d = await readOrder(o.fulfillmentId, SHOP);
     const by = Object.fromEntries(d.lines.map((l) => [l.name, l]));
-    // ⚠ A part pick records the remainder as unavailable, so the shortfall path sees it.
+    // A part pick records the remainder as unavailable.
     expect(by.Eggs).toMatchObject({ gatheredQuantity: 2, unavailableQuantity: 1, pickNote: "one cracked" });
     expect(by.Milk).toMatchObject({ gatheredQuantity: 2, unavailableQuantity: 0, pickNote: null });
     expect(by.Bread).toMatchObject({ gatheredQuantity: 0, unavailableQuantity: 1, pickNote: "supplier short" });
@@ -408,56 +379,41 @@ SELECT id FROM p`,
     expect(await applyPicks(theirs.fulfillmentId, SHOP, [{ orderItemId: theirs.itemIds[0]!, mode: "full", units: 0, note: null }], STAFF)).toBeNull();
   });
 
-  // ── 079 — who takes the package away ─────────────────────────────────────────────────────────────
+  // Who takes the package away.
 
-  /**
-   * Every kind of package there has ever been (the six of P11), in this shop. `window` gives the
-   * package's captured delivery row a slot — a fact the shop service itself never reads.
-   */
-  async function sixKinds() {
+  /** Every kind of package, in this shop; `window` gives its captured delivery row a slot the shop never reads. */
+  async function threeKinds() {
     const slot = (
       await pool.query<{ id: string }>(
-        // One window, made once and reused: a window's times are unique.
+        // One window, reused: a window's times are unique.
         `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
          VALUES ('16:00', '18:00', '14:00', 9, 'test')
          ON CONFLICT (start_time, end_time) DO UPDATE SET updated_by = 'test' RETURNING id`,
       )
     ).rows[0]!.id;
-    const make = async (number: string, type: "effy" | "courier" | null, method: "same_day" | "standard" | null, window: boolean) => {
-      const o = await order({ number, recipient: number, method: method ?? "standard" });
-      if (method === null) await pool.query(`UPDATE public.shop_fulfillment SET delivery_method = NULL WHERE id = $1`, [o.fulfillmentId]);
-      else {
-        await pool.query(
-          `INSERT INTO public.order_package_delivery (order_id, shop_id, method, promised_from, promised_to, slot_id, window_start, window_end)
-           VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6)`,
-          [o.orderId, SHOP, method, window ? slot : null, window ? new Date("2026-10-08T05:00:00Z") : null, window ? new Date("2026-10-08T07:00:00Z") : null],
-        );
-      }
-      if (type) {
-        await pool.query(
-          `UPDATE public."order" SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4 WHERE id = $1`,
-          [o.orderId, type, type === "effy" ? "in_coverage" : "out_of_coverage", type === "courier" ? "2–4 business days" : null],
-        );
-      }
+    const make = async (number: string, type: "effy" | "courier", method: "same_day" | "standard", window: boolean) => {
+      const o = await order({ number, recipient: number, method });
+      await pool.query(
+        `INSERT INTO public.order_package_delivery (order_id, shop_id, method, promised_from, promised_to, slot_id, window_start, window_end)
+         VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6)`,
+        [o.orderId, SHOP, method, window ? slot : null, window ? new Date("2026-10-08T05:00:00Z") : null, window ? new Date("2026-10-08T07:00:00Z") : null],
+      );
+      await pool.query(
+        `UPDATE public."order" SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4 WHERE id = $1`,
+        [o.orderId, type, type === "effy" ? "in_coverage" : "out_of_coverage", type === "courier" ? "2–4 business days" : null],
+      );
       return o;
     };
     return {
-      "EFY-K1 new, Effy today": await make("EFY-K1", "effy", "same_day", true),
-      "EFY-K2 new, Effy later day": await make("EFY-K2", "effy", "standard", true),
-      "EFY-K3 new, courier": await make("EFY-K3", "courier", "standard", false),
-      "EFY-K4 old, same-day": await make("EFY-K4", null, "same_day", true),
-      "EFY-K5 old, a carrier's": await make("EFY-K5", null, "standard", false),
-      "EFY-K6 old, standard sold a window": await make("EFY-K6", null, "standard", true),
-      "EFY-K7 before 047, no method": await make("EFY-K7", null, null, false),
+      "EFY-K1 Effy today": await make("EFY-K1", "effy", "same_day", true),
+      "EFY-K2 Effy later day": await make("EFY-K2", "effy", "standard", true),
+      "EFY-K3 courier": await make("EFY-K3", "courier", "standard", false),
     };
   }
-  const EXPECTED = {
-    "EFY-K1": "effy_driver", "EFY-K2": "effy_driver", "EFY-K3": "courier", "EFY-K4": "effy_driver",
-    "EFY-K5": "courier", "EFY-K6": "effy_driver", "EFY-K7": "courier",
-  };
+  const EXPECTED = { "EFY-K1": "effy_driver", "EFY-K2": "effy_driver", "EFY-K3": "courier" };
 
   it("079 P17 — every package says who takes it away, on the list, the detail, Today and the pick lists", async () => {
-    const made = await sixKinds();
+    const made = await threeKinds();
 
     const list = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
     expect(Object.fromEntries(list.items.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
@@ -469,21 +425,19 @@ SELECT id FROM p`,
     expect(Object.fromEntries((await readPickLists(SHOP)).lists.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
   });
 
-  it("079 — the list filters by who takes it away; the old method filter still answers an installed app", async () => {
-    await sixKinds();
+  it("079 — the list filters by who takes it away", async () => {
+    await threeKinds();
     const numbers = async (qs: Record<string, string>) =>
       (await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", ...qs }))).items.map((r) => r.orderNumber);
-    expect(await numbers({ deliveredBy: "effy_driver" })).toEqual(["EFY-K1", "EFY-K2", "EFY-K4", "EFY-K6"]);
-    expect(await numbers({ deliveredBy: "courier" })).toEqual(["EFY-K3", "EFY-K5", "EFY-K7"]);
+    expect(await numbers({ deliveredBy: "effy_driver" })).toEqual(["EFY-K1", "EFY-K2"]);
+    expect(await numbers({ deliveredBy: "courier" })).toEqual(["EFY-K3"]);
     // An unknown value is the default, never "match nothing".
-    expect(await numbers({ deliveredBy: "drone" })).toHaveLength(7);
-    // ⚠ The customer's word tells a shop the wrong thing about K2 and K6 — which is why it is no longer shown.
-    expect(await numbers({ method: "standard" })).toEqual(["EFY-K2", "EFY-K3", "EFY-K5", "EFY-K6"]);
-    expect((await listOrders(SHOP, parseListQuery({ deliveredBy: "courier" }))).counts.all).toBe(3);
+    expect(await numbers({ deliveredBy: "drone" })).toHaveLength(3);
+    expect((await listOrders(SHOP, parseListQuery({ deliveredBy: "courier" }))).counts.all).toBe(1);
   });
 
   it("079 — ⚠ what the shop is sent says who takes it and NOTHING else about delivery: no window, day, estimate or fee", async () => {
-    const made = await sixKinds();
+    const made = await threeKinds();
     const list = await listOrders(SHOP, parseListQuery({}));
     const wire = [
       toListDTO(list),
@@ -493,14 +447,13 @@ SELECT id FROM p`,
     ];
     const text = JSON.stringify(wire);
     expect(text).toMatch(/"deliveredBy":"courier"/);
-    // The window (05:00–07:00Z on 2026-10-08), the estimate, the type's reason and the slot are all in
-    // the database for these orders. None of it may be in what a shop receives.
+    // The window, estimate, reason and slot exist in the database; none may reach the shop.
     expect(text).not.toMatch(/2026-10-08T0[57]|window|slot|promised|business days|estimate|in_coverage|out_of_coverage|deliveryFee|delivery_fee/i);
   });
 
-  // ── 080 US2 — pickup from the supplier ───────────────────────────────────────────────────────────
+  // Pickup from the supplier.
 
-  /** One courier order filled by BOTH shops, each parcel collected by the courier from its shop. */
+  /** One courier order filled by both shops, each parcel collected from its shop. */
   async function supplierPickupOrder() {
     await pool.query(`TRUNCATE public.courier_service CASCADE`);
     const svc = (
@@ -554,11 +507,11 @@ SELECT id FROM p`,
       state: "booked", pickupDate: day, pickupFrom: "13:00", pickupTo: "15:00", courierName: "Test Courier",
       serviceName: "Parcel", reference: "REF-MINE", labelUrl: `https://signed.example/courier-label/${o.mine}/label.pdf`,
     });
-    // The same on Today and the fulfilment queue. (A packed parcel is off the pick lists.)
+    // The same on Today and the fulfilment queue.
     expect((await readLiveOrders(SHOP, 50)).find((r) => r.fulfillmentId === o.mine)?.courierPickup?.state).toBe("booked");
     expect((await listQueue(SHOP, "completed")).find((r) => r.id === o.mine)?.promise.courierPickup?.pickupFrom).toBe("13:00");
 
-    // 096 — the parcel's bags (bag 1 is made at payment; this fixture skips payment).
+    // The parcel's bags (bag 1 is made at payment, which this fixture skips).
     await createFirstParcels(pool, { packageIds: [o.mine] });
     const after = await courierHandover(SHOP_ACTOR, o.mine, null);
     expect(after.status).toBe("collected");
@@ -566,7 +519,7 @@ SELECT id FROM p`,
     // A repeat is the same answer, not an error.
     expect((await courierHandover(SHOP_ACTOR, o.mine, null)).status).toBe("collected");
 
-    // ⚠ With the carrier — never At hub: it never went there.
+    // With the carrier, never At hub.
     const view = (await readOrder(o.mine, SHOP)).statusView;
     expect(view.status).toBe("with_carrier");
     const facts = await pool.query(
@@ -576,7 +529,7 @@ SELECT id FROM p`,
       [o.mine],
     );
     expect(facts.rows[0]).toEqual({ handoffs: 1, driver_work: 0, state: "handed_over" });
-    // 096 — one hand-over row per bag, by shop staff, by hand; the repeat added none.
+    // One hand-over row per bag, by shop staff, by hand; the repeat added none.
     const bags = await pool.query(
       `SELECT step, actor_kind, shop_staff_id, handover_method, parcel_id IS NOT NULL AS per_bag
          FROM public.package_handover WHERE shop_fulfillment_id = $1`,

@@ -48,8 +48,7 @@ describe("otpErrorMessage", () => {
 });
 
 describe("START_SIGN_IN_ERROR", () => {
-  // The email step must not become an account-existence oracle: an unprovisioned address and a
-  // provisioned one produce identical copy (spec edge case).
+  // Not an account-existence oracle: unprovisioned and provisioned addresses produce identical copy.
   it("says nothing about whether the account exists", () => {
     expect(START_SIGN_IN_ERROR).not.toMatch(/exist|unknown|not found|no account/i);
   });

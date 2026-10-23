@@ -13,7 +13,7 @@ import kotlinx.coroutines.delay
 
 /**
  * The time now, re-read every half minute while a screen is up, so "Due now" becomes "Late" without a
- * touch. ⚠ A CLOCK, NOT A REFRESH: it re-words what is loaded and reads nothing (071).
+ * touch. A clock, not a refresh: it re-words what is loaded and reads nothing.
  */
 @Composable
 internal fun rememberNow(): Long {

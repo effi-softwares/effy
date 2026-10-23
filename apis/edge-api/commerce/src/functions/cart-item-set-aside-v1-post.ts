@@ -1,5 +1,3 @@
-// POST /commerce/v1/cart/items/{variantId}/set-aside?changeId= — move a line to "saved for later".
-// It leaves the payable totals immediately.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# 050-observability-push-foundation — no-PII sweep (FR-022, SC-004).
-#
-# Telemetry and notification payloads may carry only the auth subject id + non-PII routing/render ids
-# (Principle VII). This scans the 050 surface — analytics taxonomies, notification producers, the FCM
-# sender/copy, and the device layer — for PII field names appearing as payload keys/props. It is a
-# heuristic guard, not a proof; the typed taxonomies + drift tests + copy tests are the primary defence.
-#
-# Exit non-zero and name the file on any hit. `sub`/`cognito_sub`/`recipient_sub`/`subject_sub` are the
-# ALLOWED identifier and are excluded.
+# No-PII sweep: telemetry and notification payloads carry only the auth subject id and non-PII routing or
+# render ids. Scans the analytics taxonomies, notification producers, the FCM sender and copy, and the
+# device layer for PII field names as payload keys. A heuristic; the typed taxonomies and their tests are
+# the primary defence. `sub`/`cognito_sub`/`recipient_sub`/`subject_sub` are allowed. Exits non-zero naming
+# the file.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -32,7 +28,7 @@ for f in "${FILES[@]}"; do
   [ -f "$f" ] || continue
   # Skip comment lines (JS/Kotlin //, /*, *, /**; SQL --; shell #) to reduce prose false positives,
   # then match remaining code lines. `|| true` so a no-match grep doesn't trip `set -e`.
-  # A notification CHANNEL named "email" is not an email address in a payload.
+  # A notification channel named "email" is not an email address in a payload.
   if hits=$(grep -nEi "$PII_PATTERN" "$f" | grep -vE '^[0-9]+:[[:space:]]*(/|\*|//|--|#)' | grep -vE 'NotificationChannel|channel === "email"' || true); then
     if [ -n "$hits" ]; then
       echo "✗ possible PII field in telemetry/notification payload: $f"

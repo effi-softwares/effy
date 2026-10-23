@@ -1,6 +1,4 @@
-// POST /fleet/v1/hub/checkins — hub staff check bags in by scanning them (096 US5, FR-042/FR-043).
-// Body `{reads: LabelReadDTO[]}`; each read is judged, recorded and answered in the scan rule's words
-// with where the bag goes. Idempotent on each read's `clientReadId`. Admin/manager.
+// Admin/manager. Each read is judged, recorded and answered with where the bag goes; idempotent on `clientReadId`.
 import { announce } from "@effy/edge-shared/live";
 
 import { announceDispatch } from "../lib/live";
@@ -24,7 +22,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
       throw validationError("send between 1 and 50 reads", [{ field: "reads", message: "1–50 reads" }]);
     }
     const out = await checkIn(g.sub, body.reads as Partial<LabelReadDTO>[]);
-    // 071 — committed: dispatch's boards, and each driver whose run moved (or closed).
+    // Dispatch's boards, and each driver whose run moved or closed.
     if (out.results.some((r) => r.outcome === "accepted")) {
       await announceDispatch(out.drivers);
       await announce([{ scope: "ops", kind: "orders" }, ...out.shops.map((shopId) => ({ scope: "shop" as const, shopId, kind: "orders" as const }))]);

@@ -8,7 +8,7 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, pooled: { query: (t: string, p?: unknown[]) => holder.pool!.query(t, p as never[]) } };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { DocumentNotFound, DocumentNotReady, deliveryNote, deliveryNotePdf } from "./service";
 
@@ -39,11 +39,11 @@ SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('me', 'me@effyshopping.com') RETURNING id`);
     const other = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('them', 'them@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at)
-       VALUES ($1, 'EFY-CDN001', 9, 11, '{}'::jsonb, 'paid', now()) RETURNING id`, [me.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-CDN001', 9, 11, '{}'::jsonb, 'paid', now(), 'effy', 'in_coverage') RETURNING id`, [me.id]);
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00)`, [order.id, product.id, shop.id]);
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00, 4.50, 9.00)`, [order.id, product.id, shop.id]);
     const pkg = await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status) VALUES ($1, $2, 1, 9, 'collected') RETURNING id`,
       [order.id, shop.id]);

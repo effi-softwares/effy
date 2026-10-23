@@ -8,16 +8,9 @@ import { toVectorDrawable, assertRenderable } from "../scripts/lib/vector-drawab
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..")
 
-/*  REGRESSION SUITE — every case here comes from a bug that actually shipped to a device.
-
-    The original converter emitted `android:pathData="M undefined,undefined L undefined,undefined"`
-    for the three <line> elements in the mark's tag detail, because its attribute-name regex was
-    `[a-zA-Z-]+` and therefore could not match x1/y1/x2/y2.
-
-    What made it expensive: the output was valid XML, compiled cleanly through aapt2, and packaged
-    into the APK. Nothing failed until Android tried to inflate it, and the only symptom was one
-    logcat warning — `ShellStartingWindow: Get attribute fail` — while the launcher icon AND the
-    splash screen both silently fell back to system defaults.                                      */
+/*  Regression suite. The original converter emitted `M undefined,undefined` pathData for the mark's
+    <line> elements (its attribute regex `[a-zA-Z-]+` missed x1/y1/x2/y2): valid XML that compiled and
+    packaged, then failed only at inflation, leaving the icon and splash at system defaults.        */
 
 describe("<line> conversion (the regression)", () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -57,9 +50,7 @@ describe("assertRenderable", () => {
   })
 
   test("accepts COMPACT path syntax with commands glued to numbers", () => {
-    // "M0,0h108v108h-108z" is the solid background layer's own output and is perfectly valid.
-    // An earlier version of this validator split on separators and rejected it — a false positive
-    // that would have blocked every regeneration.
+    // The solid background layer's own output; an earlier validator that split on separators rejected it.
     assertRenderable(`<vector><path android:pathData="M0,0h108v108h-108z" /></vector>`)
     assertRenderable(`<vector><path android:pathData="M1.5-2.5e3L.5.25Z" /></vector>`)
   })
@@ -80,7 +71,6 @@ describe("assertRenderable", () => {
 })
 
 describe("every committed VectorDrawable is renderable", () => {
-  // The check that would have caught this before it reached a device.
   const dirs = [
     "apps/customer-mobile/androidApp/src/main/res/drawable",
     "apps/driver-mobile/androidApp/src/main/res/drawable",

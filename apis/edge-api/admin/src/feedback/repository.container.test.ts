@@ -1,14 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql"
+import { migrationSql } from "@effy/edge-shared/testing"
 import { Pool } from "pg"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * ⚠ Real PostgreSQL 16 — the load-bearing behaviour is in the SQL:
- *   • combinable filters + trigram search over message/email (FR-019/020);
- *   • the reply write + status→replied in ONE transaction (FR-029);
- *   • notes/replies joined by reference_code and ordered.
- * Gated behind CONTAINER_TESTS=1 so ordinary unit runs stay Docker-free.
- */
+/** Filters and trigram search, the reply + status in one transaction, notes and replies in order. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }))
 
 vi.mock("@effy/edge-shared", () => ({
@@ -61,31 +56,7 @@ describe.skipIf(!RUN)("feedback console repo — against real PostgreSQL", () =>
     container = await new PostgreSqlContainer("postgres:16-alpine").start()
     pool = new Pool({ connectionString: container.getConnectionUri() })
     holder.pool = pool
-    await pool.query(`
-      CREATE EXTENSION IF NOT EXISTS citext;
-      CREATE EXTENSION IF NOT EXISTS pg_trgm;
-      CREATE TABLE public.feedback_submission (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        reference_code text NOT NULL UNIQUE,
-        category text NOT NULL, message text NOT NULL, rating smallint,
-        submitter_name text, submitter_email citext, email_verified boolean NOT NULL DEFAULT false,
-        customer_id uuid, source text NOT NULL DEFAULT 'general', platform text NOT NULL,
-        status text NOT NULL DEFAULT 'new', source_key text,
-        created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.feedback_reply (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        submission_id uuid NOT NULL REFERENCES public.feedback_submission(id) ON DELETE CASCADE,
-        body text NOT NULL, staff_sub text NOT NULL, staff_name text,
-        sent_at timestamptz NOT NULL DEFAULT now(), delivery_ok boolean NOT NULL DEFAULT true
-      );
-      CREATE TABLE public.feedback_note (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        submission_id uuid NOT NULL REFERENCES public.feedback_submission(id) ON DELETE CASCADE,
-        body text NOT NULL, staff_sub text NOT NULL, staff_name text,
-        created_at timestamptz NOT NULL DEFAULT now()
-      );
-    `)
+    await pool.query(migrationSql())
   }, 120_000)
 
   afterAll(async () => {
@@ -140,7 +111,7 @@ describe.skipIf(!RUN)("feedback console repo — against real PostgreSQL", () =>
     expect((await repo.getByReference(ref))!.status).toBe("replied")
     expect(await repo.listReplies(ref)).toHaveLength(1)
 
-    // A second reply accumulates (FR-031) and status stays replied.
+    // A second reply accumulates and status stays replied.
     await repo.insertReplyAndMarkReplied(ref, "one more thing", { sub: "s1", name: "Alex" })
     expect(await repo.listReplies(ref)).toHaveLength(2)
 

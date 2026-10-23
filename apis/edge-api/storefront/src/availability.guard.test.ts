@@ -5,25 +5,13 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
 /**
- * ⚠ "CAN A SHOPPER BUY THIS?" IS DECIDED IN ONE PLACE (054 FR-012, SC-012).
- *
- * Before 054 the rule was the literal `p.status = 'active'`, written by hand in fourteen places.
- * Adding stock meant changing the answer in every one of them, and a missed one would have left a
- * surface quietly selling something the shop does not have — no error, no log line, no failing
- * test. A second copy of a rule does not conflict with the first; it disagrees with it in silence.
- *
- * So this fails on any hand-written `status = 'active'` in shopper-facing code. If the line is
- * about some OTHER table (a category's lifecycle, a delivery zone's, a promotion's) or is a
- * deliberate LISTING filter, say so with an `availability-exempt: <table> — <why>` comment within
- * the eight lines above it. The marker is the record that someone decided.
- *
- * In place since 054; re-homed here by 070.
+ * "CAN A SHOPPER BUY THIS?" is decided in one place. Fails on any hand-written `status = 'active'` in
+ * shopper code unless an `availability-exempt: <table> — <why>` comment sits within eight lines above.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeRoot = resolve(here, "..", "..");
 
-/** Shopper-facing code: both shopper services and the shared rules they compose. */
 const ROOTS = [
   "storefront/src",
   "commerce/src",
@@ -32,10 +20,9 @@ const ROOTS = [
   "shared/src/payments",
 ];
 
-/** The rule's own home is the one place allowed to state it. */
 const RULE_HOME = /shared\/src\/lib\/availability(\.test)?\.ts$/;
 
-// 098 — a variant's `state = 'active'` is half of the rule too.
+// A variant's `state = 'active'` is half of the rule too.
 const HAND_WRITTEN = /\b([a-z_]+\.)?(status|state)\s*(=|==|!=|<>)\s*['"]active['"]/;
 const EXEMPT = "availability-exempt:";
 
@@ -67,7 +54,7 @@ it("no shopper-facing code decides product availability by hand", () => {
     }
   }
 
-  // A guard that scans nothing passes forever. The storefront alone is well past this.
+  // A guard that scans nothing passes forever.
   expect(scanned).toBeGreaterThan(15);
   expect(
     offences,

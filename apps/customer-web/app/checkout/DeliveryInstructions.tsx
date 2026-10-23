@@ -12,17 +12,17 @@ import {
 } from "@/lib/delivery-instructions"
 
 /**
- * Delivery instructions (066): how the shopper wants the order handed over, and a short note for
+ * Delivery instructions: how the shopper wants the order handed over, and a short note for
  * the driver. Optional — an untouched control sends nothing, and nothing is then shown anywhere.
  *
- * A CONTROLLED section, like the billing one beside it: the draft lives in the parent so it survives
- * the move to the payment step and a failed payment (FR-006), and so the address book's form can
+ * A controlled section, like the billing one beside it: the draft lives in the parent so it survives
+ * the move to the payment step and a failed payment, and so the address book's form can
  * reuse this exact control for an address's saved default.
  *
- * ⚠ THE NOTE IS PLAIN TEXT, END TO END. It goes into a `<textarea>` and comes back out through
+ * The note is plain text, end to end. It goes into a `<textarea>` and comes back out through
  * React text nodes; nothing here or downstream parses it. A shopper who types `<b>` gets `<b>`.
  *
- * ⚠ The two choices are buttons that can be switched OFF again (`aria-pressed`), not radios: "no
+ * The two choices are buttons that can be switched off again (`aria-pressed`), not radios: "no
  * preference" is a real answer and a radio group, once touched, has no way back to it.
  */
 export function DeliveryInstructions({

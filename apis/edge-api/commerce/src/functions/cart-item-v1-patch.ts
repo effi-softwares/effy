@@ -1,5 +1,4 @@
-// PATCH /commerce/v1/cart/items/{variantId} — set an ABSOLUTE quantity; zero or less removes the
-// line. Safe to repeat: setting 3 twice is 3.
+// Sets an absolute quantity, so a repeat is harmless; zero or less removes the line.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

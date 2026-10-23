@@ -1,10 +1,4 @@
-// US4 — the record is the PLATFORM's, not the identity provider's.
-//
-// These assert the lifecycle properties FR-020/FR-006a promise: the upsert is idempotent, roles
-// reconcile down as well as up, the record survives role removal (for audit), and the
-// platform-owned columns (status, shop_id) are never reachable from token data.
-//
-// The live proof — flip a term, watch a valid token stop working — is the operator's quickstart §6.
+// The record is the platform's: an idempotent upsert, roles reconciled both ways, kept for audit, and status/shop_id never written from a token.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
@@ -29,12 +23,7 @@ interface Row {
   shop_status: "active" | "suspended" | "disabled" | null;
 }
 
-/**
- * A fake shop table that behaves like the real table: one row per cognito_sub (the UNIQUE constraint),
- * `ON CONFLICT DO UPDATE` semantics for email/last_seen, and role rows reconciled per statement.
- * This is what lets us assert idempotency rather than merely assert the SQL text contains
- * "ON CONFLICT".
- */
+/** Behaves like the real table (unique cognito_sub, on conflict semantics), so idempotency is asserted, not the SQL text. */
 const table = new Map<string, Row>();
 let seq = 0;
 
@@ -48,7 +37,7 @@ function fakeClient() {
         const [sub, email] = a;
         const existing = table.get(sub!);
         if (existing) {
-          // COALESCE(EXCLUDED.email, shop_staff.email) — a null token email never clobbers.
+
           existing.email = email ?? existing.email;
           existing.last_seen_at = new Date(Date.now() + ++seq * 1000);
           staffId = existing.cognito_sub;
@@ -79,7 +68,7 @@ function fakeClient() {
       if (text.includes("INSERT INTO public.shop_staff_role")) {
         const [id, role] = a as unknown as [string, string];
         const row = table.get(id)!;
-        if (!row.role_keys.includes(role)) row.role_keys.push(role); // ON CONFLICT DO NOTHING
+        if (!row.role_keys.includes(role)) row.role_keys.push(role);
         return { rows: [] };
       }
 
@@ -100,7 +89,6 @@ describe("shop staff record lifecycle", () => {
     withTransaction.mockImplementation((fn: (c: unknown) => Promise<unknown>) => fn(fakeClient()));
   });
 
-  // SC-011
   it("creates exactly one row on first contact and never duplicates on repeat contact", async () => {
     await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
     await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
@@ -116,7 +104,7 @@ describe("shop staff record lifecycle", () => {
     );
   });
 
-  // SC-011: two simultaneous first requests must resolve to one row (UNIQUE + ON CONFLICT).
+  // Two simultaneous first requests resolve to one row.
   it("collapses concurrent first contact to a single row", async () => {
     await Promise.all([
       upsertOnContact("sub-1", "sam@effy.test", ["shop_staff"]),
@@ -138,7 +126,7 @@ describe("shop staff record lifecycle", () => {
     expect(record.roles).toEqual(["shop_staff"]);
   });
 
-  // The record is never deleted on role removal — it persists for audit and grants nothing.
+  // Never deleted on role removal: it persists for audit and grants nothing.
   it("keeps the record, granting nothing, when every role is removed in the identity provider", async () => {
     await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
     const record = await upsertOnContact("sub-1", "sam@effy.test", []);
@@ -148,7 +136,7 @@ describe("shop staff record lifecycle", () => {
     expect(record.status).toBe("active");
   });
 
-  // research R6 — provisioning owns the email; a token that lacks one must not erase it.
+  // Provisioning owns the email; a token without one must not erase it.
   it("never overwrites a provisioned email with null", async () => {
     await upsertOnContact("sub-1", "sam@effy.test", []);
     const record = await upsertOnContact("sub-1", null, []);
@@ -161,8 +149,7 @@ describe("shop staff record lifecycle", () => {
     expect(record.email).toBe("sam@effy.test");
   });
 
-  // FR-006a: status and shop_id are platform-owned. A JIT contact must not touch them, whatever
-  // the token says — this is what makes "disabled" and "unassigned" stick.
+  // status and shop_id are platform-owned: a JIT contact never touches them.
   it("leaves platform-owned status and shop assignment untouched across contacts", async () => {
     await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
 

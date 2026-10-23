@@ -1,18 +1,5 @@
-# Effy CATALOG service — 067-product-approval-margin.
-#
-# The BACK-OFFICE half of product review: the queue of new products and pending changes, the
-# decisions (approve / send back) and Effy's margin. Attaches to the STAFF HTTP API (075); every route is
-# under /catalog/ and behind the back-office authorizer.
-#
-# ⚠ WHY A NEW SERVICE. `effy-edge-admin` packages to 434/500 CloudFormation resources with
-# `versionFunctions: false` already spent, so it cannot take these routes — the same measured
-# constraint 053 (orders), 054 (inventory) and 056 (fleet) each hit.
-#
-# ⚠ WHY NOT `effy-edge-shop`, which has room (320/500). The shop's half of review (submit, withdraw,
-# propose a change) lives there, beside the product code it changes. The DECISION routes do not: a
-# route that approves a product, declared in the service whose authorizer is the shop pool, is one
-# mis-typed authorizer id away from a shop approving its own product and setting its own margin.
-# One audience per service keeps that mistake unrepresentable.
+# Back-office product review: the queue, approve / send back, and Effy's margin. Staff gateway,
+# back-office authorizer. Kept apart from the shop service so a shop can never approve itself.
 service: effy-edge-catalog
 frameworkVersion: "3"
 
@@ -23,7 +10,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # Region-pinned AWS layer (Decisions locked: changed by hand on a region move).
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -47,28 +33,24 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Product-media bucket (016): a reviewer LOOKS at the shop's images, so this service presigns
-    # reads. It never writes an object.
+    # Reviewers see the shop's images, so this service presigns reads.
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # READ ONLY, on the product-media bucket only.
         - Effect: Allow
           Action: s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*

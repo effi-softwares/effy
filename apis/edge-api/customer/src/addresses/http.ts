@@ -11,16 +11,11 @@ import {
   type AddressRequestInput,
 } from "./service";
 
-/**
- * Map a parsed request body to the repository's AddressInput. Absent fields are `null`; on UPDATE a
- * null field is preserved (COALESCE), on CREATE the required fields are validated in the service.
- * Unknown fields never reach SQL — the statements name their columns explicitly.
- */
+/** Absent fields are `null`; an update keeps them (COALESCE), a create validates required ones in the service. */
 export function toAddressInput(body: Record<string, unknown>): AddressRequestInput {
   const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
   return {
-    // 066 — passed through RAW, and only when the key is PRESENT: absence means "leave the saved
-    // default alone", `null` means "clear it". The service validates it with the shared rule.
+    // Passed through raw, only when the key is present: absent leaves the saved default, `null` clears it.
     ...("defaultDeliveryInstructions" in body
       ? { rawDefaultDeliveryInstructions: body.defaultDeliveryInstructions ?? null }
       : {}),
@@ -37,13 +32,11 @@ export function toAddressInput(body: Record<string, unknown>): AddressRequestInp
   };
 }
 
-/** The shared error envelope for the write handlers — same vocabulary as every other customer write. */
 export function addressErrorResponse(
   err: unknown,
   scope: RequestScope,
 ): APIGatewayProxyStructuredResultV2 {
-  // The record decides access (FR-020) — a barred account, or one with no record yet, is refused
-  // uniformly and without disclosing which (parity with the profile endpoints).
+  // The record decides access; a barred account and one with no record are refused alike.
   if (err instanceof CustomerBarredError || err instanceof CustomerNotFoundError) {
     return problem(403, ProblemType.Forbidden, "Not permitted", "this account cannot be used", scope);
   }

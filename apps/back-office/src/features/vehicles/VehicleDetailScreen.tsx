@@ -33,7 +33,7 @@ import { vehicleStatusTone } from "./VehiclesListScreen";
 
 /**
  * A vehicle's record (061 US1/US2; redesign, board "Vehicle record"): Details · Edit details ·
- * Handover history in tabs; who has it, compliance and status on the right. Sectioned detail rows —
+ * Handover history in tabs; who has it, compliance and status on the right. Sectioned detail rows
  * the same shape as the driver profile, no cards.
  */
 const dash = <span className="text-muted-foreground">—</span>;
@@ -88,7 +88,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         }
       />
 
-      {/* ⚠ Compliance is DERIVED on read and NAMES the lapsed item, because the remedy differs. */}
+      {/* Compliance is derived on read and names the lapsed item, because the remedy differs. */}
       {v.complianceIssues.length > 0 ? (
         <Callout tone="destructive" title={v.complianceIssues.map((i) => COMPLIANCE_LABEL[i]).join(" · ")} role="status">
           Its driver cannot be given work until it is put right. Record the new date under Compliance.

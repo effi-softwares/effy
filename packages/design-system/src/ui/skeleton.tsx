@@ -2,9 +2,7 @@ import type * as React from "react"
 
 import { cn } from "../cn"
 
-// ⚠ Uses the shared `effy-pulse` keyframe from tokens.css rather than Tailwind's `animate-pulse`, so
-// every in-flight affordance on the platform breathes on ONE timing, and so the reduced-motion rule in
-// tokens.css can stop it. Tailwind's own utility is outside that rule's reach.
+// Uses tokens.css's `effy-pulse` rather than `animate-pulse`, so it shares one timing and the reduced-motion rule.
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

@@ -6,7 +6,6 @@ import { json, problem } from "@effy/edge-shared";
 import { authenticate } from "../driver/guard";
 import { deliveryRun, NotFoundError } from "../work/service";
 
-/** GET /driver/v1/delivery/runs/{runId} — this driver's same-day delivery round (063). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

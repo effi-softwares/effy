@@ -29,7 +29,7 @@ import { PostcodeChecker } from "./PostcodeChecker";
 const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs";
 
 /**
- * Coverage (076): the ONE list of postcodes Effy delivers to with its own drivers.
+ * Coverage: the one list of postcodes Effy delivers to with its own drivers.
  *
  * Being on the list is what makes an address "Delivered by Effy". A group is a label for staff and
  * changes nothing a customer sees, is offered or pays. This replaces the Zones and Rings tabs and
@@ -37,7 +37,7 @@ const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px
  *
  * A table with a toolbar and three plain sections beneath — no cards (Principle V).
  *
- * 097 — each postcode also says whether delivery TODAY is offered there. Switched in bulk from the
+ * Each postcode also says whether delivery today is offered there. Switched in bulk from the
  * selection (filter "Farther than", select all shown, "Don't offer"); never per group.
  */
 export function CoveragePanel({ canManage }: { canManage: boolean }) {
@@ -90,7 +90,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
     }
   }
 
-  /** 097 — offer, or stop offering, delivery today at the selected postcodes. */
+  /** Offer, or stop offering, delivery today at the selected postcodes. */
   async function setToday(offered: boolean) {
     setNote(null);
     try {

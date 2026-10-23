@@ -1,5 +1,4 @@
-// 095 US1 — pictures on a promotion: upload (presigned), record, describe, order, remove. SQL and rules
-// together because every rule here is one statement under the promotion's row lock.
+// Pictures on a promotion. SQL and rules together: each rule is one statement under the promotion's row lock.
 import {
   imageWidthsField,
   isDimensionsBeyondBuffer,
@@ -19,9 +18,8 @@ import type { AdminPromotionImageDTO, AdminPromotionImageUploadResponse } from "
 
 import { PromoError } from "./types";
 
-/** FR-001. */
 export const MAX_IMAGES = 10;
-/** Enough of the file to find its size in any header we accept. */
+/** Enough of the file to find its size in any accepted header. */
 const HEADER_BYTES = 64 * 1024;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -75,7 +73,7 @@ function toDTO(r: ImageRow): AdminPromotionImageDTO {
   };
 }
 
-/** A promotion's pictures, in order, each with the groups that chose it. */
+/** In order, each with the groups that chose it. */
 export async function listImages(promotionId: string, db: Queryable = { query }): Promise<AdminPromotionImageDTO[]> {
   const res = await db.query<ImageRow>(
     `SELECT i.id::text, i.storage_key, i.width, i.height, i.alt, i.focus_x::text, i.focus_y::text, i.position,
@@ -96,7 +94,7 @@ async function lockPromotion(tx: Queryable, id: string): Promise<void> {
   if (res.rowCount === 0) throw notFound();
 }
 
-/** POST …/images/uploads — a presigned PUT under `promotions/<id>/`. */
+/** A presigned PUT under `promotions/<id>/`. */
 export async function uploadUrl(promotionId: string, body: Record<string, unknown>): Promise<AdminPromotionImageUploadResponse> {
   if (!UUID.test(promotionId)) throw notFound();
   const exists = await query(`SELECT 1 FROM public.promotion WHERE id = $1`, [promotionId]);
@@ -111,10 +109,7 @@ export async function uploadUrl(promotionId: string, body: Record<string, unknow
   }
 }
 
-/**
- * POST …/images — record a picture once it is uploaded. The size is read from the stored file itself
- * (a presigned PUT is never seen by this service, so the file, not the request, is the truth).
- */
+/** The size is read from the stored file: the presigned upload never passes through here. */
 export async function addImage(promotionId: string, body: Record<string, unknown>, actor: string): Promise<AdminPromotionImageDTO> {
   if (!UUID.test(promotionId)) throw notFound();
   const key = typeof body.storageKey === "string" ? body.storageKey : "";
@@ -153,7 +148,6 @@ export async function addImage(promotionId: string, body: Record<string, unknown
   return (await listImages(promotionId)).find((i) => i.id === id)!;
 }
 
-/** PATCH …/images/{imageId} — description, focus point, place in the order. */
 export async function updateImage(promotionId: string, imageId: string, body: Record<string, unknown>, actor: string): Promise<AdminPromotionImageDTO> {
   if (!UUID.test(promotionId) || !UUID.test(imageId)) throw notFound();
   const change: Record<string, unknown> = {};
@@ -188,9 +182,8 @@ export async function updateImage(promotionId: string, imageId: string, body: Re
 }
 
 /**
- * DELETE …/images/{imageId}. A picture a group chose asks first (409 with where it is used); with
- * `confirm`, those places fall back to the best-fitting remaining picture (FR-016) — the FK nulls them.
- * The stored file is left, as for product pictures.
+ * A picture a group chose asks first (409 with its uses); with `confirm` those places fall back to the
+ * best remaining picture (the FK nulls them). The stored file is left.
  */
 export async function removeImage(promotionId: string, imageId: string, confirm: boolean, actor: string): Promise<void> {
   if (!UUID.test(promotionId) || !UUID.test(imageId)) throw notFound();

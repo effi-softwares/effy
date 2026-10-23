@@ -1,12 +1,4 @@
-/**
- * Stock legality and validation (054). No HTTP, no SQL — the repository owns scoping, this owns
- * what is allowed to happen (Principle VI).
- *
- * ⚠ THIS FILE IS SHARED BY BOTH AUDIENCES. The shop path and the back-office assisted path differ
- * ONLY in how the actor is resolved and gated; once an `Actor` exists, the rules are identical. That
- * is deliberate (research R6): two copies of "what a valid stock change is" would drift, and the
- * drift would show up as back-office being able to write something a shop cannot, or vice versa.
- */
+/** Shared by both audiences: once an `Actor` exists, the rules are identical. */
 
 import { stockState } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
@@ -22,13 +14,7 @@ import {
 import * as repo from "./repository";
 import { notFound, StockError, type Actor, type MovementRow, type StockRow } from "./types";
 
-// ── Validation ──────────────────────────────────────────────────────────────────────────────────
-
-/**
- * ⚠ `Number.isInteger` REJECTS 2.5 AND "2" ALIKE, which is what we want: JSON gives us `unknown`, and
- * a string that happens to look like a number must not become a count. `isInteger` is also false for
- * NaN and both infinities, so no separate guard is needed for those.
- */
+/** Rejects 2.5, "2", NaN and infinities alike. */
 function requireWholeNumber(value: unknown, field: string, { min = 0 }: { min?: number } = {}): number {
   if (typeof value !== "number" || !Number.isInteger(value)) {
     throw new StockError("validation", "a whole number is required", {
@@ -40,7 +26,7 @@ function requireWholeNumber(value: unknown, field: string, { min = 0 }: { min?: 
       [field]: `must be ${min} or more`,
     });
   }
-  // A count beyond this is not a shop counting a shelf, it is a typo or an attack on the audit trail.
+  // Beyond this is a typo or an attack on the audit trail.
   if (value > 1_000_000) {
     throw new StockError("validation", "the value is out of range", {
       [field]: "must be 1,000,000 or fewer",
@@ -68,9 +54,7 @@ function optionalNote(value: unknown): string | null {
   return value;
 }
 
-// ── Mapping ─────────────────────────────────────────────────────────────────────────────────────
-
-/** 098 — one variant's stock as a screen shows it: the shared mapping, so "low" means one thing. */
+/** The shared mapping, so "low" means one thing. */
 export function toStockDTO(row: StockRow): ProductStockDTO {
   return stockState({
     productId: row.productId, variantId: row.variantId, tracked: row.tracked, onHand: row.onHand,
@@ -82,8 +66,6 @@ function toMovementDTO(m: MovementRow): StockMovementDTO {
   return { ...m };
 }
 
-// ── Reads ───────────────────────────────────────────────────────────────────────────────────────
-
 export async function getStock(actor: Actor, variantId: string): Promise<ProductStockDetailDTO> {
   const row = await repo.readStock(variantId, actor.shopId);
   if (!row) throw notFound();
@@ -93,7 +75,6 @@ export async function getStock(actor: Actor, variantId: string): Promise<Product
   };
 }
 
-/** The restock list for the actor's shop (FR-029). */
 export async function listLowStock(actor: Actor): Promise<LowStockRowDTO[]> {
   return repo.readLowStock(actor.shopId);
 }
@@ -102,16 +83,10 @@ export async function getSettings(actor: Actor) {
   return { defaultThreshold: await repo.readSettings(actor.shopId) };
 }
 
-/**
- * 071 — the shop's other screens (the stock list, the restock list, Today's attention list) show
- * this count or this threshold. Told after the write has committed. A back-office correction tells
- * the shop too: `actor.shopId` is the shop whose stock it is, whoever changed it.
- */
+/** Announced after commit to the shop whose stock it is, whoever changed it. */
 const stockChanged = (actor: Actor) => announce([{ scope: "shop", shopId: actor.shopId, kind: "stock" }]);
 
-// ── Writes ──────────────────────────────────────────────────────────────────────────────────────
-
-/** Turn tracking on or off. Enabling REQUIRES a count — FR-003, and the database agrees. */
+/** Enabling requires a count. */
 export async function setTracking(
   actor: Actor,
   variantId: string,
@@ -123,9 +98,7 @@ export async function setTracking(
   let onHand: number | null = null;
   if (body.tracked) {
     if (body.onHand === undefined || body.onHand === null) {
-      // ⚠ Refused rather than defaulted to zero. Defaulting would make the product instantly
-      // unbuyable with no operator intent behind it — a state the shop would learn about from a
-      // customer rather than from their own action.
+      // Refused rather than defaulted to zero, which would make the product unbuyable unasked.
       throw new StockError("validation", "a count is required to turn tracking on", {
         onHand: "required when enabling tracking",
       });
@@ -161,8 +134,7 @@ export async function adjustCount(
     });
   }
   if (body.delta === 0) {
-    // A movement that moves nothing is a record with no fact behind it, and it would dilute the
-    // history the shop reads to understand what happened.
+    // A movement that moves nothing would dilute the history.
     throw new StockError("validation", "the change is empty", { delta: "must not be zero" });
   }
   const reason = requireReason(body.reason);
@@ -196,11 +168,7 @@ export async function setSettings(actor: Actor, body: Record<string, unknown>) {
   return { defaultThreshold: value };
 }
 
-/**
- * ⚠ Moving a count on an UNTRACKED product is a conflict, not a validation error, and not a silent
- * success. The database would refuse it anyway (the write matches no row), but that refusal is
- * indistinguishable from "no such product" and would tell the operator the wrong thing entirely.
- */
+/** A conflict, not a validation error: the database's refusal would read as "no such product". */
 async function requireTracked(actor: Actor, variantId: string): Promise<StockRow> {
   const row = await repo.readStock(variantId, actor.shopId);
   if (!row) throw notFound();

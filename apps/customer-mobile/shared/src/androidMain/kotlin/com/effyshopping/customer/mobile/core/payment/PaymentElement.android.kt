@@ -22,15 +22,15 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
- * The Android in-app payment element (051 T049).
+ * The Android in-app payment element.
  *
- * ⚠ THE DEFERRED FLOW IS THE `CreateIntentCallback` VARIANT, chosen deliberately. Spike S1 found the SDK
+ * The deferred flow is the `CreateIntentCallback` variant, chosen deliberately. Spike S1 found the SDK
  * offers three, and the docs show a different one — `CreateIntentWithConfirmationTokenCallback`, where
- * the server creates AND confirms, which would have needed a new endpoint. This variant takes the client
- * secret `POST /v1/checkout/intent` already returns, so the settlement path is untouched (research R11).
+ * the server creates and confirms, which would have needed a new endpoint. This variant takes the client
+ * secret `POST /v1/checkout/intent` already returns, so the settlement path is untouched.
  *
- * ⚠ The callback also receives `shouldSavePaymentMethod` — the shopper's save consent, arriving from the
- * element's own checkbox. The server does not decide it and must not (FR-020).
+ * The callback also receives `shouldSavePaymentMethod` — the shopper's save consent, arriving from the
+ * element's own checkbox. The server does not decide it and must not.
  */
 private class AndroidPaymentElementHandle(
     val element: EmbeddedPaymentElement,
@@ -39,7 +39,7 @@ private class AndroidPaymentElementHandle(
     private val _state = MutableStateFlow(PaymentElementState())
     override val state: StateFlow<PaymentElementState> = _state.asStateFlow()
 
-    /** Resolves the in-flight confirmation: the SDK's `confirm()` is void and answers by callback. */
+    /** Resolves the in-flight confirmation: the sdk's `confirm` is void and answers by callback. */
     private val pending = AtomicReference<((PaymentResult) -> Unit)?>(null)
 
     fun publish(update: (PaymentElementState) -> PaymentElementState) {
@@ -59,15 +59,11 @@ private class AndroidPaymentElementHandle(
 
 @Composable
 actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementHandle? {
-    // ⚠ THE SDK READS THE PUBLISHABLE KEY FROM A PROCESS-WIDE SINGLETON, NOT FROM THE CONFIGURATION.
-    // Every element and every confirm call resolves it through `PaymentConfiguration.getInstance`,
-    // which throws `IllegalStateException: PaymentConfiguration was not initialized` when nothing has
-    // called `init`. Until 051 the only caller was the retired PaymentSheet presenter in `MainActivity`
-    // — so with that gone, this is the one place that establishes the key. `init` also persists it, so
-    // a device that had paid before would have masked the omission: it would have worked in testing on
-    // a used device and thrown on a fresh install.
+    // The SDK reads the publishable key from a process-wide singleton (`PaymentConfiguration.getInstance`,
+    // which throws when nothing called `init`), and this is the one place that sets it. `init` persists it,
+    // so a device that paid before would hide a missing call; a fresh install would throw.
     val context = LocalContext.current
-    // 087 — the app's own appearance (Account → Appearance), not the phone's night mode.
+    // The app's own appearance (Account → Appearance), not the phone's night mode.
     val dark = LocalEffyDark.current
     remember(config.publishableKey) {
         PaymentConfiguration.init(context.applicationContext, config.publishableKey)
@@ -118,8 +114,8 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
             is EmbeddedPaymentElement.ConfigureResult.Succeeded ->
                 handle.publish { it.copy(ready = true, error = null) }
             is EmbeddedPaymentElement.ConfigureResult.Failed ->
-                // ⚠ A shopper who cannot pay must be TOLD. An inert screen with no message is
-                // indistinguishable from a broken app (FR-036).
+                // A shopper who cannot pay must be told. An inert screen with no message is
+                // indistinguishable from a broken app.
                 handle.publish {
                     it.copy(
                         ready = false,
@@ -146,9 +142,9 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
 
 private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): EmbeddedPaymentElement.Configuration =
     EmbeddedPaymentElement.Configuration.Builder(config.merchantName)
-        // ⚠ COLLECT NOTHING WE ALREADY HOLD (FR-014/FR-015). `attachDefaultsToPaymentMethod = true` is
+        // Collect nothing we already hold. `attachDefaultsToPaymentMethod = true` is
         // what makes this lossless rather than merely shorter: the address still reaches the bank for
-        // authorisation, sourced from Effy's record instead of the shopper's keyboard (research R4).
+        // authorisation, sourced from Effy's record instead of the shopper's keyboard.
         .billingDetailsCollectionConfiguration(
             PaymentSheet.BillingDetailsCollectionConfiguration(
                 name = PaymentSheet.BillingDetailsCollectionConfiguration.CollectionMode.Never,
@@ -175,14 +171,14 @@ private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): E
                     ),
                 )
             }
-            // 051 US3 — the shopper's kept cards, rendered by the element's own list.
+            // The shopper's kept cards, rendered by the element's own list.
             //
-            // ⚠ `payment_method_save` on the SESSION is what renders the element's save checkbox and
+            // `payment_method_save` on the session is what renders the element's save checkbox and
             // lets the provider set `allow_redisplay` from what the shopper actually ticked. That is
-            // why the intent must NOT also carry `setup_future_usage`: combining them is a documented
-            // integration error and would keep a card the shopper declined (research R5, FR-020).
+            // why the intent must not also carry `setup_future_usage`: combining them is a documented
+            // integration error and would keep a card the shopper declined.
             //
-            // ⚠ Both halves or neither. A secret without its customer id cannot be attached, so this
+            // Both halves or neither. A secret without its customer id cannot be attached, so this
             // is deliberately a single guarded block rather than two independent lets.
             val session = config.customerSessionSecret
             val customerId = config.customerId
@@ -195,13 +191,13 @@ private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): E
                 )
             }
         }
-        // ⚠ Effy draws the mandate text itself, beside its own pay button. Turning this off WITHOUT
-        // rendering it in the screen would be a compliance failure, not a style choice (T078).
+        // Effy draws the mandate text itself, beside its own pay button. Turning this off without
+        // rendering it in the screen would be a compliance failure, not a style choice.
         .embeddedViewDisplaysMandateText(false)
-        // ⚠ The typeface is a REAL Android font resource. General Sans lives in
+        // The typeface is a real Android font resource. General Sans lives in
         // `shared/src/androidMain/res/font/` for exactly this reason — the Compose Resources copy has no
         // R.font id, and passing none renders the payment form in the system font beside Effy's own type
-        // with nothing failing to compile (research R8).
+        // with nothing failing to compile.
         .appearance(EffyPaymentAppearance.of(R.font.geist, dark))
         .build()
 

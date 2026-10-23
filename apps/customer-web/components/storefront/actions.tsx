@@ -1,34 +1,14 @@
 import Link from "next/link"
 
 /**
- * THE storefront button — one definition every pill on the public surface resolves to.
- *
- * ⚠ WHY THIS IS A SEPARATE, STRING-ONLY MODULE. Two constraints meet here:
- *
- *  1. **No cva on guest routes.** The design-system `Button`/`buttonVariants` are built on
- *     `class-variance-authority`; importing them here would pull `cva` into the GUEST chunks.
- *     `/search` ships at the 174 KB gate, and no guest-route component imports a cva primitive today
- *     (verified). So the storefront keeps a plain-string button and instead MATCHES the shared
- *     component's look in class terms — same base, same `hover:bg-primary/90`, same `focus-visible`
- *     border+ring, same svg sizing. Two definitions, one appearance; the split is the bundle budget.
- *
- *  2. **No `next/image` on `/search`.** These helpers used to live in `kit.tsx` alongside
- *     `MediaFrame`/`Scrim`, which import `next/image`. Importing a button from that module dragged the
- *     image code into whatever chunk did so — which pushed `/search` (its only kit importer,
- *     `SearchExperience`) OVER the 174 KB gate by 0.2 KB. Splitting the buttons into this
- *     `next/image`-free module is what keeps `/search` cheap. `kit.tsx` re-exports these, so existing
- *     `from ".../kit"` imports keep working; guest routes import straight from here.
- *
- * ⚠ This replaced ~16 hand-rolled `inline-flex … rounded-full bg-primary …` copies scattered across
- * the storefront, account and checkout, whose heights had drifted to h-11 / h-12 / h-14 /
- * min-h-[48px] and whose hover was `opacity-90`. Everything now routes through `ActionLink` (a link)
- * or `ActionButton` (a real `<button>`), so there is one place to change the storefront pill.
+ * The storefront button: one definition every public pill resolves to. Plain strings, not the
+ * design-system `Button` (cva would join the guest chunks), matching its look; and apart from `kit.tsx`,
+ * whose `next/image` imports would ride along. `ActionLink` is a link, `ActionButton` a real `<button>`.
  */
 /**
- * ⚠ THE CLASSES ARE DEFINED IN `app/globals.css` (`@layer components`), NOT HERE (PERF-01). This
- * module only names them. A call site's `className` overrides them by the cascade — a utility always
- * outranks the components layer — so nothing is merged at run time and `tailwind-merge` (8 KB) stays
- * off every guest page. Do not import `cn` here: client components import this module.
+ * The classes are defined in `app/globals.css` (`@layer components`); this module only names them. A
+ * call site's `className` overrides them by the cascade, so `tailwind-merge` stays off guest pages. Do
+ * not import `cn` here: client components import this module.
  */
 export type BtnVariant = "primary" | "brand" | "outline" | "muted" | "ghost" | "link" | "destructive"
 export type BtnSize = "sm" | "md" | "lg" | "xl"
@@ -67,7 +47,7 @@ export function ActionLink({
 
 /**
  * The `<button>` counterpart to {@link ActionLink} — for CTAs that act rather than navigate (submit,
- * onClick). ⚠ `type` is NOT defaulted: a bare `<button>` inside a `<form>` submits, and several call
+ * onClick). `type` is not defaulted: a bare `<button>` inside a `<form>` submits, and several call
  * sites rely on that, so the caller's `type` (or the native default) wins.
  */
 export function ActionButton({

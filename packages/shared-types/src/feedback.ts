@@ -1,17 +1,9 @@
 /**
- * Customer feedback (046) — the shared SSOT for the feedback listening channel.
- *
- * Contract: `specs/046-customer-feedback/contracts/feedback-api.contract.md`.
- *
- * Imported by the storefront form, the customer-mobile slice, the two edge services, and the
- * back-office console. Nothing here is redefined on either side (Principle II) — most importantly the
- * length bounds, so the form, the service validators, and the DB CHECK cannot disagree (U1).
+ * Customer feedback, shared by the storefront form, the customer app, the customer and admin services
+ * and back-office, so the length bounds cannot disagree with the DB check.
  */
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Fixed vocabularies (research D3). Small closed unions keep the queue triageable and the filters
-// finite; the DB mirrors each with a CHECK constraint.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Fixed vocabularies, each mirrored by a DB check.
 
 export type FeedbackCategory = "bug" | "suggestion" | "complaint" | "compliment" | "other";
 
@@ -23,7 +15,7 @@ export const FEEDBACK_CATEGORIES: readonly FeedbackCategory[] = [
   "other",
 ];
 
-/** Human labels — the ONE place a category becomes prose (clients import these, never re-spell them). */
+/** Human labels: the one place a category becomes prose. */
 export const FEEDBACK_CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   bug: "Something's broken",
   suggestion: "A suggestion",
@@ -32,10 +24,7 @@ export const FEEDBACK_CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   other: "Something else",
 };
 
-/**
- * Triage state. `new` on insert; `replied` is SYSTEM-set when a reply email succeeds (never a direct
- * staff choice); the rest are staff-set. `spam` hides a row from the default view without deleting it.
- */
+/** Triage state: `new` on insert; `replied` is set by the system when a reply email succeeds; the rest by staff. `spam` hides a row without deleting it. */
 export type FeedbackStatus =
   | "new"
   | "in_review"
@@ -53,7 +42,7 @@ export const FEEDBACK_STATUS_LABELS: Record<FeedbackStatus, string> = {
   spam: "Spam",
 };
 
-/** The statuses a staff member may set directly. `replied` is deliberately absent (system-set). */
+/** The statuses staff may set directly (`replied` is system-set). */
 export const FEEDBACK_SETTABLE_STATUSES: readonly FeedbackStatus[] = [
   "new",
   "in_review",
@@ -62,57 +51,26 @@ export const FEEDBACK_SETTABLE_STATUSES: readonly FeedbackStatus[] = [
   "spam",
 ];
 
-/** Where the submission originated (FR-011). */
+/** Where the submission originated. */
 export type FeedbackSource = "checkout" | "general" | "other";
 
 /** Which surface it came from. */
 export type FeedbackPlatform = "web" | "ios" | "android";
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Length bounds — ONE source of truth (U1). The DB CHECK, the service validators, the web form, and
-// the mobile screen all consume these. Change here and in the migration together.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Length bounds, shared by the DB check, the validators and both clients. Change them with the migration.
 
 export const FEEDBACK_MESSAGE_MAX = 5000;
 export const FEEDBACK_REPLY_MAX = 5000;
 export const FEEDBACK_NOTE_MAX = 2000;
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Submission (customer surfaces → edge-customer).
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The submit request body. `email`/`name` are honoured ONLY on the public (guest) route — the
- * authenticated route takes the trusted email from the verified profile and ignores a body email.
- */
-export interface SubmitFeedbackRequest {
-  category: FeedbackCategory;
-  message: string;
-  rating?: number; // 1..5, optional
-  source: FeedbackSource;
-  platform: FeedbackPlatform;
-  /** Guest route only; unverified. */
-  email?: string;
-  /** Optional display name (guest route, or an override on the authed route). */
-  name?: string;
-}
-
-/**
- * The submit result.
- *
- * ⚠ `ok` carries the reference code the shopper sees and both emails quote. A thank-you email that
- * fails to send does NOT turn this into `error` — the submission is already stored (FR-015); only a
- * failure to STORE is `error`.
- */
+/** The submit result. `ok` carries the reference both emails quote; only a failure to store is `error`, not a failed thank-you email. */
 export type SubmitFeedbackResult =
   | { status: "ok"; referenceCode: string }
   | { status: "invalid"; field?: "message" | "email" | "category" | "rating" | "source" | "platform" }
   | { status: "rate_limited" }
   | { status: "error" };
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Console (edge-admin → back-office).
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Console (admin service → back-office).
 
 export interface FeedbackSubmitter {
   kind: "customer" | "guest";
@@ -121,7 +79,7 @@ export interface FeedbackSubmitter {
   emailVerified: boolean;
 }
 
-/** A row in the console list. `preview` is a truncated message; the full text is on the detail. */
+/** A row in the console list. `preview` is truncated; the full text is on the detail. */
 export interface FeedbackListItemDTO {
   referenceCode: string;
   category: FeedbackCategory;
@@ -132,7 +90,7 @@ export interface FeedbackListItemDTO {
   source: FeedbackSource;
   platform: FeedbackPlatform;
   hasEmail: boolean;
-  createdAt: string; // ISO
+  createdAt: string;
 }
 
 export interface FeedbackListDTO {
@@ -144,13 +102,13 @@ export interface FeedbackListDTO {
 export interface FeedbackReplyDTO {
   body: string;
   staffName: string | null;
-  sentAt: string; // ISO
+  sentAt: string;
 }
 
 export interface FeedbackNoteDTO {
   body: string;
   staffName: string | null;
-  createdAt: string; // ISO
+  createdAt: string;
 }
 
 export interface FeedbackDetailDTO {
@@ -162,22 +120,11 @@ export interface FeedbackDetailDTO {
   submitter: FeedbackSubmitter;
   source: FeedbackSource;
   platform: FeedbackPlatform;
-  createdAt: string; // ISO
-  updatedAt: string; // ISO
-  /** false when there is no submitter email to reply to (FR-028). */
+  createdAt: string;
+  updatedAt: string;
+  /** false when there is no submitter email to reply to. */
   canReply: boolean;
   replies: FeedbackReplyDTO[];
   notes: FeedbackNoteDTO[];
 }
 
-/** Console list filters (all optional, combinable — FR-020). */
-export interface FeedbackListQuery {
-  q?: string;
-  category?: FeedbackCategory;
-  status?: FeedbackStatus;
-  rating?: number;
-  from?: string; // ISO date
-  to?: string; // ISO date
-  cursor?: string;
-  limit?: number;
-}

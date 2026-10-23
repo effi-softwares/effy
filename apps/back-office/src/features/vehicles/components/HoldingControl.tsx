@@ -11,12 +11,8 @@ import { vehicleActionError, vehicleFieldErrors } from "../errorText";
 import { useIssueVehicle, useReturnVehicle } from "../queries";
 
 /**
- * Hand a vehicle to a driver, and take it back (061 US2, FR-010/FR-011).
- *
- * ⚠ THE REFUSALS ARE THE POINT OF THIS COMPONENT, not the happy path. "That vehicle is already out
- * with Sam Rivers" and "that driver already has EFY-002" are composed by the service because only it
- * knows those facts — and 053 shipped a console that threw exactly this information away. The field
- * messages are rendered beside the form, not just the headline sentence.
+ * Hand a vehicle to a driver, and take it back. The service composes the refusals ("already out with Sam
+ * Rivers", "that driver already has EFY-002"), and the field messages are shown beside the form.
  */
 export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
   const [driverId, setDriverId] = useState("");
@@ -145,7 +141,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
       {error ? (
         <div role="alert" className="space-y-1">
           <p className="text-sm font-medium text-destructive">{error}</p>
-          {/* ⚠ The field messages carry WHO or WHAT is in the way. Rendering only the headline is
+          {/* The field messages carry who or what is in the way. Rendering only the headline is
               how 053's console lost the information the server had already worked out. */}
           {fieldErrors.map((f) => (
             <p key={f.field} className="text-sm text-muted-foreground">

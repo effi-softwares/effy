@@ -31,7 +31,7 @@ describe("PromoHero", () => {
   })
 
   /**
-   * The band is DRAWN — a promo colour, a decoration, icon bubbles — so a promotion needs no artwork
+   * The band is drawn — a promo colour, a decoration, icon bubbles — so a promotion needs no artwork
    * to be shown, and its artwork is not put under the words.
    */
   it("shows a promotion with no artwork, and draws no image", () => {
@@ -59,7 +59,7 @@ describe("PromoHero", () => {
   })
 
   /**
-   * ⚠ Out of sight is not enough. Every slide is in the document, stacked on one box: one that is
+   * Out of sight is not enough. Every slide is in the document, stacked on one box: one that is
    * not showing must be out of the tab order and the accessibility tree too, or a keyboard user tabs
    * through N sets of buttons of which N-1 cannot be seen.
    */
@@ -95,7 +95,7 @@ describe("PromoHero", () => {
       act(() => void vi.advanceTimersByTime(6000))
       expect(showing()).toBe(1)
 
-      // ⚠ In a browser a click leaves focus on the button, and that must not hold the carousel. This
+      // In a browser a click leaves focus on the button, and that must not hold the carousel. This
       // DOM cannot tell a mouse's focus from a keyboard's (`:focus-visible`), so that half was checked
       // in a real browser; what is pinned here is that a click does not stop the timer.
       fireEvent.click(getByRole("button", { name: "Next slide" }))
@@ -143,14 +143,14 @@ describe("PromoHero", () => {
     }
   })
 
-  /** FR-037d — a shopper learns of a condition from the banner or from where it leads. */
+  /** A shopper learns of a condition from the banner or from where it leads. */
   it("shows a promotion's terms on the face when it has them", () => {
     const { getByText } = render(<PromoHero slides={[banner(1, { terms: "On orders over $30" })]} side={[banner(1, { terms: "On orders over $30" })]} />)
     expect(getByText("On orders over $30")).toBeTruthy()
   })
 
   /**
-   * ⚠ The stretched link must be a SIBLING of the copy, never an ancestor of the buttons — nested
+   * The stretched link must be a sibling of the copy, never an ancestor of the buttons — nested
    * interactive elements are invalid HTML and unusable with a screen reader.
    */
   it("links the band to the promotion without nesting the buttons inside that link", () => {

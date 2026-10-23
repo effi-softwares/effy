@@ -34,9 +34,9 @@ import com.effyshopping.customer.mobile.features.catalog.domain.FacetControl
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The advanced filter bottom sheet (043 US1). Opened from the filter icon in the Search header; holds
+ * The advanced filter bottom sheet. Opened from the filter icon in the Search header; holds
  * every facet — the offers toggle, price band, a single-select category, and the multi-select brand +
- * characteristic facets, each option showing its count (043 US2). Filters apply LIVE on each tap
+ * characteristic facets, each option showing its count. Filters apply live on each tap
  * (the ViewModel re-runs the search), so the primary action simply closes and shows the results.
  *
  * Built on [EffySheet], which owns the modal sheet, scroll, insets, title and the primary/cancel pair.
@@ -66,14 +66,14 @@ fun FilterSheet(
         fullHeight = true,
         cancelLabel = null,
     ) {
-        // 087 — one column with NO gap between rows: each row is already a 48dp target, and the sheet's
+        // One column with NO gap between rows: each row is already a 48dp target, and the sheet's
         // 12dp gap between every child made a list of choices read as a stack of separate controls.
         Column(modifier = Modifier.fillMaxWidth()) {
         // Offers — a fixed toggle (not a server facet in this slice).
         SectionTitle("Offers")
         EffySwitchRow(label = "On sale", checked = state.saleOnly, onCheckedChange = { onToggleSale() }, horizontalPadding = 0.dp)
 
-        // Price band — corrects an inverted range before applying (FR-004).
+        // Price band — corrects an inverted range before applying.
         SectionTitle("Price")
         PriceRangeRow(
             min = state.minPrice.orEmpty(),
@@ -198,7 +198,7 @@ private fun PriceRangeRow(
             onClick = {
                 var a = lo.trim()
                 var b = hi.trim()
-                // FR-004: correct an inverted range rather than sending it (which would match nothing).
+                // Correct an inverted range rather than sending it (which would match nothing).
                 if (a.isNotEmpty() && b.isNotEmpty() && (a.toDoubleOrNull() ?: 0.0) > (b.toDoubleOrNull() ?: 0.0)) {
                     val t = a; a = b; b = t
                     lo = a; hi = b

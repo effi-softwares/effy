@@ -5,10 +5,7 @@ import { jsonBody, stringField } from "../lib/route";
 import { savedService } from "../lib/wiring";
 import { savedError } from "./respond";
 
-/**
- * Shared by the two add-to-cart routes (the default list and a named one). The body is optional.
- * Always 200 once the list is found — even when nothing was added: `skipped` is the explanation.
- */
+/** Always 200 once the list is found; `skipped` explains anything not added. */
 export async function addListToCart(event: APIGatewayProxyEventV2, scope: RequestScope, customerId: string, listRef: string) {
   const changeId = stringField(jsonBody(event)?.changeId) ?? "";
   try {

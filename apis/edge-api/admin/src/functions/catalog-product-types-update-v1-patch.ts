@@ -1,4 +1,3 @@
-// PATCH /admin/v1/catalog/product-types/{id} — edit name/description. Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

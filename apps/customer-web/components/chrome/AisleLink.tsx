@@ -8,7 +8,7 @@ import { clsx } from "clsx"
 /**
  * One entry in the header's aisle row, knowing only whether it is the current one.
  *
- * ⚠ The glyph and label arrive as `children`, rendered on the server. This component is the smallest
+ * The glyph and label arrive as `children`, rendered on the server. This component is the smallest
  * thing that needs the URL — it exists so the row's icons and markup stay out of the client bundle.
  *
  * `match` says what "current" means: an aisle key (`/search?category=`), the sale listing

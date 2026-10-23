@@ -11,17 +11,7 @@ import {
   WrongModeError,
 } from "../password/service"
 
-/**
- * POST /customer/v1/password/challenge — send the step-up code (012 FR-017).
- *
- * ⚠ THIS ENDPOINT GRANTS NOTHING. It puts a code in the customer's inbox and returns a MASKED
- * destination. It mints no token, stores no grant, and creates no state — so there is nothing here
- * to steal. The code only becomes worth anything when presented back, with a new password, to
- * `PUT /customer/v1/password` in a single request.
- *
- * That is deliberate. The obvious alternative — verify a code here, hand back a "you may now set a
- * password" grant — would be creating a fresh credential for an attacker to lift.
- */
+/** Sends the step-up code and returns a masked destination; it grants nothing until the code comes back with the new password. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -33,7 +23,7 @@ export const handler = async (
     caller = requireCaller(event)
   } catch (err) {
     if (err instanceof TokenMismatchError) {
-      // Includes the mismatched-pair attack: a victim's ID token + the attacker's access token.
+      // Includes a victim's ID token paired with an attacker's access token.
       scope.log.warn({ reason: err.message }, "password challenge: refused at the identity guard")
       return problem(
         401,
@@ -61,7 +51,7 @@ function mapError(
   scope: ReturnType<typeof preamble>,
 ): APIGatewayProxyStructuredResultV2 {
   if (err instanceof WrongModeError) {
-    // FR-014 — the account already has a password; the SET flow does not apply to it.
+    // The account already has a password; set does not apply.
     return problem(
       409,
       ProblemType.ValidationFailed,
@@ -77,7 +67,7 @@ function mapError(
 
   const name = (err as { name?: string })?.name
   if (name === "LimitExceededException" || name === "TooManyRequestsException") {
-    // FR-020 — Cognito's own rate limit, surfaced rather than swallowed.
+    // Cognito's own rate limit, surfaced.
     return problem(
       429,
       ProblemType.RateLimited,
@@ -87,7 +77,7 @@ function mapError(
     )
   }
 
-  // ⚠ `err` never contains the code or the token — Cognito does not echo them. Keep it that way.
+  // `err` never contains the code or the token.
   scope.log.error({ err, sub }, "password challenge failed")
   return unavailable(scope)
 }

@@ -4,15 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ EVERY ROUTE THAT MOVES WORK FORWARD MUST CHECK IT IS THE NEXT STEP (093).
- *
- * The order of a driver's work — shops before the hub, the van before a drop, the hub before the next
- * load — is enforced by the gates in `sequence.ts`, not by the app's controls. A new route, or a
- * refactor that drops a call, would work and pass its own tests while letting a stale screen deliver a
- * drop nobody loaded. This reads the routes the service declares and requires each progressing one to
- * call its gate, or to be listed with the reason it has none.
- */
+/** Every progressing route calls its sequence gate, or is listed with the reason it has none. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");

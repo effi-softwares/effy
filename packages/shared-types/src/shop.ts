@@ -1,26 +1,20 @@
 /**
- * Shop audience contracts — 007-shop-web, renamed by 008-shop-naming-unification.
- *
- * The shop Cognito pool defines two RBAC groups (constitution v1.6.0, Principle IV). The claim is
- * the ORIGIN of role assignment; the platform's `public.shop_staff` record is AUTHORITATIVE for
- * the access decision (role AND status AND shop scope).
- *
- * Consumed by `apps/shop-web` today and by `apps/shop-mobile` when it is bootstrapped — the two
- * surfaces of one audience, held at parity (docs/audiences/shop-capabilities.md).
+ * Shop audience contracts. The shop pool defines two groups; the claim is the origin of a role, and
+ * `public.shop_staff` decides access (role, status and shop scope).
  */
 
-/** Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs. */
+/** Shop roles, prefixed so `manager` stays unambiguously back-office's in logs. */
 import type { AustralianState } from "./delivery";
 
 export type ShopRole = "shop_manager" | "shop_staff";
 
 export const SHOP_ROLES: readonly ShopRole[] = ["shop_manager", "shop_staff"];
 
-/** Platform-owned lifecycle. A disabled operator is denied despite an otherwise-valid token. */
+/** Platform-owned lifecycle: a disabled operator is refused despite a valid token. */
 export type ShopStaffStatus = "active" | "disabled";
 
-/** Shop lifecycle status (009-shop-management). Only `active` shops serve their operators;
- *  `suspended` (temporary hold) and `disabled` (deactivated, retained for audit) both refuse. */
+/** Shop lifecycle. Only `active` shops serve their operators; `suspended` (temporary) and
+ *  `disabled` (retained for audit) both refuse. */
 export type ShopLifecycleStatus = "active" | "suspended" | "disabled";
 
 export const SHOP_LIFECYCLE_STATUSES: readonly ShopLifecycleStatus[] = [
@@ -29,7 +23,7 @@ export const SHOP_LIFECYCLE_STATUSES: readonly ShopLifecycleStatus[] = [
   "disabled",
 ];
 
-/** Wire DTO for the assigned shop, embedded in GET /shop/v1/me. */
+/** The assigned shop, embedded in GET /shop/v1/me. */
 export interface ShopSummaryDTO {
   id: string;
   code: string;
@@ -37,9 +31,8 @@ export interface ShopSummaryDTO {
   status: ShopLifecycleStatus;
 }
 
-/** Wire DTO for GET /shop/v1/me (contracts/shop-me.contract.md).
- *  `email` may be null until provisioning supplies it; `shop` is null for an unassigned
- *  operator — an expected state, not an error. */
+/** GET /shop/v1/me. `email` may be null until provisioning supplies it; `shop` is null for an
+ *  unassigned operator (an expected state). */
 export interface ShopStaffRecordDTO {
   subject: string;
   email: string | null;
@@ -49,7 +42,7 @@ export interface ShopStaffRecordDTO {
   lastSeenAt: string;
 }
 
-/** Domain shapes the console renders — roles narrowed to known ShopRole. */
+/** What the console renders: roles narrowed to known ShopRole. */
 export interface ShopSummary {
   id: string;
   code: string;
@@ -65,38 +58,21 @@ export interface ShopStaffRecord {
   shop: ShopSummary | null;
 }
 
-export interface ManagerPingResult {
-  subject: string;
-}
-
-/**
- * Narrow arbitrary role strings to known roles.
- *
- * This is the client half of the versioning contract (docs/api/versioning-policy.md rule 4,
- * "tolerant readers"): a role the backend adds later maps to nothing here rather than throwing,
- * so an old client keeps working against a newer server.
- */
+/** Narrows role strings to known roles; one the backend adds later maps to nothing rather than throwing. */
 export function toShopRoles(input: readonly string[] | undefined): ShopRole[] {
   if (!input) return [];
   return input.filter((r): r is ShopRole => (SHOP_ROLES as readonly string[]).includes(r));
 }
 
-/** True when the operator can reach manager-only areas. The interface uses this to hide controls;
- *  the BACKEND independently enforces the same decision from the platform record — this is
- *  least-privilege UX, never the guard (FR-007). */
+/** True when the operator can reach manager-only areas. UX only: the backend enforces the same
+ *  decision from the platform record. */
 export function isShopManager(roles: readonly ShopRole[]): boolean {
   return roles.includes("shop_manager");
 }
 
-/* ────────────────────────────────────────────────────────────────────────────────────────────
- * Back-office shop-management contracts (009-shop-management).
- *
- * These describe a BACK-OFFICE operator managing many shops (via /admin/v1/shops...), distinct
- * from the shop-audience contracts above (an operator's view of their own shop). Consumed by
- * apps/back-office. See specs/009-shop-management/contracts/shop-management.contract.md.
- * ──────────────────────────────────────────────────────────────────────────────────────────── */
+// Back-office shop management (/admin/v1/shops...): an operator managing many shops.
 
-/** Generic paged-list envelope for server-side pagination (A12). */
+/** A paged-list envelope for server-side pagination. */
 export interface PagedDTO<T> {
   items: T[];
   total: number;
@@ -111,12 +87,9 @@ export interface ShopListItemDTO {
   name: string;
   status: ShopLifecycleStatus;
   userCount: number;
-  /** ⚠ 061 FR-030 — whether an address has been recorded, so the GAP is visible on the register
-   *  without opening every shop. The address itself is not here: a list does not need a street, and
-   *  a shop's location must never travel further than it has to. */
+  /** Whether an address is recorded, so the gap shows on the register; the address itself stays off lists. */
   hasAddress: boolean;
-  /** 091 — how this shop's labels scanned over the last [sinceDays] days (redesign: the register's
-   *  "Label scanning" column). Optional so an older deploy still reads. */
+  /** How this shop's labels scanned over the last [sinceDays] days. Optional for an older deploy. */
   labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
 }
 
@@ -132,36 +105,21 @@ export interface ShopUserDTO {
 }
 
 /**
- * Where a shop physically is (061, FR-029).
- *
- * ⚠ ADDRESS ONLY — there are NO COORDINATES, deliberately (FR-031). Nothing on this platform computes
- * distance: sequencing is an ordering problem over task status, time, zone and shop, not a geometry
- * problem (decision D20). A `latitude`/`longitude` pair would be read by nothing, and a column nothing
- * reads is a design decision made in advance for a feature nobody has specified — which is the exact
- * pattern this programme exists to clean up.
- *
- * ⚠ A SHOP ADDRESS MUST NEVER REACH A CUSTOMER SURFACE. Hidden fulfilment is a platform invariant: a
- * customer buys from Effy and never learns which shop served them. Guarded by a source test.
- *
- * Every field is nullable. Shops exist today without an address, and the console shows the gap rather
- * than a fabricated value.
+ * Where a shop is: an address only, never coordinates (nothing computes distance). Never reaches a
+ * customer surface (guarded by a source test). Every field is nullable: the console shows the gap.
  */
 export interface ShopAddressDTO {
   addressLine1: string | null;
   addressLine2: string | null;
   suburb: string | null;
-  /** Exactly four digits. Slice C matches this against a delivery zone; a malformed value there
-   *  silently matches nothing and produces a shop nobody can be sent to. */
+  /** Exactly four digits: a malformed value would match no delivery zone. */
   postcode: string | null;
   state: AustralianState | null;
 }
 
-// ⚠ `AustralianState` is IMPORTED from ./delivery, not re-declared. 047 already owns it, and a second
-// definition of one closed set is the two-sources-for-one-fact shape this repo has shipped five
-// defects through — the constitution names it outright for the palette. The barrel re-export in
-// index.ts caught the duplicate at compile time, which is the guard working.
+// `AustralianState` comes from./delivery.
 
-/** Full shop detail + roster (GET /admin/v1/shops/{id}). */
+/** Full shop detail and roster (GET /admin/v1/shops/{id}). */
 export interface ShopDetailDTO {
   id: string;
   code: string;
@@ -173,17 +131,14 @@ export interface ShopDetailDTO {
   createdAt: string;
   updatedAt: string;
   users: ShopUserDTO[];
-  /**
-   * 091 — how this shop's package labels scanned over the last [sinceDays] days: hand-overs recorded as
-   * scanned, and as typed or ticked by hand. A shop whose labels often fail is printing them badly.
-   */
+  /** How this shop's labels scanned over the last [sinceDays] days: scanned versus typed or ticked. Labels that often fail are printed badly. */
   labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
-  /** 096 — every bag must be scanned as packed before the shop can mark it ready. Set through
-   *  `PUT /fleet/v1/shops/{id}/pack-scanning`. Optional so an older deploy still reads. */
+  /** Every bag must be scanned as packed before the shop can mark it ready (`PUT /fleet/v1/shops/{id}/pack-scanning`).
+   *  Optional for an older deploy. */
   packScanRequired?: boolean;
 }
 
-/** POST /admin/v1/shops — create a shop + provision its primary manager. */
+/** POST /admin/v1/shops: create a shop and provision its primary manager. */
 export interface CreateShopRequest {
   code: string;
   name: string;
@@ -197,7 +152,7 @@ export interface CreateShopRequest {
   state?: AustralianState | null;
 }
 
-/** PATCH /admin/v1/shops/{id} — edit mutable details (code is immutable, A9). */
+/** PATCH /admin/v1/shops/{id}: edit mutable details (the code is immutable). */
 export interface UpdateShopRequest {
   name?: string;
   contactPhone?: string | null;
@@ -209,25 +164,25 @@ export interface UpdateShopRequest {
   state?: AustralianState | null;
 }
 
-/** POST /admin/v1/shops/{id}/status — lifecycle transition. */
+/** POST /admin/v1/shops/{id}/status: a lifecycle transition. */
 export interface ChangeShopStatusRequest {
   status: ShopLifecycleStatus;
 }
 
-/** POST /admin/v1/shops/{id}/users — add a shop user. */
+/** POST /admin/v1/shops/{id}/users: add a shop user. */
 export interface CreateShopUserRequest {
   name: string;
   email: string;
   role: ShopRole;
 }
 
-/** PATCH /admin/v1/shops/{id}/users/{userId} — change role and/or status. */
+/** PATCH /admin/v1/shops/{id}/users/{userId}: change role and/or status. */
 export interface UpdateShopUserRequest {
   role?: ShopRole;
   status?: ShopStaffStatus;
 }
 
-/** An audit-log entry backing the viewable shop/user history (FR-016/SC-010). */
+/** An audit-log entry behind the shop and user history. */
 export interface AuditEntryDTO {
   id: string;
   actorSub: string;

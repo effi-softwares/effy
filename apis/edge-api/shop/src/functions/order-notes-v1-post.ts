@@ -1,7 +1,4 @@
-// POST /shop/v1/orders/{id}/notes — add an internal note to the order (057 A3).
-//
-// Append-only: there is no edit or delete route, so a note someone acted on cannot be rewritten
-// afterwards. Never shown to the customer or to another shop.
+// Append-only (no edit or delete route). Never shown to the customer or another shop.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -8,7 +8,7 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
  import { unassign } from "../dispatch/service";
 
-/** POST /fleet/v1/dispatch/rounds/{id}/unassign (FR-030) — back to the pool, never lost. */
+/** Back to the pool, never lost. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -22,7 +22,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     const previousDriver = await driverOfRound(id);
     await unassign(id, body.expectedUpdatedAt, g.sub);
-    await announceDispatch([previousDriver]); // 071 — committed; the driver sees the work withdrawn
+    await announceDispatch([previousDriver]);
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

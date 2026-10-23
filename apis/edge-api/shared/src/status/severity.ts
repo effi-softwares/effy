@@ -1,9 +1,6 @@
-// What a person may override, and how a reason reads (073).
-//
-// The planner treats every condition as a filter. A PERSON assigning by hand may knowingly accept
-// two of them — the area clearance and the deadline estimate are judgements a manager on the phone
-// to the driver can make — and may not accept the rest, which are facts about the world: someone
-// stood down, off duty, unlicensed, without a van, or with a van that cannot carry these goods.
+// What a person may override, and how a reason reads. A manager assigning by hand may accept the area
+// clearance and the deadline estimate; the rest are facts (stood down, off duty, unlicensed, no van or
+// a van that cannot carry the goods).
 
 import type { ExclusionReason } from "../lib/driver-eligibility";
 
@@ -18,7 +15,7 @@ const SEVERITY: Record<ExclusionReason, ReasonSeverity> = {
   over_capacity: "cannot",
   not_cleared: "concern",
   cannot_meet_deadline: "concern",
-  // 093 — facts about the vehicle a person cannot wave through: check it, or clear it on Exceptions.
+  // Vehicle facts: check it, or clear it on Exceptions.
   vehicle_check_due: "cannot",
   vehicle_unsafe: "cannot",
 };
@@ -40,7 +37,7 @@ export function reasonSeverity(reason: ExclusionReason): ReasonSeverity {
   return SEVERITY[reason];
 }
 
-/** The reason in a few plain words — never the code. */
+/** The reason in a few plain words, never the code. */
 export function reasonWords(reason: ExclusionReason): string {
   return WORDS[reason];
 }

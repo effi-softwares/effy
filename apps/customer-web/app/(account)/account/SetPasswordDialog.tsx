@@ -12,38 +12,14 @@ import { PasswordField } from "./PasswordField"
 import { requestPasswordChallenge, writePassword } from "./actions"
 
 /**
- * SET A FIRST PASSWORD (012 FR-017) — the flow this whole slice exists to get right.
+ * Sets a first password. A signed-in customer still proves the inbox with an emailed code: Cognito lets
+ * `PreviousPassword` be omitted when there is none, so a borrowed or stolen session could otherwise
+ * plant a permanent password.
  *
- * ⚠⚠ WHY THIS COSTS AN EMAIL ROUND TRIP WHEN THE CUSTOMER IS *ALREADY SIGNED IN* ⚠⚠
- *
- * It looks like friction for nothing. It is not. This customer has NEVER had a password, so there is
- * no current password to prove — which means the only thing standing between a session and a
- * permanent new credential is whatever we decide to require.
- *
- * And Cognito, left to itself, requires NOTHING: its own docs say `PreviousPassword` may be omitted
- * when the user has none. So a borrowed phone, a shared laptop, or a stolen token could silently
- * plant a permanent password on the account — converting a TRANSIENT foothold into DURABLE,
- * CREDENTIALED access. The true owner, who only ever signs in with an emailed code, would never
- * notice. That is an account-takeover primitive, and it is on by default.
- *
- * So the code re-proves the one thing a session cannot: that the person driving it still holds the
- * account's inbox.
- *
- * ── THE THREE UI STEPS ARE STILL ONLY TWO GRANTS ──────────────────────────────────────────────
- *
- * The customer moves through three screens — request a code, enter the code, choose a password — but
- * the backend still sees exactly two calls:
- *
- * Step 1 (`intro`)     SENDS a code. It grants nothing, stores nothing, mints nothing.
- * Steps 2–3 (`code` → `password`) are a CLIENT-ONLY wizard. Entering the code and moving to the
- *                      password screen does NOT verify anything server-side — it just carries the
- *                      typed code forward in component state.
- * The final submit sends the code AND the new password TOGETHER, in ONE backend request, where the
- *                      code is verified immediately before the password is written.
- *
- * ⚠ DO NOT add a server call between the code screen and the password screen to "verify early". That
- * intermediate "verified — you may now set a password" state is precisely the fresh, stealable
- * credential this design exists to avoid. The two screens are cosmetic; the atomic write is not.
+ * Three screens, two backend calls: `intro` sends a code; `code` → `password` is client-only; the final
+ * submit sends the code and the password together, verified immediately before the write. Never add a
+ * server call between the code and password screens: that intermediate "verified" state is exactly the
+ * stealable credential this avoids.
  */
 type Step = "intro" | "code" | "password"
 
@@ -55,7 +31,7 @@ export function SetPasswordDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const [step, setStep] = useState<Step>("intro")
-  const [sent, setSent] = useState<string | null>(null) // the masked destination
+  const [sent, setSent] = useState<string | null>(null)
   const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -64,9 +40,7 @@ export function SetPasswordDialog({
   const tooLong = code.length > OTP_LENGTH
   const complete = code.length === OTP_LENGTH
 
-  // Resend, sharing the platform's per-address cooldown + hourly ceiling with the sign-in code step.
-  // `onSend` re-issues the SAME step-up challenge; it throws on failure so the hook does not start a
-  // cooldown or count a send for a request that sent nothing.
+  // Resend shares the sign-in code's cooldown and hourly ceiling; `onSend` throws on failure so no cooldown starts for nothing.
   const resend = useCodeResend({
     onSend: async () => {
       const res = await requestPasswordChallenge()
@@ -79,8 +53,7 @@ export function SetPasswordDialog({
     },
   })
 
-  // ⚠ Reset on every open. The overlay now stays mounted across open/close, so without this an
-  // abandoned code or password would still be sitting in the fields — and in memory — next time.
+  // Reset on every open: the overlay stays mounted, and an abandoned code or password must not linger.
   useEffect(() => {
     if (open) {
       setStep("intro")
@@ -98,7 +71,7 @@ export function SetPasswordDialog({
       if (res.ok) {
         setSent(res.maskedDestination)
         setStep("code")
-        // Start the shared cooldown so the resend timer counts down from this first send.
+        // Starts the shared cooldown from this first send.
         resend.noteSent()
       } else {
         setError(res.error)
@@ -106,7 +79,7 @@ export function SetPasswordDialog({
     })
   }
 
-  // Client-only advance. No backend call — the code is only VERIFIED at the atomic write below.
+  // Client-only advance: the code is verified only at the write below.
   function continueToPassword(e: React.FormEvent) {
     e.preventDefault()
     if (!complete) return
@@ -118,10 +91,9 @@ export function SetPasswordDialog({
     e.preventDefault()
     setError(null)
     start(async () => {
-      // On success this REDIRECTS (every session is revoked, including this one — FR-024), so
-      // control does not come back here.
+      // On success this redirects (every session is revoked, this one included).
       const res = await writePassword({ mode: "set", code, newPassword: password })
-      // A wrong/expired code surfaces here — send the customer back to the code step to re-enter it.
+      // A wrong or expired code sends the customer back to the code step.
       if (!res.ok) {
         setError(res.error)
         setStep("code")
@@ -132,8 +104,7 @@ export function SetPasswordDialog({
   return (
     <ResponsiveModal
       open={open}
-      // A dismissal mid-request would leave the customer with no idea whether the code was sent or
-      // the password landed.
+      // No dismissal mid-request, or the customer cannot tell whether it landed.
       onOpenChange={(nextOpen) => {
         if (pending) return
         onOpenChange(nextOpen)
@@ -154,7 +125,7 @@ export function SetPasswordDialog({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        {/* ── STEP 1 · request the code ──────────────────────────────────────────────────────── */}
+        {/* Step 1: request the code */}
         {step === "intro" && (
           <>
             {error && (
@@ -177,19 +148,18 @@ export function SetPasswordDialog({
           </>
         )}
 
-        {/* ── STEP 2 · enter the code (client-only advance) ──────────────────────────────────── */}
+        {/* Step 2: enter the code (client-only) */}
         {step === "code" && (
           <>
             <form id="set-password-code-form" onSubmit={continueToPassword} className="px-4 sm:px-0">
-              {/* ⚠ Explicit margin rather than `space-y` — the label heads a tall cell control and
-                  needs room to read as one, while the message below must stay tight to the field. */}
+              {/* An explicit margin: the label heads a tall control, the message below stays tight. */}
               <label htmlFor="stepup-code" className="mb-4 block text-sm font-medium">
                 Code from your email
               </label>
               <CodeField
                 id="stepup-code"
                 name="code"
-                // A value longer than a code is shown in full as plain text by the field itself (FR-004).
+                // An over-length value is shown in full as plain text by the field.
                 invalid={error !== null}
                 aria-describedby={tooLong ? "stepup-code-too-long" : undefined}
                 autoFocus
@@ -206,8 +176,7 @@ export function SetPasswordDialog({
                 </p>
               )}
 
-              {/* Resend, with the shared cooldown timer. `aria-live` so the countdown is announced
-                  without moving focus off the code field. */}
+              {/* Resend with the shared cooldown; `aria-live` announces the countdown without moving focus. */}
               <p className="mt-4 text-center text-sm text-muted-foreground" aria-live="polite">
                 {resend.atCeiling ? (
                   <span data-testid="resend-ceiling">
@@ -231,7 +200,7 @@ export function SetPasswordDialog({
                 )}
               </p>
 
-              {/* A wrong code from the previous submit lands the customer back here, so show it. */}
+              {/* A wrong code from the previous submit lands here, so show it. */}
               {error && (
                 <div className="mt-3">
                   <ErrorText>{error}</ErrorText>
@@ -253,11 +222,10 @@ export function SetPasswordDialog({
           </>
         )}
 
-        {/* ── STEP 3 · choose the password (the atomic code+password write) ──────────────────── */}
+        {/* Step 3: choose the password (the atomic code + password write) */}
         {step === "password" && (
           <>
-            {/* The submit control lives in the footer, so the form is addressed by id — that keeps
-                Enter-to-submit working rather than making the button a bare onClick. */}
+            {/* The form is addressed by id from the footer's submit, keeping Enter-to-submit. */}
             <form id="set-password-form" onSubmit={submit} className="space-y-4 px-4 sm:px-0">
               <PasswordField
                 name="newPassword"
@@ -267,7 +235,7 @@ export function SetPasswordDialog({
                 onChange={setPassword}
               />
 
-              {/* FR-027 — in the form, next to what went wrong. Never a toast the customer can miss. */}
+              {/* In the form, next to what went wrong; never a toast. */}
               {error && <ErrorText>{error}</ErrorText>}
 
               <p className="text-sm text-foreground/80">
@@ -276,8 +244,7 @@ export function SetPasswordDialog({
               </p>
             </form>
 
-            {/* Secondary action (Back) on the LEFT, de-weighted as a ghost; the primary on the RIGHT.
-                The ghost weighting is what keeps a mis-tap from being a discarded form. */}
+            {/* Back on the left as a ghost, the primary on the right. */}
             <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
               <Button
                 type="button"
@@ -307,12 +274,7 @@ export function SetPasswordDialog({
   )
 }
 
-/**
- * Errors render IN the form, next to what went wrong — never as a toast (FR-027).
- *
- * `role="alert"` so a screen reader announces it without the customer having to go looking. A toast
- * is passive notification; an error the customer must ACT on is not a notification.
- */
+/** An error in the form, next to what went wrong, announced by `role="alert"`; never a toast. */
 function ErrorText({ children }: { children: React.ReactNode }) {
   return (
     <p role="alert" data-testid="password-error" className="text-sm text-destructive">

@@ -10,17 +10,10 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 
 /**
- * The live channel over Ktor WebSockets (071).
- *
- * ⚠ ITS OWN CLIENT, ON ITS OWN ENGINE. The apps' data client uses the `Android` engine
- * (HttpURLConnection), which has NO WebSocket support — and must not be switched to OkHttp, which
- * clashes with the OkHttp the auth SDK needs (013's runtime fix). So each app hands this an engine
- * that can hold a socket: CIO on Android (pure Kotlin, no OkHttp — the engine customer-mobile
- * already uses for images), Darwin on iOS.
- *
- * ⚠ THE TWO SUBPROTOCOLS GO IN ONE `Sec-WebSocket-Protocol` HEADER. The channel requires both
- * `aws-appsync-event-ws` and the `header-…` value that carries the handshake's authorization; a
- * connection offering only the first is refused.
+ * The live channel over Ktor WebSockets, on its own client and engine: the data client's `Android`
+ * engine has no WebSocket support and OkHttp clashes with the auth sdk's, so apps pass CIO (Android)
+ * or Darwin (iOS). Both subprotocols, `aws-appsync-event-ws` and the `header-…` authorization, go in one
+ * `Sec-WebSocket-Protocol` header.
  */
 class KtorLiveTransport(engine: HttpClientEngine) : LiveTransport {
     private val client = HttpClient(engine) { install(WebSockets) }
@@ -36,8 +29,7 @@ class KtorLiveTransport(engine: HttpClientEngine) : LiveTransport {
 
                 override suspend fun receive(): String {
                     while (true) {
-                        // `receive()` throws when the socket has closed — which is the signal the
-                        // client is waiting for.
+                        // `receive` throws when the socket closes: the signal the client waits for.
                         val frame = socket.incoming.receive()
                         if (frame is Frame.Text) return frame.readText()
                     }

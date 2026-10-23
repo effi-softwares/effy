@@ -1,4 +1,4 @@
-// POST /shop/v1/fulfillments/parcels/prints — record that bag labels were sent to a printer (only after they were) (096).
+// Recorded only after the labels were sent to a printer.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

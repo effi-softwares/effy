@@ -1,21 +1,11 @@
 "use client"
 
 /**
- * The typed client over `app/api/cart/*` — 027.
- *
- * ⚠ Deliberately dependency-free (`fetch` only, no TanStack). This storefront's guest bundle is a measured
- * budget, and a cart is one resource with one shape; adding a query library to reach it would cost every
- * guest bytes for machinery this file does not need. It is the same reasoning that kept `cart-store.ts`
- * on `useSyncExternalStore`.
- *
- * Everything here goes through a Next route handler, never to the backend directly, so the session is read
- * SERVER-side and no client module ever imports `aws-amplify` — which is what keeps the storefront's
- * quarantine guard green (011 FR-006 / D11).
- *
- * Every mutation returns the COMPLETE re-priced cart, so the caller never guesses an outcome (FR-007), and
- * carries a `changeId` minted once per shopper action so a retry cannot apply twice (FR-018).
- *
- * 098 — a line is a VARIANT (a size of a product); every per-line call names its `variantId`.
+ * The typed client over `app/api/cart/*`: `fetch` only (the guest bundle has a measured budget), and
+ * always through a Next route handler, so the session is read server-side and no client module imports
+ * `aws-amplify`. Every mutation returns the complete re-priced cart and carries a `changeId` minted once
+ * per shopper action, so a retry cannot apply twice. A line is a variant; per-line calls name its
+ * `variantId`.
  */
 import type { CartDTO, CartPolicyDTO, ReorderResultDTO } from "@effy/shared-types"
 
@@ -30,7 +20,7 @@ export class CartApiError extends Error {
   }
 }
 
-/** A change id: one per shopper ACTION, reused by every retry of it (never per attempt — see FR-018). */
+/** A change id: one per shopper action, reused by every retry of it (never per attempt — see FR-018). */
 export function newChangeId(): string {
   return crypto.randomUUID()
 }
@@ -58,14 +48,14 @@ export interface CartLineInputJson {
 export const cartApi = {
   get: () => call<CartDTO>("/api/cart"),
 
-  /** Add or INCREMENT — the only non-idempotent write, so `changeId` is not optional. */
+  /** Add or increment — the only non-idempotent write, so `changeId` is not optional. */
   add: (variantId: string, quantity: number, changeId: string) =>
     call<CartDTO>("/api/cart/items", {
       method: "POST",
       body: JSON.stringify({ variantId, quantity, changeId }),
     }),
 
-  /** Set an ABSOLUTE quantity; 0 removes. */
+  /** Set an absolute quantity; 0 removes. */
   setQuantity: (variantId: string, quantity: number, changeId: string) =>
     call<CartDTO>(`/api/cart/items/${seg(variantId)}`, {
       method: "PATCH",
@@ -75,10 +65,10 @@ export const cartApi = {
   remove: (variantId: string, changeId: string) =>
     call<CartDTO>(`/api/cart/items/${seg(variantId)}${q(changeId)}`, { method: "DELETE" }),
 
-  /** Empty the payable cart; set-aside items survive (FR-030). */
+  /** Empty the payable cart; set-aside items survive. */
   clear: (changeId: string) => call<CartDTO>(`/api/cart${q(changeId)}`, { method: "DELETE" }),
 
-  /** Sign-in adoption: union with MAXIMUM quantity, idempotent (FR-011/FR-012). */
+  /** Sign-in adoption: union with maximum quantity, idempotent. */
   merge: (lines: CartLineInputJson[], changeId: string) =>
     call<CartDTO>("/api/cart/merge", { method: "POST", body: JSON.stringify({ lines, changeId }) }),
 
@@ -97,15 +87,15 @@ export const cartApi = {
   deleteSaved: (variantId: string, changeId: string) =>
     call<CartDTO>(`/api/cart/saved/${seg(variantId)}${q(changeId)}`, { method: "DELETE" }),
 
-  /** Apply a promotional code. The platform decides validity and worth — never this client (FR-042). */
+  /** Apply a promotional code. The platform decides validity and worth — never this client. */
   applyPromo: (code: string) => call<CartDTO>("/api/cart/promo", { method: "POST", body: JSON.stringify({ code }) }),
 
   removePromo: () => call<CartDTO>("/api/cart/promo", { method: "DELETE" }),
 
-  /** GUEST path: re-price device lines with zero writes (FR-004 applies to guests too). */
+  /** Guest path: re-price device lines with zero writes (FR-004 applies to guests too). */
   preview: (lines: CartLineInputJson[]) =>
     call<CartDTO>("/api/cart/preview", { method: "POST", body: JSON.stringify({ lines }) }),
 
-  /** GUEST path: the minimum and the ceilings, so a guest cart gates from the platform's own numbers. */
+  /** Guest path: the minimum and the ceilings, so a guest cart gates from the platform's own numbers. */
   policy: () => call<CartPolicyDTO>("/api/cart/policy"),
 }

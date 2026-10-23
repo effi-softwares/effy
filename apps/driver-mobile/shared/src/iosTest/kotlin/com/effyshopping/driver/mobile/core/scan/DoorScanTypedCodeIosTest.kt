@@ -22,7 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 /**
- * The door scan, on iOS: type a package's code and add it. Reported crashing the app (SIGABRT) on the
+ * The door scan, on iOS: type a package's code and add it. Reported crashing the app (sigabrt) on the
  * iOS simulator, and not on Android — so it runs where it failed.
  */
 @OptIn(ExperimentalTestApi::class)

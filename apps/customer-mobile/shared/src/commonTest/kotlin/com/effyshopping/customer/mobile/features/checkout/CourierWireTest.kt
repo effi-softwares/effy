@@ -20,11 +20,9 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 
 /**
- * 079 — the courier checkout, at the wire: what the server sends for an address a courier delivers
- * to, what this app sends back, and the refusal when the two no longer agree.
- *
- * ⚠ A COURIER QUOTE HAS ONE FEE AND NOTHING TO CHOOSE. Read as an Effy quote it would be a serviced
- * order with no window to pick and no way to pay; the first test is what stops that.
+ * The courier checkout at the wire: what the server sends for a courier address, what the app sends back,
+ * and the refusal when they disagree. A courier quote read as an Effy quote would be a serviced order with
+ * no window to pick and no way to pay.
  */
 class CourierWireTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }

@@ -4,33 +4,19 @@ import { channelPrefix, OPS_SCOPE_ID, publishEpochs } from "./channel";
 import { signPublish } from "./sign";
 
 /**
- * 071 — tell open apps that something they are showing has changed.
- *
- * ⚠ CALL THIS AFTER THE TRANSACTION HAS COMMITTED, from the service layer, never inside it. An
- * update for a change that then rolls back sends every open screen to re-read a state that never
- * happened (FR-004).
- *
- * ⚠ THIS NEVER THROWS AND NEVER REJECTS (FR-006). A payment, a pick, a refund or an assignment
- * has already succeeded by the time this runs; the live channel being down must not turn that into
- * a failure reported to the person who did it. A lost update is a stale screen until the next
- * update or the app's next catch-up read — never a wrong one, because an update carries no data.
- *
- * ⚠ AWAIT IT. A function is frozen the moment its handler returns; an un-awaited publish is
- * usually a publish that never left.
+ * Tells open apps that something they show has changed. Call it after the transaction commits, never
+ * inside it, and await it (a frozen function never publishes). It never throws: the change already
+ * succeeded, and a lost update only leaves a stale screen, never a wrong one.
  */
 
-/**
- * A change, named by whose it is and what kind of thing. There is deliberately no field for an
- * order id, a status or an amount (FR-002) — and the customer variant has no field a shop id could
- * be put in (FR-024).
- */
+/** Whose change and what kind. No field for an id, status or amount; the customer variant has none for a shop id. */
 export type LiveChange =
   | { scope: "shop"; shopId: string; kind: "orders" | "stock" | "attention" }
   | { scope: "customer"; sub: string; kind: "orders" | "points" }
   | { scope: "driver"; driverId: string; kind: "work" }
   | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" | "coverage" | "pricing" | "promotions" };
 
-/** The live channel's metric namespace — one for the platform, not one per service. */
+/** One namespace for the platform. */
 export const LIVE_METRIC_NAMESPACE = "Effy/Live";
 
 const ATTEMPT_TIMEOUT_MS = 1_500;
@@ -59,7 +45,7 @@ function prefixOf(change: LiveChange): string {
   }
 }
 
-/** Group by channel prefix, each with its distinct kinds — one change named twice publishes once. */
+/** Grouped by channel prefix with distinct kinds, so a change named twice publishes once. */
 function group(changes: readonly LiveChange[]): Map<string, Set<string>> {
   const byPrefix = new Map<string, Set<string>>();
   for (const change of changes) {
@@ -67,7 +53,7 @@ function group(changes: readonly LiveChange[]): Map<string, Set<string>> {
     try {
       prefix = prefixOf(change);
     } catch (err) {
-      // An id that cannot be a channel segment. Skip it; the rest still go.
+      // Not a valid channel segment: skip it, the rest still go.
       logger.warn({ err, scope: change.scope }, "live: change skipped, scope id is not a valid segment");
       continue;
     }
@@ -115,8 +101,7 @@ async function publish(
       return true;
     } catch (err) {
       if (attempt === ATTEMPTS) {
-        // The channel is deliberately not logged: its middle segment is whose update it was
-        // (FR-034). The namespace is enough to see which audience is affected.
+        // The channel is not logged: its middle segment says whose update it was.
         logger.warn({ err, namespace: channel.split("/")[1], kinds }, "live: update not sent");
       }
     }
@@ -133,8 +118,7 @@ export async function announce(changes: readonly LiveChange[], deps: AnnounceDep
     const host = env.LIVE_HTTP_HOST;
     const region = env.AWS_REGION;
     if (!host || !region) {
-      // A local run, a test, or an environment where the channel has been removed. Not an error:
-      // every app then reads on open, on return and on request, which is a supported state.
+      // No channel configured (local, test, removed): apps then read on open and on return.
       if (!saidUnconfigured) {
         saidUnconfigured = true;
         logger.debug("live: no channel configured, updates are not sent");
@@ -160,7 +144,7 @@ export async function announce(changes: readonly LiveChange[], deps: AnnounceDep
     }
     await Promise.all(sends);
   } catch (err) {
-    // Belt and braces: nothing above should throw, and nothing may escape if it does.
+    // Nothing above should throw, and nothing may escape if it does.
     logger.warn({ err }, "live: announce failed");
   }
 }

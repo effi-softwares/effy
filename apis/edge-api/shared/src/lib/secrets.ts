@@ -1,8 +1,6 @@
-// DB credential retrieval at RUNTIME via the AWS Parameters and Secrets Lambda
-// Extension (research C6): the password never enters the CloudFormation template or
-// the env — only its ARN does. The extension listens on localhost:2773 and caches
-// with a TTL; we additionally memoize in module scope beside the pg pool, and expose
-// invalidate() for the rotation-retry path (28P01 → drop memo + pool → refetch once).
+// DB credentials at runtime through the Parameters and Secrets Lambda Extension: the password never
+// enters the template or the env, only its ARN. Memoised beside the pool; invalidate serves the
+// rotation retry (28P01: drop memo and pool, refetch once).
 const EXTENSION_URL = "http://localhost:2773/secretsmanager/get";
 
 let memo: string | undefined;
@@ -19,7 +17,7 @@ export async function getDbPassword(): Promise<string> {
     headers: { "X-Aws-Parameters-Secrets-Token": token },
   });
   if (!res.ok) {
-    // Status only — never the response body, which could carry secret material.
+    // Status only: the body could carry secret material.
     throw new Error(`secrets: extension returned ${res.status}`);
   }
 
@@ -38,8 +36,7 @@ export function invalidateDbPassword(): void {
   memo = undefined;
 }
 
-// Generic secret-string fetch via the same extension (050 — the notifications worker's FCM
-// service-account JSON). Returns the raw SecretString; the caller parses it. Memoized per ARN.
+// A raw SecretString through the same extension, memoised per ARN; the caller parses it.
 const secretMemo = new Map<string, string>();
 
 export async function getSecretString(arn: string): Promise<string> {
@@ -61,11 +58,7 @@ export async function getSecretString(arn: string): Promise<string> {
   return payload.SecretString;
 }
 
-/**
- * Drop one memoised secret so the next read fetches it again (070). The payment webhook uses it
- * when a signature fails: the operator replaces the signing secret at cut-over, and a container
- * that was already warm would otherwise keep verifying against the old one until it was recycled.
- */
+/** Drops one memoised secret. The payment webhook calls it when a signature fails, so a warm container picks up a replaced signing secret. */
 export function invalidateSecret(arn: string): void {
   secretMemo.delete(arn);
 }

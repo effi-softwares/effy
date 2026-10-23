@@ -1,32 +1,17 @@
-/* Effy BACK-OFFICE identity — the one file (design canvas "Effy Back-Office Redesign", board
- * "Foundations — colour, type, status words"; reference export in
- * docs/reference-screens/Effy Back-Office Redesign/01 Foundations and shell/).
+/* The Effy back-office identity: black, white, zinc, Effy blue (the one action colour) and Effy green
+ * (done). No red and no orange: a problem is the foreground with an icon and its words.
  *
- * The back-office now wears the storefront and driver apps' identity, used for a dense work tool:
- * black, white, zinc greys, Effy blue (the one action colour) and Effy green (done). There is no red
- * and no orange — a problem is black (white in dark) with an icon and its words.
- *
- * ⚠ THIS FILE DECLARES EVERY NAME THE CONSOLE FILE (`../tokens.css`) DECLARES, WITH THE SAME MEANING.
- * The back-office still renders the platform's shared primitives (@effy/design-system/ui) and the
- * console kit (@effy/web-kit/console), and those read the console vocabulary — `bg-brand-soft`,
- * `text-success`, `bg-warning-soft`, `bg-accent2`… Tailwind emits NO RULE for a token this file does
- * not declare, so a missing name renders as nothing. scripts/check-backoffice-tokens.mjs holds the
- * key set to the console's, plus the redesign's own roles (primary-muted, rows, sidebar-muted).
- *
- * The console names keep their CONSOLE meaning, mapped onto five colours:
- *   --primary = --brand   the action colour (blue). Unlike the storefront file, where --brand is green,
- *                         here --brand is the console's "action colour" name and stays blue — every
- *                         existing `text-brand` in the back-office means "in progress / do this".
+ * It declares every name the console file (`../tokens.css`) declares, with the console meaning,
+ * because back-office renders the shared primitives and console kit (Tailwind emits nothing for an
+ * undeclared token; scripts/check-backoffice-tokens.mjs holds the key set):
+ *   --primary = --brand   blue, the action colour ("in progress / do this").
  *   --success             green: done, delivered, paid, active.
- *   --warning, --destructive, --accent2 (attention)
- *                         no hue of their own: waiting/at-risk and failed are the foreground with an
- *                         icon; attention dots are blue.
- *   --violet, --teal      the second and third chart series only — zinc and green.
+ *   --warning, --destructive, --accent2
+ *                         no hue: waiting and failed are the foreground with an icon; attention is blue.
+ *   --violet, --teal      the second and third chart series only, zinc and green.
  *
- * A surface imports ONE identity file. Both declare `--primary`, `--border`…; the second would win.
- *
- * ⚠ KEEP EACH BLOCK A PLAIN LIST OF VALUES — the guard parses them. Ratios below are re-derived by
- * scripts/check-backoffice-tokens.mjs, which is the authority. */
+ * Import one identity file only. Keep each block a plain list of values (the guard parses them and
+ * re-derives every ratio). */
 
 @custom-variant dark (&:is(.dark *));
 

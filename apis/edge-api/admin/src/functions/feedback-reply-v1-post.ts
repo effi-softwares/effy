@@ -1,5 +1,4 @@
-// POST /admin/v1/feedback/{referenceCode}/reply — reply to the submitter by email (046 US3).
-// ⚠ admin/manager ONLY — an outward, brand-facing message to a real person (research D7). 403 for csa.
+// Admin/manager only: an outward message to a real person.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

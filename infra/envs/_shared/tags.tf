@@ -1,9 +1,6 @@
-# Shared naming + base-tags locals (research.md D9) — the single source of truth for
-# resource naming and tagging across every env root.
-#
-# This is a tiny, resource-less module: each env root calls it with its `env` and wires
-# `tags` into the provider `default_tags` block and `name_prefix` into module names.
-# Modules never call it (composition happens only in env roots — ARCHITECTURE.md).
+# Shared naming and base-tag locals for every env root: a resource-less module each env root calls with its
+# `env`, wiring `tags` into the provider's `default_tags` and `name_prefix` into module names. Modules never
+# call it.
 
 variable "env" {
   description = "Environment name (dev | qa | staging | prod)."
@@ -19,7 +16,7 @@ locals {
   # Name prefix: effy-<env>-<concern> (e.g. effy-dev-customer).
   name_prefix = "effy-${var.env}"
 
-  # Base tags applied to every resource via provider default_tags (spec FR-021, SC-009).
+  # Base tags applied to every resource via provider default_tags.
   base_tags = {
     Project     = "effy"
     Environment = var.env

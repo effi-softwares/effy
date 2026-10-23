@@ -1,27 +1,21 @@
-// The dispatcher's reads and overrides (063, US4). Raw parameterised SQL (Principle VI).
-//
-// ⚠ THE SCREEN IS BUILT AROUND WHAT NEEDS ATTENTION, NOT AROUND WHAT IS FINE (D15, FR-028/SC-008).
-// Bringg's own phrase is "manage by exception", and Shipday puts the threshold at 30–50 orders/day
-// before automation is even needed — Effy sits below where an SMB vendor says an engine is required.
-// The engine earns its place by making the common case automatic and the EXCEPTIONAL case visible.
+// Built around what needs attention, not what is fine: the common case is automatic, the exception visible.
 
 import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
-/** 093 — a dispatcher's waiver of the cross-run gate, with who gave it. */
+/** A dispatcher's waiver of the cross-run gate, and who gave it. */
 const WAIVER = `
   LEFT JOIN public.round_sequence_waiver wv ON wv.round_id = dr.id
   LEFT JOIN admin.staff wst ON wst.cognito_sub = wv.staff_sub`;
 const WAIVER_COLUMNS = `wv.reason AS waiver_reason, wv.created_at AS waiver_at,
          COALESCE(NULLIF(btrim(wst.name), ''), wst.email::text) AS waiver_staff`;
 
-/** Who takes a parcel to the customer — 079's one definition, over these queries' aliases. */
+/** Who takes a parcel to the customer, over these queries' aliases. */
 
-/** Every round today, with who holds it and how much is left. */
 export const DAY_ROUNDS = `
   SELECT dr.id, dr.kind, dr.status, dr.deadline_at, dr.changed_note,
          dr.updated_at,
-         -- 072 — when the round opens to its driver. ⚠ The database's ONE definition; the driver
+         -- When the round opens to its driver. ⚠ The database's ONE definition; the driver
          -- service's action gate calls the same function, so this screen cannot disagree with it.
          public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
          d.id   AS driver_id,
@@ -31,14 +25,14 @@ export const DAY_ROUNDS = `
          (SELECT count(*) FROM public.round_package rp
             JOIN public.round_stop rs2 ON rs2.id = rp.stop_id
            WHERE rs2.round_id = dr.id AND rp.state = 'assigned')::text AS packages_remaining,
-         -- 093 — where the run is, by the one shared definition the driver's app reads too.
+         -- Where the run is, by the one shared definition the driver's app reads too.
          ${ROUND_STAGE_COLUMNS},
          ${WAIVER_COLUMNS}
     FROM public.driver_round dr
     JOIN public.driver d ON d.id = dr.driver_id
     ${ROUND_STAGE_LATERAL}
     ${WAIVER}
-   -- ⚠ 072 — EVERY UNFINISHED ROUND, plus what was finished or created today. This read "created
+   -- ⚠ EVERY UNFINISHED ROUND, plus what was finished or created today. This read "created
    -- today", which was the same thing while a round existed for 45 minutes. A round is now assigned
    -- the evening before its run, and "created today" would hide it on the morning it is due.
    WHERE dr.status IN ('planned', 'in_progress')
@@ -50,32 +44,12 @@ export const DAY_ROUNDS = `
 `;
 
 /**
- * Work nobody can take, with the reason (FR-015, FR-028) — at a shop, or at the hub.
- *
- * ⚠ 072 — THE REASONS ARE STANDING FACTS, JOINED BY `kind`. Until 072 they were rows per planning
- * wave and this query resolved "the latest collection wave" to find them — and got it wrong once
- * (an unscoped latest wave was almost always the DELIVERY wave, so 14 packages rendered with no
- * explanation while the reasons sat against the previous wave id). There is no wave to resolve now:
- * a package's rows for a kind exist exactly while it is unassigned for that kind.
- *
- * ⚠ THE JOIN MUST NAME THE KIND. A package is unassigned for collection first and, hours later,
- * possibly for delivery; a join on the package alone would show a hub-side package its old
- * shop-side reasons. `standing-reasons.guard.test.ts` holds this.
- *
- * ⚠ HUB-SIDE PACKAGES ARE LISTED TOO (072). A parcel Effy delivers, checked in at the hub, that nobody
- * is cleared to deliver was invisible on this screen; it is the more urgent of the two, because a
- * customer has been sold a window for it. Its WHERE clause is the delivery gather's, verbatim —
- * including 082's two terms: Effy delivers it (079's definition, not the method), and its day has
- * come ($1 = the end of the local day). A parcel waiting at the hub for a later day is WAITING, not
- * unassigned, and is not listed here.
- *
- * ⚠ 082 — the shop-side half carries `delivered_by` and `window_start` so the service can leave out a
- * parcel that is not yet due on a run, and mark one that has missed its run. A parcel a courier
- * collects from the supplier is never listed: no driver goes for it (080's one fragment).
- *
- * ⚠ A row with `driver_id IS NULL` means NO CANDIDATE AT ALL, which the console must present
- * differently: "nobody is cleared for this" is a staffing decision, "everyone who is cleared failed a
- * condition" is a fixable list.
+ * Work nobody can take, with the reason, at a shop or at the hub. Reasons are standing facts joined by
+ * `kind` (`standing-reasons.guard.test.ts`), so a hub package never shows its old shop-side reasons.
+ * The hub half uses the delivery gather's where verbatim (Effy delivers it, its day has come); a parcel
+ * waiting for a later day is not listed. The shop half carries `delivered_by` and `window_start` so the
+ * service can judge due and late; supplier-pickup courier parcels never appear. `driver_id IS NULL`
+ * means no candidate at all (a staffing decision), unlike a list of failed conditions.
  */
 export const UNASSIGNED_WORK = `
   SELECT sf.id                                   AS package_id,
@@ -150,15 +124,7 @@ export const UNASSIGNED_WORK = `
    ORDER BY ready_since ASC
 `;
 
-
-/**
- * ⚠ Read WITH the concurrency token, and it must carry MICROSECONDS.
- *
- * `toISOString()` truncates to milliseconds while PostgreSQL stores microseconds, so comparing a
- * round-tripped JavaScript timestamp against `updated_at` never matches its own row — and EVERY save
- * fails claiming somebody else changed it. 056 lost this to a container test and it is written here
- * so 063 does not re-find it. `to_char(...US)` is what keeps the precision on the wire.
- */
+/** With the concurrency token at microsecond precision (`to_char(...US)`): `toISOString` truncates to ms and would never match. */
 export const ROUND_FOR_UPDATE = `
   SELECT dr.id, dr.driver_id, dr.kind, dr.status, dr.deadline_at,
          public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
@@ -168,7 +134,6 @@ export const ROUND_FOR_UPDATE = `
    FOR UPDATE
 `;
 
-/** 093 — one round's stage and waiver, for its detail screen. */
 export const ROUND_STAGE_AND_WAIVER = `
   SELECT dr.kind, dr.status, ${ROUND_STAGE_COLUMNS}, ${WAIVER_COLUMNS}
     FROM public.driver_round dr
@@ -177,7 +142,6 @@ export const ROUND_STAGE_AND_WAIVER = `
    WHERE dr.id = $1
 `;
 
-/** One round's stops, for the detail screen and for reordering. */
 export const ROUND_DETAIL_STOPS = `
   SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.zone_id, rs.shop_id, rs.completed_at,
          z.name AS zone_name,
@@ -185,14 +149,14 @@ export const ROUND_DETAIL_STOPS = `
          o.order_number,
          o.delivery_address ->> 'city' AS destination_suburb,
          w.window_start, w.window_end,
-         -- 091 — how this stop's hand-overs ON THIS ROUND were done (090's record).
+         -- How this stop's hand-overs ON THIS ROUND were done.
          ho.scan AS handovers_scan, ho.typed AS handovers_typed, ho.manual AS handovers_manual
     FROM public.round_stop rs
     LEFT JOIN public.shop           s ON s.id = rs.shop_id
     LEFT JOIN public."order"        o ON o.id = rs.order_id
     LEFT JOIN public.delivery_zone  z ON z.id = rs.zone_id
-    -- 069 — the customer's delivery window, the same read the driver service makes. NULL for a
-    -- pickup, the hub, and any order placed before 069.
+    -- The customer's delivery window, the same read the driver service makes. NULL for a
+    -- pickup and the hub.
     LEFT JOIN LATERAL (
       SELECT min(opd.window_start) AS window_start, min(opd.window_end) AS window_end
         FROM public.order_package_delivery opd
@@ -211,17 +175,8 @@ export const ROUND_DETAIL_STOPS = `
 `;
 
 /**
- * What a round would ask of the driver taking it over (072, research R11) — one row per distinct
- * area on it (082: a clearance has no method), each carrying the WHOLE round's weight, outstanding stops and refrigeration.
- *
- * ⚠ THIS REPLACED FOUR HARD-CODED ANSWERS. Until 072 the reassign check asked the shared rule about
- * a round that needed no refrigeration, had eight hours to finish, sat in its first zone only and
- * took twelve minutes a stop — whatever the round actually was. A dispatcher could therefore put a
- * chilled round in a van that cannot carry chilled, which the planner would never do. Same rule,
- * and now the same facts.
- *
- * ⚠ Only what is still to be carried counts: packages `assigned` or `picked_up`, and stops not yet
- * finished. The storage read is the gather's lateral, so a line is never counted twice.
+ * What a round asks of the driver taking it over: one row per distinct area, each with the whole
+ * round's outstanding weight, stops and refrigeration (only packages `assigned` or `picked_up`).
  */
 export const ROUND_WORK = `
   WITH pkg AS (
@@ -235,7 +190,7 @@ export const ROUND_WORK = `
       JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
       LEFT JOIN public.order_item  oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
       LEFT JOIN public.product     p  ON p.id = oi.product_id
-      LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
+      LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
       LEFT JOIN LATERAL (
         SELECT bool_or(pav.value_text = 'chilled') AS chilled,
                bool_or(pav.value_text = 'frozen')  AS frozen
@@ -257,10 +212,7 @@ export const ROUND_WORK = `
    GROUP BY pkg.zone_id
 `;
 
-/**
- * 088 — parcels from failed deliveries (FR-009): still in a driver's van, and back at the hub waiting
- * for a person to choose their next step (returned, with the failure still open). Counted, never stored.
- */
+/** Failed parcels still in a van, or back at the hub awaiting a person's next step. Counted, never stored. */
 export const FAILED_PARCEL_COUNTS = `
   SELECT
     (SELECT count(*) FROM public.round_package rp

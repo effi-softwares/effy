@@ -1,4 +1,3 @@
-// GET /admin/v1/shops/{shopId}/audit — the viewable shop + user history (FR-016/SC-010). Read access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

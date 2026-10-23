@@ -8,14 +8,7 @@ import { authenticate } from "../driver/guard";
 import { MediaValidationError, ProofValidationError, presignProof } from "../proof/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
-/**
- * POST /driver/v1/delivery/drops/{dropId}/proof/presign (064, US1).
- *
- * ⚠ BYTES NEVER PASS THROUGH LAMBDA. The driver uploads straight to S3 against a presigned PUT; this
- * only mints the url and the key. The app then submits the key with the proof — upload FIRST, submit
- * SECOND, which is what makes FR-006 structural: a drop cannot be marked delivered against an image
- * that failed to arrive, because the submission carries a key to something already stored.
- */
+/** Bytes go straight to S3; the proof is submitted with the key afterwards, so it refers to a stored image. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -38,15 +31,14 @@ export const handler = async (
   try {
     return json(200, await presignProof(dropId, guard.driver.id, body), guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof ProofValidationError) {
       return problem(422, "validation_failed", "Cannot prepare upload", err.detail, guard.scope, [
         { field: err.field, message: err.detail },
       ]);
     }
-    // The shared helper already answers field-scoped for a bad content type or an oversize file; it
-    // is mapped rather than rethrown so a driver sees which field is wrong, not a 500.
+    // Mapped rather than rethrown, so the driver sees which field is wrong.
     if (err instanceof MediaValidationError) {
       return problem(422, "validation_failed", "Cannot prepare upload", err.message, guard.scope, err.fields);
     }

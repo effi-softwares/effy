@@ -2,40 +2,31 @@ import type { Queryable } from "../lib/db";
 import { parseCents } from "../lib/money";
 import type { CourierPlanValues, DistanceBand, EffyPlanValues, WeightBand } from "./engine";
 
-/**
- * The two delivery methods (`DeliveryMethod` in @effy/shared-types). ⚠ Since 077 a method has no
- * price: it only says whether a package goes out today (in a window) or on a later day. They stay
- * until the checkout feature (E5) replaces same-day/standard with who delivers.
- */
+/** A method has no price: it only says whether a package goes out today or on a later day. */
 export const METHOD_SAME_DAY = "same_day";
 export const METHOD_STANDARD = "standard";
 export type DeliveryMethod = typeof METHOD_SAME_DAY | typeof METHOD_STANDARD;
 
-/** `effy` = Delivered by Effy; `courier` = the courier fee table. One plan of each is active. */
+/** One plan of each kind is active. */
 export type PlanKind = "effy" | "courier";
 
-/**
- * A fee plan, resolved to the engine's integer forms (077). Loaded once per quote.
- *
- * ⚠ It carries VALUES, never a fee: adding them up is `effyFee` / `courierFee` in `engine.ts` and
- * nowhere else.
- */
+/** Resolved to integer forms, loaded once per quote. Values only: adding them up is the engine's. */
 export interface Plan {
   id: string;
   name: string;
   kind: PlanKind;
   isActive: boolean;
-  /** Set once the plan has ever been active — a draft has none. */
+  /** Set once ever active; a draft has none. */
   activatedAt: Date | null;
   baseCents: number;
-  /** Effy plans only; empty for a courier table. */
+  /** Effy plans only. */
   distanceBands: readonly DistanceBand[];
-  /** Ascending by `upperGrams`; the largest is the open-ended top. */
+  /** Ascending; the largest is the open-ended top. */
   weightBands: readonly WeightBand[];
   freeOverCents: number | null;
   smallOrderUnderCents: number | null;
   smallOrderFeeCents: number;
-  /** Added when the chosen window is today. */
+  /** Added when the window is today. */
   todayPremiumCents: number;
   /** slot id → what that window adds on any day. */
   slotPremiumCents: ReadonlyMap<string, number>;
@@ -44,7 +35,6 @@ export interface Plan {
   capCents: number;
 }
 
-/** The plan as `effyFee` takes it. */
 export function effyValues(plan: Plan): EffyPlanValues {
   return {
     baseCents: plan.baseCents,
@@ -59,7 +49,6 @@ export function effyValues(plan: Plan): EffyPlanValues {
   };
 }
 
-/** The plan as `courierFee` takes it. */
 export function courierValues(plan: Plan): CourierPlanValues {
   return {
     baseCents: plan.baseCents,
@@ -71,20 +60,13 @@ export function courierValues(plan: Plan): CourierPlanValues {
   };
 }
 
-/**
- * What a window adds under this plan: the today premium when the window is today, plus the window's
- * own premium. No window (a later day with no slot) adds nothing.
- */
+/** The today premium when the window is today, plus the window's own. No window adds nothing. */
 export function windowPremiumCents(plan: Plan, slotId: string | null, windowIsToday: boolean): number {
   if (slotId === null) return 0;
   return (windowIsToday ? plan.todayPremiumCents : 0) + (plan.slotPremiumCents.get(slotId) ?? 0);
 }
 
-/**
- * No fee plan is active — checkout cannot quote a delivery fee and must refuse rather than deliver
- * for free. Activation guarantees exactly one active, complete plan per kind; this is the defensive
- * path for a misconfigured environment.
- */
+/** No active plan: checkout must refuse rather than deliver free. Defensive: activation keeps one per kind. */
 export class NoActivePlanError extends Error {
   constructor(kind: PlanKind = "effy") {
     super(`delivery: no active ${kind} fee plan`);
@@ -116,7 +98,7 @@ const PLAN_COLUMNS = `
 		today_premium_amount::text AS today_premium_amount,
 		rounding_step::text AS rounding_step, floor_amount::text AS floor_amount, cap_amount::text AS cap_amount`;
 
-/** The plan in force for a kind. Throws `NoActivePlanError` when there is none. */
+/** Throws `NoActivePlanError` when there is none. */
 export async function loadActivePlan(q: Queryable, kind: PlanKind = "effy"): Promise<Plan> {
   const row = (
     await q.query<PlanRow>(`SELECT ${PLAN_COLUMNS} FROM public.delivery_fee_plan WHERE is_active AND kind = $1`, [kind])
@@ -125,7 +107,7 @@ export async function loadActivePlan(q: Queryable, kind: PlanKind = "effy"): Pro
   return withBands(q, row);
 }
 
-/** Any plan by id — a draft, the active one or a retired one (the simulator). `null` when unknown. */
+/** Draft, active or retired (the simulator); `null` when unknown. */
 export async function loadPlan(q: Queryable, id: string): Promise<Plan | null> {
   const row = (await q.query<PlanRow>(`SELECT ${PLAN_COLUMNS} FROM public.delivery_fee_plan WHERE id = $1`, [id])).rows[0];
   return row ? withBands(q, row) : null;
@@ -141,7 +123,7 @@ async function withBands(q: Queryable, row: PlanRow): Promise<Plan> {
       `SELECT upper_grams, add_amount::text AS add_amount FROM public.delivery_weight_band WHERE plan_id = $1 ORDER BY upper_grams`,
       [row.id],
     ),
-    // ⚠ A switched-off window's premium is not loaded: it must never apply (077 data-model).
+    // A switched-off window's premium never applies.
     q.query<{ slot_id: string; add_amount: string }>(
       `SELECT p.slot_id::text AS slot_id, p.add_amount::text AS add_amount
          FROM public.delivery_slot_premium p

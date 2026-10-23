@@ -1,8 +1,6 @@
 import type { Banner } from "../promotion-groups"
 import Link from "next/link"
 
-
-
 import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -16,19 +14,9 @@ import { isDesigned } from "./skin-designed"
 import { SkinnedPromotion } from "./SkinnedPromotion"
 
 /**
- * The promotional offers block (039 US4, FR-017/FR-018/FR-020) — the reference's one-large-plus-two-
- * stacked composition, driven by advertised promotions.
- *
- * ⚠ FED BY `inline`-PLACEMENT BANNERS, NOT `"offers"`. `BannerPlacement` is `"carousel" | "inline"`
- * (`packages/shared-types/src/banner.ts`); 039's spec and contract originally named an `offers`
- * placement that **does not exist**, which would have matched nothing and rendered this block as
- * absent — a *valid* state under FR-018, so it would not have looked like a bug. The dedicated offers
- * placement 029 created is `inline`.
- *
- * ⚠ THE COMPOSITION DEGRADES, IT DOES NOT PAD (FR-018). With three or more promotions: one large panel
- * beside two stacked. With two: two equal panels. With one: a single wide panel. With none: the section
- * renders nothing at all. There is deliberately no placeholder tile — an empty frame in a promotional
- * block reads as a broken advert, and a shopper cannot tell it from a promotion that failed to load.
+ * The promotional offers block: one large panel beside two stacked (three or more promotions), two
+ * equal panels (two), one wide panel (one), nothing at all (none). Fed by `inline`-placement banners. No
+ * placeholder tile: an empty frame reads as a broken advert.
  */
 export function offerHref(banner: Banner): string | null {
   return banner.href ?? (banner.target?.kind === "promotion" ? `/promotions/${banner.target.promotionId}` : null)
@@ -38,8 +26,8 @@ export function offerHref(banner: Banner): string | null {
  * The home "Offers" row (reference: Home · Offers): up to three cards, each a 16:9 promo banner
  * carrying the offer's name over a line about it and a way in.
  *
- * ⚠ The reference's aisle words ("Bakery offer", the "Bakery" badge) are sample content — a promotion
- * has no aisle scope (084 research D7), so none is invented here. The banner says "Offer", and the
+ * The reference's aisle words ("Bakery offer", the "Bakery" badge) are sample content — a promotion
+ * has no aisle scope, so none is invented here. The banner says "Offer", and the
  * badge appears only for the one thing that is true of a promotion today: it carries a code.
  */
 export function OffersPanels({
@@ -72,9 +60,9 @@ export function OffersPanels({
 /**
  * One home offer: the banner on top, the words about it below, the whole card one link.
  *
- * ⚠ `imageUrl` IS NOT `banner.imageUrl`, and the home page does not pass it yet. It is the slot for a
+ * `imageUrl` is not `banner.imageUrl`, and the home page does not pass it yet. It is the slot for a
  * real 16:9 promo image: given one, the drawn banner is replaced by it at the same size and the
- * offer's name moves BELOW it — the name stays real text, and is never laid on artwork nobody has
+ * offer's name moves below it — the name stays real text, and is never laid on artwork nobody has
  * measured for contrast.
  */
 export function OfferBannerCard({

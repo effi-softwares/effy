@@ -10,17 +10,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * 026 — the per-tab back stacks.
- *
- * ⚠ MOST OF THIS EXISTS BECAUSE OF ONE SHIPPED BUG. `AuthViewModel.completeSignIn` called
- * `resetTo(CustomerNavKey.Home)` while the customer was inside the **Account** tab, which set the
- * ACCOUNT tab's stack to `[Home]`. Tapping Account then rendered Discover — permanently, on both
- * platforms, from the moment anyone signed in. It compiled, every test passed, and the only way to
- * find it was to sign in and tap Account.
- *
- * The cause was a rename that carried the wrong meaning: the pre-Nav3 navigator used `AppRoute.Home`
- * to mean "the root of the sub-graph you are in", and the migration mapped it onto `CustomerNavKey.Home`,
- * which means the Discover tab.
+ * The per-tab back stacks. Much of this pins one rule: completing sign-in must never `resetTo(Home)` from
+ * inside another tab, which would set that tab's stack to Home for good.
  */
 class CustomerNavStateTest {
 
@@ -93,7 +84,7 @@ class CustomerNavStateTest {
         assertEquals(1, nav.currentStack.size)
     }
 
-    // ── The search-focus one-shot (028 T011) ────────────────────────────────────────────────────
+    // The search-focus one-shot
 
     @Test
     fun `no focus is pending until it is asked for`() {

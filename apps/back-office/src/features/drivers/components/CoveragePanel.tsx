@@ -8,13 +8,13 @@ import { COVERAGE_REASON_LABEL, FUNCTION_SHORT } from "../capabilityModel";
 import { coverageQuery } from "../capabilityQueries";
 
 /**
- * Where the fleet has no cover (062 US4).
+ * Where the fleet has no cover.
  *
- * ⚠ A LIST OF PROBLEMS, NOT A MATRIX. A covered combination emits no row at all (FR-019) — a screen
+ * A list of problems, not a matrix. A covered combination emits no row at all — a screen
  * that lists every zone and colours the bad ones is a screen an operator has to scan, and the whole
  * point of this view is that it is short enough to read.
  *
- * ⚠ AND IT LIVES INSIDE THE READINESS SECTION, NOT ON ITS OWN PAGE (FR-020). Two screens answering
+ * And it lives inside the readiness section, not on its own page. Two screens answering
  * "can this driver work?" would eventually disagree, and an operator would have no way to tell which
  * was right. Both read one availability rule on the server for the same reason.
  */
@@ -55,7 +55,7 @@ export function CoveragePanel() {
               <p key={g.function} className="text-sm text-muted-foreground">
                 {FUNCTION_SHORT[g.function]} —{" "}
                 <span className="text-foreground">{COVERAGE_REASON_LABEL[g.reason]}</span>
-                {/* ⚠ The count is what makes the two reasons ACTIONABLE. Zero means grant somebody a
+                {/* The count is what makes the two reasons actionable. Zero means grant somebody a
                     clearance, here. More than zero means the people who have it cannot work today,
                     and the fix is above, in readiness. */}
                 {g.clearedDriverCount > 0 ? (

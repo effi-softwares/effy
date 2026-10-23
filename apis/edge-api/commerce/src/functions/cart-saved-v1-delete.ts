@@ -1,4 +1,3 @@
-// DELETE /commerce/v1/cart/saved/{variantId}?changeId= — drop a set-aside line.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

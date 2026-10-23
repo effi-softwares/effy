@@ -23,7 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** 096 US7 — the order's Documents section. */
+/** The order's Documents section. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OrderDocumentsViewModelTest {
     @BeforeTest fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -94,7 +94,7 @@ class OrderDocumentsViewModelTest {
         assertEquals("Unavailable", DeliveryNoteLineStatus.UNAVAILABLE.words())
     }
 
-    /** 096 US8 — nothing is issued until the customer asks; refusals are the customer's words. */
+    /** Nothing is issued until the customer asks; refusals are the customer's words. */
     @Test fun the_tax_invoice_is_on_request_and_refusals_are_worded() = runTest {
         val repo = Repo(DeliveryNoteResult.NotYet)
         val vm = OrderDocumentsViewModel("o1", repo)

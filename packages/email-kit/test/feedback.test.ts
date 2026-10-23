@@ -8,9 +8,8 @@ import { CATALOG, validateVars } from "../src/catalog.js";
 import type { MailIdentity } from "../src/audience.js";
 
 /**
- * 046 — the two feedback messages. `feedback-received` acknowledges a submission; `feedback-reply`
- * delivers a staff reply. They carry OPPOSITE failure policies, and both must expose only what the
- * shopper gave (FR-038) and render pasted markup as inert text (FR-017).
+ * The two feedback messages, with opposite failure policies; both expose only what the shopper gave
+ * and render pasted markup as inert text.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -40,10 +39,7 @@ describe("feedback-received — acknowledgement", () => {
     }
   });
 
-  /**
-   * ⚠ SWALLOW — the submission is already stored and the shopper was already told "received"; a thrown
-   * failure would contradict a true fact (FR-015). Transactional, so no unsubscribe footer.
-   */
+  /** Swallow: the submission is stored and the shopper was told "received". Transactional. */
   it("swallows on send failure and carries no unsubscribe URL", () => {
     expect(CATALOG["feedback-received"].onSendFailure).toBe("swallow");
     expect(CATALOG["feedback-received"].category).toBe("transactional");
@@ -65,28 +61,20 @@ describe("feedback-reply — staff reply", () => {
 
   it("carries the reply body and quotes the original in both parts", () => {
     const m = render("feedback-reply", reply, "customer", identity);
-    // ⚠ Assert on punctuation-free substrings: the HTML render escapes apostrophes/dashes, so the raw
-    // fixture string is not present verbatim in the HTML (it IS in the text part). These fragments
-    // prove both the reply and the quoted original reach both parts without pinning the escaper.
+    // Punctuation-free substrings: the HTML render escapes apostrophes and dashes.
     for (const part of [m.html, m.text]) {
       expect(part).toContain("moved it to the top of the results");
       expect(part).toContain("The category filter on the search page is really hard to find");
     }
   });
 
-  /**
-   * ⚠ THROW — nothing irreversible has happened, and the whole point is that the shopper receives it;
-   * a swallowed failure would mark the submission replied while the shopper got nothing (FR-030).
-   */
+  /** Throw: a swallowed failure would mark the submission replied while the shopper got nothing. */
   it("throws on send failure", () => {
     expect(CATALOG["feedback-reply"].onSendFailure).toBe("throw");
     expect(CATALOG["feedback-reply"].category).toBe("transactional");
   });
 
-  /**
-   * ⚠ FR-017 — pasted markup must render inert. The render path escapes it, so the raw `<script>` tag
-   * never appears in the HTML output.
-   */
+  /** Pasted markup renders inert. */
   it("renders pasted markup as inert text (no live script tag)", () => {
     const hostile = {
       ...reply,
@@ -99,10 +87,7 @@ describe("feedback-reply — staff reply", () => {
     expect(m.html).toContain("&lt;script&gt;");
   });
 
-  /**
-   * ⚠ FR-038 / G2 — the reply exposes ONLY the whitelisted vars. There is no internal-note or
-   * internal-id field in the reply's declared variable set, so none can reach the rendered output.
-   */
+  /** The reply exposes only its declared vars: no internal note or id can reach it. */
   it("declares only whitelisted, non-internal variables", () => {
     const declared = Object.keys(CATALOG["feedback-reply"].vars);
     expect(declared.sort()).toEqual(

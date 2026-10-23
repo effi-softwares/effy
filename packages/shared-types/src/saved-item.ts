@@ -1,34 +1,17 @@
 /**
- * Customer saved items — the price-and-availability WATCHLIST (033).
- *
- * Replaces the retired `favorite.ts` / `FavoriteDTO` entirely. Two things the predecessor got wrong
- * are fixed at the contract, not in the clients:
- *
- *   1. Nothing could answer "is this product already saved?", so every surface assumed NOT SAVED on
- *      every render — and a shopper's second tap silently un-saved what they were trying to save.
- *      `SavedMembershipDTO` is that answer, delivered ONCE per screen rather than once per product.
- *   2. The list called a product available whenever the catalogue said `status = 'active'`, which is
- *      not the same question as "can this shopper buy it". `SavedVerdict` replaces that boolean with
- *      five distinguishable outcomes.
- *
- * ⚠ NOT to be confused with the cart's set-aside (`cart.ts`, 027) — a bookmark, not a heart, a
- * different table, and a different capability.
+ * Saved items: the shopper's price-and-availability watchlist. `SavedMembershipDTO` answers "is this
+ * saved?" once per screen; `SavedVerdict` says whether each item can be bought. Not the cart's set-aside
+ * (`cart.ts`).
  */
 import type { WireInt } from "./cart";
 import type { ProductBadge } from "./storefront";
 import type { UnitPriceDTO } from "./unit-price";
 
 /**
- * Whether the shopper can buy a saved item right now.
- *
- * ⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived from
- * delivery zones, and delivery zones were withdrawn from the platform. The list still tells the truth
- * about stock and withdrawal — it simply has nothing to say about delivery reach, because nothing on
- * the platform knows it. Each remaining value still implies a different next action:
- *
- *   purchasable             → buy now
- *   temporarily_unavailable → sold, not in stock — wait
- *   no_longer_sold          → withdrawn entirely — give up
+ * Whether the shopper can buy a saved item now, each value implying a next action:
+ *  purchasable → buy now
+ *  temporarily_unavailable → sold, not in stock: wait
+ *  no_longer_sold → withdrawn: give up
  */
 export type SavedVerdict =
   | "purchasable"
@@ -36,111 +19,74 @@ export type SavedVerdict =
   | "no_longer_sold";
 
 /**
- * One entry in the saved list.
- *
- * Name, image and CURRENT price are read live (FR-045) — a renamed or re-imaged product shows its
- * true present identity. Only `savedPriceAmount` is remembered, and only so a drop is detectable.
- *
- * ⚠ THIS DELIBERATELY DOES NOT EXTEND `StorefrontProductCardDTO`, and the reason is the whole point
- * of the feature. That interface carries `available: boolean` — a flag derived from catalogue status
- * alone, which is precisely the field that lied: a product can be `available: true` and still not
- * purchasable at the shopper's address, which is how the predecessor invited people into a checkout
- * that refused them. `verdict` REPLACES it. Extending the card would carry the lying boolean back in
- * beside the five-way answer that supersedes it, and a client would then have two fields
- * disagreeing about the same question — which is how they end up rendering the wrong one.
- *
- * The shared card fields are therefore repeated here on purpose. That is duplication with a reason,
- * not drift.
+ * One entry in the saved list. Name, image and current price are read live; only `savedPriceAmount` is
+ * remembered, so a drop is detectable. It does not extend `StorefrontProductCardDTO`: that card's
+ * `available` flag is catalogue status only, and `verdict` replaces it, so the card fields are repeated.
  */
 export interface SavedItemDTO {
   id: string;
   name: string;
   brand: string | null;
   imageUrl: string | null;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
   priceAmount: string;
   currency: string;
   compareAtAmount: string | null;
   badges: ProductBadge[];
-  /** When it was saved. Drives list order (newest first) and undo's restore position. */
+  /** When it was saved: list order (newest first) and undo's restore position. */
   savedAt: string;
-  /** The price at the moment of saving — the baseline `priceDropped` is measured against. */
+  /** The price when saved: the baseline for `priceDropped`. */
   savedPriceAmount: string;
-  /**
-   * Present and `true` only when the current price is BELOW the save-time price.
-   *
-   * ⚠ There is deliberately no `priceRose`. The current price is always shown, so nothing is
-   * concealed — but a rise is not something a shopper can act on, and badging it would add noise to
-   * the one signal this list exists to carry.
-   */
+  /** Present and `true` only when the current price is below the save-time price. No `priceRose`: a rise is not actionable. */
   priceDropped?: boolean;
   verdict: SavedVerdict;
-  /** For client-side grouping by aisle (FR-056). Absent when the product has no primary category. */
+  /** For grouping by aisle; absent when the product has no primary category. */
   categoryKey?: string;
   /**
-   * 098 — the variant "Add to cart" adds: the one remembered when it was saved (FR-015a), else the
-   * product's only one. Null when the product is sold in several sizes and none is remembered (or the
-   * one remembered is no longer sold) — the shopper chooses. Price, verdict and image above are the
-   * REMEMBERED variant's when there is one, else the product's listing price and availability.
+   * The variant "Add to cart" adds: the one remembered when saved, else the product's only one. Null when
+   * there are several sizes and none is remembered (or it is no longer sold): the shopper chooses. Price,
+   * verdict and image are the remembered variant's when there is one.
    */
   variantId: string | null;
-  /** 098 — its label ("1 kg"); null when none, or the product has no options. */
+  /** Its label ("1 kg"); null when none, or with no options. */
   variantLabel: string | null;
-  /** 098 — products with more than one active variant: adding to the cart without a remembered one asks the shopper to choose. */
+  /** More than one active variant: adding without a remembered one asks the shopper to choose. */
   variantCount: WireInt;
   unitPrice: UnitPriceDTO | null;
 }
 
-/**
- * PUT /commerce/v1/saved/{productId} — save (idempotent). 098: `variantId` remembers the variant the
- * shopper had selected; saving again with another one updates it. Both fields optional.
- */
+/** PUT /commerce/v1/saved/{productId}: save (idempotent). `variantId` remembers the selected variant; saving again updates it. */
 export interface SaveItemRequest {
-  /** Set ONLY by undo. */
+  /** Set only by undo. */
   restoreSavedAt?: string;
   variantId?: string | null;
 }
 
 /**
- * The shopper's whole set of saved product ids.
- *
- * ⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers for every
- * product on it. The two alternatives were both rejected: an `isSaved` field on catalogue reads would
- * make every product response shopper-specific and destroy the storefront's static shell, and a
- * per-product lookup would be one request per tile (FR-020).
- *
- * Bounded by the 200-item cap, which is what keeps a whole-set read cheap enough to do this way.
+ * The shopper's whole set of saved product ids, fetched once per screen and answering for every product
+ * on it (catalogue reads stay shopper-neutral). The 200-item cap keeps it cheap.
  */
 export interface SavedMembershipDTO {
   productIds: string[];
-  /** ⚠ WireInt, not number — see the note on the import. */
+  /** `WireInt`. */
   count: WireInt;
   /**
-   * The subset of `productIds` held in at least one NAMED list (068).
-   *
-   * ⚠ This is what the heart reads to decide what a tap on a FILLED heart means: a product only in
-   * "Saved" is un-saved; a product in a named list opens the list chooser instead, because one tap
-   * must never remove something from a list the shopper built (068 FR-020). The platform enforces
-   * the same rule (`409`), so a client that ignores this field is safe, just less graceful.
+   * The ids also held in a named list. A tap on a filled heart un-saves a product only in "Saved"; one in
+   * a named list opens the list chooser (the platform refuses the removal with 409 anyway).
    */
   namedProductIds: string[];
 }
 
-/** One device-held saved item being offered to an account (FR-028). */
+/** One device-held saved item offered to an account. */
 export interface SavedMergeItem {
   productId: string;
-  /** 098 — the variant the device remembered, if any. */
+  /** The variant the device remembered, if any. */
   variantId?: string | null;
   /**
-   * ⚠ The GUEST's save-time price travels with it. Taking the price at merge time instead would
-   * silently erase the movement the watchlist exists to report, for exactly the shopper who saved
-   * earliest and has waited longest.
-   *
-   * ⚠ NULLABLE, and absent is meaningful: it means the device never observed a price, because the
-   * surface the shopper tapped on carried only a product id. The platform then uses the product's
-   * CURRENT price as the baseline — which is what an ordinary save records. Sending `"0"` instead
-   * would report the item as having fallen from nothing: a fabricated fact, worse than an absent one.
+   * The guest's save-time price travels with it, so the watchlist keeps the movement. Absent means the
+   * device never saw a price: the platform then uses the current price, as an ordinary save does (never
+   * send "0").
    */
   savedPriceAmount: string | null;
   savedCurrency: string | null;
@@ -154,22 +100,16 @@ export interface SavedMergeRequest {
 /** Why one product could not be taken (a merge or a bulk add). */
 export interface SavedSkip {
   productId: string;
-  /**
-   * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | 098 `choose_variant`
-   * (no variant remembered, or it is no longer sold — the shopper opens the product and chooses).
-   */
+  /** `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | `choose_variant` (open the product and choose). */
   reason: string;
 }
 
 /**
- * The result of joining a device-held list into an account.
- *
- * Returns the resulting set so the client seeds its store from this response rather than issuing a
- * second read, and `added` so the surface can DISCLOSE the join by count (FR-032) instead of silently
- * absorbing someone else's saves on a shared device.
+ * The result of joining a device-held list into an account: the resulting set (so the client seeds its
+ * store from it) and `added`, so the surface discloses the join by count.
  */
 export interface SavedMergeResultDTO {
-  /** ⚠ WireInt, not number. */
+  /** `WireInt`. */
   added: WireInt;
   skipped: SavedSkip[];
   productIds: string[];
@@ -179,50 +119,31 @@ export interface SavedAddToCartRequest {
   changeId?: string;
 }
 
-/**
- * The result of adding every purchasable saved item to the cart.
- *
- * ⚠ `skipped` is the whole point of this shape. FR-052 forbids silent omission: a bulk add that
- * quietly drops what it could not take leaves the shopper believing they bought something they did
- * not. Every omission carries a reason.
- */
+/** The result of adding every purchasable saved item to the cart. Every omission is in `skipped`, with a reason. */
 export interface SavedAddToCartResultDTO {
   added: string[];
   skipped: SavedSkip[];
 }
 
-/* ── 068: lists the shopper names for themselves ─────────────────────────────────────────────── */
+// Lists the shopper names
 
-/** How many lists of their own a shopper may hold, the default excluded. Mirrors `saveditems.ListLimit`. */
+/** How many lists of their own a shopper may hold, the default excluded. */
 export const LIST_LIMIT = 20;
 
-/**
- * The longest list name, in Unicode code points, after the platform has normalised it. Mirrors
- * `saveditems.ListNameMax`.
- *
- * ⚠ Clients use this to show a remaining-characters count. The count is advisory: the platform
- * decides, and a client that disagrees is told `invalid_name`.
- */
+/** The longest list name, in Unicode code points after normalisation; advisory for a remaining-characters count (the platform answers `invalid_name`). */
 export const LIST_NAME_MAX = 40;
 
 /** The default list's id on the wire. No client ever needs its real id. */
 export const DEFAULT_LIST_ID = "default";
 
-/**
- * One of the shopper's lists.
- *
- * ⚠ `name` is `null` for the default list. "Saved" is display text and each client supplies it.
- */
+/** One of the shopper's lists. `name` is `null` for the default list ("Saved" is each client's display text). */
 export interface SavedListDTO {
   /** A uuid, or `"default"` for the default list. */
   id: string;
   isDefault: boolean;
   name: string | null;
   count: WireInt;
-  /**
-   * How many of this list's products are in NO other list. Deleting the list stops those being
-   * saved at all, and the confirmation must say so (068 FR-006).
-   */
+  /** How many of this list's products are in no other list: deleting it unsaves them, and the confirmation says so. */
   onlyHereCount: WireInt;
   /** Present only when the read named a product: whether this list holds it. */
   containsProduct?: boolean;
@@ -230,9 +151,9 @@ export interface SavedListDTO {
 
 export interface SavedListCreateRequest {
   name: string;
-  /** Place this product in the new list in the same action (068 FR-015). */
+  /** Place this product in the new list in the same action. */
   productId?: string;
-  /** 098 — with `productId`: the variant to remember. */
+  /** With `productId`: the variant to remember. */
   variantId?: string | null;
 }
 
@@ -241,9 +162,9 @@ export interface SavedListRenameRequest {
 }
 
 export interface SavedListEntryRequest {
-  /** Set ONLY by undo, to return the product to the position it held in this list. */
+  /** Set only by undo, to return the product to its position in this list. */
   restoreAddedAt?: string;
-  /** 098 — the variant the shopper had selected; it becomes the product's remembered variant. */
+  /** The variant the shopper had selected; it becomes the remembered one. */
   variantId?: string | null;
 }
 

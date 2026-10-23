@@ -30,9 +30,9 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe("⚠ iPad detection (T043) — the device this audience actually uses", () => {
   it("recognises an iPad that reports itself as a Mac", () => {
-    // ⚠ THE DEFECT THIS PREVENTS. iPadOS 13+ sends a Macintosh user-agent. A check that only looks
+    // The defect this prevents. iPadOS 13+ sends a Macintosh user-agent. A check that only looks
     // for /iPad|iPhone/ therefore treats every shop iPad as a desktop, shows no install
-    // instructions — and on iPadOS the Push API exists ONLY for a home-screen app, so the operator
+    // instructions — and on iPadOS the Push API exists only for a home-screen app, so the operator
     // can never even be asked for notification permission. The whole of US1 would be unreachable on
     // the primary device, with nothing failing anywhere.
     stubUA(
@@ -70,7 +70,7 @@ describe("⚠ iPad detection (T043) — the device this audience actually uses",
 
 describe("standalone detection", () => {
   it("uses Safari's own non-standard flag as well as display-mode", () => {
-    // ⚠ `navigator.standalone` is the only reliable signal on older iOS. Checking display-mode alone
+    // `navigator.standalone` is the only reliable signal on older iOS. Checking display-mode alone
     // makes an installed iPad look uninstalled, so the console keeps telling an operator to install
     // something they are already using.
     stubDisplayMode(false)

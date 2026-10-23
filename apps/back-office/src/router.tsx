@@ -45,7 +45,7 @@ import { customerDetailRoute, customersIndexRoute } from "./routes/customers";
 import { StatusPage } from "./components/patterns/StatusPage";
 import { rootRoute } from "./routes/__root";
 
-// Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
+// Code-based route tree. Protected app shell at '/' (+ '/admin', '/shops',
 // '/catalog', '/promotions'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([

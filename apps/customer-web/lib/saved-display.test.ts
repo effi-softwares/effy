@@ -12,7 +12,7 @@ const ALL: SavedVerdict[] = [
 
 describe("saved-display", () => {
   /**
-   * ⚠ THE CENTRAL ASSERTION OF THE FEATURE, in one test. If any two outcomes ever say the same thing,
+   * The central assertion of the feature, in one test. If any two outcomes ever say the same thing,
    * a shopper cannot tell whether to wait, change their address, or give up — which is exactly the
    * failure the predecessor shipped by collapsing all five into one `available` boolean.
    */
@@ -28,7 +28,7 @@ describe("saved-display", () => {
   })
 
   /**
-   * ⚠ "Unavailable" and "we don't deliver that to you" are DIFFERENT STATEMENTS and only one is true
+   * "Unavailable" and "we don't deliver that to you" are different statements and only one is true
    * in any given case. This pins that they do not converge on the same wording.
    */
   it("says a withdrawn product is gone rather than merely unavailable", () => {

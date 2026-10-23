@@ -4,10 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * 078 — a window becomes an instant in ONE place (`slots.ts`). 058 found two calendar defects from
- * rebuilding an instant out of wall-clock fields in more than one.
- */
+/** A window becomes an instant only in `slots.ts`. */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");
 const rel = (file: string) => relative(services, file);

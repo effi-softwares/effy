@@ -1,5 +1,4 @@
-// PUT /commerce/v1/orders/{id}/business-identity — the buyer's own business name and ABN for this
-// order's tax invoice (096 FR-085). Owner only. 422 `abn_invalid`; refused once the invoice is issued.
+// The buyer's business name and ABN for this order's tax invoice; refused once the invoice is issued.
 import { ConnectionLimitError, internal, notFound, problem } from "@effy/edge-shared";
 
 import { customerRoute, jsonBody, pathParam } from "../lib/route";

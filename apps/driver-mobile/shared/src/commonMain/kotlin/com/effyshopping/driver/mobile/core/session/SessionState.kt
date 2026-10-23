@@ -3,7 +3,7 @@ package com.effyshopping.driver.mobile.core.session
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 
 /**
- * The root state of the login-first driver app (049). Like shop-mobile there is NO guest and no
+ * The root state of the login-first driver app. Like shop-mobile there is NO guest and no
  * deferred sign-in. `Restoring` is its own state so the sign-in form never flickers in before a
  * remembered session resolves.
  */

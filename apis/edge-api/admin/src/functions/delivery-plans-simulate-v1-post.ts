@@ -1,6 +1,4 @@
-// POST /admin/v1/delivery/plans/simulate — what would this delivery cost under this plan, and why
-// (077 FR-025)? READ-ONLY: it writes nothing and announces nothing, so a csa may use it to explain a
-// fee to a customer.
+// Read-only, so a csa may use it to explain a fee.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

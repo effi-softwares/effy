@@ -3,7 +3,7 @@ import type { ProductStatus, ShopReviewState } from "@effy/shared-types";
 /**
  * Pure lifecycle logic for the status menu + delete guard (US5 — no React, unit-testable).
  *
- * Mirrors the `product.status` state machine (data-model §4). The BACKEND is authoritative — it
+ * Mirrors the `product.status` state machine. The backend is authoritative — it
  * re-validates every transition and refuses a hard delete of anything but an unreferenced draft; this
  * only decides which controls to offer and what copy to show, so the UI never dangles a dead action.
  */
@@ -15,10 +15,10 @@ export interface StatusTransition {
 
 /**
  * The transitions offered from a given status.
- *   draft        → nothing (067: a draft reaches the storefront by Effy's approval, not by a status move)
- *   active       → make unavailable, archive
- *   unavailable  → make available (→active), archive
- *   archived     → reactivate (→active)
+ *  draft → nothing (a draft reaches the storefront by Effy's approval)
+ *  active → make unavailable, archive
+ *  unavailable → make available (→active), archive
+ *  archived → reactivate (→active)
  */
 export function availableTransitions(status: ProductStatus): StatusTransition[] {
   switch (status) {
@@ -57,24 +57,15 @@ export function deleteGuardMessage(status: ProductStatus): string {
   return "A published product can't be deleted — archive it instead. Archiving hides it from the catalog but keeps its data.";
 }
 
-/* ────────────────────────────────────────────────────────────────────────────────────────────────
- * 057 — the two named actions the mockup gives this screen, instead of one "Change status" menu.
- *
- * ⚠ WHY THE MENU WENT. The imported mockup puts ONE verb in the header ("Unpublish" / "Publish" /
- * "Restore") and ONE removal verb ("Archive product") — both now in the header's action row (the
- * revised mockup deleted the rail the removal used to sit at the foot of), and it is right to: a dropdown
- * called "Change status" makes an operator open a menu to find out what it can even do, and then
- * makes them translate "make unavailable" into the thing they actually want, which is "take it off
- * the storefront". The transitions are unchanged — every one of `availableTransitions` is still
- * reachable — but each now arrives as the word for the outcome.
- *
- * ⚠ AND THE TWO NEVER OVERLAP. An archived product's way back is the header's "Restore"; the removal
- * control offers nothing, because a second control doing the same thing is how two buttons drift apart.
- * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+/**
+ * The header's two named actions instead of a "Change status" menu: one verb for the outcome
+ * ("Unpublish" / "Publish" / "Restore") and one removal ("Archive product"). Every transition stays
+ * reachable, and the two never overlap: an archived product's way back is "Restore" only.
+ */
 
 export interface VisibilityAction {
   /**
-   * What pressing it does (067). `status` moves the lifecycle; `submit` sends a never-approved
+   * What pressing it does. `status` moves the lifecycle; `submit` sends a never-approved
    * product to Effy for review; `withdraw` takes it back out of the queue.
    */
   kind: "status" | "submit" | "withdraw";
@@ -92,8 +83,8 @@ export interface VisibilityAction {
 /**
  * The storefront-visibility action for a status, or null when there is none.
  *
- * ⚠ `unavailable` AND `draft` BOTH PUBLISH TO `active`, and that is not a shortcut: the state machine
- * (data-model §4) has exactly one on-sale state, so "put this on sale" has exactly one destination.
+ * `unavailable` and `draft` both publish to `active`, and that is not a shortcut: the state machine
+ *  has exactly one on-sale state, so "put this on sale" has exactly one destination.
  * Reading the two as different actions is what produced the six-item menu this replaces.
  */
 export function visibilityAction(
@@ -102,7 +93,7 @@ export function visibilityAction(
 ): VisibilityAction | null {
   switch (status) {
     case "draft":
-      // ⚠ 067 — A SHOP NO LONGER PUBLISHES. A product Effy has never approved reaches the storefront
+      // A shop no longer publishes. A product Effy has never approved reaches the storefront
       // one way: it is submitted, and Effy approves it. The button says so, because a "Publish" that
       // the server refuses is a control that lies about what it can do.
       if (reviewState === "in_review") {
@@ -172,7 +163,7 @@ export interface RemovalAction {
 /**
  * The removal action (last in the header row), or null when there is none.
  *
- * ⚠ NULL FOR AN ARCHIVED PRODUCT. It is already removed; the only thing left to do to it is restore
+ * Null for an archived product. It is already removed; the only thing left to do to it is restore
  * it, and the header does that.
  */
 export function removalAction(status: ProductStatus): RemovalAction | null {

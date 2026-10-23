@@ -4,47 +4,18 @@ import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * 057 — the product screen must offer NO inventory control the platform cannot honour.
+ * The product screen offers no inventory control the platform cannot honour. A source guard, because the
+ * design reference (a generic e-commerce console) makes each of these look like an omission:
+ *  • Variant management on the stock screen: sizes are edited in Sizes and prices, through Effy's review.
+ *  • Reserved units: nothing reserves stock, so the number would be invented.
+ *  • Stock location: a shop is the location.
+ *  • Days cover: there is no per-product sales history.
+ *  • Unit cost / margin: there is no cost column.
+ *  • A VAT rate: per-item GST treatment is not modelled.
+ *  • Sales channels: there is one channel.
  *
- * ⚠ WHY A SOURCE GUARD AND NOT A RENDER ASSERTION. A render test proves today's fixture happens not
- * to show a variant table; it proves nothing about the one someone adds next month after reading the
- * mockup. And they WILL read the mockup: it is a generic e-commerce console whose product page ships
- * a by-variant stock breakdown with per-variant Adjust buttons, a "Reserved" row, a stock "Location"
- * select and a "days cover" bar — every one of which looks like an obvious omission from ours.
- *
- * None of them survives contact with this platform:
- *
- *   • VARIANTS — LIFTED BY 098. Stock is now counted per variant, shown one size at a time. What
- *     stays refused below is the mockup's own variant MANAGEMENT here: sizes are edited in the
- *     Sizes and prices section, through Effy's review, never from the stock screen.
- *   • RESERVED UNITS — NOTHING RESERVES STOCK. 054's A6 recorded this as an ACCEPTED residual in
- *     writing: between creating a payment and it succeeding another shopper can take the last unit,
- *     and closing that window needs a reservation table plus an abandoned-checkout sweep the platform
- *     does not have. "Reserved: 2" would be worse than absent — an operator would subtract it before
- *     deciding whether to reorder.
- *   • STOCK LOCATION — A SHOP IS THE LOCATION. 049's model is one fulfilment node per shop and the
- *     schema has no bin, warehouse or storage area anywhere. A select offering three of them would be
- *     three options meaning the same shelf.
- *   • DAYS COVER — needs a sales velocity, and the platform stores no per-product sales history. It is
- *     the same fact that refuses the mockup's "Last 30 days" rail, and drawing a bar from an invented
- *     velocity is the defect this feature deleted from the dashboard.
- *   • UNIT COST / MARGIN — `public.product` has no cost column, and purchasing (where a cost would be
- *     recorded) is deferred to its own feature. A margin computed from a cost nobody recorded is a
- *     number with no fact behind it.
- *   • VAT RATE — 052's R13 settled this: the ABN is unsupplied and per-item GST treatment is unmodelled,
- *     so an AU grocery basket is a MIXED SUPPLY and a single "25% — standard" rate is simply false.
- *     `canIssueTaxInvoice()` stays false until both land.
- *   • SALES CHANNELS — Effy is a single-brand storefront with hidden fulfilment. There is one channel.
- *     Checkboxes for "Point of sale" and "Wholesale" would be three switches with one wire behind them.
- *
- * ⚠ COMMENTS ARE STRIPPED BEFORE SCANNING, including this docblock's own. A guard that fires on its
- * own justification gets deleted by the next person and takes the requirement with it — the rule
- * `order-detail.test.ts` and `theme-tokens.test.ts` already follow.
- *
- * ⚠ AND THE PATTERNS ARE PHRASES, NEVER BARE WORDS. `variant` alone appears in every
- * `<Button variant="outline">` in the directory, so a guard on it would fire on correct code and be
- * deleted within the day. 056 records the mirror-image failure — a pattern so narrow the injected
- * break sailed through — so every pattern below was verified by breaking it.
+ * Comments are stripped before scanning, and patterns are phrases, never bare words (`variant` is in
+ * every `<Button variant=…>`). Every pattern was verified by breaking it.
  */
 
 const CATALOG_DIR = resolve(__dirname, "..")
@@ -94,7 +65,7 @@ describe("the product screen offers no inventory control the platform cannot hon
   const files = sourceFiles(CATALOG_DIR)
 
   it("finds the catalog sources to scan (a guard over nothing proves nothing)", () => {
-    // ⚠ 054's `TestRailsCarryOnlyAvailableProducts` passed VACUOUSLY once its rails emptied. If this
+    // 054's `TestRailsCarryOnlyAvailableProducts` passed vacuously once its rails emptied. If this
     // directory moves, the loop below would silently assert nothing — so assert the corpus first.
     expect(files.length).toBeGreaterThan(15)
   })

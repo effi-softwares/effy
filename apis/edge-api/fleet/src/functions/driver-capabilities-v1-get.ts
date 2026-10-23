@@ -1,5 +1,3 @@
-// GET /fleet/v1/drivers/{driverId}/capabilities — everything this driver is cleared for (062 FR-007).
-// Read = any active back-office staff, including csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

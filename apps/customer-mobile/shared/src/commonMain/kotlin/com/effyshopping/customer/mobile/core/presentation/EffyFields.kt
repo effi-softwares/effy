@@ -51,10 +51,10 @@ import org.jetbrains.compose.resources.painterResource
 private val SearchFieldShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
 
 /**
- * A LABELLED FIELD — a plain label ABOVE a bordered box (the storefront's form control).
+ * A labelled field — a plain label above a bordered box (the storefront's form control).
  *
  * 48dp, 16sp text (so iOS never zooms), 1dp hairline that becomes a 2dp blue ring on focus. The
- * storefront's border is a deliberately light hairline (the border exception), so every field MUST
+ * storefront's border is a deliberately light hairline (the border exception), so every field must
  * carry a visible label and the focus ring (constitution v3.3.0). An error is black text with an
  * alert icon beneath, never a red border.
  *
@@ -126,7 +126,7 @@ fun EffyField(
 }
 
 /**
- * A password input with a reveal toggle — the ONE password field in this app (034). The toggle is an
+ * A password input with a reveal toggle — the one password field in this app. The toggle is an
  * accessibility control (WCAG 2.2 SC 3.3.8); hidden by default and never restored after backgrounding.
  */
 @Composable
@@ -159,9 +159,9 @@ fun EffyPasswordField(
 }
 
 /**
- * THE SEARCH FIELD — light-blue fill, search glyph, clear button, 48dp, 16sp (Main and Search boards).
+ * The search field — light-blue fill, search glyph, clear button, 48dp, 16sp (Main and Search boards).
  *
- * Two modes: a live field ([onValueChange] set), or an ENTRY that only navigates ([onEntryClick] set,
+ * Two modes: a live field ([onValueChange] set), or an entry that only navigates ([onEntryClick] set,
  * as on Home, where tapping it opens the Search tab with the keyboard up).
  */
 @Composable
@@ -178,7 +178,7 @@ fun EffySearchField(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = EffySize.field)
-            // Operator direction (087): an OUTLINED, fully rounded search field on the white page —
+            // Operator direction: an outlined, fully rounded search field on the white page
             // no tinted fill.
             .clip(SearchFieldShape)
             .background(MaterialTheme.colorScheme.background)
@@ -244,7 +244,7 @@ fun EffyInlineError(text: String, modifier: Modifier = Modifier) {
 
 /**
  * The live search field with caret and selection control (the Search screen keeps a kept query
- * SELECTED on arrival, so typing replaces it in one action — 028 FR-012a).
+ * selected on arrival, so typing replaces it in one action — 028 FR-012a).
  */
 @Composable
 fun EffySearchField(
@@ -259,7 +259,7 @@ fun EffySearchField(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = EffySize.field)
-            // Operator direction (087): an OUTLINED, fully rounded search field on the white page —
+            // Operator direction: an outlined, fully rounded search field on the white page
             // no tinted fill.
             .clip(SearchFieldShape)
             .background(MaterialTheme.colorScheme.background)

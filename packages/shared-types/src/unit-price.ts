@@ -1,18 +1,11 @@
 /**
- * Unit pricing — 098-product-variants (R12).
+ * Unit pricing. A product says how its sizes are compared (`UnitBasis`: per 100 g, per kg, per 100 mL,
+ * per L, each); each variant says how much is in its pack. The comparison price is the price scaled to
+ * the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing Code asks.
  *
- * A product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL, per L,
- * each); each variant says how much is in its pack (`packQuantity` + `PackUnit`). The comparison
- * price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g. Australian online grocers
- * show one beside every price (the Unit Pricing Code), and it is how a shopper tells which size is
- * better value.
- *
- * ⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends
- * `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin formatter is
- * pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts` runs.
- *
- * ⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one half-up
- * rounding to a whole cent at the end — never a float.
+ * One sum, here: the server computes `UnitPriceDTO`; clients only format it (`unitPriceText`), the app's
+ * Kotlin formatter pinned to `unit-price.fixtures.json`. Integer arithmetic: whole cents, quantities in
+ * thousandths, one half-up rounding at the end.
  */
 
 export type UnitBasis = "per_100g" | "per_kg" | "per_100ml" | "per_l" | "each"
@@ -45,7 +38,7 @@ const PACK: Record<PackUnit, { dimension: "mass" | "volume" | "count"; factor: n
   each: { dimension: "count", factor: 1 },
 }
 
-/** g/kg go with the weight bases, mL/L with the volume bases, "each" with "each" (spec FR-017). */
+/** g/kg go with the weight bases, mL/L with the volume bases, "each" with "each". */
 export function packUnitCompatible(basis: UnitBasis, unit: PackUnit): boolean {
   return BASIS[basis].dimension === PACK[unit].dimension
 }
@@ -63,7 +56,7 @@ export function packQuantityThousandths(quantity: string | number): number | nul
  * The comparison price in whole cents, or null when it cannot be computed (no pack size, an
  * incompatible unit, a malformed quantity).
  *
- *   unit = price × basisBase ÷ (quantity × unitFactor)        rounded half up, once
+ *  unit = price × basisBase ÷ (quantity × unitFactor) rounded half up, once
  */
 export function unitPriceCents(
   priceCents: number,
@@ -76,9 +69,8 @@ export function unitPriceCents(
   if (!packUnitCompatible(basis, packUnit)) return null
   const q = packQuantityThousandths(packQuantity)
   if (q === null) return null
-  // price × base × 1000 / (q × factor), with q already ×1000.
-  // BigInt(n), not `n` literals: every consumer's compile target must accept this file (customer-web
-  // targets below ES2020, where a literal is a type error).
+  // price × base × 1000 / (q × factor), with q already ×1000. `BigInt(n)`, not `n` literals: customer-web
+  // compiles below ES2020.
   const numerator = BigInt(priceCents) * BigInt(BASIS[basis].base) * BigInt(1000)
   const denominator = BigInt(q) * BigInt(PACK[packUnit].factor)
   const two = BigInt(2)
@@ -101,10 +93,7 @@ export function unitPrice(
   return { amount: `${Math.floor(out / 100)}.${String(out % 100).padStart(2, "0")}`, basis }
 }
 
-/**
- * The words after the amount. ⚠ The customer app's `UnitBasisWords` is held to these by
- * `unit-price.fixtures.json`; change both or neither.
- */
+/** The words after the amount; the app's `UnitBasisWords` is held to them by `unit-price.fixtures.json`. */
 export const UNIT_BASIS_WORDS: Record<UnitBasis, string> = {
   per_100g: "/ 100 g",
   per_kg: "/ kg",

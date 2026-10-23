@@ -2,13 +2,7 @@
 
 import { usePathname } from "next/navigation"
 
-/**
- * The art panel beside every sign-in, join and reset step (reference: Shared components · Auth card
- * template). Desktop only — below `lg` the form has the whole screen.
- *
- * ⚠ The shapes are an ASSET, not tokens: the two brand hues come from the theme (`--brand`,
- * `--primary`) and the one grey-green is the drawing's own.
- */
+/** The art panel beside every auth step, desktop only. The brand hues come from the theme; the grey-green is the drawing's own. */
 const COPY = {
   signIn: "Sign in to track an order, keep your saved items, and check out faster next time.",
   join: "Create an account to order groceries for delivery, save your favourites and check out faster.",

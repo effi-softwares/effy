@@ -21,22 +21,13 @@ import {
   StepShell,
   Submit,
 } from "../_components/AuthKit"
-// 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
-// breach corpora (which the browser cannot be trusted to do) and records that a password now exists
-// (which Cognito cannot be asked). See _lib/recovery-actions.ts.
+// A Server Action, so the backend screens the password and records that one now exists (_lib/recovery-actions.ts).
 import { finishPasswordReset } from "../_lib/recovery-actions"
 
 /**
- * Password recovery (FR-014) — regain access by proving control of the verified email.
- *
- * ⚠ OPEN SPIKE (research D17, task T053). It is NOT established whether a customer who registered
- * via the email-OTP route — and therefore NEVER SET A PASSWORD — can use this flow to set their
- * first one. Cognito's documentation is silent. If it turns out they cannot, the supported path is
- * an authorized `AdminSetUserPassword` after an OTP-authenticated session (the same Cognito-first
- * admin-write shape as 006/009), and this form needs a companion route.
- *
- * Until the spike settles it, a passwordless customer who lands here may hit a wall — which is why
- * the copy points them back to the code route rather than leaving them stranded (FR-015).
+ * Password recovery by proving control of the verified email. Unverified: whether a customer who
+ * registered by code (never set a password) can set a first one here; the copy points them back to the
+ * code route.
  */
 const FIELDS = {
   email: {
@@ -72,40 +63,20 @@ export function ResetPasswordForm() {
     canEnter: (target) => (target === "email" ? true : codeSent.current),
   })
 
-  // ⚠ Trimmed AND lowercased — Cognito's per-user throttle and the platform's own rate limit both key
-  // on the address, and two casings would be two buckets.
+  // Trimmed and lowercased: the rate limits key on the address.
   const address = email.trim().toLowerCase()
 
   const sendCode = useCallback(async () => {
     await startPasswordReset(address)
     codeSent.current = true
-    // ⚠ 044 D-22 — THIS LINE WAS MISSING, AND PASSWORD RESET HAD NO RESEND COOLDOWN AT ALL.
-    //
-    // Sign-in and sign-up both mark the send; this route never did. The cooldown clock therefore
-    // never started here, so the code step showed no countdown and offered "Send another code"
-    // immediately and repeatedly — against a platform budget of FIVE sends per address per clock
-    // hour, after which the trigger silently refuses while still returning a normal-looking
-    // challenge. A shopper tapping resend three times would spend their whole hour and then wait for
-    // a code that was never sent.
-    //
-    // ⚠ `e2e/otp-entry.spec.ts` HAS ASSERTED THE COUNTDOWN SINCE 035 and reaches the code step
-    // through THIS route. It never caught it because Playwright is not part of `pnpm test` — it
-    // needs a built server and this repo runs it by hand. The test was right the whole time.
+    // Marks the send, so the resend cooldown runs (five sends per address per hour).
     markCodeSent()
   }, [address])
 
   /**
-   * ⚠ THE CODE IS COLLECTED HERE AND SPENT ONE STEP LATER — it is deliberately NOT verified in
-   * between, and that is a requirement rather than a shortcut.
-   *
-   * 012's FR-022b makes recovery finish at the BACKEND with the code and the new password in ONE
-   * request, because a separate "verify the code" call would mint a *"you may now set a password"*
-   * state that is worth stealing. So this step holds the code and moves on; if it was wrong, the
-   * refusal arrives when the password is submitted.
-   *
-   * That is a real cost — a mistyped code is reported one screen later than the shopper would like —
-   * and it is the same shape the signed-in password flow already uses. Splitting recovery into steps
-   * is what makes each screen one decision; verifying the code separately is what security forbids.
+   * The code is collected here and spent one step later, with the new password, in one backend request:
+   * a separate verify call would mint a stealable "you may set a password" state. A wrong code is
+   * therefore reported a screen later.
    */
   const holdCode = useCallback(
     async (submitted: string): Promise<CodeOutcome> => {
@@ -116,11 +87,7 @@ export function ResetPasswordForm() {
     [go],
   )
 
-  // ── Done (reference: Reset — done) ──────────────────────────────────────────────────────────────
-  //
-  // ⚠ THE COPY DEPARTS FROM THE REFERENCE, WHICH SAYS "You're signed in". Here that would be false: a
-  // password change ends every session (012 FR-024), so signing in with the new password is the only
-  // way on, and the primary action says so.
+  // Done. Not "You're signed in": a password change ends every session, so signing in is the way on.
   if (finished) {
     return (
       <StepShell
@@ -151,10 +118,7 @@ export function ResetPasswordForm() {
   )
 
   if (step === "code") {
-    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
-    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
-    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
-    // message is now handed to the step, which owns the single region (defect D-05).
+    // One error region: the journey's message is handed to the step.
     return (
       <CodeStep
         parentError={error}
@@ -185,13 +149,13 @@ export function ResetPasswordForm() {
             setError(null)
             if (!validation.check([["password", password]])) return
             start(async () => {
-              // ⚠ Code AND password, together, in one request (012 FR-022b).
+              // Code and password together, in one request.
               const res = await finishPasswordReset(address, code, password)
               if (!res.ok) {
                 setError(res.error)
                 return
               }
-              // 012 FR-024 — a password change ends every session, so sign-in is the only way on.
+              // A password change ends every session, so sign-in is the only way on.
               setFinished(true)
             })
           }}
@@ -206,7 +170,7 @@ export function ResetPasswordForm() {
             autoComplete="new-password"
             minLength={PASSWORD_MIN_LENGTH}
             required
-            // ⚠ FR-016 — reflected while they type, not only refused at the end.
+            // Reflected while they type, not only refused at the end.
             hint={
               password.length > 0 && password.length < PASSWORD_MIN_LENGTH
                 ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
@@ -226,9 +190,7 @@ export function ResetPasswordForm() {
       footer={
         <div className="space-y-3">
           {signInLink}
-          {/* ⚠ Load-bearing, not a footnote: a customer who registered by code has NEVER set a
-              password, and this is the line that stops them hammering a recovery flow that may not
-              be able to help them (036 FR-015). */}
+          {/* A customer who registered by code has never set a password; this line stops them hammering recovery. */}
           <p className="text-center text-sm text-muted-foreground">
             Never set a password?{" "}
             <Link href="/sign-in" className={inlineActionClass}>
@@ -246,8 +208,7 @@ export function ResetPasswordForm() {
         onSubmit={(e) => {
           e.preventDefault()
           setError(null)
-          // ⚠ Nothing is sent until this passes. On the shipped build `person@example` reached
-          // Cognito from here and came back a 400 (BASELINE.md).
+          // Nothing is sent until this passes.
           if (!validation.check([["email", address]])) return
           start(async () => {
             try {

@@ -1,4 +1,4 @@
-// POST /orders/v1/fulfillments/{fulfillmentId}/consignment/events — in transit, delivered, a problem, resolved, cancelled (080). Write = admin/manager.
+// Admin/manager only.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

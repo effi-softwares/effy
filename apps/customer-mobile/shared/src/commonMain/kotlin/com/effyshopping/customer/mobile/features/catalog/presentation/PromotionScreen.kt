@@ -57,29 +57,9 @@ import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The promotion detail — where a banner tap now leads.
- *
- * ── ⚠ WHY THIS SCREEN EXISTS ────────────────────────────────────────────────────────────────────
- *
- * Every banner used to target `{kind: "search"}`, so a tap opened the unfiltered store: the Search tab
- * by another name, carrying none of the promotion's own facts — not the code, not the terms. It read
- * as a bug because it behaved like one.
- *
- * The reason no better destination existed is in the data model, not in the navigation: `promo_code`
- * has no product or category scoping. A promotion is a whole-cart discount with an optional minimum,
- * so there is no set of qualifying products a results list could be filtered to. A cart-level code is
- * a message, and the destination for a message is the message itself, stated in full.
- *
- * ⚠ IT DOES NOT VIOLATE 028 FR-034 (no banner-only destinations). That rule protects shoppers from
- * CONTENT reachable only through a carousel slide most of them never see. This page contains nothing
- * the banner face does not already announce — it is the banner's own message, expanded, with the
- * ordinary store one tap further on.
- *
- * ── Layout ──────────────────────────────────────────────────────────────────────────────────────
- *
- * A sectioned page with detail rows, NOT cards (DOCTRINE-2). The artwork is rendered at the same
- * locked [EffyBanner.ratio] the banner uses, so the picture an operator approved is the picture the
- * shopper sees — no crop, at either end.
+ * The promotion detail, where a banner tap leads: the promotion's own message in full (code, terms), with
+ * the store one tap further on. A sectioned page with detail rows; the artwork at the banner's locked
+ * [EffyBanner.ratio], so the shopper sees the picture staff approved, uncropped.
  */
 @Composable
 fun PromotionScreen(
@@ -102,7 +82,7 @@ fun PromotionScreen(
             PromotionUiState.Loading ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
-            // ⚠ NO "Try again" here, and that is the whole reason this state is separate from [Failed].
+            // NO "Try again" here, and that is the whole reason this state is separate from [Failed].
             // The promotion is genuinely gone; retrying would fail forever, and inviting it would keep
             // a shopper waiting for a discount that is not coming.
             PromotionUiState.Unavailable ->
@@ -142,10 +122,10 @@ private fun PromotionBody(
     onBrowse: () -> Unit,
     onCart: () -> Unit,
 ) {
-    // ⚠ `LocalClipboardManager` is deprecated in favour of the suspending `LocalClipboard`, which is
+    // `LocalClipboardManager` is deprecated in favour of the suspending `LocalClipboard`, which is
     // used deliberately anyway: the replacement's `ClipEntry` has no common-source factory in Compose
     // Multiplatform 1.11.1 (`withPlainText` lives in `iosMain`), so taking it would mean an
-    // expect/actual pair on both platforms to copy one string. The deprecation is WARNING level.
+    // expect/actual pair on both platforms to copy one string. The deprecation is warning level.
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
 
@@ -173,7 +153,7 @@ private fun PromotionBody(
 
             EffyHairline()
 
-            // ── The code ───────────────────────────────────────────────────────────────────────
+            // The code
             //
             // The reason a shopper opened this screen. It is selectable-looking and copyable rather
             // than something to memorise and retype — a mistyped code reads to a shopper as a refused
@@ -257,7 +237,7 @@ private fun PromotionBody(
 }
 
 /**
- * The artwork, at the SAME locked ratio and maximum width the banner uses — so the picture is the one
+ * The artwork, at the same locked ratio and maximum width the banner uses — so the picture is the one
  * the operator approved, at the one shape the platform accepts, and a tablet gets no promotional slab.
  * No scrim: nothing is drawn over it here, so nothing needs protecting from it.
  */
@@ -272,7 +252,7 @@ private fun PromotionArtwork(imageUrl: String) {
                 .clip(RoundedCornerShape(EffyRadius.md))
                 .background(EffySurface.tint),
         ) {
-            // ⚠ An EMPTY name, not the title. The heading directly below is this promotion's
+            // An empty name, not the title. The heading directly below is this promotion's
             // accessible name; labelling the artwork too would make a screen reader announce the same
             // offer twice, once as a picture. The artwork carries no information the text does not.
             ProductImage(imageUrl, "", modifier = Modifier.matchParentSize())

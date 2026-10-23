@@ -1,11 +1,6 @@
 /**
- * The entry gate and error mapping shared by every stock handler (054).
- *
- * ⚠ ONE FILE, TWO AUDIENCES. `shopGate` resolves the caller's OWN shop from `public.shop_staff`;
- * `backOfficeGate` takes the shop from the path and checks `admin.staff` instead. They produce the
- * same `Actor`, which is why the service beneath them is shared — see research R6. What must never
- * merge is the gating itself: the authorizers are per-route in `serverless.yml`, and the config
- * contract test fails if a shop route ever acquires the back-office one.
+ * `shopGate` resolves the caller's own shop; `backOfficeGate` takes it from the path and checks
+ * `admin.staff`. Both produce the same `Actor`, so the service beneath is shared.
  */
 
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
@@ -41,13 +36,12 @@ function unauthenticated(scope: RequestScope): APIGatewayProxyStructuredResultV2
 }
 
 function forbidden(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
-  // ⚠ Uniform, and it never says WHICH term failed. "Not a member", "inactive shop", "wrong role"
-  // and "that shop is not yours" are one message, or the refusal becomes a discovery tool.
+  // One message for every failed term, or the refusal becomes a discovery tool.
   return problem(403, ProblemType.Forbidden, "Not permitted",
     "this account is not permitted to perform that action", scope);
 }
 
-/** Shop gate — ANY active member of an active shop, either role (FR-010, A7). */
+/** Any active member of an active shop, either role. */
 export async function shopGate(event: AuthedEvent, context: Context): Promise<GateOk | GateErr> {
   const scope = preamble(event, context);
   const sub = subject(event);
@@ -57,17 +51,12 @@ export async function shopGate(event: AuthedEvent, context: Context): Promise<Ga
     if (!shopId) return { ok: false, response: forbidden(scope) };
     return { ok: true, actor: { sub, shopId, kind: "shop" }, scope };
   } catch (err) {
-    // Fail-closed: a gate that cannot be evaluated is a refusal, never an implicit allow.
     scope.log.error({ err }, "inventory: shop gate failed");
     return { ok: false, response: unavailable(scope) };
   }
 }
 
-/**
- * Back-office gate — the shop comes from the PATH, and the tier decides what may be done.
- * Reading is open to any active staff including `csa` (triage is CSA work); writing is
- * admin/manager, because it changes another organisation's records on their behalf (FR-025/FR-028).
- */
+/** The shop comes from the path. Reads: any active staff; writes: admin/manager. */
 export async function backOfficeGate(
   event: AuthedEvent,
   context: Context,
@@ -81,8 +70,7 @@ export async function backOfficeGate(
   try {
     const allowed =
       mode === "read" ? await isActiveStaff(sub) : await hasStaffRole(sub, OUTWARD_ACTION_ROLES);
-    // ⚠ The permission check comes FIRST and the shop lookup second, so a refused caller learns
-    // nothing about whether the shop they named exists.
+    // Permission before the shop lookup, so a refused caller learns nothing about the shop.
     if (!allowed) return { ok: false, response: forbidden(scope) };
     if (!(await shopIsActive(shopId))) return { ok: false, response: forbidden(scope) };
     return { ok: true, actor: { sub, shopId, kind: "back_office" }, scope };
@@ -92,13 +80,11 @@ export async function backOfficeGate(
   }
 }
 
-/** The platform's problem body carries field errors as a list, not a map. */
 function toFieldErrors(fields?: Record<string, string>) {
   if (!fields) return undefined;
   return Object.entries(fields).map(([field, message]) => ({ field, message }));
 }
 
-/** Map a service refusal onto the platform's problem shape. */
 export function mapStockError(
   err: unknown,
   scope: RequestScope,
@@ -106,11 +92,7 @@ export function mapStockError(
   if (err instanceof StockError) {
     switch (err.kind) {
       case "not_found":
-        // ⚠ 403, NOT 404 — the same call `edge-api/shop`'s fulfilments service makes, for the same
-        // reason (its FR/SC-007). Every read here is already shop-scoped, so "no such product" and
-        // "another shop's product" are indistinguishable BY CONSTRUCTION; emitting a distinct 404
-        // would hand a caller an oracle for enumerating other shops' catalogues by id. One code, one
-        // body, no signal (FR-004).
+        // 403, not 404: every read is shop-scoped, so "no such product" and "another shop's" must match.
         return forbidden(scope);
       case "validation":
         return problem(400, ProblemType.ValidationFailed, "Validation failed", err.message, scope,

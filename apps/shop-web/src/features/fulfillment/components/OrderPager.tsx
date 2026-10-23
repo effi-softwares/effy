@@ -6,13 +6,9 @@ import type { OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
 
 /**
- * The order pagination in the APP HEADER (057 A3 revision 2) — "{n} of {total}", then previous and
- * next. It renders on order detail only, and nowhere in the page body.
- *
- * ⚠ IT READS THE LIST'S OWN CACHED QUERY (same key, same filters), so "3 of 47" is the list the
- * operator came from. At a page edge it reads the neighbouring page the same way. At the ends of the
- * list the arrows are muted and inert. Opened with no list behind it (a dashboard link) and not on the
- * first page, it renders nothing rather than a position it cannot know.
+ * The order pagination in the header, on order detail only: "{n} of {total}", previous, next. It reads the
+ * list's own cached query (and the neighbouring page at an edge); at the list's ends the arrows are inert.
+ * With no list behind it and not on the first page, it renders nothing.
  */
 export function OrderPager({
   fulfillmentId,

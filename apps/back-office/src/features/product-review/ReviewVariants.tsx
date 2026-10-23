@@ -13,11 +13,11 @@ const CHANGE_WORD: Record<ReviewVariantDTO["change"], { word: string; tone: Stat
 };
 
 /**
- * The sizes the decision puts on sale (098) — one row per variant, with the shop's price and what
+ * The sizes the decision puts on sale — one row per variant, with the shop's price and what
  * customers will pay under the margin being typed. The server computes the stored price; this is the
  * same preview `MarginField` shows, per size.
  *
- * ⚠ Shop-authored text (labels, codes) is rendered as text nodes only.
+ * Shop-authored text (labels, codes) is rendered as text nodes only.
  */
 export function ReviewVariants({ variants, entry }: { variants: readonly ReviewVariantDTO[]; entry: MarginEntry }) {
   const named = variants.some((v) => v.label !== null);
@@ -51,7 +51,7 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
               return (
                 <tr key={v.id} className={v.change === "removed" ? "text-muted-foreground" : undefined}>
                   {named ? <th scope="row" className="text-left font-medium">{v.label ?? "—"}</th> : null}
-                  {/* A size the change ADDS gets its code when approved. */}
+                  {/* A size the change adds gets its code when approved. */}
                   <td className="font-mono text-xs">{v.code ?? "On approval"}</td>
                   <td className="font-mono text-xs">{v.sku ?? "—"}</td>
                   <td className="font-mono text-xs">{v.gtin ?? "—"}</td>

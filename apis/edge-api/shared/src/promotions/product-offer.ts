@@ -3,13 +3,9 @@ import type { ProductOfferDTO } from "@effy/shared-types";
 import { offerLabelOf } from "./terms";
 
 /**
- * The offer a product shows on listings and its own page (094 R11): the oldest Active, automatic,
- * everyone-audience item or buy-X-get-Y promotion that covers it — directly, through its category or
- * any ancestor, or through its brand. Personal and code offers are not shown on products; the cart
- * applies them.
- *
- * `PRODUCT_OFFER_SQL(alias, at)` is a scalar subquery yielding the promotion id (or NULL), so a listing
- * adds one column (a small JSON object), turned into the badge by `productOffer` — no second read.
+ * The offer a product shows: the oldest active, automatic, everyone-audience item or buy-X-get-Y
+ * promotion covering it (directly, by category or ancestor, or by brand). Personal and code offers are
+ * left to the cart. `PRODUCT_OFFER_SQL(alias, at)` is a scalar subquery, so a listing adds one column.
  */
 export const PRODUCT_OFFER_SQL = (product: string, at: string): string => `(
   SELECT json_build_object('id', po.id, 'kind', po.kind, 'valueType', po.value_type, 'percentOff', po.percent_off, 'amountOff', po.amount_off, 'buy', po.bxgy_buy_qty, 'get', po.bxgy_get_qty, 'label', po.label) FROM public.promotion po

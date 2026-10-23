@@ -13,7 +13,7 @@ import type { DeliveryChoice } from "@/lib/delivery-choice"
 import { EffyWindowOptions } from "./EffyWindowOptions"
 
 /**
- * 078 / 085 — the picker, drawn from the SAME fixture the customer app's picker is held to
+ * 078 / 085 — the picker, drawn from the same fixture the customer app's picker is held to
  * (`packages/shared-types/src/effy-windows.fixtures.json`). What a shopper reads on the website and
  * in the app is one set of words; this proves the website shows them and adds none of its own.
  */
@@ -23,7 +23,7 @@ const cases = (
 ).cases
 const byName = (part: string) => cases.find((c) => c.name.includes(part))!
 const MAIN = byName("today has two windows left")
-/** Fri and Sat can be bought with no time (Sat's windows are all taken); Mon cannot; ASAP is offered. */
+/** Fri and Sat can be bought with no time (Sat's windows are all taken); Mon cannot; asap is offered. */
 const FLEX = byName("085")
 
 /** The picker with its choice held, as the checkout holds it — so every click is seen through. */
@@ -172,7 +172,7 @@ describe("085 — as soon as possible", () => {
   it("is the first tile in the days' row: 'Standard' and the usual timeframe", async () => {
     const { onChoose, user } = setup(FLEX)
     const asap = screen.getByRole("radio", { name: new RegExp(DELIVERY_WINDOW_WORDS.asapTitle) })
-    // The FIRST tile of the days' own row: the word, and how long it usually takes.
+    // The first tile of the days' own row: the word, and how long it usually takes.
     const row = dayRadio("Fri 9 Oct").closest("label")!.parentElement!
     expect(row.firstElementChild).toBe(asap.closest("label"))
     expect(asap.closest("label")).toHaveTextContent("Standardusually within 2–3 days")

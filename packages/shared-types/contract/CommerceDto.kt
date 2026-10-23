@@ -1,6 +1,6 @@
 // GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
-// The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
+// the wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 
 package com.effyshopping.customer.mobile.commerce.contract
 
@@ -10,12 +10,9 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 
 /**
- * POST /v1/cart/items — add or INCREMENT a line.
- *
- * ⚠ The only non-idempotent cart write, because "Add to cart" twice must mean two.
- * `changeId` is therefore REQUIRED: a client-generated UUIDv4 minted once per shopper
- * action and reused by every retry of it, so a request that arrived without its response
- * reaching the client cannot apply twice (FR-018).
+ * POST /v1/cart/items: add or increment a line, the one non-idempotent cart write.
+ * `changeId` is required: a UUIDv4 minted once per shopper action and reused by every
+ * retry, so a lost response cannot apply twice.
  */
 @Serializable
 data class AddToCartRequest (
@@ -25,7 +22,7 @@ data class AddToCartRequest (
     val quantity: Long,
 
     /**
-     * 098 — the variant chosen; a product with no options has exactly one.
+     * The variant chosen; a product with no options has exactly one.
      */
     @SerialName("variantId")
     val variantID: String
@@ -40,15 +37,13 @@ data class AddressDTO (
     val country: String,
 
     /**
-     * 076 — who delivers to this address TODAY: worked out when the address is read, never
-     * saved with it, so a postcode that leaves Effy's list changes the answer the next time it
-     * is shown.
+     * Who delivers to this address today: decided when read, never saved with it.
      */
     val coverage: CoverageKind? = null,
 
     /**
-     * 066 — the instructions this address PREFILLS at checkout, or null. A convenience for the
-     * next order only: a placed order stores what its own checkout sent and never reads this.
+     * The instructions this address prefills at checkout, or null. A placed order never reads
+     * this.
      */
     val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
 
@@ -64,21 +59,15 @@ data class AddressDTO (
 )
 
 /**
- * 076 — who delivers to this address TODAY: worked out when the address is read, never
- * saved with it, so a postcode that leaves Effy's list changes the answer the next time it
- * is shown.
+ * Who delivers to this address today: decided when read, never saved with it.
  *
- * 076 — WHO delivers to an address. The one answer every surface gives (FR-019/FR-020):
- * effy     the postcode is on Effy's list — Effy's own drivers deliver   courier  not on
- * the list, and courier delivery is offered there   none     neither reaches it
+ * Who delivers to an address:   Effy     the postcode is on Effy's list; Effy's drivers
+ * deliver   courier  not on the list, and courier delivery is offered there   none
+ * neither reaches it Decided only by `public.coverage_for_postcode`, when asked, never
+ * stored against an address. A customer contract carries this value and nothing about why.
  *
- * ⚠ Decided in ONE place — the database function `public.coverage_for_postcode` — at the
- * moment of asking, and never stored against an address (FR-021). ⚠ A customer contract
- * carries this value and NOTHING about why: no group, no distance, no reason, no hub
- * (FR-023). Staff contracts are in `delivery-admin.ts`.
- *
- * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only
- * when a courier order can be placed (079); the quote then carries `courier`.
+ * Who delivers to this address. `none` means not serviced; `courier` only when a courier
+ * order can be placed.
  */
 @Serializable
 enum class CoverageKind(val value: String) {
@@ -92,26 +81,17 @@ data class DeliveryInstructionsDTO (
     val handover: HandoverPreference? = null,
 
     /**
-     * Plain text, already normalised. Never interpreted as markup anywhere it is shown.
+     * Plain text, already normalised; never interpreted as markup.
      */
     val note: String? = null
 )
 
 /**
- * Delivery instructions — 066-delivery-instructions.
- *
- * What a customer tells the driver: how to hand the order over, and a short note. The
- * vocabulary, the length limit and the normalisation rule live HERE and nowhere else
- * (Principle II): the two customer surfaces use them to show a remaining-characters count,
- * and the two backends use them to decide. A client holding a looser opinion than the
- * server is how a 300-character note is typed, accepted by the screen and refused at
- * payment.
- *
- * ⚠ THE SERVER IMPORTS THIS FILE. Checkout (`edge-api/commerce`) calls
- * `normaliseDeliveryInstructions` itself, so the client's opinion and the server's are the
- * same function. (Until 070 the server was a second language and carried a mirror, pinned
- * by `delivery-instructions.fixtures.json`; the fixture remains as this rule's table of
- * cases.)
+ * Delivery instructions: how to hand the order over, and a short note. The vocabulary, the
+ * length limit and the normalisation rule live here only; the customer surfaces use them
+ * for a remaining-characters count and checkout calls `normaliseDeliveryInstructions`
+ * itself, so client and server agree. `delivery-instructions.fixtures.json` is the rule's
+ * table of cases.
  */
 @Serializable
 enum class HandoverPreference(val value: String) {
@@ -120,8 +100,7 @@ enum class HandoverPreference(val value: String) {
 }
 
 /**
- * POST /v1/cart/promo — apply a promotional code. Signed-in only (a per-shopper cap needs
- * identity).
+ * POST /v1/cart/promo: applies a code. Signed-in only (a per-shopper cap needs identity).
  */
 @Serializable
 data class ApplyPromoRequest (
@@ -148,8 +127,7 @@ data class BillingAddressDTO (
     val city: String,
 
     /**
-     * ISO-3166 alpha-2, capitalised. Always "AU" while Effy sells in one country (spec §
-     * Assumptions).
+     * ISO-3166 alpha-2. Always "AU" while Effy sells in one country.
      */
     val country: String,
 
@@ -160,18 +138,10 @@ data class BillingAddressDTO (
 )
 
 /**
- * The billing details Effy supplies on the shopper's behalf at confirmation.
- *
- * ⚠ This is why the payment step no longer asks for a country, a postcode or a name. The
- * platform already holds a verified billing address (the order's snapshot — the delivery
- * address where the shopper did not diverge, the chosen billing address where they did) and
- * the profile name, so it sends them itself instead of letting the provider guess a country
- * from the shopper's IP — which is exactly where the reported "Country: Sri Lanka" on an
- * Australia-only storefront came from (research R4).
- *
- * ⚠ DERIVED, NEVER ACCEPTED. A `billingDetails` key in a REQUEST must be ignored: honouring
- * one would let a client contradict the address it confirmed one screen earlier (contract §
- * 1).
+ * The billing details Effy supplies at confirmation, so the payment step asks for no
+ * country, postcode or name: the order's billing snapshot (the delivery address, or the
+ * chosen billing one) and the profile name. Derived, never accepted: a `billingDetails` key
+ * in a request is ignored.
  */
 @Serializable
 data class BillingDetailsDTO (
@@ -181,8 +151,8 @@ data class BillingDetailsDTO (
 )
 
 /**
- * 096 US8 — `PUT /commerce/v1/orders/{id}/business-identity`: the buyer's own business, for
- * its invoice.
+ * `PUT /commerce/v1/orders/{id}/business-identity`: the buyer's own business, for its
+ * invoice.
  */
 @Serializable
 data class BusinessIdentityRequest (
@@ -196,8 +166,8 @@ data class CancelOrderBody (
 )
 
 /**
- * The full cart — returned by GET /v1/cart AND by every mutating response, so a client
- * never has to guess the outcome of a change or issue a follow-up read (FR-007).
+ * The full cart, returned by GET /v1/cart and by every mutation, so a client never guesses
+ * an outcome.
  */
 @Serializable
 data class CartDTO (
@@ -220,7 +190,7 @@ data class CartDTO (
     val grandTotalAmount: String,
 
     /**
-     * Payable, available lines only — unavailable items are never charged for (FR-022).
+     * Payable, available lines only: unavailable items are never charged for.
      */
     val itemSubtotalAmount: String,
 
@@ -229,32 +199,30 @@ data class CartDTO (
     val notices: List<CartNoticeDTO>,
 
     /**
-     * 094 — every promotion applying, automatic and by code.
+     * Every promotion applying, automatic and by code.
      */
     val promotions: List<CartPromotionLineDTO>,
 
     /**
-     * 094 — promotions the shopper might expect that do not apply, each with its sentence.
+     * Promotions the shopper might expect that do not apply, each with its sentence.
      */
     val promotionsNotApplied: List<CartNotAppliedDTO>? = null,
 
     /**
-     * Monotonic, bumped by every mutation. The client mirror adopts a response only when this
-     * exceeds what it holds, which is how an out-of-order reply cannot overwrite a newer cart
-     * (FR-009).
+     * Bumped by every mutation; the mirror adopts a response only when this is newer, so a late
+     * reply cannot win.
      */
     val revision: Long,
 
     /**
-     * Set aside for later: kept, shown honestly, and counted in NO total (FR-028…FR-031).
+     * Set aside for later: kept, shown, and counted in no total.
      */
     val savedLines: List<CartLineDTO>
 )
 
 /**
- * Whether the shopper may proceed, and if not, why — so the cart can say it up front
- * instead of letting them walk into a refusal at payment (FR-054). Also enforced
- * server-side at intent (FR-056).
+ * Whether the shopper may proceed and, if not, why, so the cart says it up front. The
+ * intent enforces it too.
  */
 @Serializable
 data class CartCheckoutStateDTO (
@@ -262,7 +230,7 @@ data class CartCheckoutStateDTO (
     val blockedReason: CartBlockedReason? = null,
 
     /**
-     * Null when no minimum is in force; then nothing is shown at all (FR-057).
+     * Null when no minimum is in force; then nothing is shown.
      */
     val minimumSubtotalAmount: String? = null,
 
@@ -284,13 +252,12 @@ enum class CartBlockedReason(val value: String) {
 }
 
 /**
- * The discount currently applying, recomputed on every read — never a stored or client-sent
- * amount.
+ * The discount applying, recomputed on every read; never stored or client-sent.
  */
 @Serializable
 data class CartDiscountDTO (
     /**
-     * The computed reduction, capped so the payable total can never fall below zero.
+     * Capped so the payable total never falls below zero.
      */
     val amount: String,
 
@@ -298,16 +265,14 @@ data class CartDiscountDTO (
     val kind: CartDiscountKind,
 
     /**
-     * e.g. "20% off" — display only, and shop-free.
+     * e.g. "20% off"; display only.
      */
     val label: String
 )
 
 /**
- * What a discount takes off. A NAMED type on purpose: an inline `"percentage" | "fixed"`
- * union makes the Kotlin generator emit a class called `Kind`, which is the same
- * generic-name trap that produced 019's bare `Line` class. Named here, it generates
- * `CartDiscountKind`.
+ * What a discount takes off. Named, so the Kotlin generator emits `CartDiscountKind` rather
+ * than `Kind`.
  */
 @Serializable
 enum class CartDiscountKind(val value: String) {
@@ -316,8 +281,7 @@ enum class CartDiscountKind(val value: String) {
 }
 
 /**
- * The platform's ceilings, sent so the client can explain them rather than guess them
- * (FR-037/038).
+ * The platform's ceilings, so the client can explain them.
  */
 @Serializable
 data class CartLimitsDTO (
@@ -334,7 +298,7 @@ data class CartLineDTO (
     val available: Boolean,
 
     /**
-     * 094 — what promotions take off this line, in cents exactly as allocated; "0.00" when none.
+     * What promotions take off this line, in cents as allocated; "0.00" when none.
      */
     val discountAmount: String? = null,
 
@@ -344,8 +308,8 @@ data class CartLineDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -353,19 +317,14 @@ data class CartLineDTO (
     val name: String,
 
     /**
-     * OPAQUE package grouping key (021). Items sharing a packageKey ship together as one
-     * anonymous "package" (one per fulfilling shop). It is NOT a shop id, name, or location — a
-     * meaningless-to-the- customer token that lets the cart show the split (021 FR-005a) while
-     * revealing no shop (SC-006).
+     * An opaque package grouping key: lines sharing it ship together as one package (one per
+     * fulfilling shop). Not a shop id, name or location.
      */
     val packageKey: String,
 
     /**
-     * The price this line was added at, when it differs from `unitPriceAmount` — so the shopper
-     * is told what it *was* rather than being surprised at payment (FR-023). Null when
-     * unchanged, and null for a line added before the platform recorded add-time prices (a
-     * pre-migration row must not fabricate a change). The shopper always pays
-     * `unitPriceAmount`, in both directions.
+     * The price this line was added at, when it differs from `unitPriceAmount`, so the shopper
+     * is told what it was. Null when unchanged. The shopper always pays `unitPriceAmount`.
      */
     val priceChangedFrom: String? = null,
 
@@ -375,22 +334,21 @@ data class CartLineDTO (
     val quantity: Long,
 
     /**
-     * 098 — the comparison price of what one unit costs after this line's discount; null
-     * without a pack size.
+     * The comparison price of one unit after this line's discount; null without a pack size.
      */
     val unitPrice: UnitPriceDTO? = null,
 
     val unitPriceAmount: String,
 
     /**
-     * 098 — the variant this line buys. Lines are keyed by it: two sizes of one product are two
-     * lines.
+     * The variant this line buys; lines are keyed by it (two sizes of one product are two
+     * lines).
      */
     @SerialName("variantId")
     val variantID: String,
 
     /**
-     * 098 — "Spiced / 500 g"; null for a product with no options.
+     * "Spiced / 500 g"; null for a product with no options.
      */
     val variantLabel: String? = null
 )
@@ -406,21 +364,15 @@ data class UnitPriceDTO (
 )
 
 /**
- * Unit pricing — 098-product-variants (R12).
+ * Unit pricing. A product says how its sizes are compared (`UnitBasis`: per 100 g, per kg,
+ * per 100 mL, per L, each); each variant says how much is in its pack. The comparison price
+ * is the price scaled to the basis ($3.20 for 500 g → $0.64 / 100 g), as the Unit Pricing
+ * Code asks.
  *
- * A product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL,
- * per L, each); each variant says how much is in its pack (`packQuantity` + `PackUnit`).
- * The comparison price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g.
- * Australian online grocers show one beside every price (the Unit Pricing Code), and it is
- * how a shopper tells which size is better value.
- *
- * ⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends
- * `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin
- * formatter is pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts`
- * runs.
- *
- * ⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one
- * half-up rounding to a whole cent at the end — never a float.
+ * One sum, here: the server computes `UnitPriceDTO`; clients only format it
+ * (`unitPriceText`), the app's Kotlin formatter pinned to `unit-price.fixtures.json`.
+ * Integer arithmetic: whole cents, quantities in thousandths, one half-up rounding at the
+ * end.
  */
 @Serializable
 enum class UnitBasis(val value: String) {
@@ -434,8 +386,7 @@ enum class UnitBasis(val value: String) {
 @Serializable
 data class CartNoticeDTO (
     /**
-     * Human-readable specifics where the kind alone is not enough. NEVER names or implies a
-     * shop.
+     * Specifics where the kind alone is not enough. Never names or implies a shop.
      */
     val detail: String? = null,
 
@@ -445,16 +396,15 @@ data class CartNoticeDTO (
     val productID: String? = null,
 
     /**
-     * 098 — the line's variant, when the notice is about a line.
+     * The line's variant, when the notice is about a line.
      */
     @SerialName("variantId")
     val variantID: String? = null
 )
 
 /**
- * A notice the cart surfaces before checkout. `productId` is null for a cart-level notice
- * (a promotional code that stopped applying) — a widening of 019's shape, inert for
- * existing readers, which match on `kind` and `productId` together.
+ * A notice shown before checkout. `productId` is null for a cart-level notice (a code that
+ * stopped applying).
  */
 @Serializable
 enum class CartNoticeKind(val value: String) {
@@ -467,7 +417,7 @@ enum class CartNoticeKind(val value: String) {
 }
 
 /**
- * 094 — one promotion that applies to this cart, and what it takes off.
+ * A promotion applying to this cart, and what it takes off.
  */
 @Serializable
 data class CartPromotionLineDTO (
@@ -484,7 +434,7 @@ data class CartPromotionLineDTO (
     val goodsAmount: String,
 
     /**
-     * The shopper words (the promotion's headline, or its offer label when it has none).
+     * The shopper's words (the headline, or the offer label when there is none).
      */
     val headline: String,
 
@@ -508,8 +458,7 @@ data class CartNotAppliedDTO (
 )
 
 /**
- * 094 — why a promotion the shopper could expect does not apply. A NAMED union (Kotlin
- * generator).
+ * Why a promotion the shopper could expect does not apply. Named for the Kotlin generator.
  */
 @Serializable
 enum class CartPromotionNotAppliedReason(val value: String) {
@@ -529,15 +478,14 @@ data class CartLineInput (
     val quantity: Long,
 
     /**
-     * 098 — a line is a variant.
+     * A line is a variant.
      */
     @SerialName("variantId")
     val variantID: String
 )
 
 /**
- * GET /v1/cart/policy — PUBLIC. The minimum and the ceilings, so a guest cart can gate and
- * explain honestly without a server cart to read them from.
+ * GET /v1/cart/policy (public): the minimum and the ceilings, for a guest cart.
  */
 @Serializable
 data class CartPolicyDTO (
@@ -548,9 +496,8 @@ data class CartPolicyDTO (
 )
 
 /**
- * POST /v1/cart/preview — PUBLIC. Re-price a guest's device cart with full notices and
- * write nothing, so a restored guest cart shows current prices and availability too (FR-004
- * applies to guests).
+ * POST /v1/cart/preview (public): re-prices a guest's device cart with notices and writes
+ * nothing.
  */
 @Serializable
 data class CartPreviewRequest (
@@ -558,24 +505,21 @@ data class CartPreviewRequest (
 )
 
 /**
- * A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct
- * from the admin/shop `CategoryDTO` in catalog.ts — this carries no internal
- * id/status/order.
+ * A browse category, customer projection (GET /storefront/v1/categories); unlike
+ * catalog.ts's `CategoryDTO` it carries no internal id, status or order.
  */
 @Serializable
 data class StorefrontCategoryDTO (
     /**
-     * Representative image, DERIVED from a product in the category — categories store no
-     * imagery, and 025 FR-001 forbids adding a column for it. Null → the client renders a brand
-     * tile, never a broken frame. The choice is deterministic so a category does not change its
-     * face between page loads.
+     * A representative image derived from a product in the category (categories store none),
+     * chosen deterministically; null renders a brand tile.
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -584,15 +528,14 @@ data class StorefrontCategoryDTO (
     val parentKey: String? = null,
 
     /**
-     * Purchasable products in this category AND everything under it (025; subtree since 084) —
-     * the number on an aisle is the number its page shows. Drives "N items" and the
-     * empty-category case.
+     * Purchasable products in this category and everything under it, so an aisle's number is
+     * what its page shows.
      */
     val productCount: Double
 )
 
 /**
- * POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook).
+ * POST /v1/checkout/confirm: the fallback finalizer for a delayed or missed webhook.
  */
 @Serializable
 data class ConfirmCheckoutRequest (
@@ -609,8 +552,8 @@ data class CreateAddressRequest (
     val country: String? = null,
 
     /**
-     * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default
-     * alone, `null` clears it, a value replaces it.
+     * On update the key's presence is read: absent leaves the default, `null` clears it, a
+     * value replaces it.
      */
     val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
 
@@ -625,99 +568,76 @@ data class CreateAddressRequest (
 )
 
 /**
- * POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019,
- * extended 021).
+ * POST /v1/checkout/intent: create or locate the pending order and its PaymentIntent.
  */
 @Serializable
 data class CreateCheckoutIntentRequest (
     /**
-     * The SHIPPING address (required). Snapshotted onto the order at placement.
+     * The shipping address (required), snapshotted onto the order.
      */
     @SerialName("addressId")
     val addressID: String,
 
     /**
-     * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal
-     * to `addressId` → billing is "same as shipping" (the order stores NULL). Billing never
-     * affects the amount.
+     * The billing address, when it differs; absent, null or equal to `addressId` means same as
+     * shipping. Never affects the amount.
      */
     @SerialName("billingAddressId")
     val billingAddressID: String? = null,
 
     /**
-     * 066 — what the customer tells the driver for THIS order: a handover preference and/or a
-     * note. Absent or null → none. Validated and normalised by the server with the same rule
-     * the client uses (`normaliseDeliveryInstructions`); refused with a field error, never
-     * truncated.
-     *
-     * ⚠ The server stores exactly what THIS request carries. It never reads the address's saved
-     * default — prefilling from that is the client's job — which is why editing an address
-     * later cannot change a placed order.
+     * What the customer tells the driver for this order, or null. Normalised by the server with
+     * the client's own rule (`normaliseDeliveryInstructions`); refused with a field error,
+     * never truncated. The server stores what this request carries and never reads the
+     * address's saved default.
      */
     val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
-     * 085 — "as soon as possible": sent INSTEAD of `deliveryWindow` when the quote carried
-     * `effyWindows.asap`; both, or neither, is refused with `slot_required`. (A day with no
-     * time is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
+     * "As soon as possible", sent instead of `deliveryWindow` when the quote carried
+     * `effyWindows.asap`; both or neither is `slot_required`. A day with no time is
+     * `deliveryWindow` naming its `anyTime`.
      */
     val deliveryPromise: DeliveryPromise? = null,
 
     /**
-     * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
-     * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
-     * differs from what applies now, or when a courier quote is answered without it — so nobody
-     * pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for
-     * an Effy order.
+     * The delivery type the client is showing; required for a courier order. A mismatch with
+     * what applies now (or a courier quote answered without it) is 409 `delivery_type_changed`
+     * with a fresh quote.
      */
     val deliveryType: DeliveryType? = null,
 
     /**
-     * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` +
-     * `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required`
-     * without it); the server derives same-day vs standard from the date. ⚠ The server holds a
-     * place in the window when it accepts it — see `slotHeldUntil` on the response.
+     * The window chosen, one for the whole order. Required when the quote carried `effyWindows`
+     * (else `slot_required`). The server holds a place when it accepts it (`slotHeldUntil`).
      */
     val deliveryWindow: DeliveryWindow? = null,
 
     /**
-     * 094 — the promotions total (goods + delivery) the client is SHOWING. If the server now
-     * works out a different one — a promotion ended, its budget ran out, the cart changed — it
-     * writes nothing and refuses with 409 `promotions_changed` and the cart as it stands, so
-     * the shopper sees the new total before paying (FR-037). Absent from a client built before
-     * 094, which is priced without the check.
+     * The promotions total (goods + delivery) the client is showing. A different server total
+     * is 409 `promotions_changed` with the current cart, nothing written.
      */
     val expectedDiscount: String? = null,
 
     /**
-     * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The
-     * server refuses rather than clamps: more than is usable → 409 `points_balance_changed`;
-     * more than the order total → 422 `points_exceed_total`; a card remainder under the
-     * provider minimum → 422 `points_card_remainder_too_small`. Each refusal carries what IS
+     * Points to pay with (whole, absent = 0). Refused rather than clamped: over usable is 409
+     * `points_balance_changed`, over the total 422 `points_exceed_total`, a card remainder
+     * under the provider minimum 422 `points_card_remainder_too_small`; each says what is
      * possible.
      */
     val pointsToUse: Long? = null,
 
     /**
-     * 077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If
-     * the server now works out a different one — a new fee plan went live, the basket crossed a
-     * threshold — it writes nothing and refuses with 409 `delivery_fee_changed` and a fresh
-     * quote, so the customer sees the new total before they can pay (FR-031). Absent from a
-     * client built before 077, which is priced without the check.
+     * The delivery total the client is showing. A different server total is 409
+     * `delivery_fee_changed` with a fresh quote, nothing written, so the customer sees it
+     * before paying.
      */
     val shownDeliveryAmount: String? = null,
 
     /**
-     * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile
-     * in-app element) and therefore needs a customer session. Web renders Effy's own list and
-     * leaves this unset.
-     *
-     * ⚠ Asking is not authorization to get someone else's: the session is always minted for the
-     * AUTHENTICATED subject, so the worst a hostile client achieves is a session for itself.
-     *
-     * ⚠ There is deliberately NO `billingDetails` on this request. Billing details are DERIVED
-     * from the order's own snapshot; accepting them here would let a client contradict the
-     * address it confirmed one screen earlier (contract § 1, FR-016).
+     * Set by a client rendering a provider-owned payment-method list (mobile), which needs a
+     * customer session; always minted for the authenticated subject. There is no
+     * `billingDetails` here: they derive from the order's snapshot.
      */
     val wantsProviderMethodList: Boolean? = null
 )
@@ -728,14 +648,11 @@ enum class DeliveryPromise(val value: String) {
 }
 
 /**
- * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
- * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
- * differs from what applies now, or when a courier quote is answered without it — so nobody
- * pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for
- * an Effy order.
+ * The delivery type the client is showing; required for a courier order. A mismatch with
+ * what applies now (or a courier quote answered without it) is 409 `delivery_type_changed`
+ * with a fresh quote.
  *
- * 079 — the delivery type the order was written with. Absent while the new delivery model
- * is off.
+ * The delivery type the order was written with.
  *
  * Who delivers an order. One per order, whatever number of suppliers fill it.
  */
@@ -756,69 +673,46 @@ data class DeliveryWindow (
 @Serializable
 data class CreateCheckoutIntentResponse (
     /**
-     * 051 — the billing details the CLIENT must pass back at confirmation, because the payment
-     * step no longer asks the shopper for them (FR-014/FR-015).
-     *
-     * ⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. This is the address the shopper already
-     * confirmed one screen earlier — the delivery address where they did not diverge, the
-     * chosen billing address where they did — plus the profile name. Sending it means the
-     * provider stops guessing a country from the shopper's IP, which is where "Country: Sri
-     * Lanka" on an Australia-only storefront came from.
-     *
-     * ⚠ Removing the fields does NOT weaken authorization: the same data still reaches the
-     * bank, sourced from Effy instead of from the shopper's keyboard (research R4).
+     * The billing details the client passes back at confirmation, derived from the order (the
+     * confirmed delivery or billing address, plus the profile name), never from the request.
      */
     val billingDetails: BillingDetailsDTO? = null,
 
     val cardAmount: String? = null,
 
     /**
-     * Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.
+     * Authorizes confirming exactly this PaymentIntent. Never a secret key.
      */
     val clientSecret: String,
 
     val currency: String,
 
     /**
-     * 051 — the provider customer the session belongs to. Present ONLY beside
-     * `customerSessionSecret`, i.e. only for a client that renders a provider-owned method list
-     * (mobile).
-     *
-     * ⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together
-     * (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be
-     * attached. The SECRET is the credential — this id alone reaches no API, because every call
-     * that reads a customer needs a secret key that never leaves the server. Absent from the
-     * web response, never logged, never in telemetry, and never accepted as request input
-     * (data-model § 1, amended).
+     * The provider customer the session belongs to, present only beside `customerSessionSecret`
+     * (the mobile SDKs take both). The secret is the credential; this id alone reaches no API.
+     * Never logged or accepted as input.
      */
     @SerialName("customerId")
     val customerID: String? = null,
 
     /**
-     * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
-     *
-     * ⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the
-     * saved-card list itself and needs a session to do it; the web card route renders that list
-     * from `GET /v1/payment-methods` and confirms with a payment-method id, so minting a
-     * session there would be an unused provider round trip on a path 027 already found
-     * latency-sensitive. Spike S2 — see specs/051-customer-payment-experience/research.md § R5
-     * AMENDED.
+     * Authorizes a provider-owned payment-method list for this shopper. Mobile only (the web
+     * lists cards from `GET /v1/payment-methods`); null elsewhere.
      */
     val customerSessionSecret: String? = null,
 
     /**
-     * 094 — what delivery promotions took off the delivery fee; absent or "0.00" when none.
+     * What delivery promotions took off the fee; absent or "0.00" when none.
      */
     val deliveryDiscountAmount: String? = null,
 
     /**
-     * 077 — the delivery charge inside `grandTotalAmount`, as lines.
+     * The delivery charge inside `grandTotalAmount`, as lines.
      */
     val deliveryFee: DeliveryFeeDTO? = null,
 
     /**
-     * 079 — the delivery type the order was written with. Absent while the new delivery model
-     * is off.
+     * The delivery type the order was written with.
      */
     val deliveryType: DeliveryType? = null,
 
@@ -830,70 +724,56 @@ data class CreateCheckoutIntentResponse (
     val orderNumber: String,
 
     /**
-     * 074 — TRUE when points covered the whole order: it is ALREADY PAID, no card is involved,
-     * and `clientSecret` is empty. The client goes straight to the confirmation.
+     * True when points covered the whole order: already paid, `clientSecret` empty; go to the
+     * confirmation.
      */
     val paidWithPoints: Boolean? = null,
 
     /**
-     * 051 US4 — whether the provider offers any instalment option for THIS intent.
-     *
-     * ⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on
-     * account eligibility, neither of which a client knows. A guess produces exactly what
-     * FR-010/FR-011 forbid: an option offered and then refused after the shopper commits, or
-     * one that vanishes unexplained.
-     *
-     * ⚠ A boolean, not the list — which providers appear is the payment element's business, and
-     * sending the raw list would leak account configuration to a client with no use for it.
+     * Whether the provider offers an instalment option for this intent, as the provider answers
+     * it.
      */
     val payOverTimeAvailable: Boolean? = null,
 
     val pointsAmount: String? = null,
 
     /**
-     * 074 — the points this order uses, their value, and what is left for the card.
+     * The points this order uses, their value, and what is left for the card.
      */
     val pointsUsed: Long? = null,
 
     val publishableKey: String,
 
     /**
-     * 069 — until when the customer's place in their same-day slot is held. Absent when no
-     * package is same-day. ⚠ A client MUST call intent again before confirming payment once
-     * this has passed: the place may have gone, and the intent call is the last moment the
-     * server can say so before the customer is charged.
+     * Until when the window place is held. Once passed, call intent again before confirming
+     * payment: it is the last moment the server can say the place has gone.
      */
     val slotHeldUntil: String? = null
 )
 
 /**
- * 077 — the delivery charge inside `grandTotalAmount`, as lines.
+ * The delivery charge inside `grandTotalAmount`, as lines.
  *
- * What a customer is charged for delivery, in lines that sum EXACTLY to `totalAmount`
- * (FR-028). A zero line is omitted.
+ * What a customer is charged, in lines summing exactly to `totalAmount`; zero lines are
+ * omitted. Nothing else: no distance, band, weight or plan, so nobody can work out where
+ * the hub is or how pricing works.
  *
- * ⚠ Lines and a total — nothing else. No distance, band, weight or plan may be added: a
- * customer must not be able to work out where the hub is or how the business prices
- * (FR-032).
+ * The courier fee for the whole order: lines and a total.
  *
- * The courier fee for the whole order (077): lines and a total.
- *
- * ⚠ Never carries a window or a delivery-today surcharge.
+ * Never carries a window or a delivery-today surcharge.
  *
  * The order's delivery charge with this window chosen.
  *
- * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
- * delivery), exactly as sold. Stored with the order and never recomputed, so it reads the
- * same after the business changes its prices.
+ * The same charge as lines (delivery, window surcharge, small-order fee, free delivery), as
+ * sold and never recomputed.
  */
 @Serializable
 data class DeliveryFeeDTO (
     val lines: List<DeliveryFeeLineDTO>,
 
     /**
-     * 094 — what this shopper's delivery promotions take off THIS option's fee, when any do.
-     * The fee itself (`totalAmount`) is unchanged, so `shownDeliveryAmount` still compares the
-     * fee; the promotions total is compared separately (`expectedDiscount`).
+     * What this shopper's delivery promotions take off this option's fee. `totalAmount` is
+     * unchanged; the promotions total is compared separately.
      */
     val promotionAmount: String? = null,
 
@@ -910,11 +790,10 @@ data class DeliveryFeeLineDTO (
 )
 
 /**
- * 077 — one line of what a customer is charged for delivery.   delivery          the fee
- * for the distance and weight, before any window surcharge   window_surcharge  what the
- * chosen window adds   small_order       the extra fee on a basket under the business's
- * small-order amount   free_delivery     the saving when the basket reaches the
- * free-delivery amount (NEGATIVE)
+ * One line of what a customer is charged for delivery:   delivery          the fee for
+ * distance and weight, before any window surcharge   window_surcharge  what the chosen
+ * window adds   small_order       the extra fee under the small-order amount
+ * free_delivery     the saving at the free-delivery amount (negative)
  */
 @Serializable
 enum class DeliveryFeeLineKind(val value: String) {
@@ -925,9 +804,7 @@ enum class DeliveryFeeLineKind(val value: String) {
 }
 
 /**
- * ⚠ NO DESTINATION FIELD, AND THERE MUST NEVER BE ONE. The refund goes to the payment
- * method on the order (FR-006). A request that could name where the money goes would be a
- * way to redirect somebody else's (A4).
+ * No destination field, ever: the refund goes to the order's payment method.
  */
 @Serializable
 data class CreateRefundRequestBody (
@@ -944,11 +821,7 @@ data class CreateRefundRequestItem (
 )
 
 /**
- * One refund, as the CUSTOMER sees it.
- *
- * ⚠ THREE states, not five, and no failure text. "Your bank rejected the refund" invites a
- * shopper to argue with a message they cannot act on, and the difference between
- * `submitting` and `submitted` is a fact about our integration.
+ * One refund as the customer sees it: three states, no failure text.
  */
 @Serializable
 data class CustomerRefundDTO (
@@ -972,16 +845,14 @@ data class DeliveryChoiceRefusalDTO (
     val code: DeliveryChoiceRefusalCode,
 
     /**
-     * The options as they stand NOW. Absent on `slot_required` from a client that sent no slot.
+     * The options as they stand now. Absent on `slot_required` when no slot was sent.
      */
     val quote: DeliveryQuoteDTO? = null
 )
 
 /**
- * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a
- * 409 problem, with a fresh `quote` so the client can re-offer without a second request.
- *
- * ⚠ A refusal NEVER substitutes a window or a day (FR-010). The customer chooses again.
+ * Why an intent was refused over the delivery choice: the `code` of a 409, with a fresh
+ * `quote`. A refusal never substitutes a window or a day; the customer chooses again.
  */
 @Serializable
 enum class DeliveryChoiceRefusalCode(val value: String) {
@@ -993,33 +864,28 @@ enum class DeliveryChoiceRefusalCode(val value: String) {
 }
 
 /**
- * The delivery quote shown at checkout, captured server-side so the order is honoured at
- * the quoted fee — the client never sends a fee (047 FR-036).
- *
- * A serviced address answers exactly one of two things (083): `effyWindows` — the windows
- * to choose from — or `courier`. ⚠ Nothing about how the order splits across suppliers: no
+ * The delivery quote shown at checkout, captured server-side so the order is honoured at it
+ * (the client never sends a fee). A serviced address answers `effyWindows` or `courier`. No
  * package list.
  */
 @Serializable
 data class DeliveryQuoteDTO (
     /**
-     * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose:
-     * the client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
-     * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
-     * suppliers fill the order.
+     * Present exactly when `coverage` is `"courier"`: nothing to choose; show "Courier
+     * delivery", the estimate and the fee, and send `deliveryType: "courier"`. No distance,
+     * company or supplier count.
      */
     val courier: CourierQuoteDTO? = null,
 
     /**
-     * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only
-     * when a courier order can be placed (079); the quote then carries `courier`.
+     * Who delivers to this address. `none` means not serviced; `courier` only when a courier
+     * order can be placed.
      */
     val coverage: CoverageKind? = null,
 
     /**
-     * PRESENT EXACTLY WHEN `coverage` is `"effy"` (078): today's windows under "Same-day
-     * delivery", the following delivery days' under "Standard delivery". The choice is sent
-     * back as `deliveryWindow` on the intent.
+     * Present exactly when `coverage` is `"effy"`: today's windows ("Same-day delivery") and
+     * later days' ("Standard delivery"). The choice goes back as `deliveryWindow`.
      */
     val effyWindows: EffyWindowsDTO? = null,
 
@@ -1029,13 +895,13 @@ data class DeliveryQuoteDTO (
     val expiresAt: String,
 
     /**
-     * 077 — how much more the basket needs for free delivery. Null when no free-delivery amount
-     * is set or it is already reached.
+     * How much more the basket needs for free delivery; null when there is no such amount or it
+     * is reached.
      */
     val freeDeliveryRemainingAmount: String? = null,
 
     /**
-     * 074 — the customer's spendable points, when they have any.
+     * The customer's spendable points, when they have any.
      */
     val points: CheckoutPointsDTO? = null,
 
@@ -1044,41 +910,39 @@ data class DeliveryQuoteDTO (
 )
 
 /**
- * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose:
- * the client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
- * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
- * suppliers fill the order.
+ * Present exactly when `coverage` is `"courier"`: nothing to choose; show "Courier
+ * delivery", the estimate and the fee, and send `deliveryType: "courier"`. No distance,
+ * company or supplier count.
  *
- * 079 — what a customer is told and charged when a courier delivers the order.
+ * What a customer is told and charged when a courier delivers the order.
  */
 @Serializable
 data class CourierQuoteDTO (
     /**
-     * The courier's usual timeframe, in the business's words ("2–4 business days"). ⚠ An
-     * estimate, never a promise: print it through `courierLines` (`delivery-type.ts`), never on
-     * its own.
+     * The courier's usual timeframe in the business's words ("2–4 business days"); always
+     * printed through `courierLines`.
      */
     val estimate: String,
 
     /**
-     * The courier fee for the whole order (077): lines and a total.
+     * The courier fee for the whole order: lines and a total.
      */
     val fee: DeliveryFeeDTO,
 
     /**
-     * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no
-     * window is available on any offered day and the business sends such an order by courier:
-     * the client says there are no delivery windows FIRST, then offers this.
+     * `out_of_coverage`: Effy does not deliver there. `no_window`: it does, but no window is
+     * available and the business sends it by courier; the client says there are no windows
+     * first.
      */
     val reason: CourierQuoteReason
 )
 
 /**
- * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no
- * window is available on any offered day and the business sends such an order by courier:
- * the client says there are no delivery windows FIRST, then offers this.
+ * `out_of_coverage`: Effy does not deliver there. `no_window`: it does, but no window is
+ * available and the business sends it by courier; the client says there are no windows
+ * first.
  *
- * 079 — why a courier delivers this order. Named, so the generated Kotlin enum is too.
+ * Why a courier delivers this order. Named, so the generated Kotlin enum is too.
  */
 @Serializable
 enum class CourierQuoteReason(val value: String) {
@@ -1089,8 +953,8 @@ enum class CourierQuoteReason(val value: String) {
 @Serializable
 data class EffyWindowsDTO (
     /**
-     * 085 — "as soon as possible", when some day can take an order without a time. ⚠ Carries NO
-     * DAY. Chosen by sending `deliveryPromise: "asap"` on the intent.
+     * "As soon as possible", when some day can take an untimed order. Carries no day; chosen
+     * with `deliveryPromise: "asap"`.
      */
     val asap: EffyAsapDTO? = null,
 
@@ -1100,9 +964,8 @@ data class EffyWindowsDTO (
     val days: List<EffyDayDTO>,
 
     /**
-     * Set when no window is open on ANY day: `no_windows` (all closed or taken) or
-     * `none_defined` (the business has switched none on). The customer reads
-     * `DELIVERY_WINDOW_WORDS.noWindows`.
+     * Set when no window is open on any day: `no_windows` (closed or taken) or `none_defined`
+     * (none switched on).
      */
     val unavailable: Unavailable? = null
 )
@@ -1115,20 +978,19 @@ data class EffyAsapDTO (
     val estimate: String,
 
     /**
-     * ⚠ Never carries a window or a delivery-today surcharge.
+     * Never carries a window or a delivery-today surcharge.
      */
     val fee: DeliveryFeeDTO
 )
 
 /**
- * 078 — one day on offer: today (`same_day`) or a following delivery day (`standard`).
+ * One day on offer: today (`same_day`) or a later delivery day (`standard`).
  */
 @Serializable
 data class EffyDayDTO (
     /**
-     * 085 — this day sold with NO TIME. Sent back as `deliveryWindow` like any window; the
-     * order is then promised the day, not the hours. ⚠ Always null for today, and never also in
-     * `windows`.
+     * This day sold with no time, sent back as `deliveryWindow`; the order is promised the day.
+     * Always null for today, never in `windows`.
      */
     val anyTime: EffyWindowDTO? = null,
 
@@ -1147,9 +1009,7 @@ data class EffyDayDTO (
 )
 
 /**
- * 078 — one window on one day.
- *
- * ⚠ NO CAPACITY, no remaining count, and a full window is simply ABSENT (069 FR-050).
+ * One window on one day. No capacity or remaining count: a full window is absent.
  */
 @Serializable
 data class EffyWindowDTO (
@@ -1198,11 +1058,8 @@ enum class EffyDayClosedReason(val value: String) {
 }
 
 /**
- * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today,
- * `standard` = a window on a later day (078). ⚠ No price of its own (077): the fee is ONE
- * amount for the order. ⚠ On an order placed before delivery types (079) `standard` meant a
- * day a carrier delivered — such an order is read through `deliveredBy`, never guessed from
- * this word.
+ * The customer's words for when an Effy order arrives: `same_day` (a window today) or
+ * `standard` (a later day). No price of its own.
  */
 @Serializable
 enum class DeliveryMethod(val value: String) {
@@ -1217,11 +1074,10 @@ enum class Unavailable(val value: String) {
 }
 
 /**
- * 074 — the customer's spendable points, when they have any.
+ * The customer's spendable points, when they have any.
  *
- * 074 — what a customer can spend at checkout, on the delivery quote. Absent when they have
- * no points. The client offers up to min(usable, order total); the card part must be 0 or
- * at least `cardMinimumAmount` (the provider cannot charge less).
+ * What a customer can spend at checkout, on the quote; absent with no points. Offer up to
+ * min(usable, total); the card part must be 0 or at least `cardMinimumAmount`.
  */
 @Serializable
 data class CheckoutPointsDTO (
@@ -1236,7 +1092,7 @@ data class CheckoutPointsDTO (
 @Serializable
 data class DeliveryNoteDTO (
     /**
-     * Always `DOCUMENT_CONTACT` (the approved customer mailbox).
+     * Always `DOCUMENT_CONTACT`.
      */
     val contact: String,
 
@@ -1246,8 +1102,7 @@ data class DeliveryNoteDTO (
     val deliveredAt: String,
 
     /**
-     * Merged by product across the order's packages, so nothing says how many suppliers filled
-     * it.
+     * Merged by product across packages, so nothing reveals how many suppliers filled it.
      */
     val lines: List<DeliveryNoteLineDTO>,
 
@@ -1274,7 +1129,7 @@ enum class DeliveryNoteLineStatus(val value: String) {
 }
 
 /**
- * One refinable dimension: category, brand, an attribute-definition key, or `offers` (043).
+ * One refinable dimension: category, brand, an attribute key, or `offers`.
  */
 @Serializable
 data class FacetDTO (
@@ -1289,17 +1144,13 @@ data class FacetDTO (
 )
 
 /**
- * One selectable value within a facet, carrying its count in the CURRENT result set (043
- * FR-008).
- *
- * ⚠ Zero-count options are OMITTED by the server (FR-009) — an option that leads nowhere is
- * not an option. `count` is therefore always ≥ 1 as delivered.
+ * One value within a facet, with its count in the current result set. Zero-count options
+ * are omitted, so `count` is ≥ 1.
  */
 @Serializable
 data class FacetOptionDTO (
     /**
-     * ⚠ `WireInt` (`@asType integer`) so the generated Kotlin reads an Int, not a Double — the
-     * 027 `1.0`-into-an-int lesson, applied to the count field.
+     * `WireInt`, so the generated Kotlin reads an Int.
      */
     val count: Long,
 
@@ -1308,12 +1159,10 @@ data class FacetOptionDTO (
 )
 
 /**
- * The control a facet drives (043).
- *
- * `single_select` — pick one (category; reuses the `categoryKey` filter param).
- * `multi_select`  — tick many, OR within (brand, single/multi-select + boolean attributes).
- * `toggle`        — an on/off control (offers). Closed vocabulary: a client meeting an
- * unknown value                  renders nothing for that facet (tolerant reader).
+ * The control a facet drives: `single_select` pick one (category; reuses the `categoryKey`
+ * filter). `multi_select`  tick many, OR within (brand, select and boolean attributes).
+ * `toggle`        on/off (offers). A client meeting an unknown value renders nothing for
+ * that facet.
  */
 @Serializable
 enum class FacetType(val value: String) {
@@ -1323,11 +1172,8 @@ enum class FacetType(val value: String) {
 }
 
 /**
- * The facets available for a query + applied filters, with per-option counts (043 US2).
- *
- * Computed on filter-change, NOT per page — the product grid pages independently via
- * `ProductSearchResultDTO`. `priceBounds` drives the price control's range and is null when
- * the set is empty.
+ * The facets for a query and its filters, with per-option counts. Computed on filter
+ * change, not per page; `priceBounds` is null for an empty set.
  */
 @Serializable
 data class FacetSetDTO (
@@ -1342,7 +1188,7 @@ data class PriceBounds (
 )
 
 /**
- * The composed Home payload (GET /v1/storefront/home).
+ * The composed Home payload (GET /storefront/v1/home).
  */
 @Serializable
 data class StorefrontHomeDTO (
@@ -1360,8 +1206,7 @@ data class StorefrontRailDTO (
 )
 
 /**
- * The at-a-glance product card used in rails, search results, saved items and
- * recently-viewed.
+ * The product card used in rails, search results, saved items and recently viewed.
  */
 @Serializable
 data class StorefrontProductCardDTO (
@@ -1385,53 +1230,49 @@ data class StorefrontProductCardDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
     val name: String,
 
     /**
-     * 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11).
+     * An item or buy-X-get-Y promotion open to everyone that covers this product.
      */
     val offer: ProductOfferDTO? = null,
 
     /**
-     * 098 — the LISTING price: the lowest price among the product's active variants. Say "From"
-     * when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec
-     * FR-013.)
+     * The listing price: the lowest among active variants (say "From" when `priceVaries`).
+     * Selling out one size never moves it.
      */
     val priceAmount: String,
 
     /**
-     * 098 — active variants' prices differ: show "From".
+     * Active variants' prices differ: show "From".
      */
     val priceVaries: Boolean,
 
     /**
-     * 098 — the comparison price of `priceAmount`, when the product has a unit basis and that
-     * variant a pack size.
+     * The comparison price of `priceAmount`, with a unit basis and a pack size.
      */
     val unitPrice: UnitPriceDTO? = null,
 
     /**
-     * 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of
-     * quick-add.
+     * Active variants; above 1 the tile offers "Choose" instead of quick-add.
      */
     val variantCount: Long,
 
     /**
-     * 098 — the variant this tile stands for: the one whose stock code or barcode a search
-     * matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
+     * The variant this tile stands for (the one a stock-code or barcode search matched, else
+     * the default); quick-add adds it when `variantCount` is 1.
      */
     @SerialName("variantId")
     val variantID: String
 )
 
 /**
- * A badge shown on a product card. Derived server-side (on_sale = has compare-at; new =
- * newest).
+ * A badge on a product card, derived server-side (on_sale = has compare-at; new = newest).
  */
 @Serializable
 enum class ProductBadge(val value: String) {
@@ -1440,7 +1281,7 @@ enum class ProductBadge(val value: String) {
 }
 
 /**
- * A product's offer badge on listings and its page (R11).
+ * A product's offer badge on listings and its page.
  */
 @Serializable
 data class ProductOfferDTO (
@@ -1459,21 +1300,14 @@ data class ProductOfferDTO (
 @Serializable
 data class ListPaymentMethodsResponse (
     /**
-     * ⚠ An empty array means "this shopper has no kept cards" and NOTHING ELSE. A provider
-     * outage MUST surface as an error rather than as `[]` — "you have no cards" and "we could
-     * not ask" are different facts, and conflating them is the FR-036 failure mode (contract §
-     * 2).
+     * Empty means no kept cards and nothing else; a provider outage is an error, never `[]`.
      */
     val paymentMethods: List<PaymentMethodDTO>
 )
 
 /**
- * A card the shopper explicitly chose to keep.
- *
- * ⚠ NEVER PERSISTED BY EFFY. This is read live from the provider at the moment it is
- * needed, because a mirrored copy rots: a card removed at the provider, expired, or
- * replaced by the issuer's auto-updater would keep being offered from a stale row
- * (data-model § 2).
+ * A card the shopper chose to keep, read live from the provider when needed and never
+ * persisted (a copy would go stale).
  */
 @Serializable
 data class PaymentMethodDTO (
@@ -1483,46 +1317,40 @@ data class PaymentMethodDTO (
     val brand: String,
 
     /**
-     * ⚠ WireInt, not number. Kotlin serialises a plain `number` as `Double`, so the wire
-     * carries `4.0` and Go's encoding/json refuses it into an `int` — the defect that silently
-     * rejected every mobile cart write in 019 and took three stacked fixes to find (027 R13).
-     * The `@asType integer` annotation is what makes the generated Kotlin an `Int`.
+     * `WireInt`, so the generated Kotlin is an `Int`.
      */
     val expMonth: Long,
 
     val expYear: Long,
 
     /**
-     * Provider payment-method reference. Opaque — never parse it.
+     * The provider's payment-method reference. Opaque.
      */
     val id: String,
 
     /**
-     * Which card the payment step pre-selects (FR-022).
+     * Which card the payment step pre-selects.
      */
     val isDefault: Boolean,
 
     /**
-     * The ONLY part of a card number that may leave the provider.
+     * The only part of a card number that may leave the provider.
      */
     val last4: String,
 
     /**
-     * Why the card cannot be used, when it cannot. Stated, never left for the shopper to work
-     * out.
+     * Why the card cannot be used, when it cannot.
      */
     val unusableReason: String? = null,
 
     /**
-     * ⚠ SERVER-COMPUTED (FR-023). The client must NOT infer this from the expiry — the rules
-     * for what counts as unusable belong in one place, and a client that decides for itself
-     * will disagree with the server the moment those rules change.
+     * Server-computed: the client never infers it from the expiry.
      */
     val usable: Boolean
 )
 
 /**
- * A product image (its permanent public address + alt text).
+ * A product image: its permanent public address and alt text.
  */
 @Serializable
 data class MediaDTO (
@@ -1532,20 +1360,16 @@ data class MediaDTO (
     val imageURL: String,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null
 )
 
 /**
- * POST /v1/cart/merge — fold a device cart into the account cart at sign-in.
- *
- * ⚠ UNION WITH MAXIMUM QUANTITY per variant (098; per product before). This is NOT 019's
- * original `/v1/cart/merge`, which SUMMED quantities and was removed on 2026-07-23 after it
- * tripled carts. Taking the maximum makes the operation idempotent AND commutative: signing
- * in twice, or retrying an interrupted merge, leaves exactly the same cart (FR-011,
- * FR-012). Nothing from either side is dropped.
+ * POST /v1/cart/merge: folds a device cart into the account cart at sign-in, taking the
+ * maximum quantity per variant, so a repeat or retried merge leaves the same cart. Nothing
+ * from either side is dropped.
  */
 @Serializable
 data class MergeCartRequest (
@@ -1581,102 +1405,75 @@ data class OptionValueDTO (
 @Serializable
 data class OrderDTO (
     /**
-     * What the shopper is out of pocket after refunds.
-     *
-     * ⚠ NOT A CORRECTION TO `grandTotalAmount` (FR-024). That figure is what was CHARGED — a
-     * historical record. A receipt that silently rewrote itself after a refund could not be
-     * reconciled against a bank statement, which is the one thing a receipt is for.
+     * What the shopper is out of pocket after refunds. Not a correction to `grandTotalAmount`,
+     * which is what was charged: a receipt must reconcile against a bank statement.
      */
     val amountPaidAfterRefunds: String? = null,
 
     /**
-     * 052 — when the order is expected to arrive (FR-007), one entry per package.
-     *
-     * ⚠ More than one entry means the order arrives in more than one delivery — a fact about
-     * the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference
-     * of any kind (FR-009), and the entries are deliberately unordered with respect to any
-     * internal grouping.
-     *
-     * ⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and
-     * print `deliverySummary`.
+     * When the order is expected to arrive. Carries no shop reference. Empty for a courier
+     * order, which has no window or day: read `delivery` and print `deliverySummary`.
      */
     val arrivalEstimates: List<ArrivalEstimateDTO>,
 
     /**
-     * The BILLING address snapshot (023). `null` means "same as shipping" — the client renders
-     * "Billing: same as shipping" rather than repeating the address. A value is a divergent
-     * billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
+     * The billing address snapshot; `null` means same as shipping. Never exposed to a shop.
      */
     val billingAddress: OrderAddressDTO? = null,
 
     /**
-     * 055 — may the SHOPPER still cancel this order themselves? (FR-012)
-     *
-     * ⚠ SERVER-DERIVED, for exactly the reason `stage` above is: a client computing it from
-     * `fulfillments` would be a second implementation of one rule, and the divergence would be
-     * silent because both surfaces still render *something*. Here the cost is a shopper shown a
-     * cancel button that refuses, or denied one that would have worked.
-     *
-     * ⚠ ADVISORY, NOT THE GATE. It was true when the page loaded; a shop may have begun picking
-     * since, and the server re-decides inside a row lock when the cancel actually arrives
-     * (FR-017).
-     *
-     * ⚠ `false` DOES NOT MEAN "this order can never be cancelled" — staff can cancel at any
-     * pre-departure stage (FR-018). Any wording built on this must leave that door open, or a
-     * shopper who would have rung up simply gives up.
+     * May the shopper still cancel this order themselves? Server-derived and advisory: the
+     * server decides again under a row lock. `false` does not mean it can never be cancelled
+     * (staff can, before it leaves), so wording must leave that door open.
      */
     val cancellable: Boolean,
 
     val currency: String,
 
     /**
-     * 079 — who delivers the order, and for a courier the estimate it was sold. Every surface
-     * prints this through `deliverySummary` (`delivery-type.ts`).
+     * Who delivers the order, and for a courier the estimate sold; printed through
+     * `deliverySummary`.
      */
     val delivery: OrderDeliveryDTO,
 
     /**
-     * The SHIPPING address snapshot (the main one — where the order is delivered).
+     * The shipping address snapshot, where the order is delivered.
      */
     val deliveryAddress: OrderAddressDTO,
 
     /**
-     * 094 — what delivery promotions took off the fee.
+     * What delivery promotions took off the fee.
      */
     val deliveryDiscountAmount: String,
 
     /**
-     * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
-     * delivery), exactly as sold. Stored with the order and never recomputed, so it reads the
-     * same after the business changes its prices.
+     * The same charge as lines (delivery, window surcharge, small-order fee, free delivery), as
+     * sold and never recomputed.
      */
     val deliveryFee: DeliveryFeeDTO,
 
     /**
-     * 051 FR-043 — the delivery fee as charged.
+     * The delivery fee as charged.
      */
     val deliveryFeeAmount: String,
 
     /**
-     * 066 — what the customer told the driver when the order was placed, or null/absent when
-     * they said nothing (every pre-066 order). Fixed once the order is paid. Render NOTHING for
-     * null — no placeholder — and render `note` as plain text only.
+     * What the customer told the driver, or null. Fixed once paid. Render nothing for null, and
+     * `note` as plain text.
      */
     val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
-     * The promotional discount applied at payment (027 FR-049). The platform's own computation
-     * at that moment, stored on the order — so a receipt stays explainable years later even if
-     * the promotion has since been changed or disabled. "0.00" when none applied.
+     * The promotional discount as computed at payment and stored, so the receipt stays
+     * explainable after a promotion changes. "0.00" when none.
      */
     val discountAmount: String,
 
     val fulfillments: List<OrderFulfillmentDTO>,
 
     /**
-     * ⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching
-     * it in one act are the same fact. A flag could be true while the numbers disagreed, and
-     * then nobody knows which to believe.
+     * Derived from the totals, never stored, so line-by-line and all-at-once reach the same
+     * fact.
      */
     val fullyRefunded: Boolean? = null,
 
@@ -1687,15 +1484,14 @@ data class OrderDTO (
     val orderNumber: String,
 
     /**
-     * 052 — how the order was paid, in a form safe to display (FR-006). Null when not captured:
-     * a pre-052 order, or an order whose post-commit capture failed. The receipt omits the line
-     * rather than showing a blank.
+     * How the order was paid, safe to display; null when the post-commit capture failed (the
+     * receipt omits the line).
      */
     val paymentMethod: PaymentMethodSummaryDTO? = null,
 
     /**
-     * 074 — how the order was paid when points were part of it, and what has come back of each.
-     * ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount.
+     * How the order was paid when points were part of it, and what has come back. Absent with
+     * no points; points are a way of paying, never a discount.
      */
     val paymentSplit: OrderPaymentSplitDTO? = null,
 
@@ -1703,43 +1499,32 @@ data class OrderDTO (
     val placedAt: String? = null,
 
     /**
-     * The literal code used, denormalised beside the discount so the receipt can still say
-     * "SPRING20" independently of the promotion record. Null/absent when no code was used.
+     * The code used, kept beside the discount so the receipt can still say "SPRING20"; null
+     * when none.
      */
     val promoCode: String? = null,
 
     /**
-     * 094 — each promotion applied and what it took off.
+     * Each promotion applied and what it took off.
      */
     val promotions: List<OrderPromotionDTO>,
 
     /**
-     * What has actually been returned or is on its way. Absent when there are no refunds.
+     * What has been returned or is on its way. Absent with no refunds.
      */
     val refundedTotal: String? = null,
 
     /**
-     * 055 — every refund on this order, newest first (FR-023).
-     *
-     * ⚠ ABSENT ENTIRELY when nothing was refunded — not an empty array (FR-028, SC-011). An
-     * order with no refunds serialises byte-identically to its pre-055 self, so a client that
-     * has never seen one cannot tell this slice shipped, and renders nothing rather than an
-     * empty section.
-     *
-     * ⚠ NO FAILURE REASON, NO KIND, NO PROVIDER REFERENCE. See [CustomerRefundDTO].
+     * Every refund on this order, newest first. Absent entirely (not an empty array) when
+     * nothing was refunded. No failure reason, kind or provider reference (see
+     * [CustomerRefundDTO]).
      */
     val refunds: List<CustomerRefundDTO>? = null,
 
     /**
-     * 052 — the customer-facing progress stage (FR-008).
-     *
-     * ⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`.
-     * Two clients deriving one answer independently is 029's banner target and 033's
-     * `available` flag, and the failure is silent because both surfaces still render
-     * *something*.
-     *
-     * ⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still
-     * being picked is `packing`. The customer has not received their order.
+     * The customer-facing progress stage, always server-derived (never computed from
+     * `fulfillments`). A rollup, not a max: a two-shop order with one portion delivered and one
+     * being picked is `packing`.
      */
     val stage: OrderStage,
 
@@ -1747,23 +1532,12 @@ data class OrderDTO (
 )
 
 /**
- * 052 — when one package is expected to ARRIVE, as the customer was shown at checkout.
+ * When one package is expected to arrive, as shown at checkout. Not `DeliveryPromiseDTO`
+ * (shop-order.ts), which is the shop's ready-by and must never reach a customer.
  *
- * ⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT
- * FACT FOR A DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have
- * the package ready at the fulfilment node. Research R4 records that the ready-by must
- * never reach the customer — it means something else, and it is fulfilment structure
- * (FR-009). The names are kept apart deliberately so the two can never be swapped by
- * autocomplete.
- *
- * `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd): the delivery DAY. From 069 they
- * are equal — today for same-day, the customer's chosen day for standard. ⚠ Both are null
- * on every order placed before 069, which never recorded a day at all; a client then says
- * the date will be confirmed and MUST NOT invent one.
- *
- * `windowStart`/`windowEnd` are the same-day time window the customer was sold (069). Null
- * for standard deliveries and for every earlier order. Render all four through
- * `formatArrival`.
+ * `promisedFrom`/`promisedTo` are the delivery day (yyyy-mm-dd), equal for a sold window or
+ * day; null means the date will be confirmed (never invent one). `windowStart`/`windowEnd`
+ * are the window sold, null for an untimed day. Render through `formatArrival`.
  */
 @Serializable
 data class ArrivalEstimateDTO (
@@ -1795,7 +1569,7 @@ enum class Method(val value: String) {
 /**
  * The snapshotted delivery address on the receipt.
  *
- * The SHIPPING address snapshot (the main one — where the order is delivered).
+ * The shipping address snapshot, where the order is delivered.
  */
 @Serializable
 data class OrderAddressDTO (
@@ -1810,12 +1584,12 @@ data class OrderAddressDTO (
 )
 
 /**
- * 079 — who delivers the order, and for a courier the estimate it was sold. Every surface
- * prints this through `deliverySummary` (`delivery-type.ts`).
+ * Who delivers the order, and for a courier the estimate sold; printed through
+ * `deliverySummary`.
  *
  * An order's delivery, as a customer contract carries it.
  *
- * 079 — who delivers it.
+ * Who delivers it.
  */
 @Serializable
 data class OrderDeliveryDTO (
@@ -1831,24 +1605,22 @@ data class OrderDeliveryDTO (
     val courierEstimate: String? = null,
 
     /**
-     * 081 — present only after back-office moved the order to the other delivery type: the
-     * LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier
-     * fee, the difference or Effy's cost — a customer is told what happened and what they got,
-     * nothing else.
+     * Present only after back-office moved the order to the other type: the latest move and
+     * what the customer received. Never the reason, the courier fee, the difference or Effy's
+     * cost.
      */
     val moved: OrderDeliveryMoveDTO? = null,
 
     /**
-     * 085 — absent on a courier order. ⚠ `day`: the arrival carries the day and no hours.
-     * `asap`: no arrival at all, only `asapEstimate`.
+     * Absent on a courier order. `day`: the arrival has the day and no hours. `asap`: no
+     * arrival, only `asapEstimate`.
      */
     val promise: PromiseEnum? = null,
 
     /**
-     * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
-     * consignment and the courier gave a tracking link. `email`: it travels as more than one,
-     * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
-     * given). ⚠ Never a count, a reference without a link, or anything per parcel.
+     * How the customer follows a courier order: `link` (one consignment with a tracking link)
+     * or `email` (several, each tracking emailed). Absent otherwise. Never a count or anything
+     * per parcel.
      */
     val tracking: TrackingClass? = null,
 
@@ -1856,13 +1628,11 @@ data class OrderDeliveryDTO (
 )
 
 /**
- * 081 — present only after back-office moved the order to the other delivery type: the
- * LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier
- * fee, the difference or Effy's cost — a customer is told what happened and what they got,
- * nothing else.
+ * Present only after back-office moved the order to the other type: the latest move and
+ * what the customer received. Never the reason, the courier fee, the difference or Effy's
+ * cost.
  *
- * 081 — the latest move of an order's delivery type by back-office, as the customer reads
- * it.
+ * The latest move of an order's delivery type by back-office, as the customer reads it.
  */
 @Serializable
 data class OrderDeliveryMoveDTO (
@@ -1885,10 +1655,10 @@ enum class CompensationKind(val value: String) {
 }
 
 /**
- * 085 — absent on a courier order. ⚠ `day`: the arrival carries the day and no hours.
- * `asap`: no arrival at all, only `asapEstimate`.
+ * Absent on a courier order. `day`: the arrival has the day and no hours. `asap`: no
+ * arrival, only `asapEstimate`.
  *
- * 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as
+ * What an Effy order was sold: a time on a day, a day with no time, or "as soon as
  * possible".
  */
 @Serializable
@@ -1899,10 +1669,9 @@ enum class PromiseEnum(val value: String) {
 }
 
 /**
- * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
- * consignment and the courier gave a tracking link. `email`: it travels as more than one,
- * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
- * given). ⚠ Never a count, a reference without a link, or anything per parcel.
+ * How the customer follows a courier order: `link` (one consignment with a tracking link)
+ * or `email` (several, each tracking emailed). Absent otherwise. Never a count or anything
+ * per parcel.
  */
 @Serializable
 data class TrackingClass (
@@ -1918,11 +1687,7 @@ enum class TrackingKind(val value: String) {
 }
 
 /**
- * An anonymous per-shop fulfillment portion — NO shop identity (FR-033).
- *
- * 020 gave `status` a life: 019 created every portion `pending` and no code path ever
- * changed it. The values now span the shop's real working lifecycle. Still no shop name,
- * id, or count that would imply WHO is fulfilling (FR-018, SC-009).
+ * An anonymous fulfilment portion: no shop name, id, or anything implying who fulfils it.
  */
 @Serializable
 data class OrderFulfillmentDTO (
@@ -1931,8 +1696,7 @@ data class OrderFulfillmentDTO (
     val subtotalAmount: String,
 
     /**
-     * Present ONLY when the portion has reached a terminal state (FR-018b). Absent while
-     * picking.
+     * Present only once the portion is terminal; absent while picking.
      */
     val unavailableItems: List<OrderShortfallDTO>? = null
 )
@@ -1948,14 +1712,9 @@ enum class Status(val value: String) {
 }
 
 /**
- * An item the customer paid for and will NOT receive (020 FR-018b).
- *
- * Disclosed at item level, but ONLY once the portion is terminal — a flag raised and then
- * undone mid-pick must never reach the customer (SC-017). Naming the customer's own item
- * discloses nothing about fulfillment structure (FR-018c).
- *
- * Carries NO refund promise: no money moves in 020, and the shortfall is left deliberately
- * visible for a later refunds slice to resolve (FR-010b, FR-018a).
+ * An item the customer paid for and will not receive, disclosed only once the portion is
+ * terminal (a flag raised and undone mid-pick never reaches the customer). Carries no
+ * refund promise.
  */
 @Serializable
 data class OrderShortfallDTO (
@@ -1964,46 +1723,35 @@ data class OrderShortfallDTO (
 )
 
 /**
- * A line on the receipt (product snapshot — never a shop).
+ * A line on the receipt: a product snapshot, never a shop.
  */
 @Serializable
 data class OrderItemDTO (
     /**
-     * 094 — what promotions took off this line, as sold. Absent or "0.00" when none.
+     * What promotions took off this line, as sold. Absent or "0.00" when none.
      */
     val discountAmount: String? = null,
 
     /**
-     * 052 — a short-lived presigned URL for the product's primary image, or null.
-     *
-     * ⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete
-     * without it, and a client MUST NOT gate any fact on its presence. It is resolved by a LEFT
-     * JOIN to the live `product_media`; every other field on this line comes from the order's
-     * own immutable snapshot, which is why a renamed or re-photographed product still shows
-     * what was actually bought (FR-011).
+     * A short-lived presigned URL for the product's primary image, or null. Decoration only: a
+     * line is complete without it. It comes from the live catalogue; every other field is the
+     * order's snapshot, so a renamed product still shows what was bought.
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
     val lineSubtotalAmount: String,
 
     /**
-     * 055 — this LINE's own id.
-     *
-     * ⚠ NOT INTERCHANGEABLE WITH `productId`, and the difference is load-bearing. `order_item`
-     * has no uniqueness on (order, product), so two lines of the same product cannot be told
-     * apart by product id. A refund request that named a product where a line was expected
-     * would not error — the join would simply match nothing, and every item the shopper named
-     * would be SILENTLY DROPPED.
-     *
-     * ⚠ It discloses nothing: a row id on the shopper's own order, carrying no shop and no
-     * fulfilment structure. The back-office contract already speaks this language.
+     * This line's own id. Not interchangeable with `productId`: two lines of one product cannot
+     * be told apart by product id, and a refund request naming a product would silently match
+     * nothing. Discloses nothing about fulfilment.
      */
     @SerialName("orderItemId")
     val orderItemID: String,
@@ -2016,22 +1764,19 @@ data class OrderItemDTO (
     val unitPriceAmount: String,
 
     /**
-     * 098 — the variant sold.
+     * The variant sold.
      */
     @SerialName("variantId")
     val variantID: String,
 
     /**
-     * 098 — the variant's label AS SOLD ("Spiced / 500 g"); null for a product with no options.
+     * The variant's label as sold ("Spiced / 500 g"); null for a product with no options.
      */
     val variantLabel: String? = null
 )
 
 /**
- * 052 — a short, non-sensitive description of how an order was paid.
- *
- * ⚠ NO CARD DATA BEYOND `last4`, ever (051 `payment.ts`). There is no field for a card
- * number, an expiry, or a cardholder name, and none may be added.
+ * How an order was paid, safe to show. No card data beyond `last4`, ever.
  */
 @Serializable
 data class PaymentMethodSummaryDTO (
@@ -2042,8 +1787,7 @@ data class PaymentMethodSummaryDTO (
     val brand: String? = null,
 
     /**
-     * The ONLY part of a card number permitted to leave the provider. Null for non-card
-     * families.
+     * The only part of a card number allowed to leave the provider; null for non-card families.
      */
     val last4: String? = null,
 
@@ -2065,10 +1809,10 @@ enum class Type(val value: String) {
 }
 
 /**
- * 074 — how the order was paid when points were part of it, and what has come back of each.
- * ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount.
+ * How the order was paid when points were part of it, and what has come back. Absent with
+ * no points; points are a way of paying, never a discount.
  *
- * How an order was paid and what has come back — on customer and staff order reads.
+ * How an order was paid and what has come back, on customer and staff order reads.
  */
 @Serializable
 data class OrderPaymentSplitDTO (
@@ -2092,7 +1836,7 @@ enum class PaymentStatus(val value: String) {
 }
 
 /**
- * 094 — one promotion applied to an order, as it was sold (never re-derived).
+ * One promotion applied to an order, as sold (never re-derived).
  */
 @Serializable
 data class OrderPromotionDTO (
@@ -2103,22 +1847,15 @@ data class OrderPromotionDTO (
 )
 
 /**
- * 052 — the customer-facing progress stage (FR-008).
+ * The customer-facing progress stage, always server-derived (never computed from
+ * `fulfillments`). A rollup, not a max: a two-shop order with one portion delivered and one
+ * being picked is `packing`.
  *
- * ⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`.
- * Two clients deriving one answer independently is 029's banner target and 033's
- * `available` flag, and the failure is silent because both surfaces still render
- * *something*.
+ * The customer-facing progress vocabulary: a closed union rolled up server-side from every
+ * `shop_fulfillment.status` (`stageFor` in
+ * `apis/edge-api/shared/src/lib/order-completion.ts`).
  *
- * ⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still
- * being picked is `packing`. The customer has not received their order.
- *
- * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived
- * server-side from every `shop_fulfillment.status` on the order. See `stageFor` in
- * `apis/edge-api/shared/src/lib/order-completion.ts` for the single rollup that produces
- * it.
- *
- * The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order.
+ * The one word for where a paid order is. Absent on an unpaid, failed or cancelled order.
  */
 @Serializable
 enum class OrderStage(val value: String) {
@@ -2152,12 +1889,12 @@ data class OrderSummaryDTO (
     val currency: String,
 
     /**
-     * When the whole order had arrived (ISO). Only once `stage` is `delivered`.
+     * When the whole order had arrived (ISO); only once `stage` is `delivered`.
      */
     val deliveredAt: String? = null,
 
     /**
-     * 079 — who delivers it.
+     * Who delivers it.
      */
     val delivery: OrderDeliveryDTO,
 
@@ -2173,7 +1910,7 @@ data class OrderSummaryDTO (
     val placedAt: String? = null,
 
     /**
-     * 027 — set when a promotional code was used, so history can mark a discounted order.
+     * Set when a promotional code was used, so history can mark a discounted order.
      */
     val promoCode: String? = null,
 
@@ -2183,30 +1920,27 @@ data class OrderSummaryDTO (
     val refundedTotal: String? = null,
 
     /**
-     * The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order.
+     * The one word for where a paid order is. Absent on an unpaid, failed or cancelled order.
      */
     val stage: OrderStage? = null,
 
     val status: OrderStatus,
 
     /**
-     * 084 — the primary picture of the order's first few lines (at most four), for the order
-     * list. Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's;
-     * `null` where a line has no picture.
-     *
-     * ⚠ Pictures of the customer's own lines only — never a shop, a package, or how many
-     * suppliers fill the order.
+     * The primary picture of the order's first few lines (at most four), for the order list:
+     * short-lived presigned URLs from the live catalogue; `null` where a line has none. Never a
+     * shop, a package, or a supplier count.
      */
     val thumbnails: List<String?>? = null,
 
     /**
-     * 086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`).
+     * Index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`).
      */
     val thumbnailWidths: List<List<Double>>? = null
 )
 
 /**
- * 096 US8 — `GET /commerce/v1/orders/{id}/tax-documents`.
+ * `GET /commerce/v1/orders/{id}/tax-documents`.
  */
 @Serializable
 data class OrderTaxDocumentsDTO (
@@ -2215,8 +1949,8 @@ data class OrderTaxDocumentsDTO (
 )
 
 /**
- * 096 US8 — a tax invoice or an adjustment note, exactly as issued: the frozen snapshot the
- * PDF renders. Money is a decimal string ("12.34"). An issued document never changes.
+ * A tax invoice or adjustment note exactly as issued: the frozen snapshot the PDF renders.
+ * Money is a decimal string; it never changes.
  */
 @Serializable
 data class TaxDocumentDTO (
@@ -2306,8 +2040,8 @@ data class StorefrontProductDetailDTO (
     val brand: String? = null,
 
     /**
-     * The primary category's key — drives the related-products rail (025 FR-026).
-     * `categoryPath` carries display NAMES, which cannot be used to query.
+     * The primary category's key, for the related-products rail (`categoryPath` carries display
+     * names, which cannot be queried).
      */
     val categoryKey: String,
 
@@ -2321,8 +2055,8 @@ data class StorefrontProductDetailDTO (
     val currency: String,
 
     /**
-     * 098 — the variant to open on (FR-014): the one the link named if it is active, else the
-     * first that can be bought, else the first.
+     * The variant to open on: the one the link named if active, else the first that can be
+     * bought, else the first.
      */
     @SerialName("defaultVariantId")
     val defaultVariantID: String,
@@ -2334,8 +2068,8 @@ data class StorefrontProductDetailDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -2343,51 +2077,47 @@ data class StorefrontProductDetailDTO (
     val name: String,
 
     /**
-     * 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11).
+     * An item or buy-X-get-Y promotion open to everyone that covers this product.
      */
     val offer: ProductOfferDTO? = null,
 
     /**
-     * 098 — the product's options in the shop's order; empty when it has none (no selector).
+     * The product's options in the shop's order; empty when none (no selector).
      */
     val options: List<OptionDTO>,
 
     /**
-     * 098 — the LISTING price: the lowest price among the product's active variants. Say "From"
-     * when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec
-     * FR-013.)
+     * The listing price: the lowest among active variants (say "From" when `priceVaries`).
+     * Selling out one size never moves it.
      */
     val priceAmount: String,
 
     /**
-     * 098 — active variants' prices differ: show "From".
+     * Active variants' prices differ: show "From".
      */
     val priceVaries: Boolean,
 
     val unitBasis: UnitBasis? = null,
 
     /**
-     * 098 — the comparison price of `priceAmount`, when the product has a unit basis and that
-     * variant a pack size.
+     * The comparison price of `priceAmount`, with a unit basis and a pack size.
      */
     val unitPrice: UnitPriceDTO? = null,
 
     /**
-     * 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of
-     * quick-add.
+     * Active variants; above 1 the tile offers "Choose" instead of quick-add.
      */
     val variantCount: Long,
 
     /**
-     * 098 — the variant this tile stands for: the one whose stock code or barcode a search
-     * matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
+     * The variant this tile stands for (the one a stock-code or barcode search matched, else
+     * the default); quick-add adds it when `variantCount` is 1.
      */
     @SerialName("variantId")
     val variantID: String,
 
     /**
-     * 098 — ACTIVE variants only, in display order. Inactive and removed variants are never
-     * sent.
+     * Active variants only, in display order.
      */
     val variants: List<StorefrontVariantDTO>
 )
@@ -2398,7 +2128,7 @@ data class StorefrontProductDetailDTO (
 @Serializable
 data class StorefrontVariantDTO (
     /**
-     * Purchasable now (the one availability rule, R5).
+     * Purchasable now (the one availability rule).
      */
     val available: Boolean,
 
@@ -2412,7 +2142,7 @@ data class StorefrontVariantDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending.
+     * Widths (px) of this picture's smaller copies, ascending.
      */
     val imageWidths: List<Double>? = null,
 
@@ -2429,13 +2159,11 @@ data class StorefrontVariantDTO (
 )
 
 /**
- * The orderings a result set can be presented in (025 FR-016).
+ * How a result set can be ordered. `relevance` needs a text query; without one the server
+ * uses `newest` and says so in `ProductSearchResultDTO.sort`.
  *
- * `relevance` is only meaningful alongside a text query; without one the server falls back
- * to `newest` and reports what it actually did in `ProductSearchResultDTO.sort`.
- *
- * The ordering ACTUALLY applied — may differ from the request. Render the sort control from
- * this, not from what was asked for, or the control will misdescribe the list beneath it.
+ * The ordering actually applied (may differ from the request): render the sort control from
+ * this.
  */
 @Serializable
 enum class ProductSort(val value: String) {
@@ -2446,23 +2174,14 @@ enum class ProductSort(val value: String) {
 }
 
 /**
- * One advertised promotion in full — the destination of a banner tap (`GET
- * /v1/storefront/promotions/:id`).
- *
- * ⚠ WHY A PROMOTION HAS NO OTHER DESTINATION. `promo_code` carries no product or category
- * scoping: a promotion is a whole-cart discount with an optional minimum. There is no set
- * of qualifying products to filter a results list to, so a banner pointed at one was always
- * pointing at nothing in particular. A cart-level code is a message, and the destination
- * for a message is the message itself.
- *
- * ⚠ Served through the SAME visibility predicate Home used, so a promotion that expired,
- * was exhausted or was withdrawn between Home loading and the tap is **404, not stale
- * terms** (028 FR-036). This is also why the response is uncached.
+ * One promotion in full, the destination of a tap (`GET /storefront/v1/promotions/{id}`).
+ * Served through the same visibility rule as Home, so one that ended meanwhile is 404, not
+ * stale terms (hence uncached).
  */
 @Serializable
 data class PromotionDTO (
     /**
-     * NON-nullable: a screen whose purpose is to hand over a code must have one.
+     * Non-nullable: a screen whose purpose is to hand over a code must have one.
      */
     val code: String,
 
@@ -2472,8 +2191,8 @@ data class PromotionDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -2487,19 +2206,13 @@ data class PromotionDTO (
     val title: String,
 
     /**
-     * How long is left — `"Ends in 3 days"`, `"Ends tomorrow"`. Null when the promotion never
-     * ends.
-     *
-     * ⚠ RELATIVE, not a calendar date, and composed server-side. A date means nothing without a
-     * timezone and the platform has no timezone concept; a duration reads the same from
-     * anywhere. Mobile additionally has no date formatting of any kind, so a raw timestamp
-     * could not be rendered there.
+     * How long is left ("Ends in 3 days"), composed server-side; null when it never ends.
      */
     val validity: String? = null
 )
 
 /**
- * 094 — display groups by key (storefront public / commerce personal).
+ * Display groups by key (storefront public, commerce personal).
  *
  * `GET /storefront/v1/promotion-groups?keys=` and `GET /commerce/v1/promotion-groups?keys=`.
  */
@@ -2520,8 +2233,7 @@ data class PromotionGroupDTO (
 @Serializable
 data class ShopperPromotionDTO (
     /**
-     * The shared code; null for an automatic promotion or one with single-use codes only
-     * (FR-032).
+     * The shared code; null for an automatic promotion or one with single-use codes only.
      */
     val code: String? = null,
 
@@ -2536,9 +2248,8 @@ data class ShopperPromotionDTO (
     val label: String? = null,
 
     /**
-     * 095 — how this promotion looks in THIS place (resolved per group member). Absent from
-     * servers before 095; a client that does not know `skin.layout` draws its built-in look, as
-     * for `classic`.
+     * How this promotion looks in this place. A client that does not know `skin.layout` draws
+     * its built-in look, as for `classic`.
      */
     val skin: ShopperSkinDTO? = null,
 
@@ -2550,22 +2261,17 @@ data class ShopperPromotionDTO (
     val target: BannerTarget,
 
     /**
-     * The one conditions sentence, composed server-side ("On orders over $30.00 · Effy delivery
+     * The conditions sentence, composed server-side ("On orders over $30.00 · Effy delivery
      * only").
      */
     val terms: String? = null
 )
 
 /**
- * Promotions (094) — the model that replaced 027's one-code promotion.
- *
- * A promotion is an OFFER of one of four kinds, applied automatically or by a code, limited
- * by who, when and how much, and shown in display groups the customer clients ask for by
- * key. Its state is never stored: the database works it out (`public.promotion_state`) from
- * its switch, dates, uses and budget, and every reader asks for it.
- *
- * ⚠ ONE EVALUATOR: `@effy/edge-shared/promotions` (engine.ts). Nothing else computes a
- * discount.
+ * Promotions: an offer of one of four kinds, applied automatically or by code, limited by
+ * who, when and how much, and shown in display groups the clients ask for by key. Its state
+ * is never stored (`public.promotion_state`). One evaluator: `@effy/edge-shared/promotions`
+ * (engine.ts).
  */
 @Serializable
 enum class PromotionKind(val value: String) {
@@ -2576,11 +2282,10 @@ enum class PromotionKind(val value: String) {
 }
 
 /**
- * 095 — how this promotion looks in THIS place (resolved per group member). Absent from
- * servers before 095; a client that does not know `skin.layout` draws its built-in look, as
- * for `classic`.
+ * How this promotion looks in this place. A client that does not know `skin.layout` draws
+ * its built-in look, as for `classic`.
  *
- * 095 — the skin a placement wears, with the picture it shows.
+ * The skin a placement wears, with the picture it shows.
  */
 @Serializable
 data class ShopperSkinDTO (
@@ -2625,7 +2330,7 @@ data class ShopperSkinPictureDTO (
     val height: Double,
 
     /**
-     * 086 — widths of the WebP copies; derive each with `renditionUrl`.
+     * Widths of the WebP copies; build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -2960,20 +2665,8 @@ enum class GroupSize(val value: String) {
 /**
  * Where a tap goes.
  *
- * Where a promotional banner leads (028).
- *
- * ⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL
- * router — inventing one to serve a banner would be the tail wagging the dog. A closed set
- * the server promises and each client maps exhaustively means a new target shows up as a
- * gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders
- * the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.
- *
- * ⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every
- * tap to the unfiltered store — the Search tab by another name, carrying none of the
- * promotion's facts. FR-034 (no banner-only destinations) was read as forbidding a
- * promotion screen; it does not. That rule protects shoppers from CONTENT reachable only
- * via a carousel slide, and a promotion detail contains nothing the banner face does not
- * already announce — it is the banner's own message, stated in full. See `PromotionDTO`.
+ * Where a promotion tile leads: a closed vocabulary (mobile has no URL router), mapped
+ * exhaustively by each client; an unrecognised value renders the tile non-tappable.
  */
 @Serializable
 data class BannerTarget (
@@ -2997,12 +2690,8 @@ enum class BannerTargetKind(val value: String) {
 }
 
 /**
- * A customer's ask.
- *
- * ⚠ IT IS NOT A REFUND. It carries no amount and no provider reference, and it moves no
- * money (FR-005r). It replaces "email support and hope" — today "Get help" opens a generic
- * feedback form with no order reference attached. ⚠ Deliberately NOT a message thread: one
- * statement, one outcome.
+ * A customer's ask: no amount, no provider reference, no money moved. One statement, one
+ * outcome, not a thread.
  */
 @Serializable
 data class RefundRequestDTO (
@@ -3032,8 +2721,8 @@ enum class RefundRequestStatus(val value: String) {
 }
 
 /**
- * POST /v1/cart/reorder — put a past order's items back in the cart (FR-034).
- * Union-with-maximum against the current cart, so a double tap cannot double quantities.
+ * POST /v1/cart/reorder: puts a past order's items back, taking the maximum against the
+ * current cart.
  */
 @Serializable
 data class ReorderRequest (
@@ -3045,8 +2734,7 @@ data class ReorderRequest (
 )
 
 /**
- * The reorder outcome: the resulting cart plus exactly what could not come back, so the
- * shopper is told rather than left to notice (FR-035). The report names no shop.
+ * The reorder outcome: the cart plus exactly what could not come back. Names no shop.
  */
 @Serializable
 data class ReorderResultDTO (
@@ -3063,14 +2751,11 @@ data class ReorderSkippedDTO (
 
     val reason: ReorderSkipReason,
 
-    /**
-     * 098
-     */
     @SerialName("variantId")
     val variantID: String,
 
     /**
-     * 098 — the label it was sold with.
+     * The label it was sold with.
      */
     val variantLabel: String? = null
 )
@@ -3087,14 +2772,13 @@ enum class ReorderSkipReason(val value: String) {
 }
 
 /**
- * PUT /commerce/v1/saved/{productId} — save (idempotent). 098: `variantId` remembers the
- * variant the shopper had selected; saving again with another one updates it. Both fields
- * optional.
+ * PUT /commerce/v1/saved/{productId}: save (idempotent). `variantId` remembers the selected
+ * variant; saving again updates it.
  */
 @Serializable
 data class SaveItemRequest (
     /**
-     * Set ONLY by undo.
+     * Set only by undo.
      */
     val restoreSavedAt: String? = null,
 
@@ -3109,11 +2793,8 @@ data class SavedAddToCartRequest (
 )
 
 /**
- * The result of adding every purchasable saved item to the cart.
- *
- * ⚠ `skipped` is the whole point of this shape. FR-052 forbids silent omission: a bulk add
- * that quietly drops what it could not take leaves the shopper believing they bought
- * something they did not. Every omission carries a reason.
+ * The result of adding every purchasable saved item to the cart. Every omission is in
+ * `skipped`, with a reason.
  */
 @Serializable
 data class SavedAddToCartResultDTO (
@@ -3130,31 +2811,17 @@ data class SavedSkip (
     val productID: String,
 
     /**
-     * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | 098
-     * `choose_variant` (no variant remembered, or it is no longer sold — the shopper opens the
-     * product and chooses).
+     * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | `choose_variant`
+     * (open the product and choose).
      */
     val reason: String
 )
 
 /**
- * One entry in the saved list.
- *
- * Name, image and CURRENT price are read live (FR-045) — a renamed or re-imaged product
- * shows its true present identity. Only `savedPriceAmount` is remembered, and only so a
- * drop is detectable.
- *
- * ⚠ THIS DELIBERATELY DOES NOT EXTEND `StorefrontProductCardDTO`, and the reason is the
- * whole point of the feature. That interface carries `available: boolean` — a flag derived
- * from catalogue status alone, which is precisely the field that lied: a product can be
- * `available: true` and still not purchasable at the shopper's address, which is how the
- * predecessor invited people into a checkout that refused them. `verdict` REPLACES it.
- * Extending the card would carry the lying boolean back in beside the five-way answer that
- * supersedes it, and a client would then have two fields disagreeing about the same
- * question — which is how they end up rendering the wrong one.
- *
- * The shared card fields are therefore repeated here on purpose. That is duplication with a
- * reason, not drift.
+ * One entry in the saved list. Name, image and current price are read live; only
+ * `savedPriceAmount` is remembered, so a drop is detectable. It does not extend
+ * `StorefrontProductCardDTO`: that card's `available` flag is catalogue status only, and
+ * `verdict` replaces it, so the card fields are repeated.
  */
 @Serializable
 data class SavedItemDTO (
@@ -3162,8 +2829,7 @@ data class SavedItemDTO (
     val brand: String? = null,
 
     /**
-     * For client-side grouping by aisle (FR-056). Absent when the product has no primary
-     * category.
+     * For grouping by aisle; absent when the product has no primary category.
      */
     val categoryKey: String? = null,
 
@@ -3175,8 +2841,8 @@ data class SavedItemDTO (
     val imageURL: String? = null,
 
     /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     * Widths (px) of this picture's smaller copies, ascending; absent or [] means only
+     * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
 
@@ -3184,44 +2850,39 @@ data class SavedItemDTO (
     val priceAmount: String,
 
     /**
-     * Present and `true` only when the current price is BELOW the save-time price.
-     *
-     * ⚠ There is deliberately no `priceRose`. The current price is always shown, so nothing is
-     * concealed — but a rise is not something a shopper can act on, and badging it would add
-     * noise to the one signal this list exists to carry.
+     * Present and `true` only when the current price is below the save-time price. No
+     * `priceRose`: a rise is not actionable.
      */
     val priceDropped: Boolean? = null,
 
     /**
-     * When it was saved. Drives list order (newest first) and undo's restore position.
+     * When it was saved: list order (newest first) and undo's restore position.
      */
     val savedAt: String,
 
     /**
-     * The price at the moment of saving — the baseline `priceDropped` is measured against.
+     * The price when saved: the baseline for `priceDropped`.
      */
     val savedPriceAmount: String,
 
     val unitPrice: UnitPriceDTO? = null,
 
     /**
-     * 098 — products with more than one active variant: adding to the cart without a remembered
-     * one asks the shopper to choose.
+     * More than one active variant: adding without a remembered one asks the shopper to choose.
      */
     val variantCount: Long,
 
     /**
-     * 098 — the variant "Add to cart" adds: the one remembered when it was saved (FR-015a),
-     * else the product's only one. Null when the product is sold in several sizes and none is
-     * remembered (or the one remembered is no longer sold) — the shopper chooses. Price,
-     * verdict and image above are the REMEMBERED variant's when there is one, else the
-     * product's listing price and availability.
+     * The variant "Add to cart" adds: the one remembered when saved, else the product's only
+     * one. Null when there are several sizes and none is remembered (or it is no longer sold):
+     * the shopper chooses. Price, verdict and image are the remembered variant's when there is
+     * one.
      */
     @SerialName("variantId")
     val variantID: String? = null,
 
     /**
-     * 098 — its label ("1 kg"); null when none, or the product has no options.
+     * Its label ("1 kg"); null when none, or with no options.
      */
     val variantLabel: String? = null,
 
@@ -3229,16 +2890,9 @@ data class SavedItemDTO (
 )
 
 /**
- * Whether the shopper can buy a saved item right now.
- *
- * ⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived
- * from delivery zones, and delivery zones were withdrawn from the platform. The list still
- * tells the truth about stock and withdrawal — it simply has nothing to say about delivery
- * reach, because nothing on the platform knows it. Each remaining value still implies a
- * different next action:
- *
- * purchasable             → buy now   temporarily_unavailable → sold, not in stock — wait
- * no_longer_sold          → withdrawn entirely — give up
+ * Whether the shopper can buy a saved item now, each value implying a next action:
+ * purchasable             → buy now   temporarily_unavailable → sold, not in stock: wait
+ * no_longer_sold          → withdrawn: give up
  */
 @Serializable
 enum class SavedVerdict(val value: String) {
@@ -3248,10 +2902,8 @@ enum class SavedVerdict(val value: String) {
 }
 
 /**
- * One of the shopper's lists.
- *
- * ⚠ `name` is `null` for the default list. "Saved" is display text and each client supplies
- * it.
+ * One of the shopper's lists. `name` is `null` for the default list ("Saved" is each
+ * client's display text).
  */
 @Serializable
 data class SavedListDTO (
@@ -3271,8 +2923,8 @@ data class SavedListDTO (
     val name: String? = null,
 
     /**
-     * How many of this list's products are in NO other list. Deleting the list stops those
-     * being saved at all, and the confirmation must say so (068 FR-006).
+     * How many of this list's products are in no other list: deleting it unsaves them, and the
+     * confirmation says so.
      */
     val onlyHereCount: Long
 )
@@ -3282,13 +2934,13 @@ data class SavedListCreateRequest (
     val name: String,
 
     /**
-     * Place this product in the new list in the same action (068 FR-015).
+     * Place this product in the new list in the same action.
      */
     @SerialName("productId")
     val productID: String? = null,
 
     /**
-     * 098 — with `productId`: the variant to remember.
+     * With `productId`: the variant to remember.
      */
     @SerialName("variantId")
     val variantID: String? = null
@@ -3297,12 +2949,12 @@ data class SavedListCreateRequest (
 @Serializable
 data class SavedListEntryRequest (
     /**
-     * Set ONLY by undo, to return the product to the position it held in this list.
+     * Set only by undo, to return the product to its position in this list.
      */
     val restoreAddedAt: String? = null,
 
     /**
-     * 098 — the variant the shopper had selected; it becomes the product's remembered variant.
+     * The variant the shopper had selected; it becomes the remembered one.
      */
     @SerialName("variantId")
     val variantID: String? = null
@@ -3330,32 +2982,21 @@ data class SavedListRenameRequest (
 )
 
 /**
- * The shopper's whole set of saved product ids.
- *
- * ⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers
- * for every product on it. The two alternatives were both rejected: an `isSaved` field on
- * catalogue reads would make every product response shopper-specific and destroy the
- * storefront's static shell, and a per-product lookup would be one request per tile
- * (FR-020).
- *
- * Bounded by the 200-item cap, which is what keeps a whole-set read cheap enough to do this
- * way.
+ * The shopper's whole set of saved product ids, fetched once per screen and answering for
+ * every product on it (catalogue reads stay shopper-neutral). The 200-item cap keeps it
+ * cheap.
  */
 @Serializable
 data class SavedMembershipDTO (
     /**
-     * ⚠ WireInt, not number — see the note on the import.
+     * `WireInt`.
      */
     val count: Long,
 
     /**
-     * The subset of `productIds` held in at least one NAMED list (068).
-     *
-     * ⚠ This is what the heart reads to decide what a tap on a FILLED heart means: a product
-     * only in "Saved" is un-saved; a product in a named list opens the list chooser instead,
-     * because one tap must never remove something from a list the shopper built (068 FR-020).
-     * The platform enforces the same rule (`409`), so a client that ignores this field is safe,
-     * just less graceful.
+     * The ids also held in a named list. A tap on a filled heart un-saves a product only in
+     * "Saved"; one in a named list opens the list chooser (the platform refuses the removal
+     * with 409 anyway).
      */
     @SerialName("namedProductIds")
     val namedProductIDS: List<String>,
@@ -3370,7 +3011,7 @@ data class SavedMergeRequest (
 )
 
 /**
- * One device-held saved item being offered to an account (FR-028).
+ * One device-held saved item offered to an account.
  */
 @Serializable
 data class SavedMergeItem (
@@ -3381,36 +3022,27 @@ data class SavedMergeItem (
     val savedCurrency: String? = null,
 
     /**
-     * ⚠ The GUEST's save-time price travels with it. Taking the price at merge time instead
-     * would silently erase the movement the watchlist exists to report, for exactly the shopper
-     * who saved earliest and has waited longest.
-     *
-     * ⚠ NULLABLE, and absent is meaningful: it means the device never observed a price, because
-     * the surface the shopper tapped on carried only a product id. The platform then uses the
-     * product's CURRENT price as the baseline — which is what an ordinary save records. Sending
-     * `"0"` instead would report the item as having fallen from nothing: a fabricated fact,
-     * worse than an absent one.
+     * The guest's save-time price travels with it, so the watchlist keeps the movement. Absent
+     * means the device never saw a price: the platform then uses the current price, as an
+     * ordinary save does (never send "0").
      */
     val savedPriceAmount: String? = null,
 
     /**
-     * 098 — the variant the device remembered, if any.
+     * The variant the device remembered, if any.
      */
     @SerialName("variantId")
     val variantID: String? = null
 )
 
 /**
- * The result of joining a device-held list into an account.
- *
- * Returns the resulting set so the client seeds its store from this response rather than
- * issuing a second read, and `added` so the surface can DISCLOSE the join by count (FR-032)
- * instead of silently absorbing someone else's saves on a shared device.
+ * The result of joining a device-held list into an account: the resulting set (so the
+ * client seeds its store from it) and `added`, so the surface discloses the join by count.
  */
 @Serializable
 data class SavedMergeResultDTO (
     /**
-     * ⚠ WireInt, not number.
+     * `WireInt`.
      */
     val added: Long,
 
@@ -3421,12 +3053,8 @@ data class SavedMergeResultDTO (
 )
 
 /**
- * A page of search results with a keyset cursor for infinite scroll.
- *
- * ⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a
- * sort change — the server rejects a cursor issued under a different ordering with 400
- * `cursor_sort_mismatch`, because honouring it would silently drop and repeat products
- * (FR-016b).
+ * A page of results with a keyset cursor. `cursor` is opaque and sort-tagged: one from
+ * another ordering is 400 `cursor_sort_mismatch`.
  */
 @Serializable
 data class ProductSearchResultDTO (
@@ -3434,13 +3062,13 @@ data class ProductSearchResultDTO (
     val nextCursor: String? = null,
 
     /**
-     * The ordering ACTUALLY applied — may differ from the request. Render the sort control from
-     * this, not from what was asked for, or the control will misdescribe the list beneath it.
+     * The ordering actually applied (may differ from the request): render the sort control from
+     * this.
      */
     val sort: ProductSort,
 
     /**
-     * Total products matching the refinements, ignoring pagination (025 FR-016a).
+     * Total products matching the refinements, ignoring pagination.
      */
     val total: Double
 )
@@ -3454,8 +3082,8 @@ data class UpdateAddressRequest (
     val country: String? = null,
 
     /**
-     * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default
-     * alone, `null` clears it, a value replaces it.
+     * On update the key's presence is read: absent leaves the default, `null` clears it, a
+     * value replaces it.
      */
     val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
 
@@ -3470,11 +3098,8 @@ data class UpdateAddressRequest (
 )
 
 /**
- * PATCH /v1/cart/items/{variantId} — set an ABSOLUTE line quantity; 0 removes.
- *
- * Absolute, not a delta, which is what lets the client debounce ten taps into one request
- * and drop the intermediate values safely (FR-016). Idempotent, so `changeId` is optional;
- * clients send it anyway so the queue has no special cases.
+ * PATCH /v1/cart/items/{variantId}: sets an absolute quantity (0 removes), so the client
+ * can debounce taps safely. Idempotent; `changeId` is optional.
  */
 @Serializable
 data class UpdateCartLineRequest (

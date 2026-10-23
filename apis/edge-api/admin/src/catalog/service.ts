@@ -1,7 +1,3 @@
-// Service layer for catalog schema authority (016) — validation + orchestration. No HTTP and no SQL
-// (Principle VI). Dependencies wired by explicit module import (no DI framework); tests mock
-// ./repository at the module boundary. Field validation is hand-written (no schema lib), mirroring
-// the shops service.
 import * as repo from "./repository";
 import {
   ATTRIBUTE_DATA_TYPES,
@@ -15,8 +11,6 @@ import {
   SCHEMA_STATUSES,
   type SchemaStatus,
 } from "./types";
-
-// ── Validation helpers ────────────────────────────────────────────────────────────────────────
 
 const SLUG_RE = /^[a-z][a-z0-9_]*$/;
 
@@ -100,8 +94,6 @@ function parseAllowedValues(
   });
   return out;
 }
-
-// ── Product types ───────────────────────────────────────────────────────────────────────────────
 
 export function listProductTypes(): Promise<ProductType[]> {
   return repo.listProductTypes();
@@ -200,8 +192,6 @@ export function unassignAttribute(
   return repo.unassignAttribute(typeId, attributeId, actorSub);
 }
 
-// ── Attribute definitions ─────────────────────────────────────────────────────────────────────
-
 export function listAttributes(): Promise<AttributeDefinition[]> {
   return repo.listAttributes();
 }
@@ -296,8 +286,6 @@ export function deleteAllowedValue(
   return repo.deleteAllowedValue(attributeId, valueId, actorSub);
 }
 
-// ── Categories ──────────────────────────────────────────────────────────────────────────────────
-
 export function listCategories(): Promise<Category[]> {
   return repo.listCategories();
 }
@@ -314,7 +302,7 @@ async function validateParent(id: string | null, parentId: string | null): Promi
       { field: "parentId", message: "must reference an existing category" },
     ]);
   }
-  // No cycles: the new parent must not sit within this category's own subtree (FR / R4).
+  // No cycles: the new parent must not be in this category's own subtree.
   if (id) {
     const subtree = await repo.categorySubtree(id);
     if (subtree.includes(parentId)) {

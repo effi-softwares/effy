@@ -7,22 +7,14 @@ import type {
   FulfillmentQueueState,
   FulfillmentStatus,
   FulfillmentSummaryDTO,
-  ItemProgressRequest,
   RequestableTransition,
   TransitionRequest,
 } from "@effy/shared-types";
 
 /**
- * Domain shapes for shop-web fulfillment (020, US1–US4).
- *
- * The wire DTOs (defined ONCE in `@effy/shared-types/shop-order`, FR-021) double as the domain
- * shapes here — they carry no wire-only encoding to strip. Reads/writes still route through the repo
- * layer (Principle VI), so if a DTO and its domain model ever diverge, only the repo changes.
- *
- * Two contract properties are load-bearing for everything below and are NOT re-derived client-side:
- *  - the shop's scope is resolved server-side, so no type here carries a shop identifier;
- *  - the queue's ORDER is the server's (promise, then arrival — FR-001b). The screen renders the
- *    array as handed to it and never re-sorts (SC-018).
+ * Domain shapes for fulfilment: the `@effy/shared-types/shop-order` DTOs double as them, read through the
+ * repo layer. No type carries a shop identifier (scope is the server's), and the queue's order is the
+ * server's (promise, then arrival): never re-sorted.
  */
 export type FulfillmentSummary = FulfillmentSummaryDTO;
 export type FulfillmentQueue = FulfillmentQueueDTO;
@@ -34,23 +26,17 @@ export type DeliveryPromise = DeliveryPromiseDTO;
 export type {
   FulfillmentQueueState,
   FulfillmentStatus,
-  ItemProgressRequest,
   RequestableTransition,
   TransitionRequest,
 };
 
-// ⚠ 073 — `STATUS_LABEL` stood here (one of four maps from the shop's status to words); replaced by the
+// `STATUS_LABEL` stood here (one of four maps from the shop's status to words); replaced by the
 // shared `STATUS_WORD` via `PackageStatusPill`.
 
 /**
- * Whether the operator may declare this portion unsuppliable (055 US6, FR-031).
- *
- * ⚠ MIRRORS THE SERVER'S LEGAL-EDGE MAP, and the server decides. Once collected it is no longer the
- * shop's call — the goods have left and somebody is carrying them — and both terminal states are
- * absent because a shop that said it cannot supply must not be able to un-say it: the platform may
- * already have refunded the customer on the strength of it.
- *
- * ⚠ IT MOVES NO MONEY. The control says "we cannot supply this"; a person at Effy decides the refund.
+ * Whether the operator may declare this portion unsuppliable (mirrors the server, which decides). Not once
+ * collected (the goods have left), and never un-said from a terminal state (Effy may already have
+ * refunded). It moves no money: a person at Effy decides the refund.
  */
 export function canDeclareUnfulfillable(status: FulfillmentStatus): boolean {
   return (
@@ -62,9 +48,9 @@ export function canDeclareUnfulfillable(status: FulfillmentStatus): boolean {
 }
 
 /**
- * The one transition the operator may request from a given state (FR-011).
- * `pending` offers nothing — acknowledgement is implicit on open (FR-011a); `collected` is terminal
- * and immutable (FR-011f). `ready_for_pickup` offers only the single permitted reversal (FR-011d).
+ * The one transition the operator may request from a given state.
+ * `pending` offers nothing — acknowledgement is implicit on open; `collected` is terminal
+ * and immutable. `ready_for_pickup` offers only the single permitted reversal.
  */
 export function nextTransition(status: FulfillmentStatus): RequestableTransition | null {
   if (status === "received") return "picking";

@@ -1,7 +1,5 @@
-// Module-singleton pino logger (research C5). Plain synchronous JSON to stdout →
-// CloudWatch — NEVER worker-thread transports or pino-pretty in the artifact (log
-// lines are lost when the Lambda sandbox freezes). Reused across warm invocations;
-// per-request enrichment happens via child loggers in the handler preamble.
+// One synchronous JSON pino logger to stdout: never worker-thread transports or pino-pretty (lines are
+// lost when the sandbox freezes). Per-request child loggers come from the preamble.
 import { pino } from "pino";
 
 export const logger = pino({

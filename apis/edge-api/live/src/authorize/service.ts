@@ -1,19 +1,13 @@
 import { parseChannel, subscribableEpochs, type LiveNamespace, OPS_SCOPE_ID } from "@effy/edge-shared/live";
 
 /**
- * 071 — may this person open the live channel, and may they hear this channel?
- *
- * The decision, with no I/O of its own: verifying the token and reading the platform record are
- * handed in, so every refusal below is a unit test.
- *
- * ⚠ THE DEFAULT IS REFUSAL. Every path that is not an explicit `allow` refuses — an unknown
- * operation, an unreadable channel, a missing record, an exception. An authorizer that fails open
- * is a channel anyone can listen to.
+ * Whether this person may connect to the live channel and hear a channel. No I/O: verification and
+ * the record read are handed in. Anything that is not an explicit `allow` refuses.
  */
 
 export type Audience = "customer" | "shop" | "driver" | "back-office";
 
-/** The namespace each audience may subscribe in — and the only one (FR-022). */
+/** The only namespace each audience may subscribe in. */
 export const NAMESPACE_OF: Readonly<Record<Audience, LiveNamespace>> = {
   customer: "customer",
   shop: "shop",
@@ -28,14 +22,13 @@ export interface VerifiedToken {
 
 export interface AuthorizeRequest {
   operation: string;
-  /** The raw authorization value the app sent. */
   token: string;
   /** `null` on connect. */
   channel: string | null;
 }
 
 export interface AuthorizeDeps {
-  /** `null` for a token that does not verify against any of the four pools. */
+  /** `null` when the token verifies against none of the four pools. */
   verify(token: string): Promise<VerifiedToken | null>;
   shopScope(sub: string): Promise<string | null>;
   driverScope(sub: string): Promise<string | null>;
@@ -57,20 +50,18 @@ export type Outcome =
 export interface Decision {
   isAuthorized: boolean;
   outcome: Outcome;
-  /** Present when a token verified — for the log line. */
   audience?: Audience;
 }
 
 const refuse = (outcome: Outcome, audience?: Audience): Decision => ({ isAuthorized: false, outcome, audience });
 const allow = (audience: Audience): Decision => ({ isAuthorized: true, outcome: "allowed", audience });
 
-/** The scope this person may hear, read from the platform record; `null` when they have none. */
+/** `null` when they have no scope. */
 async function entitledScope(token: VerifiedToken, deps: AuthorizeDeps): Promise<string | null> {
   switch (token.audience) {
     case "customer":
-      // Their own token subject. No record is read: a customer's access to their own orders is
-      // decided at every read by the commerce service, and shopper traffic must not reach the
-      // database through this function.
+      // No record read: commerce decides a customer's access at every read, and shopper traffic must
+      // not reach the database here.
       return token.sub;
     case "shop":
       return deps.shopScope(token.sub);
@@ -82,8 +73,7 @@ async function entitledScope(token: VerifiedToken, deps: AuthorizeDeps): Promise
 }
 
 export async function authorize(req: AuthorizeRequest, deps: AuthorizeDeps): Promise<Decision> {
-  // Clients never publish. Publishing is by the backend's own role, which does not come through
-  // this function at all — so anything asking to publish here is refused before its token is read.
+  // Clients never publish; the backend publishes by its own role, so this refuses before reading the token.
   if (req.operation === "EVENT_PUBLISH") return refuse("publish_refused");
   if (req.operation !== "EVENT_CONNECT" && req.operation !== "EVENT_SUBSCRIBE") {
     return refuse("unknown_operation");

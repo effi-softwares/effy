@@ -1,32 +1,13 @@
 "use client"
 
 /**
- * Keeps the cart mirror and the platform in agreement — 027, the web half of the same design as
- * `customer-mobile`'s `CartSyncCoordinator`.
+ * Keeps the cart mirror and the platform in agreement (the web half of the app's
+ * `CartSyncCoordinator`). A restored cart is re-priced, so it shows current prices and availability:
+ * signed in, `GET /api/cart` (the account cart, adopted by revision); a guest, `POST /api/cart/preview`
+ * (the platform prices the browser's lines and writes nothing). `/api/cart` answers 401 for a guest, which
+ * falls through to the preview.
  *
- * ── What it does now (US1) ──────────────────────────────────────────────────────────────────────
- *
- * Re-prices a restored cart. A shopper who closes the tab and comes back tomorrow must not be shown the
- * prices and availability their cart was built from — FR-004 says a restored cart shows CURRENT ones, and
- * that applies to a guest as much as to a signed-in shopper.
- *
- * The two paths differ only in which endpoint answers:
- *
- *   - **signed in** → `GET /api/cart` — the account cart IS the truth, adopted by revision.
- *   - **guest**     → `POST /api/cart/preview` — a guest has no server cart, so the platform prices the
- *                     browser's own lines and writes nothing.
- *
- * ⚠ A failure NEVER empties the cart. A dead network means "we could not check", not "you have nothing" —
- * a shopper losing their cart because a request timed out would be this slice's own defect arriving by a
- * different route. Every path here either adopts a platform answer or leaves the mirror exactly as it was.
- *
- * ⚠ It also cannot tell a guest from a signed-in shopper by itself, and deliberately does not try:
- * `/api/cart` answers 401 for a guest (the session is read server-side, inside the route handler, which is
- * what keeps `aws-amplify` out of this bundle). A 401 is therefore not an error here — it is the answer
- * "you are a guest", and it falls through to the preview path.
- *
- * US2 adds sending mutations and reconciling on focus; US4 adds the debounce, backoff and offline queue.
- * The seam is this shape now so those are additions, not a rewrite.
+ * A failure never empties the cart: every path adopts a platform answer or leaves the mirror as it was.
  */
 import { CartApiError, cartApi } from "./cart-api"
 import { adopt, adoptPreview, linePayload, readCart } from "./cart-store"

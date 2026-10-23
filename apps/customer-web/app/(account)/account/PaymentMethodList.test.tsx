@@ -28,12 +28,7 @@ afterEach(() => {
 })
 
 describe("PaymentMethodList (051 US6)", () => {
-  /**
-   * ⚠ THE DISTINCTION THIS COMPONENT EXISTS TO PRESERVE. "You have no cards" and "we could not ask"
-   * are different facts. A list that renders empty on a failed read tells a shopper with saved cards
-   * something false about their own account (FR-036) — and it is the easy mistake, because `catch {
-   * cards = [] }` looks like sensible defensive code.
-   */
+  /** "You have no cards" and "we could not ask" are different facts: a failed read must not render as empty. */
   it("says it could not load, rather than claiming there are no cards", () => {
     render(<PaymentMethodList initial={[]} loadFailed />)
 
@@ -41,7 +36,7 @@ describe("PaymentMethodList (051 US6)", () => {
     expect(screen.queryByText(/haven't saved any cards/i)).not.toBeInTheDocument()
   })
 
-  /** US6 scenario 4 — an honest empty state that explains, and offers no dead controls. */
+  /** An honest empty state that explains, with no dead controls. */
   it("explains how cards get here when there are none, and shows no buttons", () => {
     render(<PaymentMethodList initial={[]} />)
 
@@ -63,7 +58,7 @@ describe("PaymentMethodList (051 US6)", () => {
     expect(screen.getByText(/default/i)).toBeInTheDocument()
   })
 
-  /** FR-023 — an unusable card says why, here as at the payment step. */
+  /** An unusable card says why. */
   it("states why an unusable card cannot be used", () => {
     render(
       <PaymentMethodList
@@ -82,10 +77,7 @@ describe("PaymentMethodList (051 US6)", () => {
     expect(screen.getByText("•••• 8210")).toBeInTheDocument()
   })
 
-  /**
-   * ⚠ A failed removal must NOT drop the card from the list. Removing it optimistically and leaving it
-   * at the provider would show the shopper a card that still exists and can still be charged.
-   */
+  /** A failed removal keeps the card in the list: it still exists and can still be charged. */
   it("keeps the card when removal fails, and says the cards are unchanged", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500 })))
     const user = userEvent.setup()
@@ -106,7 +98,7 @@ describe("PaymentMethodList (051 US6)", () => {
     await waitFor(() => expect(screen.queryByText("•••• 4242")).not.toBeInTheDocument())
   })
 
-  /** SC-012 — the screen must never imply Effy holds more of the card than it does. */
+  /** The screen never implies Effy holds more of the card than it does. */
   it("says plainly that Effy does not store card numbers", () => {
     render(<PaymentMethodList initial={[card()]} />)
     expect(screen.getByText(/never sees or stores your card number/i)).toBeInTheDocument()

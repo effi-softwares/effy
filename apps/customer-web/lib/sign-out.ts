@@ -10,10 +10,10 @@ import { SESSION_COOKIES } from "@/lib/session-cookies"
 /**
  * End the session on this device, or on every device.
  *
- * ⚠ THE REFRESH TOKEN IS REVOKED, not just forgotten: deleting a cookie ends nothing for a copy of
+ * The refresh token is revoked, not just forgotten: deleting a cookie ends nothing for a copy of
  * the token, which would otherwise keep minting sessions for up to thirty days.
  *
- * ⚠ "Everywhere" is the backend's job (it ends every refresh token the customer holds); a failure
+ * "Everywhere" is the backend's job (it ends every refresh token the customer holds); a failure
  * there must not stop this device being signed out.
  */
 export async function endSession({ allDevices }: { allDevices: boolean }): Promise<void> {

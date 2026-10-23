@@ -2,13 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * 074 — back-office customers and points, against the REAL migrations (quickstart P12, US1, US5, US6).
- *
- * ⚠ The repository's `query` is pointed at the test pool; the service is handed the same pool as its
- * connection and transactor, and a fake for "is this person an admin or manager" — the one input that
- * would otherwise need the admin schema seeded with Cognito-linked staff.
- */
+/** Against the real schema; "is this person an admin or manager" is faked. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
@@ -16,7 +10,8 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
 }));
 
-import { migrationSql, transactorFor } from "@effy/edge-shared";
+import { transactorFor } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { InsufficientPointsError, OverAgentLimitError, PointsNoteRequiredError, PointsOrderNotFoundError } from "@effy/edge-shared/points";
 
 import { createCustomerService, CustomerNotFoundError } from "./service";
@@ -43,8 +38,8 @@ describe.skipIf(!RUN)("074 — back-office customers and points", () => {
   async function paidOrder(customerId: string, number: string) {
     return (
       await one<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, placed_at)
-         VALUES ($1, $2, 'paid', 'AUD', 40.00, 40.00, 0, '{}'::jsonb, now()) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
+         VALUES ($1, $2, 'paid', 'AUD', 40.00, 40.00, 0, '{}'::jsonb, now(), 'effy', 'in_coverage') RETURNING id::text AS id`,
         [customerId, number],
       )
     ).id;

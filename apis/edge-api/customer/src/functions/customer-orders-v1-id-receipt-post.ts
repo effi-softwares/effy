@@ -6,24 +6,12 @@ import { json, preamble, problem, ProblemType, unavailable } from "@effy/edge-sh
 import { requireCaller, TokenMismatchError } from "../password/identity"
 import { resendReceipt } from "../receipts/service"
 
-/**
- * ⚠ NOT in `ProblemType`, which has no `NotFound` member. Five handlers in `edge-api/admin` already
- * declare this same URI as a local const, so this follows the established convention rather than
- * widening a shared export as a side effect of a receipt slice. (Promoting it into `ProblemType` and
- * collapsing the six copies is a worthwhile tidy — and a different change, with its own blast radius.)
- */
+/** Not in `ProblemType`; declared locally like the admin handlers. */
 const NOT_FOUND = "https://effyshopping.com/problems/not-found"
 
 /**
- * POST /customer/v1/orders/{id}/receipt — send the receipt for a paid order again (052 US4, FR-027).
- *
- * ⚠ THERE IS NO REQUEST BODY, AND THAT IS THE SECURITY PROPERTY. The receipt goes to the address on
- * the authenticated account, resolved server-side. An `email` field here would make this an open relay
- * for a document carrying a person's name, delivery address and purchase history — anyone with a
- * session could mail someone else's receipt anywhere. The body is ignored entirely.
- *
- * ⚠ IT ENQUEUES, IT DOES NOT SEND. `202 Accepted` means a dispatch row exists; the scheduled worker
- * sends. So a shopper never waits on SES, and a mail outage never surfaces as a failed tap.
+ * Re-sends a paid order's receipt to the account's own address; there is no body, or this would be an
+ * open relay for someone's receipt. It enqueues and the worker sends.
  */
 export const handler = async (
   event: AuthedEvent,
@@ -67,8 +55,7 @@ export const handler = async (
         return json(202, { status: "queued" }, scope)
 
       case "rate_limited":
-        // ⚠ Stated plainly, and NOTHING WAS ENQUEUED (FR-028). A refusal a shopper cannot understand
-        // is indistinguishable from a bug.
+        // Said plainly; nothing was enqueued.
         return problem(
           429,
           ProblemType.RateLimited,
@@ -97,8 +84,7 @@ export const handler = async (
 
       case "not_found":
       default:
-        // ⚠ UNIFORM (FR-029, SC-008). "Not yours" and "does not exist" MUST be indistinguishable —
-        // a distinguishable refusal turns this route into an oracle for whether an order id is real.
+        // "Not yours" and "does not exist" are indistinguishable.
         return problem(404, NOT_FOUND, "Not found", "no such order", scope)
     }
   } catch (err) {

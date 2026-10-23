@@ -52,17 +52,17 @@ import { VariantEditor } from "./VariantEditor";
 import { shopPriceSummary, toInputs, variantSetErrors, variantSetValid } from "./variants";
 
 /**
- * The schema-driven, four-step create flow (FR-011/FR-012).
+ * The schema-driven, four-step create flow.
  *
  * Container: a `Dialog` on desktop, a bottom `Sheet` on mobile-web — same body, so the whole flow is
- * usable desktop→phone (DOCTRINE-2: no cards anywhere; sectioned rows only).
+ * usable desktop→phone (doctrine-2: no cards anywhere; sectioned rows only).
  *
- * ── Media ordering decision (create-then-attach) ─────────────────────────────────────────────────
- * The presign endpoint is `POST /shop/v1/products/{id}/media` — it REQUIRES an existing product id,
+ * Media ordering decision (create-then-attach)
+ * The presign endpoint is `POST /shop/v1/products/{id}/media` — it requires an existing product id,
  * so a storageKey cannot be obtained before the product row exists. Therefore publish is:
- *     1. POST /shop/v1/products  → product created (draft), returns its id
- *     2. presign → PUT to S3 → register the chosen image as the primary media (uploadProductMedia)
- * "Primary image mandatory at creation" (FR) is enforced HERE in the UI — the flow blocks publish
+ *  1. POST /shop/v1/products → product created (draft), returns its id
+ *  2. presign → PUT to S3 → register the chosen image as the primary media (uploadProductMedia)
+ * "Primary image mandatory at creation" (FR) is enforced here in the UI — the flow blocks publish
  * until an image is chosen — and completed atomically inside the publish action. If step 2 fails, the
  * created draft is left recoverable rather than orphaned. (The alternative, attach-then-create via
  * `CreateProductRequest.media[]`, is not reachable because presign needs a product id.)
@@ -74,7 +74,7 @@ export interface ProductCreateFlowProps {
   onCreated: (productId: string) => void;
 }
 
-// Image is its own dedicated step, after Basics (FR-010b / research R16). 098 — "Sizes & prices" sits
+// Image is its own dedicated step, after Basics. 098 — "Sizes & prices" sits
 // between them: what the product IS, then what it is sold AS, then what it looks like.
 const STEP_TITLES = ["Product type", "Basics", "Sizes & prices", "Image", "Details", "Review"] as const;
 
@@ -92,7 +92,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Restore the device-local draft when the flow opens (FR-012). The image `File` cannot be revived
+  // Restore the device-local draft when the flow opens. The image `File` cannot be revived
   // from storage, so it is re-picked; every text field returns.
   useEffect(() => {
     if (!shopId || !subject) return;
@@ -133,7 +133,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
     update({ step });
   }
 
-  // ⚠ Revoked on change, or every re-pick leaks a blob URL for the life of the tab.
+  // Revoked on change, or every re-pick leaks a blob URL for the life of the tab.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!imageFile) {
@@ -149,7 +149,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
   const attrErrors = selectedType ? attributeErrors(selectedType, draft.attributes) : {};
 
   // Step-advance gate — mandatory (universal + the type's mandatory attributes + the primary image on
-  // its own step) must be met (FR-010b/FR-011).
+  // its own step) must be met.
   const canAdvance =
     step === 0
       ? !!selectedType
@@ -162,7 +162,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
             : step === 4
               ? !!selectedType && attributesValid(selectedType, draft.attributes)
               : true;
-  // 098 — a cell's refusal shows once the operator has left that cell (the editor tracks it), and every
+  // A cell's refusal shows once the operator has left that cell (the editor tracks it), and every
   // refusal shows once they press Next — never on rows they have not reached yet.
   const variantErrors = variantSetErrors(draft.variantSet);
   const [variantsAttempted, setVariantsAttempted] = useState(false);
@@ -182,8 +182,8 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
     if (!selectedType || !draft.primaryCategoryId || !imageFile) return;
     setFormError(null);
     try {
-      // 098 — the product and its variants are created together. ⚠ A blank weight is sent as null,
-      // NOT 0: an unanswered weight records the platform's stated assumption (FR-037).
+      // The product and its variants are created together. A blank weight is sent as null,
+      // not 0: an unanswered weight records the platform's stated assumption.
       const set = toInputs(draft.variantSet);
       const body: CreateProductRequest = {
         productTypeId: selectedType.id,
@@ -208,8 +208,8 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
 
       track({ name: "product_created", productId: product.id });
       track({ name: "product_variants_saved", productId: product.id, variantCount: set.variants.length });
-      // 067 — the wizard's last button sends the finished product to Effy. ⚠ A FAILED SUBMIT IS NOT A
-      // FAILED CREATE: the product exists as a draft with its image, so the shop lands on it and
+      // The wizard's last button sends the finished product to Effy. A failed submit is not A
+      // failed create: the product exists as a draft with its image, so the shop lands on it and
       // submits from there rather than being told nothing was saved.
       try {
         await submitProductForReview(product.id);
@@ -282,7 +282,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
 
   return (
     <Page className="gap-6">
-      {/* The imported design's wizard is a PAGE, not a dialog: two columns, the form on the left and
+      {/* The imported design's wizard is a page, not a dialog: two columns, the form on the left and
           a progress rail with a live preview on the right. A modal cannot show the preview, and it
           cannot show which steps remain without stealing room from the form. */}
       <div className="grid items-start gap-9 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -338,7 +338,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
             {STEP_TITLES.map((label, i) => {
               const done = i < step;
               const active = i === step;
-              // ⚠ Only a COMPLETED step is clickable. Jumping forward into Review over an unvalidated
+              // Only a completed step is clickable. Jumping forward into Review over an unvalidated
               // Basics form is exactly what `canAdvance` exists to prevent, and a freely clickable
               // rail would route straight around it.
               const reachable = i <= step;
@@ -378,7 +378,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
             })}
           </div>
 
-          {/* ⚠ The live preview. It shows only what the operator has actually entered — an empty
+          {/* The live preview. It shows only what the operator has actually entered — an empty
               draft reads "Untitled product", never invented sample text. */}
           <div className="grid gap-3">
             <MicroLabel>Preview</MicroLabel>
@@ -422,7 +422,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
   );
 }
 
-// ── Steps ─────────────────────────────────────────────────────────────────────────────────────
+// Steps
 
 // Map a (back-office-defined) product type to an icon by matching its slug/name. Types are dynamic,
 // so this is a best-effort visual cue with a neutral fallback — never a hard dependency.
@@ -461,7 +461,7 @@ function TypeStep({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
       <p className="shrink-0 text-sm text-muted-foreground">Pick what kind of product this is.</p>
-      {/* A selectable option grid (radio-card) that FILLS the content area like a dialpad:
+      {/* A selectable option grid (radio-card) that fills the content area like a dialpad:
           equal-height rows (auto-rows-fr) grow to occupy the whole space; each cell is one click. */}
       {/* p-1 keeps the tile borders + selected ring off the scroll box's clip edge (overflow-y-auto
           also clips the x-axis), so no side looks shaved. */}
@@ -480,10 +480,10 @@ function TypeStep({
               aria-pressed={selected}
               className={cn(
                 "flex h-full min-h-28 flex-col items-center justify-center gap-3 rounded-lg border p-4 text-center transition-colors",
-                // ⚠ FLAT TINT TOKENS, NOT ALPHA. `bg-primary/5` and `border-primary/60` composite
+                // Flat tint tokens, not alpha. `bg-primary/5` and `border-primary/60` composite
                 // the action colour onto whatever is behind them and produce values that exist in no
                 // palette — and they land differently in light and dark, where the ground is navy
-                // rather than white. --brand-soft and --brand-mid ARE those roles, authored for both
+                // rather than white. --brand-soft and --brand-mid are those roles, authored for both
                 // appearances and contrast-checked.
                 "hover:border-brand-mid hover:bg-accent",
                 "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-muted",
@@ -566,7 +566,7 @@ function BasicsStep({
         />
       </div>
 
-      {/* 096 — every product is taxable or GST-free; it decides what a customer's tax invoice says. */}
+      {/* Every product is taxable or GST-free; it decides what a customer's tax invoice says. */}
       <div className="space-y-2">
         <Label htmlFor="p-gst">
           GST<span className="ml-0.5 text-destructive">*</span>
@@ -697,7 +697,7 @@ function ReviewStep({
       {uploadProgress != null ? (
         <div className="space-y-1">
           {/* The shared Progress primitive — an in-flight upload is brand, the work-in-progress
-              tone. It was a hand-rolled bar with its own ARIA; one component means one bar on the
+              tone. It was a hand-rolled bar with its own aria; one component means one bar on the
               platform and one place for its height, radius and roles to live. */}
           <Progress value={uploadProgress} tone="brand" height={6} label="Image upload" />
           <p className="text-xs text-muted-foreground">Uploading image… {uploadProgress}%</p>

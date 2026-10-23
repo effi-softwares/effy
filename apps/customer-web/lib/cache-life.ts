@@ -1,26 +1,21 @@
 /**
- * The only lifetimes a cached storefront read may take (PERF-05..07, 054 FR-015a as amended).
- * `lib/storefront-freshness.guard.test.ts` holds every `"use cache"` to one of these, and these to
- * FR-015a.
+ * The only lifetimes a cached storefront read may take; `lib/storefront-freshness.guard.test.ts` holds
+ * every `"use cache"` to one of them.
  *
- * ⚠ THE OLDEST ANSWER A SHOPPER CAN SEE IS `expire` + `stale`, not `revalidate`: the server keeps
- * serving an entry until `expire` (refreshing it behind the request once it is `revalidate` old), and
- * the browser's router keeps what it was given for `stale` (never under 30s). So `listing` is 30 + 30 —
- * FR-015a's 60 seconds. An `expire` under five minutes also keeps a read out of the build's prerender.
+ * The oldest answer a shopper can see is `expire` + `stale`: the server serves an entry until `expire`
+ * (refreshing it behind the request once `revalidate` old), and the router keeps it for `stale` (never
+ * under 30s). So `listing` is 30 + 30 = 60 seconds. An `expire` under five minutes keeps a read out of
+ * the prerender.
  *
- * ⚠ NO TAG IS EVER REVALIDATED, ON PURPOSE. Each server instance keeps its own cache in memory, so a
- * revalidate call would reach the one instance that took it. The lifetimes are the whole contract.
+ * No tag is ever revalidated: each server instance has its own in-memory cache, so a revalidate would
+ * reach one instance. The lifetimes are the whole contract.
  *
- * ⚠ EVERY CACHED READ IS REACHED ONLY AT REQUEST TIME — its caller awaits `connection()` first.
- * Without that, `next build` RUNS each cached read while prerendering (a short lifetime keeps the
- * answer out of the static shell, but not the call out of the build), and one that throws fails the
- * prerender of every page under the header. With the backend down — or answering 503 because seven
- * build workers hit the shopper role's connection limit at once — the whole build failed. Before
- * PERF-05 these reads were plain uncached fetches and the build never made them. Measured: a build
- * with the backend unreachable passes before PERF-05, failed after it, passes with this.
+ * Every cached read's caller awaits `connection` first; otherwise `next build` runs the read while
+ * prerendering, and with the backend down (or refusing seven build workers at the shopper role's
+ * connection limit) every page under the header fails to build.
  *
- * Objects rather than named profiles in next.config.ts: a named profile is typed only by the types
- * `next build` generates, so `tsc` refuses it on a clean checkout.
+ * Objects rather than named profiles: a named profile is typed only by `next build`'s generated types,
+ * so `tsc` refuses it on a clean checkout.
  */
 export const CACHE_LIFE = {
   /** Stock-derived reads: the aisle list (its counts), the home rails and banners. FR-015a's tier. */

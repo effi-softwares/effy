@@ -1,7 +1,4 @@
-// Proof of delivery — validation, refusals and the presign (064).
-//
-// The service owns what a request MAY be; `repository.ts` owns what happens when it is. Keeping the
-// refusals here means each one can be tested without a database, and the transaction stays readable.
+// What a request may be; `repository.ts` owns what then happens.
 
 import { MediaValidationError, PROOF_MEDIA_PREFIX, presignUpload, query } from "@effy/edge-shared";
 import type { DropFailRequest, ProofPresignRequest, ProofRequest } from "@effy/shared-types";
@@ -11,7 +8,6 @@ import { DropNotFoundError, recordFailure, recordProof } from "./repository";
 import type { RecordProofResult } from "./repository";
 import { MEDIA_REQUIRED_METHODS, isSupportedMethod } from "./types";
 
-/** A refusal the caller maps to a field-scoped 422. */
 export class ProofValidationError extends Error {
   constructor(
     readonly field: string,
@@ -24,7 +20,7 @@ export class ProofValidationError extends Error {
 
 export { DropNotFoundError };
 
-/** The closed set of reasons a drop can fail (FR-009). Free text would be unreportable in aggregate. */
+/** A closed set, so failures can be reported in aggregate. */
 const FAILURE_REASONS = new Set([
   "nobody_home",
   "wrong_address",
@@ -33,13 +29,7 @@ const FAILURE_REASONS = new Set([
   "other",
 ]);
 
-/**
- * Mint a presigned PUT for a proof image.
- *
- * ⚠ THE PREFIX IS INFRASTRUCTURE, NOT A NAMING CHOICE. `PROOF_MEDIA_PREFIX` is the same constant the
- * Terraform lifecycle rule filters on; an object written anywhere else is never archived and sits in
- * STANDARD storage for ever, with nothing reporting it.
- */
+/** `PROOF_MEDIA_PREFIX` is the prefix the Terraform lifecycle rule archives. */
 export async function presignProof(
   dropId: string,
   driverId: string,
@@ -47,13 +37,10 @@ export async function presignProof(
 ): Promise<{ uploadUrl: string; mediaKey: string }> {
   if (!body?.changeId) throw new ProofValidationError("changeId", "A changeId is required.");
 
-  // 072 — no upload slot for a delivery that cannot have happened yet. ⚠ Scoped to the driver, so a
-  // drop that is not theirs matches nothing and this route answers as it always has; "not open yet"
-  // for somebody else's drop would say the id is real.
+  // No upload slot before the round opens. Scoped to the driver, so another's drop reveals nothing.
   await assertStopRoundOpen({ query: (text, values) => query(text, values) }, dropId, driverId);
 
-  // Validation (content type, size ceiling) belongs to the shared helper — one definition of what the
-  // platform will store, not one per service.
+  // The shared helper validates type and size.
   const { uploadUrl, storageKey } = await presignUpload(
     PROOF_MEDIA_PREFIX,
     dropId,
@@ -65,17 +52,7 @@ export async function presignProof(
 
 export { MediaValidationError };
 
-/**
- * Complete a drop with proof.
- *
- * ⚠ THE `code` REFUSAL IS THE POINT OF FR-003, NOT AN OVERSIGHT. `ProofMethod` still carries
- * `"code"` on the wire because the method is coming — narrowing the type would hide the deferral
- * instead of stating it. But no delivery code exists anywhere on this platform: `delivery_code`
- * appears in no service, migration, contract or app. Accepting a code would compare a value to
- * itself, which is a gate that LOOKS enforced and checks nothing. So it is refused, by name, with a
- * reason a person can read — and the database refuses it too (`delivery_proof_method_check`), so
- * neither half can drift into accepting it alone.
- */
+/** `code` is refused by name (and by `delivery_proof_method_check`): no delivery code exists. */
 export async function submitProof(
   dropId: string,
   driverId: string,
@@ -100,9 +77,7 @@ export async function submitProof(
 
   const mediaKey = body.mediaKey?.trim() || null;
 
-  // ⚠ FR-006 IN THE SERVICE AS WELL AS THE SCHEMA, deliberately. The CHECK is the guarantee; this is
-  // the message. A constraint violation reaching a driver as a 500 tells them nothing about what to
-  // do, and "retake the photo" is exactly what they need to hear.
+  // Mirrors the check so the driver hears "retake the photo", not a 500.
   if (MEDIA_REQUIRED_METHODS.includes(body.method) && mediaKey === null) {
     throw new ProofValidationError(
       "mediaKey",
@@ -110,9 +85,7 @@ export async function submitProof(
     );
   }
 
-  // ⚠ FR-002 — an unattended drop is the case most likely to become a dispute, so it is the one that
-  // MUST carry a photograph. Contactless without media is representable in the schema (it is the one
-  // legitimate no-media proof) and is refused here, where the rule belongs.
+  // An unattended drop must carry a photograph.
   if (body.method === "contactless" && mediaKey === null) {
     throw new ProofValidationError(
       "mediaKey",
@@ -134,7 +107,6 @@ export async function submitProof(
   });
 }
 
-/** Record a drop that could not be completed (FR-009, FR-010). */
 export async function submitFailure(dropId: string, driverId: string, body: DropFailRequest) {
   if (!body?.changeId) throw new ProofValidationError("changeId", "A changeId is required.");
   if (!FAILURE_REASONS.has(body.reason as string)) {
@@ -142,8 +114,7 @@ export async function submitFailure(dropId: string, driverId: string, body: Drop
   }
 
   const note = body.note?.trim() || null;
-  // ⚠ FR-010 — a free-text escape hatch with no text is an exception nobody can act on. Mirrors
-  // `delivery_attempt_failure_other_note_check`, which also rejects whitespace.
+  // "Other" needs a note (whitespace is not one), as `delivery_attempt_failure_other_note_check`.
   if (body.reason === "other" && note === null) {
     throw new ProofValidationError("note", "Tell us what happened, so someone can follow it up.");
   }

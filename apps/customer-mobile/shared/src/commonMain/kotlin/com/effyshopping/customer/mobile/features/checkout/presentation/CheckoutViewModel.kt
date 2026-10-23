@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Which selection an open add-address sheet fills once saved (023 US3/US4). */
+/** Which selection an open add-address sheet fills once saved. */
 enum class AddressTarget { SHIPPING, BILLING }
 
 /** The open add-address sheet at checkout — reuses the 022 [AddressForm] + shared validation. */
@@ -45,16 +45,10 @@ sealed interface CheckoutUiState {
     data object Loading : CheckoutUiState
 
     /**
-     * The address step. The SHIPPING address is [selectedId] over the customer's saved addresses
-     * (022 book).
-     *
-     * ⚠ THERE IS NO DELIVERY STEP. This state used to carry a fetched quote, a method preference,
-     * per-package selections and a set-aside confirmation. Delivery zones, quotes and fees were
-     * withdrawn from the platform, so checkout is now: choose an address, pay.
-     *
-     * BILLING (023 US4): defaults to the shipping address ([billingSameAsShipping] = true). When turned
-     * OFF the customer chooses [billingSelectedId] from the same saved list (or adds one); turning it back
-     * ON discards that choice (FR-013). [sheet] is the shared add-address form when open.
+     * The checkout state: the shipping address is [selectedId] over the saved addresses, and [quote] is
+     * its delivery quote. Billing defaults to the shipping address ([billingSameAsShipping]); turned off,
+     * the customer picks [billingSelectedId] from the same list, and turning it back on discards that.
+     * [sheet] is the add-address form when open.
      */
     data class Ready(
         val addresses: List<SavedAddress>,
@@ -65,11 +59,11 @@ sealed interface CheckoutUiState {
         val paying: Boolean = false,
         val error: String? = null,
         /**
-         * 051 — a ONE-SHOT signal that the intent exists and the payment screen should open. Consumed
+         * A one-shot signal that the intent exists and the payment screen should open. Consumed
          * by the screen via [CheckoutViewModel.handoffConsumed].
          *
-         * ⚠ A one-shot, and not a terminal `Placed`-style state, because payment is now a screen the
-         * shopper can come BACK from. A sticky flag would re-fire the moment they returned and bounce
+         * A one-shot, and not a terminal `Placed`-style state, because payment is now a screen the
+         * shopper can come back from. A sticky flag would re-fire the moment they returned and bounce
          * them into payment again, with no way out but the app switcher.
          */
         val handedOffToPayment: Boolean = false,
@@ -78,34 +72,34 @@ sealed interface CheckoutUiState {
         val quote: DeliveryQuote? = null,
         val quoting: Boolean = false,
         /**
-         * WHEN — the ONE window for the order (078). ⚠ Never chosen for the shopper (069 FR-006): a
+         * When — the one window for the order. Never chosen for the shopper: a
          * window is a promise about when someone will be home. Lives here so it survives the hand-off
          * to payment and a failed payment while it is still offered; dropped when the address changes.
          */
         val window: ChosenWindow? = null,
         /**
-         * 085 — "as soon as possible" is chosen INSTEAD of a window. At most one of [window] / [asap].
+         * "as soon as possible" is chosen instead of a window. At most one of [window] / [asap].
          */
         val asap: Boolean = false,
         /**
-         * 066 — what the shopper tells the driver. Starts from the selected address's SAVED default and
-         * lives HERE, not in the control, so it survives the hand-off to payment and a failed payment.
+         * What the shopper tells the driver. Starts from the selected address's saved default and
+         * lives here, not in the control, so it survives the hand-off to payment and a failed payment.
          */
         val instructions: InstructionsDraft = InstructionsDraft(),
         /**
-         * 066 — "save to this address". ⚠ OFF by default and reset whenever the address changes:
-         * editing instructions for ONE order must never rewrite the saved default unasked (FR-014).
+         * "save to this address". Off by default and reset whenever the address changes:
+         * editing instructions for one order must never rewrite the saved default unasked.
          */
         val saveInstructions: Boolean = false,
-        /** 074 — pay with points? ON by default whenever the shopper has some (FR-012: the most they can). */
+        /** Pay with points? ON by default whenever the shopper has some (FR-012: the most they can). */
         val usePoints: Boolean = true,
         /**
-         * 074 — a ONE-SHOT: points paid for the whole order, which is ALREADY PLACED. The screen opens
+         * A one-shot: points paid for the whole order, which is already placed. The screen opens
          * its receipt and disarms this via [CheckoutViewModel.placedConsumed].
          */
         val placedWithPoints: String? = null,
     ) : CheckoutUiState {
-        /** 074 — the points control is shown only when the quote says the shopper has points. */
+        /** The points control is shown only when the quote says the shopper has points. */
         val points get() = quote?.points?.takeIf { serviced }
 
         /** What the selected address has saved — to tell "using my default" from "changed for this order". */
@@ -115,17 +109,17 @@ sealed interface CheckoutUiState {
         /** The save choice is offered only when there is something the address does not already hold. */
         val instructionsDiffer: Boolean get() = !instructions.sameAs(savedInstructions)
 
-        /** The billing id to SEND (023): only when diverged AND different from shipping; else null. */
+        /** The billing id to send: only when diverged and different from shipping; else null. */
         val effectiveBillingId: String?
             get() = billingSelectedId?.takeIf { !billingSameAsShipping && it != selectedId }
 
-        /** Serviced ⇔ a quote came back for a served address. Pay is blocked otherwise (047 FR-002). */
+        /** Serviced ⇔ a quote came back for a served address. Pay is blocked otherwise. */
         val serviced: Boolean get() = quote?.serviced == true
 
         /** The windows Effy offers this order; null when a courier delivers or the address is not served. */
         val effyWindows: EffyWindows? get() = quote?.effyWindows?.takeIf { serviced }
 
-        /** 079 — set when a courier delivers this order: then there is nothing to choose. */
+        /** Set when a courier delivers this order: then there is nothing to choose. */
         val courier get() = quote?.courier?.takeIf { serviced }
 
         /** Every delivery choice this order needs has been made. A courier order needs none. */
@@ -135,8 +129,8 @@ sealed interface CheckoutUiState {
             } == true
 
         /**
-         * 077 — what delivery costs for what is chosen, as the lines the server priced. Null until a
-         * window is chosen. ⚠ Picked, never added up: the server is the judge.
+         * What delivery costs for what is chosen, as the lines the server priced. Null until a
+         * window is chosen. Picked, never added up: the server is the judge.
          */
         val deliveryFee get() = quote?.feeFor(window, asap)
     }
@@ -144,17 +138,10 @@ sealed interface CheckoutUiState {
 }
 
 /**
- * The checkout ViewModel (019 US3, extended 021 delivery + 023 shipping/billing addresses; reworked 027).
- *
- * ⚠ 027: entry no longer pushes the device cart anywhere. The platform is authoritative for a signed-in
- * shopper's cart, so checkout quotes and prices the SAME cart every other surface reads — the sign-in
- * merge happens once, in `SessionManager`, not on every checkout entry. On entry this now only loads the
- * saved addresses from the 022 Address Book — the SAME list the account page manages (023 US1). The
- * default is pre-selected as the shipping address and its quote fetched; the customer may switch to
- * another saved address or add a new one inline (023 US2/US3), and may give a divergent billing address
- * (023 US4). The client NEVER sends a fee (SC-004), and billing never affects the amount.
- *
- * MVVM: immutable [CheckoutUiState] over a `MutableStateFlow`; the View calls functions, never mutates.
+ * The checkout ViewModel. The platform's cart is authoritative (the sign-in merge happens once, in
+ * `SessionManager`), so entry loads the saved addresses, pre-selects the default and fetches its quote. The
+ * client never sends a fee, and billing never affects the amount. Immutable [CheckoutUiState] over a
+ * `MutableStateFlow`.
  */
 class CheckoutViewModel(
     private val listAddresses: ListAddresses,
@@ -174,29 +161,29 @@ class CheckoutViewModel(
 
     private fun start() {
         viewModelScope.launch {
-            // ⚠ 027: the checkout-entry cart snapshot is GONE. Under 019's Option B the device cart was
+            // The checkout-entry cart snapshot is gone. Under 019's Option B the device cart was
             // the source of truth, so checkout had to push it to the server before quoting. The platform
-            // is authoritative now (research R0), which means checkout reads the SAME cart every other
+            // is authoritative now, which means checkout reads the same cart every other
             // surface reads — and keeping a snapshot here would give checkout a second source of truth,
             // which is precisely the 2026-07-23 bug family under a new name.
             val addresses = runCatching { listAddresses() }.getOrDefault(emptyList())
-            // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
+            // Pre-select the default; deterministic to the first saved address when none is default.
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id
             _state.value = CheckoutUiState.Ready(
                 addresses = addresses,
                 selectedId = selectedId,
-                // 066 — prefilled from the pre-selected address's saved default (FR-013).
+                // Prefilled from the pre-selected address's saved default.
                 instructions = InstructionsDraft.from(addresses.firstOrNull { it.id == selectedId }?.defaultInstructions),
             )
             if (selectedId != null) refreshQuote(selectedId)
         }
     }
 
-    /** Switch the SHIPPING address (023 US2). Per-order only — never changes the saved default (FR-006). */
+    /** Switch the shipping address. Per-order only — never changes the saved default. */
     fun select(id: String) {
         val s = ready() ?: return
         if (s.selectedId == id) return
-        // A new address re-prices delivery (FR-004), and a window belongs to the address it was quoted
+        // A new address re-prices delivery, and a window belongs to the address it was quoted
         // for — nothing chosen for one address is carried to another.
         _state.value = s.copy(
             selectedId = id,
@@ -204,7 +191,7 @@ class CheckoutViewModel(
             window = null,
             asap = false,
             error = null,
-            // ⚠ 066 FR-015: REPLACED by the new address's saved instructions, even over something the
+            // Replaced by the new address's saved instructions, even over something the
             // shopper typed. A note is about a place — "use the side gate" carried to another building
             // is worse than an empty field.
             instructions = InstructionsDraft.from(s.addresses.firstOrNull { it.id == id }?.defaultInstructions),
@@ -213,20 +200,20 @@ class CheckoutViewModel(
         refreshQuote(id)
     }
 
-    // ── Delivery instructions (066) ──────────────────────────────────────────────────────────────────
+    // Delivery instructions
 
     fun setInstructions(draft: InstructionsDraft) {
         val s = ready() ?: return
         _state.value = s.copy(instructions = draft, error = null)
     }
 
-    /** 074 — switch "Use my points" on or off. */
+    /** Switch "Use my points" on or off. */
     fun setUsePoints(on: Boolean) {
         val s = ready() ?: return
         _state.value = s.copy(usePoints = on, error = null)
     }
 
-    /** 074 — the screen has opened the receipt for a points-paid order. */
+    /** The screen has opened the receipt for a points-paid order. */
     fun placedConsumed() {
         val s = ready() ?: return
         if (s.placedWithPoints == null) return
@@ -238,17 +225,17 @@ class CheckoutViewModel(
         _state.value = s.copy(saveInstructions = save)
     }
 
-    /** Choose the one window for the order (078). Ignored unless the quote offers it on that day. */
+    /** Choose the one window for the order. Ignored unless the quote offers it on that day. */
     fun setWindow(slotId: String, date: String) {
         val s = ready() ?: return
         val chosen = ChosenWindow(slotId, date)
         if (s.effyWindows?.find(chosen) == null) return
-        // 085 — a window un-chooses "as soon as possible".
+        // A window un-chooses "as soon as possible".
         _state.value = s.copy(window = chosen, asap = false, error = null)
     }
 
     /**
-     * 085 — a day that cannot be bought without a time was tapped: nothing is chosen until a time is.
+     * A day that cannot be bought without a time was tapped: nothing is chosen until a time is.
      * Also how the time option is closed on a day that has no Any time window left.
      */
     fun clearWindow() {
@@ -256,7 +243,7 @@ class CheckoutViewModel(
         _state.value = s.copy(window = null, asap = false)
     }
 
-    /** 085 — "as soon as possible": no day, no time. Ignored unless the quote offers it. */
+    /** "as soon as possible": no day, no time. Ignored unless the quote offers it. */
     fun setAsap() {
         val s = ready() ?: return
         if (s.effyWindows?.asap == null) return
@@ -264,10 +251,10 @@ class CheckoutViewModel(
     }
 
     /**
-     * Fold a new quote into state, keeping the window only while it is still on offer (069, 078).
+     * Fold a new quote into state, keeping the window only while it is still on offer.
      *
-     * ⚠ A WINDOW THAT HAS GONE IS NOT REPLACED. Nothing is selected and the shopper chooses again
-     * (FR-010).
+     * A window that has gone is not replaced. Nothing is selected and the shopper chooses again
+     * .
      */
     private fun CheckoutUiState.Ready.withQuote(q: DeliveryQuote?): CheckoutUiState.Ready = copy(
         quote = q,
@@ -277,7 +264,7 @@ class CheckoutViewModel(
     )
 
     /**
-     * 047: fetch the delivery quote for [addressId] and fold it into state. A stale response for an
+     * Fetch the delivery quote for [addressId] and fold it into state. A stale response for an
      * address the shopper has since moved past is discarded (the selected id no longer matches).
      */
     private fun refreshQuote(addressId: String) {
@@ -290,9 +277,9 @@ class CheckoutViewModel(
         }
     }
 
-    // ── Billing (023 US4) ────────────────────────────────────────────────────────────────────────────
+    // Billing
 
-    /** Toggle "Billing same as shipping". Turning it back ON discards the divergent choice (FR-013). */
+    /** Toggle "Billing same as shipping". Turning it back ON discards the divergent choice. */
     fun setBillingSameAsShipping(same: Boolean) {
         val s = ready() ?: return
         _state.value = s.copy(
@@ -302,13 +289,13 @@ class CheckoutViewModel(
         )
     }
 
-    /** Choose a saved address as the divergent BILLING address (US4). */
+    /** Choose a saved address as the divergent billing address. */
     fun selectBilling(id: String) {
         val s = ready() ?: return
         _state.value = s.copy(billingSelectedId = id, error = null)
     }
 
-    // ── Add a new address inline (023 US3) — reuses the 022 form + edge create ────────────────────────
+    // Add a new address inline — reuses the 022 form + edge create
 
     fun openAddAddress(target: AddressTarget) {
         val s = ready() ?: return
@@ -321,7 +308,7 @@ class CheckoutViewModel(
         _state.value = s.copy(sheet = sheet.copy(form = form, fieldErrors = emptyMap()))
     }
 
-    /** Dismissing the sheet mid-entry saves nothing (SC-009). */
+    /** Dismissing the sheet mid-entry saves nothing. */
     fun dismissSheet() {
         val s = ready() ?: return
         _state.value = s.copy(sheet = null)
@@ -363,15 +350,15 @@ class CheckoutViewModel(
         val addressId = s.selectedId ?: run {
             _state.value = s.copy(error = "Add a delivery address to continue."); return
         }
-        // US4: a divergent billing address must be chosen before paying (FR-012).
+        // A divergent billing address must be chosen before paying.
         if (!s.billingSameAsShipping && s.billingSelectedId == null) {
             _state.value = s.copy(error = "Choose a billing address."); return
         }
-        // 047 FR-002: never let a shopper pay for an address we can't deliver to.
+        // Never let a shopper pay for an address we can't deliver to.
         if (!s.serviced) {
             _state.value = s.copy(error = CoverageWords.REFUSAL); return
         }
-        // 069: a same-day order needs a slot. ⚠ The server refuses it regardless (`slot_required`);
+        // A same-day order needs a slot. The server refuses it regardless (`slot_required`);
         // this only tells the shopper before the round trip.
         if (!s.deliveryChosen) {
             _state.value = s.copy(
@@ -383,29 +370,29 @@ class CheckoutViewModel(
             addressId = addressId,
             billingAddressId = s.effectiveBillingId,
             deliveryInstructions = s.instructions.toInstructions(),
-            // ONE window for an Effy order (078); a courier order has nothing to choose (079).
+            // One window for an Effy order; a courier order has nothing to choose.
             deliveryWindow = s.window.takeIf { s.courier == null && !s.asap },
-            // 085 — "as soon as possible", sent instead of a window.
+            // "as soon as possible", sent instead of a window.
             asap = s.courier == null && s.asap,
-            // 079 — who delivers, as this screen shows it. The server refuses a mismatch, unpaid.
+            // Who delivers, as this screen shows it. The server refuses a mismatch, unpaid.
             deliveryType = s.quote?.deliveryType,
-            // 074 — "the most I can": the balance. If that is more than the order needs, the server says
+            // "the most I can": the balance. If that is more than the order needs, the server says
             // so with the most it will take, and that is sent instead (below).
             pointsToUse = if (s.usePoints) s.points?.usable ?: 0 else 0,
-            // 077 — the delivery total on screen. A different one at the server is refused unpaid.
+            // The delivery total on screen. A different one at the server is refused unpaid.
             shownDeliveryAmount = s.deliveryFee?.totalAmount,
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
-            // ⚠ THIS CREATES THE INTENT AND STOPS. It used to create it AND present the provider's modal
-            // sheet AND confirm the order, because the sheet was something the app asked for rather than
+            // This creates the intent and stops. It used to create it and present the provider's modal
+            // sheet and confirm the order, because the sheet was something the app asked for rather than
             // something it drew. The in-app element is drawn by Effy's own payment screen, so the intent
             // has to exist before that screen does — and the confirmation belongs to the pay button on it.
             val intent = try {
                 try {
                     createIntent(order)
                 } catch (tooMany: PointsRefused) {
-                    // 074 — the balance is more than this order needs (or would leave the card less than
+                    // The balance is more than this order needs (or would leave the card less than
                     // it can be charged). The shopper asked for "the most they can", and the server has
                     // just said what that is: ask once more with exactly that. Anything else is refused.
                     val max = tooMany.maxPoints
@@ -427,26 +414,26 @@ class CheckoutViewModel(
                 if (refused.reason == PointsRefusal.BalanceChanged) refreshQuote(addressId)
                 return@launch
             } catch (changed: PromotionsChanged) {
-                // 094 — an offer changed or its last use went. Nothing was charged; the shopper checks
+                // An offer changed or its last use went. Nothing was charged; the shopper checks
                 // the new total and pays again.
                 val cur = ready() ?: return@launch
                 _state.value = cur.copy(paying = false, error = "One of your offers changed or is no longer available. Check your new total before you pay.")
                 refreshQuote(addressId)
                 return@launch
             } catch (changed: DeliveryFeeChanged) {
-                // 077 — the delivery total moved between the quote and the pay button. Nothing was
+                // The delivery total moved between the quote and the pay button. Nothing was
                 // charged. The new total is shown and the shopper presses pay again.
                 val cur = ready() ?: return@launch
                 _state.value = cur.withQuote(changed.quote ?: cur.quote).copy(paying = false, error = DeliveryFeeWords.FEE_CHANGED)
                 if (changed.quote == null) refreshQuote(addressId)
                 return@launch
             } catch (refused: DeliveryChoiceRefused) {
-                // The window could not be honoured (069, 078). Nothing has been charged and no payment
-                // exists. ⚠ The choice is NOT replaced: the shopper is told, shown what is on offer
-                // now, and chooses again (FR-009, FR-010).
+                // The window could not be honoured. Nothing has been charged and no payment
+                // exists. The choice is not replaced: the shopper is told, shown what is on offer
+                // now, and chooses again.
                 val cur = ready() ?: return@launch
                 // The window is dropped whenever the refusal is about it, and never replaced — and
-                // when who delivers has changed (079): nothing chosen for the old answer is kept.
+                // when who delivers has changed: nothing chosen for the old answer is kept.
                 val cleared = if (refused.reason == DeliveryChoiceRefusal.SlotRequired) cur else cur.copy(window = null, asap = false)
                 _state.value = cleared.withQuote(refused.quote ?: cur.quote).copy(
                     paying = false,
@@ -468,8 +455,8 @@ class CheckoutViewModel(
                 )
                 return@launch
             }
-            // 066 FR-014 — ONLY when asked, and only AFTER the order accepted the instructions: a refused
-            // note must not become an address's default. Best-effort: the ORDER already has them, so a
+            // Only when asked, and only after the order accepted the instructions: a refused
+            // note must not become an address's default. Best-effort: the order already has them, so a
             // failure here costs some retyping next time and must not stand between a shopper and paying.
             if (s.saveInstructions && s.instructionsDiffer) {
                 runCatching { saveAddressInstructions(addressId, s.instructions) }.getOrNull()?.let { saved ->
@@ -480,7 +467,7 @@ class CheckoutViewModel(
                     )
                 }
             }
-            // 074 — points paid for everything: the order is placed. Straight to its receipt; no payment screen.
+            // Points paid for everything: the order is placed. Straight to its receipt; no payment screen.
             if (intent.paidWithPoints) {
                 _state.value = (ready() ?: return@launch).copy(paying = false, placedWithPoints = intent.orderId)
                 return@launch

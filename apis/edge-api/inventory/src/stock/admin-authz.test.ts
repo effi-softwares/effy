@@ -41,9 +41,7 @@ describe("the back-office tier split (054 FR-025, FR-028)", () => {
     const g = await backOfficeGate(event, ctx, "read");
 
     expect(g.ok).toBe(true);
-    // ⚠ The read gate must NOT consult roles. Until this feature, a support agent could not see a
-    // single order they were being asked about — 053 fixed that for orders and named the reason;
-    // the same reasoning applies to the number a shop rings up about.
+    // The read gate must not consult roles: csa triages stock calls.
     expect(hasStaffRole).not.toHaveBeenCalled();
   });
 
@@ -62,7 +60,7 @@ describe("the back-office tier split (054 FR-025, FR-028)", () => {
     expect(g.ok).toBe(false);
   });
 
-  // ⚠ A refusal that varied with the shop or product would be a discovery tool for which shops exist.
+  // A refusal that varied with the shop or product would reveal which shops exist.
   it("refuses identically whichever shop is named", async () => {
     hasStaffRole.mockResolvedValue(false);
     const a = await backOfficeGate({ pathParameters: { shopId: "shop-1" } } as never, ctx, "write");
@@ -73,8 +71,7 @@ describe("the back-office tier split (054 FR-025, FR-028)", () => {
     if (!a.ok && !b.ok) expect(a.response).toEqual(b.response);
   });
 
-  // ⚠ ORDER MATTERS. Checking the shop first would tell an unauthorized caller whether the shop they
-  // named exists — before establishing they may ask at all.
+  // Permission first: checking the shop first would reveal whether it exists.
   it("decides permission BEFORE looking the shop up", async () => {
     hasStaffRole.mockResolvedValue(false);
     await backOfficeGate(event, ctx, "write");
@@ -95,13 +92,10 @@ describe("the back-office tier split (054 FR-025, FR-028)", () => {
     const g = await backOfficeGate(event, ctx, "write");
 
     if (!g.ok) throw new Error("expected the gate to pass");
-    // ⚠ This is what makes FR-027 possible. `actorKind` is recorded separately from `reason`, so
-    // back-office never has to pick a reason that says "back-office did this" — and a shop reading
-    // its own history sees the distinction without anyone having remembered to write it down.
+    // `actorKind` is recorded apart from `reason`, so the shop's history shows back-office's changes.
     expect(g.actor.kind).toBe("back_office");
     expect(g.actor.sub).toBe("staff-sub");
-    // The shop comes from the PATH here (unlike the shop routes, where it is resolved from the
-    // caller's own record and never read from input).
+    // Here the shop comes from the path; shop routes resolve it from the caller's record.
     expect(g.actor.shopId).toBe("shop-1");
   });
 

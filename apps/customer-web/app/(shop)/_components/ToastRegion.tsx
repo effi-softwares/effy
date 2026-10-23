@@ -5,9 +5,9 @@ import { Check, X } from "lucide-react"
 import { dismissToast, useToasts } from "@/lib/toast-store"
 
 /**
- * Where toasts render (025 FR-039, FR-045).
+ * Where toasts render.
  *
- * ⚠ `role="status"` + `aria-live="polite"` is the point, not decoration: an add-to-cart that is only
+ * `role="status"` + `aria-live="polite"` is the point, not decoration: an add-to-cart that is only
  * visible has not been communicated to a shopper using a screen reader, and "did that work?" is
  * exactly the uncertainty that produces duplicate adds.
  */

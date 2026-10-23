@@ -68,8 +68,7 @@ describe("the needs-attention list (FR-004)", () => {
       }),
     );
 
-    // A shopper has already paid for everything in the backlog and is waiting on it; an empty shelf
-    // costs the next sale; a thin shelf costs neither yet.
+    // Paid orders waiting come first, then an empty shelf, then a thin one.
     expect(view.items.map((i) => i.kind)).toEqual([
       "awaiting_pick",
       "out_of_stock",
@@ -88,7 +87,7 @@ describe("the needs-attention list (FR-004)", () => {
         },
       }),
     );
-    // Nine rows saying "go and pick" would push every other kind off an eight-row card.
+    // One backlog row, not nine.
     expect(view.items).toHaveLength(1);
     expect(view.items[0]).toMatchObject({ kind: "awaiting_pick", orders: 9, units: 30 });
   });
@@ -115,7 +114,7 @@ describe("the needs-attention list (FR-004)", () => {
       ...Array.from({ length: 10 }, (_, i) =>
         stock({ productId: `p${i}`, severity: "out", since: new Date("2026-09-14T03:00:00Z") }),
       ),
-      // Sorts last (low stock), so the cap hides it — and it is the oldest thing in the shop.
+      // Sorts last (low stock), so the cap hides it, and it is the oldest thing in the shop.
       stock({ productId: "ancient", severity: "low", onHand: 2, since: ancient }),
     ];
     const view = buildAttention(snapshot({ stock: many }));
@@ -141,8 +140,7 @@ describe("the snapshot", () => {
     );
 
     expect(out.proposals).toEqual([]);
-    // Not "fetched then filtered": a proposal is the platform saying it may owe a customer money,
-    // and a staff operator is never sent one to hide (Principle IV — the record decides).
+    // Filtered on the server, never sent to a staff operator to hide.
     expect(proposedRefundsForShop).not.toHaveBeenCalled();
   });
 
@@ -183,7 +181,7 @@ describe("the snapshot", () => {
       { canRefund: async () => true },
     );
 
-    // One order, one decision — two lines short of the same order is not two things to approve.
+    // One order, one decision.
     expect(out.proposals).toEqual([
       {
         fulfillmentId: "f1",
@@ -208,7 +206,7 @@ describe("the snapshot", () => {
       { sub: "s", shopId: "shop-1", staffId: null },
       { canRefund: async () => false },
     );
-    // A wrong day is worse than a default one: every boundary on both screens hangs off this.
+    // A wrong day is worse than a default one.
     expect(out.timezone).toBe(DEFAULT_TIMEZONE);
   });
 });

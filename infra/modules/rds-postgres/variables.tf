@@ -105,7 +105,7 @@ variable "allowed_cidrs" {
     error_message = "Every entry in allowed_cidrs must be a valid CIDR (e.g. 203.0.113.7/32)."
   }
 
-  # FR-006 still holds BY DEFAULT: an internet-open database remains unexpressable unless the
+  # FR-006 still holds by default: an internet-open database remains unexpressable unless the
   # operator has consciously flipped allow_public_ingress. The rule did not get weaker — the
   # exception just got a name, so it is greppable and reviewable instead of being a hole here.
   validation {

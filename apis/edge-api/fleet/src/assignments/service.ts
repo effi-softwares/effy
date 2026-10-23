@@ -1,16 +1,6 @@
-// Assign to… and Unassign — a person's two actions on one package (073).
-//
-// ⚠ TWO ACTIONS, ON PURPOSE. The operator asked for simple: "Assign to…" gives a package to a driver
-// (whether nobody has it, or someone else does — that is how a package is moved) and "Unassign" hands
-// it back to auto-assign. There is no hold, no lock, no whole-round move here.
-//
-// ⚠ NO SECOND WAY OF PUTTING A PACKAGE ON A ROUND. Both actions go through the planner's own pieces:
-// its gather (to know what the package is and weighs), its eligibility rule (`planWave` asked about
-// just this driver) and `commitWave` (to place it, creating the stop or the round as the planner
-// would). 072 found three defects of the shape "two implementations of one rule"; this adds none.
-//
-// ⚠ ONE PASS OR ONE PERSON AT A TIME. Every action takes the planner's advisory lock — blocking, so
-// a person waits a moment rather than racing a pass — and locks the package's row.
+// Assign to… and Unassign. Both go through the planner's own pieces (its gather, `planWave` asked about
+// one driver, `commitWave`), so there is no second way onto a round. Each takes the planner's advisory
+// lock (blocking) and the package's row lock.
 
 import {
   endOfLocalDay,
@@ -41,7 +31,6 @@ import { enqueueRoundChanged } from "../shared/driver-push";
 
 export type Stage = "collection" | "delivery";
 
-/** A refusal, always with ONE line a person can read. */
 export class AssignmentError extends Error {
   constructor(
     readonly kind: "cannot_take" | "needs_confirm" | "changed" | "collected" | "not_needed" | "not_found" | "not_yet",
@@ -60,10 +49,10 @@ export interface DriverFit {
   notes: string[];
 }
 
-// ⚠ The pass lock and the removal live in @effy/edge-shared/delivery since 081 (one implementation).
+// The pass lock and the removal live in @effy/edge-shared/delivery.
 const PASS_LOCK = PLANNER_PASS_LOCK;
 
-/** The package's current open assignment for a stage, with whether it may still move. */
+/** With whether it may still move. */
 async function currentAssignment(tx: Queryable, packageId: string, stage: Stage) {
   const res = await tx.query<{ id: string; stop_id: string; round_id: string; round_status: string; driver_id: string; driver_name: string }>(
     `SELECT rp.id, rp.stop_id, dr.id AS round_id, dr.status AS round_status, dr.driver_id, d.name AS driver_name
@@ -77,7 +66,7 @@ async function currentAssignment(tx: Queryable, packageId: string, stage: Stage)
   return res.rows[0] ?? null;
 }
 
-/** Who has collected it, if anyone — the goods are then in a van and nothing here may move them. */
+/** Once collected, the goods are in a van and nothing here may move them. */
 async function inVanWith(tx: Queryable, packageId: string, stage: Stage): Promise<string | null> {
   const res = await tx.query<{ name: string }>(
     `SELECT d.name
@@ -94,12 +83,10 @@ async function inVanWith(tx: Queryable, packageId: string, stage: Stage): Promis
   return res.rows[0]?.name ?? null;
 }
 
-/** The package as the planner sees it, for this stage — or null if it does not need a driver now. */
+/** null if it does not need a driver now. */
 async function asPlannable(tx: Queryable, packageId: string, stage: Stage, now: Date): Promise<PlannablePackage | null> {
   if (stage === "collection") return (await gatherCollectionWork(tx, packageId))[0] ?? null;
-  // ⚠ 082 — A DELIVERY IS PLANNED ON ITS OWN DAY, by a person as well as by a pass. The package is
-  // looked up without the day limit only to say WHY it cannot be given out yet; a round for a later
-  // day would be handed to today's shift and taken back at clock-off.
+  // A delivery is planned on its own day. Looked up without the day limit only to say why it cannot be given yet.
   const pkg = (await gatherDeliveryWork(tx, packageId, FAR_FUTURE))[0] ?? null;
   if (pkg?.windowStart && pkg.windowStart.getTime() > endOfLocalDay(now).getTime()) {
     throw new AssignmentError(
@@ -110,10 +97,10 @@ async function asPlannable(tx: Queryable, packageId: string, stage: Stage, now: 
   return pkg;
 }
 
-/** "No day limit", for looking one package up. Never used to plan. */
+/** For looking one package up; never used to plan. */
 const FAR_FUTURE = new Date("9999-12-31T00:00:00Z");
 
-/** The run or window the package belongs to — computed exactly as the planner computes it. */
+/** Computed exactly as the planner computes it. */
 async function bucketOf(tx: Queryable, stage: Stage, pkg: PlannablePackage, now: Date) {
   if (stage === "collection") {
     const { runs } = await loadSchedule(tx);
@@ -127,7 +114,7 @@ async function bucketOf(tx: Queryable, stage: Stage, pkg: PlannablePackage, now:
   return { deadlineAt, windowStartAt };
 }
 
-/** Ask the planner's own rule about ONE driver: what, if anything, stands in the way. */
+/** The planner's own rule for one driver: what stands in the way. */
 async function reasonsFor(tx: Queryable, stage: Stage, pkg: PlannablePackage, driverId: string, now: Date) {
   const { settings } = await loadSchedule(tx);
   const { deadlineAt, windowStartAt } = await bucketOf(tx, stage, pkg, now);
@@ -155,10 +142,7 @@ function fitOf(reasons: readonly ExclusionReason[]): DriverFit["fit"] {
   return reasons.length > 0 ? "concern" : "fine";
 }
 
-/**
- * Every active driver, with whether they can take this package: fine first, then concerns, then
- * those who cannot — each with a few plain words (US3, FR-012).
- */
+/** Every active driver: fine first, then concerns, then those who cannot, each with a few plain words. */
 export async function driversFor(packageId: string, stage: Stage, now = new Date()): Promise<DriverFit[]> {
   return withTransaction(async (tx: Queryable) => {
     const pkg = await asPlannable(tx, packageId, stage, now);
@@ -185,8 +169,8 @@ export async function driversFor(packageId: string, stage: Stage, now = new Date
   });
 }
 
-/** Take a package off its round, tidying a stop or a not-yet-begun round it leaves empty. */
-/** Lock, load, and refuse anything a person may not do to this package (shared by both actions). */
+/** Tidies a stop or an unstarted round it leaves empty. */
+/** Lock, load, and refuse anything a person may not do to this package. */
 async function prepare(tx: Queryable, packageId: string, stage: Stage, expectedAssignmentId: string | null) {
   await tx.query(PASS_LOCK);
   const row = await tx.query(`SELECT id FROM public.shop_fulfillment WHERE id = $1 FOR UPDATE`, [packageId]);
@@ -196,7 +180,7 @@ async function prepare(tx: Queryable, packageId: string, stage: Stage, expectedA
   if ((current?.id ?? null) !== expectedAssignmentId) {
     throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
   }
-  // ⚠ The goods have left: collected and in a van, or out on a delivery round under way.
+  // The goods have left: collected, or out on a delivery round under way.
   const holder = await inVanWith(tx, packageId, stage);
   if (holder) throw new AssignmentError("collected", `It's already in ${holder}'s van.`);
   if (current && stage === "delivery" && current.round_status === "in_progress") {
@@ -211,11 +195,7 @@ async function staffName(tx: Queryable, sub: string): Promise<string> {
   return r?.name?.trim() || r?.email || "a staff member";
 }
 
-/**
- * Give a package to a driver — whether nobody has it or somebody else does (US3).
- *
- * Returns the one line to show, and the drivers whose apps must hear about it.
- */
+/** Whether nobody has it or somebody else does. Returns the line to show and the drivers to tell. */
 export async function assignTo(input: {
   packageId: string;
   stage: Stage;
@@ -235,7 +215,7 @@ export async function assignTo(input: {
     const pkg = await asPlannable(tx, input.packageId, input.stage, now);
     if (!pkg) throw new AssignmentError("not_needed", "This package doesn't need a driver for that right now.");
 
-    // Asked BEFORE the current assignment is removed, so a refusal leaves everything as it was.
+    // Asked before the current assignment is removed, so a refusal changes nothing.
     const { reasons, deadlineAt, windowStartAt, rounds, candidate } = await reasonsFor(tx, input.stage, pkg, input.driverId, now);
     const cannot = reasons.filter((r) => reasonSeverity(r) === "cannot");
     if (cannot.length > 0) {
@@ -247,7 +227,7 @@ export async function assignTo(input: {
 
     if (current) {
       await removeAssignment(tx, current);
-      await enqueueRoundChanged(tx, current.round_id, current.driver_id); // backlog D2
+      await enqueueRoundChanged(tx, current.round_id, current.driver_id);
     }
 
     const who = await staffName(tx, input.actorSub);
@@ -255,8 +235,7 @@ export async function assignTo(input: {
       ? `Assigned by ${who} — accepted: ${reasons.map(reasonWords).join(", ").toLowerCase()}`
       : `Assigned by ${who}`;
 
-    // Where it goes — the planner's own preference order: the driver's not-yet-begun round for this
-    // run or window; else a stop they are still to make on a round under way; else a new round.
+    // The planner's preference: the driver's unstarted round for this run or window, else a pending stop on one under way, else a new round.
     const mine: BucketRound[] = rounds.filter((r) => r.driverId === input.driverId && r.roundId !== current?.round_id);
     const key = input.stage === "collection" ? pkg.shopId : (pkg.orderId ?? pkg.packageId);
     const target =
@@ -279,7 +258,6 @@ export async function assignTo(input: {
     const { assigned } = await commitWave(plan, "manual", input.actorSub, null, tx);
     if (assigned === 0) throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
 
-    // Nobody-can-take-it reasons no longer apply to a package somebody has.
     await tx.query(`DELETE FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1 AND kind = $2`, [input.packageId, input.stage]);
     await recordAudit(
       { actorSub: input.actorSub, action: "dispatch.manual_assign", targetType: "driver_round", driverId: input.driverId,
@@ -294,7 +272,6 @@ export async function assignTo(input: {
   });
 }
 
-/** Hand a package back to auto-assign (US3). */
 export async function unassign(input: {
   packageId: string;
   stage: Stage;
@@ -305,7 +282,7 @@ export async function unassign(input: {
     const current = await prepare(tx, input.packageId, input.stage, input.expectedAssignmentId);
     if (!current) throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
     await removeAssignment(tx, current);
-    await enqueueRoundChanged(tx, current.round_id, current.driver_id); // backlog D2
+    await enqueueRoundChanged(tx, current.round_id, current.driver_id);
     await recordAudit(
       { actorSub: input.actorSub, action: "dispatch.manual_unassign", targetType: "driver_round", driverId: current.driver_id,
         detail: { packageId: input.packageId, stage: input.stage } },

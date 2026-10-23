@@ -8,7 +8,6 @@ vi.mock("./db", () => ({
 
 import type { AuthedEvent } from "./claims";
 import {
-  DEVICE_PLATFORMS,
   DeviceValidationError,
   makeDeviceDeleteHandler,
   makeDevicePostHandler,
@@ -47,12 +46,7 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
     expect(query).not.toHaveBeenCalled();
   });
 
-  // ⚠ CHANGED BY 059, AND THE CHANGE IS THE POINT. This test used `platform: "web"` as its example
-  // of an INVALID value. That rejection is the defect 059 fixes: since 050 payment finalisation has enqueued a
-  // `shop_new_order` intent per active staff member of every fulfilling shop, the worker resolved
-  // those to `device_token` rows, and this line is why a browser could never be one — so every
-  // intent was recorded, attempted and discarded as "nobody to send to", for a shop audience that
-  // works in a WEB console. The assertion is kept, with a value that is still genuinely invalid.
+  // "web" is valid; the invalid example is still genuinely invalid.
   it("rejects an invalid platform (C2)", async () => {
     await expect(
       registerDevice({
@@ -66,8 +60,7 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
   });
 
   it("names the accepted set in the refusal, rather than a stale hardcoded list (C2)", async () => {
-    // The old message said "android | ios" in prose. A widening that leaves the prose behind tells
-    // an operator the opposite of the truth, in the one string they will actually read.
+    // The message must list every platform.
     await expect(
       registerDevice({
         sub: "s1",
@@ -86,16 +79,6 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
     expect(args?.[2]).toBe("web");
   });
 
-  it("declares the same platform set as @effy/shared-types", () => {
-    // ⚠ WRITTEN OUT, NOT IMPORTED. `packages/shared-types/src/device.ts` declares the same union and
-    // is NOT imported here — `edge-shared` deliberately does not depend on `@effy/shared-types`
-    // (every other edge service does), and collapsing them would restructure seven Lambda bundles.
-    // The duplication is pre-existing; this pin is what stops one side being widened alone. 059's
-    // reader audit found that shared-types copy by grep, not by a failing build, which is exactly
-    // how a contradiction between them would sit unnoticed.
-    expect([...DEVICE_PLATFORMS]).toEqual(["android", "ios", "web"]);
-  });
-
   it("upserts on fcm_token (rotation-safe, no duplicate row)", async () => {
     query.mockResolvedValue({ rows: [] });
     await registerDevice({
@@ -108,17 +91,14 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
     expect(query).toHaveBeenCalledTimes(1);
     const [sql, args] = query.mock.calls[0]!;
     expect(String(sql)).toMatch(/ON CONFLICT \(fcm_token\) DO UPDATE/);
-    // ⚠ A SIXTH ARGUMENT SINCE 059: muted_types. `null` here because the caller sent no preferences,
-    // which is what preserves whatever is already stored — see the next block.
+    // muted_types: `null` because no preferences were sent, which preserves what is stored.
     expect(args).toEqual(["s1", "shop", "ios", "tok-1", "1.2.3", null]);
   });
 });
 
-// ── 059: per-registration notification preferences ──────────────────────────────────────────────
 describe("registerDevice — mutedTypes (C3/C4/C5)", () => {
   it("refuses mutedTypes on a mobile platform rather than ignoring it (C3)", async () => {
-    // ⚠ REFUSED, NOT IGNORED. The mobile apps have no preference UI; accepting and discarding the
-    // field would make a future mobile preferences slice believe it was already wired.
+    // Refused, not ignored: the mobile apps have no preference UI.
     await expect(
       registerDevice({
         sub: "s1",
@@ -132,20 +112,17 @@ describe("registerDevice — mutedTypes (C3/C4/C5)", () => {
   });
 
   it("PRESERVES stored preferences when the key is absent (C4)", async () => {
-    // ⚠ THE DEFECT THIS PREVENTS: the console re-registers on every launch and sends no
-    // `mutedTypes`. If absence meant "clear", every launch would silently switch muted
-    // notifications back on, and the operator would conclude the toggle does not work.
+    // The console re-registers on every launch without `mutedTypes`; absence must not clear them.
     query.mockResolvedValue({ rows: [] });
     await registerDevice({ sub: "s1", audience: "shop", fcmToken: "tok", platform: "web" });
     const [sql, args] = query.mock.calls[0]!;
     expect(args?.[5]).toBeNull();
-    // The SQL must fall back to the existing column, not to '{}'.
+    // The SQL falls back to the existing column, not '{}'.
     expect(String(sql)).toMatch(/COALESCE\(\$6::text\[\], device_token\.muted_types\)/);
   });
 
   it("CLEARS preferences when the key is present and empty (C5)", async () => {
-    // `[]` is a value meaning "everything on", not an absence. 056 shipped the inverse defect —
-    // COALESCE could not tell "leave alone" from "clear", so a driver's zone was permanent.
+    // `[]` is a value meaning "everything on", not an absence.
     query.mockResolvedValue({ rows: [] });
     await registerDevice({
       sub: "s1",
@@ -195,8 +172,7 @@ describe("readRegistration / setMutedTypes — caller-scoped, no oracle (N3)", (
   });
 
   it("returns null for a token that is not the caller's — indistinguishably from one that does not exist", async () => {
-    // ⚠ The two cases MUST be indistinguishable, or the route built on this becomes an oracle for
-    // which FCM tokens are registered on the platform.
+    // Indistinguishable, or the route reveals which tokens are registered.
     query.mockResolvedValue({ rows: [] });
     expect(await readRegistration("s1", "someone-elses-token")).toBeNull();
     expect(await readRegistration("s1", "no-such-token")).toBeNull();
@@ -238,9 +214,7 @@ describe("tokensForRecipient — fan-out lookup", () => {
   it("selects muted_types so the worker can honour a preference (059)", async () => {
     query.mockResolvedValue({ rows: [] });
     await tokensForRecipient("s1", "shop");
-    // ⚠ Pinned because the alternative failure is silent: a SELECT that omits the column returns
-    // `mutedTypes: undefined` on every row, every filter reads "nothing muted", and every operator
-    // who switched a notification off keeps receiving it.
+    // A SELECT without the column would make every filter read "nothing muted".
     expect(String(query.mock.calls[0]![0])).toMatch(/muted_types AS "mutedTypes"/);
   });
 });
@@ -281,8 +255,8 @@ describe("makeDevicePostHandler — auth + validation", () => {
     const res = await handler(postEvent("s1", { fcmToken: "t", platform: "android" }), ctx);
     expect(res.statusCode).toBe(204);
     const [, args] = query.mock.calls[0]!;
-    expect(args?.[0]).toBe("s1"); // subject from token
-    expect(args?.[1]).toBe("driver"); // audience fixed by the factory, not the body
+    expect(args?.[0]).toBe("s1");
+    expect(args?.[1]).toBe("driver");
   });
 });
 

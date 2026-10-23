@@ -11,7 +11,7 @@ import type { NavCountKey } from "./nav";
 /**
  * The rail's live counts — "the ones that need a person".
  *
- * ⚠ EACH COUNT IS THE PAGE'S OWN QUERY, NOT A SECOND DEFINITION. A badge that says 4 beside Dispatch
+ * Each count is the page's own query, not a second definition. A badge that says 4 beside Dispatch
  * while Dispatch lists 5 teaches people to ignore badges. So every number here is read through the
  * same query factory the page uses — the same endpoint, the same cache tree — and it refreshes when
  * that tree does: on a live update (features/live/routes.ts) or after a mutation invalidates it.

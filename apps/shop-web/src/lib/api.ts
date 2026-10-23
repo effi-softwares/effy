@@ -5,20 +5,9 @@ import { config } from "./env";
 import { assertOnline, noteContact, noteNetworkFailure } from "./online";
 
 /**
- * 059 US5 — refuse a write while offline, and keep the connectivity signal honest.
- *
- * ⚠ WRAPPED HERE, NOT IN `@effy/api-client`. That package serves three surfaces, and only this one
- * has offline behaviour; putting the guard there would impose shop-web's rules on customer-web and
- * back-office, which have not been designed for them.
- *
- * ⚠ IT REFUSES; IT DOES NOT QUEUE (FR-036, and the operator's own decision). A pick recorded on a
- * tablet and sent an hour later is a claim about a shelf ANOTHER OPERATOR MAY HAVE EMPTIED in
- * between, and the platform has no conflict rule that could settle it. 054 already accepts a
- * residual oversell window it cannot close; a replayed pick would widen it invisibly.
- *
- * ⚠ READS ARE NOT GUARDED. A GET while offline should fail the way it always has and let TanStack
- * Query serve its cache; refusing it would turn a screen that could render last-known data into an
- * error page.
+ * Refuse a write while offline, and keep the connectivity signal honest. Here, not in `@effy/api-client`:
+ * only this surface has offline behaviour. Writes are refused, never queued (see `online.ts`); reads are
+ * not guarded, so TanStack Query can serve its cache.
  */
 function guarded(client: ApiClient): ApiClient {
   const MUTATIONS = new Set(["post", "put", "patch", "delete"]);
@@ -35,7 +24,7 @@ function guarded(client: ApiClient): ApiClient {
           noteContact();
           return result;
         } catch (err) {
-          // ⚠ ONLY a network-level failure counts as offline. An HTTP 500 means we REACHED the
+          // Only a network-level failure counts as offline. An HTTP 500 means we reached the
           // server, so treating it as a connectivity problem would tell an operator to check their
           // wifi over a backend defect. A DomainError carries a status; a TypeError from fetch does
           // not, and that absence is the discriminator.
@@ -47,11 +36,11 @@ function guarded(client: ApiClient): ApiClient {
   });
 }
 
-// One authed fetch wrapper for the whole surface. The ACCESS token (never the ID token) is the
+// One authed fetch wrapper for the whole surface. The access token (never the ID token) is the
 // bearer; the shared gateway's shop authorizer validates it before any handler runs.
 //
 // Note this package needed NO change to serve a second audience — the cleanest evidence the
-// shared foundation was already audience-neutral (SC-009).
+// shared foundation was already audience-neutral.
 export const api = guarded(
   new ApiClient({
     baseUrl: config.apiBaseUrl(),

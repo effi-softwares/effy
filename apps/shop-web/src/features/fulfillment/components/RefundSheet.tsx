@@ -25,16 +25,16 @@ export interface RefundTarget {
 type Reason = "item_not_supplied" | "item_unusable"
 
 /**
- * Refunding this shop's portion of an order (057 US5) — the design's `isRefund` sheet: one row per
+ * Refunding this shop's portion of an order — the design's `isRefund` sheet: one row per
  * line with a quantity field, a "max" shortcut and the line's total; the reason; "Return items to
  * stock"; and the refund total.
  *
- * ⚠ IT SENDS LINES AND QUANTITIES, NEVER AN AMOUNT. The server prices the refund from the receipt and
- * REFUSES a client-supplied amount (055 FR-003), so the total here is only a preview of that pricing.
- * ⚠ The design's "Refund shipping" toggle is absent: a shop refund covers the shop's own lines, and the
+ * It sends lines and quantities, never an amount. The server prices the refund from the receipt and
+ * refuses a client-supplied amount, so the total here is only a preview of that pricing.
+ * The design's "Refund shipping" toggle is absent: a shop refund covers the shop's own lines, and the
  * delivery fee is Effy's to return.
- * ⚠ ONLY THIS SHOP'S LINES, clamped to what is not already on its way back; the server re-checks both.
- * ⚠ MANAGER-ONLY, and this component is not the gate — the backend decides from the platform record.
+ * Only this shop's lines, clamped to what is not already on its way back; the server re-checks both.
+ * Manager-only, and this component is not the gate — the backend decides from the platform record.
  */
 export function RefundSheet({
   detail,
@@ -75,7 +75,7 @@ export function RefundSheet({
       }),
     onSuccess: (res) => {
       track({ name: "shop_refund_initiated", fulfillmentId: detail.id })
-      // ⚠ "Sent", not "refunded": the provider accepting it means only that it is on its way (055).
+      // "Sent", not "refunded": the provider accepting it means only that it is on its way.
       toast.success(`Refund of ${formatMoney(res.amount, detail.currency)} sent`, {
         description: detail.orderNumber,
       })
@@ -158,7 +158,7 @@ export function RefundSheet({
         </select>
       </SheetField>
 
-      {/* ⚠ OFF by default, and the default is the honest one — a shop refunding an unusable item has
+      {/* Off by default, and the default is the honest one — a shop refunding an unusable item has
           nothing to put back. Honoured by the server since 057 A3 (it used to be ignored). */}
       <SheetToggleRow
         title="Return items to stock"

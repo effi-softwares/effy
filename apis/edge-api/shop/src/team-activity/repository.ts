@@ -1,13 +1,5 @@
-// Team activity: everything recorded against this shop, newest first (058, US5).
-//
-// ⚠ IT INVENTS NO NEW AUDIT TRAIL. Three tables already record who did what — `fulfillment_event`
-// (020's sole accountability control), `stock_movement` (054) and `refund` (055/057) — and this read
-// is a UNION over them. A fourth log written by this screen would be a second answer to "what
-// happened here", and the two would diverge the first time a write path forgot one of them.
-//
-// ⚠ A BACK-OFFICE STAFF NAME NEVER CROSSES. Platform-side actors render as "Effy": the shop is told
-// that Effy did something, not which Effy employee — the same boundary 023 FR-018 draws for customer
-// data, applied to Effy's own people.
+// Everything recorded against this shop, newest first: a union over `fulfillment_event`,
+// `stock_movement` and `refund`, never a log of its own. Back-office actors render as "Effy".
 import { query } from "@effy/edge-shared";
 import { lineNameSql, variantLabelSql } from "@effy/edge-shared/catalog";
 
@@ -24,9 +16,9 @@ export type ActivityKind =
 export interface ActivityRow {
   id: string;
   at: Date;
-  /** The staff member's name, or null when the platform acted / the operator record is gone. */
+  /** null when the platform acted or the operator record is gone. */
   actorName: string | null;
-  /** True when a person at this shop acted but their record has since been removed (020's rule). */
+  /** A person at this shop acted but their record has since been removed. */
   actorWasStaff: boolean;
   kind: ActivityKind;
   orderNumber: string | null;
@@ -36,7 +28,7 @@ export interface ActivityRow {
   reason: string | null;
 }
 
-/** Newest 50 of the last 14 days: a sheet, not an archive. */
+/** Newest 50 of the last 14 days. */
 export const ACTIVITY_LIMIT = 50;
 export const ACTIVITY_DAYS = 14;
 
@@ -48,7 +40,7 @@ const SELECT_ACTIVITY = `
          true                 AS actor_was_staff,
          fe.event_type        AS kind,
          o.order_number,
-         -- 098 — the line as sold, with its variant ("Basmati Rice — 1 kg").
+         -- The line as sold, with its variant ("Basmati Rice — 1 kg").
          CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END,
          fe.quantity,
          NULL::text           AS amount,
@@ -69,7 +61,7 @@ UNION ALL
          sm.actor_kind = 'shop',
          'stock_changed',
          NULL,
-         -- 098 — a count belongs to a variant; name it.
+         -- A count belongs to a variant; name it.
          ${lineNameSql("p.name", variantLabelSql("v"))},
          sm.quantity_delta,
          NULL::text,

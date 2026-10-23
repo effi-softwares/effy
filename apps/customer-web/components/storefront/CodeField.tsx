@@ -17,12 +17,12 @@ const GROUPS = [
  * The emailed-code field in the storefront's shape (reference: Sign in — code; Account · Set a password (code), Delete account (code)): two joined groups of
  * slots with a dash between them.
  *
- * ⚠ ONE INPUT, NOT SIX — the same rule as the platform's `OtpInput`, whose reasoning this follows.
+ * One input, not six — the same rule as the platform's `OtpInput`, whose reasoning this follows.
  * The slots are `aria-hidden` scenery; the single transparent `<input>` layered over them holds the
  * value, takes the focus, receives a paste and the phone's code autofill, and is the one field a
  * screen reader meets.
  *
- * ⚠ NO `maxLength`, AND NOTHING IS TRUNCATED (036 FR-004). A value longer than the code is shown in
+ * NO `maxLength`, and nothing is truncated. A value longer than the code is shown in
  * full as plain text instead of slots — slots can only show their own count of characters, so a longer
  * paste drawn in them would look like a valid code.
  */

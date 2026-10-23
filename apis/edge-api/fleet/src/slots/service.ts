@@ -1,11 +1,5 @@
-// Same-day delivery slots (069 US5). The access decision lives in the handler's guard; this layer
-// owns the rules and the refusals.
-//
-// ⚠ A SLOT IS LIVE THE MOMENT IT IS SAVED. There is no draft and no release between this service and
-// a customer's checkout, which is why every refusal here names its field and every change is audited.
-//
-// ⚠ A SLOT IS NEVER DELETED, only switched off. A booking references it, and a placed order must
-// always be able to say which window it was sold. There is deliberately no delete in this file.
+// A slot is live the moment it is saved, so every refusal names its field and every change is audited.
+// Never deleted, only switched off: a placed order must always name the window it was sold.
 
 import type { FieldError, RequestScope } from "@effy/edge-shared";
 import { effyDays } from "@effy/edge-shared/delivery";
@@ -18,12 +12,7 @@ import * as repo from "./repository";
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * FR-037, with a name on each refusal. The database CHECKs say the same three things; they are the
- * backstop, and this is what lets the console put the message on the right field.
- *
- * "HH:MM" strings compare correctly as text, so no time is parsed here — and none is rebuilt.
- */
+/** The DB CHECKs are the backstop; these put the message on the right field. "HH:MM" compares as text. */
 export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTime: unknown; capacity?: unknown }): FieldError[] {
   const errors: FieldError[] = [];
   const time = (value: unknown, field: string, label: string): value is string => {
@@ -42,8 +31,7 @@ export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTi
   if (start && cutoff && (v.cutoffTime as string) > (v.startTime as string)) {
     errors.push({ field: "cutoffTime", message: "the cutoff cannot be after the slot starts" });
   }
-  // ⚠ No capacity IS a valid answer, and the default: the slot has no limit. Only a limit that was
-  // given has to be a usable one.
+  // No capacity is valid (no limit); only a given limit must be usable.
   if (v.capacity != null && (typeof v.capacity !== "number" || !Number.isInteger(v.capacity) || v.capacity < 1)) {
     errors.push({ field: "capacity", message: "a capacity limit must be a whole number of at least 1" });
   }
@@ -54,7 +42,7 @@ const DUPLICATE = () =>
   conflict("a slot with this window already exists", [
     { field: "startTime", message: "there is already a slot with these start and end times" },
   ]);
-/** 085 — the Any time window is how a day with no time and "as soon as possible" are sold. */
+/** How a day with no time and asap are sold. */
 const ANY_TIME_ALWAYS_ON = () =>
   conflict("the Any time window cannot be switched off", [
     { field: "status", message: "customers choosing a day without a time are delivered in it — change its hours or its limit instead" },
@@ -64,16 +52,10 @@ export function listSlots(): Promise<DeliverySlotDTO[]> {
   return repo.listSlots();
 }
 
-/**
- * Every window, and how full each is on today and the Effy delivery days after it (078 US8).
- *
- * ⚠ THE DAYS ARE THE CUSTOMER'S DAYS. They come from `effyDays` — the function the checkout quote
- * lays its windows out on — so the grid's columns are exactly the days a customer can be offered,
- * with the same days skipped. A calendar worked out here would be a second one.
- */
+/** Every window and its load on each Effy delivery day, from `effyDays` (the checkout's own calendar). */
 export async function listSlotsWithDays(now: Date = new Date()): Promise<DeliverySlotsResponseDTO> {
   const [slots, calendar] = await Promise.all([repo.listSlots(), repo.calendarSettings()]);
-  // 097 — a staff calendar, not an address: today is always shown.
+  // A staff calendar: today is always shown.
   const days = effyDays(now, calendar.lookaheadDays, calendar.noWeekdays, calendar.noDates, true);
   const dates = days.map((d) => d.date);
   const load = await repo.loadOnDays(dates);
@@ -119,13 +101,12 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
     found = await repo.updateSlot(
       id,
       (current) => {
-        // ⚠ The RESULT is validated, not the patch: moving only the start past the existing end is a
-        // one-field patch that produces an invalid slot.
+        // The result is validated, not the patch.
         const next: repo.SlotValues = {
           startTime: patch.startTime ?? current.startTime,
           endTime: patch.endTime ?? current.endTime,
           cutoffTime: patch.cutoffTime ?? current.cutoffTime,
-          // ⚠ `null` is a VALUE here — it removes the limit — so only an absent key keeps the old one.
+          // `null` removes the limit; only an absent key keeps it.
           capacity: patch.capacity === undefined ? current.capacity : patch.capacity,
           anyTime: current.anyTime,
           status: patch.status ?? current.status,

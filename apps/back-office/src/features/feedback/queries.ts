@@ -9,7 +9,7 @@ import {
 } from "./repo"
 import type { FeedbackListParams } from "./model"
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI).
+// Server state lives only in the TanStack Query cache (Principle VI).
 const ROOT = ["back-office", "feedback"] as const
 
 export const feedbackListQuery = (params: FeedbackListParams) =>

@@ -1,13 +1,5 @@
-// Single-select chip row (060 FR-021, FR-023).
-//
-// Two places in the driver app ask a closed question the driver answers with one tap while holding a
-// parcel: "where did you leave it?" (contactless proof — Front door / Reception / Mailroom / With a
-// neighbour) and "what's wrong with this package?" (the shop problem report).
-//
-// ⚠ These replace FREE TEXT, and that is a correctness change, not styling. A typed answer cannot be
-// aggregated, cannot be matched against a customer's claim, and on a phone at a doorstep it is
-// mostly not typed at all. A closed set also means the platform can later act on the answer without
-// parsing prose.
+// A single-select chip row, for closed questions answered with one tap (where a parcel was left, what
+// is wrong with a package). A closed set can be aggregated and acted on; free text cannot.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.background
@@ -31,14 +23,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /**
- * A wrapping row of mutually-exclusive choices.
+ * A wrapping row of mutually exclusive choices, announced as alternatives (`Role.RadioButton`).
  *
- * ⚠ Uses `Role.RadioButton` rather than `Role.Button`: a screen reader then announces "selected" /
- * "not selected" and the fact that these are alternatives. As plain buttons they would be read as
- * four unrelated actions.
- *
- * @param options what the driver may choose from, in the order the design lists them
- * @param selected the current choice, or null if none has been made
+ * @param options the choices, in the design's order
+ * @param selected the current choice, or null
  * @param onSelect fired with the chosen option
  * @param enabled when false the row is inert
  */
@@ -61,8 +49,7 @@ fun <T> ChoiceChips(
             val isSelected = option == selected
             Box(
                 modifier = Modifier
-                    // 48 dp minimum height — the constitution's fat-finger rule. A chip is small by
-                    // nature, so its TARGET is padded out even though its ink is not.
+                    // A 48dp target, padded out even though the chip's ink is smaller.
                     .defaultMinSize(minHeight = 48.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(

@@ -32,8 +32,7 @@ afterEach(() => vi.clearAllMocks());
 
 describe("GET — N1: an unregistered device renders, it does not error", () => {
   it("answers registered:false rather than 404", async () => {
-    // The settings screen must be able to say "not enabled on this device". An error here would
-    // make a perfectly normal state look like a fault.
+    // "Not enabled on this device" is a normal state, not an error.
     readRegistration.mockResolvedValue(null);
     const res = await getHandler(event("sub-1", { queryStringParameters: { token: "tok" } }), ctx);
     expect(res.statusCode).toBe(200);
@@ -48,7 +47,7 @@ describe("GET — N1: an unregistered device renders, it does not error", () => 
     const dto = JSON.parse(res.body as string);
     expect(dto.registered).toBe(true);
     expect(dto.mutedTypes).toEqual(["shop_low_stock"]);
-    // ⚠ Scoped to the CALLER's subject, never to a subject in the request.
+    // Scoped to the caller's subject, never one in the request.
     expect(readRegistration).toHaveBeenCalledWith("sub-1", "tok");
   });
 
@@ -69,14 +68,13 @@ describe("⚠ N10 — the type list is SERVED, from one catalogue", () => {
     const res = await getHandler(event("sub-1", { queryStringParameters: { token: "tok" } }), ctx);
     const dto = JSON.parse(res.body as string);
     expect(dto.availableTypes).toEqual(SHOP_NOTIFICATION_TYPES);
-    expect(dto.availableTypes).toHaveLength(7); // 059's five + 067's two review decisions
+    expect(dto.availableTypes).toHaveLength(7);
   });
 
   it("⚠ marks the manager-only type as such — a HINT, never the gate", () => {
     const refund = SHOP_NOTIFICATION_TYPES.find((t) => t.type === "shop_refund_proposed");
     expect(refund?.requiresRole).toBe("shop_manager");
-    // The real filter is in the evaluator, against the platform record. A `shop_staff` operator who
-    // forges this field still receives nothing, because nothing is ever enqueued for them.
+    // The real filter is in the evaluator: a staff member who forges this still receives nothing.
   });
 });
 
@@ -92,8 +90,7 @@ describe("PATCH — N2/N4: the set is closed, and empty is a value", () => {
   });
 
   it("N4: an empty array means everything on, and is accepted", async () => {
-    // ⚠ `[]` is a VALUE, not an absence. 056 shipped the inverse defect — a COALESCE that could not
-    // tell "leave alone" from "clear", so a driver's zone was permanent once set.
+    // `[]` is a value, not an absence.
     setMutedTypes.mockResolvedValue(true);
     const res = await patchHandler(event("sub-1", body({ fcmToken: "tok", mutedTypes: [] })), ctx);
     expect(res.statusCode).toBe(204);
@@ -141,9 +138,7 @@ describe("⚠ N3 — the route is not an oracle for which tokens exist", () => {
 
     expect(notYours.statusCode).toBe(404);
     expect(noSuch.statusCode).toBe(404);
-    // ⚠ BYTE-IDENTICAL but for the request id. A distinguishable refusal would let anyone holding a
-    // shop session enumerate which FCM tokens are registered on the platform — 052 made the same
-    // argument for the receipt resend, where "not yours" and "no such order" are one refusal.
+    // Byte-identical but for the request id, or the route would reveal which tokens are registered.
     const strip = (b: string) => b.replace(/"requestId":"[^"]*"/, "");
     expect(strip(notYours.body as string)).toBe(strip(noSuch.body as string));
   });

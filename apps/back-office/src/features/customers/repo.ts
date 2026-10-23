@@ -10,7 +10,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// The data layer for back-office customers and their points (074). Screens never touch the api client
+// The data layer for back-office customers and their points. Screens never touch the api client
 // directly (Principle VI). Every route is on the orders service — contracts/routes.md.
 
 export async function searchCustomers(q: string): Promise<CustomerSearchResultDTO[]> {

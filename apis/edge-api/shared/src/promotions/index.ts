@@ -1,4 +1,4 @@
-// 094 — promotions: the one evaluator, the one reader, the one writer of uses, the one composer of words.
+// Promotions: the one evaluator, reader, writer of uses and composer of words.
 export * from "./engine";
 export * from "./terms";
 export * from "./candidates";

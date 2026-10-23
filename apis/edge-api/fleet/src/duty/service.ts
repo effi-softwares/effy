@@ -1,4 +1,3 @@
-// Duty use-cases (056 US4).
 import type { DutyResponseAdmin } from "@effy/shared-types";
 
 import { recordAudit } from "../shared/audit";

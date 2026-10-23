@@ -20,11 +20,11 @@ export function lookupLink(found: AdminLookupDTO) {
 }
 
 /**
- * 096 US5 — "scan anything to find it" (FR-040). Point a handheld scanner at any bag label on any page
+ * "scan anything to find it". Point a handheld scanner at any bag label on any page
  * and its order opens with that bag highlighted. Nothing on screen: it listens for the scanner's burst
  * of keys and leaves ordinary typing alone. Typed codes go through the ⌘K search.
  *
- * ⚠ OFF ON THE HUB STATION, which reads every scan itself as a check-in.
+ * Off on the hub station, which reads every scan itself as a check-in.
  */
 export function ScanBox() {
   const navigate = useNavigate();

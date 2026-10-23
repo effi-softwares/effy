@@ -2,12 +2,7 @@ import * as React from "react"
 
 import { cn } from "../cn"
 
-// PROGRESS AND METER (theme-adoption-prompt.md, Phase 2 §10).
-//
-// A 999px track on `--muted` with the fill in the SEMANTICALLY CORRECT token — not always the brand.
-// A bar showing how much of an order is picked is brand (work in progress); one showing how close a
-// shop is to a cut-off is warning; one showing a failure rate is destructive. The token is the
-// statement, so it is a required prop rather than a default.
+// Progress and meter: a `--muted` track with the fill in the semantically correct token, so the tone is a required prop.
 
 type Tone = "brand" | "success" | "warning" | "destructive" | "violet" | "teal" | "muted"
 
@@ -21,13 +16,7 @@ const FILL: Record<Tone, string> = {
   muted: "bg-muted-foreground",
 }
 
-/**
- * A single-value bar.
- *
- * ⚠ `value` is clamped rather than trusted. A rollup that double-counts produces >100, and an
- * unclamped flex-basis paints past the track's rounded end — the bar then looks like a rendering
- * bug rather than like a number that needs looking at.
- */
+/** A single-value bar. `value` is clamped: a double-counting rollup must not paint past the track. */
 function Progress({
   value,
   tone = "brand",
@@ -65,15 +54,8 @@ function Progress({
 export type MeterSegment = { label: string; value: number; tone: Tone }
 
 /**
- * A multi-segment bar with a legend: 8px swatch + muted label + 600 value.
- *
- * ⚠ Segments are separated by a 2px GAP, not by a border. A border on a coloured segment reads as a
- * sixth tone at small sizes; the gap lets the `--muted` track show through instead, which is already
- * the page's own separator colour.
- *
- * ⚠ Zero-valued segments are dropped from the BAR but kept in the LEGEND. A 0% segment renders as a
- * 2px sliver that looks like a rounding artifact, while removing it from the legend would silently
- * change what categories exist — and "none of these today" is information.
+ * A multi-segment bar with a legend (8px swatch, muted label, 600 value). Segments are separated by a
+ * 2px gap, not a border. Zero-valued segments leave the bar but stay in the legend.
  */
 function Meter({
   segments,

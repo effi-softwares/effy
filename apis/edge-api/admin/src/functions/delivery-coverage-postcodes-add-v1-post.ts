@@ -1,4 +1,3 @@
-// POST /admin/v1/delivery/coverage/postcodes — list postcodes (076 FR-002). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

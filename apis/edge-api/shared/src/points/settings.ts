@@ -1,8 +1,6 @@
 /**
- * The points rules (074) — one row, changed only by a back-office admin, every change audited (FR-025).
- *
- * ⚠ A CHANGE APPLIES FROM THAT MOMENT ONLY (FR-026). Nothing here rewrites a lot's expires_at or an
- * order's cents_per_point: those were snapshotted when they were made.
+ * The points rules: one row, changed by a back-office admin, every change audited. A change applies
+ * from then on: lots' `expires_at` and orders' `cents_per_point` are snapshots.
  */
 import type { Queryable } from "../lib/db";
 import { PointsSettingInvalidError } from "./errors";
@@ -53,15 +51,12 @@ const SELECT = `SELECT cents_per_point, expiry_months, csa_credit_limit_points, 
 
 export async function loadSettings(q: Queryable): Promise<PointsSettings> {
   const row = (await q.query<Row>(SELECT)).rows[0];
-  // The migration seeds the row; its absence is a broken database, not a default to invent.
+  // The migration seeds the row; its absence is a broken database.
   if (!row) throw new Error("points: settings row missing");
   return map(row);
 }
 
-/**
- * Apply a patch inside the caller's transaction. Only fields whose value actually changes are written,
- * and each writes one audit row. Returns the settings as they now are.
- */
+/** Applies a patch in the caller's transaction, writing and auditing only changed fields. */
 export async function updateSettings(tx: Queryable, patch: PointsSettingsPatch, actorSub: string): Promise<PointsSettings> {
   const current = (await tx.query<Row>(`${SELECT} FOR UPDATE`)).rows[0];
   if (!current) throw new Error("points: settings row missing");
@@ -75,7 +70,7 @@ export async function updateSettings(tx: Queryable, patch: PointsSettingsPatch, 
     if (!Number.isInteger(value) || value < min || value > max) throw new PointsSettingInvalidError(field);
     if (value === before[field]) continue;
 
-    // `column` comes from the fixed FIELDS map above, never from the request.
+    // `column` comes from fields, never the request.
     await tx.query(`UPDATE public.points_settings SET ${column} = $1, updated_by = $2, updated_at = now() WHERE id = 1`, [value, actorSub]);
     await tx.query(
       `INSERT INTO public.points_settings_change (field, old_value, new_value, changed_by) VALUES ($1, $2, $3, $4)`,

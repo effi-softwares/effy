@@ -4,15 +4,8 @@ import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 
 /**
- * ⚠ 074 FR-027: A SHOP NEVER SEES A CUSTOMER'S POINTS, NOR WHETHER AN ORDER WAS PAID WITH POINTS.
- *
- * Points are between Effy and its customer. How an order was paid is no business of the node that
- * packs it — and "this customer was compensated" is exactly the kind of fact a hidden fulfilment
- * node must not learn about a customer it is not supposed to know it has.
- *
- * The shop service legitimately IMPORTS the refund code that splits a refund (a shop manager can
- * issue one), so this does not ban the money module. It bans the shop's own SQL and DTOs from
- * naming any points column, table or field: nothing the shop reads or returns may carry them.
+ * A shop never sees a customer's points, nor whether an order used them. The shop may import the
+ * refund code, but its own SQL and DTOs may name no points column, table or field.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -46,8 +39,7 @@ describe("shop service points isolation (074 FR-027)", () => {
   })
 
   it("the shop-manager refund route strips how the refund was split before answering", () => {
-    // The shared refund result says how much went to the card and how many points came back. That is
-    // the one place points could reach a shop, so the route must pass it through `withoutPaymentSplit`.
+    // The refund result carries the points split, so the route must pass it through `withoutPaymentSplit`.
     const route = readFileSync(resolve(here, "functions/order-refund-v1-post.ts"), "utf8")
     expect(route).toMatch(/json\(200, withoutPaymentSplit\(await refunds\.issue\(/)
   })

@@ -8,11 +8,8 @@ vi.mock("./actions", () => ({ updateProfile }))
 import { PersonalInfo } from "./PersonalInfo"
 
 /**
- * 034 US1 — the per-field editing model on the web surface.
- *
- * These assert the three things the design turns on and that a refactor could silently undo: the
- * screen holds no inputs at rest, a changed value cannot be discarded silently, and email is visibly
- * not editable rather than inertly ignoring a click.
+ * The per-field editing model: no inputs at rest, a changed value cannot be discarded silently, and
+ * email visibly says why it cannot be edited.
  */
 
 const props = {
@@ -34,29 +31,22 @@ describe("PersonalInfo — the screen at rest (FR-011)", () => {
 
     expect(screen.getByTestId("row-name")).toHaveTextContent("Janith Madarasinghe")
     expect(screen.getByTestId("row-phone")).toHaveTextContent("Not set")
-    // The whole point of the redesign: nothing on this screen is an entry surface.
+    // Nothing on this screen is an entry surface.
     expect(document.querySelectorAll("input")).toHaveLength(0)
   })
 
-  /**
-   * ⚠ FR-022. A row that silently does nothing is indistinguishable from a broken one — the customer
-   * taps twice and then reports a bug. It must SAY why.
-   */
+  /** A row that does nothing reads as broken, so it says why. */
   it("explains that email cannot be changed rather than doing nothing", async () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
 
-    // It says so on the row itself — there is nothing to press, so nothing can "do nothing".
+    // It says so on the row itself.
     expect(screen.getByTestId("row-email")).toContainElement(screen.getByTestId("email-locked-note"))
     await user.click(screen.getByTestId("row-email"))
     expect(screen.queryByTestId("field-editor-input")).not.toBeInTheDocument()
   })
 
-  /**
-   * ⚠ FR-060a. The phone is self-asserted and never verified by this feature, so it must carry no
-   * confirmation indicator — a tick would be a claim the platform cannot support, and one the
-   * customer would reasonably rely on.
-   */
+  /** The phone is self-asserted and never verified, so it carries no confirmation mark. */
   it("shows the phone with no verified indicator", () => {
     render(<PersonalInfo {...props} phone="0400 000 000" />)
 
@@ -88,12 +78,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     )
   })
 
-  /**
-   * ⚠ THE ONE THAT MATTERS (FR-018 / SC-003).
-   *
-   * A changed value must never vanish silently. Cancel goes through the same guard every other
-   * dismissal route does, so this also covers Escape and a backdrop click.
-   */
+  /** A changed value never vanishes silently: Cancel goes through the same guard as Escape and a backdrop click. */
   it("asks before discarding a CHANGED value", async () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
@@ -109,7 +94,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     expect(updateProfile).not.toHaveBeenCalled()
   })
 
-  /** ⚠ FR-019 — and the converse matters too: confirming a no-op edit is its own annoyance. */
+  /** And confirming a no-op edit is its own annoyance. */
   it("does NOT prompt when nothing changed", async () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
@@ -122,7 +107,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     expect(window.confirm).not.toHaveBeenCalled()
   })
 
-  /** FR-021 — losing what someone just typed because the network hiccuped is the worst form bug. */
+  /** A network hiccup must not lose what was typed. */
   it("keeps the editor open and the typed value intact when the save fails", async () => {
     const user = userEvent.setup()
     updateProfile.mockResolvedValue({ ok: false, error: "We couldn't save that." })
@@ -140,10 +125,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     expect(screen.getByTestId("field-editor-input")).toHaveValue("Jan")
   })
 
-  /**
-   * ⚠ `""` clears — never `null`. The mobile client drops nulls from the payload entirely, so an
-   * empty string is the only signal that distinguishes "clear this" from "field not sent".
-   */
+  /** `""` clears, never `null`: the mobile client drops nulls, so an empty string is the only "clear this". */
   it("clears a phone by sending an empty string, not null", async () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} phone="0400 000 000" />)

@@ -5,19 +5,19 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    // 050 — google-services reads androidApp/google-services.json and generates the Firebase config
+    // Google-services reads androidApp/google-services.json and generates the Firebase config
     // resources; crashlytics uploads the R8 mapping on release builds. The Firebase SDKs themselves
-    // are declared in :shared/androidMain (where the expect/actual implementations live), not here.
+    // are declared in:shared/androidMain (where the expect/actual implementations live), not here.
     alias(libs.plugins.googleServices)
     alias(libs.plugins.firebaseCrashlytics)
 }
 
-// ── DEV release signing (shareable dev APK) ────────────────────────────────────────────────────────
+// DEV release signing (shareable dev APK)
 //
 // A release APK must be signed to install on a real phone. This reads a git-ignored
 // `keystore.properties` (or environment variables of the same name, which win — so CI can inject its
-// own). It is a DEV keystore for internal test builds ONLY — never the production upload key.
-// Absent config → the release build stays UNSIGNED (and won't install), rather than failing the build,
+// own). It is a DEV keystore for internal test builds only — never the production upload key.
+// Absent config → the release build stays unsigned (and won't install), rather than failing the build,
 // so other release tasks (lint, tests) still run without a keystore present. Create one: `make cm-keystore`.
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
@@ -39,17 +39,17 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
 
-    // 024 — branded splash screen. Backports the Android 12+ SplashScreen API to API 21, so the
-    // whole minSdk 24 range gets one mechanism (FR-012).
+    // Branded splash screen. Backports the Android 12+ SplashScreen API to API 21, so the
+    // whole minSdk 24 range gets one mechanism.
     implementation(libs.androidx.core.splashscreen)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
 
-    // 013 — Amplify Android requires core library desugaring (enabled in compileOptions below).
+    // Amplify Android requires core library desugaring (enabled in compileOptions below).
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 
-    // ⚠ NO STRIPE DEPENDENCY HERE (051). 019 put it in the app module because `PaymentSheet` had to be
+    // No stripe dependency here. 019 put it in the app module because `PaymentSheet` had to be
     // registered against MainActivity's ActivityResultRegistry. The embedded element is Compose-scoped
     // and lives in `shared`'s androidMain with the payment screen, so the app module no longer needs it.
 }
@@ -88,7 +88,7 @@ android {
         }
     }
     compileOptions {
-        // 013 — required by Amplify Android (backports java.time etc. below the API level it needs).
+        // Required by Amplify Android (backports java.time etc. below the API level it needs).
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

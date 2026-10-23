@@ -3,10 +3,10 @@ package com.effyshopping.customer.mobile.features.catalog.domain
 import kotlinx.serialization.Serializable
 
 /**
- * The comparison price beside a price — "$0.64 / 100 g" (098). Australian grocery shoppers compare
+ * The comparison price beside a price — "$0.64 / 100 g". Australian grocery shoppers compare
  * sizes by it.
  *
- * ⚠ THE PLATFORM COMPUTES IT (whole cents, half up); the app only SAYS it. The words are
+ * The platform computes it (whole cents, half up); the app only says it. The words are
  * `UNIT_BASIS_WORDS` in `packages/shared-types/src/unit-price.ts`, and this file is pinned to them by
  * `unit-price.fixtures.json` (`UnitPriceWordsTest`) — change both or neither.
  */

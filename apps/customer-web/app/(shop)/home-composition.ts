@@ -2,17 +2,8 @@ import type { Banner } from "./promotion-groups"
 import type { StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontRailDTO } from "@effy/shared-types"
 
 /**
- * The home page's section sequence, as data (039 US3).
- *
- * Contract: `specs/039-customer-home-redesign/contracts/home-sections.contract.md`.
- *
- * ⚠ WHY THIS IS A PURE FUNCTION AND NOT JSX. The page used to `rails.map()` straight into markup, which
- * made three of the feature's rules unobservable: the fixed top-to-bottom ORDER (FR-001), the rule that
- * every empty section HIDES ITSELF (FR-004), and — once 039's offer blocks land — that block B never
- * repeats a promotion block A already showed (FR-020). None of those can be asserted without rendering,
- * and rendering async Server Components is exactly what Vitest cannot do (see `vitest.config.ts`).
- *
- * Composing first and rendering second moves all of it into a plain unit test.
+ * The home page's section sequence, as data, so the fixed order, empty sections hiding themselves and
+ * no promotion repeating across blocks are unit-testable (Vitest cannot render async Server Components).
  */
 
 /** One section, ready to render. A section that would be empty is never emitted at all. */
@@ -24,13 +15,7 @@ export type HomeSection =
 /** How many promotions the large-plus-two-stacked block shows before the next block takes over. */
 const OFFERS_PER_BLOCK = 3
 
-/**
- * "View all" for a rail — category rails filter by category, on-sale filters, everything else goes to
- * the unfiltered search page.
- *
- * ⚠ Exported so it can be pinned by a test. 029's post-mortem records a banner that pointed every
- * promotion at `/search` for its whole life because nothing asserted where a link led.
- */
+/** "View all" for a rail: category rails filter by category, on-sale filters, the rest go to the unfiltered search. Exported for its test. */
 export function railHref(key: string): string {
   if (key.startsWith("category:")) {
     return `/search?category=${encodeURIComponent(key.slice("category:".length))}`
@@ -39,28 +24,20 @@ export function railHref(key: string): string {
   return "/search"
 }
 
-/** A rail is worth a section only if it has something in it (FR-004). */
+/** A rail is worth a section only if it has something in it. */
 function railSection(rail: StorefrontRailDTO | undefined): HomeSection | null {
   if (!rail || rail.products.length === 0) return null
   return { kind: "rail", key: rail.key, rail, href: railHref(rail.key) }
 }
 
 /**
- * The ordered sections for a given payload.
- *
- * ⚠ THE ORDER IS FIXED AND NAMED, not "whatever order the server sent the rails in". A merchandised
- * landing page reads top-to-bottom as an argument — start with the discount, then the curated picks,
- * then the departments — and leaving that to the server's array order means the page silently
- * rearranges itself whenever the catalogue changes.
- *
- * ⚠ RAILS ARE CONSUMED, NOT COPIED. `on_sale` and `featured` are pulled out by key and then EXCLUDED
- * from the category sweep, so a rail cannot appear twice. The same consumed-set discipline is what
- * FR-020 will need for the two offer blocks (US4).
+ * The ordered sections for a payload. The order is fixed, not the server's array order. Rails are
+ * consumed, not copied: `on_sale` and `featured` are taken by key and excluded from the category sweep.
  */
 export function composeSections(
   home: StorefrontHomeDTO,
   categories: StorefrontCategoryDTO[],
-  /** 094 — the `home-between` display group; absent when its read failed. */
+  /** The `home-between` display group; absent when its read failed. */
   between: Banner[] = [],
 ): HomeSection[] {
   const sections: HomeSection[] = []
@@ -78,7 +55,7 @@ export function composeSections(
   }
 
   // The hero promotions are `PromoHero`'s (the `home-hero` group). The offers between sections are the
-  // `home-between` group: block A takes the first three and block B what is left, so FR-020's "MUST NOT
+  // `home-between` group: block a takes the first three and block B what is left, so FR-020's "must not
   // duplicate a promotion already shown above" is structural — one list, each block consumes from it.
   const blockA = between.slice(0, OFFERS_PER_BLOCK)
   const blockB = between.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
@@ -106,7 +83,7 @@ export function composeSections(
     }
   }
 
-  // 6 — offers block B, from whatever block A did not take.
+  // 6 — offers block B, from whatever block a did not take.
   if (blockB.length > 0) {
     sections.push({ kind: "offers", block: "b", title: "More offers", banners: blockB })
   }

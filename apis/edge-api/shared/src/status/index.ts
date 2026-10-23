@@ -1,4 +1,4 @@
-// 073 — where a package is, derived once and read by every service that shows it.
+// Where a package is, derived once and read by every service that shows it.
 
 import type { PackageStatusView } from "@effy/shared-types";
 
@@ -27,10 +27,7 @@ export function factsOf(r: PackageStatusFactsRow): PackageFacts {
   };
 }
 
-/**
- * The status of each package, by id. `audience: "shop"` strips driver names (FR-003).
- * One query for any number of packages.
- */
+/** The status of each package, by id, in one query. `audience: "shop"` strips driver names. */
 export async function packageStatuses(
   db: Queryable,
   packageIds: readonly string[],
@@ -40,7 +37,7 @@ export async function packageStatuses(
   if (packageIds.length === 0) return out;
   const res = await db.query<PackageStatusFactsRow>(PACKAGE_STATUS_FACTS, [packageIds]);
   for (const row of res.rows) {
-    // 096 — a held bag is staff's business; the shop's word is unchanged.
+    // A held bag is staff's business; the shop's word is unchanged.
     const facts = factsOf(row);
     const v = packageStatus(audience === "shop" ? { ...facts, bagsHeld: 0 } : facts);
     out.set(row.package_id, audience === "shop" ? forShop(v) : v);

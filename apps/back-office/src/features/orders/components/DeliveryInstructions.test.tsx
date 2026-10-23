@@ -20,7 +20,7 @@ describe("066 — delivery instructions on the back-office order", () => {
   });
 
   /**
-   * ⚠ STORED XSS, THE REAL ONE. This text is typed by anyone on the public storefront and displayed
+   * Stored XSS, the real one. This text is typed by anyone on the public storefront and displayed
    * to a signed-in admin. It must come out as characters.
    */
   it("⚠ renders markup in the note as literal text and creates no element", () => {

@@ -1,8 +1,4 @@
-// GET /v1/back-office/admin/ping — the administrator-only proving route (spec US3 / FR-006a).
-// The gateway authenticates; this handler AUTHORIZES from the PLATFORM RECORD (FR-020, US4):
-// status = 'active' AND role = 'admin' — NOT the token claim. A staff row set 'disabled' is
-// refused despite a valid admin token (SC-012). (US3 shipped this on the role claim; US4 upgraded
-// it to the DB record.)
+// Admin only, from the staff record (status and role), never the token.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

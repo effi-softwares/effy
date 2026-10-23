@@ -5,16 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 067 — A SHOP NEVER READS EFFY'S MARGIN (FR-039).
- *
- * A shop sees what it is paid and what the customer pays. The margin — its kind, its value — is
- * Effy's, and lives in two columns no shop-pool query has any reason to select.
- *
- * This is honest about what it protects. A shop that sees both prices can subtract; the operator
- * chose that. What must not happen is the margin reaching a shop BY ACCIDENT: a `SELECT p.*`, a
- * helpful "margin" row on a product screen, a percentage in an Insights export. None of those would
- * fail a test or a typecheck. This reads every source file of the shop service and fails naming the
- * one that references the margin.
+ * A shop never reads Effy's margin by accident (a `SELECT p.*`, a product row, an export). A shop can
+ * subtract its two prices; that is accepted. This scans every shop source file for the margin columns.
  */
 
 const EDGE_API = fileURLToPath(new URL("../..", import.meta.url));
@@ -34,7 +26,7 @@ function sourceFiles(dir: string): string[] {
 describe("067 — the shop service never references Effy's margin", () => {
   it("no edge-api/shop source file names the margin columns or fields", () => {
     const files = sourceFiles(join(EDGE_API, "shop", "src"));
-    expect(files.length).toBeGreaterThan(10); // a guard that scanned nothing would pass for ever
+    expect(files.length).toBeGreaterThan(10);
 
     const offenders = files
       .filter((f) => {

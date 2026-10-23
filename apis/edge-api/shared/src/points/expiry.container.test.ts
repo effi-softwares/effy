@@ -3,16 +3,15 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "../lib/db";
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { credit, debit, dueToExpire, expireLot, hold, usable } from "./ledger";
 import { checkLedger } from "./reconcile";
 import { updateSettings } from "./settings";
 import { queueExpiryWarnings } from "./warnings";
 
 /**
- * 074 US4 and SC-001 against the REAL schema (quickstart P15, P16): one warning per customer per expiry
- * date however often the job runs, and a ledger check that is clean on a good ledger and loud on a
- * forged one.
+ * One warning per customer per expiry date however often the job runs, and a ledger check clean on a
+ * good ledger and loud on a forged one.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -123,8 +122,8 @@ d("074 — expiry warnings and the ledger check", () => {
     await give(c, 50, now);
     const orderId = (
       await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-         VALUES ($1, $2, 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, $2, 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [c, `EFY-EX${++seq}`],
       )
     ).rows[0]!.id;

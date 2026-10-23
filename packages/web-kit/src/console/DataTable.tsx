@@ -15,12 +15,8 @@ import {
 } from "@effy/design-system/ui";
 
 /**
- * A small, generic, presentational table built on TanStack Table and rendered with the
- * design-system Table primitives.
- *
- * Deliberately dumb: it renders exactly the rows it is handed. Search, filtering, and pagination
- * are the parent's job (server-side) — the server-state cache stays the single source of truth
- * (constitution Principle VI), so this component never fetches or hand-caches anything.
+ * A presentational TanStack table on the design-system primitives. It renders exactly the rows it is
+ * given: search, filtering and pagination are the parent's (server-side) job.
  */
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];

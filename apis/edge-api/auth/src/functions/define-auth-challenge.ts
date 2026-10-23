@@ -1,13 +1,6 @@
 /**
- * Cognito `DefineAuthChallenge` — the state machine (035 FR-011).
- *
- * ⚠ THIS FUNCTION IS THE ONLY BRUTE-FORCE DEFENCE THE PLATFORM HAS.
- * Cognito imposes no quota on custom-challenge attempts and none on `RespondToAuthChallenge`
- * retries per session. Its per-user rate of 10 req/sec permits roughly 3,000 guesses inside one
- * 5-minute code lifetime against a 10^6 space. If the cap below is wrong, six digits is not safe.
- *
- * The decision itself lives in `policy.decideNextStep` so it can be tested exhaustively without
- * AWS; this handler is the thin edge (Principle VI).
+ * Cognito `DefineAuthChallenge`. The platform's only brute-force defence: Cognito caps neither
+ * custom-challenge attempts nor retries per session. The decision lives in `policy.decideNextStep`.
  */
 
 import { decideNextStep } from "../otp/policy.js";
@@ -25,10 +18,7 @@ export const handler = async (
 
   switch (step.kind) {
     case "issue-tokens":
-      // ⚠ `decideNextStep` has already asserted that EVERY element of the session is
-      // CUSTOM_CHALLENGE and that the last one succeeded. AWS: "always check `challengeName` …
-      // and verify that it matches the expected value." Without that, tokens can be issued for a
-      // challenge this platform never authored.
+      // `decideNextStep` has checked every session element is CUSTOM_CHALLENGE and the last succeeded.
       event.response.issueTokens = true;
       event.response.failAuthentication = false;
       break;
@@ -36,8 +26,7 @@ export const handler = async (
     case "fail":
       event.response.issueTokens = false;
       event.response.failAuthentication = true;
-      // ⚠ Emitted for BOTH real and phantom users. A metric that only fired for real accounts
-      // would rebuild, in the dashboard, exactly the existence oracle the flow is hiding.
+      // Emitted for real and unknown users alike, or the metric would reveal existence.
       emit("otp_attempts_exhausted", event.userPoolId);
       break;
 
@@ -48,7 +37,6 @@ export const handler = async (
       break;
   }
 
-  // ⚠ Return the whole event. Cognito treats a missing request/response envelope as a trigger
-  // failure, and a trigger failure fails the sign-in.
+  // Return the whole event: a missing envelope fails the sign-in.
   return event;
 };

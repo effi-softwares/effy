@@ -3,7 +3,7 @@ package com.effyshopping.driver.mobile.core.scan
 import com.effyshopping.driver.mobile.contract.ParcelDTO
 
 /**
- * 096 — one physical bag of a package, with its own label code. A package is one shop's share of an
+ * One physical bag of a package, with its own label code. A package is one shop's share of an
  * order; it travels as one or more bags, and every step accounts for every bag. Bag 1's code is the
  * package's own 089 code, so a label printed before 096 is simply bag 1.
  */

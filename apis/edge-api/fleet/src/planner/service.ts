@@ -1,5 +1,3 @@
-// The planner (063, reshaped by 072) — the service that turns ready packages into a driver's day.
-
 import { collectionRunFor, endOfLocalDay, localDateParts, nextRunInstant, withTransaction, type Queryable } from "@effy/edge-shared";
 import { nonDeliveryDates } from "@effy/edge-shared/delivery";
 
@@ -20,37 +18,28 @@ import type { PlannedExclusion, PlannerSettings, WavePlan } from "./types";
 import { deadlineFor, groupByWindow } from "./windows";
 import { enqueueRoundsOpeningSoon } from "../shared/driver-push";
 
-/** What one pass did for one kind of work. */
 export interface KindOutcome {
   kind: "collection" | "delivery";
   considered: number;
   assigned: number;
   unassigned: number;
-  /**
-   * Unassigned packages whose round would ALREADY BE OPEN — the number an alarm should watch
-   * (research R12). A package readied at 20:00 for tomorrow's run with nobody on duty is unassigned
-   * and is not a failure; one whose run has opened and has nobody is.
-   */
+  /** Unassigned packages whose round would already be open: what the alarm watches. */
   unassignedPastOpening: number;
-  /** Set when the kind was not planned at all — and why. Null when it was. */
+  /** Why the kind was not planned; null when it was. */
   skippedReason: "no_active_collection_runs" | null;
-  /**
-   * 082 — collection only: parcels still at a supplier AFTER the run that would have reached the hub
-   * in time for their window. They are on this pass's run (or unassigned); the window is at risk.
-   */
+  /** Collection only: parcels still at a supplier after the run that would have made their window. */
   collectLate?: number;
 }
 
 export interface PassOutcome {
-  /** Set when the whole pass did nothing: another pass held the lock. */
+  /** Another pass held the lock. */
   skipped: "pass_in_progress" | null;
   collection: KindOutcome;
   delivery: KindOutcome;
-  /** Packages taken back from drivers who could not do them, or from a run that was removed. */
+  /** Taken back from drivers who could not do them, or from a removed run. */
   released: number;
-  /** Whether the standing "nobody can take this" facts changed. */
   reasonsChanged: boolean;
-  /** Drivers whose work changed. Their apps are told AFTER the pass has committed, by the caller. */
+  /** Told after the pass commits, by the caller. */
   driverIds: string[];
 }
 
@@ -63,28 +52,15 @@ const nothing = (kind: "collection" | "delivery"): KindOutcome => ({
   skippedReason: null,
 });
 
-/** Whether anything a screen shows changed — the caller announces only then. */
+/** The caller announces only then. */
 export function passChangedAnything(o: PassOutcome): boolean {
   return o.released > 0 || o.reasonsChanged || o.collection.assigned > 0 || o.delivery.assigned > 0;
 }
 
 /**
- * One planning pass: give every package a driver can take to a driver, now.
- *
- * ⚠ THERE IS NO PLANNING WINDOW ANY MORE (072). Until this feature a pass assigned collection work
- * only between `run − lead` and the run, and delivery work only from `window start − lead` — so a
- * package a shop finished at 09:00 for a 14:00 run had nobody's name on it until 13:15, and its
- * driver learned the shape of the run 45 minutes before it had to be finished. Every pass now
- * assigns. What stops a driver acting on a 14:00 run at 09:00 is no longer that they cannot see it;
- * it is that the round has not OPENED (`public.round_opens_at`, enforced in the driver service).
- *
- * ⚠ FIRST COME, FIRST SERVED (FR-009). Nothing here moves work that is already assigned. A driver
- * who clocks on at midday gets what becomes ready from midday; the morning's work stays with whoever
- * was given it. That imbalance was chosen over rebalancing, and a dispatcher can still move a round.
- *
- * ⚠ ONE TRANSACTION, UNDER ONE LOCK. Release, assign and record reasons either all happen or none
- * do, and two passes cannot interleave — which is what makes "find this driver's round for the run,
- * or create it" safe without a unique index (research R4).
+ * One pass: every package a driver can take goes to a driver now; the round's opening time stops early
+ * action. First come, first served: nothing assigned is moved. Release, assign and record reasons in
+ * one transaction under one lock, which makes "find or create this driver's round" safe.
  */
 export async function runPass(now = new Date()): Promise<PassOutcome> {
   return withTransaction(async (tx: Queryable) => {
@@ -102,15 +78,15 @@ export async function runPass(now = new Date()): Promise<PassOutcome> {
     const { runs, settings } = await loadSchedule(tx);
     const driverIds = new Set<string>();
 
-    // 1. Work nobody can do goes back first, so the rest of this pass can place it.
+    // 1. Work nobody can do goes back first, so this pass can place it.
     const release = await releaseUnworkable(tx, runs);
     for (const id of release.driverIds) driverIds.add(id);
 
-    // 2. Collection — everything ready at a shop, for the next run.
+    // 2. Collection: everything ready at a shop, for the next run.
     const collection = await planCollection(tx, runs, settings, now);
     for (const id of collection.driverIds) driverIds.add(id);
 
-    // 3. Same-day delivery — everything at the hub, per window.
+    // 3. Delivery: everything at the hub, per window.
     const delivery = await planDelivery(tx, settings, now);
     for (const id of delivery.driverIds) driverIds.add(id);
 
@@ -118,7 +94,7 @@ export async function runPass(now = new Date()): Promise<PassOutcome> {
     const collectionReasons = await replaceExclusions(tx, "collection", collection.exclusions);
     const deliveryReasons = await replaceExclusions(tx, "delivery", delivery.exclusions);
 
-    // 5. Backlog D2 — tell drivers whose round opens in the next few minutes.
+    // 5. Tell drivers whose round opens in the next few minutes.
     await enqueueRoundsOpeningSoon(tx, now);
 
     return {
@@ -138,7 +114,6 @@ interface Planned {
   driverIds: string[];
 }
 
-/** Is a round with this opening time already workable? */
 const isOpen = (opensAt: Date | null, now: Date) => opensAt === null || opensAt.getTime() <= now.getTime();
 
 async function planCollection(
@@ -147,21 +122,15 @@ async function planCollection(
   settings: PlannerSettings,
   now: Date,
 ): Promise<Planned> {
-  // ⚠ WHICH RUN, NOT WHETHER (research R2). The next run whose time has not passed — today's, or
-  // tomorrow's first once today's last has gone. A package readied a minute before a run still
-  // targets it, fails every driver's deadline gate, and moves to the next run on the pass after.
+  // Which run: the next one not passed. A package readied just before a run fails the deadline gate and moves on next pass.
   const deadlineAt = nextRunInstant(runs, now);
   if (deadlineAt === null) {
-    // ⚠ Not an error. A platform with no collection runs configured has no rounds, and inventing a
-    // deadline would put work on a van nobody scheduled.
+    // No collection runs configured: no rounds.
     return { outcome: { ...nothing("collection"), skippedReason: "no_active_collection_runs" }, exclusions: [], driverIds: [] };
   }
 
-  // ⚠ 082 — NOT BEFORE IT NEEDS TO. An Effy parcel sold a window travels on the LATEST run that still
-  // reaches the hub in time (`collectionRunFor`): chilled goods stay at the supplier, and the hub holds
-  // as little as it can. It is taken from the run it is due on, and from every run after if it was
-  // missed — never from an earlier one. A courier parcel via the hub, and a parcel sold no window, go
-  // on the next run as they always did.
+  // An Effy parcel sold a window travels on the latest run that still makes it (`collectionRunFor`), and
+  // on every later run if missed. Courier parcels via the hub and windowless parcels take the next run.
   const ready = await gatherCollectionWork(tx);
   const calendar = { noWeekdays: settings.noDeliveryWeekdays, noDates: await nonDeliveryDates(tx, isoDateOf(now, -8)) };
   let collectLate = 0;
@@ -193,10 +162,7 @@ async function planCollection(
   return { ...done, outcome: { ...done.outcome, collectLate } };
 }
 
-/**
- * The run an Effy parcel sold a window is DUE on; null = no rule applies (the next run).
- * Exported for the dispatch day view, which must call a parcel "late" by the planner's own rule.
- */
+/** The run an Effy parcel with a window is due on; null means the next run. Used by the dispatch day view too. */
 export function dueRun(
   p: { deliveredBy: "effy" | "courier"; windowStart: Date | null },
   runs: Awaited<ReturnType<typeof loadSchedule>>["runs"],
@@ -207,26 +173,14 @@ export function dueRun(
   return collectionRunFor(p.windowStart, runs, settings.hubTurnaroundMin, calendar);
 }
 
-/** yyyy-mm-dd of the local date `offsetDays` from `at`. */
 export function isoDateOf(at: Date, offsetDays = 0): string {
   const { year, month, day } = localDateParts(at);
   return new Date(Date.UTC(year, month - 1, day + offsetDays, 12)).toISOString().slice(0, 10);
 }
 
 /**
- * Effy delivery over whatever has reached the hub and is due today — one plan per delivery window.
- *
- * ⚠ 082 — ONLY WINDOWS WHOSE DAY HAS COME (`gatherDeliveryWork(…, end of today)`). A parcel for a later
- * day is at the hub and on no round until that day's first pass.
- *
- * ⚠ ONE PLAN PER WINDOW (069), ASSIGNED AT ONCE (072). A customer is sold a window, so each window's
- * packages are planned together against the window's END. Until 072 they then waited at the hub,
- * unassigned, until the lead time before the window; they are now assigned on the next pass after
- * check-in and the ROUND waits instead — visible to its driver, and refused until it opens, so
- * nobody is sent to a customer's door three hours early.
- *
- * Packages with no window — orders placed before 069 — are planned against the end of the day and
- * are open immediately, exactly as before.
+ * One plan per window whose day has come, against the window's end, assigned at once; the round
+ * waits for its opening time. Windowless packages are planned against the end of the day.
  */
 async function planDelivery(tx: Queryable, settings: PlannerSettings, now: Date): Promise<Planned> {
   const packages = await gatherDeliveryWork(tx, null, endOfLocalDay(now));
@@ -234,15 +188,13 @@ async function planDelivery(tx: Queryable, settings: PlannerSettings, now: Date)
   if (packages.length === 0) return total;
 
   const endOfDay = endOfLocalDay(now);
-  // Earliest window first, so the earliest window gets first call on drivers.
+  // Earliest window first gets first call on drivers.
   for (const group of groupByWindow(packages)) {
     const deadlineAt = deadlineFor(group, now, endOfDay);
-    // ⚠ A window that has ALREADY CLOSED is delivered late against the end of the day (069), and
-    // such a round has no window to wait for: it belongs with the windowless work and is open now.
+    // A window already closed is delivered late against the end of the day, open now.
     const windowStartAt = group.windowEnd !== null && deadlineAt.getTime() === group.windowEnd.getTime() ? group.windowStart : null;
 
-    // Candidates are re-read per window: a driver given the 5–7 pm round is carrying that load when
-    // the 7–9 pm round is planned in the same pass.
+    // Candidates are re-read per window, carrying the load just given.
     const candidates = await loadCandidates(tx);
     const rounds = await loadBucketRounds(tx, "delivery", deadlineAt, windowStartAt);
     const opensAt = await roundOpensAt(tx, "delivery", deadlineAt, windowStartAt);

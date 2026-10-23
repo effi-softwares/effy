@@ -5,14 +5,14 @@ module "shared" {
 }
 
 provider "aws" {
-  # The ONLY placement knob — relocating this env is a tfvars change (research.md D7).
+  # The only placement knob — relocating this env is a tfvars change (research.md D7).
   region = var.aws_region
 
   # Wrong-account guard (research.md D8): if the resolved `ef` credentials point at a
   # different account, Terraform errors before touching anything.
   allowed_account_ids = [var.aws_account_id]
 
-  # Uniform tagging on every resource (FR-021, SC-009).
+  # Uniform tagging on every resource.
   default_tags {
     tags = module.shared.base_tags
   }
@@ -20,8 +20,8 @@ provider "aws" {
 
 # ── 086 — us-east-1, for the two things CloudFront allows nowhere else ─────────────────────────
 #
-# ⚠ THE ONE REGION LITERAL THIS ROOT PERMITS (CLAUDE.md, Decisions locked): a certificate behind
-# CloudFront MUST live in us-east-1, and CloudFront publishes its metrics ONLY there — so its alarms,
+# the one region literal this root permits (claude.md, Decisions locked): a certificate behind
+# CloudFront must live in us-east-1, and CloudFront publishes its metrics only there — so its alarms,
 # and the topic they notify, live there too (media.tf). Everything else stays on var.aws_region.
 provider "aws" {
   alias  = "us_east_1"

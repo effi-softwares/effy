@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * Catalog use cases (019 US1). Thin domain operations the ViewModel depends on — the repository is never
+ * Catalog use cases. Thin domain operations the ViewModel depends on — the repository is never
  * reached directly from presentation (Principle VI).
  */
 
@@ -40,7 +40,7 @@ class SearchProducts(private val repo: CatalogRepository) {
     )
 }
 
-/** The available facets + counts for a query + applied filters (043 US2). */
+/** The available facets + counts for a query + applied filters. */
 class GetFacets(private val repo: CatalogRepository) {
     suspend operator fun invoke(
         query: String,

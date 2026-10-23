@@ -6,15 +6,15 @@ import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 
 /**
- * Android product analytics via the PostHog SDK (050 US2). Injected into
+ * Android product analytics via the PostHog SDK. Injected into
  * [com.effyshopping.customer.mobile.app.AppContainer] by the Android entry point; iOS keeps
  * [NoOpAnalyticsDriver] until its Swift bridge lands.
  *
- * ⚠ CONSENT-GATED: [init] is called only after the customer consents (AppContainer.setAnalyticsConsent
- * / startObservability). ⚠ NO PII: association by [identify] `sub` only; event props are ids/enums.
+ * Consent-gated: [init] is called only after the customer consents (AppContainer.setAnalyticsConsent
+ * / startObservability). No PII: association by [identify] `sub` only; event props are ids/enums.
  *
- * Config choices (R11): autocapture/screen-views OFF (we emit typed [AnalyticsEvent]s ourselves),
- * lifecycle events OFF, **session replay OFF**. Empty key ⇒ never initialised (no-op).
+ * Config choices: autocapture/screen-views off (we emit typed [AnalyticsEvent]s ourselves),
+ * lifecycle events off, **session replay off**. Empty key ⇒ never initialised (no-op).
  */
 class PostHogAnalyticsDriver(
     private val context: Context,

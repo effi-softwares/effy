@@ -9,9 +9,8 @@ import { SequenceActionError, waiveSequence } from "../sequence/service";
 import { denied, guard } from "../shared/handler-support";
 
 /**
- * POST /fleet/v1/dispatch/rounds/{id}/waive-sequence (093) — let one run skip the cross-run gate
- * (load while still holding collected or to-return parcels; collect with deliveries open), with a
- * reason. For a driver whose phone failed at the hub, not a way round the order of work.
+ * Lets one run skip the cross-run gate, with a reason: for a driver whose phone failed at the hub, not
+ * a way round the order of work.
  */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);

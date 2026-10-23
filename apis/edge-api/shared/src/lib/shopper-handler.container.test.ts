@@ -7,12 +7,8 @@ import { ConnectionLimitError, isConnectionLimit } from "./db";
 import { shopperHandler } from "./shopper-handler";
 
 /**
- * 070 FR-030 — the shopper connection limit, proven against a real database.
- *
- * The whole design rests on one fact: when a ROLE's connection limit is reached, Postgres refuses
- * the next connection with SQLSTATE 53300, immediately. If a future Postgres or driver reported it
- * differently, shoppers would get an opaque 500 and nobody would know the limit was the cause. This
- * exhausts a real role's limit and follows the refusal all the way to the 503.
+ * The shopper connection limit against a real database: Postgres must refuse with sqlstate 53300, and
+ * the refusal must reach the caller as a 503.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;

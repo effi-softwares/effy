@@ -1,12 +1,6 @@
 /**
- * 071 / 074 — tell open apps that a customer's points changed.
- *
- * ⚠ THE FOURTH PLACE A CUSTOMER'S UPDATE IS BUILT, and the only one for points
- * (customer-announce.guard.test.ts). The other three decide from an ORDER so they can never reveal a
- * shop; this one decides from the customer's own ledger, in which no shop appears, and carries only the
- * word `points` (research R7).
- *
- * ⚠ AFTER THE COMMIT, and it never throws — the same contract as `announce`.
+ * Tells open apps a customer's points changed. The one customer update not built from an order: the
+ * ledger names no shop and the update carries only `points`. After the commit; never throws.
  */
 import { pooled, type Queryable } from "../lib/db";
 import { logger } from "../lib/logger";

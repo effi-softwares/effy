@@ -1,14 +1,14 @@
 "use client"
 
 /**
- * Transient feedback (025 US4 / FR-034, FR-039).
+ * Transient feedback.
  *
- * ⚠ Why not `sonner`, which this repo already depends on: it is forbidden on the guest path
+ * Why not `sonner`, which this repo already depends on: it is forbidden on the guest path
  * (contracts/customer-ui.contract.md §1) because every public route has a measured byte budget. The
  * primitive stays the platform standard on authenticated routes and both consoles; here it is ~40
  * lines against the same `useSyncExternalStore` pattern `cart-store.ts` established.
  *
- * ⚠ AT MOST ONE action per toast (FR-034). A transient message with two competing choices is a
+ * At most one action per toast. A transient message with two competing choices is a
  * decision the shopper has no time to make.
  */
 import { useSyncExternalStore } from "react"

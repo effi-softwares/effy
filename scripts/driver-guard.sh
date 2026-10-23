@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 092 driver guard — the redesign's rules for apps/driver-mobile, made build-failing (research R3).
+# Driver guard — the redesign's rules for apps/driver-mobile, made build-failing.
 #
-#   1. NO COLOUR LITERAL IN A SCREEN. Colours come from the theme (MaterialTheme.colorScheme / EffyRoles),
-#      generated from the storefront file; a Color(0x…) in a screen is a second palette.
-#   2. NO RED, NO ORANGE. The storefront identity says a problem with black and an icon (v3.5.0).
-#   3. COUNTS, NEVER MONEY. No currency on any driver screen.
-#   4. NO MAP TAB, NO ACTIVITY FEED. Removed by the redesign (E1, E4); they must not come back by accident.
+# 1. No colour literal in a screen. Colours come from the theme (MaterialTheme.colorScheme / EffyRoles),
+# generated from the storefront file; a Color(0x…) in a screen is a second palette.
+# 2. No red, no orange. The storefront identity says a problem with black and an icon (v3.5.0).
+# 3. Counts, never money. No currency on any driver screen.
+# 4. No map tab, no activity feed. Removed by the redesign; they must not come back by accident.
 #
 # Run: scripts/driver-guard.sh
 set -euo pipefail

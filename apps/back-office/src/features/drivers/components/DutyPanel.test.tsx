@@ -37,15 +37,8 @@ function renderPanel() {
 }
 
 /**
- * ⚠ NP11 — ONE OF THE TWO PROOFS THAT OTHERWISE LEAVE A GREEN SUITE AND A FEATURE THAT LOOKS RIGHT.
- *
- * `expectedEndAt` is optional by design (FR-032). The whole point of FR-033 is that its ABSENCE is
- * reported as unknown rather than replaced with an assumed shift length — because the dispatch slice
- * will read this value to decide whether a driver can finish a round before they go home, and a
- * guess dressed as a fact is decided on somebody's evening.
- *
- * A default would be invisible: the screen would look complete, every other test would pass, and the
- * only symptom would be drivers occasionally being given work they cannot finish.
+ * `expectedEndAt` is optional, and its absence is said as unknown, never replaced by an assumed shift
+ * length: dispatch reads it to decide whether a driver can finish a round.
  */
 describe("DutyPanel — an unknown finish time is SAID, never invented", () => {
   it("⚠ renders 'unknown' when the driver did not say, and shows no time at all", async () => {
@@ -56,7 +49,7 @@ describe("DutyPanel — an unknown finish time is SAID, never invented", () => {
     renderPanel();
 
     expect(await screen.findByText(/Finish time unknown/)).toBeInTheDocument();
-    // ⚠ The negative half is the one that matters: no clock time may appear for this driver.
+    // The negative half is the one that matters: no clock time may appear for this driver.
     expect(screen.queryByText(/Expects to finish/)).not.toBeInTheDocument();
   });
 

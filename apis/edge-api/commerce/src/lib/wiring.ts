@@ -1,5 +1,3 @@
-// Module-scope wiring (cached singleton pattern — ARCHITECTURE.md): built once per container and
-// reused across warm invocations. No DI framework; the graph is this file, top to bottom.
 import { pooled } from "@effy/edge-shared";
 import { createRefundRepository, createRefundService, stripeGateway } from "@effy/edge-shared/payments";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
@@ -16,12 +14,11 @@ import { createSavedRepository } from "../saved/repository";
 import { createSavedService } from "../saved/service";
 import { createWebhookHandler } from "../webhook/handler";
 
-/** The order rules, read fresh on each use: a change in back-office must apply to the next cart. */
+/** Read fresh on each use, so a back-office change applies to the next cart. */
 export const cartPolicy = () => loadCartPolicy(pooled);
 
 export const cartService = createCartService({ repo: createCartRepository(), policy: cartPolicy });
 
-// Bulk add-to-cart calls the cart in-process: one rule for what may enter a cart, not two.
 export const savedService = createSavedService({
   repo: createSavedRepository(),
   addToCart: (customerId, variantId, changeId, quantity) => cartService.add(customerId, variantId, changeId, quantity),
@@ -30,8 +27,7 @@ export const savedService = createSavedService({
 export const checkoutStore = createCheckoutStore();
 export const deliveryQuoter = defaultQuoter();
 
-// 094 — the SAME engine the cart read prices with: the cart and the charge cannot disagree. The code
-// is the one the shopper entered on their cart.
+// The same engine the cart prices with, so the cart and the charge cannot disagree.
 const promos: PromoSource = async ({ customerId, lines, deliveryType, deliveryFeeCents, now, excludeOrderId }) =>
   pricePromotionsFor(pooled, {
     customerId,
@@ -43,10 +39,7 @@ const promos: PromoSource = async ({ customerId, lines, deliveryType, deliveryFe
     excludeOrderId: excludeOrderId ?? null,
   });
 
-/**
- * What a delivery quote is built from. ⚠ It takes the promotion too (077): free delivery and the
- * small-order fee are judged on the basket AFTER it, and the quote must judge as the charge will.
- */
+/** Takes the promotion too: free delivery and the small-order fee are judged on the discounted basket. */
 export const quoteDeps = { store: checkoutStore, quoter: deliveryQuoter, promos };
 
 export const checkoutService = createCheckoutService({
@@ -58,13 +51,11 @@ export const checkoutService = createCheckoutService({
   publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
 });
 
-// Refunds, cancellation and refund requests. The rules are the shared module's; this service only
-// exposes the customer's own routes into them, the provider's reports, and the reconciler.
 export const refundService = createRefundService({ repo: createRefundRepository(), gateway: stripeGateway });
 
 export const handleWebhook = createWebhookHandler({
   gateway: stripeGateway,
-  // Applied on the webhook's own transaction, so the event is recorded only if this succeeded.
+  // On the webhook's transaction, so the event is recorded only if this succeeds.
   refunds: async (tx, evt) => {
     await refundService.handleRefundEvent(tx, evt);
   },

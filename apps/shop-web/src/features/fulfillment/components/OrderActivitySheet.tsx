@@ -15,12 +15,8 @@ import { formatWhen } from "../orderConsole"
 import { orderActivityQuery } from "../queries"
 
 /**
- * The order's Activity sheet (057 A3 revision 2) — the design's `orderActivity` side sheet: right-hand,
- * full height, ~440px, a close button in its header, no footer. Its body is the order's log only —
- * product stats and the product change log belong to product detail's own sheet and never appear here.
- *
- * ⚠ READ ONLY WHEN OPEN — the page does not pay for a history nobody asked to see; every write
- * invalidates it.
+ * The order's Activity sheet: right-hand, full height, ~440px, no footer; the order's log only. Read only
+ * when open; every write invalidates it.
  */
 export function OrderActivitySheet({
   fulfillmentId,
@@ -54,7 +50,7 @@ export function OrderActivitySheet({
             <ol className="grid gap-0.5">
               {log.data.entries.map((e) => (
                 <li key={e.id} className="border-border flex items-start gap-[11px] border-t py-[11px]">
-                  {/* ⚠ The dot: the platform's error colour for something the customer will not get
+                  {/* The dot: the platform's error colour for something the customer will not get
                       (the design's destructive dot), the foreground for a decision, muted for routine
                       progress. No third hue — the title always says which. */}
                   <span

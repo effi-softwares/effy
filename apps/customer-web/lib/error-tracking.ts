@@ -5,19 +5,11 @@ import type { PostHog } from "posthog-js"
 import { posthogConfig, telemetryEnabled } from "@/lib/config"
 
 /**
- * Web error tracking — 050 US1 (FR-002), and DELIBERATELY SEPARATE from analytics.
- *
- * ⚠ TWO PROPERTIES that make this correct and cheap:
- *
- *  1. INDEPENDENT OF ANALYTICS CONSENT (spec clarification Q1 / FR-023). A customer who declines
- *     analytics is still covered by crash/error reporting — it carries only the error message + a
- *     source tag (no PII, no behavioural events). It IS still gated by the platform kill switch
- *     (`telemetry/enabled`, FR-026).
- *
- *  2. IT NEVER TOUCHES THE GUEST CRITICAL PATH. posthog-js is imported DYNAMICALLY, and only when an
- *     error actually fires — so a healthy session downloads zero analytics bytes for this. It runs in
- *     its OWN NAMED instance ("effy_errors", memory persistence), so it can never collide with the
- *     consent-gated default instance in lib/telemetry.ts, regardless of which loads first.
+ * Web error tracking, separate from analytics:
+ *  1. Independent of analytics consent (it carries only the message and a source tag, no PII), but
+ *  gated by the platform kill switch (`telemetry/enabled`).
+ *  2. Off the guest critical path: posthog-js is imported only when an error fires, into its own named
+ *  instance ("effy_errors", memory persistence), so it never collides with lib/telemetry.ts's.
  */
 
 let errPh: PostHog | null = null

@@ -1,16 +1,10 @@
-/**
- * Account linking — the decision logic, kept free of the AWS SDK so it can be tested hard.
- *
- * The rule, in one line: ONE PERSON IS ONE `sub`, and we will only believe two identities are the
- * same person if the identity provider PROVES the email.
- */
+/** One person is one `sub`; two identities are linked only when the IdP proves the email. Free of the AWS SDK. */
 
 export interface CognitoAdmin {
-  /** Find a native (non-federated) profile by email. Returns its Cognito username, or null. */
+  /** A native (non-federated) profile's Cognito username, or null. */
   findNativeUserByEmail(userPoolId: string, email: string): Promise<string | null>
-  /** Create a native profile with NO password (keeps them passwordless-capable) and no invite. */
+  /** No password (stays passwordless-capable) and no invite. */
   createNativeUser(userPoolId: string, email: string): Promise<string>
-  /** Link a federated identity INTO a native profile. */
   linkProvider(input: {
     userPoolId: string
     destinationUsername: string
@@ -21,10 +15,10 @@ export interface CognitoAdmin {
 
 export interface FederatedSignUp {
   userPoolId: string
-  /** Cognito's name for the incoming federated user, e.g. "Google_1029384756". */
+  /** e.g. "Google_1029384756". */
   federatedUsername: string
   email: string | undefined
-  /** The IdP's assertion, as a string — Cognito passes attributes as strings. */
+  /** Cognito passes attributes as strings. */
   emailVerified: string | undefined
 }
 
@@ -33,7 +27,6 @@ export type LinkResult =
   | { outcome: "created-and-linked" }
   | { outcome: "refused"; reason: string }
 
-/** Split "Google_12345" into its provider and the provider's subject id. */
 export function parseFederatedUsername(
   username: string,
 ): { provider: string; sub: string } | null {
@@ -54,8 +47,7 @@ export async function linkFederatedIdentity(
     }
   }
 
-  // ── GATE 1 ─────────────────────────────────────────────────────────────────────────────────
-  // No email → nothing to match on. We do not guess.
+  // No email: nothing to match on.
   if (!input.email) {
     return {
       outcome: "refused",
@@ -63,13 +55,8 @@ export async function linkFederatedIdentity(
     }
   }
 
-  // ── GATE 2 — THE SECURITY CONTROL (FR-012). ────────────────────────────────────────────────
-  // The IdP must ASSERT that it verified this address. Without this, an attacker who registers a
-  // victim's email at a provider that does not check ownership can be linked into the victim's
-  // account and receive JWTs carrying the victim's `sub`.
-  //
-  // ⚠ If this fires for real Google users, the bug is a MISSING `email_verified` MAPPING on the
-  // Terraform identity provider — not this check. Do not relax it to "make sign-in work".
+  // The IdP must assert it verified the address, or an attacker could be linked into the victim's
+  // account. If real Google users fail here, the Terraform IdP's `email_verified` mapping is missing.
   if (input.emailVerified !== "true") {
     return {
       outcome: "refused",
@@ -80,11 +67,7 @@ export async function linkFederatedIdentity(
 
   const email = normaliseEmail(input.email)
 
-  // ── The link itself ────────────────────────────────────────────────────────────────────────
-  // ⚠ THE NATIVE PROFILE IS ALWAYS THE DESTINATION. That is what preserves `sub` across every
-  // credential route, and `sub` is the key of `public.customer`. If Cognito is ever allowed to
-  // auto-create the `Google_…` profile instead, that person becomes two accounts permanently —
-  // linking requires the federated user NOT to exist, so there is no merge afterwards.
+  // The native profile is always the destination: it preserves `sub`, and Cognito cannot merge afterwards.
   const existing = await admin.findNativeUserByEmail(input.userPoolId, email)
 
   const destinationUsername =
@@ -100,7 +83,6 @@ export async function linkFederatedIdentity(
   return { outcome: existing ? "linked-to-existing" : "created-and-linked" }
 }
 
-/** Cognito treats email as a case-insensitive alias; so do we, everywhere. */
 export function normaliseEmail(email: string): string {
   return email.trim().toLowerCase()
 }

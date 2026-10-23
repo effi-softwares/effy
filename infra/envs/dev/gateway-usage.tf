@@ -1,25 +1,15 @@
-# How full each API gateway is — alarmed long before it matters (075 FR-017).
+# How full each API gateway is, alarmed long before it matters. An HTTP API holds at most 300 routes and 300
+# integrations (the integration limit is not raised), the provider publishes no metric for either, and the
+# first sign of a full gateway is a deployment refused half-way.
 #
-# ⚠ THE FAILURE THIS PREVENTS HAS ALREADY HAPPENED ONCE. An HTTP API holds at most 300 routes and 300
-# integrations; the integration limit is one the provider does not raise. On 2026-10-08 the shared
-# gateway reached both, and the first sign was a deployment refused half-way. The provider publishes
-# no metric for either count, so nothing had been watching.
+# The admin service's hourly `gatewayUsage` function emits `GatewayUsagePercent` in `Effy/Platform` by
+# gateway and limit; each alarm watches the higher of a gateway's two readings. Two levels
+# (docs/api/path-assignment.md):
+# 75% — plan. There is room for roughly a feature or two. Decide what moves, before it is urgent.
+# 90% — stop adding routes to this gateway until something has moved.
 #
-# The number comes from the `gatewayUsage` function in the admin service, hourly: four series of
-# `GatewayUsagePercent` in `Effy/Platform`, by gateway and by limit. Each alarm below watches the
-# HIGHER of a gateway's two readings — they are equal while every function has one route, and it is
-# whichever is higher that refuses the deployment.
-#
-# ⚠ TWO LEVELS, AND THEY MEAN DIFFERENT THINGS (docs/api/path-assignment.md, "When a gateway nears
-# its ceiling"):
-#   75% — plan. There is room for roughly a feature or two. Decide what moves, before it is urgent.
-#   90% — stop adding routes to this gateway until something has moved.
-#
-# ⚠ Missing data is NOT breaching: an hour without a reading is not a full gateway. The check
-# stopping is a different fault with its own alarm — the function's failed-invocation alarm in
-# background-functions.tf — so silence here never has to mean two things.
-#
-# ⚠ No `ok_actions`: a gateway dropping back under a line is the result of work someone just did.
+# Missing data is not breaching (the check stopping has its own alarm in background-functions.tf). No
+# `ok_actions`.
 
 locals {
   gateway_usage_levels = {

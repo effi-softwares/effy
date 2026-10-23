@@ -1,100 +1,67 @@
 /**
- * 055-refunds-cancellation — returning money.
- *
- * ⚠ TWO AUDIENCES, TWO SHAPES, DELIBERATELY. [RefundDTO] is what STAFF see; [CustomerRefundDTO] is
- * smaller and is not a subset by accident. A customer cannot act on the difference between "we have
- * not heard from the provider" and "the provider has it", and whether a refund was *refused* rather
- * than *failed* is our problem, not theirs. Collapsing the two shapes into one would put a payment
- * provider's failure text on a shopper's order page.
+ * Returning money. Two shapes: [RefundDTO] for staff and the smaller [CustomerRefundDTO], so a
+ * provider's failure text never reaches a shopper's order page.
  */
 
 import type { WireInt } from "./cart"
 
 /**
- * How the amount was arrived at.
- *
- * ⚠ `item` amounts are COMPUTED from the selected order lines and are never accepted from a client —
- * if a caller could send an amount beside a line selection the two could disagree, and the record
- * would then claim a refund covered items it did not. `goodwill` exists so the honest case for an
- * untied amount (a late delivery) does not have to borrow a line and put a false statement in the
- * audit trail.
+ * How the amount was arrived at. `item` amounts are computed from the selected lines, never accepted
+ * from a client; `goodwill` covers an untied amount (a late delivery) without borrowing a line.
  */
 export type RefundKind =
   | "item"
   | "goodwill"
-  /**
-   * ⚠ ITS OWN KIND, not a goodwill refund with a telling note. Cancelling returns the WHOLE remaining
-   * amount including delivery, and names no lines — so structurally it looks like goodwill. But the
-   * kind is what staff read, and "Goodwill" describes a gesture the business did not make.
-   */
+  /** Its own kind: the whole remaining amount including delivery, naming no lines ("Goodwill" would describe a gesture not made). */
   | "cancellation"
   /**
-   * ⚠ A refund THE PLATFORM DID NOT ISSUE — returned by hand in the payment provider's own dashboard,
-   * which is a real thing that happens during an incident. It is recorded rather than discarded
-   * (FR-010): dropping it would leave the order claiming money it no longer holds, the ceiling wrong,
-   * and the same money refundable a second time. It has no lines and no Effy actor, because the
-   * platform genuinely does not know either.
+   * A refund the platform did not issue, made by hand in the provider's dashboard. Recorded, so the
+   * order does not claim money it no longer holds. No lines and no Effy actor.
    */
   | "external"
 
 /**
- * Why money was returned — ⚠ EFFY'S vocabulary, not the payment provider's.
- *
- * The provider offers three values describing a payments concern; the business needs to tell "never
- * supplied" from "arrived unusable" from "cancelled" from "goodwill", all of which map to its
- * `requested_by_customer`. Storing only theirs would make our own reporting answer "why do we refund?"
- * with "because customers asked".
- *
- * ⚠ The provider's `fraudulent` is NEVER sent: its documentation states it adds the payer's card and
- * email to a block list — a consequence for a person beyond this order, decided in a console with no
- * review step.
+ * Why money was returned, in Effy's vocabulary (the provider's `requested_by_customer` covers all of
+ * them). The provider's `fraudulent` is never sent: it block-lists the payer's card and email.
  */
 export type RefundReason =
   | "item_not_supplied"
   | "item_unusable"
   | "order_cancelled"
   | "goodwill"
-  /** Pairs with the `external` kind: the platform knows money moved and nothing else about why. */
+  /** Pairs with the `external` kind: money moved and nothing else is known. */
   | "external"
 
-/**
- * ⚠ FIVE states, because each is a different answer to the only question anyone asks about a refund:
- * **did the money go?** (FR-005f)
- *
- * Collapsing `submitting`/`submitted` loses whether a retry is safe; collapsing `failed`/`refused`
- * loses whether retrying could ever help.
- */
+/** Five states, each a different answer to "did the money go?": `submitting`/`submitted` says whether a retry is safe, `failed`/`refused` whether retrying could help. */
 export type RefundStatus =
-  /** We have no answer from the provider yet. No money is on its way, and this does NOT count toward
-   *  what has been refunded (FR-005e). */
+  /** No answer from the provider yet; does not count toward what has been refunded. */
   | "submitting"
   /** The provider has it; the bank does not yet. */
   | "submitted"
   | "succeeded"
-  /** ⚠ The bank rejected it — possibly WEEKS later. The order must stop claiming money was returned. */
+  /** The bank rejected it, possibly weeks later; the order must stop claiming money was returned. */
   | "failed"
-  /** The provider would not accept the request at all. Terminal: retrying a decision cannot change it. */
+  /** The provider would not accept the request. Terminal. */
   | "refused"
 
-/** One refund, as STAFF see it. */
+/** One refund, as staff see it. */
 export interface RefundDTO {
   id: string
   kind: RefundKind
   amount: string
   reason: RefundReason
   status: RefundStatus
-  /** ⚠ The provider's own words, for staff only. NEVER shown to a customer. */
+  /** The provider's own words, for staff only. */
   failureReason: string | null
   note: string | null
-  /** Which lines it covered. Empty for a goodwill refund — it names none. */
+  /** Which lines it covered; empty for goodwill. */
   lines: RefundLineDTO[]
-  /** ⚠ 057: which pool the actor came from. See [RefundActorKind] — without it a shop-issued refund
-   *  is indistinguishable from an unattributable one. */
+  /** Which pool the actor came from ([RefundActorKind]). */
   actorKind: RefundActorKind
   actorLabel: string | null
   createdAt: string
   settledAt: string | null
-  /** 074 — present only when part of this refund came back as points: the card part, and the points. */
+  /** Present only when part came back as points: the card part and the points. */
   cardAmount?: string
   pointsReturned?: WireInt
 }
@@ -106,30 +73,18 @@ export interface RefundLineDTO {
   amount: string
 }
 
-/**
- * One refund, as the CUSTOMER sees it.
- *
- * ⚠ THREE states, not five, and no failure text. "Your bank rejected the refund" invites a shopper to
- * argue with a message they cannot act on, and the difference between `submitting` and `submitted` is
- * a fact about our integration.
- */
+/** One refund as the customer sees it: three states, no failure text. */
 export interface CustomerRefundDTO {
   amount: string
   state: "on_its_way" | "completed" | "there_was_a_problem"
   refundedAt: string | null
 }
 
-// ── Requests (US3) ──────────────────────────────────────────────────────────────────────────────
+// Requests
 
 export type RefundRequestStatus = "open" | "refunded" | "declined"
 
-/**
- * A customer's ask.
- *
- * ⚠ IT IS NOT A REFUND. It carries no amount and no provider reference, and it moves no money
- * (FR-005r). It replaces "email support and hope" — today "Get help" opens a generic feedback form
- * with no order reference attached. ⚠ Deliberately NOT a message thread: one statement, one outcome.
- */
+/** A customer's ask: no amount, no provider reference, no money moved. One statement, one outcome, not a thread. */
 export interface RefundRequestDTO {
   id: string
   message: string
@@ -140,17 +95,11 @@ export interface RefundRequestDTO {
   decidedAt: string | null
 }
 
-// ── Proposals (FR-004a) ─────────────────────────────────────────────────────────────────────────
+// Proposals
 
 /**
- * A refund the platform has drafted from evidence it already holds — today, a pick shortfall.
- *
- * ⚠ NOT A REFUND UNTIL SOMEONE ISSUES IT, and dismissable. The platform has its own staff's evidence
- * that a customer paid for something they did not receive, so making them ask for it is the failure
- * G3 describes — but a payment triggered by a warehouse tap has no second pair of eyes.
- *
- * ⚠ DERIVED, never stored: a proposal is a view of a shortfall, and storing it means it can go stale
- * when a picker corrects a quantity.
+ * A refund the platform drafted from its own evidence (a pick shortfall). Not a refund until someone
+ * issues it, and dismissable. Derived, never stored.
  */
 export interface ProposedRefundDTO {
   orderItemId: string
@@ -160,9 +109,9 @@ export interface ProposedRefundDTO {
   reason: RefundReason
 }
 
-// ── Write bodies ────────────────────────────────────────────────────────────────────────────────
+// Write bodies
 
-/** ⚠ Carries NO amount. The amount is computed from the lines and a client-supplied one is REJECTED. */
+/** Carries no amount: it is computed from the lines, and a client-supplied one is rejected. */
 export interface IssueItemRefundRequest {
   kind: "item"
   lines: { orderItemId: string; quantity: WireInt }[]
@@ -170,7 +119,7 @@ export interface IssueItemRefundRequest {
   note?: string
 }
 
-/** ⚠ `note` is REQUIRED — the database refuses a goodwill refund without one (FR-003c). */
+/** `note` is required (the database refuses goodwill without one). */
 export interface IssueGoodwillRefundRequest {
   kind: "goodwill"
   amount: string
@@ -179,68 +128,32 @@ export interface IssueGoodwillRefundRequest {
 
 export type IssueRefundRequest = IssueItemRefundRequest | IssueGoodwillRefundRequest
 
-/**
- * ⚠ NO DESTINATION FIELD, AND THERE MUST NEVER BE ONE. The refund goes to the payment method on the
- * order (FR-006). A request that could name where the money goes would be a way to redirect somebody
- * else's (A4).
- */
+/** No destination field, ever: the refund goes to the order's payment method. */
 export interface CreateRefundRequestBody {
   items: { orderItemId: string; quantity: WireInt }[]
   message: string
-}
-
-export interface DeclineRefundRequestBody {
-  outcomeNote: string
-}
-
-export interface DismissProposalBody {
-  orderItemId: string
-  reason: string
 }
 
 export interface CancelOrderBody {
   reason?: string
 }
 
-// ── 057-shop-console-redesign: a shop may refund its own portion ────────────────────────────────
+// A shop may refund its own portion
 
 /**
- * Who issued a refund.
- *
- * ⚠ THIS TYPE DID NOT EXIST BEFORE 057, AND ITS ABSENCE WAS A DEFECT. `public.refund` has carried
- * `actor_kind` since 055 and no DTO ever exposed it — only `actorLabel`, a name resolved by a LEFT
- * JOIN against `admin.staff`. That join answers for `back_office` and for nothing else, so the moment
- * a shop can issue a refund, every shop-issued refund renders in back-office as "—": unattributable,
- * with no signal that anything is missing. The table's own comment says an unattributable staff
- * refund "is the audit gap this table exists to close."
- *
- * ⚠ `system` means NOBODY AT EFFY DID THIS — it arrived from the provider unattributed, and is the
- * only kind permitted a null label.
+ * Who issued a refund. `system` means nobody at Effy did it (the provider reported it unattributed), the
+ * only kind allowed a null label.
  */
 export type RefundActorKind = "back_office" | "customer" | "shop" | "system"
 
 /**
- * What a shop manager sends to refund their own portion of an order (US5).
- *
- * ⚠ IT NAMES LINES, NEVER AN AMOUNT — the same rule [IssueItemRefundRequest] holds to, for the same
- * reason: if a caller could send an amount beside a line selection the two could disagree, and the
- * record would claim a refund covered items it did not.
- *
- * ⚠ AND IT CANNOT NAME ANOTHER SHOP'S LINES. The server intersects the requested lines with the
- * portion the caller's own shop is fulfilling and refuses the request outright if anything falls
- * outside it — never silently dropping the excess, which is 055's own `orderItemId` lesson (a join
- * that matches nothing does not error, it just refunds less than the operator asked for).
+ * What a shop manager sends to refund their own portion: lines, never an amount. A line outside the
+ * caller's shop portion refuses the whole request rather than being dropped.
  */
 export interface ShopRefundRequest {
   lines: { orderItemId: string; quantity: WireInt }[]
   reason: Extract<RefundReason, "item_not_supplied" | "item_unusable">
   note?: string
-  /**
-   * Return the refunded units to this shop's stock.
-   *
-   * ⚠ Defaults to FALSE, and the default is the honest one. 055 settled that stock returns only
-   * happen "where the platform can know it should" — inventing stock is worse than not returning it.
-   * A shop refunding an unusable item usually has nothing to put back on the shelf.
-   */
+  /** Return the refunded units to this shop's stock. Defaults to false: inventing stock is worse than not returning it. */
   restock?: boolean
 }

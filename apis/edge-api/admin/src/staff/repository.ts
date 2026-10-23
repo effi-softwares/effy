@@ -1,12 +1,9 @@
-// Repository layer for the staff/RBAC system of record: raw parameterized SQL + explicit
-// row → domain mapping (Principle VI, no ORM). Reads/writes only platform-owned admin-schema
-// objects (FR-021).
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
 import { KNOWN_ROLES, type BackOfficeRole, type StaffRecord, type StaffStatus } from "./types";
 
-// Wire shape of the staff read — internal, never exported. role_keys aggregates staff_role.
+// role_keys aggregates staff_role.
 interface StaffRow {
   cognito_sub: string;
   email: string;
@@ -24,8 +21,7 @@ SELECT s.cognito_sub, s.email, s.status, s.last_seen_at,
  GROUP BY s.id
 `;
 
-// JIT provisioning (FR-019): create/refresh the staff row + reconcile roles from the token, in
-// ONE transaction. Idempotent on cognito_sub — concurrent first contact yields exactly one row.
+// Creates or refreshes the staff row and reconciles roles from the token in one transaction; idempotent on cognito_sub.
 export async function upsertOnContact(
   sub: string,
   email: string,
@@ -47,7 +43,6 @@ export async function upsertOnContact(
     const staffId = up.rows[0]?.id;
     if (!staffId) throw new Error("staff: upsert returned no id");
 
-    // Reconcile to exactly `desired`: drop roles no longer held, add missing ones.
     await client.query(
       `DELETE FROM admin.staff_role WHERE staff_id = $1 AND role_key <> ALL($2::text[])`,
       [staffId, desired],
@@ -71,8 +66,7 @@ async function readById(client: PoolClient, staffId: string): Promise<StaffRow> 
   return row;
 }
 
-// Authorization decision from the platform record (FR-020): active AND holds the admin role.
-// A disabled row is denied even with a valid admin token (SC-012).
+// Active and holds the admin role; a disabled row is denied even with a valid admin token.
 export async function authorizeAdmin(sub: string): Promise<boolean> {
   const res = await query<{ ok: boolean }>(
     `SELECT EXISTS (

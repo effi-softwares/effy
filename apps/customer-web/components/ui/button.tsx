@@ -7,12 +7,12 @@ import { clsx } from "clsx"
 /**
  * The storefront Button (reference: shadcn · Actions · Button).
  *
- * ⚠ ONE SOURCE OF BUTTON SHAPE. The classes come from `btnClass` in `components/storefront/actions` —
+ * One source of button shape. The classes come from `btnClass` in `components/storefront/actions`
  * the same function every link-styled-as-a-button uses — so a `<Button>` and an `<ActionLink>` can
  * never be two slightly different buttons. This component only translates shadcn's prop vocabulary.
  *
- * ⚠ Not the console's Button (`@effy/design-system/ui`): that one is shaped and coloured by the
- * console identity, and several of its variants name tokens the storefront theme does not declare —
+ * Not the console's Button (`@effy/design-system/ui`): that one is shaped and coloured by the
+ * console identity, and several of its variants name tokens the storefront theme does not declare
  * under Tailwind v4 those render as nothing, silently.
  */
 const VARIANT: Record<string, BtnVariant> = {

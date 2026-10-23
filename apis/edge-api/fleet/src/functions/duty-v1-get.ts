@@ -1,5 +1,3 @@
-// GET /fleet/v1/duty — who is working right now, and what is waiting (056 US4, FR-034…FR-036).
-// Read = any active back-office staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

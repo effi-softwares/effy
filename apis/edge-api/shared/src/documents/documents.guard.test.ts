@@ -5,11 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 096 — the documents' one writers.
- *   1. `product.gst_status` changes only through `setGstStatus` (documents/gst-status.ts), which writes
- *      the history row in the same statement — a status nobody can explain cannot exist.
- *   2. `product_gst_change` is written only there, and never updated or deleted.
- *   3. The delivery note never selects a price or a shop's name.
+ * `product.gst_status` changes only through `setGstStatus`, which writes the append-only
+ * `product_gst_change` row too; the delivery note never selects a price or a shop name.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");
@@ -48,10 +45,7 @@ describe("096 — the documents' one writers", () => {
     expect(note).not.toMatch(/price_amount|unit_price|line_subtotal|s\.name|shop_name/);
   });
 
-  /**
-   * ⚠ SC-010 — hidden fulfilment. A customer's documents never name a shop, nor say how many shops or
-   * bags filled the order: neither the builders' SQL nor the customer contract can carry one.
-   */
+  /** A customer's documents never name a shop or count shops or bags. */
   it("no customer document builder reads a shop, a package count or a bag", () => {
     for (const file of ["shared/src/documents/delivery-note.ts", "shared/src/documents/tax-invoice.ts"]) {
       const src = sources.find((x) => x.file === file)!.src;

@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 #
-# 010-domain-dns-foundation — SC-010 (and the precondition for flipping ses_sender_enabled).
+# Proves the platform may send mail as its environment's namespace: DKIM signs it, SPF authorizes the
+# envelope, DMARC declares the policy, and SES has verified the domain. The emailed code is the only
+# credential the internal audiences have, so if this mail does not arrive nobody can sign in.
 #
-# Proves the platform is AUTHORIZED to send mail as its environment's namespace: DKIM signs it, SPF
-# authorizes the envelope, DMARC declares the policy, and SES agrees the domain is verified.
+# Also the gate on `ses_sender_enabled = true`: Cognito rejects an unverified identity, and verification
+# completes minutes after the apply. Run until green, then flip the flag and apply again.
 #
-# WHY THIS MATTERS: passwordless EMAIL_OTP is the ONLY credential this platform issues. If this mail
-# does not arrive, nobody on ANY of the four audiences can sign in. There is no password fallback.
-#
-# This is ALSO the gate on `ses_sender_enabled = true`: Cognito REJECTS a source_arn whose identity
-# is not yet verified, and verification completes minutes AFTER the apply that creates these records
-# returns. Run this until it is green, THEN flip the flag and apply again.
-#
-# Usage:  make mail-verify ENV=dev
+# Usage: make mail-verify ENV=dev
 set -euo pipefail
 
 ENV="${ENV:-dev}"
@@ -50,7 +45,7 @@ else
   bad "only ${dkim_found}/3 DKIM CNAMEs resolve — mail will not be signed"
 fi
 
-# ── SPF / MAIL FROM ───────────────────────────────────────────────────────────────────────────
+# ── spf / mail from ───────────────────────────────────────────────────────────────────────────
 head "SPF & custom MAIL FROM (${MAIL_FROM})"
 
 if dig +short MX "${MAIL_FROM}" | grep -q "feedback-smtp"; then
@@ -122,14 +117,14 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
-# 037-platform-email-delivery — the apex's mail identity, and the outcome pipeline.
+# Platform-email-delivery — the apex's mail identity, and the outcome pipeline.
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 head "Apex mail identity (${ROOT_DOMAIN})"
 
-# ⚠ INBOUND IS LOAD-BEARING AND LIVE. This is the only route to the company's mailbox, and every
-# apply against the parent zone risks clobbering it (Route 53 holds ONE record set per name+type).
-# Checked FIRST because if this is broken, nothing else matters (SC-022).
+# inbound is load-bearing and live. This is the only route to the company's mailbox, and every
+# apply against the parent zone risks clobbering it (Route 53 holds one record set per name+type).
+# Checked first because if this is broken, nothing else matters.
 apex_mx="$(dig +short MX "${ROOT_DOMAIN}" 2>/dev/null | tr -d '\r')"
 if printf '%s' "${apex_mx}" | grep -qi 'google.com'; then
   ok "inbound mail routes to the operator mail service"
@@ -144,9 +139,9 @@ else
   bad "no v=spf1 on ${ROOT_DOMAIN} — mail SENT from hello@ fails sender-policy checks"
 fi
 
-# ⚠ TWO v=spf1 STRINGS IS A PERMANENT FAILURE FOR EVERY MESSAGE FROM THE DOMAIN (RFC 7208 §4.5) —
+# two v=spf1 strings is a permanent failure for every message from the domain (RFC 7208 §4.5)
 # a verifier discards non-SPF records, then errors if more than one remains. This is the single most
-# common way a working domain's mail is broken, and it happens by ADDING a record rather than
+# common way a working domain's mail is broken, and it happens by adding a record rather than
 # editing the existing one.
 spf_count="$(printf '%s\n' "${apex_txt}" | grep -c 'v=spf1' || true)"
 if [ "${spf_count}" -le 1 ]; then
@@ -175,8 +170,8 @@ fi
 
 head "Mail-service signing key"
 
-# ⚠ THE 255-CHARACTER SPLIT IS THE DANGEROUS PART. A key published as TWO separate TXT records is
-# valid DNS and a BROKEN key — a verifier sees two records, neither a complete key, and nothing
+# the 255-character split is the dangerous part. A key published as two separate TXT records is
+# valid DNS and a broken key — a verifier sees two records, neither a complete key, and nothing
 # errors. This reassembles what DNS actually returns and compares it with the operator-supplied
 # value, byte for byte.
 dkim_txt="$(dig +short TXT "google._domainkey.${ROOT_DOMAIN}" 2>/dev/null | tr -d '\r')"
@@ -209,13 +204,13 @@ if [ "${supp}" = "missing" ]; then
 elif [ "${supp}" = "[]" ]; then
   ok "suppression override ACTIVE — a failure here cannot make someone unreachable in production"
 else
-  # ⚠ Not necessarily wrong: production SHOULD inherit. It is wrong for a non-production env.
+  # Not necessarily wrong: production should inherit. It is wrong for a non-production env.
   printf '  \033[33m!\033[0m suppression inherits the account list (%s).\n' "${supp}"
   printf '    Correct for PRODUCTION. In dev this means a mistyped address here also blocks that\n'
   printf '    person in prod (FR-041) — check ses_suppressed_reasons.\n'
 fi
 
-# shellcheck disable=SC2016  # the backticks below are JMESPath literals, not shell expansion
+# shellcheck disable=SC2016 # the backticks below are JMESPath literals, not shell expansion
 dests="$(
   AWS_PROFILE="${AWS_PROFILE}" aws sesv2 get-configuration-set-event-destinations \
     --configuration-set-name "${CONFIG_SET}" --region "${AWS_REGION}" \
@@ -224,11 +219,11 @@ dests="$(
 if [ "${dests}" != "0" ] && [ "${dests}" != "None" ]; then
   ok "${dests} ENABLED event destination(s) — outcomes are being published"
 else
-  # ⚠ The provider defaults `enabled` to false, and an inert destination looks perfectly healthy.
+  # The provider defaults `enabled` to false, and an inert destination looks perfectly healthy.
   bad "no ENABLED event destination — the platform is blind to per-address failures"
 fi
 
-# ⚠ FR-018 / SC-017: a code-bearing message must never carry an unsubscribe affordance. Someone who
+# A code-bearing message must never carry an unsubscribe affordance. Someone who
 # unsubscribed from their own sign-in codes would be locked out permanently.
 if printf '%s' "${supp}" | grep -q 'SUBSCRIPTION' 2>/dev/null; then
   bad "subscription management is configured on the auth configuration set (FR-018)"

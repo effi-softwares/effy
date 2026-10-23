@@ -1,20 +1,10 @@
-// Product review — data layer (067). Raw parameterised SQL; rows are mapped in the service and never
-// leak past it.
-//
-// ⚠ EVERY DECISION IS ONE TRANSACTION that (a) re-reads the item UNDER A ROW LOCK with the version
-// the reviewer saw in its WHERE clause, (b) changes the live product, (c) writes the audit row and
-// (d) enqueues the shop's notifications. Either all four happen or none does: an approval that
-// changed the product and failed to record who approved it would be the worst outcome available.
-//
-// ⚠ THE VERSION IS TEXT. `updated_at::text` out, `updated_at::text = $n` back. 056 compared a
-// timestamptz against a JS Date that had been through `toISOString()` — milliseconds against
-// microseconds — and every edit failed. A text round trip is exact.
+// Every decision is one transaction: re-read under a row lock with the version the reviewer saw,
+// change the live product, write the audit row and enqueue the shop's notifications.
+// The version is `updated_at::text`, compared as text: a JS Date loses microseconds.
 
 import type pg from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
-
-// ── Queue ──────────────────────────────────────────────────────────────────────────────────────
 
 export interface QueueRow {
   product_id: string;
@@ -36,14 +26,7 @@ export interface QueueParams {
   limit: number;
 }
 
-/**
- * New products in review and pending changes, as ONE list ordered by how long each has waited.
- *
- * ⚠ ONE QUEUE, NOT TWO SCREENS. A reviewer working the oldest item first should not have to know
- * that "a new product" and "a change" are stored differently — and two lists would let one of them
- * go unwatched.
- */
-/** The queue's rows — new products in review and pending changes, one shape. Shared by the page and its count. */
+/** New products and pending changes as one list, oldest first, so neither goes unwatched. */
 const QUEUE_ROWS = `
       SELECT p.id AS product_id, 'new_product'::text AS kind, p.shop_id, s.name AS shop_name,
              p.name AS product_name, p.submitted_at
@@ -58,7 +41,7 @@ const QUEUE_ROWS = `
        WHERE pc.state = 'in_review'
 `;
 
-/** The filters a reviewer can set ($1 shop, $2 kind, $3 name). The cursor is NOT one of them. */
+/** $1 shop, $2 kind, $3 name. */
 const QUEUE_FILTERS = `
    WHERE ($1::uuid IS NULL OR q.shop_id = $1)
      AND ($2::text IS NULL OR q.kind = $2)
@@ -76,10 +59,7 @@ const QUEUE = `
    LIMIT $6
 `;
 
-/**
- * How many items the filtered queue holds — every page, not this one. The back-office rail shows it
- * beside "Product review", so it is the SAME rows and the SAME filters as the list, minus the cursor.
- */
+/** The rail's count: the same rows and filters as the list, without the cursor. */
 const QUEUE_COUNT = `
   SELECT count(*)::text AS n
     FROM (${QUEUE_ROWS}) q
@@ -105,7 +85,7 @@ export interface MarginNotSetRow {
   status: string;
 }
 
-/** Approved products with no margin: they sell at the shop's price until Effy sets one (FR-008). */
+/** They sell at the shop's price until Effy sets one. */
 export async function listMarginNotSet(
   shopId: string | null,
   afterProductId: string | null,
@@ -113,7 +93,7 @@ export async function listMarginNotSet(
 ): Promise<MarginNotSetRow[]> {
   const res = await query<MarginNotSetRow>(
     `SELECT p.id AS product_id, p.shop_id, s.name AS shop_name, p.name AS product_name,
-            -- 098 — the lowest shop price among its active variants ("from").
+            -- The lowest shop price among its active variants ("from").
             (SELECT min(v.shop_price_amount) FROM public.product_variant v
               WHERE v.product_id = p.id AND v.state = 'active')::text AS shop_price_amount,
             p.status
@@ -129,7 +109,7 @@ export async function listMarginNotSet(
   return res.rows;
 }
 
-/** How long the oldest item has waited, in whole hours; null when the queue is empty. */
+/** Whole hours; null when the queue is empty. */
 export async function oldestWaitingHours(): Promise<number | null> {
   const res = await query<{ hours: string | null }>(
     `SELECT floor(extract(epoch FROM (now() - min(submitted_at))) / 3600)::text AS hours
@@ -142,8 +122,6 @@ export async function oldestWaitingHours(): Promise<number | null> {
   const h = res.rows[0]?.hours;
   return h === null || h === undefined ? null : Number(h);
 }
-
-// ── One item ───────────────────────────────────────────────────────────────────────────────────
 
 export interface ProductRow {
   id: string;
@@ -158,9 +136,7 @@ export interface ProductRow {
   type_name: string;
   primary_category_id: string;
   category_name: string;
-  /** 096 */
   gst_status: "taxable" | "gst_free" | null;
-  /** 098 */
   unit_basis: string | null;
   status: string;
   margin_kind: "percent" | "amount" | null;
@@ -176,7 +152,7 @@ const PRODUCT = `
          p.name, p.brand, p.short_description, p.long_description,
          p.product_type_id, pt.name AS type_name, p.primary_category_id, c.name AS category_name,
          p.gst_status, p.unit_basis, p.status,
-         -- 098 — prices, codes and weights are the VARIANTS' (readVariantSets).
+         -- Prices, codes and weights are the VARIANTS' (readVariantSets).
          p.margin_kind, p.margin_value::text AS margin_value,
          p.approved_at IS NOT NULL AS approved, p.review_state, p.submitted_at,
          p.updated_at::text AS version
@@ -226,7 +202,7 @@ export interface MediaRow {
   is_primary: boolean;
   display_order: number;
   alt_text: string | null;
-  /** For a proposed image: the live image it keeps, or null when it is a new upload. */
+  /** The live image it keeps, or null for a new upload. */
   source_media_id: string | null;
 }
 
@@ -270,11 +246,9 @@ export async function readChangeMedia(changeId: string, tx: Runner = null): Prom
   return res.rows;
 }
 
-/** Names for the ids a proposal carries, so a reviewer reads "Bakery → Dairy", not two uuids. */
 /**
- * ⚠ Inside a decision, pass the transaction: the pool holds ONE connection, and a read through it
- * while the transaction has that connection waits until the connect timeout (a 503 on every change
- * approval, found 2026-10-14).
+ * Names for a proposal's ids ("Bakery → Dairy"). Inside a decision pass the transaction: the pool's
+ * one connection is held by it.
  */
 export async function namesFor(typeIds: string[], categoryIds: string[], attributeIds: string[], tx: Runner = null) {
   const [types, categories, attributes] = await Promise.all([
@@ -292,8 +266,6 @@ export async function namesFor(typeIds: string[], categoryIds: string[], attribu
   };
 }
 
-// ── Decisions ──────────────────────────────────────────────────────────────────────────────────
-
 export type ReviewAuditAction =
   | "product.approved"
   | "product.sent_back"
@@ -301,10 +273,7 @@ export type ReviewAuditAction =
   | "product.change_sent_back"
   | "product.margin_set";
 
-/**
- * ⚠ WHO DECIDED LIVES HERE AND NOWHERE A SHOP CAN READ (FR-049). The reason a shop is shown is a
- * separate column on the product / change, which carries no staff identity at all.
- */
+/** Who decided is stored only here; a shop sees a reason with no staff identity. */
 export async function audit(
   tx: pg.PoolClient,
   actorSub: string,
@@ -320,12 +289,8 @@ export async function audit(
 }
 
 /**
- * Tell the shop. One intent per ACTIVE staff member of the product's shop, as `shop_new_order` does.
- *
- * ⚠ IN THE DECISION'S OWN TRANSACTION, deduped on (decision, staff): a decision that committed
- * without telling the shop leaves them waiting on something already decided, and a retried decision
- * must not buzz the counter twice.
- * ⚠ The payload is a routing id only — no product name, no price, no reason.
+ * One intent per active staff member of the shop, in the decision's transaction and deduped on
+ * (decision, staff). The payload is a routing id only.
  */
 export async function notifyShop(
   tx: pg.PoolClient,
@@ -347,16 +312,13 @@ export async function notifyShop(
   );
 }
 
-/** Effy's one margin per product (098 R7). The variants' customer prices follow via `priceVariants`. */
+/** One margin per product; variant prices follow via `priceVariants`. */
 export interface MarginWrite {
   marginKind: "percent" | "amount" | null;
   marginValue: string | null;
 }
 
-/**
- * Approve a NEW product. Zero rows = it changed, or was already decided. The caller then prices every
- * variant through `priceVariants` in the same transaction.
- */
+/** Zero rows: it changed or was already decided. The caller then prices the variants. */
 export async function approveNewProduct(
   tx: pg.PoolClient,
   productId: string,
@@ -414,7 +376,6 @@ export interface AppliedValues {
   longDescription: string | null;
   productTypeId: string;
   primaryCategoryId: string;
-  /** 098 */
   unitBasis: string | null;
 }
 
@@ -427,11 +388,8 @@ export interface AttributeWrite {
 }
 
 /**
- * Apply an approved change to the LIVE product: details, attribute values and the image set.
- *
- * ⚠ Called inside the decision transaction with the change row already locked. The caller has
- * verified the version; this only writes. 098: the option/variant set is applied by the caller AFTER
- * this (a variant may name one of the images this puts live), then priced.
+ * Inside the decision transaction with the change row locked and the version checked. The caller
+ * applies the variant set afterwards (a variant may name one of these images), then prices it.
  */
 export async function applyChange(
   tx: pg.PoolClient,
@@ -470,8 +428,7 @@ export async function applyChange(
   }
 
   if (mediaChanged) {
-    // ⚠ THE ONLY PLACE A PROPOSED IMAGE BECOMES A LIVE ONE. The whole live set is replaced by the
-    // proposed set, here, inside the approval — never on upload.
+    // The only place a proposed image becomes live: the whole set is replaced here.
     await tx.query(`DELETE FROM public.product_media WHERE product_id = $1`, [productId]);
     await tx.query(
       `INSERT INTO public.product_media (product_id, storage_key, is_primary, display_order, alt_text)
@@ -484,10 +441,7 @@ export async function applyChange(
   await tx.query(`DELETE FROM public.product_change WHERE id = $1`, [changeId]);
 }
 
-/**
- * Set a live product's margin. Zero rows = the margin was not what the reviewer saw. The caller then
- * reprices every variant (`priceVariants`) in the same transaction.
- */
+/** Zero rows: the margin was not what the reviewer saw. The caller then reprices the variants. */
 export async function setMargin(
   tx: pg.PoolClient,
   productId: string,

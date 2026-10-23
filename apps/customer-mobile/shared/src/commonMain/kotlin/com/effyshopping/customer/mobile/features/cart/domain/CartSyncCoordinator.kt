@@ -10,34 +10,34 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Keeps the [CartStore] mirror and the platform in agreement (027).
+ * Keeps the [CartStore] mirror and the platform in agreement.
  *
- * ── The two halves ──────────────────────────────────────────────────────────────────────────────
+ * The two halves
  *
  * **Reading** ([refresh]) — brings the mirror up to date:
- *   - signed in → `GET /v1/cart`; the account cart IS the truth, adopted by revision.
- *   - guest     → `POST /v1/cart/preview`; a guest has no server cart, so the platform prices the
- *                 device's own lines and writes nothing.
+ *  - signed in → `GET /v1/cart`; the account cart IS the truth, adopted by revision.
+ *  - guest → `POST /v1/cart/preview`; a guest has no server cart, so the platform prices the
+ *  device's own lines and writes nothing.
  *
  * **Writing** ([submit]) — sends what the shopper did. This is the half that makes a cart built on one
- * device appear on another (US2): without it the mirror was durable but private, and a shopper signing in
+ * device appear on another: without it the mirror was durable but private, and a shopper signing in
  * on a second device would correctly see nothing, because nothing had ever been sent.
  *
- * ── Three rules ─────────────────────────────────────────────────────────────────────────────────
+ * Three rules
  *
  *  1. **A guest sends nothing.** There is no server cart to send to. Their whole cart goes across once, at
- *     sign-in, via the merge — which is why [submit] is a no-op for a guest rather than a queued failure.
+ *  sign-in, via the merge — which is why [submit] is a no-op for a guest rather than a queued failure.
  *  2. **The queue drains in order, one at a time.** A remove followed by an add on the same product must
- *     not race; the [Mutex] is what stops two drains interleaving into a cart neither the shopper nor the
- *     platform asked for.
+ *  not race; the [Mutex] is what stops two drains interleaving into a cart neither the shopper nor the
+ *  platform asked for.
  *  3. **A response is adopted only if it is newer.** The mirror's forward-only rule does the work; this
- *     class just hands it every answer it gets.
+ *  class just hands it every answer it gets.
  *
  * A failure never destroys anything. A network error leaves the change queued for the next trigger; a
  * definitive refusal (a 4xx — the product went away, the cart is full) marks it dead so it is not retried
  * forever, and the mirror reconciles to the platform's actual contents.
  *
- * ⚠ Debouncing, backoff and the offline drain-on-launch are US4. This drains eagerly and retries on the
+ * Debouncing, backoff and the offline drain-on-launch are US4. This drains eagerly and retries on the
  * next trigger, which is correct but chattier than it will be. The seam is deliberately this shape so
  * those are additions, not a rewrite.
  */
@@ -57,13 +57,13 @@ class CartSyncCoordinator(
     private var failures = 0
 
     init {
-        // ⚠ A change made before a force-quit is on disk, not in memory. Without this it would sit there
+        // A change made before a force-quit is on disk, not in memory. Without this it would sit there
         // until the shopper happened to touch the cart again — so an edit made in a tunnel, followed by the
-        // app being killed, would silently never reach the platform (FR-017).
+        // app being killed, would silently never reach the platform.
         scope.launch { drain() }
     }
 
-    // ── Reading ─────────────────────────────────────────────────────────────────────────────────
+    // Reading
 
     /**
      * Bring the mirror up to date. Safe to call on every cart open and every app foreground.
@@ -75,7 +75,7 @@ class CartSyncCoordinator(
     suspend fun refresh(): Boolean =
         try {
             if (isSignedIn()) {
-                // Send anything outstanding FIRST, so a read cannot overwrite a change we have not yet
+                // Send anything outstanding first, so a read cannot overwrite a change we have not yet
                 // told the platform about. Getting this order wrong loses the shopper's most recent tap.
                 drain()
                 store.adopt(repo.get())
@@ -93,7 +93,7 @@ class CartSyncCoordinator(
             false
         }
 
-    // ── Writing ─────────────────────────────────────────────────────────────────────────────────
+    // Writing
 
     /**
      * Record a change the shopper just made and start sending it.
@@ -112,7 +112,7 @@ class CartSyncCoordinator(
     /**
      * Record a repeated change — a quantity stepper — and send only what the shopper settles on.
      *
-     * Ten taps in two seconds produce ONE request (FR-016, SC-005): each tap replaces the queued value and
+     * Ten taps in two seconds produce one request: each tap replaces the queued value and
      * restarts a short timer, and only the last one is ever sent. Per product, so adjusting one line never
      * holds up another.
      *
@@ -155,8 +155,8 @@ class CartSyncCoordinator(
             true
         } catch (e: AppException) {
             when {
-                // Transient: wait, then let the next trigger try again. The wait GROWS with consecutive
-                // failures so a device with no signal is not hammering the radio flat (FR-020); it is
+                // Transient: wait, then let the next trigger try again. The wait grows with consecutive
+                // failures so a device with no signal is not hammering the radio flat; it is
                 // capped, because a shopper who regains signal should not wait minutes for their cart.
                 isTransient(e.error) -> {
                     failures++
@@ -165,7 +165,7 @@ class CartSyncCoordinator(
                 }
                 else -> {
                     // A definitive refusal. Retrying only repeats it, so mark it dead, tell the shopper,
-                    // and reconcile to what the platform actually holds (FR-019).
+                    // and reconcile to what the platform actually holds.
                     store.markFailed(change.changeId, describe(e.error))
                     runCatching { store.adopt(repo.get()) }
                     true
@@ -195,7 +195,7 @@ class CartSyncCoordinator(
      * direction is bad: retrying a refusal forever burns battery and never succeeds, and giving up on a
      * blip silently loses the shopper's change.
      *
-     * ⚠ `Unauthenticated` counts as retryable, and that is a lesson paid for. A rejected token is not the
+     * `Unauthenticated` counts as retryable, and that is a lesson paid for. A rejected token is not the
      * shopper's mistake and not permanent — an expired access token, a refresh in flight, or a service
      * configured to accept the wrong app client all produce it, and all are fixed without the shopper
      * doing anything. Treating it as final marked every queued change dead and discarded the shopper's

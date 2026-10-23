@@ -21,7 +21,7 @@ describe("079 — the order's delivery type, for staff", () => {
     );
     expect(screen.getByText("Courier delivery", { selector: "dd" })).toBeInTheDocument();
     expect(screen.getByText("The address is outside Effy's delivery area", { selector: "dd" })).toBeInTheDocument();
-    // The estimate AS SOLD, in the customer's sentence — an estimate, said as one.
+    // The estimate as sold, in the customer's sentence — an estimate, said as one.
     expect(screen.getByText("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.")).toBeInTheDocument();
     const rows = within(screen.getByRole("table", { name: "Delivery type history" })).getAllByRole("row");
     expect(rows).toHaveLength(1);

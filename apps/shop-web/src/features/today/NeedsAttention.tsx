@@ -9,20 +9,20 @@ import { track } from "@/lib/telemetry"
 import { attentionHref, attentionRow, formatAge } from "./model"
 
 /**
- * "Needs attention" — the card an operator opens the console to read (058, FR-004/FR-005).
+ * "Needs attention" — the card an operator opens the console to read.
  *
- * ⚠ EVERY ROW ENDS IN A VERB, and the verb is specific: Pick, Restock, Review, Approve. A list that
+ * Every row ends in a verb, and the verb is specific: Pick, Restock, Review, Approve. A list that
  * names a problem without taking you to the thing that resolves it makes the reader do a search they
  * should not have to do — and a generic "View" makes them work out what they are supposed to do when
  * they get there.
  *
- * ⚠ URGENCY IS A DOT, AND IT NOW CARRIES THE DESIGN'S THREE TONES. Under the monochrome
+ * Urgency is a dot, and it now carries the design's three tones. Under the monochrome
  * constitution only `--destructive` was available, so "waiting" had to read as plain foreground and
  * looked identical to "nothing urgent". The adopted palette supplies `--warning`, which is exactly
- * the missing middle: destructive = a shelf is empty RIGHT NOW, warning = something is waiting and
+ * the missing middle: destructive = a shelf is empty right now, warning = something is waiting and
  * ageing, muted = noted, not urgent.
  *
- * ⚠ THE DOT IS NEVER THE ONLY SIGNAL. Every row states its situation in words and ends in a specific
+ * The dot is never the only signal. Every row states its situation in words and ends in a specific
  * verb, so the card reads identically in greyscale and to a screen reader.
  */
 export function NeedsAttention({
@@ -58,7 +58,7 @@ export function NeedsAttention({
         </div>
         <div className="flex-1" />
         {openCount > 0 ? (
-          // ⚠ The design's own warning-soft-on-warning badge, restored. Mono digits so the count does
+          // The design's own warning-soft-on-warning badge, restored. Mono digits so the count does
           // not jitter sideways as it changes width — it updates live.
           <span className="grid h-[22px] min-w-[22px] place-items-center rounded-md bg-warning-soft px-[7px] font-mono text-xs font-semibold tabular-nums text-warning">
             {openCount}
@@ -133,7 +133,7 @@ function keyOf(item: ShopAttentionItemDTO): string {
       return "awaiting_pick"
     case "out_of_stock":
     case "low_stock":
-      // 098 — one row per SIZE: two sizes of one product can both be low.
+      // One row per size: two sizes of one product can both be low.
       return `${item.kind}:${item.variantId}`
     case "refund_proposed":
       return `refund:${item.fulfillmentId}`

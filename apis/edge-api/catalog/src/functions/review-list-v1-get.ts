@@ -1,4 +1,3 @@
-// GET /catalog/v1/review — the review queue (067 FR-006, FR-007). Read = any active staff incl. csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

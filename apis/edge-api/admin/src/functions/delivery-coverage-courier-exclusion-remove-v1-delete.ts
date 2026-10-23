@@ -1,4 +1,3 @@
-// DELETE /admin/v1/delivery/coverage/courier/exclusions/{postcode} — offer courier delivery there again (076). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

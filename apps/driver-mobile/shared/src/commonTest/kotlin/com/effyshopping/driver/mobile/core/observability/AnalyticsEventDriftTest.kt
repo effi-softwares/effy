@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * 050 US2 (research R8) — the taxonomy drift check. Every event driver-mobile can emit MUST have a name
+ * The taxonomy drift check. Every event driver-mobile can emit must have a name
  * in the documented taxonomy (docs/telemetry/{driver,platform}-events.md). Fails loudly, naming the
  * offender.
  */

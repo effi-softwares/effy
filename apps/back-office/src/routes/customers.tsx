@@ -5,7 +5,7 @@ import { CustomersScreen } from "@/features/customers/CustomersScreen";
 
 import { appRoute } from "./app";
 
-// 074 — customers and their points. Under the protected shell; read is open to every back-office
+// Customers and their points. Under the protected shell; read is open to every back-office
 // role including csa. Debit and settings are gated in-screen and enforced by the orders service.
 export const customersIndexRoute = createRoute({
   getParentRoute: () => appRoute,

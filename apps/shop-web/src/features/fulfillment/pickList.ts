@@ -1,6 +1,6 @@
-/* ⚠ THE HEX VALUES IN THIS FILE ARE DELIBERATE AND CANNOT BE TOKENS.
+/* The hex values in this file are deliberate and cannot be tokens.
  *
- * A pick list is written into a NEW WINDOW as a standalone HTML document and sent to a printer. That
+ * A pick list is written into a new window as a standalone HTML document and sent to a printer. That
  * document has no access to the console's stylesheet, so `var(--border)` would resolve to nothing and
  * the rules would vanish — and even if it did, the theme's colours are chosen for a screen: a navy
  * dark-mode ground printed on paper is a solid black page. Print output is its own medium, and these
@@ -11,20 +11,9 @@
  */
 
 /**
- * The pick list, as a printable document — ONE renderer, two call sites (058 T010).
- *
- * ⚠ EXTRACTED, NOT COPIED. The order detail prints one list; Today's "Print pick lists" prints one
- * per waiting order in a single window. Two renderers would drift the moment either changed, and the
- * drift would reach paper rather than a screen — a picker walking the shelves with a sheet that no
- * longer matches the one their colleague printed. So the markup lives here and both callers pass
- * documents into it.
- *
- * ⚠ NO MONEY ON A PICK LIST (020's rule for the pick document). The console shows an order's money
- * on screen (057 A3); a sheet that goes to the shelves does not need it and should not carry it.
- *
- * ⚠ It writes into its OWN window so the console's chrome never reaches the printer, and everything
- * interpolated is escaped — a product name is operator-entered text, and this is the one place in
- * the app that builds raw HTML.
+ * The pick list as a printable document: one renderer for the order detail's print and Today's "Print pick
+ * lists" (one per waiting order, one window). No money on a pick list. Its own window keeps the chrome off
+ * the paper, and everything interpolated is escaped (product names are operator text).
  */
 import type { DeliveredBy } from "@effy/shared-types"
 
@@ -35,7 +24,7 @@ import { lineCodes } from "./codes";
 export interface PickListDocument {
   orderNumber: string
   recipientName: string
-  /** 079 — who collects it: what the sheet says, in the two words every shop screen uses. */
+  /** Who collects it: what the sheet says, in the two words every shop screen uses. */
   deliveredBy: DeliveredBy
   /** ISO instant, or null when the promise is unknown (the batch read carries the paid time). */
   readyBy: string | null
@@ -66,7 +55,7 @@ export function renderPickListPage(doc: PickListDocument): string {
 /**
  * Open one print window containing every document, newest page break between them.
  *
- * Returns how many pages were sent, so the caller can say so truthfully — ⚠ and returns 0 when the
+ * Returns how many pages were sent, so the caller can say so truthfully — and returns 0 when the
  * browser blocked the window, because "4 pick lists sent to printer" over a popup that never opened
  * is the kind of confident lie a toast should never tell.
  */

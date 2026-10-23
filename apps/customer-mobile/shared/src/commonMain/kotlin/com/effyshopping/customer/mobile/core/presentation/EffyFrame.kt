@@ -62,11 +62,9 @@ import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The app's frame (App bar and Tab bar boards; 087 US1). Operator direction:
- *  - no dark ribbon above the header — the status-bar area is the page's white;
- *  - NO border under any header;
- *  - a header holds ONLY the title or wordmark, Back, and the notifications bell. The cart lives in the
- *    tab bar, and there is deliberately no `trailing` slot here to put anything else in.
+ * The app's frame: no dark ribbon above the header (the status-bar area is the page's white), no border
+ * under any header, and a header holds only the title or wordmark, Back and the notifications bell (the
+ * cart is in the tab bar; there is no `trailing` slot).
  */
 
 /** Opens Notifications from any header. Provided once by the shell, so screens never wire it. */
@@ -104,7 +102,7 @@ fun rememberEffyCollapse(): EffyCollapseState {
 }
 
 /**
- * A TAB ROOT'S HEADER — the large bold title (or the "effy." wordmark on Home) on the left, the bell
+ * A tab root's header — the large bold title (or the "effy." wordmark on Home) on the left, the bell
  * on the right, and an optional search field below (App bar board, back=false). As the page scrolls it
  * collapses into a compact centred 17sp title, the way an iOS large title does; the search field stays.
  */
@@ -174,10 +172,10 @@ fun EffyLargeTitleBar(
 }
 
 /**
- * A PUSHED PAGE'S HEADER — "‹ Back" in blue on the left (the arrow alone on Android), the title centred
+ * A pushed page's header — "‹ Back" in blue on the left (the arrow alone on Android), the title centred
  * in 17sp, the bell optional on the right (App bar board, back=true). No border.
  *
- * ⚠ [onBack] DEFAULTS TO THE NAVIGATOR ([LocalNavBack]): present on a pushed page, absent at a tab root.
+ * [onBack] defaults to the navigator ([LocalNavBack]): present on a pushed page, absent at a tab root.
  */
 @Composable
 fun EffyAppBar(
@@ -246,10 +244,9 @@ fun EffyBackArrow(
 }
 
 /**
- * THE PINNED ACTION BAR — the primary action stays on screen while the page scrolls (Product, Cart,
- * Checkout, Payment boards; FR-022). A floating layer: top hairline + soft shadow, white, 16dp gutter.
- * It slides up when it first appears (instant under reduced motion). The bottom safe area is applied
- * by the app root, so the bar always sits above the home indicator.
+ * The pinned action bar: the primary action stays on screen while the page scrolls. A floating layer (top
+ * hairline, soft shadow, white, 16dp gutter) that slides up on first appearance (instant under reduced
+ * motion). The app root applies the bottom safe area.
  */
 @Composable
 fun EffyPinnedBar(
@@ -304,7 +301,7 @@ fun EffyTargetSpacer() {
 }
 
 /**
- * The right header for a screen that can be BOTH a tab root and a pushed page (Search / Results,
+ * The right header for a screen that can be both a tab root and a pushed page (Search / Results,
  * Orders from Account): the large title at a root, "‹ Back" + centred title when pushed. Decided by
  * the navigator ([LocalNavBack]), never by the screen.
  */

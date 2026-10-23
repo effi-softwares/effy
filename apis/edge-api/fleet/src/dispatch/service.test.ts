@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// The repository and the shared rules are real; only the database is replaced.
+// Only the database is replaced.
 const rows = vi.hoisted(() => ({ candidates: [] as unknown[] }));
 vi.mock("../planner/repository", () => ({
   loadCandidates: async () => rows.candidates,
@@ -15,9 +15,7 @@ describe("DispatchError — refusals carry their reason (FR-034)", () => {
       "no_vehicle",
     ]);
     expect(e.kind).toBe("ineligible");
-    // ⚠ 053 found EVERY console refusal collapsing to one generic sentence because the screen matched
-    // on `instanceof Error` while the api-client throws a plain object — the server got it right and
-    // the client discarded it. The reasons must survive as DATA, not as prose.
+    // The reasons must survive as data, not prose: the api-client throws a plain object.
     expect(e.reasons).toEqual(["licence_expired", "no_vehicle"]);
   });
 

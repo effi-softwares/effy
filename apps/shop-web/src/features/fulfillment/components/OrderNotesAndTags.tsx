@@ -17,7 +17,7 @@ const FIELD =
 
 /**
  * "Order tags" — the design's `isOrderTags` sheet: the current tags as removable chips, an "Add a tag"
- * field with its Add button, and Save tags. The whole set is saved at once (the route is ABSOLUTE), so
+ * field with its Add button, and Save tags. The whole set is saved at once (the route is absolute), so
  * nothing is written until Save. The limits are the service's own.
  */
 export function OrderTagsDialog({
@@ -119,7 +119,7 @@ export function OrderTagsDialog({
 }
 
 /**
- * "Internal note" — the design's `isNote` sheet. ⚠ APPEND-ONLY: there is no edit or delete, so a note
+ * "Internal note" — the design's `isNote` sheet. Append-only: there is no edit or delete, so a note
  * someone acted on cannot be quietly rewritten afterwards. It is added to the activity log.
  */
 export function OrderNoteDialog({

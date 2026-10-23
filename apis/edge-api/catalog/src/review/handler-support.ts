@@ -1,8 +1,3 @@
-// Shared handler support for the catalog service (067): the back-office auth guard and the
-// domain-error → problem mapping.
-//
-// ⚠ THE AUTHZ ITSELF IS NOT DEFINED HERE. It comes from @effy/edge-shared's back-office-authz (053
-// promoted it), so this service decides who is staff exactly as orders, fleet and admin do.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -30,14 +25,8 @@ export function denied(r: GuardResult): r is { deny: APIGatewayProxyStructuredRe
 }
 
 /**
- * 401 if there is no subject; 403 from the PLATFORM RECORD (never the claim); 503 on infra error.
- *
- *   read   — any active back-office staff, INCLUDING csa (FR-011). A CSA is who a shop rings to ask
- *            "why isn't my product live", and must be able to see the queue to answer.
- *   decide — active AND role ∈ {admin, manager}. An approval puts a product on Effy's storefront at
- *            a price Effy set; sending one back stops a shop selling. Neither is customer service.
- *
- * Fail-closed: an authz query that throws returns 503, never an implicit allow.
+ * Without a subject, 403 from the staff record (never the claim), 503 on an infra error.
+ * read: any active staff, csa included (shops ring them about the queue). decide: admin or manager.
  */
 export async function guard(event: AuthedEvent, scope: RequestScope, level: GuardLevel): Promise<GuardResult> {
   const sub = subject(event);
@@ -62,7 +51,7 @@ export async function guard(event: AuthedEvent, scope: RequestScope, level: Guar
   return { sub };
 }
 
-/** Domain error → RFC-7807. Anything unrecognised is 503 and explains itself only in the log. */
+/** Anything unrecognised is 503 and explained only in the log. */
 export function mapReviewError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (err instanceof ReviewError) {
     switch (err.kind) {
@@ -78,7 +67,6 @@ export function mapReviewError(err: unknown, scope: RequestScope): APIGatewayPro
   return unavailable(scope);
 }
 
-/** Parse a JSON body, refusing malformed input as a validation failure rather than a 500. */
 export function parseBody<T>(raw: string | undefined): T {
   if (!raw) return {} as T;
   try {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ABANDONED_AT_PROVIDER, BANK_APPROVAL_REQUIRED, failureFor } from "./failures"
 
 /**
- * ⚠ SC-007 — 100% of refusals must present a cause a shopper can act on. The failure this guards is the
+ * 100% of refusals must present a cause a shopper can act on. The failure this guards is the
  * easy one to ship: a `default:` branch that quietly emits "something went wrong", which passes every
  * type check and tells the shopper nothing.
  */
@@ -31,12 +31,12 @@ describe("payment failures (051 US5)", () => {
       expect(f.detail.length).toBeGreaterThan(0)
       seen.add(f.title)
     }
-    // ⚠ Not all distinct — lost_card and stolen_card deliberately share wording (see failures.ts) —
+    // Not all distinct — lost_card and stolen_card deliberately share wording (see failures.ts)
     // but a single message covering everything would mean the mapping does nothing.
     expect(seen.size).toBeGreaterThan(4)
   })
 
-  /** ⚠ FR-037 — the most useful fact after a failed payment, and it must appear every time. */
+  /** The most useful fact after a failed payment, and it must appear every time. */
   it("always tells the shopper nothing was charged and the basket survived", () => {
     for (const code of [...CODES, undefined, "some_unmapped_code"]) {
       const f = failureFor({ declineCode: code })
@@ -47,7 +47,7 @@ describe("payment failures (051 US5)", () => {
   })
 
   /**
-   * ⚠ THE ASSERTION THIS FILE EXISTS FOR. No path may produce a bare "something went wrong", and no
+   * The assertion this file exists for. No path may produce a bare "something went wrong", and no
    * path may surface a raw provider code as the thing the shopper reads.
    */
   it("never says only 'something went wrong', and never shows a raw code", () => {
@@ -75,7 +75,7 @@ describe("payment failures (051 US5)", () => {
   })
 
   /**
-   * ⚠ Retryability is advice, and wrong advice costs the shopper their patience where they have least
+   * Retryability is advice, and wrong advice costs the shopper their patience where they have least
    * of it. A declined card does not start working on a second press; a mistyped CVC does.
    */
   it("only invites a retry where one could plausibly work", () => {
@@ -85,7 +85,7 @@ describe("payment failures (051 US5)", () => {
   })
 
   /**
-   * ⚠ FR-040 — a bank approval is NOT a failure and must not read like one. This is where a shopper
+   * A bank approval is not a failure and must not read like one. This is where a shopper
    * most often panics and closes the tab.
    */
   it("frames a bank approval as a step, not a refusal", () => {
@@ -95,7 +95,7 @@ describe("payment failures (051 US5)", () => {
   })
 
   /**
-   * ⚠ A card reported lost or stolen must NOT be named as such to whoever is at the keyboard — they
+   * A card reported lost or stolen must not be named as such to whoever is at the keyboard — they
    * may not be the cardholder. Stripe's own guidance; the message stays truthful without alerting a
    * thief.
    */

@@ -10,17 +10,7 @@ import { requireWriter } from "../lib/guard";
 import { arrivalRecorded } from "../lib/metrics";
 import { refusalResponse, VALIDATION_FAILED } from "../lib/problems";
 
-/**
- * POST /orders/v1/fulfillments/{fulfillmentId}/arrival — record that a package arrived (053 US2).
- *
- * ⚠ THE ROUTE THIS WHOLE FEATURE EXISTS FOR. Before it, a standard package could never leave
- * `collected`, so most orders never finished, the customer was told "on the way" indefinitely, and
- * the delivered notification could not fire on the majority path.
- *
- * ⚠ WRITE GATE: admin|manager only (FR-015). With no carrier signal, "arrived" is an ASSERTION a
- * person is making about a package they never saw, and it finishes a financial record and messages
- * a customer.
- */
+/** Admin/manager only: "arrived" is a person's assertion that completes an order and messages a customer. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -60,12 +50,10 @@ export const handler = async (
       note: body.note,
       changeId: body.changeId,
     });
-    // ⚠ Metered only on a NEW arrival — a replay must not inflate OrderCompleted.
+    // Metered only on a new arrival.
     if (result.created) arrivalRecorded("staff_recorded", result.orderFinished);
-    // 071 — committed: the package went `collected` → `delivered`. Operations sees it; the customer
-    // hears only if that was the last of their packages to arrive (their page then says delivered).
     if (result.created) await announceMoves([{ fulfillmentId, from: "collected" }]);
-    // ⚠ The replay returns 200 with the ORIGINAL arrival time, never a refreshed one (FR-005).
+    // A replay returns the original arrival time.
     return json(result.created ? 201 : 200, result, guard.scope);
   } catch (err) {
     const refusal = refusalResponse(err, guard.scope);

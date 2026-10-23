@@ -1,6 +1,4 @@
-// GET /fleet/v1/drivers/{driverId}/audit — the profile's change history (056 US2, FR-025).
-// Read = any active back-office staff. Accountability is not an admin-only privilege; a CSA asked
-// "who suspended this driver" should be able to answer it.
+// Any active staff: a csa asked "who suspended this driver" should be able to answer.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

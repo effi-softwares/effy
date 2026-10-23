@@ -1,4 +1,4 @@
-// The courier services Effy uses (080): SQL only. Entered by the operator; nothing is seeded.
+// Entered by the operator; nothing is seeded.
 import type pg from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
@@ -28,7 +28,6 @@ const toDTO = (r: Row): CourierServiceDTO => ({
   collectsFromSupplier: r.collects_from_supplier, status: r.status, isDefault: r.is_default,
 });
 
-/** Active first, the default at the top; retired last. */
 export async function listServices(): Promise<CourierServiceDTO[]> {
   const res = await query<Row>(`SELECT ${COLS} FROM public.courier_service ORDER BY status, is_default DESC, courier_name, service_name`);
   return res.rows.map(toDTO);
@@ -60,14 +59,9 @@ async function audit(client: Client, actorSub: string, action: string, targetId:
 
 export type SaveRefusal = "name_taken" | "default_service_required";
 
-/**
- * Create (`id` null) or replace a service. Making one the default un-makes the previous one in the
- * same transaction. ⚠ Refused rather than leave the platform with no default while one existed:
- * courier delivery would then tell a customer no timeframe.
- */
+/** `id` null creates. A new default replaces the old in the same transaction; leaving none is refused. */
 export async function saveService(id: string | null, v: ServiceValues, actorSub: string): Promise<{ id: string } | { refused: SaveRefusal }> {
   return withTransaction(async (client) => {
-    // One writer at a time decides which is the default.
     await client.query(`LOCK TABLE public.courier_service IN SHARE ROW EXCLUSIVE MODE`);
     const before = id ? (await client.query<Row>(`SELECT ${COLS} FROM public.courier_service WHERE id = $1::uuid`, [id])).rows[0] : undefined;
     if (before?.is_default && (!v.isDefault || v.status === "retired")) return { refused: "default_service_required" as const };

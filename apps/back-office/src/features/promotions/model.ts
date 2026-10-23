@@ -10,7 +10,7 @@ import type {
 } from "@effy/shared-types";
 
 /**
- * Domain shapes for back-office promotions (094). The wire DTOs are the domain shapes here; every
+ * Domain shapes for back-office promotions. The wire DTOs are the domain shapes here; every
  * read and write still goes through the repo layer (Principle VI).
  */
 export type Promotion = AdminPromotionDTO;

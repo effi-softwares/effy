@@ -5,18 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { KNOWN_SHOP_NOTIFICATION_TYPES, SHOP_NOTIFICATION_TYPES } from "@effy/edge-shared";
 
-/**
- * The 059 wiring contract — read against the REAL `serverless.yml`.
- *
- * ⚠ WHY THIS FILE EXISTS. 035 shipped a defect where the audience map read four env vars
- * `serverless.yml` never declared: every pool resolved "unknown", no email was ever sent, and **100
- * passing tests missed it because they set those vars themselves**. The same shape applies to a
- * route: a handler file that typechecks, unit-tests green and is never registered answers nothing at
- * all, and the only symptom is a 404 an operator reports days later.
- *
- * The evaluator is worse again — an unregistered SCHEDULE produces no error anywhere. It simply
- * never runs, and the console silently never notifies about attention.
- */
+/** Reads the real serverless.yml: an unregistered route or schedule fails silently. */
 const ROOT = join(import.meta.dirname, "..");
 const SLS = readFileSync(join(ROOT, "serverless.yml"), "utf8");
 
@@ -37,8 +26,7 @@ describe("⚠ every 059 handler is actually registered", () => {
   });
 
   it("⚠ the evaluator is on a SCHEDULE, not an HTTP route", () => {
-    // An unregistered schedule is the silent failure this test exists for: nothing errors, the
-    // function simply never runs, and attention is never announced.
+    // An unregistered schedule never runs and nothing errors.
     const block = SLS.slice(SLS.indexOf("attentionEvaluate:"));
     const scoped = block.slice(0, block.indexOf("shopNotificationPrefsV1Get:"));
     expect(scoped).toMatch(/- schedule: rate\(\d+ minutes?\)/);
@@ -46,8 +34,7 @@ describe("⚠ every 059 handler is actually registered", () => {
   });
 
   it("⚠ the evaluator has a timeout longer than the default", () => {
-    // It walks every active shop, and each shop is five queries. The 6s API default would cut the
-    // run off part-way through — silently, because the shops it did reach were processed fine.
+    // Every active shop at five queries each: the 6 s default would cut the run off part-way.
     const block = SLS.slice(SLS.indexOf("attentionEvaluate:"));
     const scoped = block.slice(0, block.indexOf("shopNotificationPrefsV1Get:"));
     expect(scoped).toMatch(/timeout: \d+/);
@@ -69,14 +56,12 @@ describe("⚠ every 059 handler is actually registered", () => {
 
 describe("⚠ the notification type catalogue has one source", () => {
   it("the seven shop types and their keys agree", () => {
-    // ⚠ Written out, not derived from the export — a list built from the implementation agrees with
-    // the implementation and proves nothing (027 R13).
+    // Written out, not derived from the export.
     expect([...KNOWN_SHOP_NOTIFICATION_TYPES].sort()).toEqual([
       "shop_awaiting_pick",
       "shop_low_stock",
       "shop_new_order",
       "shop_out_of_stock",
-      // 067 — Effy's review decisions.
       "shop_product_approved",
       "shop_product_sent_back",
       "shop_refund_proposed",
@@ -93,10 +78,7 @@ describe("⚠ the notification type catalogue has one source", () => {
   });
 
   it("⚠ a label is not a notification title", () => {
-    // The label is what the SETTINGS SCREEN calls a type; the title is what the BANNER says. They
-    // are different strings for different jobs, and `worker/copy.ts` owns the second. Asserting the
-    // distinction here stops a future change collapsing them into one and making the settings
-    // screen read "New order to pick" as a heading.
+    // The settings label and the banner title are different strings for different jobs (`worker/copy.ts` owns titles).
     const newOrder = SHOP_NOTIFICATION_TYPES.find((t) => t.type === "shop_new_order");
     expect(newOrder?.label).toBe("New orders");
     expect(newOrder?.label).not.toBe("New order to pick");

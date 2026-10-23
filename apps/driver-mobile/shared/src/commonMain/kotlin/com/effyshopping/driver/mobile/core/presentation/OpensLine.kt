@@ -25,18 +25,10 @@ import kotlin.time.ExperimentalTime
 private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 /**
- * Whether a round is open RIGHT NOW, re-judged while the screen stays up (072 FR-026).
- *
- * A driver parked outside a shop with the stop on screen must see the controls come alive when the
- * round opens, without touching anything.
- *
- * ⚠ THIS IS A CLOCK, NOT A REFRESH. It re-reads NOTHING — it compares an instant the app already
- * holds with the time, exactly as `WindowLine` turns "Due now" into "Late". 071 forbids a screen
- * re-reading its data on a timer (`scripts/check-no-refresh-timers.sh`); a loop that only re-words
- * what is already loaded is the case that rule allows, and the loop below must stay that way.
- *
- * ⚠ Checked every 15 seconds, and once more exactly when the moment is due, so the wait after the
- * opening time is never longer than a blink.
+ * Whether a round is open right now, re-judged while the screen stays up, so the controls come alive at
+ * opening time. A clock, not a refresh: it compares an instant already held with the time and re-reads
+ * nothing (the case `scripts/check-no-refresh-timers.sh` allows; keep it so). Checked every 15 seconds and
+ * once exactly when due.
  */
 @Composable
 fun rememberIsOpen(opening: Opening?): Boolean {

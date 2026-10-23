@@ -1,25 +1,19 @@
-# The live-update channel (071-live-updates).
+# The live-update channel: AWS AppSync Events. A backend function that commits a change publishes "something
+# of this kind changed" to the channel of whoever it concerns, and each open app re-reads through its usual
+# routes. Nothing the platform runs holds a connection, and it costs nothing while idle.
 #
-# One managed publish/subscribe API (AWS AppSync Events). The backend function that commits a change
-# publishes "something of this KIND changed" to the channel of whoever it concerns; each open app
-# re-reads through the routes it already uses. No connection is held by anything the platform runs,
-# and nothing here costs anything while no app is connected and nothing is changing (constitution
-# v3.1.0, Principle III).
+# Deploy order (the API names the authorizer function, so it must exist first):
+# 1. make edge-deploy SERVICE=live ENV=<env> (the authorizer)
+# 2. make apply ENV=<env> (this file)
+# 3. make edge-deploy for each service that announces — they read the parameters below.
 #
-# ⚠ DEPLOY ORDER. The API names the authorizer function, so that function must exist first:
-#     1. make edge-deploy SERVICE=live ENV=<env>     (the authorizer)
-#     2. make apply ENV=<env>                        (this file)
-#     3. make edge-deploy for each service that announces — they read the parameters below.
+# Three auth modes, one per direction, and no Cognito provider:
+# connect + subscribe → the Lambda authorizer (whether a person may hear a shop is a platform record, not a
+# token claim).
+# publish → IAM: only a backend role holding the policy below; the authorizer refuses every publish.
 #
-# ⚠ THREE AUTH MODES, ONE PER DIRECTION, AND NO COGNITO PROVIDER.
-#   connect + subscribe → the Lambda authorizer. Whether a person may hear a shop is a platform
-#     record, not a token claim; a Cognito provider could only prove which pool issued the token.
-#   publish → IAM. Only a backend role holding the policy below can publish; the authorizer refuses
-#     every publish that reaches it, so a client cannot publish by either route.
-#
-# ⚠ THE AUTHORIZER'S CACHE IS SET BY THE FUNCTION (ttlOverride), not here. The value here is the
-# fallback for an answer that carries none, and it is 0 on purpose: an answer the function did not
-# deliberately mark as reusable is not reused.
+# The authorizer's cache TTL is set by the function (ttlOverride); the fallback here is 0, so an answer not
+# marked reusable is not reused.
 
 locals {
   live_authorizer_function = "effy-edge-live-${var.env}-authorizer"
@@ -107,9 +101,9 @@ resource "aws_lambda_permission" "live_authorizer" {
 }
 
 # App↔infra contract: /effy/<env>/live/{http_host, realtime_host, api_arn}.
-#   http_host      — where the backend publishes, and the host an app names in its handshake.
-#   realtime_host  — where an app's socket connects.
-#   api_arn        — scopes each announcing service's publish permission to this API.
+# http_host — where the backend publishes, and the host an app names in its handshake.
+# realtime_host — where an app's socket connects.
+# api_arn — scopes each announcing service's publish permission to this API.
 # No secret: publishing is by role, subscribing by the person's own token.
 resource "aws_ssm_parameter" "live_http_host" {
   name  = "/effy/${var.env}/live/http_host"
@@ -132,11 +126,11 @@ resource "aws_ssm_parameter" "live_api_arn" {
   tier  = "Standard"
 }
 
-# --- Alarms (FR-033) ------------------------------------------------------------------------------
+# --- Alarms ------------------------------------------------------------------------------
 
-# ⚠ ONE ALARM OVER SEVEN SERIES. `UpdateSendFailures` is emitted with the kind as its dimension, so
+# one alarm over seven series. `UpdateSendFailures` is emitted with the kind as its dimension, so
 # each kind is its own series; the alarm is on their sum. A failed update never fails the change it
-# follows (FR-006) — which is exactly why it needs an alarm: nothing else will ever report it.
+# follows — which is exactly why it needs an alarm: nothing else will ever report it.
 resource "aws_cloudwatch_metric_alarm" "live_update_send_failures" {
   alarm_name          = "${module.shared.name_prefix}-live-update-send-failures"
   alarm_description   = "071 — the backend could not tell open apps that something changed. The changes themselves succeeded; screens are stale until their next update or until the person returns to the app. Check the live API (AppSync Events) and the publishing functions' logs for 'live: update not sent'."
@@ -174,7 +168,7 @@ resource "aws_cloudwatch_metric_alarm" "live_update_send_failures" {
   }
 }
 
-# The authorizer refusing someone is not an error; the function THROWING is. While it throws, nobody
+# The authorizer refusing someone is not an error; the function throwing is. While it throws, nobody
 # can subscribe and every screen says live updates are off.
 resource "aws_cloudwatch_metric_alarm" "live_authorizer_errors" {
   alarm_name          = "${module.shared.name_prefix}-live-authorizer-errors"
@@ -196,17 +190,11 @@ resource "aws_cloudwatch_metric_alarm" "live_authorizer_errors" {
   }
 }
 
-# --- Cost (SC-006, FR-033) ------------------------------------------------------------------------
+# --- Cost ------------------------------------------------------------------------
 
-# The feature's bound is 5 USD a month; this warns at 4. The bill is linear in orders (research
-# R12), so this is what tells the operator the platform has outgrown the estimate before the bound
-# is passed.
-#
-# ⚠ NOTIFIES THE EXISTING ALERTS TOPIC — no address is written here, and none may be (constitution,
-# Real-World Identifiers). The topic's policy admits the budgets service (amplify-customer-web.tf).
-#
-# ⚠ A BUDGET IS ACCOUNT-WIDE, not per environment: it watches every AppSync charge in the account.
-# With one environment that is the same thing. A second environment must not declare a second one.
+# The channel's budget: the bound is 5 USD a month and this warns at 4 (the bill is linear in orders).
+# Notifies the alerts topic (no address here); its policy admits the budgets service
+# (amplify-customer-web.tf). A budget is account-wide: a second environment must not declare another.
 resource "aws_budgets_budget" "live" {
   name         = "${module.shared.name_prefix}-live-updates"
   budget_type  = "COST"

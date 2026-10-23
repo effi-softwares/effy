@@ -1,21 +1,15 @@
-// Typed refusals for the orders service (053).
-//
-// ⚠ EVERY REFUSAL NAMES ITS REASON. That is a deliberate contrast with the guard's uniform 403: an
-// AUTHORIZATION refusal must not disclose which term failed, because that turns the route into an
-// oracle. A STATE refusal is the opposite — the operator has already proved who they are, and
-// "cannot record that" without saying why is how a support ticket gets written (spec FR-006).
+// State refusals name their reason, unlike the guard's uniform 403: the caller is already authorized.
 
-/** Why a handover or an arrival could not be recorded. */
 export type OrderActionReason =
-  /** No such package, or it belongs to no order this service can see. */
+  /** No such package, or not on an order this service can see. */
   | "not_found"
-  /** The package has not been collected yet, so there is nothing to hand over. */
+  /** Not collected yet. */
   | "not_collected"
-  /** The package is same-day: an Effy driver delivers it, so it takes no carrier handoff. */
+  /** An Effy driver delivers it today. */
   | "not_standard"
-  /** 078 — the package was sold a delivery WINDOW on a later day: Effy delivers it, not a carrier. */
+  /** Effy delivers it in a later-day window. */
   | "not_carrier"
-  /** An arrival was attempted on a package with no recorded handover (FR-006). */
+  /** No recorded handover. */
   | "no_handoff";
 
 export class OrderActionError extends Error {
@@ -25,7 +19,6 @@ export class OrderActionError extends Error {
   }
 }
 
-/** HTTP status + operator-facing detail for each reason. */
 export const ACTION_REFUSALS: Record<
   OrderActionReason,
   { status: number; title: string; detail: string }

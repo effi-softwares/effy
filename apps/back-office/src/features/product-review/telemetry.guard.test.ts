@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// 067 — the review events must never carry a shop's money, Effy's margin, or free text about a
+// The review events must never carry a shop's money, Effy's margin, or free text about a
 // shop's product. A type cannot say "no property named price"; reading the declarations can.
 const SURFACES = [
   ["back-office", resolve(__dirname, "../../lib/telemetry.ts"), ["product_review_decided", "product_margin_set"]],
@@ -34,7 +34,7 @@ describe("product review telemetry (067)", () => {
           .filter((key): key is string => !!key && key !== "name" && key !== "}");
         expect(props.length).toBeGreaterThan(0);
         for (const key of props) {
-          // `marginSet` is a boolean — THAT a margin was confirmed, never what it was.
+          // `marginSet` is a boolean — that a margin was confirmed, never what it was.
           expect(key === "marginSet" || !/price|amount|margin|reason|productName|shopName|value/i.test(key), key).toBe(true);
         }
       });

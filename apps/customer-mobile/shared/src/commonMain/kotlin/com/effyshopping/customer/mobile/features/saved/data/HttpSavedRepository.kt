@@ -55,14 +55,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 import kotlinx.serialization.Serializable
 
-/**
- * Saved items over the `commerce` service (070) — the platform's one backend. Until 070 these were `v1/…`
- * routes on a second, always-on backend; the paths moved under the service prefix and the wire
- * shapes did not change.
- *
- * Every method maps the wire DTO to the domain explicitly (Principle VI: wire shapes never leak past
- * the data layer).
- */
+/** Saved items over the `commerce` service; every method maps the wire DTO to the domain explicitly. */
 class HttpSavedRepository(private val edge: HttpClient) :
     SavedRepository, SavedMergeRepository, SavedCartRepository, ListRepository {
 
@@ -77,7 +70,7 @@ class HttpSavedRepository(private val edge: HttpClient) :
     }
 
     /**
-     * ⚠ "Saved" still reads `commerce/v1/saved`, not `commerce/v1/lists/default/items`. They are the same list, and the
+     * "Saved" still reads `commerce/v1/saved`, not `commerce/v1/lists/default/items`. They are the same list, and the
      * older route also answers on a backend from before 068 — so a stale backend costs a shopper
      * their named lists, never their saved items.
      */
@@ -109,7 +102,7 @@ class HttpSavedRepository(private val edge: HttpClient) :
                     items.map {
                         SavedMergeItem(
                             productID = it.productId,
-                            // ⚠ Passed through as-is, INCLUDING null. An absent price means the device
+                            // Passed through as-is, including null. An absent price means the device
                             // never saw one, and the platform then uses the product's current price as
                             // the baseline rather than claiming the item fell from nothing.
                             savedPriceAmount = it.savedPriceAmount,
@@ -141,7 +134,7 @@ class HttpSavedRepository(private val edge: HttpClient) :
         )
     }
 
-    /* ── 068: lists ──────────────────────────────────────────────────────────────────────────── */
+    /* Lists */
 
     override suspend fun lists(productId: String?): List<SavedList> = request {
         edge.get("commerce/v1/lists") { if (productId != null) parameter("productId", productId) }
@@ -187,7 +180,7 @@ class HttpSavedRepository(private val edge: HttpClient) :
         } catch (e: CancellationException) {
             throw e
         } catch (e: ListRefusedException) {
-            // ⚠ BEFORE the catch-all below, or every refusal the shopper can act on ("that name is
+            // Before the catch-all below, or every refusal the shopper can act on ("that name is
             // taken") is flattened into "something went wrong".
             throw e
         } catch (e: AppException) {
@@ -205,11 +198,11 @@ class HttpSavedRepository(private val edge: HttpClient) :
 private data class AddToCartBody(val changeId: String)
 
 /**
- * Like `ensureSuccess`, but a refusal the platform NAMED is thrown as a [ListRefusedException].
+ * Like `ensureSuccess`, but a refusal the platform named is thrown as a [ListRefusedException].
  *
- * ⚠ The reason is the last segment of the problem's `type` (`…/problems/name-taken`). The status
+ * The reason is the last segment of the problem's `type` (`…/problems/name-taken`). The status
  * alone cannot carry it: a bad name and a full set of lists are both 400, and
- * `HttpResponse.toAppException` maps EVERY 409 on the platform to "wrong password mode".
+ * `HttpResponse.toAppException` maps every 409 on the platform to "wrong password mode".
  */
 private suspend fun HttpResponse.ensureListSuccess(): HttpResponse {
     if (status.isSuccess()) return this
@@ -242,13 +235,13 @@ private fun SavedListDTO.toDomain(): SavedList = SavedList(
     containsProduct = containsProduct,
 )
 
-// ── Wire → domain ───────────────────────────────────────────────────────────────────────────────
+// Wire → domain
 
 private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
     productId = id,
     name = name,
-    // ⚠ brand / compareAtAmount / badges are carried through, not dropped. The predecessor's mapper
-    // discarded all three and then passed brand = null, badges = emptyList() into the product card —
+    // brand / compareAtAmount / badges are carried through, not dropped. The predecessor's mapper
+    // discarded all three and then passed brand = null, badges = emptyList into the product card
     // so a sale on a saved item was invisible here while visible on every other screen.
     brand = brand,
     imageUrl = imageURL,
@@ -269,8 +262,8 @@ private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
 )
 
 /**
- * ⚠ An exhaustive `when` over the generated enum, with no `else`. If the contract ever gains a sixth
- * verdict, this stops COMPILING — which is the point. A default arm would silently map an unknown
+ * An exhaustive `when` over the generated enum, with no `else`. If the contract ever gains a sixth
+ * verdict, this stops compiling — which is the point. A default arm would silently map an unknown
  * outcome onto one of the five and tell the shopper the wrong thing about whether they can buy.
  */
 private fun WireVerdict.toDomain(): SavedVerdict = when (this) {

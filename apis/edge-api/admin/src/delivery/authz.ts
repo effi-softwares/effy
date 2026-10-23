@@ -1,7 +1,4 @@
-// Back-office authorization for delivery configuration, decided from the admin.staff platform record
-// (005/009 pattern) — never the token claim alone. read = any active staff (incl. csa); mutate =
-// admin/manager (FR-046/FR-052). ⚠ Fees + same-day config are back-office ONLY; there is no shop-side
-// write path anywhere (FR-045).
+// Decided from admin.staff. Read: any active staff; mutate: admin/manager. No shop-side write path exists.
 import { query } from "@effy/edge-shared";
 
 export { isActiveStaff } from "../shops/authz";

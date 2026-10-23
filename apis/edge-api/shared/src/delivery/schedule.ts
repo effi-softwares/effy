@@ -3,16 +3,13 @@ import type { Queryable } from "../lib/db";
 
 export type { CollectionRun };
 
-/** The Melbourne calendar date at an instant, as yyyy-mm-dd. */
+/** yyyy-mm-dd. */
 export function melbourneDate(at: Date): string {
   const { year, month, day } = localDateParts(at);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-/**
- * The active collection runs and the prep buffer. A plan can exist before the schedule does, so a
- * missing settings row is buffer 0 rather than an error; the runs decide what can be collected.
- */
+/** A missing settings row is buffer 0, not an error. */
 export async function collectionSchedule(q: Queryable): Promise<{ runs: CollectionRun[]; bufferMin: number }> {
   const settings = await q.query<{ sameday_prep_buffer_min: number }>(
     `SELECT sameday_prep_buffer_min FROM public.delivery_settings WHERE id = 1`,

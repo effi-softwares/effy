@@ -5,11 +5,6 @@ import type {
   FeedbackStatus,
 } from "@effy/shared-types"
 
-/**
- * Internal shapes for the feedback console slice (046 US2/US3). Wire DTOs come from `@effy/shared-types`
- * (Principle II); these are the row shapes and param bags that never leave the data/service layer.
- */
-
 export class FeedbackError extends Error {
   constructor(
     public readonly kind: "validation" | "not_found" | "conflict" | "send_failed" | "unavailable",
@@ -59,7 +54,7 @@ export interface ListParams {
   offset: number
 }
 
-/** The staff identity captured on a reply or note (snapshot at write time; no cross-schema FK). */
+/** Snapshotted at write time; no cross-schema FK. */
 export interface StaffActor {
   sub: string
   name: string | null

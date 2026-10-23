@@ -4,13 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, useDialogOpen } from "@/components/ui/dialog"
 
 /**
- * Delete an address — or be told why this one cannot go yet (reference: Account · Address — delete
- * blocked).
- *
- * ⚠ THE DEFAULT ADDRESS IS NOT DELETED WHILE OTHERS EXIST: the customer picks a new default first,
- * so checkout is never left without one. The dialog says that, and offers nothing destructive.
- *
- * ⚠ An order already placed keeps its own copy of the address; deleting changes nothing about it.
+ * Delete an address, or be told why this one cannot go yet: the default cannot be deleted while others
+ * exist, so checkout always has one. Placed orders keep their own copy.
  */
 type Props = {
   open: boolean

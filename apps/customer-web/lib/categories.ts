@@ -7,15 +7,9 @@ import { edgeApiPublic } from "@/lib/api/edge"
 import { CACHE_LIFE } from "@/lib/cache-life"
 
 /**
- * The aisle list — SHARED between requests for up to 60 seconds (PERF-05, 054 FR-015a as amended).
- *
- * Every page's header reads it (aisle row, All aisles menu, search chooser, phone menu), so read live
- * it was a backend round trip — two correlated subqueries per category — on every page view, for a
- * list that changes when staff edit the taxonomy.
- *
- * ⚠ `listing`, NOT LONGER: each aisle carries `productCount`, which is stock-derived and decides which
- * aisles the home page shows. That is FR-015a's listing tier — 60 seconds late and no more.
- * ⚠ No writer revalidates the tag (lib/cache-life.ts says why); the lifetime is the contract.
+ * The aisle list, shared between requests for up to 60 seconds. Every page's header reads it. `listing`,
+ * not longer: each aisle carries a stock-derived `productCount` that decides which aisles the home page
+ * shows.
  */
 async function readCategories(): Promise<StorefrontCategoryDTO[]> {
   "use cache"
@@ -25,10 +19,10 @@ async function readCategories(): Promise<StorefrontCategoryDTO[]> {
 }
 
 /**
- * The aisle list, asked for at most ONCE per render however many components want it — React's
+ * The aisle list, asked for at most once per render however many components want it — React's
  * `cache` collapses the header's four readers and the home page into one lookup.
  *
- * ⚠ Throws when the catalogue is unreachable (a failure is never kept). Chrome callers catch and
+ * Throws when the catalogue is unreachable (a failure is never kept). Chrome callers catch and
  * render without aisles — a header must never take the page down with it.
  */
 export const getCategories = cache(async (): Promise<StorefrontCategoryDTO[]> => {

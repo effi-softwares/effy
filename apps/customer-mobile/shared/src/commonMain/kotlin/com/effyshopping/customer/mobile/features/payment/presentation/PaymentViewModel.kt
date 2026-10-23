@@ -19,9 +19,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The payment screen's ViewModel (051 US1) — `ViewModel → UseCase → Driver` (Principle VI).
+ * The payment screen's ViewModel — `ViewModel → UseCase → Driver` (Principle VI).
  *
- * ⚠ THE SCREEN CARRIES THE AMOUNT AND NOTHING ELSE (FR-003). No basket lines, no address, no delivery
+ * The screen carries the amount and nothing else. No basket lines, no address, no delivery
  * row: the shopper confirmed all of it on the step before, and restating it invites a second review
  * instead of a payment. That is why this state holds a total and a currency and no order content.
  */
@@ -30,7 +30,7 @@ data class PaymentUiState(
     val currency: String = "AUD",
     /** True while a confirmation is in flight. The pay control reads this and refuses a second press. */
     val paying: Boolean = false,
-    /** A refusal the shopper can act on — never a provider error code (FR-036). */
+    /** A refusal the shopper can act on — never a provider error code. */
     val error: String? = null,
     /** Set once the payment is accepted; the screen navigates to the receipt. */
     val paidOrderId: String? = null,
@@ -46,7 +46,7 @@ class PaymentViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        // 074 — the CARD's amount: the total less any points.
+        // The card's amount: the total less any points.
         PaymentUiState(amount = intent.amountForCard, currency = intent.currency),
     )
     val state: StateFlow<PaymentUiState> = _state.asStateFlow()
@@ -54,9 +54,9 @@ class PaymentViewModel(
     /**
      * What the platform element needs. Assembled here, from the intent — the element decides nothing.
      *
-     * ⚠ `billingDetails` is the half that makes the short form legal. The element is configured to
+     * `billingDetails` is the half that makes the short form legal. The element is configured to
      * collect no address and no name, so if these are absent the provider refuses the payment outright
-     * (FR-015/FR-016).
+     * .
      */
     val elementConfig: PaymentElementConfig = PaymentElementConfig(
         clientSecret = intent.clientSecret,
@@ -80,19 +80,13 @@ class PaymentViewModel(
         customerId = intent.customerId,
     )
 
-    /**
-     * Pay.
-     *
-     * ⚠ `paying` is cleared on EVERY path, including success. The web form's defect was clearing it only
-     * on a validation error, so the control stayed disabled reading "Paying…" through the navigation —
-     * and forever if that navigation failed (research R12 D2, FR-041).
-     */
+    /** Pay. `paying` is cleared on every path, success included, so the button never sticks on "Paying…". */
     fun pay(handle: PaymentElementHandle) {
         if (_state.value.paying) return
-        // 069 — ⚠ THE LAST MOMENT ANYTHING OF EFFY'S CAN SAY NO. The element confirms with the
+        // The last moment anything of effy's can say no. The element confirms with the
         // provider directly, so once it is asked nothing stands between the shopper and the charge. A
         // same-day place is held for a few minutes from the intent; past that it may have gone to
-        // someone else, and they must find out HERE rather than after paying. Going back and
+        // someone else, and they must find out here rather than after paying. Going back and
         // continuing again re-runs the intent, which holds the place afresh or says it has gone.
         if (holdLapsed(intent.slotHeldUntil, nowEpochMillis())) {
             _state.value = _state.value.copy(
@@ -105,13 +99,13 @@ class PaymentViewModel(
             try {
                 when (val result = handle.confirm()) {
                     PaymentResult.Completed -> {
-                        // The device MIRROR of the cart. The platform empties the real one inside the
-                        // webhook finaliser's transaction (019); this is what stops the badge showing a
+                        // The device mirror of the cart. The platform empties the real one inside the
+                        // webhook finaliser's transaction; this is what stops the badge showing a
                         // basket the shopper has just bought.
                         cart.clear()
-                        // ⚠ Best-effort, and a failure here is deliberately swallowed. The webhook is
+                        // Best-effort, and a failure here is deliberately swallowed. The webhook is
                         // authoritative; a shopper who has paid must never be shown a failure because a
-                        // fallback confirmation call did not land (FR-039).
+                        // fallback confirmation call did not land.
                         runCatching { confirmOrder(intent.orderId) }
                         _state.value = _state.value.copy(paying = false, paidOrderId = intent.orderId)
                     }
@@ -135,9 +129,9 @@ class PaymentViewModel(
     /**
      * Release the handoff when this ViewModel is cleared.
      *
-     * ⚠ THIS IS THE TIDY-UP, NOT THE GUARANTEE. ViewModels here are scoped to the host store, so this
+     * This is the tidy-up, not the guarantee. ViewModels here are scoped to the host store, so this
      * may not run the moment the shopper leaves the screen. What actually keeps a stale intent from ever
-     * being confirmed is that [PaymentHandoff.offer] OVERWRITES: the next pay press replaces it, and this
+     * being confirmed is that [PaymentHandoff.offer] overwrites: the next pay press replaces it, and this
      * ViewModel is keyed by order so a new order never reuses an old one.
      */
     override fun onCleared() {
@@ -146,12 +140,12 @@ class PaymentViewModel(
     }
 
     /**
-     * ⚠ Every message is OURS, and every one says what the shopper can do next (FR-036). None is
+     * Every message is ours, and every one says what the shopper can do next. None is
      * "something went wrong" — a shopper told only that has no way to decide whether to wait, try
      * another card, or give up, so they abandon the basket.
      *
-     * ⚠ EVERY MESSAGE NAMES WHAT HAPPENED TO THE MONEY. "Nothing has been charged" is the single most
-     * useful fact after a failed payment, and it is true on every path here (FR-037). Mirrors the web
+     * Every message names what happened to the money. "Nothing has been charged" is the single most
+     * useful fact after a failed payment, and it is true on every path here. Mirrors the web
      * surface's `failures.ts`; the two are kept in step by hand, and the parity register records it.
      */
     private fun message(e: AppError): String = when (e) {
@@ -165,18 +159,10 @@ class PaymentViewModel(
     }
 }
 
+/** Convert a 2-dp decimal money string to minor units, never through a float. */
 /**
- * Convert a 2-dp decimal money string to minor units.
- *
- * ⚠ NEVER VIA A FLOAT. Money crosses the wire as a decimal STRING precisely so no float ever touches it
- * (027 R13); parsing to Double here to multiply by 100 would reintroduce the rounding this platform
- * spent three stacked defects removing.
- */
-/**
- * Whether the order's same-day place has lapsed (069).
- *
- * ⚠ FALSE WHEN THERE IS NO HOLD, and false for a value that cannot be read: a standard order holds
- * nothing, and refusing to let someone pay because a timestamp was malformed would cost the order.
+ * Whether the order's held window place has lapsed. False with no hold, and for an unreadable value:
+ * refusing payment over a malformed timestamp would cost the order.
  */
 internal fun holdLapsed(slotHeldUntil: String?, nowEpochMillis: Long): Boolean {
     val until = slotHeldUntil?.let(DeliveryWindowText::epochMillisOrNull) ?: return false

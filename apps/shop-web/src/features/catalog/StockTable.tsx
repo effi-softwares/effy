@@ -12,10 +12,10 @@ import { adjustStock, setStockCount, setStockTracking } from "./stockRepo";
 import { planRow, planTable, type StockMode } from "./stockPlan";
 
 /**
- * Stock for EVERY size at once (098) — a table like the sizes editor: one row per size, one number per
+ * Stock for every size at once — a table like the sizes editor: one row per size, one number per
  * row, one Save. "Add received" adds a delivery to each shelf; "Set count" records a stocktake.
  *
- * ⚠ IT WRITES THROUGH THE SAME PER-SIZE ROUTES AS THE DIALOGS, one size after another, so every change
+ * It writes through the same per-size routes as the dialogs, one size after another, so every change
  * is the same recorded movement it always was. A size that fails keeps its number and says why; sizes
  * that saved are cleared — so pressing Save again can never add a delivery twice.
  */
@@ -215,7 +215,7 @@ export function StockTable({
   );
 }
 
-/** In words, never by colour alone (054): an empty shelf, a thin one, a healthy one, or not counted. */
+/** In words, never by colour alone: an empty shelf, a thin one, a healthy one, or not counted. */
 function StockBadge({ stock }: { stock: ProductDetail["variants"][number]["stock"] }) {
   if (!stock.tracked) return <Badge variant="muted">Not counted</Badge>;
   if (stock.outOfStock) return <Badge variant="destructive">Out of stock</Badge>;

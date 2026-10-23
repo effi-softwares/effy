@@ -35,10 +35,8 @@ describe("ConsoleUserMenu (sidebar footer)", () => {
     expect(screen.getByText("Signed in")).toBeInTheDocument();
   });
 
-  // The 3-way appearance menu (Light/Dark/System) lives in the Radix DropdownMenu content, which
-  // does not open under jsdom's fireEvent — the open/select path is validated live (quickstart §3)
-  // and the mode logic is unit-tested in runtime/ui-store.test.ts. Here we only assert the menu
-  // accepts the tri-state contract and renders.
+  // The appearance menu's Radix content does not open under jsdom, so this asserts only that it
+  // renders; the mode logic is tested in runtime/ui-store.test.ts.
   it("accepts a tri-state appearance mode without error", () => {
     const onSetTheme = vi.fn();
     for (const theme of ["light", "dark", "system"] as const) {

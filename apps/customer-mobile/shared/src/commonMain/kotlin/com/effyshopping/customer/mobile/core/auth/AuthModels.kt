@@ -1,14 +1,10 @@
 package com.effyshopping.customer.mobile.core.auth
 
 /**
- * A signed-in session. Carries BOTH tokens because every account route needs both (the two-token
- * protocol, 013 D2): the ID token is the gateway bearer (`Authorization`) and the access token is
- * relayed to Cognito (`X-Effy-Access-Token`). Which token goes where is decided in ONE place —
- * `core/http/EffyHttpClient.kt`'s `authHeadersFor` — and is unit-tested there.
- *
- * No expiry is carried: Amplify owns refresh (D21), and the app reads a fresh session per request rather
- * than tracking expiry itself. These tokens live in the SDK's secure store (Keychain / Keystore-backed) —
- * this object is a transient in-memory read, never persisted by the app itself (FR-020).
+ * A signed-in session with both tokens: the ID token is the gateway bearer, the access token is relayed
+ * (`X-Effy-Access-Token`); `core/http/EffyHttpClient.kt`'s `authHeadersFor` decides which goes where. No
+ * expiry: Amplify owns refresh and the app reads a fresh session per request. The tokens live in the SDK's
+ * secure store; this is a transient read, never persisted.
  */
 data class Session(
     val sub: String,
@@ -31,10 +27,10 @@ sealed interface AuthStep {
 }
 
 /**
- * A CLOSED set of auth failures. The SDK's own exception text is NEVER surfaced.
+ * A closed set of auth failures. The sdk's own exception text is never surfaced.
  *
- * ⚠ [InvalidCredentials] intentionally covers BOTH "wrong password" and "no such user". Distinguishing
- * them turns the app into an account-enumeration oracle (FR-016); the pool sets
+ * [InvalidCredentials] intentionally covers both "wrong password" and "no such user". Distinguishing
+ * them turns the app into an account-enumeration oracle; the pool sets
  * `prevent_user_existence_errors = ENABLED`, and the client must not undo that by leaking the
  * difference in a message.
  */

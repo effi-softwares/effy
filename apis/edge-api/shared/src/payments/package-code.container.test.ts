@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PACKAGE_CODE_ALPHABET, isPackageCode } from "@effy/shared-types";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 
-/** 089 — every package gets a permanent code the moment it exists (quickstart P1). */
+/** Every package gets a permanent code the moment it exists. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -19,8 +19,8 @@ async function order(): Promise<string> {
     [`c-${crypto.randomUUID()}`],
   )).rows[0]!.id;
   return (await pool.query<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, 'EFY-' || substr(gen_random_uuid()::text, 1, 6), 10, 12, '{}'::jsonb, 'paid') RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, 'EFY-' || substr(gen_random_uuid()::text, 1, 6), 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust],
   )).rows[0]!.id;
 }

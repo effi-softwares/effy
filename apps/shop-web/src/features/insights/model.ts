@@ -6,9 +6,9 @@ import type {
 } from "@effy/shared-types"
 
 /**
- * Insights' copy (058, US3).
+ * Insights' copy.
  *
- * ⚠ THE CLIENT FORMATS; IT NEVER SUBTRACTS (FR-024). Every comparison arrives computed, with the
+ * The client formats; it never subtracts. Every comparison arrives computed, with the
  * basis it was computed against, so these functions turn `{ kind: "pct", amount: "9.0" }` into
  * "+9% vs previous week" and nothing more. The moment this file starts doing arithmetic on two
  * figures, the screen has a second opinion about the shop's revenue.
@@ -20,7 +20,7 @@ export const RANGE_TITLE: Record<InsightsRange, string> = {
   "30d": "Last 30 days",
 }
 
-/** "today" / "last 7 days" / "last 30 days" — a real PERIOD label, never the chart's bucket label. */
+/** "today" / "last 7 days" / "last 30 days" — a real period label, never the chart's bucket label. */
 export const RANGE_PERIOD: Record<InsightsRange, string> = {
   today: "today",
   "7d": "last 7 days",
@@ -54,10 +54,10 @@ export function metricLabel(name: string, range: InsightsRange): string {
 /**
  * "+9% vs previous week" / "−2 vs last week" / "Nothing to compare yet".
  *
- * ⚠ THE SIGN AND THE ARROW CARRY THE DIRECTION, NOT A COLOUR. The imported design coloured these
+ * The sign and the arrow carry the direction, not a colour. The imported design coloured these
  * green and red; green fails the platform's text-contrast bar (it is a non-text indicator only) and
  * red is the error colour — a quieter week is not an error. Rendered in greyscale, "▼ 3%" still says
- * exactly what it means (research R15).
+ * exactly what it means.
  */
 export function deltaText(figure: InsightsFigureDTO, basis: ComparisonBasis): string {
   const { kind, amount } = figure.change
@@ -73,15 +73,15 @@ export function deltaText(figure: InsightsFigureDTO, basis: ComparisonBasis): st
 /**
  * The colour a delta is written in.
  *
- * ⚠ THE ADOPTED DESIGN TONES ITS DELTAS, and this restores that: up is `--success`, down is
+ * The adopted design tones its deltas, and this restores that: up is `--success`, down is
  * `--destructive`, and a figure with nothing to compare against stays muted. Monochrome had to put
  * the whole statement in the ▲/▼ glyph.
  *
- * ⚠ IT LIVES HERE, NOT IN THE THREE COMPONENTS THAT RENDER A DELTA. The metric strip, the chart
+ * It lives here, not in the three components that render a delta. The metric strip, the chart
  * headers and the glance strip all show one, and three copies of a sign test is exactly how one of
  * them ends up calling a drop green.
  *
- * ⚠ THE GLYPH STILL CARRIES THE DIRECTION. `deltaText` writes ▲/▼ regardless, so a red figure is
+ * The glyph still carries the direction. `deltaText` writes ▲/▼ regardless, so a red figure is
  * never the only thing saying "this went down".
  */
 export function deltaToneClass(figure: InsightsFigureDTO): string {
@@ -120,7 +120,7 @@ export function windowSubtitle(dto: ShopInsightsDTO, now: number): string {
 /**
  * "updated a moment ago" / "updated 4 minutes ago" / "not updated yet".
  *
- * ⚠ NULL IS NOT "JUST NOW". A shop whose rollups have never run shows zeros, and the difference
+ * Null is not "JUST NOW". A shop whose rollups have never run shows zeros, and the difference
  * between "nothing sold" and "we have not measured yet" is exactly what this phrase carries.
  */
 export function freshness(computedAt: string | null, now: number): string {

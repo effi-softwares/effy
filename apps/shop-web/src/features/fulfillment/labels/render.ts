@@ -1,30 +1,25 @@
-/* ⚠ THE HEX VALUES IN THIS FILE ARE DELIBERATE AND CANNOT BE TOKENS — the same exemption as
+/* The hex values in this file are deliberate and cannot be tokens — the same exemption as
  * `pickList.ts`. A label is a document for a thermal or laser printer: it has no access to the console's
- * stylesheet, and the theme's colours are for screens. It is BLACK AND WHITE ONLY (FR-012b).
+ * stylesheet, and the theme's colours are for screens. It is black and white only.
  */
 
 /**
- * Bag labels (096, spec US10) — ONE renderer: a pure function from a label document to an SVG string.
- * The browser print, the console's preview and the direct-thermal (ZPL) path all draw THIS SVG, so the
- * preview is what prints (research R9). The design: `specs/096-parcel-labels-scanning/label-redesign.md`.
+ * Bag labels: one pure renderer from a label document to SVG. The browser print, the preview and the
+ * thermal (ZPL) path all draw it, so the preview is what prints.
  *
  * Fixed blocks, top to bottom, never reordered or omitted:
- *   1 header (Effy mark · EFFY DELIVERY / COURIER, reversed)   2 deliver to (postcode largest)
- *   3 temperature band (chilled/frozen reversed)                4 BAG n OF N · order · packed date
- *   5 Code 128 of EFY1:<code>, full width                       6 QR · the code grouped for reading aloud
- *   7 footer: the approved customer contact
+ *  1 header (Effy mark · Effy delivery / courier, reversed) 2 deliver to (postcode largest)
+ *  3 temperature band (chilled/frozen reversed) 4 BAG n OF N · order · packed date
+ *  5 Code 128 of EFY1:<code>, full width 6 QR · the code grouped for reading aloud
+ *  7 footer: the approved customer contact
  *
- * ⚠ NEVER ON A LABEL: the shop's name (hidden fulfilment), any price, the customer's email, the billing
- * address, or any delivery window, day or estimate (a shop is told who takes a package away, 079).
- * The recipient's name, the full SHIPPING address and the recipient's phone ARE on it (spec
- * Clarifications, reversing 089; the phone added by the operator 2026-10-22): a bag separated from its run
- * must still be deliverable, and the shop already sees all three.
+ * Never on a label: the shop's name, a price, the customer's email, the billing address, or any delivery
+ * window, day or estimate. The recipient's name, full address and phone are on it, so a bag separated
+ * from its run is still deliverable.
  *
- * ⚠ BARS ON THE PRINTER'S DOT GRID. A bar width between dots is rounded per bar by the printer, which
- * skews the ratios Code 128 depends on (research-08 W4). Each layout's module is a whole number of dots
- * at the chosen dpi, and the symbol starts on a dot boundary.
- *
- * ⚠ Everything interpolated is escaped; this builds raw markup.
+ * Bars sit on the printer's dot grid (a bar between dots is rounded, skewing Code 128's ratios): each
+ * layout's module is a whole number of dots and the symbol starts on a dot boundary. Everything
+ * interpolated is escaped.
  */
 import qrcode from "qrcode-generator"
 
@@ -96,7 +91,7 @@ export function countryWords(country: string | null | undefined): string | null 
   return c.toUpperCase() === "AU" ? "AUSTRALIA" : c.toUpperCase()
 }
 
-// ── The layout: every element as a box in mm, so tests can prove nothing leaves the label ──────────────
+// The layout: every element as a box in mm, so tests can prove nothing leaves the label
 
 type Text = { kind: "text"; x: number; y: number; text: string; sizePt: number; bold?: boolean; mono?: boolean; anchor?: "start" | "end" | "middle"; fill?: "#000" | "#fff"; spacing?: number }
 type Rect = { kind: "rect"; x: number; y: number; w: number; h: number; fill: "#000" | "#fff" | "none"; stroke?: number }
@@ -116,7 +111,7 @@ export interface LabelLayoutResult {
 /**
  * Lay out one label. Pure and deterministic; `today` fills the packed date before the first print.
  *
- * ⚠ IT TIGHTENS ITSELF RATHER THAN OVERFLOW. A long name and address (or the A4 quarter, shorter than
+ * It tightens itself rather than overflow. A long name and address (or the A4 quarter, shorter than
  * 4×6) can push the code block into the footer; the layout is tried at increasing `squeeze` — smaller gaps,
  * then a smaller QR, then shorter bars (never under 16 mm, never narrower) — until everything fits.
  */
@@ -174,7 +169,7 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
     els.push({ kind: "text", x: x0, y: y + asc(name.sizePt), text: line, sizePt: name.sizePt, bold: true })
     y += lineH(name.sizePt)
   }
-  // Every part of the SHIPPING address, each on its own line (operator, 2026-10-22).
+  // Every part of the shipping address, each on its own line (operator, 2026-10-22).
   for (const part of [doc.common.line1, doc.common.line2]) {
     if (!part?.trim()) continue
     const fit = fitText(part.trim(), W, [11, 10, 9, 8].map(pt), 2)
@@ -231,7 +226,7 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   const bagTop = y + lineH(capPt) + 0.5 * k
   const nStr = String(doc.parcel.seq)
   const nW = textWidthMm(nStr, bigPt, { bold: true })
-  // ⚠ Positioned, not spaced: SVG collapses the spaces in " OF ", which ran "2OF 3" together.
+  // Positioned, not spaced: SVG collapses the spaces in " OF ", which ran "2OF 3" together.
   const gap = 1.6 * k
   const ofW = textWidthMm("OF", ofPt, { bold: true })
   els.push({ kind: "text", x: x0, y: bagTop + asc(bigPt), text: nStr, sizePt: bigPt, bold: true })
@@ -285,7 +280,7 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   return { widthMm: g.widthMm, heightMm: g.heightMm, elements: els, blocks }
 }
 
-// ── SVG ──────────────────────────────────────────────────────────────────────────────────────────────
+// SVG
 
 const FONT = "Helvetica, Arial, sans-serif"
 const MONO = "Menlo, Consolas, 'Courier New', monospace"

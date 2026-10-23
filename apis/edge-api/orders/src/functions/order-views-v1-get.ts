@@ -9,11 +9,7 @@ import { VALIDATION_FAILED } from "../lib/problems";
 import { parseBaseFilters } from "../orders/filters";
 import { orderViewCounts } from "../orders/service";
 
-/**
- * GET /orders/v1/summary/views — the count on each saved view of the order list (All · Needs a
- * driver · Needs handover · Awaiting arrival · Needs a refund decision · Courier problem), under the
- * list's own search and delivery filters. Read = any active staff incl. csa.
- */
+/** Each saved view's count under the list's search and filters. Any active staff. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

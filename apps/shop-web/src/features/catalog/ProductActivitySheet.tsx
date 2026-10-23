@@ -18,21 +18,9 @@ import { actorLabel, stockChangeTitle } from "./stockMovementText";
 import { variantStockQuery } from "./stockQueries";
 
 /**
- * The product's Activity sheet (057 revision) — what used to be the right rail, moved onto a
- * right-anchored sheet opened from the header's "Activity" button.
- *
- * ⚠ WHY A SHEET. The change log is the reason for the move: it can be arbitrarily long, and a 260px
- * rail could only ever show the newest four entries of it. A sheet is a full-height scrollable surface
- * of its own, so the log shows every entry and the page underneath gets its full width back.
- *
- * ⚠ THE MOCKUP'S "Last 30 days" BLOCK IS STILL NOT REPRODUCED. The platform stores no per-product sales
- * history — nothing can answer "units sold, last 30 days" — and drawing it with invented figures is
- * the defect this feature deleted from the dashboard. The slot carries the product's real lifecycle
- * facts instead (what the old rail's "Lifecycle" block held).
- *
- * ⚠ AND THE CHANGE LOG IS THE STOCK LOG, NOT A SEEDED ONE. Every entry is a `stock_movement` row — the
- * platform's only per-product audit trail. The mockup's sample history (price edits, image uploads)
- * has no table behind it, and a log that invents its own entries is worse than a short one.
+ * The product's Activity sheet, opened from the header: a full-height scrollable log, so every entry
+ * shows. The entries are `stock_movement` rows, the only per-product audit trail. No "Last 30 days" block:
+ * there is no per-product sales history; it shows the product's lifecycle facts instead.
  */
 export function ProductActivitySheet({
   detail,
@@ -41,7 +29,7 @@ export function ProductActivitySheet({
   onOpenChange,
 }: {
   detail: ProductDetail;
-  /** 098 — the size whose stock changes are listed (the one the Inventory tab shows). */
+  /** The size whose stock changes are listed (the one the Inventory tab shows). */
   variantId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,7 +39,7 @@ export function ProductActivitySheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* ⚠ The shared SheetContent already supports `side="right"`; the width, square corners and
+      {/* The shared SheetContent already supports `side="right"`; the width, square corners and
           flush padding are this surface's, passed as classes so the centred-modal and bottom-drawer
           variants (`ResponsiveModal`) are untouched. */}
       <SheetContent side="right" className="w-full gap-0 rounded-none sm:max-w-[440px]">
@@ -108,7 +96,7 @@ export function ProductActivitySheet({
 /**
  * One change-log entry: a status dot, what happened, and "<when> · <who>".
  *
- * ⚠ THE DOT IS MONOCHROME. The mockup colours it green / amber / red by kind; amber is a third UI hue
+ * The dot is monochrome. The mockup colours it green / amber / red by kind; amber is a third UI hue
  * and `--success` may not sit beside text as its only carrier of meaning. A reduction gets the full
  * foreground, an increase the muted tone — and the signed count in the title says which, so the dot
  * is never the only thing telling them apart.

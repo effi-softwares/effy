@@ -1,12 +1,12 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * The shopper's kept cards (051 US3/US6).
+ * The shopper's kept cards.
  *
- * ⚠ On the commerce service, with checkout: listing a payment method is a call to the payment
+ * On the commerce service, with checkout: listing a payment method is a call to the payment
  * provider, and the provider secret has one custodian among the shopper-facing services.
  *
- * ⚠ Scoped to the authenticated subject by the server. There is no customer parameter here and there
+ * Scoped to the authenticated subject by the server. There is no customer parameter here and there
  * must never be one.
  */
 export async function GET() {

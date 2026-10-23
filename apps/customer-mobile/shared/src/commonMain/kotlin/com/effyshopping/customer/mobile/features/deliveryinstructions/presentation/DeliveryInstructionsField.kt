@@ -45,17 +45,17 @@ import com.effyshopping.customer.mobile.resources.lucide_house
 import com.effyshopping.customer.mobile.resources.lucide_user_round
 
 /**
- * The delivery-instructions control (066): two handover choices and a note for the driver. Used by
+ * The delivery-instructions control: two handover choices and a note for the driver. Used by
  * checkout and by the address form, so an address's saved default is edited with the very control
  * that will later be prefilled from it (Principle II).
  *
  * Stateless — the draft lives in the caller's ViewModel, which is what lets it survive the move to
- * the payment screen and a failed payment (FR-006).
+ * the payment screen and a failed payment.
  *
- * ⚠ The chips TOGGLE OFF. "No preference" is a real answer, and a control that cannot return to it
+ * The chips toggle off. "No preference" is a real answer, and a control that cannot return to it
  * forces a shopper who tapped one by mistake to live with it.
  *
- * ⚠ The note is plain text in and plain text out; nothing here or downstream parses it.
+ * The note is plain text in and plain text out; nothing here or downstream parses it.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -71,8 +71,8 @@ fun DeliveryInstructionsField(
         if (title != null) Text(title, style = MaterialTheme.typography.titleMedium)
         if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        // 087 (Checkout board): the two handover choices as ONE two-part control, each half with its
-        // icon; the chosen half is tinted. It still toggles OFF — "no preference" is a real answer.
+        // 087 (Checkout board): the two handover choices as one two-part control, each half with its
+        // icon; the chosen half is tinted. It still toggles off — "no preference" is a real answer.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,8 +123,8 @@ fun DeliveryInstructionsField(
 }
 
 /**
- * Instructions as READ-ONLY text — the receipt. Draws nothing at all when there are none: an order
- * placed before 066 must look exactly as it did (SC-003).
+ * Instructions as read-only text — the receipt. Draws nothing at all when there are none: an order
+ * placed before 066 must look exactly as it did.
  */
 @Composable
 fun DeliveryInstructionsText(handover: Handover?, note: String?, modifier: Modifier = Modifier) {

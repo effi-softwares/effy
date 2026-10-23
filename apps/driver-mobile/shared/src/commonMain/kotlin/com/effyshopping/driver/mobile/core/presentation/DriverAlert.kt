@@ -34,7 +34,7 @@ enum class DriverAlertKind {
 }
 
 /**
- * An alert or banner. Connection banners stack at the top of a screen and push the content down —
+ * An alert or banner. Connection banners stack at the top of a screen and push the content down
  * they never cover it (the canvas's Patterns).
  */
 @Composable

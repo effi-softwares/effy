@@ -19,7 +19,7 @@ import posthog from "posthog-js"
 
 /**
  * `lib/telemetry` keeps module-level state (`started`, and the lazily-loaded SDK handle), so each
- * test loads a FRESH copy. Without this, a test that grants consent leaves the module initialised
+ * test loads a fresh copy. Without this, a test that grants consent leaves the module initialised
  * for every test after it, and the "nothing loaded without consent" assertions below would pass
  * for the wrong reason — or fail depending on declaration order, which is worse.
  */
@@ -28,13 +28,7 @@ async function freshTelemetry() {
   return import("./telemetry")
 }
 
-/**
- * Let the dynamic `import("posthog-js")` inside initAnalytics() settle.
- *
- * The SDK is now loaded lazily so it stays off the guest critical path (feature 025 T020), which
- * makes initialisation asynchronous. These tests await it rather than assuming it is synchronous —
- * the same thing a real caller experiences.
- */
+/** Let the dynamic `import("posthog-js")` inside initAnalytics settle (it loads lazily, off the guest critical path). */
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 /**
@@ -84,7 +78,7 @@ describe("telemetry consent gate", () => {
   })
 
   /**
-   * The SDK must not be FETCHED before consent, not merely left un-called.
+   * The SDK must not be fetched before consent, not merely left un-called.
    *
    * This is the regression that motivated the change: `lib/telemetry.ts` documented "for a guest
    * who never consents, the analytics SDK never loads at all" while statically importing it, so
@@ -98,7 +92,7 @@ describe("telemetry consent gate", () => {
     expect(posthog.init).not.toHaveBeenCalled()
     expect(analytics()).toBeNull()
     // Nothing was ever started, so there is nothing to opt out OF — which is the desired end
-    // state. Asserting opt_out_capturing() here would be asserting that we loaded the SDK in
+    // state. Asserting opt_out_capturing here would be asserting that we loaded the SDK in
     // order to switch it off.
     expect(posthog.opt_out_capturing).not.toHaveBeenCalled()
   })
@@ -123,11 +117,8 @@ describe("telemetry consent gate", () => {
 })
 
 /**
- * 068 FR-040: a list's name is the shopper's own free text and must never reach analytics.
- *
- * ⚠ THE GUARD IS THE TYPE, and this pins the type's SOURCE: every 068 event's props may hold only
- * closed enums, booleans and counts. A `string` property would be a place a name could go, and
- * `name`/`length` are refused outright. Proven by adding `listName: string` to one of them.
+ * A list's name is the shopper's free text and must never reach analytics: list events' props may hold
+ * only closed enums, booleans and counts, and `name`/`length` are refused.
  */
 describe("068 list events cannot carry a list name", () => {
   it("declares only enums, booleans and counts", async () => {

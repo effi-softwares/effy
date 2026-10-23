@@ -22,13 +22,9 @@ interface Props {
 }
 
 /**
- * Move a round to another driver (FR-029), refusing an ineligible one BY NAME (FR-034).
- *
- * ⚠ THE REFUSAL IS THE POINT OF THIS DIALOG. A dispatcher may override a PREFERENCE — the engine
- * merely ranked somebody lower — but may not override a FACT: unlicensed, stood down, or holding no
- * suitable vehicle. When the server refuses, it says which condition failed, and this renders that
- * rather than collapsing it to "not allowed". 053 found every console refusal collapsing exactly that
- * way, because the screen matched on `instanceof Error` and the api-client throws a plain object.
+ * Move a round to another driver. A dispatcher may override a preference (the engine ranked somebody
+ * lower) but not a fact (unlicensed, stood down, no suitable vehicle); the server names the condition
+ * that failed, and this says it.
  */
 export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, drivers }: Props) {
   const [open, setOpen] = useState(false);
@@ -37,8 +33,8 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
   const [reasons, setReasons] = useState<string[]>([]);
   const reassign = useReassignRound(roundId);
 
-  // ⚠ `mutate` WITH CALLBACKS, NOT `mutateAsync` IN A TRY/CATCH — the house pattern, and it is not a
-  // style choice: a rejected `mutateAsync` is reported as an UNHANDLED rejection even when the caller
+  // `mutate` with callbacks, not `mutateAsync` IN A try/catch — the house pattern, and it is not a
+  // style choice: a rejected `mutateAsync` is reported as an unhandled rejection even when the caller
   // catches it, which fails the test run with the raw problem object and no stack.
   function submit() {
     setError(null);
@@ -93,7 +89,7 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
           {error ? (
             <div role="alert" className="space-y-1 text-sm">
               <p className="font-medium text-destructive">{error}</p>
-              {/* ⚠ The named conditions, straight from the server. Without these a dispatcher knows
+              {/* The named conditions, straight from the server. Without these a dispatcher knows
                   only that it failed — not whether to renew a licence, issue a van, or pick somebody
                   else entirely. */}
               {reasons.length > 0 ? (

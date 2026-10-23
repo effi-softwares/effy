@@ -23,7 +23,7 @@ describe("legal document catalogue", () => {
       expect(doc.currentVersion).toMatch(/^v\d+$/)
       expect(doc.effectiveDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(doc.body.length).toBeGreaterThan(200)
-      // The old shells read "This document is being prepared." — reject that exact placeholder wording.
+      // Rejects the old "This document is being prepared." placeholder.
       expect(doc.body.toLowerCase()).not.toContain("document is being prepared")
       expect(doc.body).not.toMatch(/\bTODO\b|\blorem ipsum\b/i)
     }

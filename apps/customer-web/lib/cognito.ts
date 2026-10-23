@@ -1,7 +1,7 @@
 import { cognitoConfig } from "@/lib/config"
 
 /**
- * The two things the SERVER asks Cognito for: fresh tokens, and the end of a refresh token.
+ * The two things the server asks Cognito for: fresh tokens, and the end of a refresh token.
  *
  * Plain HTTPS calls to the pool's public API — the app client has no secret, so there is nothing to
  * sign and no SDK to load. Signing IN is not here: that happens in the browser, straight to Cognito
@@ -33,12 +33,12 @@ export interface FreshTokens {
 /**
  * Exchange the refresh token for a new id and access token.
  *
- * ⚠ THREE OUTCOMES, AND THEY MUST NOT BE CONFUSED:
- *   • tokens — carry on;
- *   • `null` — Cognito REFUSED the refresh token (expired, revoked, signed out everywhere). The
- *     session is over;
- *   • a thrown error — Cognito could not be reached or failed. The session may be perfectly good,
- *     so the caller must not sign anyone out on the strength of it.
+ * Three outcomes, and they must not be confused:
+ *  • tokens — carry on;
+ *  • `null` — Cognito refused the refresh token (expired, revoked, signed out everywhere). The
+ *  session is over;
+ *  • a thrown error — Cognito could not be reached or failed. The session may be perfectly good,
+ *  so the caller must not sign anyone out on the strength of it.
  */
 export async function refreshTokens(refreshToken: string): Promise<FreshTokens | null> {
   const res = await call("InitiateAuth", {

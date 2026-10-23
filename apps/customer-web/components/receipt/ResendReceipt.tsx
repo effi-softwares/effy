@@ -6,18 +6,8 @@ import { Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 /**
- * "Send the receipt again" (052 US4, FR-027).
- *
- * ⚠ THE ONLY CLIENT COMPONENT ON THE RECEIPT. Everything else on this page is a server component
- * rendering server-fetched data; this one needs a click and a result, so it is the single boundary.
- *
- * ⚠ IT SENDS NO ADDRESS. The endpoint resolves the recipient from the authenticated session — an
- * `email` in the body would make it an open relay for a document carrying a person's name, address
- * and purchase history.
- *
- * ⚠ EVERY OUTCOME IS SAID OUT LOUD, including the refusals. A rate-limited request that silently does
- * nothing is indistinguishable from a broken button, which is the failure 033 recorded when a guest
- * cap refused without telling anyone.
+ * "Send the receipt again", the receipt's one client component. It sends no address (the endpoint takes
+ * the recipient from the session), and says every outcome, refusals included.
  */
 type State =
   | { kind: "idle" }
@@ -31,8 +21,8 @@ export function ResendReceipt({ orderId }: { orderId: string }) {
   async function send() {
     setState({ kind: "sending" })
     try {
-      // ⚠ DYNAMIC import, like every other telemetry call site on this surface. 027 found a STATIC
-      // `import { capture }` in one cart component cost +1.0 KB on four GUEST routes and pushed two
+      // Dynamic import, like every other telemetry call site on this surface. 027 found a static
+      // `import { capture }` in one cart component cost +1.0 KB on four guest routes and pushed two
       // over the bundle gate. This page is not gated, but the habit is what keeps that from recurring.
       const { capture } = await import("@/lib/telemetry")
       capture({ name: "receipt_resend_requested" })
@@ -46,7 +36,7 @@ export function ResendReceipt({ orderId }: { orderId: string }) {
         name: "receipt_resend_refused",
         props: { reason: res.status === 429 ? "rate_limited" : res.status === 404 || res.status === 409 ? "unavailable" : "failed" },
       })
-      // ⚠ The proxy relays the server's problem detail under `error`, NOT `detail` — see
+      // The proxy relays the server's problem detail under `error`, not `detail` — see
       // `lib/api/proxy.ts` `relayError`. Reading `detail` here would silently always fall through to
       // the generic copy and throw away the server's own, better-informed wording.
       const body = (await res.json().catch(() => null)) as { error?: string } | null

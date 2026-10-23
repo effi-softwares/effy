@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-# FR-017 — the INTERNAL audiences stay passwordless. A machine check, not a promise.
+# The internal audiences stay passwordless, checked by machine. Only the customer pool has passwords, Google
+# and self-registration; driver, shop and admin are passwordless and admin-provisioned. The shared Cognito
+# module now has password and OAuth arguments, so the guarantee is one careless default away.
 #
-# Constitution v1.7.0 opened THREE credential routes (password, email OTP, Google) and open
-# self-registration — for the CUSTOMER audience ONLY. Driver, shop and admin remain strictly
-# passwordless EMAIL_OTP and strictly admin-provisioned. They are Effy employees: a password is a
-# credential to steal and a reset flow to attack, in exchange for nothing they need.
-#
-# Until 011, that was guaranteed by the shared Cognito module simply having no password or OAuth
-# arguments at all. It now HAS them — which means the guarantee is one careless default away from
-# evaporating, on the pools where the blast radius is worst. So it gets a check.
-#
-#   make verify-pool-credentials ENV=dev
+# make verify-pool-credentials ENV=dev
 #
 # Exits non-zero on any breach.
 set -euo pipefail
@@ -29,7 +22,7 @@ ok() { printf '  ✓ %s\n' "$*"; }
 echo "verify-pool-credentials: the INTERNAL audiences must stay passwordless (FR-017), env=${ENV}"
 echo
 
-# ⚠ The SSM path uses the HYPHENATED audience name (`back-office`), even though the Cognito module
+# The SSM path uses the hyphenated audience name (`back-office`), even though the Cognito module
 # takes the underscored one (`back_office`). Both spellings are live in infra/envs/<env>/*.tf, which
 # is exactly the sort of split the 008 one-name rule exists to prevent — but the SSM keys are a
 # published contract that other services read, so this script conforms to reality rather than
@@ -38,13 +31,7 @@ for audience in driver shop back-office; do
   pool_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/user_pool_id" \
     --query 'Parameter.Value' --output text 2>/dev/null || true)
 
-  # ⚠ A MISSING POOL IS A FAILURE, NOT A SKIP.
-  #
-  # The first version of this script printed "no pool — skipping" and exited 0. It therefore
-  # reported ✓ PASS while silently not checking back-office AT ALL, because it was looking up the
-  # wrong SSM path. That is the worst possible behaviour for a security guard: a green tick over an
-  # audience nobody inspected. If an expected pool cannot be found, the guard has failed to do its
-  # job and must say so.
+  # A missing pool is a failure, not a skip: a green tick over an audience nobody inspected is the worst result.
   if [ -z "$pool_id" ] || [ "$pool_id" = "None" ]; then
     bad "${audience}: NO POOL FOUND at /effy/${ENV}/auth/${audience}/user_pool_id — this audience was NOT verified."
     echo
@@ -53,10 +40,10 @@ for audience in driver shop back-office; do
 
   echo "${audience} (${pool_id})"
 
-  # 1. No password may be a usable first factor. The pool-level policy always lists PASSWORD (the
-  #    CreateUserPool API refuses to omit it), so the POOL is not where the answer lives — the APP
-  #    CLIENT is. A client without ALLOW_USER_SRP_AUTH / ALLOW_USER_PASSWORD_AUTH cannot run a
-  #    password challenge at all.
+  # 1. No password may be a usable first factor. The pool-level policy always lists password (the
+  # CreateUserPool API refuses to omit it), so the pool is not where the answer lives — the APP
+  # client is. A client without ALLOW_USER_SRP_AUTH / ALLOW_USER_PASSWORD_AUTH cannot run a
+  # password challenge at all.
   client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/app_client_id" \
     --query 'Parameter.Value' --output text)
 
@@ -70,26 +57,11 @@ for audience in driver shop back-office; do
     ok "no password auth flow (${flows})"
   fi
 
-  # 1b. ⚠ THE SIGN-IN CODE FLOW (035). Added because this script would otherwise report a green
-  #     tick while all four pools gained a brand-new FIRST-FACTOR auth flow.
-  #
-  #     Check 1 above greps for three flow names. `ALLOW_CUSTOM_AUTH` is not one of them, so
-  #     switching the platform from Cognito's managed 8-digit EMAIL_OTP to our own 6-digit
-  #     challenge would have passed silently — exactly the failure this file's own header warns
-  #     about ("one careless default away from evaporating, on the pools where the blast radius is
-  #     worst"), and exactly the failure it already suffered once when it did not check back-office
-  #     at all.
-  #
-  #     What is asserted, per specs/035-six-digit-otp/contracts/auth-triggers.contract.md § 2:
-  #       - ALLOW_CUSTOM_AUTH is PRESENT  → the platform's own 6-digit code is reachable
-  #       - ALLOW_USER_AUTH  is ABSENT    → Cognito's managed 8-digit EMAIL_OTP is NOT
-  #
-  #     The second half is the one that matters. These audiences have no self-signup, so nothing
-  #     needs the choice-based flow; leaving it enabled would keep an 8-digit path alive that
-  #     bypasses our attempt cap, our TTL and both rate limits.
-  #
-  #     ⚠ The customer pool is NOT checked here and MUST keep ALLOW_USER_AUTH — passwordless
-  #     SignUp is only legal while it is present (035 research R4b).
+  # 1b. The sign-in code flow:
+  # - ALLOW_CUSTOM_AUTH is present → the platform's own 6-digit code is reachable
+  # - ALLOW_USER_AUTH is absent → Cognito's managed 8-digit EMAIL_OTP is not (it would bypass the attempt
+  # cap, the TTL and both rate limits)
+  # The customer pool is not checked: it must keep ALLOW_USER_AUTH (passwordless SignUp needs it).
   if grep -q 'ALLOW_CUSTOM_AUTH' <<<"$flows"; then
     ok "sign-in code flow present (ALLOW_CUSTOM_AUTH)"
   else
@@ -102,9 +74,9 @@ for audience in driver shop back-office; do
     ok "managed 8-digit EMAIL_OTP flow removed (no ALLOW_USER_AUTH)"
   fi
 
-  # 1c. ⚠ THE MOBILE CLIENTS WERE ENTIRELY UNGUARDED until 035. This script read only
-  #     .../app_client_id, so `shop_mobile` and `customer_mobile` — whose auth flows are hardcoded
-  #     in the env root rather than set by the module — were never checked by anything.
+  # 1c. The mobile clients were entirely unguarded until 035. This script read only
+  # .../app_client_id, so `shop_mobile` and `customer_mobile` — whose auth flows are hardcoded
+  # in the env root rather than set by the module — were never checked by anything.
   mobile_client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/mobile_app_client_id" \
     --query 'Parameter.Value' --output text 2>/dev/null || echo "")
 
@@ -150,7 +122,7 @@ for audience in driver shop back-office; do
   echo
 done
 
-# --- The other half: the CUSTOMER pool must have actually GAINED what 011 gave it. ------------
+# --- The other half: the customer pool must have actually gained what 011 gave it. ------------
 #
 # A guard that only checks "nothing widened" would pass just as happily if the apply had done
 # nothing at all. So we also assert the intended change landed — otherwise a green tick here would

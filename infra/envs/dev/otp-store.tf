@@ -1,26 +1,12 @@
-# ---------------------------------------------------------------------------------------------
-# 035-six-digit-otp — the sign-in code's issuance counter.
+# The sign-in code's issuance counter: the platform's only DynamoDB table, a recorded exception to
+# "Database: PostgreSQL 16" (Postgres remains the database for all product data). Not Postgres because:
+# 1. Sign-in must not depend on the database path (public in dev; edge-network.tf), or the eventual VPC
+# move becomes a platform-wide sign-in outage.
+# 2. Cognito abandons a trigger at 5 seconds (not configurable), and the pool's connect timeout alone is 5s.
+# 3. Native TTL cleans up rows worthless within the hour.
 #
-# ⚠ THIS IS THE PLATFORM'S FIRST DYNAMODB TABLE, and it is a deliberate, recorded exception to the
-# constitution's locked "Database: PostgreSQL 16" (specs/035-six-digit-otp/plan.md § Complexity
-# Tracking). PostgreSQL is NOT displaced — it remains the database for every piece of product data.
-#
-# Why not Postgres for this one counter:
-#
-#   1. ⚠ The decisive reason is NOT latency. The edge Lambdas reach RDS today ONLY because the dev
-#      database is on the public internet (`db_allowed_cidrs = ["0.0.0.0/0"]`,
-#      `db_publicly_accessible = true`), which infra/envs/dev/edge-network.tf records as a posture
-#      that is invalid for qa/staging/prod. Putting SIGN-IN on that connection would turn the
-#      eventual VPC migration into a platform-wide sign-in outage.
-#   2. Cognito abandons a trigger at 5 seconds and that cannot be configured. @effy/edge-shared's
-#      pool already allows 5s just to ACQUIRE a connection, and a Sydney RDS round trip measures
-#      135ms. 027 and 029 both shipped timeout defects of exactly this shape.
-#   3. Native TTL means no cleanup job for rows that are worthless within the hour.
-#
-# ⚠ WHAT IS NOT IN HERE: the code. It is never persisted anywhere — it lives in the shopper's inbox
-# and as a keyed hash inside Cognito's own challenge metadata. This table holds a COUNTER and
-# nothing else, keyed on a HASH of the address. See specs/035-six-digit-otp/data-model.md.
-# ---------------------------------------------------------------------------------------------
+# The code itself is never stored: it lives in the inbox and as a keyed hash in Cognito's challenge
+# metadata. This holds a counter keyed on a hash of the address.
 
 resource "aws_dynamodb_table" "otp_issuance" {
   name = "${module.shared.name_prefix}-otp-issuance"
@@ -42,8 +28,8 @@ resource "aws_dynamodb_table" "otp_issuance" {
     type = "N"
   }
 
-  # ⚠ Deletion is NOT prompt (AWS gives no SLA — commonly minutes to 48h). The trigger therefore
-  # always recomputes the window in code and NEVER infers "no row means no sends". TTL here is
+  # Deletion is not prompt (AWS gives no SLA — commonly minutes to 48h). The trigger therefore
+  # always recomputes the window in code and never infers "no row means no sends". TTL here is
   # housekeeping, not a correctness mechanism.
   ttl {
     attribute_name = "expiresAt"
@@ -54,7 +40,7 @@ resource "aws_dynamodb_table" "otp_issuance" {
     enabled = true
   }
 
-  # ⚠ PITR deliberately OFF. Every row is an hourly counter over a hashed address that is worthless
+  # pitr deliberately off. Every row is an hourly counter over a hashed address that is worthless
   # within two hours; backing it up would buy nothing and would retain data we went out of our way
   # not to keep.
   point_in_time_recovery {
@@ -85,13 +71,13 @@ resource "aws_ssm_parameter" "otp_table_arn" {
 # hash, not a secret) and the hash of the email address in the table key above (so the rate-limit
 # store never holds a list of everyone who has tried to sign in).
 #
-# ⚠ Rotating it invalidates every IN-FLIGHT code. That is acceptable for a 5-minute secret — but do
+# Rotating it invalidates every in-flight code. That is acceptable for a 5-minute secret — but do
 # not rotate during a sign-in spike, and expect a handful of "that code isn't right" reports if you
 # do it during business hours.
 # ---------------------------------------------------------------------------------------------
 
 #
-# ⚠ TERRAFORM CREATES THE SHELL AND NEVER THE VALUE — on purpose.
+# terraform creates the shell and never the value — on purpose.
 #
 # A `random_password` here would be convenient and would write the key into Terraform state in
 # plaintext, where it would sit for the life of the environment and be readable by anyone who can
@@ -100,13 +86,13 @@ resource "aws_ssm_parameter" "otp_table_arn" {
 # This follows that precedent rather than quietly making the opposite choice for a key that
 # protects sign-in.
 #
-# The operator seeds it once, per environment (quickstart §4):
+# The operator seeds it once, per environment:
 #
-#   aws secretsmanager put-secret-value --profile ef --region ap-southeast-2 \
-#     --secret-id effy-dev-otp-hmac \
-#     --secret-string "{\"key\":\"$(openssl rand -hex 32)\"}"
+# aws secretsmanager put-secret-value --profile ef --region ap-southeast-2 \
+# --secret-id effy-dev-otp-hmac \
+# --secret-string "{\"key\":\"$(openssl rand -hex 32)\"}"
 #
-# ⚠ Until it is seeded the auth triggers FAIL CLOSED: `hmacKey()` throws, create-auth-challenge
+# Until it is seeded the auth triggers fail closed: `hmacKey` throws, create-auth-challenge
 # catches it, leaves no usable envelope, and the sign-in refuses. Nobody is signed in on a missing
 # key — which is the right failure, but it IS a total sign-in outage, so seed it before attaching
 # any pool.
@@ -135,21 +121,13 @@ resource "aws_ssm_parameter" "ses_identity_arn" {
   tier  = "Standard"
 }
 
-# ---------------------------------------------------------------------------------------------
-# Alarms (035 T097, Principle VII).
-#
-# The triggers emit CloudWatch EMF on stdout (no SDK call, no latency inside the 5-second wall);
-# these turn three of those metrics into pages.
-#
-# ⚠ THE THIRD ONE IS THE ONE PEOPLE FORGET. The issuance store fails OPEN by design — a DynamoDB
-# blip must not become a sign-in outage for four audiences — which means a silent outage would
-# silently disable the per-address rate limit and nothing would ever say so. That alarm is the only
-# thing standing between "degraded" and "unprotected".
-# ---------------------------------------------------------------------------------------------
+# Alarms on three of the triggers' EMF metrics. The third matters most: the issuance store fails open (a
+# DynamoDB blip must not stop sign-in for four audiences), so an outage there silently disables the
+# per-address rate limit, and this alarm is the only signal.
 
 # A spike in failed verifications across many addresses is a distributed guessing campaign. Cognito
-# no longer sees it — this is OUR metric now, and nothing else is watching.
-# ⚠ 037 wired these to a notification target. They shipped with 035 and had NO alarm_actions —
+# no longer sees it — this is our metric now, and nothing else is watching.
+# Wired these to a notification target. They shipped with 035 and had NO alarm_actions
 # they turned red in a console nobody was watching. Under 035's own design a failed send IS a
 # failed sign-in, so these are on the mail-and-sign-in path and inside 037 FR-037's scope.
 resource "aws_cloudwatch_metric_alarm" "otp_verify_failures" {
@@ -166,7 +144,7 @@ resource "aws_cloudwatch_metric_alarm" "otp_verify_failures" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# ⚠ The triggers fail CLOSED. An error here is not a degraded experience — it is nobody being able
+# The triggers fail closed. An error here is not a degraded experience — it is nobody being able
 # to sign in on the attached pools, with no password fallback on three of the four audiences.
 resource "aws_cloudwatch_metric_alarm" "otp_send_failures" {
   alarm_name          = "${module.shared.name_prefix}-otp-send-failures"
@@ -182,7 +160,7 @@ resource "aws_cloudwatch_metric_alarm" "otp_send_failures" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# ⚠ See the header. Any value above zero means the per-address limit is not being enforced.
+# See the header. Any value above zero means the per-address limit is not being enforced.
 resource "aws_cloudwatch_metric_alarm" "otp_ratelimit_store_unavailable" {
   alarm_name          = "${module.shared.name_prefix}-otp-ratelimit-store-unavailable"
   alarm_description   = "035 — the issuance counter is unreachable and the per-address rate limit is FAILING OPEN. Sign-in still works; abuse protection does not."
@@ -212,15 +190,9 @@ resource "aws_cloudwatch_metric_alarm" "otp_unknown_pool" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
-# ⚠ 038 — the CustomMessage interceptor could not brand a message it was SUPPOSED to brand, so
-# Cognito sent its own default instead. This is the ONE blind spot the interceptor introduces: the
-# person still receives a working (unbranded) message, so nothing else signals the failure — no
-# bounce, no failed sign-in, no error the customer sees. This metric is the only signal.
-#
-# ⚠ It fires ONLY on a genuine branding failure (a render error or a placeholder mismatch), NOT on a
-# benign pass-through (an unmapped trigger), so a non-zero value is always actionable. Complements
-# 037's delivery alarms (which watch what happens AFTER SES accepts) and otp-send-failures (the
-# sign-in send) — none of those can see a Cognito message quietly falling back to its default.
+# The CustomMessage interceptor could not brand a message, so Cognito sent its default. The person still
+# gets a working message, so nothing else signals it. Fires only on a real branding failure (a render error
+# or placeholder mismatch), never on an unmapped trigger's pass-through.
 resource "aws_cloudwatch_metric_alarm" "custom_message_fallback" {
   alarm_name          = "${module.shared.name_prefix}-custom-message-fallback"
   alarm_description   = "038 — a Cognito sign-up/reset/verify/MFA message could not be branded and fell back to Cognito's default. The message still arrived; the platform design silently did not."

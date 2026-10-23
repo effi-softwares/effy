@@ -1,8 +1,8 @@
 import { isDomainError } from "@effy/api-client";
 
 /**
- * Non-leaking copy for promotion refusals (094). The admin service names each refusal by its problem
- * `type`; we map it to our OWN words (never the server's `detail`), because the operator's next move
+ * Non-leaking copy for promotion refusals. The admin service names each refusal by its problem
+ * `type`; we map it to our own words (never the server's `detail`), because the operator's next move
  * differs: a used promotion keeps what it gives (archive or start a new one), a taken code needs another
  * code, a stale edit needs a reload.
  */
@@ -13,7 +13,7 @@ const BY_TYPE: Record<string, string> = {
   "headline-required": "Add a headline before showing this promotion in a group.",
   "action-not-allowed": "That can't be done to a promotion in its current state.",
   "key-taken": "That key is already used by another group.",
-  // 095 — skins and pictures.
+  // Skins and pictures.
   "skin-unreadable": "Some words would be hard to read on what they sit on. Fix the pairs marked below, then save.",
   "invalid-skin": "Some settings aren't valid. Check the fields marked below.",
   "name-taken": "Another skin already has that name.",
@@ -30,7 +30,7 @@ const BY_TYPE: Record<string, string> = {
   "already-added": "That picture is already on this promotion.",
 };
 
-/** 095 — a refusal that names places (a skin or picture in use) says which, in our words. */
+/** A refusal that names places (a skin or picture in use) says which, in our words. */
 export function inUseError(err: unknown, what: "skin" | "picture"): string | null {
   if (!isDomainError(err)) return null;
   const slug = err.type?.split("/").pop() ?? "";

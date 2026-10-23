@@ -11,7 +11,7 @@ const base =
 /**
  * One bottom-bar entry, knowing only whether it is the current one.
  *
- * ⚠ The glyph and label arrive as `children`, rendered on the server: this is the smallest thing that
+ * The glyph and label arrive as `children`, rendered on the server: this is the smallest thing that
  * needs the URL, and keeping the five icons out of it is worth ~1 KB on every guest page.
  *
  * `prefixes` are path prefixes that count as "here"; `exact` matches the path alone (Home).

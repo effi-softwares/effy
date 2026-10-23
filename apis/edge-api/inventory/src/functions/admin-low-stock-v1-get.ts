@@ -1,5 +1,4 @@
-// GET /inventory/v1/admin/shops/{shopId}/low-stock — any shop's restock list, read on their behalf
-// (054 US4/US5, FR-025). Read tier: any active staff, incl. `csa`.
+// Any active staff, csa included.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

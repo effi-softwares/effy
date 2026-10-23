@@ -1,25 +1,24 @@
 "use client"
 
 /**
- * Saved-items mutations (033).
+ * Saved-items mutations.
  *
- * ⚠ THE ONE SHAPE EVERY MUTATION HAS, inherited from `cart-actions.ts`:
+ * The one shape every mutation has, inherited from `cart-actions.ts`:
  *
- *   1. apply to the mirror (synchronously, so the control responds instantly)
- *   2. send to the platform
+ *  1. apply to the mirror (synchronously, so the control responds instantly)
+ *  2. send to the platform
  *
  * In that order, always. A control that waits for the network before moving feels broken on a slow
  * connection, and one that moves without ever reverting lies about what was recorded.
  *
- * ⚠ The client NEVER learns whether the shopper is signed in. A `401` simply means "you are a guest"
+ * The client never learns whether the shopper is signed in. A `401` simply means "you are a guest"
  * — a normal state, not a failure — and the mirror is the whole truth for them until guest saving is
  * wired to the platform in US3. `cart-actions.ts` carries the same rule for the same reason.
  */
 import { adoptSaved, applySaved, isInNamedList, isSaved, readSavedIds } from "./saved-store"
 
-/** How many a device-held guest list may hold (FR-046). Mirrors the saved-items guest cap on the server. */
+/** How many a device-held guest list may hold. Mirrors the saved-items guest cap on the server. */
 export const GUEST_CAP = 50
-
 
 async function send(path: string, method: "PUT" | "DELETE", body?: unknown): Promise<number> {
   try {
@@ -31,22 +30,13 @@ async function send(path: string, method: "PUT" | "DELETE", body?: unknown): Pro
 }
 
 /**
- * Toggle a product, optimistically.
+ * Toggle a product, optimistically. Takes the desired end state, not a flip, so rapid taps settle on the
+ * last intent whatever order responses arrive in.
  *
- * ⚠ Takes the DESIRED end state rather than "flip whatever is there". Under rapid tapping a flip
- * resolves against whatever the mirror held when the handler ran, so two fast taps can settle on the
- * wrong value; an absolute intent cannot (FR-014 — last intent wins, regardless of the order
- * responses arrive in).
- *
- * Returns `false` when the save was refused by the guest cap, so the caller can say why.
- *
- * ⚠ Returns `"chooser"` when the tap must OPEN THE LIST CHOOSER instead (068 FR-020): the product is
- * in a list the shopper named, and one tap on a heart must never take it out of that list. Nothing
- * is sent and nothing moves. The platform enforces the same rule, so a mirror that did not know
- * (`409`) lands in the same place after reverting.
- *
- * 098 — `variantId` is the size the shopper had selected; the platform remembers it so "add to cart"
- * from the saved list adds that size. Saved items stay one per PRODUCT.
+ * Returns `false` when the guest cap refused it, and `"chooser"` when the product is in a list the shopper
+ * named: one heart tap must never take it out of that list (the platform enforces the same rule, so a
+ * stale mirror's `409` lands in the same place). `variantId` is the selected size, so "add to cart" from
+ * the saved list adds it. Saved items stay one per product.
  */
 export async function toggleSaved(productId: string, saved: boolean, variantId?: string | null): Promise<boolean | "chooser"> {
   const previous = isSaved(productId)
@@ -54,7 +44,7 @@ export async function toggleSaved(productId: string, saved: boolean, variantId?:
   if (!saved && isInNamedList(productId)) return "chooser"
 
   if (saved && readSavedIds().length >= GUEST_CAP) {
-    // ⚠ Refused, never resolved by evicting something the shopper deliberately saved (FR-047).
+    // Refused, never resolved by evicting something the shopper deliberately saved.
     return false
   }
 
@@ -76,7 +66,7 @@ export async function toggleSaved(productId: string, saved: boolean, variantId?:
 /**
  * Seed the mirror from the platform.
  *
- * ⚠ On failure the mirror is LEFT ALONE rather than emptied. Emptying it would render every heart
+ * On failure the mirror is left alone rather than emptied. Emptying it would render every heart
  * unsaved, which invites exactly the destructive second tap this feature exists to remove — so a
  * failed refresh degrades to stale-but-plausible instead of confidently wrong.
  */

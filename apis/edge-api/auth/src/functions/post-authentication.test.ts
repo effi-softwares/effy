@@ -1,23 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * US4 — reinstating `email_verified` (035 T102; FR-020, SC-009).
- *
- * ⚠ THIS IS THE MOST LIKELY SILENT, DELAYED FAILURE IN THE WHOLE SLICE — and it exists because of a
- * behaviour we are GIVING UP, not one we are adding.
- *
- * Managed passwordless EMAIL_OTP marks the address verified and moves a new account out of
- * UNCONFIRMED when a correct code is entered. AWS scopes that explicitly to passwordless
- * authentication and email MFA; `CUSTOM_AUTH` is on neither list, because Cognito has no idea our
- * opaque Lambda verdict involved an email at all.
- *
- * Miss this and NOTHING BREAKS VISIBLY. Accounts simply accumulate with `email_verified: false`,
- * and the failure surfaces weeks later when someone tries Google sign-in and linking refuses —
- * which, under constitution Principle IV, it MUST, because linking on an unverified email is an
- * account-takeover primitive.
- *
- * That delay is exactly why this is tested rather than trusted.
- */
+/** CUSTOM_AUTH does not mark the email verified, and a silent miss breaks Google linking weeks later. */
 
 const send = vi.fn();
 
@@ -65,23 +48,21 @@ describe("post-authentication", () => {
   });
 
   it("⚠ is idempotent — an already-verified account costs no round trip", async () => {
-    // Every existing customer and every subsequent sign-in hits this path. A call here would spend
-    // part of Cognito's 5-second trigger budget on a no-op, on every sign-in, forever.
+    // Already verified: no call inside Cognito's 5 s budget.
     const { handler } = await import("./post-authentication.js");
     await handler(event({ email: "shopper@example.com", email_verified: "true" }));
     expect(send).not.toHaveBeenCalled();
   });
 
   it("does nothing when there is no email attribute", async () => {
-    // A federated or admin-created account may legitimately arrive without one. Not an error.
+    // A federated or admin-created account may arrive without one.
     const { handler } = await import("./post-authentication.js");
     await handler(event({}));
     expect(send).not.toHaveBeenCalled();
   });
 
   it("⚠ NEVER throws when the attribute write fails", async () => {
-    // The sign-in has ALREADY SUCCEEDED by this point. Failing the trigger here would fail an
-    // authentication that legitimately completed, turning a bookkeeping problem into a lockout.
+    // The sign-in already succeeded: failing here would lock the user out.
     const { handler } = await import("./post-authentication.js");
     send.mockRejectedValueOnce(new Error("AdminUpdateUserAttributes failed"));
 
@@ -91,8 +72,7 @@ describe("post-authentication", () => {
   });
 
   it("⚠ but a failure is NOT silent — it emits the metric", async () => {
-    // The whole hazard is that this fails invisibly. Without the metric, accounts drift into the
-    // unverified state and nobody learns until Google linking starts refusing.
+    // The metric is the only signal of drift into the unverified state.
     const { handler } = await import("./post-authentication.js");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     send.mockRejectedValueOnce(new Error("boom"));
@@ -101,7 +81,7 @@ describe("post-authentication", () => {
 
     const emitted = log.mock.calls.map((c) => String(c[0])).join("\n");
     expect(emitted).toContain("otp_email_verify_failed");
-    // ⚠ And the metric carries the pool only — never the address (FR-014).
+    // The metric carries the pool only, never the address.
     expect(emitted).not.toContain("shopper@example.com");
     log.mockRestore();
   });

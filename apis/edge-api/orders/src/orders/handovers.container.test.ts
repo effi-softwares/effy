@@ -9,13 +9,13 @@ vi.mock("@effy/edge-shared", async () => {
   return { ...actual, query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { handovers, parcels } from "./repository";
 
-/** 091 — each package's recorded hand-overs, oldest first, with the driver (quickstart P1). */
+/** Each package's hand-overs, oldest first, with the driver. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -39,8 +39,8 @@ d("091 — hand-overs on the order", () => {
     const one = async <T>(sql: string, p: unknown[] = []) => (await pool.query(sql, p)).rows[0] as T;
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c1', 'c1@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-       VALUES ($1, 'EFY-H1', 10, 12, '{}'::jsonb, 'paid') RETURNING id`, [cust.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-H1', 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`, [cust.id]);
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('SH1', 'Shop') RETURNING id`);
     const a = await one<{ id: string }>(`INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount) VALUES ($1, $2, 1, 10) RETURNING id`, [order.id, shop.id]);
     const shop2 = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('SH2', 'Shop 2') RETURNING id`);
@@ -57,7 +57,7 @@ d("091 — hand-overs on the order", () => {
        VALUES ($1, $2, 'driver', $3, $4, $5, $6, gen_random_uuid(), $7)`, [a.id, bag.id, round.id, drv.id, step, method, at]);
     await add("deliver", "manual", "2026-10-16T05:00:00Z");
     await add("collect", "scan", "2026-10-16T01:00:00Z");
-    // 096 — shop staff record the pack: no driver on the row, and it still lists.
+    // Shop staff record the pack: no driver on the row, and it still lists.
     await pool.query(
       `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, actor_kind, shop_staff_id, step, handover_method, change_id, recorded_at)
        VALUES ($1, $2, 'shop_staff', $3, 'pack', 'scan', gen_random_uuid(), '2026-10-16T00:30:00Z')`, [a.id, bag.id, staff.id]);
@@ -70,7 +70,7 @@ d("091 — hand-overs on the order", () => {
     ]);
     expect(rows.some((r) => r.package_id === b.id)).toBe(false);
 
-    // 096 — the bags: one each, the latest step decides custody, no prints yet.
+    // One bag each; the latest step decides custody.
     const bags = await parcels([a.id, b.id]);
     expect(bags.map((x) => [x.package_id, x.seq, x.of, x.voided, x.print_count, x.last_step])).toEqual([
       [a.id, 1, 1, false, 0, "deliver"],

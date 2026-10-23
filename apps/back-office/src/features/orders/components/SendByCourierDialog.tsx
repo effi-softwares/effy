@@ -18,7 +18,7 @@ const REFUND_STATUS_TEXT: Record<string, string> = {
   refused: "The payment provider refused the refund. Issue it from Refunds below.",
 };
 
-/** One choice, in the words staff choose by. ⚠ Says what the CUSTOMER gets, by which means. */
+/** One choice, in the words staff choose by. Says what the customer gets, by which means. */
 export function choiceText(c: DeliveryMoveChoiceDTO): string {
   switch (c.kind) {
     case "points_difference": return `Points for the difference — ${c.points ?? 0} points ($${c.amount})`;
@@ -30,15 +30,15 @@ export function choiceText(c: DeliveryMoveChoiceDTO): string {
 }
 
 /**
- * "Send by courier…" (081 US1, US2) — an emergency move of a paid Effy order to courier delivery, and
+ * "Send by courier…" — an emergency move of a paid Effy order to courier delivery, and
  * how the customer is made whole.
  *
- * ⚠ THE FIGURES ARE THE SERVER'S: what the customer paid, what the courier costs today, the difference,
+ * The figures are the server's: what the customer paid, what the courier costs today, the difference,
  * and each choice's effect come from the preview, and the confirm sends back the amount it showed. A
  * figure that changed in between is refused, never re-priced silently — the dialog says so and shows
  * the new one.
  *
- * ⚠ NOTHING IS CHOSEN FOR STAFF: points for the difference is PRESELECTED, not applied. "Refund the
+ * Nothing is chosen for staff: points for the difference is preselected, not applied. "Refund the
  * difference" is marked the last resort. Detail rows and a radio list, no cards (Principle V).
  */
 export function SendByCourierDialog({ orderId, open, onOpenChange }: { orderId: string; open: boolean; onOpenChange: (open: boolean) => void }) {

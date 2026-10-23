@@ -15,15 +15,9 @@ import { applyUpdate, pwaStore } from "@/lib/pwa"
 import { track } from "@/lib/telemetry"
 
 /**
- * The three pieces of chrome 059 adds to the shell: offline, update-ready, and install (US2/US5).
- *
- * ⚠ ONE STRIP, ONE AT A TIME, IN THAT ORDER OF URGENCY. Three stacked banners would push the
- * console's content down by a third of a tablet's height, which is the screen an operator is trying
- * to read. Offline outranks the rest because it changes what the operator can believe about
- * everything below it; an install suggestion can wait.
- *
- * ⚠ NO CARDS (Principle V). These are full-width notices on the page's own rules, not floating
- * panels — the console's language for "something about this whole screen".
+ * Offline, update-ready and install, as one full-width strip showing one at a time in that order of
+ * urgency: stacked banners would push the content down, and offline changes what the operator can
+ * believe about everything below it.
  */
 export function PwaBanners() {
   const { updateReady } = useStore(pwaStore)
@@ -45,7 +39,7 @@ function Strip({
   icon: React.ReactNode
   children: React.ReactNode
 }) {
-  // ⚠ Written on the semantic's own `-soft` tint, never as a fill with a label on it. `--warning`
+  // Written on the semantic's own `-soft` tint, never as a fill with a label on it. `--warning`
   // deliberately has no `-foreground` pair and `check-tokens.mjs` enforces that absence.
   const toneClass =
     tone === "warning"
@@ -65,10 +59,10 @@ function Strip({
 }
 
 /**
- * FR-033 — offline is said plainly, and distinguishably from any other error.
+ * Offline is said plainly, and distinguishably from any other error.
  *
- * ⚠ It does NOT say "retry". There is nothing to retry: the console recovers on its own when the
- * network returns (FR-037), and offering a button that does nothing an operator can see teaches
+ * It does not say "retry". There is nothing to retry: the console recovers on its own when the
+ * network returns, and offering a button that does nothing an operator can see teaches
  * them the console is broken.
  */
 function OfflineBanner() {
@@ -83,7 +77,7 @@ function OfflineBanner() {
   )
 }
 
-/** FR-009/FR-010 — a new version is waiting, and the operator decides when it lands. */
+/** A new version is waiting, and the operator decides when it lands. */
 function UpdateBanner() {
   return (
     <Strip tone="brand" icon={<RefreshCw className="size-4" />}>
@@ -104,9 +98,9 @@ function UpdateBanner() {
 }
 
 /**
- * FR-001/FR-006 — install, on the two platforms that do it differently.
+ * Install, on the two platforms that do it differently.
  *
- * ⚠ The iOS branch is not a fallback for a missing API, it is the ONLY route on iPadOS — which is
+ * The iOS branch is not a fallback for a missing API, it is the only route on iPadOS — which is
  * also the only platform where the Push API requires a home-screen app. An operator who never sees
  * these instructions cannot be asked for notification permission at all.
  */
@@ -145,7 +139,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
       ) : (
         <>
           <span className="font-medium">Add Effy Shop to your home screen</span>
-          {/* ⚠ Named steps, not "install this app". On iPadOS there is no install API and no prompt
+          {/* Named steps, not "install this app". On iPadOS there is no install API and no prompt
               to fire — the operator has to find Share → Add to Home Screen themselves, and a vague
               instruction is the same as none. */}
           <span className="inline-flex items-center gap-1 opacity-90">
@@ -161,7 +155,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
   )
 }
 
-/** FR-006 — asked once, not on every visit. */
+/** Asked once, not on every visit. */
 function DismissButton() {
   return (
     <Button

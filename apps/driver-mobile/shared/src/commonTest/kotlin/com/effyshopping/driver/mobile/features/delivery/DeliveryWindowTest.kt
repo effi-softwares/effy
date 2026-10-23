@@ -18,9 +18,9 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * 069 US4 — the driver is told whether a drop's window is open, still to come, or missed.
+ * The driver is told whether a drop's window is open, still to come, or missed.
  *
- * ⚠ The state cases are the SAME ones `packages/shared-types` tests `windowStateAt` with — the
+ * The state cases are the same ones `packages/shared-types` tests `windowStateAt` with — the
  * function the dispatcher's console uses (see [DELIVERY_WINDOW_FIXTURE] for why it is a copy and what
  * keeps the copy honest). A dispatcher told a drop is late while the driver's app says it is due is
  * two people working from different facts.
@@ -64,7 +64,7 @@ class DeliveryWindowTest {
         assertEquals("Late", WindowState.Late.word)
     }
 
-    // ── From the wire ───────────────────────────────────────────────────────────────────────────────
+    // From the wire
 
     @Test
     fun `a window is built from the server's label and its two instants`() {
@@ -89,7 +89,7 @@ class DeliveryWindowTest {
         assertNull(DeliveryWindow.of("5 pm – 7 pm", "five o'clock", "2026-10-08T08:00:00Z"))
     }
 
-    // ── What the screen says ────────────────────────────────────────────────────────────────────────
+    // What the screen says
 
     @Test
     fun `a drop still to be done is judged against the clock`() {

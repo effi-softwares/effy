@@ -1,4 +1,3 @@
-// GET /catalog/v1/review/margin-not-set — approved products with no margin (067 FR-008).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

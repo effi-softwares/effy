@@ -1,28 +1,8 @@
 import { sellerIdentity } from "@effy/legal-content"
 
 /**
- * What this document IS — and, just as importantly, what it is not (052 FR-032, US5).
- *
- * ── Why this note exists ────────────────────────────────────────────────────────────────────────
- *
- * Effy sells in Australia and prices GST-inclusive, so a shopper may reasonably want this for their
- * own tax records. It is NOT a tax invoice, and saying so plainly is the whole point: a document that
- * looks like one but is not is worse than one that admits it.
- *
- * Two prerequisites stand in the way, and NEITHER is engineering work in this slice — both are
- * recorded in specs/052-order-confirmation-invoice/research.md § R13:
- *
- *   1. ⚠ The ABN is unsupplied. `packages/legal-content/src/identifiers.json` still holds the
- *      fail-loud placeholder `[ABN]`, and the constitution's Real-World Identifiers section forbids
- *      inferring one. Operator input.
- *   2. ⚠ Per-item GST treatment is unmodelled. Basic food is GST-free in Australia, so a grocery
- *      basket is a MIXED SUPPLY — the "total price includes GST" shorthand is FALSE for most Effy
- *      orders, and the "extent to which each sale is taxable" requirement cannot be met from data
- *      that does not exist.
- *
- * ⚠ THE TAX FIELDS ARE ABSENT, NOT BLANK AND NOT PLACEHOLDER (FR-031). This component renders no ABN,
- * no GST amount and no per-line tax indicator. When both prerequisites land, the block slots in here
- * (FR-033) and the wording below changes — the document's structure does not.
+ * What this document is and is not: a receipt, not a tax invoice (a tax invoice is requested separately
+ * from the order). No ABN, GST amount or per-line tax indicator appears here.
  */
 export function DocumentStatusNote() {
   const seller = sellerIdentity()

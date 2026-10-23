@@ -2,16 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { orderActionError } from "./errorText";
 
-/**
- * ⚠ THE TEST THAT WAS MISSING WHEN THE DEFECT SHIPPED.
- *
- * The first draft mapped errors with `e instanceof Error ? e.message : "..."`. `@effy/api-client`
- * throws a `DomainError` — a PLAIN OBJECT — so that branch never ran and every refusal collapsed to
- * one generic sentence, including FR-006's "record the handover first". Nothing failed, because
- * nothing asserted on the message.
- *
- * These build the error the way the client actually throws it: a plain object, never an `Error`.
- */
+/** The errors are built the way the client throws them: plain objects, never an `Error`. */
 const domainError = (status: number, kind: string) => ({ kind, status, title: "t", detail: "raw server prose" });
 
 describe("orderActionError", () => {
@@ -21,7 +12,7 @@ describe("orderActionError", () => {
 
     expect(handoff).not.toBe(arrival);
     expect(handoff).toMatch(/collected/i);
-    // FR-006: the operator must be told a handover is the missing step, not just that it failed.
+    // The operator must be told a handover is the missing step, not just that it failed.
     expect(arrival).toMatch(/handover/i);
   });
 
@@ -42,8 +33,8 @@ describe("orderActionError", () => {
   });
 
   /**
-   * ⚠ 005 FR-008 — `detail` is free-form server prose that can leak internals. Every message here is
-   * the console's OWN copy; none may echo the server's.
+   * `detail` is free-form server prose that can leak internals. Every message here is
+   * the console's own copy; none may echo the server's.
    */
   it("never renders the server's raw detail", () => {
     for (const status of [400, 403, 404, 409, 422, 503]) {

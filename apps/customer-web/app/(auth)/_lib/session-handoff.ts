@@ -1,15 +1,8 @@
 "use client"
 
 /**
- * The hand-over: give the server the tokens Cognito just issued, and keep none of them here.
- *
- * ⚠ THE BROWSER'S COPY IS REMOVED BEFORE THE REQUEST IS EVEN SENT. Whatever the server answers, no
- * token is left where a script could read it — and the SDK never finds a "leftover" sign-in that
- * would make it refuse the next attempt.
- *
- * ⚠ `true` MEANS THE SERVER HAS THE SESSION. The sign-in screens navigate only on `true`; on `false`
- * they say so and the customer tries again. A sign-in that Cognito accepted but the server did not
- * must never look like success.
+ * Hands the tokens Cognito just issued to the server and keeps none: the browser's copy is removed before
+ * the request is sent. `true` means the server has the session; the screens navigate only then.
  */
 const PREFIX = "CognitoIdentityServiceProvider."
 

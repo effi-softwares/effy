@@ -29,13 +29,13 @@ describe("⚠ exactly one service worker (T036)", () => {
   /**
    * The single most valuable assertion in this slice's front end, and the cheapest to lose.
    *
-   * The Firebase JS SDK registers its OWN `/firebase-messaging-sw.js` unless `getToken` is handed a
+   * The Firebase js SDK registers its own `/firebase-messaging-sw.js` unless `getToken` is handed a
    * registration. Beside the Workbox worker that is two workers competing for one scope, and the
-   * documented symptom is THE APP RELOADING ITSELF CONTINUOUSLY after every deploy
+   * documented symptom is the app reloading itself continuously after every deploy
    * (vite-plugin-pwa #777) — a failure that appears only in a built, deployed console, never in a
    * test and never in `vite dev`.
    *
-   * Nothing else in this repository would catch a second `register()` being added.
+   * Nothing else in this repository would catch a second `register` being added.
    */
   it("registers a service worker from exactly one place in the app", () => {
     const offenders = sourceFiles(SRC)
@@ -45,10 +45,10 @@ describe("⚠ exactly one service worker (T036)", () => {
     expect(offenders).toEqual(["lib/pwa.ts"])
   })
 
-  // ⚠ The other half of this guard — that every `getToken` call is handed OUR registration, so the
+  // The other half of this guard — that every `getToken` call is handed our registration, so the
   // Firebase SDK never registers `firebase-messaging-sw.js` of its own — lives with the code it
   // guards, in src/features/notifications/__tests__/registration.test.ts. Both halves are needed:
-  // this one stops a second `register()` being added, that one stops the SDK adding one for us.
+  // this one stops a second `register` being added, that one stops the SDK adding one for us.
 
   it("has no firebase-messaging-sw file in the served output", () => {
     const pub = join(SRC, "..", "public")
@@ -71,7 +71,7 @@ describe("update handshake (T044, FR-010)", () => {
   })
 
   it("no-ops where service workers are unavailable, rather than throwing", () => {
-    // ⚠ A private window, an insecure origin, or an old browser. The console must work exactly as it
+    // A private window, an insecure origin, or an old browser. The console must work exactly as it
     // did before 059 — a failed registration must never be able to take the console down.
     vi.stubGlobal("navigator", {})
     expect(() => registerServiceWorker()).not.toThrow()

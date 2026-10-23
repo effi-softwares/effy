@@ -18,11 +18,9 @@ import { WindowsByDay } from "./components/WindowsByDay";
 import { dispatchDayQuery } from "./queries";
 
 /**
- * Dispatch (073; redesign, board "Dispatch — today"): who has what, when each round opens, and
- * anything that needs a driver. Three independent sections, one at a time — Needs a driver ·
- * Delivery windows · Rounds. Auto-assign runs every 5 minutes; a person steps in only where it can't.
- *
- * Live: re-read when a driver or auto-assign moves work (071) — nothing here polls.
+ * Dispatch: who has what, when each round opens, and anything that needs a driver, in three sections
+ * (Needs a driver · Delivery windows · Rounds). Auto-assign runs every 5 minutes; a person steps in only
+ * where it can't. Re-read when work moves; nothing polls.
  */
 type Section = "driver" | "windows" | "rounds";
 
@@ -47,7 +45,7 @@ export function DispatchDayScreen() {
         </div>
       ) : (
         <>
-          {/* 088 — FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
+          {/* FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
           {data.failedParcels && (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
             <Link to="/exceptions" className="bo-alert bo-alert--destructive no-underline">
               <PackageX aria-hidden="true" />
@@ -99,7 +97,7 @@ export function DispatchDayScreen() {
                 }
               />
             </TabsContent>
-            {/* 082 — every day on sale: each window's parcels and who has its round. */}
+            {/* Every day on sale: each window's parcels and who has its round. */}
             <TabsContent value="windows" className="bo-tabpanel">
               <WindowsByDay />
             </TabsContent>

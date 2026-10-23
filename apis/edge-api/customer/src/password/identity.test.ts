@@ -4,7 +4,7 @@ import type { AuthedEvent } from "@effy/edge-shared"
 
 import { ACCESS_TOKEN_HEADER, requireCaller, TokenMismatchError } from "./identity"
 
-/** A JWT whose payload carries `sub`. Unsigned — we only ever DECODE it, never verify it here. */
+/** Unsigned: only ever decoded here. */
 function tokenFor(sub: string): string {
   const payload = Buffer.from(JSON.stringify({ sub })).toString("base64url")
   return `header.${payload}.signature`
@@ -25,20 +25,7 @@ describe("requireCaller — the two-token guard (FR-035, research R12)", () => {
     expect(caller.sub).toBe("sub-alice")
   })
 
-  /**
-   * ⚠⚠ THE TEST THIS FILE EXISTS FOR. ⚠⚠
-   *
-   * The attack: present a VICTIM's ID token (which the gateway verifies, and which selects the
-   * victim's DATABASE ROW) paired with the ATTACKER's OWN access token (which selects the attacker's
-   * COGNITO USER).
-   *
-   * Without this check the platform sets the ATTACKER's password while writing `has_password = true`
-   * onto the VICTIM's record. The victim is not taken over — but their record now lies, so the
-   * account page demands a "current password" they have never had, forever, and nothing anywhere
-   * logs an error.
-   *
-   * One equality check closes the whole class.
-   */
+  /** A victim's ID token with the attacker's access token must be refused, or the victim's record would lie. */
   it("REFUSES a victim's ID token paired with an attacker's access token", () => {
     expect(() => requireCaller(event("sub-victim", tokenFor("sub-attacker")))).toThrow(
       TokenMismatchError,

@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * SC-001 / FR-001 / FR-018 — guest-first is the whole product model.
+ * Guest-first is the whole product model.
  *
  * A storefront that demands an account before it will show you anything cannot acquire a
  * customer. These tests assert that a visitor with no session can use the entire public surface
- * and is asked to sign in ZERO times while doing so.
+ * and is asked to sign in zero times while doing so.
  */
 
 const PUBLIC_PAGES = ["/", "/search"] as const
@@ -47,7 +47,7 @@ test.describe("a guest browses with no account (SC-001)", () => {
 })
 
 /**
- * SC-013 — AN AUTHENTICATION OUTAGE MUST NOT TAKE DOWN THE STOREFRONT.
+ * An authentication outage must not take down the storefront.
  *
  * A guest who was never going to sign in should be completely unaffected by the account system
  * being down. This is plausible by construction — guest routes load no auth SDK and make no

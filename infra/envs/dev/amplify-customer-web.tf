@@ -1,17 +1,11 @@
-# Customer storefront continuous deployment (042-customer-web-cicd).
+# Customer storefront continuous deployment: Amplify Hosting builds only apps/customer-web (amplify.yml) and
+# serves it at dev.effyshopping.com.
 #
-# Amplify Hosting's native Git pipeline builds ONLY apps/customer-web (scoped by the repo-root
-# amplify.yml, which declares exactly one application) and serves it at dev.effyshopping.com.
-#
-# ⚠ OPERATOR PREREQUISITES (out-of-code — constitution: Real-World Identifiers). These SSM keys must
-# exist before the relevant apply, and a missing one fails the plan LOUDLY (the data source errors)
-# rather than carrying a guess:
-#   /effy/dev/amplify/github_access_token   (SecureString)  — the Amplify→GitHub connection token.
-#         Create via the Amplify GitHub App (preferred) or a fine-grained PAT; see quickstart §0.
-#   /effy/dev/stripe/publishable_key        (String)        — the PUBLIC, browser-safe Stripe test key.
-# 050 — PostHog IS wired now (env vars below, from var.posthog_project_key / var.posthog_host in
-# dev.tfvars). The project key is client-embeddable/public-safe; an empty value leaves analytics a
-# no-op. This closes the long-standing "customer-web never initialised PostHog" carry-forward (039).
+# Operator prerequisites, in SSM before the apply (a missing one fails the plan):
+# /effy/dev/amplify/github_access_token (SecureString): the Amplify→GitHub token (the Amplify GitHub App,
+# or a fine-grained PAT).
+# /effy/dev/stripe/publishable_key (String): the public Stripe test key.
+# PostHog comes from var.posthog_project_key / var.posthog_host (public-safe; empty leaves analytics off).
 
 # ── Operator-supplied inputs (read, never written by this slice) ───────────────────────────────
 data "aws_ssm_parameter" "amplify_github_token" {
@@ -23,24 +17,12 @@ data "aws_ssm_parameter" "stripe_publishable_key" {
   name = var.stripe_publishable_key_ssm
 }
 
-# ── The app ↔ storefront config (contracts/config.contract.md) ─────────────────────────────────
+# The storefront's config. In-account facts come from Terraform references; every value is public-safe
+# (pool id, client id, publishable key).
 #
-# In-account platform facts come from Terraform references (no drift, no operator step). NEXT_PUBLIC_*
-# are inlined into the browser bundle at build and are all public-safe (a pool id, a client id, a
-# publishable key).
-#
-# ⚠ EVERY VARIABLE HERE MUST CARRY THE NEXT_PUBLIC_ PREFIX, INCLUDING THE EDGE API'S ADDRESS.
-# An Amplify environment variable is a BUILD-time variable: AWS states that "a Next.js server
-# component doesn't have access to those environment variables by default." Only NEXT_PUBLIC_
-# values survive the build, because Next inlines them into the output. This block previously set
-# `EDGE_API_BASE_URL` unprefixed on the reasoning that server-only config should stay server-only
-# (FR-016) — correct in principle, and the variable was simply ABSENT at runtime: every signed-in
-# customer on dev was redirected to /account/unavailable, with no failed request in the browser
-# because the code threw before it could make one.
-#
-# ⚠ Adding a server-only variable here in future does NOT work. It needs `.env.production` written
-# during the build (AWS: "Making environment variables accessible to server-side runtimes"), or it
-# will be silently undefined in production exactly as this one was.
+# Every variable must carry NEXT_PUBLIC_: an Amplify environment variable is build-time only, and a server
+# component cannot read an unprefixed one at runtime. A server-only variable would need `.env.production`
+# written during the build.
 locals {
   storefront_url = "https://${module.dns.zone_name}"                      # https://dev.effyshopping.com
   edge_api_url   = "https://${var.api_subdomain}.${module.dns.zone_name}" # https://edge-api.dev.effyshopping.com
@@ -52,13 +34,13 @@ locals {
     NEXT_PUBLIC_COGNITO_CLIENT_ID      = module.customer_pool.app_client_id
     NEXT_PUBLIC_COGNITO_DOMAIN         = "" # set only when Google federation is enabled
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = data.aws_ssm_parameter.stripe_publishable_key.value
-    # The cold path. Public-SAFE (an address, not a credential — the gateway's per-pool JWT
-    # authorizer refuses an unauthenticated caller with a flat 401), but read ONLY from server code:
+    # The cold path. Public-safe (an address, not a credential — the gateway's per-pool JWT
+    # authorizer refuses an unauthenticated caller with a flat 401), but read only from server code:
     # the account routes relay the customer's tokens. See apps/customer-web/lib/config.ts.
     NEXT_PUBLIC_EDGE_API_BASE_URL = local.edge_api_url
-    # 050 — PostHog (analytics + web error tracking). The PROJECT key is client-embeddable/public-safe
+    # PostHog (analytics + web error tracking). The project key is client-embeddable/public-safe
     # (like the Cognito client id above); inlined at build. Same source as the SSM record (var.*), so
-    # setting it once in dev.tfvars fans out to SSM AND this build. Empty ⇒ analytics no-ops.
+    # setting it once in dev.tfvars fans out to ssm and this build. Empty ⇒ analytics no-ops.
     NEXT_PUBLIC_POSTHOG_KEY       = var.posthog_project_key
     NEXT_PUBLIC_POSTHOG_HOST      = var.posthog_host
     NEXT_PUBLIC_TELEMETRY_ENABLED = var.telemetry_enabled ? "true" : "false"
@@ -79,7 +61,7 @@ module "amplify_customer_web" {
 
   env_vars = local.customer_web_env
 
-  # ⚠ Amplify's build cannot reliably assume a Terraform-created service role (SSR IaC edge case).
+  # Amplify's build cannot reliably assume a Terraform-created service role (SSR IaC edge case).
   # Empty = Terraform creates one (may fail with "Unable to assume specified IAM Role"). The working
   # path: let Amplify auto-create the role in the console once, then set this to that ARN so TF just
   # references it. See var.amplify_service_role_arn and quickstart §2a.
@@ -90,12 +72,8 @@ module "amplify_customer_web" {
   enable_www  = true
 }
 
-# ── App↔infra contract output: /effy/<env>/web/site_url (contracts/config.contract.md) ─────────
-#
-# ⚠ CLOSES A 039 OPEN ITEM. apis/edge-api/customer/serverless.yml reads this for the newsletter
-# double-opt-in confirm link and currently falls back to http://localhost:3000 because the key does
-# not exist. After this applies, redeploy edge-customer (quickstart §4) so the link points at the
-# real storefront.
+# /effy/<env>/web/site_url: the storefront's address, read by the customer service (the newsletter confirm
+# link). Redeploy `customer` after it changes.
 resource "aws_ssm_parameter" "web_site_url" {
   name        = "/effy/${var.env}/web/site_url"
   description = "The customer storefront's public origin for this environment. Read by edge-customer (newsletter confirm link) and any public-URL consumer (042)."
@@ -107,7 +85,7 @@ resource "aws_ssm_parameter" "web_site_url" {
 # ── Build-failure notification (Principle VII, research D9) ────────────────────────────────────
 #
 # The one failure mode this slice introduces: a build/deploy fails. Amplify keeps the last good
-# version live (that is native), but nobody is told. Route Amplify's FAILED deployment event to the
+# version live (that is native), but nobody is told. Route Amplify's failed deployment event to the
 # existing operator alert topic (037's aws_sns_topic.alerts) so a broken pipeline pages someone.
 resource "aws_cloudwatch_event_rule" "amplify_build_failed" {
   name        = "${module.shared.name_prefix}-customer-web-build-failed"
@@ -129,8 +107,8 @@ resource "aws_cloudwatch_event_target" "amplify_build_failed_to_sns" {
   arn       = aws_sns_topic.alerts.arn
 }
 
-# ⚠ EventBridge needs resource-based permission to publish to the topic. This policy PRESERVES the
-# default account-owner statement (so 037's CloudWatch alarms keep delivering) and ADDS publish
+# EventBridge needs resource-based permission to publish to the topic. This policy preserves the
+# default account-owner statement (so 037's CloudWatch alarms keep delivering) and adds publish
 # rights for EventBridge and CloudWatch. Omitting the default statement would silently break the
 # platform's sign-in-outage alarms — the exact "detection without notification" defect 037 fixed.
 data "aws_iam_policy_document" "alerts_topic" {
@@ -153,7 +131,7 @@ data "aws_iam_policy_document" "alerts_topic" {
     }
   }
 
-  # EventBridge (this slice) + CloudWatch alarms (037) + the cost budget (071) publish notifications.
+  # EventBridge (this slice) + CloudWatch alarms + the cost budget publish notifications.
   statement {
     sid       = "ServicePublish"
     effect    = "Allow"

@@ -5,39 +5,10 @@ import { cognitoAdmin } from "../lib/cognito"
 import { logger } from "@effy/edge-shared"
 
 /**
- * THE ACCOUNT-LINKING TRIGGER (FR-011, FR-012).
- *
- * WHAT IT PREVENTS
- * ----------------
- * Left alone, Cognito creates a SEPARATE profile (`Google_<sub>`) the first time someone signs in
- * with Google — distinct from the native profile they already have with the same email. That is a
- * DUPLICATE ACCOUNT: two profiles, two `sub`s, two customer records. And it is unrecoverable —
- * `AdminLinkProviderForUser` requires that the federated user NOT YET EXIST, so there is no
- * retroactive merge. Once Cognito has auto-created that profile, that person is permanently two
- * people to the platform.
- *
- * So the linking has to happen HERE, in the one window before the profile is created.
- *
- * WHAT IT MUST NOT BECOME
- * -----------------------
- * ⚠⚠ Linking two identities because their emails match is an ACCOUNT-TAKEOVER PRIMITIVE unless
- * the email is PROVEN. The attack, in full:
- *
- *   1. The victim has an Effy account, victim@example.com.
- *   2. The attacker registers victim@example.com at an identity provider that does not verify
- *      ownership of the address.
- *   3. The attacker federates into our pool. We see a matching email and link their identity to
- *      the victim's profile.
- *   4. The attacker now signs in and receives JWTs CARRYING THE VICTIM'S `sub`. Complete takeover.
- *      No password. No OTP. No trace in any log that says "attack".
- *
- * AWS states it plainly: "it is critical that it only be used with external IdPs and provider
- * attributes that have been trusted by the application owner."
- *
- * The defence is the very first thing this function does: REFUSE TO LINK unless the IdP asserts
- * `email_verified === true`. That check is not a validation nicety and must never be relaxed to
- * "make Google sign-in work" — if it is failing, the mapping in the Terraform IdP is missing, and
- * THAT is the bug.
+ * Links a Google identity to the existing native profile with the same email, in the one window before
+ * Cognito creates a duplicate (`AdminLinkProviderForUser` cannot merge later). It refuses unless the
+ * IdP asserts `email_verified === true`: linking on an unproven email is an account takeover. If that
+ * check fails, fix the Terraform IdP mapping; never relax it.
  */
 export const handler: PreSignUpTriggerHandler = async (event) => {
   switch (event.triggerSource) {
@@ -45,26 +16,8 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
       return handleFederated(event, cognitoAdmin())
 
     case "PreSignUp_SignUp":
-      // A native self-registration (password or email OTP). Cognito verifies the email itself via
-      // the confirmation code, so there is nothing to link and nothing to decide.
-      //
-      // ⚠ 035 — AUTO-CONFIRM, AND WHY IT IS OFF BY DEFAULT.
-      //
-      // AWS states generally that "users who sign themselves up must be confirmed before they can
-      // sign in", and `InitiateAuth` lists `UserNotConfirmedException`. What is NOT documented
-      // anywhere is whether Cognito refuses an UNCONFIRMED user BEFORE the custom-auth triggers
-      // fire. If it does, the passwordless sign-up route cannot work without auto-confirming here.
-      //
-      // That question is spike T003(a), and it is not answerable from documentation — so this is
-      // wired but DISABLED. Enabling it blindly would be worse than leaving it off: auto-confirming
-      // lets someone squat an address they do not control (they cannot sign in, but the real owner
-      // cannot register), and if the spike shows confirmation was never the blocker we would have
-      // taken that risk for nothing.
-      //
-      // ⚠ `autoVerifyEmail` is NEVER set, under any flag. It would mark an address verified that
-      // nobody has proved control of, and under constitution Principle IV a verified-but-unproven
-      // email is an account-takeover primitive — federated linking trusts exactly that field. Our
-      // own OTP verification sets it, in the post-authentication trigger (035 FR-020).
+      // Native self-registration: Cognito verifies the email itself, nothing to link. Auto-confirm is wired
+      // but off (it lets someone squat an address) until shown to be needed. `autoVerifyEmail` is never set.
       if (process.env.AUTO_CONFIRM_SIGNUP === "true") {
         event.response.autoConfirmUser = true
         logger.info(
@@ -75,8 +28,7 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
       return event
 
     default:
-      // PreSignUp_AdminCreateUser — the customer pool is open to self-signup, so this is the
-      // linking trigger's own AdminCreateUser call coming back around. Pass it through.
+      // The linking trigger's own AdminCreateUser coming back around.
       return event
   }
 }
@@ -90,7 +42,7 @@ async function handleFederated(
   const result = await linkFederatedIdentity(
     {
       userPoolId: event.userPoolId,
-      // e.g. "Google_1029384756" → provider = Google, providerSub = 1029384756
+      // "Google_1029384756" → provider Google, providerSub 1029384756
       federatedUsername: event.userName,
       email,
       emailVerified: email_verified,
@@ -103,15 +55,13 @@ async function handleFederated(
       { reason: result.reason },
       "federated sign-in REFUSED — refusing to link an unverified identity",
     )
-    // Throwing fails the sign-in. That is the correct, fail-closed behaviour: we would rather a
-    // legitimate customer see an error than link an attacker into someone else's account.
+    // Fail closed: an error beats linking an attacker into someone's account.
     throw new Error(result.reason)
   }
 
   logger.info({ outcome: result.outcome }, "federated identity linked to native profile")
 
-  // The customer proved control of this address at Google, so it is verified here too, and there
-  // is nothing further for them to confirm.
+  // Proven at Google, so verified here too.
   event.response.autoConfirmUser = true
   event.response.autoVerifyEmail = true
   return event

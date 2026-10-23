@@ -7,7 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.subclass
 
 /**
- * The driver app's navigation routes (049). Every route is a `@Serializable` [AppNavKey] so the per-tab
+ * The driver app's navigation routes. Every route is a `@Serializable` [AppNavKey] so the per-tab
  * back stacks round-trip across configuration change and iOS process death. Login-first: the whole shell
  * is gated, so every tab is authenticated.
  */
@@ -20,7 +20,7 @@ data object HistoryRoot : AppNavKey
 @Serializable
 data object AccountRoot : AppNavKey
 
-// Pushed within the Today tab (049 US1/US2).
+// Pushed within the Today tab.
 @Serializable
 data class CollectionRunRoute(val runId: String) : AppNavKey
 
@@ -36,22 +36,22 @@ data class DeliveryRunRoute(val runId: String) : AppNavKey
 @Serializable
 data class DropRoute(val runId: String, val dropId: String, val scan: Boolean = false) : AppNavKey
 
-// Pushed within the History tab (049 US5).
+// Pushed within the History tab.
 @Serializable
 data class HistoryDetailRoute(val kind: String, val id: String, val title: String) : AppNavKey
 
-// ── 060: four destinations the design has and the app did not ──────────────────────────────────
+// Four destinations the design has and the app did not
 
 /**
  * Help & support (design screen `help`).
  *
- * ⚠ The app had no help screen at all, so a driver who needed dispatch had nowhere in the app to
+ * The app had no help screen at all, so a driver who needed dispatch had nowhere in the app to
  * find them.
  */
 @Serializable
 data object HelpRoute : AppNavKey
 
-/** 092 rev 2 — the parcels from failed drops, coming back to the hub (redesign `11 Return parcels`). */
+/** Rev 2 — the parcels from failed drops, coming back to the hub (redesign `11 Return parcels`). */
 @Serializable
 data class ReturnHubRoute(val runId: String, val scan: Boolean = false) : AppNavKey
 
@@ -60,8 +60,8 @@ data class ReturnHubRoute(val runId: String, val scan: Boolean = false) : AppNav
 data object PermissionDeniedRoute : AppNavKey
 
 /**
- * The driver app's three tabs (092): Today (the phase-aware home and every run, stop and drop pushed
- * from it), History, Account. ⚠ Map and Activity were removed — the map was a schematic with no
+ * The driver app's three tabs: Today (the phase-aware home and every run, stop and drop pushed
+ * from it), History, Account. Map and Activity were removed — the map was a schematic with no
  * cartography, and the round's changes are said on Today.
  */
 enum class DriverTab(val label: String, val start: AppNavKey) {
@@ -85,7 +85,7 @@ val driverNavJson: Json = Json {
         subclass(DeliveryRunRoute::class, DeliveryRunRoute.serializer())
         subclass(DropRoute::class, DropRoute.serializer())
         subclass(HistoryDetailRoute::class, HistoryDetailRoute.serializer())
-        // ⚠ 060 — a route absent from here is NOT a compile error. It fails at runtime, only after
+        // A route absent from here is not a compile error. It fails at runtime, only after
         // process death, only on that tab. RouteSerializerGuardTest makes the omission a test failure.
         subclass(HelpRoute::class, HelpRoute.serializer())
         subclass(ReturnHubRoute::class, ReturnHubRoute.serializer())

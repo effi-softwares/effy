@@ -20,10 +20,10 @@ import { useCreateDriver } from "../queries";
 
 
 /**
- * Provision a driver — the platform record and a driver-app sign-in, created together (FR-013).
+ * Provision a driver — the platform record and a driver-app sign-in, created together.
  *
- * ⚠ THE REFUSAL IS THE POINT OF THIS COMPONENT, not the happy path. Creating with a work email that
- * already belongs to someone must be REFUSED and must NAME them (FR-014). Before this feature the
+ * The refusal is the point of this component, not the happy path. Creating with a work email that
+ * already belongs to someone must be refused and must name them. Before this feature the
  * same action silently adopted that person's record — overwriting their name, zone and vehicle — and
  * re-enabled the sign-in of someone who had been deliberately stood down. It reported success.
  */
@@ -101,14 +101,14 @@ export function CreateDriverDialog() {
               required
               autoComplete="off"
             />
-            {/* ⚠ Said up front, because it cannot be undone from this console: the work email is the
+            {/* Said up front, because it cannot be undone from this console: the work email is the
                 sign-in identity and there is no route that changes it. */}
             <p className="text-xs text-muted-foreground">
               This is how they sign in, and it cannot be changed later.
             </p>
           </div>
 
-          {/* ⚠ 062 — no zone picker on CREATE. A new driver starts cleared for NOTHING, and
+          {/* No zone picker on create. A new driver starts cleared for nothing, and
               clearances are granted deliberately afterwards. A create form that quietly assigns
               coverage is how somebody ends up eligible for work nobody decided to give them. */}
 

@@ -1,4 +1,3 @@
-// GET /admin/v1/feedback — list/search/filter feedback (046 US2). Any active staff, incl. csa.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

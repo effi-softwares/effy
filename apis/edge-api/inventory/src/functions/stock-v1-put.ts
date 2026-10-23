@@ -1,4 +1,3 @@
-// PUT /inventory/v1/variants/{variantId}/stock — set the count to an exact value (054 US1, FR-006).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

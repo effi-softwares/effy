@@ -16,7 +16,7 @@ describe("StoreBadges — present, but they go nowhere (FR-021)", () => {
   })
 
   /**
-   * ⚠ NOT LINKS AND NOT BUTTONS. A disabled `<a>` is still focusable and still announced as a link,
+   * Not links and not buttons. A disabled `<a>` is still focusable and still announced as a link,
    * promising a destination that does not exist; a `<button disabled>` promises an action. The apps are
    * unpublished, so the honest control is no control at all.
    */
@@ -30,7 +30,7 @@ describe("StoreBadges — present, but they go nowhere (FR-021)", () => {
   })
 
   /**
-   * ⚠ SC-009 — meaning never rests on colour or opacity alone. A dimmed badge with no words is
+   * Meaning never rests on colour or opacity alone. A dimmed badge with no words is
    * indistinguishable from a broken image, and a screen reader announces nothing at all about it.
    */
   it("says 'coming soon' in words, in each badge's accessible name", () => {
@@ -50,8 +50,8 @@ describe("StoreBadges — present, but they go nowhere (FR-021)", () => {
 })
 
 /**
- * ⚠ THE SOURCE-LEVEL GUARD. This is the constitution's real-world-identifier rule made mechanical: an
- * app-store URL for an unpublished app would have to be INVENTED, and a wrong outward-facing value that
+ * The source-level guard. This is the constitution's real-world-identifier rule made mechanical: an
+ * app-store URL for an unpublished app would have to be invented, and a wrong outward-facing value that
  * silently works reaches real people before anyone notices.
  *
  * It greps the modules' own text rather than the render output, because a URL could be introduced in a
@@ -99,7 +99,7 @@ describe("AppPromo — honest about availability (FR-022)", () => {
     expect(container.querySelector("img")).toBeNull()
   })
 
-  /** SC-009 — the page's single h1 belongs to the page; every section heads at h2. */
+  /** The page's single h1 belongs to the page; every section heads at h2. */
   it("heads itself at h2", () => {
     render(<AppPromo />)
 

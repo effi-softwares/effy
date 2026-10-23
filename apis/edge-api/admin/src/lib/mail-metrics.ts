@@ -1,22 +1,7 @@
 /**
- * Metrics for the delivery-outcome path (037, Principle VII).
- *
- * Emitted as CloudWatch EMF on stdout — no SDK call, no added latency. Mirrors
- * `apis/edge-api/auth/src/lib/observability.ts`; the same discipline applies.
- *
- * ⚠ TWO RULES, BOTH LOAD-BEARING:
- *
- * 1. **`env` is the ONLY dimension.** Never the address, never its domain, never the message id. A
- *    metric label is as permanent as a log line, and a high-cardinality dimension is both a PII leak
- *    and a bill. `eventType` rides as a PROPERTY, which CloudWatch keeps searchable without making
- *    it a dimension.
- *
- * 2. **Never pass an address into `emit`.** Use `addressFingerprint` when two log lines need to be
- *    correlated to the same person.
- *
- * ⚠ `mail_hard_bounce` is alarmed at >= 1 in five minutes, not on a rate. That is the whole point:
- * one person being permanently locked out never moves a percentage, which is exactly why the
- * pre-existing bounce-RATE alarm could not catch it.
+ * EMF metrics for delivery outcomes. `env` is the only dimension (`eventType` rides as a property),
+ * and no address is ever passed to `emit`. `mail_hard_bounce` alarms at >= 1 in five minutes: one
+ * lockout never moves a rate.
  */
 
 import { createHash } from "node:crypto"
@@ -52,14 +37,7 @@ export function emit(
   console.log(JSON.stringify(payload))
 }
 
-/**
- * A short, stable, one-way fingerprint of an address — safe to log.
- *
- * ⚠ Exists so the log discipline is CHEAP TO FOLLOW. The alternative to a helper is each call site
- * deciding for itself, and the failure mode of that is one line somewhere that logs the address.
- * Twelve hex characters is enough to correlate lines about one person and far too little to
- * enumerate anyone.
- */
+/** Twelve hex characters: enough to correlate log lines about one person, too few to enumerate anyone. */
 export function addressFingerprint(address: string): string {
   return createHash("sha256").update(address.toLowerCase()).digest("hex").slice(0, 12)
 }

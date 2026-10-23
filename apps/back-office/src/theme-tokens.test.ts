@@ -2,16 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Brand guard (017 SC-002 / SC-008), REPOINTED BY THE BACK-OFFICE REDESIGN.
-//
-// ⚠ THE BACK-OFFICE NO LONGER READS THE CONSOLE'S tokens.css. It wears the storefront and driver
-// apps' identity (the "Effy Back-Office Redesign" canvas, 01 Foundations and shell): five colours —
-// black, white, zinc, Effy blue for actions, Effy green for done — and no red or orange. This file
-// pins the identity THIS SURFACE IMPORTS, so the assertions moved to backoffice/tokens.css rather than
-// being deleted: the requirement was never "be cobalt", it was "exactly ONE action colour, declared in
-// one place, and the retired palettes stay gone". The full law (AA pairs, key parity with the console
-// vocabulary) is scripts/check-backoffice-tokens.mjs in @effy/design-system.
-// (Vitest runs from the app dir → resolve the SSOT from there.)
+// Back-office wears the storefront identity (backoffice/tokens.css): black, white, zinc, Effy blue for
+// actions, Effy green for done, no red or orange. This pins exactly one action colour declared in one place,
+// with the retired palettes gone; the full law is scripts/check-backoffice-tokens.mjs in @effy/design-system.
+// (Vitest runs from the app dir.)
 const raw = readFileSync(resolve(process.cwd(), "../../packages/design-system/src/backoffice/tokens.css"), "utf8");
 const tokensCss = raw.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase();
 const stylesCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -23,7 +17,7 @@ describe("back-office identity tokens", () => {
     expect(stylesCss).not.toContain("storefront.css");
   });
 
-  // ⚠ ONE ACTION COLOUR, UNDER EVERY NAME A SCREEN OR PRIMITIVE READS IT BY. --primary is the shadcn
+  // One action colour, under every name a screen or primitive reads it by. --primary is the shadcn
   // name, --brand the console's role name, --ring the focus: they must be the same blue.
   it("uses Effy blue as the single action colour, lifted in dark", () => {
     expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/);
@@ -41,7 +35,7 @@ describe("back-office identity tokens", () => {
     expect(tokensCss).not.toContain("--warning-foreground");
   });
 
-  // ⚠ No red, no orange. A problem is the foreground with an icon and its words.
+  // No red, no orange. A problem is the foreground with an icon and its words.
   it("says a problem in black (white in dark), never red or orange", () => {
     expect(tokensCss).toMatch(/--destructive:\s*#09090b/);
     expect(tokensCss).toMatch(/--destructive:\s*#fafafa/);

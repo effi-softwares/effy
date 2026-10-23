@@ -37,7 +37,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * A GROUP — white, 1dp hairline border, 8dp corners, with an optional caption above (Account,
+ * A group — white, 1dp hairline border, 8dp corners, with an optional caption above (Account,
  * Security, Checkout boards). Rows inside are separated by hairlines via [EffyGroupDivider].
  *
  * Card layouts are permitted on the storefront identity (constitution v3.3.0); a group is the
@@ -76,9 +76,9 @@ fun EffyGroupDivider() {
 }
 
 /**
- * A NAVIGATION ROW — icon, label, optional second line, chevron. 60dp (64 with a second line).
+ * A navigation row — icon, label, optional second line, chevron. 60dp (64 with a second line).
  *
- * [destructive] keeps the storefront rule: no red. The label is black and SEMIBOLD with the word
+ * [destructive] keeps the storefront rule: no red. The label is black and semibold with the word
  * itself saying what it does ("Delete account"); the icon carries the rest.
  */
 @Composable
@@ -214,7 +214,7 @@ fun EffyDetailRow(
 }
 
 /**
- * A tappable label / value / chevron row — Personal info's editing affordance (034). Label above
+ * A tappable label / value / chevron row — Personal info's editing affordance. Label above
  * value; `editable = false` drops the chevron and shows [trailingNote], so a tap is never silent.
  */
 @Composable

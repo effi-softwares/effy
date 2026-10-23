@@ -110,7 +110,7 @@ fun SignInScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
-            // ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a): shown to everyone, always — never conditional on
+            // The uniform escape hatch: shown to everyone, always — never conditional on
             // whether the address exists, which would make this line an account-enumeration oracle.
             Text(
                 "Code not arriving? Email hello@effyshopping.com",

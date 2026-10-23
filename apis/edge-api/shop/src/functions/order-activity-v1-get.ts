@@ -1,7 +1,4 @@
-// GET /shop/v1/orders/{id}/activity — the order's full history for the Activity sheet (057 A3).
-//
-// A separate read from the detail on purpose: the log can be long and the sheet is opened on demand,
-// so the page itself does not pay for a history nobody has asked to see.
+// Separate from the detail read: the log can be long and the sheet is opened on demand.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

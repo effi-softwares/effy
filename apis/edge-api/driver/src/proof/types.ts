@@ -1,14 +1,6 @@
-// Row shapes and domain shapes for proof and failed attempts (064).
-//
-// ⚠ ROWS ARE MAPPED EXPLICITLY AND NEVER LEAK PAST THE DATA LAYER (Principle VI). A `pg` row is
-// `snake_case`, stringly-typed and shaped by whatever the query happened to select; the wire DTO is
-// the contract. Letting one stand in for the other is how a column rename becomes a silent API
-// change.
-
 import type { ProofMethod } from "@effy/shared-types";
 
-/** The methods THIS SLICE ships. ⚠ Narrower than the wire's `ProofMethod`, which still carries
- *  `"code"` — the type is the eventual shape, the refusal is behaviour (research R4). */
+/** Narrower than the wire's `ProofMethod`, which still carries `"code"`. */
 export type SupportedProofMethod = Extract<ProofMethod, "photo" | "signature" | "contactless">;
 
 export const SUPPORTED_PROOF_METHODS: readonly SupportedProofMethod[] = [
@@ -17,7 +9,6 @@ export const SUPPORTED_PROOF_METHODS: readonly SupportedProofMethod[] = [
   "contactless",
 ] as const;
 
-/** Methods that cannot be completed without an image (FR-002, FR-006). */
 export const MEDIA_REQUIRED_METHODS: readonly SupportedProofMethod[] = ["photo", "signature"] as const;
 
 export function isSupportedMethod(v: unknown): v is SupportedProofMethod {
@@ -54,7 +45,6 @@ export interface DropPackageRow {
   shop_fulfillment_id: string;
 }
 
-/** A completed proof, as the service hands it back. */
 export interface CapturedProof {
   proofId: string;
   method: SupportedProofMethod;
@@ -73,8 +63,7 @@ export function toCapturedProof(row: ProofRow): CapturedProof {
   };
 }
 
-/** ⚠ `pg` returns a `Date` for timestamptz; the wire carries ISO 8601 strings. Converting at the
- *  boundary rather than at each call site is what keeps the two from being confused. */
+/** `pg` returns a Date for timestamptz; converted to ISO 8601 at the boundary. */
 export function toIso(v: Date | string): string {
   return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
 }

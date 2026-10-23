@@ -1,14 +1,6 @@
-// The order of a driver's work (093) — the one place the driver service asks "is this the next step?".
-//
-// A driver's day has a physical order: collect from the shops, check in at the hub, load the van,
-// deliver, bring back what could not be delivered. The app shows only the next step, but a control is a
-// courtesy (072's lesson): a retried request, a stale screen or a second phone walks straight past it.
-// These gates are what stop a run being closed with parcels still at a shop, or a drop delivered that was
-// never loaded.
-//
-// ⚠ CALL ORDER INSIDE A WRITE: ownership (404) → `assertRoundOpen` → the retry answer for a step already
-// done → these gates → the write. A step already done answers as done even when a gate has since closed.
-// `sequence.guard.test.ts` fails naming any progressing route that does not call its gate.
+// The physical order of a driver's day: shops, hub, load, deliver, return. A retried request or second
+// phone walks past the app's controls; these gates do not. Inside a write: ownership → `assertRoundOpen`
+// → the retry answer → these gates → the write.
 
 import { emitMetric, metricNamespace, problem, type Queryable, type RequestScope } from "@effy/edge-shared";
 import { IN_TRANSIT_SQL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
@@ -21,7 +13,7 @@ export type SequenceProblemType =
   | "return_parcels_first"
   | "finish_deliveries_first";
 
-/** A step taken out of turn. Nothing has been written; `sentence` says what to do first. */
+/** Nothing has been written; `sentence` says what to do first. */
 export class SequenceError extends Error {
   constructor(
     readonly type: SequenceProblemType,
@@ -33,13 +25,13 @@ export class SequenceError extends Error {
   }
 }
 
-/** 409 with the sentence as `detail` — the same carrier `round_not_open` uses, so the app reads both alike. */
+/** With the sentence as `detail`, like `round_not_open`. */
 export function sequenceProblem(err: SequenceError, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   emitMetric(metricNamespace(), "SequenceRefused", 1, { type: err.type });
   return problem(409, err.type, "Not yet", err.sentence, scope, err.issues);
 }
 
-/** Check-in closes a collection run: every shop on it must be collected or declared not available. */
+/** Every shop on the run must be collected or declared not available. */
 export async function assertStopsSettled(db: Queryable, runId: string): Promise<void> {
   const res = await db.query<{ stop_id: string; shop_name: string | null }>(
     `SELECT rs.id AS stop_id, s.name AS shop_name
@@ -57,7 +49,7 @@ export async function assertStopsSettled(db: Queryable, runId: string): Promise<
   throw new SequenceError("stops_outstanding", sentence, res.rows.map((r) => ({ field: "stopId", message: r.stop_id })));
 }
 
-/** Nothing on a drop before the van is loaded: loading is the only way a drop goes out (R2). */
+/** Nothing on a drop before the van is loaded. */
 export async function assertDropLoaded(db: Queryable, dropId: string, driverId: string): Promise<void> {
   const res = await db.query<{ status: string; round_id: string }>(
     `SELECT rs.status, rs.round_id
@@ -77,10 +69,7 @@ async function waived(db: Queryable, runId: string): Promise<boolean> {
   return (res.rowCount ?? 0) > 0;
 }
 
-/**
- * Loading a delivery run waits until the van holds nothing else: no collected parcel still to check in,
- * no failed parcel still to return. The driver is at the hub to load, so either takes a moment.
- */
+/** Loading waits until the van holds nothing else: no parcel still to check in or return. */
 export async function assertNothingToHandIn(db: Queryable, driverId: string, runId: string): Promise<void> {
   if (await waived(db, runId)) return;
 
@@ -117,7 +106,7 @@ export async function assertNothingToHandIn(db: Queryable, driverId: string, run
   }
 }
 
-/** Collecting waits until the van has no deliveries in it: inbound and outbound parcels never mix. */
+/** Inbound and outbound parcels never mix in the van. */
 export async function assertNoDeliveriesOpen(db: Queryable, driverId: string, runId: string): Promise<void> {
   if (await waived(db, runId)) return;
   const res = await db.query<{ round_id: string }>(

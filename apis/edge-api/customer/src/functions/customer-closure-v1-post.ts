@@ -19,18 +19,9 @@ import {
 import { requireCaller, TokenMismatchError } from "../password/identity"
 
 /**
- * POST /customer/v1/closure — verify the code and close the account (US3).
- *
- * ⚠ THE ACCOUNT IS CLOSED IMMEDIATELY, AND ERASURE THEN RUNS AUTOMATICALLY (FR-037).
- *
- * No human step stands between this request and erasure, and that is the single most important
- * property of the whole flow: BOTH documented App Review rejections in this area were deactivation
- * flows with a support agent in the loop. This endpoint never offers to deactivate, disable, freeze
- * or pause, and no such state is reachable from it.
- *
- * ⚠ PERMANENT ERASURE IS NOT BUILT YET (FR-041). Until the erasure slice ships, a customer told
- * "permanently deleted after 30 days" will, on day 31, still have a row — so THESE APPS MUST NOT BE
- * SUBMITTED TO EITHER STORE. Tracked in SUBMISSION-BLOCKERS.md.
+ * Closes the account immediately; erasure follows automatically, with no human step and no
+ * deactivate option. Permanent erasure is not built yet, so the apps must not be submitted to the
+ * stores (submission-blockers.md).
  */
 export const handler = async (
   event: AuthedEvent,
@@ -94,8 +85,7 @@ function mapError(
   sub: string,
   scope: ReturnType<typeof preamble>,
 ): APIGatewayProxyStructuredResultV2 {
-  // ⚠ Each failure is DISTINGUISHABLE because each implies a different action for the customer:
-  // retry with a new code, go and resolve an order, or nothing at all.
+  // Each failure is distinct: a new code, an order to resolve, or nothing to do.
   if (err instanceof ClosureBlockedError) {
     return json(409, { blockers: err.blockers }, scope)
   }

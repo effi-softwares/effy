@@ -2,9 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createUiStore } from "./ui-store";
 
-// The shell's collapse bit + the appearance mode are genuine client-UI state in the one sanctioned
-// store (TanStack Store, constitution v1.4.0) — not the shadcn block's cookie. Each surface gets its
-// own namespaced store so two consoles open in one browser don't fight over a theme key.
+// Each surface gets its own namespaced store, so two consoles in one browser keep separate themes.
 
 /** A controllable `matchMedia` so we can simulate an OS light↔dark switch. */
 function mockMatchMedia(initialDark: boolean) {
@@ -100,16 +98,6 @@ describe("createUiStore", () => {
     expect(mql.listenerCount).toBe(0);
     mql.setOsDark(true); // OS goes dark, but we forced light
     expect(document.documentElement.classList.contains("dark")).toBe(false);
-  });
-
-  it("cycles light → dark → system via toggleTheme (back-compat)", () => {
-    ui.setTheme("light");
-    ui.toggleTheme();
-    expect(ui.store.state.theme).toBe("dark");
-    ui.toggleTheme();
-    expect(ui.store.state.theme).toBe("system");
-    ui.toggleTheme();
-    expect(ui.store.state.theme).toBe("light");
   });
 
   it("namespaces two surfaces independently", () => {

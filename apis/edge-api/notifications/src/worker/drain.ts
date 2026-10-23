@@ -1,10 +1,5 @@
-// Pure drain orchestration — the worker's decision logic, dependency-injected so it is unit-testable
-// with fakes (no DB, no FCM, no SES). 050-observability-push-foundation, contracts/notification-request.
-//
-// ⚠ 053 ADDED A CHANNEL DIMENSION. One intent now produces one row per channel it should reach, and
-// this loop fans out on `req.channel`. Telling a customer their order arrived is ONE INTENT delivered
-// on TWO CHANNELS, not two messages — so "does this person have the app?" is answered HERE, at
-// delivery time, rather than by the producer, which has no business knowing.
+// The drain's decision logic, injected for unit tests. One intent produces one row per channel, so
+// "does this person have the app?" is answered at delivery.
 import type { SendResult } from "../fcm/sender";
 import type { NotificationType, RecipientToken } from "./copy";
 
@@ -17,9 +12,8 @@ export interface PendingRequest {
   type: NotificationType;
   entityId: string;
   attempts: number;
-  /** 053. Rows written before the channel column default to `push`, which is what they were. */
   channel: NotificationChannel;
-  /** 053. Snapshotted at enqueue for `email`; null for `push`. */
+  /** Snapshotted at enqueue for `email`; null for `push`. */
   recipientEmail: string | null;
 }
 
@@ -35,14 +29,14 @@ export interface DrainDeps {
     entityId: string,
     platform: RecipientToken["platform"],
   ): Promise<SendResult>;
-  /** 053 — the email channel. Resolves what it renders from `entityId` at send time. */
+  /** Resolves what it renders from `entityId` at send time. */
   sendEmail(to: string, type: NotificationType, entityId: string): Promise<SendResult>;
   markSent(id: string): Promise<void>;
   markSkipped(id: string, reason: string): Promise<void>;
   markRetry(id: string, error: string): Promise<void>;
   markFailed(id: string, error: string): Promise<void>;
   pruneToken(fcmToken: string): Promise<void>;
-  /** 059 — optional structured logger, so a failed send says WHY. Absent in unit tests. */
+  /** Absent in unit tests. */
   log?: { warn(obj: unknown, msg: string): void };
 }
 
@@ -53,30 +47,16 @@ export interface DrainSummary {
   retried: number;
   failed: number;
   pruned: number;
-  /** True when the PUSH channel is unavailable. ⚠ Email still drains — see below. */
+  /** Email still drains. */
   disabled: boolean;
-  /** 053 — split so the failure alarm can say which channel is broken. */
+  /** Split so the alarm says which channel broke. */
   emailSent: number;
   emailFailed: number;
-  /**
-   * 059 — push outcomes BY PLATFORM (android | ios | web).
-   *
-   * ⚠ EMITTED AS ITS OWN METRIC, NOT AS A DIMENSION ON `NotificationSendFailed`. In CloudWatch a
-   * dimensioned metric is a DIFFERENT metric from an undimensioned one — adding a dimension to the
-   * existing series would leave the alarm in `notifications.tf`, which queries no dimensions,
-   * reading a metric that nothing publishes any more. It would not error; it would go blind. 054
-   * recorded exactly this shape: "a metric declared with label `outcome` but called with `stage` —
-   * which does not panic, it silently emits a series every alert querying `{stage=…}` misses."
-   *
-   * So the existing counters stay byte-identical and this rides alongside them.
-   */
+  /** Push outcomes by platform, as a separate metric: a dimension would blind the undimensioned alarm. */
   byPlatform: Record<string, { sent: number; failed: number }>;
 }
 
-/**
- * Drain one batch. Idempotent by construction: rows are claimed FOR UPDATE SKIP LOCKED (the repo), and
- * only pending rows are claimed, so a re-run never re-sends a `sent`/`skipped`/`failed` row (FR-016).
- */
+/** Rows are claimed for UPDATE skip locked and only when pending, so a re-run never re-sends. */
 export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
   const s: DrainSummary = {
     claimed: 0,
@@ -91,11 +71,7 @@ export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
     emailFailed: 0,
   };
 
-  // ⚠ 053 NARROWED THIS GATE, AND THE NARROWING IS THE POINT. It used to return early for the whole
-  // batch when FCM was unconfigured. With email on the same outbox that would mean a missing FCM
-  // service account silently suppresses the ONLY message a web-only shopper gets about their
-  // delivery — a push misconfiguration taking out an unrelated channel. Push rows still fail open;
-  // email rows drain regardless.
+  // Without FCM, push rows fail open but email rows still drain.
   if (!deps.senderConfigured) s.disabled = true;
 
   const batch = await deps.claimPending(deps.batchSize);
@@ -114,8 +90,7 @@ export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
 
 async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary): Promise<void> {
   if (!deps.senderConfigured) {
-    // FAIL-OPEN: leave it pending for a later tick, once FCM is configured (FR-027). Not claimed as
-    // an attempt, not a failure.
+    // Fail open: leave it pending until FCM is configured. Not an attempt.
     await deps.markRetry(req.id, "fcm_not_configured");
     s.retried += 1;
     return;
@@ -123,22 +98,16 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
 
   const allTokens = await deps.resolveTokens(req.recipientSub, req.audience);
   if (allTokens.length === 0) {
-    // No device / permission not granted — a valid outcome, NOT a failure (FR-019).
+    // No device or no permission: a valid outcome.
     await deps.markSkipped(req.id, "no_token");
     s.skipped += 1;
     return;
   }
 
-  // 059 FR-024/FR-025 — honour this REGISTRATION's preferences, not this person's. One operator's
-  // tablet can be muted for a type while their phone is not, which is exactly what FR-025 asks for.
-  //
-  // ⚠ `mutedTypes` is optional, so a mobile row (which never carries one) filters nothing and every
-  // pre-059 behaviour is preserved unchanged.
+  // This registration's preferences, not the person's. A mobile row has no `mutedTypes`.
   const tokens = allTokens.filter((t) => !(t.mutedTypes ?? []).includes(req.type));
   if (tokens.length === 0) {
-    // ⚠ A DISTINCT REASON FROM "no_token". Both are skips, but they mean opposite things to whoever
-    // is triaging: "no_token" says nobody could be reached, "muted" says everybody chose not to be.
-    // Collapsing them would send an operator hunting for a delivery fault that does not exist.
+    // Distinct from "no_token": nobody reachable versus everybody chose not to be.
     await deps.markSkipped(req.id, "muted");
     s.skipped += 1;
     return;
@@ -155,13 +124,8 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
     } else {
       p.failed += 1;
       lastError = r.errorClass ?? "unknown";
-      // ⚠ LOG THE PROVIDER'S ERROR, PER TOKEN. Without this the only trace of a failed send is a
-      // `pruned` counter in the run summary, and the row's `last_error` is OVERWRITTEN by the next
-      // run's `no_token` once the token has been deleted — so the reason a registration died is
-      // unrecoverable minutes later. 059 spent an investigation reconstructing one from a counter.
-      //
-      // ⚠ NO TOKEN IN THE LOG, ever. It is a delivery address; the platform prefix is enough to
-      // tell a browser subscription from a phone.
+      // Logged per token, because `last_error` is overwritten once the token is pruned. Never the token
+      // itself: the platform is enough.
       deps.log?.warn(
         {
           notificationId: req.id,
@@ -193,9 +157,7 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
 
 async function drainEmail(deps: DrainDeps, req: PendingRequest, s: DrainSummary): Promise<void> {
   if (!req.recipientEmail) {
-    // ⚠ Unrepresentable in the database (a CHECK forbids channel='email' with a null address), so
-    // this is defence in depth rather than an expected path. Skipped, not failed: there is nothing
-    // to retry toward.
+    // A check forbids this; skipped, not failed.
     await deps.markSkipped(req.id, "no_email");
     s.skipped += 1;
     return;

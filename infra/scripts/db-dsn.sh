@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
-# Composes the libpq keyword-format DSN for one env from the platform contract:
-# SSM /effy/<env>/db/{endpoint,port,name,master_username} + the Secrets Manager master
-# secret (ARN from /effy/<env>/db/master_secret_arn). Prints the DSN to stdout for
-# capture into GOOSE_DBSTRING by the make db-* targets — callers must never echo it,
-# write it to a file, or pass it as an argument (specs/003-db-migrations research D5).
+# Composes the libpq keyword-format DSN for one env from SSM /effy/<env>/db/{endpoint,port,name,
+# master_username} and the master secret (ARN at /effy/<env>/db/master_secret_arn), printed to stdout for
+# GOOSE_DBSTRING. Callers never echo it, write it to a file or pass it as an argument.
 #
-# Keyword format (not a postgres:// URL) on purpose: RDS-generated passwords may contain
-# characters that corrupt an un-encoded URL; keyword format needs no encoding for the
-# character set RDS generates. sslmode=require matches the 002 forced-TLS posture;
-# connect_timeout keeps "not on the allowlist" a fast, clear failure instead of a hang.
+# Keyword format, not a URL: RDS passwords may contain characters an un-encoded URL corrupts.
+# sslmode=require matches the forced-TLS posture; connect_timeout makes "not allowed" fail fast.
 set -euo pipefail
 
 ENV_NAME="${1:?usage: db-dsn.sh <dev|qa|staging|prod>}"

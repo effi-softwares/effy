@@ -1,12 +1,7 @@
 /**
- * Returning money: SQL only (055, moved from the retired Go backend by 070).
- *
- * ⚠ EVERY RULE HERE IS ABOUT ONE HARM: a shopper told their money is coming when it is not,
- * refunded twice, or refunded more than they ever paid.
- *
- * ⚠ `public.refund` IS APPEND-ONLY. The only columns any statement here updates are `status`,
- * `provider_refund_id`, `failure_reason` and `settled_at`; `refund-append-only.guard.test.ts` holds
- * every service to that.
+ * Returning money: SQL only. Every rule guards against a shopper refunded twice, refunded more than they
+ * paid, or told money is coming when it is not. `public.refund` is append-only apart from `status`,
+ * `provider_refund_id`, `failure_reason` and `settled_at` (`refund-append-only.guard.test.ts`).
  */
 import { pooled, withTransaction, type Queryable, type Transactor } from "../../lib/db";
 import { returnForRefund } from "../../points/ledger";
@@ -42,11 +37,8 @@ export interface InsertInput {
 }
 
 /**
- * What a refund is issued against.
- *
- * ⚠ 074: `paidCents` is the order's TOTAL VALUE — what the card paid PLUS the points' value — because a
- * refund returns value, and splits it between the two in proportion (research R5). `cardPaidCents` is
- * the card's part alone: the only part the provider ever sees.
+ * What a refund is issued against. `paidCents` is the order's total value (card plus points), split in
+ * proportion; `cardPaidCents` is the card's part, the only part the provider sees.
  */
 export interface PaidContext {
   paidCents: number;
@@ -61,14 +53,14 @@ export interface PaidContext {
 }
 
 export type RecordResult =
-  /** 074: `split` is how this refund is made up; a card part of 0 is already `succeeded`, points back. */
+  /** How this refund is made up; a card part of 0 is already `succeeded`, points back. */
   | { issued: true; refundId: string; paid: PaidContext; split: Split }
-  /** ⚠ The idempotent hit: the same action again. Carries the EXISTING row's real state. */
+  /** The idempotent hit. Carries the existing row's real state. */
   | { issued: false; refundId: string; paid: PaidContext; existingStatus: string };
 
 export interface CancelInput {
   orderId: string;
-  /** Set for a CUSTOMER cancellation, null for staff: the customer's window closes when picking begins. */
+  /** Set for a customer cancellation: their window closes when picking begins. */
   customerId: string | null;
   actorKind: string;
   actorSub: string;
@@ -78,7 +70,7 @@ export interface StuckRefund {
   id: string;
   orderId: string;
   amountCents: number;
-  /** 074 — the CARD part: the only part ever sent to the provider. */
+  /** The card part: the only part sent to the provider. */
   cardCents: number;
   idempotencyKey: string;
   actorSub: string | null;
@@ -87,33 +79,15 @@ export interface StuckRefund {
 
 const cents = (v: string | number | null | undefined) => Number(v ?? 0);
 
-/**
- * How long a `submitting` refund is treated as IN FLIGHT — its request still running — and so
- * counted against the ceiling. Longer than any request can live (the functions that issue refunds
- * time out at 25 s) and shorter than the reconciler's first look at a stalled one (120 s).
- */
+/** How long a `submitting` refund counts as in flight: longer than any request (25 s), shorter than the reconciler's first look (120 s). */
 export const IN_FLIGHT_SECONDS = 60;
 
 /**
- * Which refunds hold the ceiling down — the ONE definition, used by every read of "what remains".
- *
- * ⚠ COUNTED FROM THE ROWS, NEVER STORED: a counter and the rows can disagree, and then nobody knows
- * which is true.
- *
- *   · `submitted`, `succeeded` — money that has left or is leaving.
- *   · `failed` — money the platform attempted to return, which staff must resolve. Freeing it would
- *     let a bouncing retry refund an order repeatedly.
- *   · `submitting`, WHILE IN FLIGHT. ⚠ This term is what makes "never more than was paid" true
- *     without the provider's help. A refund is recorded, the transaction commits, and only THEN is
- *     the provider called — so for a moment the row exists and is not yet `submitted`. The backend
- *     this replaces did not count it, and two refunds issued at the same instant could each pass a
- *     ceiling neither had exceeded alone; only the provider refusing the second stood in the way.
- *   · `submitting`, once STALLED (older than the window) — NOT counted. The provider never
- *     answered, the money may never have moved, and an attempt that went nowhere must not make the
- *     platform refuse to return money it still holds. The reconciler resolves it, and checks this
- *     same ceiling before sending it again.
- *
- * `refused` never counts: nothing was sent.
+ * Which refunds hold the ceiling down, counted from the rows and never stored: `submitted`,
+ * `succeeded`, `failed` (staff must resolve it), and `submitting` while in flight (recorded and
+ * committed before the provider call, so two simultaneous refunds cannot each pass the ceiling). A
+ * stalled `submitting` does not count; the reconciler re-checks the ceiling before resending it.
+ * `refused` never counts.
  */
 const COUNTS_AGAINST_CEILING = `(
        r.status IN ('submitted', 'succeeded', 'failed')
@@ -122,7 +96,7 @@ const COUNTS_AGAINST_CEILING = `(
 
 const REFUNDED_CENTS = `
 SELECT COALESCE(SUM(round(r.amount * 100))::bigint, 0) AS cents,
-       -- 074 — the two halves. A pre-074 row (card_amount NULL) went entirely to the card.
+       -- The two halves. A refund issued outside Effy (card_amount NULL) went entirely to the card.
        COALESCE(SUM(round(COALESCE(r.card_amount, r.amount) * 100))::bigint, 0) AS card_cents,
        COALESCE(SUM(r.points_returned), 0)::bigint AS points
   FROM public.refund r
@@ -136,7 +110,7 @@ interface PaidRow {
   cpp: number | null;
 }
 
-/** The figures a refund is decided against, read under the payment lock (074 adds the points side). */
+/** The figures a refund is decided against, read under the payment lock. */
 const PAID_UNDER_LOCK = `
 SELECT round(p.amount * 100)::bigint AS paid, p.stripe_payment_intent_id AS intent, o.currency AS currency,
        round(o.points_value_amount * 100)::bigint AS points_value, o.points_cents_per_point AS cpp
@@ -161,7 +135,7 @@ function paidContext(row: PaidRow, refunded: { cents: string; card_cents: string
   };
 }
 
-/** 074 — how a refund of `amountCents` is made up, given everything returned before it. */
+/** How a refund of `amountCents` is made up, given everything returned before it. */
 export function splitFor(paid: PaidContext, amountCents: number): Split {
   return splitRefund({
     amountCents, cardPaidCents: paid.cardPaidCents, pointsValueCents: paid.pointsValueCents, centsPerPoint: paid.centsPerPoint,
@@ -170,20 +144,10 @@ export function splitFor(paid: PaidContext, amountCents: number): Split {
 }
 
 /**
- * Write a refund and its lines, having checked the ceiling under the payment lock — in the CALLER's
- * transaction.
- *
- * ⚠ THE CEILING IS `payment.amount`, NOT the order total: the payment is the record of what was
- * taken. ⚠ `FOR UPDATE` on the payment row is what serialises two staff refunding at once — the
- * second sees the first's row when it sums, INCLUDING while that first one is still on its way
- * to the provider (see COUNTS_AGAINST_CEILING). A read-then-write outside one lock is a way to
- * refund an order twice, and the second refund is real money.
- *
- * 081 — exported so a flow that gives money back AS PART of a larger change (a courier override's
- * compensation) records it in that change's transaction: the move and the refund it owes commit
- * together or not at all. It is then submitted after commit (`submitRecorded`) — 055's
- * record-then-submit, unchanged — and a crash in between leaves a `submitting` row the reconciler
- * resolves.
+ * Writes a refund and its lines in the caller's transaction, having checked the ceiling under the
+ * payment lock. The ceiling is `payment.amount`; `FOR UPDATE` serialises two staff refunding at once.
+ * Exported so a larger change (a courier override's compensation) commits with its refund; it is
+ * submitted after the commit (`submitRecorded`).
  */
 export async function recordRefundIn(tx: Queryable, input: InsertInput, beforeLock?: () => Promise<void>): Promise<RecordResult> {
   if (beforeLock) await beforeLock();
@@ -196,8 +160,7 @@ export async function recordRefundIn(tx: Queryable, input: InsertInput, beforeLo
   const remaining = paid.paidCents - paid.refundedCents;
   if (input.amountCents > remaining) throw new CeilingExceededError(remaining);
 
-  // 074 — how this refund is made up. ⚠ A refund with NO card part never reaches the provider:
-  // it is recorded `succeeded` and its points come back in this same transaction.
+  // A refund with no card part never reaches the provider: `succeeded`, points back in this transaction.
   const split = splitFor(paid, input.amountCents);
   const cardFree = split.cardCents === 0;
 
@@ -220,9 +183,7 @@ RETURNING id::text AS id`,
     )
   ).rows[0];
   if (!inserted) {
-    // ⚠ THE IDEMPOTENT HIT. A double-click, a retry, a redelivered instruction all resolve to
-    // the row that already exists — with its REAL state, so an operator whose first attempt
-    // never got an answer is not told the same thing as one whose refund was accepted.
+    // The idempotent hit (double-click, retry, redelivery) returns the existing row with its real state.
     const existing = (
       await tx.query<{ id: string; status: string }>(
         `SELECT id::text AS id, status FROM public.refund WHERE idempotency_key = $1`,
@@ -247,10 +208,8 @@ export function createRefundRepository(
   db: Queryable = pooled,
   transact: Transactor = withTransaction,
   /**
-   * ⚠ TEST SEAM, called immediately BEFORE the row lock is taken — and the placement is the point.
-   * Two callers racing these functions finish fast enough to serialise by accident, so a concurrency
-   * proof would pass with the lock removed. Holding them after the lock deadlocks. Releasing both
-   * just before it is the only arrangement that makes them genuinely contend. Never set in production.
+   * Test seam, called just before the row lock: the only placement that makes racing callers genuinely
+   * contend. Never set in production.
    */
   beforeLock?: () => Promise<void>,
 ) {
@@ -259,10 +218,8 @@ export function createRefundRepository(
     db,
 
     /**
-     * Price an item-derived refund FROM THE RECEIPT, and refuse to refund a unit twice.
-     *
-     * ⚠ The price is the ORDER LINE's, not the product's: a price can change after an order.
-     * ⚠ The already-refunded count is part of the SAME read as the price.
+     * Prices an item-derived refund from the order line (not the product: prices change) and refuses
+     * to refund a unit twice, in one read.
      */
     async priceLines(orderId: string, want: readonly LineInput[]): Promise<{ totalCents: number; lines: InsertLine[] }> {
       let totalCents = 0;
@@ -287,9 +244,8 @@ SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
         ).rows[0];
         if (!row) throw new RefundOrderNotFoundError();
         if (cents(row.refunded) + w.quantity > row.ordered) throw new LineOverRefundedError();
-        // 094 R8 — what the shopper PAID for these units: the line's price less its share of the
-        // discount, so a part refund of a discounted line never returns more than was charged for it.
-        // The last units of a line take any remainder, so a fully refunded line returns exactly its paid amount.
+        // What the shopper paid: the line price less its share of the discount. The last units take any
+        // remainder, so a fully refunded line returns exactly its paid amount.
         const paidLine = cents(row.unit) * row.ordered - cents(row.discount ?? "0");
         const before = cents(row.refunded);
         const amountCents = Math.floor((paidLine * (before + w.quantity)) / row.ordered) - Math.floor((paidLine * before) / row.ordered);
@@ -299,22 +255,10 @@ SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
       return { totalCents, lines };
     },
 
-    /**
-     * Write a refund and its lines in ONE transaction, having checked the ceiling under the same lock.
-     *
-     * ⚠ THE CEILING IS `payment.amount`, NOT the order total: the payment is the record of what was
-     * taken. ⚠ `FOR UPDATE` on the payment row is what serialises two staff refunding at once — the
-     * second sees the first's row when it sums, INCLUDING while that first one is still on its way
-     * to the provider (see COUNTS_AGAINST_CEILING). A read-then-write outside one lock is a way to
-     * refund an order twice, and the second refund is real money.
-     */
-    /** Write a refund and its lines in ONE transaction of its own (see `recordRefundIn`). */
+    /** Writes a refund and its lines in a transaction of its own (see `recordRefundIn`). */
     record: (input: InsertInput): Promise<RecordResult> => transact((tx) => recordRefundIn(tx, input, beforeLock)),
 
-    /**
-     * 081 — a refund recorded in someone else's transaction and not yet sent: what `submitRecorded`
-     * needs. Null when it is not `submitting` (a card-free refund already succeeded, or it was sent).
-     */
+    /** A refund recorded in another transaction and not yet sent; null unless `submitting`. */
     async recordedForSubmit(refundId: string): Promise<(StuckRefund & { pointsReturned: number }) | null> {
       const r = (
         await db.query<{ id: string; order_id: string; cents: string; card_cents: string; key: string; actor_sub: string | null; intent: string | null; points: number }>(
@@ -335,14 +279,9 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
       };
     },
 
-    // ── Status transitions: the only mutation this table permits ──────────────────────────────────
+    // Status transitions: the only mutation this table permits.
 
-    /** The provider ACCEPTED the request. ⚠ Not "refunded": the bank may refuse weeks later. */
-    /**
-     * 074 — AND THE POINTS COME BACK, in the same transaction: the provider has accepted the card part,
-     * so the points part is returned. ⚠ Idempotent (one `returned` entry per refund), so the reconciler
-     * reaching a refund this path already settled returns nothing twice.
-     */
+    /** The provider accepted the request (the bank may still refuse). The points part comes back, once per refund. */
     markSubmitted: (refundId: string, providerRefundId: string): Promise<void> =>
       transact(async (tx) => {
         const res = await tx.query(
@@ -360,10 +299,7 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
       );
     },
 
-    /**
-     * Apply an outcome the provider reported. ⚠ GUARDED ON THE CURRENT STATUS: a redelivered event
-     * matches zero rows the second time. Returns whether it applied.
-     */
+    /** Applies a reported outcome, guarded on the current status so a redelivery matches nothing. */
     async settleByProviderId(q: Queryable, providerRefundId: string, status: string, failureReason: string): Promise<boolean> {
       const res = await q.query<{ id: string }>(
         `
@@ -374,8 +310,7 @@ UPDATE public.refund
         [providerRefundId, status, failureReason],
       );
       const id = res.rows[0]?.id;
-      // 074 — an outcome can land before `markSubmitted` did. Succeeded or later failed, the provider
-      // ACCEPTED the card part, so the points part is due (idempotent per refund). Refused: nothing.
+      // An outcome can land before `markSubmitted`. Succeeded or failed, the card part was accepted, so the points are due.
       if (id && (status === "succeeded" || status === "failed")) await returnForRefund(q, id, new Date());
       return Boolean(id);
     },
@@ -388,12 +323,8 @@ UPDATE public.refund
     },
 
     /**
-     * Record a refund the platform did not issue — made by hand in the provider's dashboard.
-     *
-     * ⚠ The order is resolved FROM THE PAYMENT INTENT; an intent that is not ours writes nothing.
-     * ⚠ Recorded as `system` with no subject: the platform does not know who did it, and inventing
-     * an actor would put a false statement in the audit trail.
-     * ⚠ Idempotent on `provider_refund_id`.
+     * Records a refund made by hand in the provider's dashboard. The order comes from the payment intent
+     * (not ours: nothing written); the actor is `system` with no subject. Idempotent on `provider_refund_id`.
      */
     async recordUnattributedRefund(q: Queryable, evt: WebhookEvent): Promise<void> {
       await q.query(
@@ -416,18 +347,14 @@ ON CONFLICT (provider_refund_id) DO NOTHING`,
     },
 
     /**
-     * Put refunded units back — ONLY where the platform can know it should (055 FR-030): the
-     * portion has not been collected, and the product is stock-tracked. (That the refund is
-     * item-derived, and that the issuer wanted it, are the caller's half.)
-     *
-     * ⚠ INVENTING STOCK IS WORSE THAN NOT RETURNING IT. A count too low costs a sale; a count too
-     * high costs a customer their order at the shelf, hours later.
+     * Puts refunded units back only where that is knowable: the portion is uncollected and the product
+     * tracked. Inventing stock is worse than not returning it.
      */
     async returnStock(refundId: string, orderId: string): Promise<void> {
       await db.query(
         `
 WITH refunded AS (
-    -- 098 — back to the VARIANT that was sold. Two lines of one variant cannot exist on one order
+    -- Back to the VARIANT that was sold. Two lines of one variant cannot exist on one order
     -- (order_item_order_variant_uq), so the UPDATE below meets each variant once.
     SELECT rl.order_item_id, rl.quantity, oi.variant_id, oi.shop_id
       FROM public.refund_line rl
@@ -454,11 +381,7 @@ SELECT m.product_id, m.variant_id, m.shop_id, m.quantity, m.before, m.after, 're
       );
     },
 
-    /**
-     * Refuse unless EVERY named line is part of this shop's portion.
-     * ⚠ IT COUNTS RATHER THAN FILTERS: returning the matching subset would make a partly-wrong
-     * request succeed quietly, refunding less than was asked while saying it worked.
-     */
+    /** Refuses unless every named line is in this shop's portion: counts rather than filters. */
     async assertLinesBelongToShop(orderId: string, shopId: string, lines: readonly LineInput[]): Promise<void> {
       if (lines.length === 0) throw new NoLinesError();
       const ids = [...new Set(lines.map((l) => l.orderItemId))];
@@ -478,14 +401,11 @@ SELECT COUNT(DISTINCT oi.id) AS n
       if (Number(matched?.n ?? 0) !== ids.length || ids.length !== lines.length) throw new LinesNotYoursError();
     },
 
-    // ── Cancellation ──────────────────────────────────────────────────────────────────────────────
+    // Cancellation.
 
     /**
-     * The guarded transition: lock the order, decide cancellability from rows read UNDER that lock,
-     * withdraw every shop portion and release the delivery place — one transaction.
-     *
-     * ⚠ Any arrangement that checks and then writes lets a shop start picking between the two, and
-     * then a customer has been refunded for an order somebody is packing.
+     * Locks the order, decides cancellability from rows read under the lock, withdraws every portion and
+     * releases the delivery place, in one transaction.
      */
     cancelOrder: (input: CancelInput): Promise<PaidContext> =>
       transact(async (tx) => {
@@ -501,7 +421,7 @@ SELECT o.status,
                    FROM public.refund r
                   WHERE r.order_id = o.id
                     AND ${COUNTS_AGAINST_CEILING}), 0) AS refunded,
-       -- 074 — the two halves already returned, and the points' value on the order.
+       -- The two halves already returned, and the points' value on the order.
        COALESCE((SELECT SUM(round(COALESCE(r.card_amount, r.amount) * 100))::bigint
                    FROM public.refund r
                   WHERE r.order_id = o.id
@@ -524,7 +444,6 @@ SELECT o.status,
         ).rows[0];
         if (!o) throw new RefundOrderNotFoundError();
         if (o.status === "canceled") throw new AlreadyCancelledError();
-        // An unpaid order has no money to return and nothing to call off.
         if (o.status !== "paid") throw new NotCancellableError();
 
         const portions = (
@@ -536,17 +455,15 @@ SELECT COALESCE(bool_or(sf.status <> 'pending'), false) AS started,
             [input.orderId],
           )
         ).rows[0];
-        // ⚠ A CUSTOMER's window closes when ANY shop begins preparing. Staff have no such limit: a
-        // phone call arrives after the customer's own control has gone.
+        // A customer's window closes when any shop begins; staff have no such limit.
         if (input.customerId !== null && portions?.started) throw new NotCancellableError();
-        // ⚠ NOT AFTER COLLECTION, EVEN FOR STAFF: somebody is carrying it.
+        // Not after collection, even for staff.
         if (portions?.departed) throw new NotCancellableError();
 
         await tx.query(`UPDATE public."order" SET status = 'canceled' WHERE id = $1`, [input.orderId]);
 
-        // ⚠ WITHDRAWN, NOT `unfulfillable`: the shop did not fail to supply anything. The event is
-        // written in the SAME statement, carrying the previous status. `actor_staff_id` stays NULL —
-        // no shop staff member did this; the WHO lives on the refund row.
+        // Withdrawn, not `unfulfillable`: the shop failed nothing. The event carries the previous status;
+        // `actor_staff_id` stays null (who did it is on the refund row).
         await tx.query(
           `
 WITH withdrawn AS (
@@ -561,7 +478,7 @@ SELECT w.id, 'state_changed', w.from_status, 'withdrawn' FROM withdrawn w`,
           [input.orderId],
         );
 
-        // 069 — the same-day place is given back; `released` stops counting.
+        // The window place is given back.
         await tx.query(
           `
 UPDATE public.delivery_slot_booking
@@ -570,7 +487,7 @@ UPDATE public.delivery_slot_booking
           [input.orderId],
         );
 
-        // 094 — cancelled before it left: its promotion uses, single-use code and budget go back (FR-040).
+        // Its promotion uses, single-use code and budget go back.
         await releaseUses(tx, input.orderId, "cancelled");
 
         const cardPaidCents = cents(o.paid);
@@ -583,15 +500,8 @@ UPDATE public.delivery_slot_booking
       }),
 
     /**
-     * The refund row for a cancellation; null on the idempotent hit.
-     *
-     * ⚠ No ceiling lock here, and that is not an omission: `cancelOrder` has just moved the order to
-     * `canceled` under its own lock, and the amount was computed from rows read under it.
-     * ⚠ `cancellation` is its OWN kind, not goodwill — the kind is what staff read.
-     */
-    /**
-     * 074 — with its card/points split. A card-free cancellation (a points-only order) is recorded
-     * `succeeded` with its points back in the same transaction; it never reaches the provider.
+     * The refund row for a cancellation; null on the idempotent hit. No ceiling lock: `cancelOrder`
+     * computed the amount under its own lock. A card-free cancellation is `succeeded`, points back.
      */
     recordCancellationRefund: (input: CancelInput, amountCents: number, key: string, split: Split): Promise<string | null> =>
       transact(async (tx) => {
@@ -618,12 +528,9 @@ RETURNING id::text AS id`,
         return id;
       }),
 
-    // ── Refund requests: an ASK, which moves no money ─────────────────────────────────────────────
+    // Refund requests: an ask, which moves no money.
 
-    /**
-     * ⚠ THE OWNERSHIP TERM IS IN THE INSERT'S OWN SELECT: an order that is not the caller's produces
-     * zero rows, indistinguishable from one that does not exist. Only a PAID order can be asked about.
-     */
+    /** The ownership term is in the insert's own SELECT. Only a paid order can be asked about. */
     insertRequest: (orderId: string, customerId: string, message: string, items: readonly LineInput[]): Promise<string> =>
       transact(async (tx) => {
         let id: string | undefined;
@@ -640,7 +547,7 @@ RETURNING id::text AS id`,
             )
           ).rows[0]?.id;
         } catch (err) {
-          // ⚠ The partial unique index fired: the check-then-write race, refused by the database.
+          // The partial unique index fired.
           if ((err as { code?: string }).code === "23505") throw new RequestAlreadyOpenError();
           throw err;
         }
@@ -648,7 +555,7 @@ RETURNING id::text AS id`,
 
         for (const item of items) {
           if (!Number.isInteger(item.quantity) || item.quantity <= 0) continue;
-          // ⚠ The line must belong to THIS order.
+          // The line must belong to this order.
           await tx.query(
             `
 INSERT INTO public.refund_request_item (request_id, order_item_id, quantity)
@@ -662,8 +569,7 @@ ON CONFLICT (request_id, order_item_id) DO NOTHING`,
         return id;
       }),
 
-    /** ⚠ Guarded on `open`: a second decision cannot overwrite the first. */
-    /** Returns the order the request was against (071: whose screens to tell). */
+    /** Guarded on `open`, so a second decision cannot overwrite the first. Returns the order. */
     async decideRequest(requestId: string, status: "declined" | "refunded", note: string, decidedBy: string): Promise<string> {
       const res = await db.query<{ order_id: string }>(
         `
@@ -678,7 +584,7 @@ RETURNING order_id::text AS order_id`,
       return orderId;
     },
 
-    /** A shopper who asked has now been answered. No open request is the ordinary case, not an error. */
+    /** A shopper who asked has been answered. No open request is the ordinary case. */
     async closeOpenRequestForOrder(orderId: string, decidedBy: string): Promise<void> {
       await db.query(
         `UPDATE public.refund_request SET status = 'refunded', decided_by = $2, decided_at = now() WHERE order_id = $1 AND status = 'open'`,
@@ -686,7 +592,7 @@ RETURNING order_id::text AS order_id`,
       );
     },
 
-    // ── Reconciliation (070 FR-024) ───────────────────────────────────────────────────────────────
+    // Reconciliation.
 
     /** Refunds that asked the provider and never recorded an answer, oldest first. */
     async stuckSubmitting(olderThanSeconds: number, limit: number): Promise<StuckRefund[]> {
@@ -711,14 +617,11 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
       }));
     },
 
-    /**
-     * What may still be refunded on an order right now: paid, less everything the ceiling counts —
-     * leaving out one refund, so a refund can ask what there is room for besides itself.
-     */
+    /** What may still be refunded, leaving out one refund so it can ask what room there is besides itself. */
     async remainingCents(orderId: string, exceptRefundId: string | null = null): Promise<number> {
       const paid = (
         await db.query<{ paid: string }>(
-          // 074 — the order's total VALUE: what the card paid plus the points' value.
+          // Total value: card plus points.
           `SELECT COALESCE(round((p.amount + o.points_value_amount) * 100)::bigint, 0) AS paid
              FROM public.payment p JOIN public."order" o ON o.id = p.order_id
             WHERE p.order_id = $1 AND p.status = 'succeeded'`,

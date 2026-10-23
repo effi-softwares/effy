@@ -111,7 +111,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               <UserRound aria-hidden="true" />
               {holder}
             </span>
-            {/* 072 — a round is assigned hours before it can be worked; its driver can read it and
+            {/* A round is assigned hours before it can be worked; its driver can read it and
                 cannot act on it until it opens. */}
             <span>
               <CalendarClock aria-hidden="true" />
@@ -130,7 +130,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                 expectedUpdatedAt={round.updatedAt}
                 drivers={drivers.filter((d) => d.driverId !== round.driverId)}
               />
-              {/* 093 — the driver's phone failed at the hub and the order of work is stuck. */}
+              {/* The driver's phone failed at the hub and the order of work is stuck. */}
               {!round.waiver ? <WaiveSequenceButton roundId={round.id} driverName={holder} /> : null}
               <AlertDialog>
                 <AlertDialogTrigger asChild>

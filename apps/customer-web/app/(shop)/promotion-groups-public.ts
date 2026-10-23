@@ -7,7 +7,7 @@ import { edgeApiPublic } from "@/lib/api/edge"
 import { CACHE_LIFE } from "@/lib/cache-life"
 
 /**
- * 094 — display groups for a SIGNED-OUT shopper, shared for up to a minute (the listing tier, like the
+ * Display groups for a signed-out shopper, shared for up to a minute (the listing tier, like the
  * banners they replaced). Kept apart from the personal read so nothing per-customer is ever cached.
  */
 async function readCached(keys: string): Promise<PromotionGroupsDTO> {

@@ -1,9 +1,5 @@
-// 096 — the printed documents' one PDF toolkit (research R14): A4, Helvetica, black ink, the Effy
-// wordmark drawn as vector paths, and tables that break across pages. pdf-lib, in the Lambda — no
-// headless browser, no other service.
-//
-// ⚠ THE STANDARD FONTS ENCODE WinAnsi ONLY. A product name with an emoji or a character outside it
-// would throw mid-render and lose the whole document, so every string goes through `ansi()` first.
+// The printed documents' PDF toolkit: A4, Helvetica, black ink, the wordmark as vector paths, tables
+// that break across pages. The standard fonts encode WinAnsi only, so every string goes through `ansi`.
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 import { WORDMARK_PATHS, WORDMARK_VIEWBOX } from "@effy/shared-types";
@@ -16,7 +12,7 @@ const INK = rgb(0, 0, 0);
 const MUTED = rgb(0.36, 0.36, 0.36);
 const RULE = rgb(0.8, 0.8, 0.8);
 
-/** Replace what WinAnsi cannot encode: smart punctuation to plain, anything else dropped. */
+/** Smart punctuation to plain; anything else WinAnsi cannot encode is dropped. */
 export function ansi(s: string): string {
   return s
     .replace(/[‘’]/g, "'")
@@ -32,7 +28,7 @@ export interface Doc {
   page: PDFPage;
   regular: PDFFont;
   bold: PDFFont;
-  /** The baseline of the next line, from the top of the page (points). */
+  /** The next line's baseline from the top of the page, in points. */
   y: number;
   pages: number;
 }
@@ -52,7 +48,7 @@ export async function newDocument(title: string): Promise<Doc> {
 /** pdf-lib measures from the bottom; documents are written top-down. */
 const fromTop = (y: number) => A4.h - y;
 
-/** Start a new page when fewer than [need] points are left; the caller redraws any table header. */
+/** A new page when fewer than [need] points are left; the caller redraws any table header. */
 export function ensureRoom(doc: Doc, need: number): boolean {
   if (doc.y + need <= A4.h - MARGIN) return false;
   doc.page = doc.pdf.addPage([A4.w, A4.h]);
@@ -78,7 +74,6 @@ export function text(
   doc.page.drawText(t, { x: opts.align === "right" ? x - w : x, y: fromTop(doc.y), size, font, color: opts.muted ? MUTED : INK });
 }
 
-/** Wrap [s] to [width], returning the lines (for long product names). */
 export function wrap(doc: Doc, s: string, width: number, size = 10, bold = false): string[] {
   const font = bold ? doc.bold : doc.regular;
   const words = ansi(s).split(/\s+/).filter(Boolean);
@@ -105,14 +100,13 @@ export function rule(doc: Doc, weight = 0.6, color: "ink" | "light" = "light"): 
   });
 }
 
-/** The Effy wordmark at the top-left, [h] points tall, in black. */
 export function wordmark(doc: Doc, h = 22): void {
   const scale = h / WORDMARK_VIEWBOX.h;
   for (const d of WORDMARK_PATHS) doc.page.drawSvgPath(d, { x: MARGIN, y: fromTop(doc.y), scale, color: INK });
   doc.y += h;
 }
 
-/** Finish and time the render (`PdfRenderMs`, by document kind). */
+/** Records `PdfRenderMs` by document kind. */
 export async function finish(doc: Doc, kind: string, startedAt: number): Promise<Uint8Array> {
   const bytes = await doc.pdf.save({ useObjectStreams: false });
   emitMetric(metricNamespace(), "PdfRenderMs", Date.now() - startedAt, { kind });

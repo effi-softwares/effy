@@ -1,14 +1,9 @@
-// ICO — a zero-dependency writer (024 research R6).
-//
-// sharp cannot write ICO, and pulling a third image dependency for a format that is a 6-byte header
-// plus a 16-byte directory entry per image is poor value. Modern ICO permits PNG payloads directly
-// (universally supported since IE11), so this is container assembly with no encoding work at all.
-//
-// Layout:
-//   ICONDIR    6 bytes   reserved(2)=0 · type(2)=1 · count(2)
-//   ICONDIRENTRY  16 bytes each   w(1) h(1) colours(1) reserved(1)
-//                                 planes(2)=1 bpp(2)=32 size(4) offset(4)
-//   …then each PNG payload, in directory order.
+// A zero-dependency ICO writer (sharp cannot write ICO). PNG payloads are allowed, so this is container
+// assembly only:
+//  icondir 6 bytes reserved(2)=0 · type(2)=1 · count(2)
+//  icondirentry 16 bytes each w(1) h(1) colours(1) reserved(1)
+//  planes(2)=1 bpp(2)=32 size(4) offset(4)
+//  …then each PNG payload, in directory order.
 
 const ICONDIR = 6
 const ICONDIRENTRY = 16
@@ -32,7 +27,7 @@ export function buildIco(entries) {
   for (const { size, png } of entries) {
     if (size < 1 || size > 256) throw new Error(`ico: size ${size} out of range`)
     const d = Buffer.alloc(ICONDIRENTRY)
-    // 256 is encoded as 0 — the field is one byte.
+    // Is encoded as 0: the field is one byte.
     d.writeUInt8(size >= 256 ? 0 : size, 0)
     d.writeUInt8(size >= 256 ? 0 : size, 1)
     d.writeUInt8(0, 2) // palette colours (0 = truecolour)
@@ -49,7 +44,7 @@ export function buildIco(entries) {
   return Buffer.concat([header, ...dirs, ...payloads])
 }
 
-/** Parse an ICO back to its directory — used by the tests to prove the container is well-formed. */
+/** Parses an ICO back to its directory, for the tests. */
 export function readIcoDirectory(buf) {
   if (buf.readUInt16LE(0) !== 0 || buf.readUInt16LE(2) !== 1) throw new Error("ico: bad header")
   const count = buf.readUInt16LE(4)

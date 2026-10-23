@@ -9,7 +9,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// Display groups (094 US2) — where promotions are shown, by key. Screens never touch the client directly.
+// Display groups — where promotions are shown, by key. Screens never touch the client directly.
 export const listGroups = () => api.get<AdminPromotionGroupDTO[]>("/admin/v1/promotion-groups");
 export const getGroup = (id: string) => api.get<AdminPromotionGroupDetailDTO>(`/admin/v1/promotion-groups/${id}`);
 export const createGroup = (body: AdminCreatePromotionGroupRequest) => api.post<AdminPromotionGroupDTO>("/admin/v1/promotion-groups", body);

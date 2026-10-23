@@ -1,13 +1,6 @@
-// Display-only digit positions (060 FR-020).
-//
-// ⚠ NOT A TEXT FIELD, and that is the whole point. `OtpCells` decorates a real `BasicTextField` so
-// the sign-in code keeps autofill and paste. This renders digits that are entered by
-// [NumericKeypad] instead — the delivery-code case, where there is nothing to autofill and no
-// keyboard should appear (see NumericKeypad.kt for why the two cases differ).
-//
-// ⚠ ONE accessibility node, not N. The boxes are `clearAndSetSemantics` as a single value, following
-// 036's finding that several nodes are how a screen-reader user loses their place in a code field.
-// The keypad's keys are the interactive elements; this is the readout.
+// Display-only digit positions for digits entered with [NumericKeypad] (the delivery code: nothing to
+// autofill, no keyboard), unlike `OtpCells`, which decorates a real text field. One accessibility node:
+// the keypad keys are the interactive elements, this is the readout.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.animation.core.RepeatMode
@@ -38,10 +31,10 @@ import androidx.compose.ui.unit.dp
 /**
  * [length] boxes showing [value]'s digits, with the next position marked.
  *
- * @param value the digits entered so far; longer than [length] is ignored
+ * @param value the digits entered so far; anything past [length] is ignored
  * @param length how many positions to draw (4 for a delivery code)
- * @param isError draws every box in the error colour — the code was refused
- * @param reducedMotion suppresses the pulsing next-position marker (FR-009)
+ * @param isError draws every box in the error colour (the code was refused)
+ * @param reducedMotion suppresses the pulsing next-position marker
  */
 @Composable
 fun DigitBoxes(

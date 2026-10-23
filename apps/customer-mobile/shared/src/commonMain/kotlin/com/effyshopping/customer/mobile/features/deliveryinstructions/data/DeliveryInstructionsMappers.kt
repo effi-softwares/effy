@@ -5,7 +5,7 @@ import com.effyshopping.customer.mobile.commerce.contract.HandoverPreference
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.Handover
 
-// Wire ↔ domain for delivery instructions (066). Both `when`s are exhaustive with no `else`: a third
+// Wire ↔ domain for delivery instructions. Both `when`s are exhaustive with no `else`: a third
 // preference on either side must fail to compile here rather than be silently dropped.
 
 internal fun HandoverPreference.toDomain(): Handover = when (this) {
@@ -29,10 +29,10 @@ internal fun DeliveryInstructions.toWire(): DeliveryInstructionsDTO =
     DeliveryInstructionsDTO(handover = handover?.toWire(), note = note)
 
 /**
- * The value that CLEARS an address's saved default.
+ * The value that clears an address's saved default.
  *
- * ⚠ THIS APP'S JSON OMITS NULL FIELDS (`explicitNulls = false`), and the address PATCH reads a
- * field's ABSENCE as "leave it alone". So `null` cannot clear anything from here — it never reaches
+ * This app's JSON omits null fields (`explicitNulls = false`), and the address PATCH reads a
+ * field's absence as "leave it alone". So `null` cannot clear anything from here — it never reaches
  * the wire. An empty object does: it serialises as `{}`, which the server normalises to "no
  * instructions" and stores as such.
  */

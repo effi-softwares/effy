@@ -1,10 +1,5 @@
-// 096 US9 — a product's GST status (FR-090–FR-093), and its history.
-//
-// ⚠ ONE WRITER. Every change of `product.gst_status` goes through `setGstStatus`, which writes the
-// column and its `product_gst_change` row in one statement — so a status nobody can explain cannot
-// exist. `labels.guard.test.ts` fails any other UPDATE of the column. Paths: the shop creating a
-// product (`create`) or editing a draft (`direct`), back-office approving a live product's proposed
-// change (`review`), and back-office's bulk setting (`bulk`).
+// A product's GST status and its history. One writer, `setGstStatus`, writes the column and its
+// `product_gst_change` row in one statement. Paths: `create`, `direct` (a draft), `review`, `bulk`.
 import type { GstStatus } from "@effy/shared-types";
 
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
@@ -14,7 +9,7 @@ export type GstVia = "create" | "review" | "direct" | "bulk";
 
 export const isGstStatus = (v: unknown): v is GstStatus => v === "taxable" || v === "gst_free";
 
-/** Set one product's status. A repeat of the current status changes and records nothing. */
+/** A repeat of the current status records nothing. */
 export async function setGstStatus(tx: Tx, productId: string, to: GstStatus, actor: GstActor, via: GstVia): Promise<boolean> {
   const res = await tx.query(
     `WITH old AS (SELECT id, gst_status FROM public.product WHERE id = $1 FOR UPDATE),

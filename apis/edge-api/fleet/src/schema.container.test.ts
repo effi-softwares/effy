@@ -1,24 +1,11 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The whole fleet service against real PostgreSQL 16 (056).
- *
- * ⚠ WHY THIS FILE IS NOT OPTIONAL. Every query in this service is raw SQL over eleven tables that
- * four different slices own, and a wrong column name TYPECHECKS PERFECTLY. Two were already caught
- * while writing this feature, and neither was catchable any other way:
- *
- *   - `public."order".reference` does not exist; the column is `order_number`.
- *   - `public.customer_address.suburb` does not exist; the column is `city`.
- *
- * Both would have passed `tsc`, passed every mocked unit test, deployed cleanly, and failed the first
- * time a real operator opened the screen. That is precisely the class of defect 039 shipped four of.
- *
- * The schema below is the real one, transcribed from the migrations these tables come from
- * (019 commerce, 020 fulfilment, 047 delivery, 049 driver, 056 this slice) plus admin.audit_log
- * (009). Where a column is not needed it is omitted, but every column any query in this service
- * NAMES is present — so a query naming one that is not really there fails here rather than in dev.
+ * The fleet service's SQL against the real migrations: every column a query names is present, so a
+ * wrong name fails here, not in dev.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -42,8 +29,7 @@ vi.mock("@effy/edge-shared", async () => {
         client.release();
       }
     },
-    // Presigning talks to S3; the property under test here is the SQL, so it is stubbed to a value
-    // the assertions can recognise.
+    // S3 presigning is stubbed: the SQL is under test.
     presignRead: async (key: string) => `https://signed.example/${key}?X-Amz-Expires=900`,
   };
 });
@@ -58,179 +44,6 @@ import * as vehiclesRepo from "./vehicles/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-const SCHEMA = `
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS citext;
-CREATE SCHEMA IF NOT EXISTS admin;
-
-CREATE TABLE admin.audit_log (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_sub text NOT NULL, action text NOT NULL,
-  target_type text NOT NULL, target_id uuid,
-  detail jsonb NOT NULL DEFAULT '{}'::jsonb,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE public.customer (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), email text NOT NULL
-);
-CREATE TABLE public.customer_address (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id uuid NOT NULL REFERENCES public.customer (id),
-  recipient_name text NOT NULL, line1 text NOT NULL, city text NOT NULL,
-  postal_code text NOT NULL, country char(2) NOT NULL DEFAULT 'AU'
-);
-CREATE TABLE public."order" (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id uuid NOT NULL REFERENCES public.customer (id),
-  order_number text NOT NULL, status text NOT NULL,
-  -- 079 — who delivers; NULL for an order placed before it.
-  delivery_type text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE public.shop (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
-  status text NOT NULL DEFAULT 'active',
-  address_line1 text, address_line2 text, suburb text,
-  postcode text CHECK (postcode ~ '^[0-9]{4}$'),
-  state text CHECK (state IN ('ACT','NSW','NT','QLD','SA','TAS','VIC','WA'))
-);
-CREATE TABLE public.shop_fulfillment (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id uuid NOT NULL REFERENCES public."order" (id),
-  shop_id uuid NOT NULL REFERENCES public.shop (id),
-  status text NOT NULL DEFAULT 'pending',
-  delivery_method text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (order_id, shop_id)
-);
-CREATE TABLE public.order_package_delivery (
-  order_id uuid NOT NULL REFERENCES public."order" (id),
-  shop_id uuid NOT NULL REFERENCES public.shop (id),
-  method text NOT NULL,
-  slot_id uuid,
-  PRIMARY KEY (order_id, shop_id)
-);
--- 079's one definition of who takes a package to the customer, verbatim from its migration.
-CREATE FUNCTION public.package_delivered_by(p_delivery_type text, p_method text, p_slot_id uuid)
-RETURNS text LANGUAGE sql IMMUTABLE AS $$
-    SELECT COALESCE(
-        p_delivery_type,
-        CASE WHEN p_method = 'same_day' OR p_slot_id IS NOT NULL THEN 'effy' ELSE 'courier' END);
-$$;
-CREATE TABLE public.delivery_zone (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled'))
-);
-CREATE TABLE public.delivery_settings (
-  id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  hub_latitude numeric(9,6) NOT NULL, hub_longitude numeric(9,6) NOT NULL
-);
-
--- 049 + 056: the driver record, with this slice's widened status and new profile columns.
-CREATE TABLE public.driver (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  cognito_sub text NOT NULL UNIQUE,
-  name text NOT NULL,
-  work_email citext NOT NULL UNIQUE,
-  status text NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active', 'suspended', 'offboarded')),
-  status_reason text,
-  status_changed_at timestamptz NOT NULL DEFAULT now(),
-  contact_phone text, started_on date,
-  emergency_contact_name text, emergency_contact_phone text, notes text,
-  licence_reference text, licence_expires_on date, licence_class text
-    CHECK (licence_class IN ('C', 'LR', 'MR', 'HR')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
--- ── 062: clearances, as 083 left them: one row per (driver, function, area), no method. ───────
-CREATE TABLE public.driver_zone_capability (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
-  function text NOT NULL CHECK (function IN ('collection','delivery')),
-  zone_id uuid NULL REFERENCES public.delivery_zone (id) ON DELETE CASCADE,
-  granted_by_sub text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
--- ⚠ FR-005 AND FR-011 BOTH LIVE IN THIS INDEX. A plain UNIQUE does not deduplicate NULLs.
-CREATE UNIQUE INDEX driver_zone_capability_uq
-  ON public.driver_zone_capability (driver_id, function, zone_id) NULLS NOT DISTINCT;
-CREATE INDEX driver_zone_capability_driver_idx ON public.driver_zone_capability (driver_id);
-CREATE INDEX driver_zone_capability_zone_idx ON public.driver_zone_capability (zone_id);
-
-CREATE INDEX driver_name_trgm_idx ON public.driver USING gin (name gin_trgm_ops);
-CREATE INDEX driver_register_idx ON public.driver (name, id);
-
-CREATE TABLE public.driver_duty_session (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
-  started_at timestamptz NOT NULL DEFAULT now(), ended_at timestamptz,
-  expected_end_at timestamptz
-);
-CREATE UNIQUE INDEX driver_duty_session_open_uq
-  ON public.driver_duty_session (driver_id) WHERE ended_at IS NULL;
-
--- ── 061: the vehicle register. Mirrors 20260920143000_fleet_foundations.sql exactly. ────────────
-CREATE TABLE public.vehicle (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  registration_plate text NOT NULL CHECK (btrim(registration_plate) <> ''),
-  make text NOT NULL CHECK (btrim(make) <> ''),
-  model text NOT NULL CHECK (btrim(model) <> ''),
-  year int CHECK (year BETWEEN 1950 AND 2100),
-  body_type text NOT NULL
-    CHECK (body_type IN ('van','ute','truck_light','car','motorcycle','bicycle')),
-  fuel_type text CHECK (fuel_type IN ('petrol','diesel','hybrid','electric','none')),
-  ownership text NOT NULL DEFAULT 'effy_owned'
-    CHECK (ownership IN ('effy_owned','driver_owned')),
-  payload_kg int CHECK (payload_kg > 0),
-  load_volume_litres int CHECK (load_volume_litres > 0),
-  crate_capacity int CHECK (crate_capacity >= 0),
-  can_carry_chilled boolean NOT NULL DEFAULT false,
-  can_carry_frozen boolean NOT NULL DEFAULT false,
-  registration_expires_on date,
-  insurance_policy_reference text,
-  insurance_expires_on date,
-  roadworthy_expires_on date,
-  odometer_km int CHECK (odometer_km >= 0),
-  status text NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active','off_road','retired')),
-  status_reason text, notes text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE UNIQUE INDEX vehicle_plate_active_uq ON public.vehicle (upper(registration_plate))
-  WHERE status <> 'retired';
-CREATE INDEX vehicle_status_idx ON public.vehicle (status);
-
-CREATE TABLE public.vehicle_holding (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  vehicle_id uuid NOT NULL REFERENCES public.vehicle (id) ON DELETE RESTRICT,
-  driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE RESTRICT,
-  started_at timestamptz NOT NULL DEFAULT now(),
-  ended_at timestamptz,
-  odometer_start_km int CHECK (odometer_start_km >= 0),
-  odometer_end_km int CHECK (odometer_end_km >= 0),
-  issued_by_sub text, returned_by_sub text, note text,
-  CONSTRAINT vehicle_holding_odo_ck CHECK (
-    odometer_end_km IS NULL OR odometer_start_km IS NULL OR odometer_end_km >= odometer_start_km
-  ),
-  CONSTRAINT vehicle_holding_period_ck CHECK (ended_at IS NULL OR ended_at >= started_at)
-);
--- ⚠ THE TWO INDEXES THAT ARE FR-012 AND FR-013.
-CREATE UNIQUE INDEX vehicle_holding_open_vehicle_uq
-  ON public.vehicle_holding (vehicle_id) WHERE ended_at IS NULL;
-CREATE UNIQUE INDEX vehicle_holding_open_driver_uq
-  ON public.vehicle_holding (driver_id) WHERE ended_at IS NULL;
-CREATE INDEX vehicle_holding_vehicle_idx ON public.vehicle_holding (vehicle_id);
-CREATE INDEX vehicle_holding_driver_idx ON public.vehicle_holding (driver_id);
-
-CREATE TABLE public.order_item (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id uuid NOT NULL REFERENCES public."order" (id)
-);
-`;
-
 describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
@@ -239,7 +52,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(SCHEMA);
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -255,7 +68,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
                public.shop, public.delivery_zone, public.delivery_settings, admin.audit_log
       RESTART IDENTITY CASCADE`);
     await pool.query(
-      `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude) VALUES (1, -37.8, 144.9)`,
+      `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, -37.8, 144.9, 'test')`,
     );
   });
 
@@ -264,22 +77,18 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     opts: { status?: string; sameDay?: boolean } = {},
   ): Promise<string> {
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (name, status) VALUES ($1, $2) RETURNING id`,
+      `INSERT INTO public.delivery_zone (code, name, status, updated_by) VALUES ($1, $1, $2, 'test') RETURNING id`,
       [name, opts.status ?? "active"],
     );
     return r.rows[0]!.id;
   }
 
-  /** Grant a clearance. ⚠ `zoneId: null` means EVERY ZONE (062 FR-010). */
+  /** `zoneId: null` means every zone. */
   async function grantCap(
     driverId: string,
     fn: "collection" | "delivery",
-    method: "standard" | "same_day",
     zoneId: string | null,
   ): Promise<void> {
-    // ⚠ `method` is ignored: the column is gone (083). A second row for the same (function, area)
-    // is the same clearance, so it is not an error here.
-    void method;
     await pool.query(
       `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
        VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
@@ -303,15 +112,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       ],
     );
     const id = r.rows[0]!.id;
-    // ⚠ 062 — a driver with no clearance is BLOCKED (`no_capabilities`), which would make every
-    // pre-existing test about some other blocking reason fail for the wrong cause. Passing a zoneId
-    // now grants the full set there; passing none grants nothing, which several tests rely on.
+    // A driver with no clearance is blocked, so passing a zoneId grants the full set there.
     if (opts.zoneId !== undefined && opts.zoneId !== null) {
-      for (const fn of ["collection", "delivery"] as const) {
-        for (const m of ["standard", "same_day"] as const) {
-          await grantCap(id, fn, m, opts.zoneId);
-        }
-      }
+      for (const fn of ["collection", "delivery"] as const) await grantCap(id, fn, opts.zoneId);
     }
     if (opts.onDuty) {
       await pool.query(`INSERT INTO public.driver_duty_session (driver_id) VALUES ($1)`, [id]);
@@ -322,11 +125,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   async function seedOrderWithPackage(
     ref: string,
     fulfillmentStatus = "ready_for_pickup",
-    method = "same_day",
   ): Promise<{ orderId: string; shopId: string; fulfillmentId: string; addressId: string }> {
     const c = await pool.query<{ id: string }>(
-      `INSERT INTO public.customer (email) VALUES ($1) RETURNING id`,
-      [`${ref}@example.test`],
+      `INSERT INTO public.customer (cognito_sub, email) VALUES ($1, $1 || '@example.test') RETURNING id`,
+      [ref],
     );
     const a = await pool.query<{ id: string }>(
       `INSERT INTO public.customer_address (customer_id, recipient_name, line1, city, postal_code)
@@ -334,20 +136,22 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       [c.rows[0]!.id],
     );
     const o = await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status) VALUES ($1, $2, 'paid') RETURNING id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, delivery_address, item_subtotal_amount, grand_total_amount,
+                                   delivery_type, delivery_type_reason, delivery_promise)
+       VALUES ($1, $2, 'paid', '{}', 10, 10, 'effy', 'in_coverage', 'day') RETURNING id`,
       [c.rows[0]!.id, ref],
     );
     const s = await pool.query<{ id: string }>(
-      `INSERT INTO public.shop (name) VALUES ($1) RETURNING id`,
-      [`Shop ${ref}`],
+      `INSERT INTO public.shop (code, name) VALUES ($1, $2) RETURNING id`,
+      [ref, `Shop ${ref}`],
     );
     const f = await pool.query<{ id: string }>(
-      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status) VALUES ($1, $2, $3) RETURNING id`,
+      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount) VALUES ($1, $2, $3, 1, 10) RETURNING id`,
       [o.rows[0]!.id, s.rows[0]!.id, fulfillmentStatus],
     );
     await pool.query(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method) VALUES ($1, $2, $3)`,
-      [o.rows[0]!.id, s.rows[0]!.id, method],
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method) VALUES ($1, $2, 'standard')`,
+      [o.rows[0]!.id, s.rows[0]!.id],
     );
     return {
       orderId: o.rows[0]!.id,
@@ -357,7 +161,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     };
   }
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("SC-013 — the register pages 500 drivers with no duplicate and no gap", () => {
     it("returns every driver exactly once across the full paging sequence", async () => {
       const names = Array.from({ length: 500 }, (_, i) => `Driver ${String(i).padStart(3, "0")}`);
@@ -367,9 +170,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       let cursor: string | undefined;
       let pages = 0;
       do {
-        // ⚠ Through the SERVICE-shaped call, cursor and all — the repository is where the cursor is
-        // MINTED, and 053's paging test supplied its own cursor, never touched the minting, and
-        // passed with the defect in place.
+        // Through the service-shaped call, where the cursor is minted.
         const page = await driversRepo.listDrivers({ limit: 25, cursor });
         seen.push(...page.items.map((i) => i.id));
         cursor = page.nextCursor ?? undefined;
@@ -383,8 +184,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     it("⚠ orders on the SAME pair the cursor is minted from, so duplicate names cannot break it", async () => {
-      // Five drivers with the identical name. If the cursor were `(name)` alone, the second page
-      // would skip or repeat all five — this is exactly 053's failure, made maximally likely.
+      // Five identical names: a `(name)` cursor would skip or repeat them.
       for (let i = 0; i < 5; i++) await seedDriver("Same Name");
       const seen: string[] = [];
       let cursor: string | undefined;
@@ -397,7 +197,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("SC-010 — every optional field can be cleared and stays cleared", () => {
     it("⚠ a null in the patch CLEARS the column; an absent key leaves it alone", async () => {
       const zoneId = await seedZone();
@@ -414,7 +213,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const before = await driversRepo.getDriver(id);
       expect(before!.contactPhone).toBe("0400 111 222");
 
-      // Clear every optional field in one patch.
       const outcome = await driversRepo.updateDriver(
         id,
         {
@@ -432,8 +230,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       const after = await driversRepo.getDriver(id);
       expect(after!.contactPhone).toBeNull();
-      // ⚠ `vehicle.plate` is no longer a driver column at all — it is derived from the open holding
-      // (061). Null here means "holds no vehicle", which is the correct answer for this driver.
+      // The plate comes from the open holding; null means holds no vehicle.
       expect(after!.vehicle.plate).toBeNull();
       expect(after!.credentials.licenceClass).toBeNull();
       expect(after!.credentials.licenceReference).toBeNull();
@@ -441,7 +238,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(after!.emergencyContact.name).toBeNull();
       expect(after!.notes).toBeNull();
       expect(after!.startedOn).toBeNull();
-      // ⚠ And the name, whose key was absent, is untouched.
+      // The name, whose key was absent, is untouched.
       expect(after!.name).toBe("Clearable");
     });
 
@@ -455,7 +252,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("FR-014 — the duplicate work email is refused by the DATABASE, not just the service", () => {
     it("⚠ a second insert on the same address raises rather than upserting", async () => {
       await pool.query(
@@ -469,7 +265,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
           profile: {},
         }),
       ).rejects.toThrow();
-      // Jo is untouched — the whole point.
       const jo = await pool.query<{ name: string }>(
         `SELECT name FROM public.driver WHERE work_email = 'jo@effyshopping.com'`,
       );
@@ -484,7 +279,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("duty and unassigned work", () => {
     it("⚠ counts waiting work when NOBODY is on duty", async () => {
       await seedOrderWithPackage("EFY-WAIT01", "ready_for_pickup");
@@ -498,11 +292,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     it("shows an on-duty driver with their zone, and no work attached to them", async () => {
-      // ⚠ THE ASSERTION THAT USED TO BE HERE WAS ABOUT RUN PROGRESS — which run, stops done, next
-      // stop — and it went with the work model. What is left is the honest shape of the screen
-      // today: a named driver, on duty, in a zone, doing nothing, while the backlog below them
-      // grows. Asserting the absence rather than deleting the case keeps a record that this screen
-      // is CORRECT and the platform is not, which is the opposite of the usual reading.
       const zoneId = await seedZone();
       await seedDriver("Working", { zoneId, onDuty: true });
       await seedOrderWithPackage("EFY-STOP02", "ready_for_pickup");
@@ -533,16 +322,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════════════════════════════════
-  // 061 — the vehicle register and holdings, against real PostgreSQL.
-  //
-  // ⚠ THIS IS WHERE THIS SLICE IS ACTUALLY PROVEN. Its correctness lives almost entirely in the
-  // schema — two partial unique indexes, a CHECK, a case-insensitive partial index — and a mocked
-  // repository test cannot observe any of it. 056's own concurrency-token defect typechecked
-  // perfectly, passed every mocked test, and would have made EVERY edit fail; only the container
-  // test found it.
-  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // The vehicle register and holdings: correctness lives in partial unique indexes, a check and a case-insensitive index.
 
   async function seedVehicle(
     plate: string,
@@ -559,13 +339,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   }
 
   describe("061 C1/C2 — the two exclusion rules, PROVEN UNDER CONCURRENCY", () => {
-    /**
-     * ⚠ THE SINGLE MOST IMPORTANT TEST IN THIS SLICE.
-     *
-     * FR-012 is a concurrency claim, and the design's whole argument is that a service-level
-     * read-then-write cannot make it true. Both inserts are issued WITHOUT awaiting the first, so
-     * they genuinely race; exactly one must survive and the other must be refused BY THE DATABASE.
-     */
+    /** Both inserts race unawaited; exactly one survives and the database refuses the other. */
     it("⚠ C1 — two CONCURRENT issues of ONE VEHICLE: exactly one succeeds", async () => {
       const v = await seedVehicle("EFY-C1");
       const a = await seedDriver("Alpha One");
@@ -586,7 +360,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(open.rowCount).toBe(1);
     });
 
-    /** ⚠ C2 — the mirror of C1 on the other axis (FR-013). One driver, two vehicles, at once. */
+    /** One driver, two vehicles, at once. */
     it("⚠ C2 — two CONCURRENT issues to ONE DRIVER: exactly one succeeds", async () => {
       const d = await seedDriver("Charlie Two");
       const v1 = await seedVehicle("EFY-C2A");
@@ -602,8 +376,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect((rejected.reason as { constraint?: string }).constraint).toBe("vehicle_holding_open_driver_uq");
     });
 
-    /** ⚠ C6 — returning frees BOTH sides. If it freed only one, the other axis would deadlock the
-     *  fleet after a single shift and nothing would say why. */
+    /** Returning frees both sides. */
     it("C6 — returning a holding frees both the vehicle and the driver", async () => {
       const v = await seedVehicle("EFY-C6");
       const d = await seedDriver("Delta Six");
@@ -624,8 +397,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   });
 
   describe("061 C3/C4/C5 — schema rules a mocked test cannot see", () => {
-    /** ⚠ C3 — FR-018 is enforced by the DATABASE, so it holds for every writer including one nobody
-     *  has written yet. If it were a service check, the next caller would have to remember it. */
+    /** The odometer rule is the database's, so it holds for every writer. */
     it("C3 — a closing odometer below the opening is refused by the database", async () => {
       const v = await seedVehicle("EFY-C3");
       const d = await seedDriver("Foxtrot Three");
@@ -644,11 +416,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       ).resolves.toBeDefined();
     });
 
-    /**
-     * ⚠ C4 — plate uniqueness is scoped to NON-RETIRED, and the second half is the point. A retired
-     * van's plate can be legitimately reissued by the state years later; a blanket unique index
-     * would refuse a REAL vehicle because of a record Effy keeps only for history.
-     */
+    /** Plate uniqueness is scoped to non-retired vehicles: a retired van's plate can be reissued. */
     it("C4 — a duplicate plate is refused, and the SAME plate is accepted once the first is retired", async () => {
       const first = await seedVehicle("EFY-C4");
       await expect(seedVehicle("EFY-C4")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
@@ -657,13 +425,13 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       await expect(seedVehicle("EFY-C4")).resolves.toBeDefined();
     });
 
-    /** ⚠ C5 — `abc123` and `ABC123` are the same plate to everyone except a database. */
+    /** `abc123` and `ABC123` are the same plate. */
     it("C5 — plate uniqueness is case-insensitive", async () => {
       await seedVehicle("efy-c5");
       await expect(seedVehicle("EFY-C5")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
     });
 
-    /** ⚠ C7 — retiring must not destroy history. The record is why the vehicle is kept at all. */
+    /** Retiring keeps the history. */
     it("C7 — retiring a vehicle leaves its holding history readable", async () => {
       const v = await seedVehicle("EFY-C7");
       const d = await seedDriver("Golf Seven");
@@ -679,7 +447,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(history[0]!.odometerEndKm).toBe(99);
     });
 
-    /** Compliance is DERIVED, so a date that lapsed overnight is reported without anything running. */
+    /** Derived: a date that lapsed overnight is reported without anything running. */
     it("reports each lapsed compliance item by name, and reports none when dates are unset", async () => {
       await seedVehicle("EFY-CMP1", { regExpires: "2020-01-01" });
       await seedVehicle("EFY-CMP2");
@@ -688,20 +456,15 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const lapsed = items.find((i) => i.registrationPlate === "EFY-CMP1");
       const unset = items.find((i) => i.registrationPlate === "EFY-CMP2");
       expect(lapsed!.complianceIssues).toEqual(["registration_expired"]);
-      // ⚠ A NULL expiry is NOT a lapse — nobody has supplied the date yet, which is ordinary.
+      // A null expiry is not a lapse.
       expect(unset!.complianceIssues).toEqual([]);
     });
   });
 
   describe("061 C8/C9/C10 — every blocking reason, stated and complete", () => {
-    /**
-     * ⚠ C8 — FR-026. EVERY applicable reason, not the first one found.
-     *
-     * The remedy differs per reason, so a first-match list sends an operator to fix the wrong thing
-     * and then wonder why the driver still cannot work.
-     */
+    /** Every applicable reason, not the first found: each has a different remedy. */
     it("⚠ C8 — emits EVERY applicable reason at once, not just the first", async () => {
-      // Suspended AND no zone AND licence expired AND no vehicle: four causes, one driver.
+      // Suspended and no zone and licence expired and no vehicle: four causes, one driver.
       const id = await seedDriver("Hotel Eight", {
               status: "suspended",
         licenceExpires: "2020-01-01",
@@ -712,7 +475,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       );
     });
 
-    /** ⚠ C9 — SC-005. Proven by CAUSING it, not by asserting the rule exists. */
+    /** Proven by causing it. */
     it("⚠ C9 — an expired licence is reported, and the reason names the licence", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("India Nine", { zoneId, licenceExpires: "2020-01-01" });
@@ -720,12 +483,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(d!.blockedReasons).toContain("licence_expired");
     });
 
-    /**
-     * ⚠ C10 — the reason must name the VEHICLE's problem, not the driver's.
-     *
-     * This driver is faultless: active, zoned, licensed, holding a van. The van's registration has
-     * lapsed. Reporting that as a problem with the person would send an operator to the wrong place.
-     */
+    /** The reason names the vehicle's problem (its registration lapsed), not the driver's. */
     it("⚠ C10 — a holder of a non-compliant vehicle is blocked, and NOT for a licence reason", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Juliet Ten", { zoneId, licenceExpires: "2030-01-01" });
@@ -738,14 +496,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(d!.blockedReasons).not.toContain("licence_expired");
     });
 
-    /**
-     * ⚠ FR-028 — A DRIVER WHO CAN WORK APPEARS NOWHERE IN THE READINESS VIEW.
-     *
-     * The positive half is easy to get right and easy to leave untested. If an unblocked driver
-     * leaked into this list with an empty reason array, the screen would render their name with no
-     * reason beside it — which reads as "blocked, cause unknown" and sends an operator looking for a
-     * problem that does not exist.
-     */
+    /** A driver who can work appears nowhere in the readiness view. */
     it("⚠ FR-028 — an unblocked driver is ABSENT from the readiness view entirely", async () => {
       const zoneId = await seedZone();
       const ok = await seedDriver("Ready Romeo", { zoneId, licenceExpires: "2030-01-01" });
@@ -758,11 +509,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const names = blocked.map((b) => b.driverName);
       expect(names).toContain("Blocked Sierra");
       expect(names).not.toContain("Ready Romeo");
-      // ⚠ And nobody in the list has an empty reason array — that would render as a blank cause.
+      // Nobody has an empty reason array.
       for (const b of blocked) expect(b.reasons.length).toBeGreaterThan(0);
     });
 
-    /** The happy path at the repository level, asserted because FR-028 rests on it. */
     it("⚠ reports NO reasons for a driver who can actually work", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Kilo Clean", { zoneId, licenceExpires: "2030-01-01" });
@@ -773,7 +523,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(d!.blockedReasons).toEqual([]);
     });
 
-    /** ⚠ An off-road vehicle blocks its holder too — the van is in a workshop, not on the road. */
+    /** An off-road vehicle blocks its holder too. */
     it("treats an off-road vehicle as non-compliant for its holder", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Lima Offroad", { zoneId, licenceExpires: "2030-01-01" });
@@ -786,15 +536,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   });
 
   describe("061 FR-019 — the SQL behind the stand-down guard", () => {
-    /**
-     * ⚠ THE GUARD'S INPUT, PROVEN AGAINST REAL POSTGRESQL. The decision itself is a service rule and
-     * is tested with mocks in `drivers/service.test.ts`; what cannot be tested there is whether this
-     * query actually finds a held vehicle, because a mocked repository would just return whatever
-     * the test told it to.
-     *
-     * This is the descendant of 056's finding that standing a driver down strands physical goods
-     * "permanently and invisibly". A van is not a database row.
-     */
+    /** The stand-down guard's input: the query finds a held vehicle. */
     it("⚠ finds the vehicle a driver is holding, with enough to NAME it in a refusal", async () => {
       const driverId = await seedDriver("Mike Holding");
       const v = await seedVehicle("EFY-HELD");
@@ -802,7 +544,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       const held = await holdingsRepo.heldByDriver(driverId);
       expect(held).not.toBeNull();
-      // ⚠ "Record its return first" is only actionable if the operator is told WHICH vehicle.
+      // The refusal names which vehicle.
       expect(held!.registrationPlate).toBe("EFY-HELD");
       expect(held!.make).toBe("Toyota");
     });
@@ -823,12 +565,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════════════════════════
-  // 062 — clearances and coverage, against real PostgreSQL.
-  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // Clearances and coverage.
 
   describe("062 C1–C8 — clearances", () => {
-    /** ⚠ C1 — FR-005. A grant an operator repeats must SUCCEED; two doing it at once must both win. */
+    /** A repeated grant succeeds; two at once both win. */
     it("C1 — granting the same clearance twice is refused by the index, and surfaces as a no-op", async () => {
       const z = await seedZone("C1 Zone");
       const d = await seedDriver("Alpha Cap");
@@ -849,14 +589,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
     });
 
-    /**
-     * ⚠ C2 — THE `NULLS NOT DISTINCT` PROOF.
-     *
-     * A plain UNIQUE does NOT deduplicate NULLs, so without the clause an "every zone" grant could be
-     * inserted twice and FR-005's idempotence would silently not hold for the broadest clearance
-     * there is. This is 059's nullable `subject_key` shape: a green suite and a feature that looks
-     * like it works.
-     */
+    /** `NULLS NOT DISTINCT`: without it the every-zone grant could be inserted twice. */
     it("⚠ C2 — two identical EVERY-ZONE grants cannot both exist", async () => {
       const d = await seedDriver("Bravo Every");
       await capRepo.grant(d, "collection", null, "actor-1");
@@ -876,19 +609,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(rows.rowCount).toBe(1);
     });
 
-    /**
-     * ⚠⚠ C3 — THE SINGLE MOST IMPORTANT TEST IN THIS SLICE (FR-011, SC-003).
-     *
-     * A driver cleared for EVERY ZONE must cover a zone that does not exist yet. The absence of this
-     * behaviour is completely INVISIBLE: the driver quietly stops being eligible for new areas,
-     * nothing fails, and nobody is told. So it is CAUSED here — a zone is created mid-test — rather
-     * than asserted about the query's text.
-     */
+    /** A driver cleared for every zone covers a zone created later; caused here by creating one mid-test. */
     it("⚠⚠ C3 — an EVERY-ZONE driver covers a zone CREATED AFTERWARDS", async () => {
-      // ⚠ The driver must be ABLE TO WORK for the second assertion to mean what it says. A cleared
-      // driver with no vehicle is blocked, and the coverage view would report the new zone as
-      // `all_cleared_unavailable` — which is CORRECT behaviour and would mask the thing under test.
-      // The first draft of this test missed that and failed, which is the test doing its job.
+      // The driver must be able to work, or coverage would correctly report `all_cleared_unavailable` instead.
       const d = await seedDriver("Charlie Everywhere", { licenceExpires: "2030-01-01" });
       const v = await seedVehicle("EFY-C3", { regExpires: "2030-01-01" });
       await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
@@ -907,8 +630,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       );
       expect(cleared.rows[0]!.ok).toBe(true);
 
-      // ⚠ And the coverage view agrees — no gap for the new zone's standard delivery, because an
-      // able driver cleared for EVERY zone covers a zone that did not exist when they were cleared.
+      // The coverage view agrees: no gap for the new zone.
       const gaps = await coverageRepo.coverageGaps();
       const newZoneDeliveryGap = gaps.find(
         (g) => g.zoneId === laterZone && g.function === "delivery",
@@ -916,7 +638,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(newZoneDeliveryGap).toBeUndefined();
     });
 
-    /** ⚠ C4 — the mirror of C3: a zone-SPECIFIC grant must NOT leak to another zone. */
+    /** A zone-specific grant must not leak to another zone. */
     it("C4 — a zone-specific grant does not match a different zone", async () => {
       const a = await seedZone("C4 Alpha");
       const b = await seedZone("C4 Bravo");
@@ -948,8 +670,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(after[0]!.id).toBe(before[1]!.id);
     });
 
-    /** ⚠ C6 — FR-006. The operator's intent is already true; erroring would make two people tidying
-     *  the same record fight each other. */
+    /** Revoking what is not held is a success. */
     it("C6 — revoking a clearance the driver does not hold is a no-op, not a failure", async () => {
       const d = await seedDriver("Foxtrot None");
       const removed = await capRepo.revoke(d, "00000000-0000-0000-0000-000000000000");
@@ -967,16 +688,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       const left = await capRepo.listForDriver(d);
       expect(left).toHaveLength(1);
-      expect(left[0]!.zoneId).toBeNull(); // the every-zone grant survived
+      expect(left[0]!.zoneId).toBeNull();
     });
 
-    /**
-     * ⚠ C8 — DISABLING IS NOT DELETING, and conflating them would be a quiet disaster.
-     *
-     * Disabling a zone is reversible. If the clearance were removed, re-enabling the zone would leave
-     * it uncovered until somebody noticed and re-granted by hand — and nothing would say why the
-     * cover was lost.
-     */
+    /** Disabling is not deleting: re-enabling must restore cover without re-granting. */
     it("⚠ C8 — DISABLING a zone hides its clearances but does NOT delete them; re-enabling restores cover", async () => {
       const z = await seedZone("C8 Toggle");
       const d = await seedDriver("Hotel Toggle");
@@ -989,7 +704,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const stillThere = await pool.query(
         `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
       );
-      expect(stillThere.rowCount).toBe(1); // ⚠ but NOT deleted
+      expect(stillThere.rowCount).toBe(1);
 
       await pool.query(`UPDATE public.delivery_zone SET status = 'active' WHERE id = $1`, [z]);
       expect(await capRepo.listForDriver(d)).toHaveLength(1); // restored, with nobody re-granting
@@ -1008,8 +723,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       }
     });
 
-    /** ⚠ C10 — FR-018. Two reasons, because the remedies differ: grant somebody a clearance, versus
-     *  fix why the cleared people cannot work. */
+    /** Two reasons with different remedies: nobody cleared, or the cleared cannot work. */
     it("⚠ C10 — a zone whose cleared drivers are all BLOCKED reports all_cleared_unavailable", async () => {
       const z = await seedZone("C10 Blocked", { sameDay: false });
       const d = await seedDriver("India Expired", { licenceExpires: "2020-01-01" });
@@ -1021,12 +735,12 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(gaps.length).toBe(2);
       for (const g of gaps) {
         expect(g.reason).toBe("all_cleared_unavailable");
-        // ⚠ This is what makes the reason actionable — somebody IS cleared; the fix is elsewhere.
+        // Somebody is cleared; the fix is elsewhere.
         expect(g.clearedDriverCount).toBeGreaterThan(0);
       }
     });
 
-    /** ⚠ C11 — FR-019. A list of problems, not a matrix. */
+    /** A list of problems, not a matrix. */
     it("⚠ C11 — a COVERED combination emits no row at all", async () => {
       const z = await seedZone("C11 Covered", { sameDay: false });
       const v = await seedVehicle("EFY-C11", { regExpires: "2030-01-01" });
@@ -1040,12 +754,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(gaps).toEqual([]);
     });
 
-    /**
-     * ⚠ C12 — 082: ONE GAP PER AREA AND FUNCTION, whatever the area's old same-day flag says. Until 082
-     * this enumerated a delivery method too (and took care not to list same-day where it was not
-     * sold). A clearance has no method now, so the question is only whether anyone can collect for,
-     * and deliver in, each area.
-     */
+    /** One gap per area and function. */
     it("⚠ C12 — a gap is per area and function, with no method, whether or not same-day was sold there", async () => {
       const a = await seedZone("C12 Standard Only", { sameDay: false });
       const b = await seedZone("C12 Same Day", { sameDay: true });
@@ -1058,11 +767,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       }
     });
 
-    /**
-     * ⚠ 083 P14 — ONE ROW PER CLEARANCE. 082 read rows of either old method as one clearance; 083's
-     * migration removed the duplicates and the column (`retire.container.test.ts` proves which row is
-     * kept). Here: granting what is held adds no row, and revoking it removes the one there is.
-     */
+    /** One row per clearance: granting what is held adds none, revoking removes the one there is. */
     it("⚠ 083 P14 — one row per clearance: grant twice adds none, revoke removes it", async () => {
       const z = await seedZone("P14 Zone");
       const d = await seedDriver("P14 Driver");
@@ -1074,16 +779,16 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect((await capRepo.summariseForDrivers([d])).get(d)!.total).toBe(2);
 
       expect(await capRepo.revoke(d, first)).toBe(true);
-      expect(await capRepo.revoke(d, first)).toBe(false); // already gone: a no-op, not a failure
+      expect(await capRepo.revoke(d, first)).toBe(false);
       expect((await capRepo.listForDriver(d)).map((c) => [c.function, c.zoneId])).toEqual([["collection", null]]);
-      // ⚠ Another driver's clearance is never removed by naming its id under the wrong driver.
+      // Another driver's clearance is never removed by naming its id under the wrong driver.
       const other = await seedDriver("P14 Other");
       const theirs = await capRepo.grant(other, "delivery", z, "actor-1");
       expect(await capRepo.revoke(d, theirs)).toBe(false);
       expect(await capRepo.listForDriver(other)).toHaveLength(1);
     });
 
-    /** ⚠ C13 — FR-020. The two views read ONE availability rule, so they cannot disagree. */
+    /** The two views read one availability rule. */
     it("⚠ C13 — coverage and readiness agree about whether a driver can work", async () => {
       const z = await seedZone("C13 Agree", { sameDay: false });
       const d = await seedDriver("Kilo Agree", { licenceExpires: "2020-01-01" });
@@ -1119,9 +824,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const blocked = await readinessRepo.blockedDrivers();
       expect(blocked).toHaveLength(1);
       expect(blocked[0]!.driverName).toBe("Uncleared");
-      // ⚠ 062 replaced `no_zone` with this. The old reason read a single-zone column that no
-      // assignment code ever consulted; a driver is now blocked when cleared for NOTHING, and the
-      // remedy is to grant a clearance rather than to assign a zone.
+      // A driver cleared for nothing is blocked; the remedy is a clearance.
       expect(blocked[0]!.reasons).toContain("no_capabilities");
     });
 
@@ -1133,11 +836,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const blocked = await readinessRepo.blockedDrivers();
       const byName = Object.fromEntries(blocked.map((b) => [b.driverName, b.reasons]));
 
-      // ⚠ 061 WIDENED THIS, AND THE WIDENING IS CORRECT RATHER THAN A REGRESSION. Both of these
-      // drivers now also hold no vehicle, which is a real reason they cannot be given work — it was
-      // simply unrepresentable before vehicles existed. The assertion moved from `toEqual` to naming
-      // the cause it is about, because pinning an EXACT list here would mean every future reason
-      // breaks a test that is not about it.
+      // Names the cause this test is about rather than pinning an exact reason list.
       expect(byName["Expired"]).toContain("licence_expired");
       expect(byName["Stood Down"]).toContain("suspended");
       expect(byName["Expired"]).toContain("no_vehicle");
@@ -1179,7 +878,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("FR-005 — offboarded drivers are hidden by default", () => {
     it("excludes them unless asked for, and includes them when asked", async () => {
       await seedDriver("Current");

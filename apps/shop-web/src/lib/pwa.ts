@@ -1,19 +1,10 @@
 /**
  * Service-worker registration, the update handshake, and the bridge the worker talks to the app
- * through (059, US2 / FR-009…FR-011).
- *
- * ⚠ THIS IS THE ONLY PLACE THAT REGISTERS A SERVICE WORKER, and `src/lib/__tests__/pwa.test.ts`
- * asserts that. The Firebase messaging SDK registers its own `/firebase-messaging-sw.js` unless it
- * is handed a registration — beside a Workbox worker that is two workers on one scope, whose
- * documented symptom is the app reloading itself continuously after every deploy. `getRegistration()`
- * below is what `messaging.ts` passes to `getToken`.
+ * through. The only place that registers a service worker (`__tests__/pwa.test.ts`): `getRegistration`
+ * is what `messaging.ts` hands `getToken`, so Firebase never registers a second worker on the scope.
  */
-// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
-// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
-// directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
-// into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
-// resolving the moment the hoisting layout changes. Every other store in this app imports it the
-// same way.
+// `@tanstack/react-store` (which re-exports `Store`) is the declared dependency; `@tanstack/store` would
+// resolve only through hoisting.
 import { Store } from "@tanstack/react-store"
 
 /** How often an already-open console checks for a new build. */
@@ -40,7 +31,7 @@ export function getRegistration(): ServiceWorkerRegistration | null {
  * Where a notification click should take the operator.
  *
  * The service worker cannot route a SPA, so it posts the path here and the app's router handles it.
- * ⚠ Deliberately NOT `client.navigate()` in the worker: that is a full document load, which throws
+ * Deliberately not `client.navigate` in the worker: that is a full document load, which throws
  * away the Query cache and the operator's place in whatever they were doing.
  */
 export function onServiceWorkerNavigate(handler: (path: string) => void): () => void {
@@ -59,12 +50,7 @@ export function applyUpdate(): void {
   waiting.postMessage({ type: "SKIP_WAITING" })
 }
 
-/**
- * Register the service worker and keep the update state current.
- *
- * Safe to call when service workers are unavailable (an old browser, a private window, an insecure
- * origin): it no-ops, and the console works exactly as it did before 059.
- */
+/** Register the service worker and keep the update state current; a no-op where service workers are unavailable. */
 export function registerServiceWorker(): void {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return
   // Dev runs without a service worker (see vite.config.ts devOptions) — registering the built path
@@ -78,7 +64,7 @@ export function registerServiceWorker(): void {
     }
   })
 
-  // ⚠ Reload only ONCE, and only after the new worker actually controls the page. Without the guard
+  // Reload only once, and only after the new worker actually controls the page. Without the guard
   // a browser that fires controllerchange more than once puts the console into a reload loop, which
   // on a shop tablet is indistinguishable from a crash.
   let reloading = false
@@ -97,7 +83,7 @@ export function registerServiceWorker(): void {
       const track = (worker: ServiceWorker | null) => {
         if (!worker) return
         const update = () => {
-          // `installed` with an existing controller means a NEW version is waiting. Without a
+          // `installed` with an existing controller means a new version is waiting. Without a
           // controller it is the first install, which is not an update and must not prompt.
           if (worker.state === "installed" && navigator.serviceWorker.controller) {
             pwaStore.setState((s) => ({ ...s, updateReady: true }))
@@ -110,7 +96,7 @@ export function registerServiceWorker(): void {
       track(reg.waiting)
       reg.addEventListener("updatefound", () => track(reg.installing))
 
-      // ⚠ A CONSOLE OPEN ALL SHIFT NEVER NAVIGATES, so nothing would ever ask for an update and a
+      // A console open all shift never navigates, so nothing would ever ask for an update and a
       // deployed fix could sit waiting indefinitely — SC-009 fails on precisely the device that
       // never closes the app. Check on focus, and on a timer for the tablet that is never touched.
       const check = () => void reg.update().catch(() => undefined)

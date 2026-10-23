@@ -2,23 +2,16 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { slotLoad } from "./slots";
 import { changeEffyWindow, DeliveryMoveError, deliveryMovesFor, moveToCourier, moveToEffy, previewMove } from "./override";
 import { recordParcelReturn } from "./parcel-return";
 
-/**
- * 081 — moving an order between Effy and courier delivery, against the REAL schema: one transaction,
- * every part (P2, P3), each compensation by its own means (P4), a dearer courier costing the customer
- * nothing (P5), the guards (P6), stale and repeated confirmations (P7), the move back (P9) and the
- * message (P10).
- *
- * ⚠ The courier service here is obviously fictional. A real courier's name is the operator's to enter.
- */
+/** Moving an order between Effy and courier against the real schema. The courier service is fictional. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
-const NOW = new Date("2026-12-01T09:00:00+11:00"); // a Tuesday morning in Melbourne
+const NOW = new Date("2026-12-01T09:00:00+11:00");
 const TODAY = "2026-12-01";
 const TOMORROW = "2026-12-02";
 const STAFF = "sub-manager";
@@ -62,10 +55,7 @@ async function round(driverId: string, kind: "collection" | "delivery", status =
   )).id;
 }
 
-/**
- * A paid Effy order from two shops, in today's 4–6 pm window, $9.00 delivery: both parcels on a
- * driver's collection round, and on a (planned) delivery round.
- */
+/** Two shops, today's 4–6 pm window, $9.00 delivery, on a collection round and a planned delivery round. */
 async function effyOrder(opts: { deliveryRound?: "planned" | "in_progress"; paidCents?: number } = {}) {
   n += 1;
   const tag = `ov-${n}`;
@@ -112,7 +102,7 @@ async function effyOrder(opts: { deliveryRound?: "planned" | "in_progress"; paid
   }
   let deliver: string | null = null;
   if (opts.deliveryRound) {
-    // On a delivery round means collected first: one open assignment per parcel (063).
+    // On a delivery round means collected first.
     await pool.query(
       `UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE shop_fulfillment_id = ANY($1::uuid[])`, [packages],
     );
@@ -140,7 +130,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     slot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('16:00', '18:00', '14:00', 50, 'test') RETURNING id::text AS id`,
     )).id;
-    // 085 — THE Any time window: the migration created it; nothing here could add a second.
+    // The Any time window: the migration created it.
     anyTimeSlot = (await one<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot WHERE any_time`)).id;
     tightSlot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('18:00', '20:00', '15:00', 1, 'test') RETURNING id::text AS id`,
@@ -184,7 +174,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(r.driverIds).toEqual([driverD]);
     expect(r.refundToSubmit).toBeNull();
 
-    // The type, through 079's writer, with the staff reason.
+    // The type, through its one writer, with the staff reason.
     expect(await one(`SELECT delivery_type, delivery_type_reason, courier_estimate, courier_service_id::text AS s, courier_collection FROM public."order" WHERE id = $1`, [o.order]))
       .toEqual({ delivery_type: "courier", delivery_type_reason: "staff_change", courier_estimate: "2–4 business days", s: serviceId, courier_collection: "hub" });
     expect(await one(`SELECT from_type, to_type, actor_kind, actor_sub, note FROM public.order_delivery_type_change WHERE order_id = $1 AND from_type IS NOT NULL`, [o.order]))
@@ -200,7 +190,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     // The compensation: a quiet automatic credit, attributed to the person.
     expect(await one(`SELECT kind, points, reason, author_kind, author_sub, order_id::text AS order_id FROM public.points_entry WHERE customer_id = $1`, [o.customerId]))
       .toEqual({ kind: "auto_credit", points: 250, reason: "courier_override_compensation", author_kind: "staff", author_sub: STAFF, order_id: o.order });
-    // ⚠ P10 — ONE message, push and email; the points credit sends none of its own.
+    // One message, push and email; the points credit sends none of its own.
     expect((await pool.query(`SELECT type, channel FROM public.notification_request WHERE recipient_sub = $1 ORDER BY type, channel`, [`ov-${n}`])).rows)
       .toEqual([{ type: "order_delivery_changed", channel: "email" }, { type: "order_delivery_changed", channel: "push" }]);
     // The record.
@@ -416,7 +406,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
   });
 
   it("097 — where the postcode does not offer delivery today, staff can neither list nor choose today; later days still work", async () => {
-    // A collection run that makes today's 4–6 pm window at NOW, so "today" is genuinely on offer when allowed.
+    // A collection run that makes today's 4–6 pm window, so today is genuinely on offer.
     const run = (await one<{ id: string }>(
       `INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by) VALUES ('11:00', 'Late morning', 'active', 'test') RETURNING id::text AS id`,
     )).id;
@@ -475,7 +465,7 @@ d("081 — moving an order between Effy and courier delivery", () => {
     })))).toBe("changed");
   });
 
-  /** 088 P7 — a parcel still in the van after a failed drop must be returned before staff act on it. */
+  /** A parcel still in the van after a failed drop must be returned before staff act. */
   it("088 — refused while a failed parcel is still with the driver; after the return, re-timing releases it", async () => {
     const o = await effyOrder({ deliveryRound: "in_progress" });
     const drop = (await one<{ id: string; round_id: string }>(

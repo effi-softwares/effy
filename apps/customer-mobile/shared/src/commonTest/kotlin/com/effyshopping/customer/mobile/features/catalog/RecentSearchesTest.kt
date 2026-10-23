@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 087 FR-036 — recent searches: newest first, no duplicates, ten at most, gone on sign-out. */
+/** Recent searches: newest first, no duplicates, ten at most, gone on sign-out. */
 class RecentSearchesTest {
 
     @Test

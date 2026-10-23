@@ -22,10 +22,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * PaymentMethodsViewModel (051 US6).
+ * PaymentMethodsViewModel.
  *
- * ⚠ No comma in a backtick test name — Kotlin/Native forbids it while the JVM accepts it, so a comma
- * makes the iOS test compilation fail while Android stays green (033).
+ * No comma in a backtick test name — Kotlin/Native forbids it while the JVM accepts it, so a comma
+ * makes the iOS test compilation fail while Android stays green.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentMethodsViewModelTest {
@@ -67,11 +67,11 @@ class PaymentMethodsViewModelTest {
     }
 
     /**
-     * ⚠ THE DISTINCTION THIS VIEWMODEL EXISTS TO PRESERVE (FR-036).
+     * The distinction this viewmodel exists to preserve.
      *
      * "You have no cards" and "we could not ask" are different facts. Falling back to an empty list on
      * a failed read tells a shopper with saved cards something false about their own account — and it
-     * is the easy mistake to ship, because `catch { emptyList() }` looks like sensible defensive code.
+     * is the easy mistake to ship, because `catch { emptyList }` looks like sensible defensive code.
      */
     @Test
     fun `a failed read is reported as a failure and never as an empty list`() = runTest {
@@ -100,7 +100,7 @@ class PaymentMethodsViewModelTest {
     }
 
     /**
-     * ⚠ A FAILED REMOVAL MUST KEEP THE CARD. Dropping it optimistically would show the shopper a card
+     * A failed removal must keep the card. Dropping it optimistically would show the shopper a card
      * that still exists at the provider and can still be charged — the list would be lying about what
      * Effy can do with their money.
      */
@@ -116,7 +116,7 @@ class PaymentMethodsViewModelTest {
         assertNull(vm.state.value.removing)
     }
 
-    /** An unusable card still carries its reason through the domain, unchanged (FR-023). */
+    /** An unusable card still carries its reason through the domain, unchanged. */
     @Test
     fun `an unusable card keeps the reason the server computed`() = runTest {
         val vm = viewModel(FakeRepo(cards = listOf(card(usable = false))))

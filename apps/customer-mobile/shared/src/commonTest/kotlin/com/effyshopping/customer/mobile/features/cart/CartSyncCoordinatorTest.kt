@@ -27,7 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The half that makes a cart cross devices (027 US2/US3).
+ * The half that makes a cart cross devices.
  *
  * Before this, the mirror was durable but private: nothing a shopper did was ever sent, so signing in on a
  * second phone showed an empty cart. These tests pin the behaviour that fixes it, and the three ways it
@@ -86,7 +86,7 @@ class CartSyncCoordinatorTest {
         grandTotalAmount = "5.00",
     )
 
-    // ── US2: a signed-in shopper's change reaches the platform ──────────────────────────────────
+    // A signed-in shopper's change reaches the platform
 
     @Test
     fun a_signed_in_add_is_sent_and_the_response_adopted() = runTest {
@@ -97,7 +97,7 @@ class CartSyncCoordinatorTest {
 
         AddToCart(store, sync)(line("p1", 1))
 
-        // The mirror moved BEFORE any coroutine ran — the tap does not wait on the network.
+        // The mirror moved before any coroutine ran — the tap does not wait on the network.
         assertEquals(1, store.state.value.itemCount)
 
         advanceUntilIdle()
@@ -136,7 +136,7 @@ class CartSyncCoordinatorTest {
         assertEquals(listOf("remove:p1"), repo.calls)
     }
 
-    // ── A guest sends nothing ───────────────────────────────────────────────────────────────────
+    // A guest sends nothing
 
     @Test
     fun a_guest_change_is_never_sent_and_never_queued() = runTest {
@@ -176,7 +176,7 @@ class CartSyncCoordinatorTest {
         assertTrue(repo.calls.isEmpty())
     }
 
-    // ── Ordering and failure ────────────────────────────────────────────────────────────────────
+    // Ordering and failure
 
     // Out-of-order responses are the failure a manual two-device test will not reproduce on demand.
     @Test
@@ -217,7 +217,7 @@ class CartSyncCoordinatorTest {
         assertEquals(listOf("add:p1:1", "get"), repo.calls, "the queued change must go out before the read")
     }
 
-    // ⚠ A rejected token must NOT bin the shopper's work. It is not their mistake and not permanent: an
+    // A rejected token must not bin the shopper's work. It is not their mistake and not permanent: an
     // expired access token, a refresh in flight, or a service accepting the wrong app client all look like
     // this, and all heal on the next attempt.
     @Test
@@ -250,7 +250,7 @@ class CartSyncCoordinatorTest {
         assertEquals(1, store.state.value.itemCount, "and the shopper still sees what they did")
     }
 
-    // Retrying a refusal only repeats it, so it must stop — and the shopper must be told (FR-019/FR-020).
+    // Retrying a refusal only repeats it, so it must stop — and the shopper must be told.
     @Test
     fun a_definitive_refusal_stops_retrying_and_is_reported() = runTest {
         val repo = FakeRepo()
@@ -271,7 +271,7 @@ class CartSyncCoordinatorTest {
         assertTrue(repo.calls.isEmpty(), "a dead change must never be retried")
     }
 
-    // ── US3: the sign-in merge ──────────────────────────────────────────────────────────────────
+    // The sign-in merge
 
     @Test
     fun signing_in_sends_the_device_cart_and_adopts_the_union() = runTest {
@@ -306,7 +306,7 @@ class CartSyncCoordinatorTest {
         assertEquals("theirs", store.state.value.lines[0].productId)
     }
 
-    // ⚠ The local cart must survive a failed merge. Clearing first and merging second is how 019's Option B
+    // The local cart must survive a failed merge. Clearing first and merging second is how 019's Option B
     // lost carts, and it is not being reintroduced.
     @Test
     fun a_failed_merge_keeps_the_device_cart() = runTest {
@@ -322,7 +322,7 @@ class CartSyncCoordinatorTest {
     }
 }
 
-// ── US4: debounce, backoff, and the queue that survives a force-quit ────────────────────────────
+// Debounce, backoff, and the queue that survives a force-quit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CartDebounceTest {
@@ -332,7 +332,7 @@ class CartDebounceTest {
         currency = "AUD", quantity = qty, packageKey = "pkg_a",
     )
 
-    // SC-005: ten taps in quick succession must cost ONE request, not ten.
+    // Ten taps in quick succession must cost one request, not ten.
     @Test
     fun ten_rapid_quantity_taps_send_one_request() = runTest {
         val repo = CartSyncCoordinatorTest.FakeRepo()
@@ -383,7 +383,7 @@ class CartDebounceTest {
         assertTrue(repo.calls.any { it == "set:p2:7" }, "got ${repo.calls}")
     }
 
-    // FR-017: a change made before the process died is on disk, and must go out on the next launch —
+    // A change made before the process died is on disk, and must go out on the next launch
     // without the shopper having to touch the cart again.
     @Test
     fun a_queue_left_by_a_dead_process_drains_on_the_next_launch() = runTest {

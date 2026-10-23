@@ -21,10 +21,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The mirror's two load-bearing rules (027):
- *
- *  1. [CartStore.adopt] only ever moves FORWARD. Without that, a slow response to an old tap landing after
- *     a fast response to a new one resurrects a stale cart — FR-009's failure arriving from the client.
+ * The mirror's two rules:
+ *  1. [CartStore.adopt] only moves forward, so a slow response to an old tap cannot resurrect a stale cart.
  *  2. A local edit never invents money the platform has not confirmed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -93,7 +91,7 @@ class CartStoreTest {
         assertEquals("0.00", s.state.value.grandTotalAmount)
     }
 
-    // ── Rule 1: forward-only adoption ────────────────────────────────────────────────────────────
+    // Rule 1: forward-only adoption
 
     @Test
     fun adopt_takes_a_newer_platform_cart() = runTest {
@@ -128,7 +126,7 @@ class CartStoreTest {
         assertEquals("b", s.state.value.lines[0].productId)
     }
 
-    // A guest's re-price answers with revision 0, which the forward-only rule would otherwise reject —
+    // A guest's re-price answers with revision 0, which the forward-only rule would otherwise reject
     // and then FR-004 ("a restored cart shows CURRENT prices") would silently fail for every guest.
     @Test
     fun adoptPreview_takes_platform_prices_without_needing_a_newer_revision() = runTest {
@@ -144,7 +142,7 @@ class CartStoreTest {
         assertEquals(mirrorRevision, s.state.value.revision, "a preview must not rewind the mirror's revision")
     }
 
-    // ── Rule 2: a local edit invents no money ────────────────────────────────────────────────────
+    // Rule 2: a local edit invents no money
 
     @Test
     fun a_local_edit_drops_a_discount_the_platform_has_not_re_approved() = runTest {
@@ -220,7 +218,7 @@ class CartStoreTest {
         assertEquals("25.00", s.state.value.checkout.minimumSubtotalAmount)
     }
 
-    // ── Lifecycle ───────────────────────────────────────────────────────────────────────────────
+    // Lifecycle
 
     @Test
     fun reset_empties_the_mirror_and_the_disk() = runTest {
@@ -261,7 +259,7 @@ class CartStoreTest {
     }
 }
 
-// ── US5: the cart never lies (FR-022/FR-023) ────────────────────────────────────────────────────
+// The cart never lies
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CartHonestyTest {

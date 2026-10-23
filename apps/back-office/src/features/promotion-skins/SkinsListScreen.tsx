@@ -16,7 +16,7 @@ import { promotionSkinsQuery } from "./queries";
 import { LAYOUT_WORD, SAMPLES, SkinPreviewItem } from "./SkinPreview";
 
 /**
- * Promotion skins (095 US2): how promotions look. A skin is chosen per place in a display group; each
+ * Promotion skins: how promotions look. A skin is chosen per place in a display group; each
  * group has a default. Classic is built in — each place as it always looked.
  */
 export function SkinsListScreen() {

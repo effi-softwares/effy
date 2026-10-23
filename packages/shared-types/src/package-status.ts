@@ -1,18 +1,7 @@
-// Where a package is — ONE short list, the same words on every staff screen (073).
-//
-// ⚠ WHY THIS FILE EXISTS. Until 073 each screen guessed a package's position from the SHOP's status
-// alone. `shop_fulfillment.status` deliberately stops at `collected` (063 R9 — the hub check-in row
-// is the fact), so back-office said "At hub" or "Out for delivery" the moment a driver picked a
-// package up, the shop console never moved past "Collected", and checking in at the hub changed
-// nothing anywhere. The records were right; four separate label maps read them wrong.
-//
-// The status is now DERIVED from what actually happened (`packageStatus` in @effy/edge-shared) and
-// named HERE, once. `package-status.guard.test.ts` fails if an app maps shop statuses to words any
-// other way.
-//
-// ⚠ NINE WORDS ON PURPOSE. The operator's direction was "simpler is better": these are the things a
-// person asking "where is it?" needs to know, and no more. The customer's one-word stage is a
-// different, coarser view and is not affected by this file.
+// Where a package is: one short list of nine words, the same on every staff screen. Derived from what
+// happened (`packageStatus` in @effy/edge-shared), not from the shop's status, which stops at
+// `collected`. `package-status.guard.test.ts` fails if an app maps shop statuses to words another way.
+// The customer's one-word stage is a separate, coarser view.
 
 export type PackageStatus =
   | "preparing"
@@ -52,7 +41,7 @@ export const STATUS_WORD: Record<PackageStatus, string> = {
 
 /**
  * How the pill is coloured — the platform's closed status mapping: in progress → brand,
- * complete → success, waiting → warning, failed → destructive, inert → muted. Always shown WITH the
+ * complete → success, waiting → warning, failed → destructive, inert → muted. Always shown with the
  * word; the tone only reinforces it.
  */
 export const STATUS_TONE: Record<PackageStatus, "brand" | "success" | "warning" | "destructive" | "muted"> = {
@@ -74,10 +63,7 @@ export interface PackageStatusView {
   word: string;
   /** One line for `problem` ("Not collected at the shop"); null otherwise. */
   detail: string | null;
-  /**
-   * The driver holding it, for `with_driver` and `out_for_delivery`. ⚠ STAFF ONLY: the shop
-   * service sends null here, always.
-   */
+  /** The driver holding it, for `with_driver` and `out_for_delivery`. Staff only: the shop service always sends null. */
   driverName: string | null;
 }
 

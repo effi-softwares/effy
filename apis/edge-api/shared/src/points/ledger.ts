@@ -1,19 +1,10 @@
 /**
- * THE POINTS LEDGER (074) — the only code that writes points. Every service that changes a customer's
- * points (customer, commerce, orders, and the paid transition in ../payments) calls these functions.
+ * The points ledger: the only code that writes points. Every writer takes the caller's transaction and
+ * locks the customer's `points_account` row first, which keeps the balance non-negative under
+ * concurrency. Lock order is always order/payment row, then account row.
  *
- * ⚠ EVERY WRITER TAKES THE CALLER'S TRANSACTION AND LOCKS THE CUSTOMER'S `points_account` ROW FIRST.
- * That lock is what makes "never negative" (FR-004) true under concurrency: a checkout, a staff debit
- * and the expiry sweep for one customer run one after another, each reading the balance as the last
- * one left it. Lock order across the platform is always ORDER/PAYMENT ROW → ACCOUNT ROW, never the
- * reverse, so no two transactions can each hold what the other needs.
- *
- * ⚠ NOTHING HERE UPDATES OR DELETES AN ENTRY OR AN ALLOCATION (FR-003). A lot's remainder is its
- * points less the allocations against it; the balance is `public.points_usable`. Neither is stored.
- *
- * ⚠ NO METRICS AND NO ANNOUNCEMENTS HERE. These functions run inside a transaction that may still roll
- * back; an outcome that rolled back did not happen. They RETURN what happened and the caller meters and
- * announces after its commit.
+ * Nothing updates or deletes an entry or allocation; remainders and the balance (`public.points_usable`)
+ * are derived. No metrics or announcements here: the caller does both after its commit.
  */
 import type { Queryable } from "../lib/db";
 import {
@@ -23,10 +14,10 @@ import { expiresAtFor } from "./expiry";
 import { loadSettings } from "./settings";
 import { isValidReason, type DebitKind } from "./vocabulary";
 
-/** Who made a change (FR-002): a staff member, the customer themself, or a named platform flow. */
+/** Who made a change: a staff member, the customer, or a named platform flow. */
 export type Author = { kind: "staff"; sub: string } | { kind: "customer"; sub: string } | { kind: "system"; flow: string };
 
-/** No single change is larger than this — a typo, not an intent. */
+/** No single change is larger than this: a typo, not an intent. */
 export const MAX_POINTS_PER_CHANGE = 1_000_000;
 
 function assertPoints(points: number): void {
@@ -47,7 +38,7 @@ export async function lockAccount(tx: Queryable, customerId: string): Promise<vo
   await tx.query(`SELECT 1 FROM public.points_account WHERE customer_id = $1 FOR UPDATE`, [customerId]);
 }
 
-/** THE usable balance — `public.points_usable`, the one computation (research R1). */
+/** The usable balance: `public.points_usable`, the one computation. */
 export async function usable(q: Queryable, customerId: string, at: Date, exceptOrderId: string | null = null): Promise<number> {
   return (
     (await q.query<{ n: number }>(`SELECT public.points_usable($1::uuid, $2::timestamptz, $3::uuid) AS n`, [customerId, at, exceptOrderId]))
@@ -56,11 +47,8 @@ export async function usable(q: Queryable, customerId: string, at: Date, exceptO
 }
 
 /**
- * Write a debit and its allocations. `fromLot` set: take the points from that one lot (expiry).
- * Otherwise FIFO over unexpired lots, soonest-expiring first (FR-016).
- *
- * ⚠ The caller has already locked the account and decided the points are there; running short here is
- * an invariant violation, so it throws rather than writing a partial debit.
+ * Writes a debit and its allocations: from `fromLot` (expiry), else FIFO over unexpired lots, soonest
+ * expiring first. The caller has checked the points are there, so running short throws.
  */
 async function writeDebit(
   tx: Queryable,
@@ -107,11 +95,7 @@ SELECT e.id::text AS id,
   return entryId;
 }
 
-/**
- * Enqueue "you received points" — push AND email, one intent per channel (FR-011), as 053 does for
- * order_delivered. The payload is routing-only; the worker resolves the amount and words at send time.
- * ⚠ The email address is SNAPSHOTTED here (052's rule).
- */
+/** Enqueues "you received points" by push and email. Routing ids only; the address is snapshotted now. */
 async function enqueueCredited(tx: Queryable, customerId: string, entryId: string): Promise<void> {
   await tx.query(
     `
@@ -137,21 +121,14 @@ export interface CreditInput {
   note?: string | null;
   orderId?: string | null;
   author: Author;
-  /** For automatic flows: the same key twice is ONE credit (FR-009). */
+  /** For automatic flows: the same key twice is one credit. */
   dedupeKey?: string | null;
-  /**
-   * 081 — send no "you received points" message. ⚠ ONLY for a flow that tells the customer itself, in
-   * the same transaction, what they received: a courier override's own message says the points, and a
-   * second one about the same points is noise. The entry, its expiry and the balance are unchanged.
-   */
+  /** No message, for a flow whose own message already tells the customer the points (a courier override). */
   quiet?: boolean;
   now: Date;
 }
 
-/**
- * Credit points: a new lot with a full expiry period from today, and a message to the customer.
- * Returns `created: false` when `dedupeKey` matched an existing credit — which is a success.
- */
+/** Credits a new lot with a full expiry period, and messages the customer. `created: false` on a matched `dedupeKey` is a success. */
 export async function credit(tx: Queryable, c: CreditInput): Promise<{ entryId: string; created: boolean; expiresAt: Date }> {
   assertPoints(c.points);
   if (!isValidReason(c.kind, c.reason)) throw new PointsReasonInvalidError();
@@ -161,7 +138,7 @@ export async function credit(tx: Queryable, c: CreditInput): Promise<{ entryId: 
 
   await lockAccount(tx, c.customerId);
   if (c.orderId) {
-    // ⚠ ONE QUERY FOR "exists" AND "is theirs" — the refusal must not say which (FR-010).
+    // One query for "exists" and "is theirs": the refusal must not say which.
     const ok = (await tx.query(`SELECT 1 FROM public."order" WHERE id = $1 AND customer_id = $2`, [c.orderId, c.customerId])).rowCount ?? 0;
     if (ok === 0) throw new PointsOrderNotFoundError();
   }
@@ -202,7 +179,7 @@ export interface DebitInput {
   now: Date;
 }
 
-/** A staff correction (FR-008). Refused, changing nothing, when it is more than is usable now. */
+/** A staff correction. Refused, changing nothing, when more than is usable now. */
 export async function debit(tx: Queryable, d: DebitInput): Promise<{ entryId: string }> {
   assertPoints(d.points);
   if (!isValidReason("staff_debit", d.reason)) throw new PointsReasonInvalidError();
@@ -210,7 +187,7 @@ export async function debit(tx: Queryable, d: DebitInput): Promise<{ entryId: st
   if (d.reason === "other" && note === null) throw new PointsNoteRequiredError();
 
   await lockAccount(tx, d.customerId);
-  // ⚠ USABLE, NOT THE RAW LOT TOTAL: points a live checkout holds are spoken for (FR-015).
+  // Usable, not the raw lot total: a live checkout's hold is spoken for.
   const u = await usable(tx, d.customerId, d.now);
   if (u < d.points) throw new InsufficientPointsError(Math.max(0, u));
   const entryId = await writeDebit(tx, {
@@ -219,12 +196,11 @@ export async function debit(tx: Queryable, d: DebitInput): Promise<{ entryId: st
   return { entryId };
 }
 
-// ── Checkout ─────────────────────────────────────────────────────────────────────────────────────
+// Checkout
 
 /**
- * Set points aside for one order's checkout (research R3). Replaces the order's own earlier hold, which
- * is ignored when deciding what is usable — a shopper refreshing the payment step is not refused by
- * their own hold. `points = 0` releases any hold the order had.
+ * Sets points aside for one order's checkout, replacing its own earlier hold (ignored when deciding
+ * what is usable). `points = 0` releases the hold.
  */
 export async function hold(
   tx: Queryable,
@@ -253,7 +229,7 @@ ON CONFLICT (order_id) DO UPDATE
   return { heldUntil };
 }
 
-/** Give an order's held points back (payment failed, abandoned, or the shopper chose none). Idempotent. */
+/** Gives an order's held points back. Idempotent. */
 export async function release(tx: Queryable, orderId: string): Promise<void> {
   await tx.query(
     `UPDATE public.points_hold SET state = 'released', held_until = NULL, updated_at = now() WHERE order_id = $1 AND state = 'held'`,
@@ -262,21 +238,16 @@ export async function release(tx: Queryable, orderId: string): Promise<void> {
 }
 
 export interface SpendOutcome {
-  /** Points actually spent. 0 when the order held none. */
+  /** Points actually spent; 0 when none were held. */
   spent: number;
-  /** Held points that were no longer there to spend — the late payer (R3). Effy absorbs them. */
+  /** Held points no longer there to spend. Effy absorbs them. */
   shortfallPoints: number;
   customerId: string | null;
 }
 
 /**
- * Turn an order's hold into a `spent` entry — called by `finalizeSucceeded`, inside the paid
- * transaction, exactly once (that transaction's guard and the unique `spent`-per-order index both
- * ensure it).
- *
- * ⚠ THE LATE PAYER. If the hold lapsed and the points were spent or debited elsewhere meanwhile, this
- * spends what is still usable and reports the rest as a shortfall. The order stands — the customer paid
- * the card amount they were shown — and the balance never goes negative.
+ * Turns an order's hold into a `spent` entry, once, inside the paid transaction. If the hold lapsed and
+ * the points went elsewhere, spends what is usable and reports the rest as a shortfall.
  */
 export async function spendHeld(tx: Queryable, orderId: string, now: Date): Promise<SpendOutcome> {
   const held = (
@@ -302,13 +273,11 @@ export async function spendHeld(tx: Queryable, orderId: string, now: Date): Prom
   return { spent, shortfallPoints: held.points - spent, customerId: held.customer_id };
 }
 
-// ── Refunds ──────────────────────────────────────────────────────────────────────────────────────
+// Refunds
 
 /**
- * Credit back the points a refund returned (research R5): a new lot with a fresh full expiry (FR-020).
- * Idempotent per refund — the unique `refund_id` makes a second call a no-op, so the paths that can
- * reach it (submission, the reconciler, a card-free refund) return points exactly once.
- * Returns the points credited by THIS call (0 on a repeat or when the refund returned none).
+ * Credits back a refund's points as a new lot with a fresh expiry. Idempotent per refund (unique
+ * `refund_id`). Returns the points credited by this call.
  */
 export async function returnForRefund(tx: Queryable, refundId: string, now: Date): Promise<{ points: number; customerId: string | null }> {
   const r = (
@@ -333,9 +302,9 @@ ON CONFLICT (refund_id) DO NOTHING`,
   return { points: (inserted.rowCount ?? 0) > 0 ? r.points_returned : 0, customerId: r.customer_id };
 }
 
-// ── Expiry and closure ───────────────────────────────────────────────────────────────────────────
+// Expiry and closure
 
-/** Lots past their expiry that still have points left — the sweep's work list. */
+/** Lots past expiry with points left: the sweep's work list. */
 export async function dueToExpire(q: Queryable, now: Date, limit: number): Promise<{ lotId: string; customerId: string }[]> {
   return (
     await q.query<{ lot_id: string; customer_id: string }>(
@@ -351,10 +320,7 @@ SELECT e.id::text AS lot_id, e.customer_id::text AS customer_id
   ).rows.map((r) => ({ lotId: r.lot_id, customerId: r.customer_id }));
 }
 
-/**
- * Write the `expired` history line for one lot (research R2). ⚠ The lot ALREADY stopped counting when
- * its expires_at passed; this only records it. Re-checks under the lock, so two sweeps expire it once.
- */
+/** Records the `expired` line for one lot (it already stopped counting). Re-checks under the lock. */
 export async function expireLot(tx: Queryable, lotId: string, now: Date): Promise<{ points: number; customerId: string }> {
   const lot = (await tx.query<{ customer_id: string }>(`SELECT customer_id::text AS customer_id FROM public.points_entry WHERE id = $1`, [lotId])).rows[0];
   if (!lot) return { points: 0, customerId: "" };
@@ -375,12 +341,8 @@ export async function expireLot(tx: Queryable, lotId: string, now: Date): Promis
 }
 
 /**
- * Forfeit every unexpired point when an account closure becomes FINAL (research R10, FR-024). Holds are
- * ignored: a closed account checks out nothing. Returns the points forfeited.
- *
- * ⚠ Its caller is the account-erasure step, which does not exist yet
- * (docs/next-implementation-candidates.md item 3). Until it does, a closed account's points are simply
- * unusable — the customer cannot sign in — and a restored account finds them intact.
+ * Forfeits every unexpired point when an account closure becomes final. Returns the points forfeited.
+ * No caller yet: account erasure is not built (docs/next-implementation-candidates.md item 3).
  */
 export async function forfeit(tx: Queryable, customerId: string, now: Date): Promise<number> {
   await lockAccount(tx, customerId);

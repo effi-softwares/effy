@@ -8,10 +8,7 @@ import type { ResolveHoldRequest, StaffActionResponse } from "@effy/shared-types
 import { SequenceActionError, resolveHold } from "../sequence/service";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * POST /fleet/v1/held-packages/{holdId}/resolve (093) — decide a package a driver declared missing:
- * found (it is planned again on the next pass) or lost (never planned again).
- */
+/** Found (planned again on the next pass) or lost (never planned again). */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");

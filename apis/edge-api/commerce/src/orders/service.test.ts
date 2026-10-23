@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { OrdersRepository } from "./repository";
 import { createOrdersService, OrderNotFoundError, refundBlock } from "./service";
 
-/**
- * 070 — the shopper's receipt. Ported from the retired backend's own order tests: what the document
- * says, what it must never say, and which keys are ABSENT rather than empty.
- */
 const ORDER = "11111111-1111-4111-8111-111111111111";
 const scope = { log: { warn: () => undefined } } as never;
 
@@ -208,7 +204,7 @@ describe("what the order list says beside the totals (084)", () => {
   it("pictures follow the lines, and a failed picture is a missing picture, not a failed list", async () => {
     const o = await list({ status: "paid", portion_statuses: [], image_refs: [{ key: "a.jpg", widths: [320, 160] }, { key: null, widths: null }] });
     expect(o.thumbnails).toEqual(["https://img/a.jpg", null]);
-    // 086 — index-aligned with the thumbnails, ascending, [] where a line has no copies.
+    // Index-aligned with the thumbnails, ascending, [] where a line has no copies.
     expect(o.thumbnailWidths).toEqual([[160, 320], []]);
     const failing = createOrdersService({
       repo: repoWith({ list: async () => [{ ...base, status: "paid", image_refs: [{ key: "a.jpg", widths: null }] } as never] }),

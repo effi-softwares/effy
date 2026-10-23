@@ -17,9 +17,9 @@ const WEEKDAYS = [
 
 /**
  * Which days Effy delivers, how far ahead a customer may choose, and the timings the window rules
- * rest on (069, 078).
+ * rest on.
  *
- * ⚠ THE HUB TURNAROUND IS AN ASSUMPTION, AND THE SCREEN SAYS SO. It has never been measured — there
+ * The hub turnaround is an assumption, and the screen says so. It has never been measured — there
  * is no timed round — and it decides what a customer is offered today, so it is labelled an estimate
  * rather than presented as a fact an operator might assume someone verified.
  *
@@ -46,7 +46,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
   const [hold, setHold] = useState(String(value.slotHoldMin));
   const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin));
   const [asapEstimate, setAsapEstimate] = useState(value.asapEstimate ?? "");
-  // 093 — drivers' work: when a late step is raised to dispatch, and the daily vehicle check.
+  // Drivers' work: when a late step is raised to dispatch, and the daily vehicle check.
   const [loadOverdue, setLoadOverdue] = useState(String(value.loadOverdueMin ?? 20));
   const [checkinOverdue, setCheckinOverdue] = useState(String(value.checkinOverdueMin ?? 30));
   const [vehicleCheck, setVehicleCheck] = useState(value.vehicleCheckRequired ?? false);
@@ -129,7 +129,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           setEffyLookahead,
         )}
 
-        {/* 085 — what a customer choosing "Standard" is told. */}
+        {/* What a customer choosing "Standard" is told. */}
         <div className="space-y-2">
           <Label htmlFor="days-asapEstimate">“Standard” delivery tile — the timeframe customers are shown</Label>
           <Input
@@ -268,7 +268,7 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
       const added = await add.mutateAsync({ day, label: label.trim() || null });
       setDay("");
       setLabel("");
-      // ⚠ FR-043: said plainly. Closing a date moves no placed order — the customer was promised that
+      // Said plainly. Closing a date moves no placed order — the customer was promised that
       // day and paid for it — so the operator has to know there are orders to deal with.
       if (added.affectedOrders > 0) {
         setNotice(

@@ -1,25 +1,15 @@
 import { parseLiveUpdate, type LiveDescriptor, type LiveKind } from "@effy/shared-types";
 
 /**
- * 071 — the live-update client: one socket, one subscription, and the rules for when to read.
- *
- * It carries no data. It tells its owner two things — "this kind of thing changed" and "you may
- * have missed something, read everything once" — and what state the channel is in. The owner
- * re-reads through the routes it already uses.
- *
- * ⚠ THERE IS NO DATA TIMER HERE (FR-009). The timers below keep a connection alive, back off a
- * reconnect, and move the subscription to the next ten-minute channel; none of them reads
- * anything, and an idle connected screen makes no request to the gateway (FR-012).
- *
- * ⚠ WHY THE SUBSCRIPTION MOVES. The channel authorizes a subscription once and never looks again,
- * so the channel name carries a ten-minute epoch and every app must subscribe afresh — and be
- * checked afresh — each epoch. That is what stops updates reaching a person whose access has ended
- * (FR-023). A refused subscription is therefore not an error to retry: it is the answer.
+ * The live-update client: one socket, one subscription. It carries no data; it tells its owner "this
+ * kind changed", "you may have missed something, read once", and the channel's state. Its timers keep
+ * the connection alive, back off reconnects and move to the next ten-minute epoch; none reads anything.
+ * The epoch is how access is re-checked, so a refused subscription is an answer, not an error to retry.
  */
 
 export type LiveState = "live" | "reconnecting" | "off";
 
-/** The part of a `WebSocket` this uses — so a test can stand in for it. */
+/** The part of a `WebSocket` this uses, so a test can stand in for it. */
 export interface LiveSocket {
   send(data: string): void;
   close(): void;
@@ -30,10 +20,7 @@ export interface LiveSocket {
 }
 
 export interface LiveClientOptions {
-  /**
-   * Where this person's channel is. `null` when there is none for them — no live channel in this
-   * environment, or no active record. Throwing means "could not find out": it is retried.
-   */
+  /** Where this person's channel is; `null` when there is none. Throwing means "could not find out" and is retried. */
   loadDescriptor(): Promise<LiveDescriptor | null>;
   /** The token the app sends to the API. `null` when signed out. */
   getToken(): Promise<string | null>;
@@ -48,9 +35,9 @@ export interface LiveClientOptions {
 export interface LiveClient {
   /** Connect, or reconnect if the channel is off. Does nothing when already connecting or live. */
   start(): void;
-  /** Close the connection and stay closed until `start()`. */
+  /** Close the connection and stay closed until `start`. */
   stop(): void;
-  /** Try again now rather than waiting out a backoff — the network just came back. */
+  /** Try again now rather than waiting out a backoff (the network just came back). */
   retryNow(): void;
   state(): LiveState;
 }
@@ -119,7 +106,7 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
     }
   }
 
-  /** Stop for good: signed out, refused, or no channel. Only `start()` leaves this. */
+  /** Stop for good: signed out, refused, or no channel. Only `start` leaves this. */
   function turnOff(): void {
     generation++;
     clearTimers();
@@ -152,8 +139,7 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
   function armKeepAlive(): void {
     clearTimeout(keepAliveTimer);
     const mine = generation;
-    // No keep-alive within the channel's own stated timeout: the connection is dead, however open
-    // the socket claims to be.
+    // No keep-alive within the stated timeout: the connection is dead, however open the socket claims to be.
     keepAliveTimer = setTimeout(() => {
       if (mine === generation) scheduleReconnect();
     }, keepAliveTimeoutMs);
@@ -250,7 +236,7 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
         return;
       }
       case "subscribe_error":
-        // Refused: access has ended, or this person never had a channel. Not retried (see header).
+        // Refused: access has ended, or there never was a channel. Not retried.
         if (epochOfSubscription(message.id) !== undefined) turnOff();
         return;
       case "data": {
@@ -279,8 +265,7 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
     caughtUp = false;
     setState("reconnecting");
 
-    // The channel first, then the token: a surface whose server hands back both in one answer
-    // (customer-web) only has its token once the descriptor has been loaded.
+    // The channel first, then the token: customer-web gets its token from the descriptor's answer.
     let token: string | null;
     let found: LiveDescriptor | null;
     try {

@@ -7,11 +7,7 @@ import { render } from "../src/render.js";
 import { validateVars } from "../src/catalog.js";
 import type { MailIdentity } from "../src/audience.js";
 
-/**
- * The commerce proof (spec US5). order-confirmation is the one template with real data — a line-item
- * table, totals, an address — so it is the one that exercises the object-array var spec, money
- * formatting, and the size budget UNDER RENDER rather than as a static shell.
- */
+/** The one template with real data: the object-array spec, money formatting and the rendered size budget. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = resolve(here, "../src/fixtures");
@@ -30,7 +26,7 @@ describe("order-confirmation — the large basket", () => {
   const large = loadFixture("order-confirmation.json");
 
   it("has a genuinely large basket, so the budget test is real (FR-061)", () => {
-    // A fixture with three items proves nothing about Gmail's clip. This one is the actual test.
+    // A large basket: three items prove nothing about Gmail's clip.
     expect(large.items.length).toBeGreaterThanOrEqual(20);
   });
 
@@ -44,7 +40,7 @@ describe("order-confirmation — the large basket", () => {
     for (const item of large.items) {
       expect(m.html).toContain(item.name);
     }
-    // ⚠ The RENDERED size (loop expanded), not the static artifact, is what a recipient receives.
+    // The rendered size (loop expanded) is what a recipient receives.
     const bytes = Buffer.byteLength(m.html, "utf8");
     expect(bytes, `rendered order-confirmation is ${bytes} B with ${large.items.length} items`)
       .toBeLessThan(GMAIL_FAIL);
@@ -69,13 +65,13 @@ describe("order-confirmation — the hostile basket (escaping, SC-016)", () => {
   const hostile = loadFixture("order-confirmation.hostile.json");
 
   it("⚠ renders markup in product/shop/address names as inert text, never as structure", () => {
-    // SES's own template engine does NOT escape, and product/shop/customer names are user-influenced.
+    // Ses's own template engine does not escape, and product/shop/customer names are user-influenced.
     const m = render("order-confirmation", hostile, "customer", identity);
     // No executable markup from any interpolated value survives.
     expect(m.html).not.toContain("<script>");
     expect(m.html).not.toContain("onerror=");
     expect(m.html).not.toContain("</td></tr><script>");
-    // The dangerous characters appear ESCAPED, proving they were rendered as text.
+    // The dangerous characters appear escaped, proving they were rendered as text.
     expect(m.html).toContain("&lt;script&gt;");
   });
 
@@ -85,8 +81,6 @@ describe("order-confirmation — the hostile basket (escaping, SC-016)", () => {
     expect(m.html).not.toContain("<img src=x");
   });
 });
-
-// ── 052 ─────────────────────────────────────────────────────────────────────────────────────────
 
 describe("order-confirmation — 052's additions", () => {
   const large = loadFixture("order-confirmation.json");
@@ -107,11 +101,7 @@ describe("order-confirmation — 052's additions", () => {
     }
   });
 
-  /**
-   * ⚠ THE ARITHMETIC A SHOPPER CAN CHECK (FR-004, SC-002): subtotal − discount + delivery = total.
-   * The fixture is the proof, so a future edit that breaks the sum fails here rather than shipping a
-   * receipt whose lines do not add up.
-   */
+  /** subtotal − discount + delivery = total, as a shopper can check. */
   it("the fixture's own totals reconcile", () => {
     const n = (s: string) => Number(s.replace(/[^0-9.]/g, ""));
     const lines = large.items.reduce((t: number, i: { lineTotal: string }) => t + n(i.lineTotal), 0);
@@ -122,10 +112,7 @@ describe("order-confirmation — 052's additions", () => {
     );
   });
 
-  /**
-   * ⚠ A ZERO COMPONENT IS OMITTED, NEVER PRINTED AS "$0.00" OR A DASH. On a financial record
-   * "nothing" and "unknown" are different claims and a dash reads as the second.
-   */
+  /** A zero component is omitted, never "$0.00" or a dash (which reads as unknown). */
   it("omits the discount, delivery and payment rows when they do not apply", () => {
     const plain = {
       ...large,
@@ -163,12 +150,7 @@ describe("order-confirmation — 052's additions", () => {
     expect(diverged.text).toContain("9 Other Rd");
   });
 
-  /**
-   * ⚠ 039'S DEFECT, PINNED. `email-kit` was HTML-escaping the plain-text part, so `?token=ABC` became
-   * `?token&#x3D;ABC` — harmless in HTML (clients decode entities in attributes), FATAL in text/plain
-   * where nothing decodes it, and invisible because the send succeeded and the mail arrived. A receipt
-   * links back to the order, so the same class of bug would land here.
-   */
+  /** The text part is not HTML-escaped: `?token=ABC` must not become `?token&#x3D;ABC`. */
   it("⚠ leaves the text part UNESCAPED — the order link must be usable in a plain-text client", () => {
     const m = render(
       "order-confirmation",
@@ -182,7 +164,7 @@ describe("order-confirmation — 052's additions", () => {
     }
   });
 
-  /** Every figure a shopper needs must survive with images blocked / as plain text (FR-022). */
+  /** Every figure survives with images blocked and as plain text. */
   it("carries every figure in the text part", () => {
     const m = render("order-confirmation", large, "customer", identity);
     for (const v of [large.subtotal, large.discountAmount, large.total]) {
@@ -191,10 +173,7 @@ describe("order-confirmation — 052's additions", () => {
     expect(m.text).toContain(large.orderNumber);
   });
 
-  /**
-   * 077 — an order placed since the fee engine prints its delivery charge as the LINES it was sold
-   * with, in place of the single row; they sum to that row's figure.
-   */
+  /** The delivery charge prints as the lines it was sold with, in place of the single row, summing to it. */
   it("077 — prints the delivery lines instead of the single Delivery row, in both parts", () => {
     const m = render("order-confirmation", large, "customer", identity);
     for (const l of large.deliveryLines as { label: string; amount: string }[]) {
@@ -224,14 +203,14 @@ describe("order-confirmation — 052's additions", () => {
     expect(m.text).toContain("Free delivery: -$6.00");
   });
 
-  /** FR-024: a customer must never be able to opt out of their own proof of purchase. */
+  /** Nobody can opt out of their own proof of purchase. */
   it("⚠ carries NO unsubscribe affordance", () => {
     const m = render("order-confirmation", large, "customer", identity);
     expect(m.html.toLowerCase()).not.toContain("unsubscribe");
     expect(m.text.toLowerCase()).not.toContain("unsubscribe");
   });
 
-  /** FR-031: no fabricated legal identifier while the operator's values are unsupplied. */
+  /** No fabricated legal identifier while the operator's values are unsupplied. */
   it("⚠ shows NO ABN, no GST amount and does not call itself a tax invoice", () => {
     const m = render("order-confirmation", large, "customer", identity);
     for (const body of [m.html, m.text]) {
@@ -239,16 +218,16 @@ describe("order-confirmation — 052's additions", () => {
       expect(body).not.toMatch(/\bGST\s*(amount|total|payable)\b/i);
       expect(body).not.toMatch(/\[ABN\]|\[LEGAL_ENTITY_NAME\]|\[REGISTERED_ADDRESS\]/);
     }
-    // It DOES say what it is, and how to get a real one (FR-032).
+    // It says what it is, and how to get a tax invoice.
     expect(m.text).toContain("record of payment");
     expect(m.text).toContain("tax invoice");
   });
 
-  /** FR-025: the preheader must not repeat the subject, and must not restate the amount. */
+  /** The preheader must not repeat the subject or restate the amount. */
   it("⚠ the preheader restates neither the subject nor the total", () => {
     const m = render("order-confirmation", large, "customer", identity);
     expect(m.subject).toContain(large.orderNumber);
-    // The preview line lives in the html head; assert on what it must NOT carry.
+    // The preview line lives in the html head; assert on what it must not carry.
     const preview = /<mj-preview>([\s\S]*?)<\/mj-preview>|id="preheader"[^>]*>([\s\S]*?)</.exec(m.html);
     const line = (preview?.[1] ?? preview?.[2] ?? "").trim();
     if (line) {

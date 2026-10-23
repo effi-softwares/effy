@@ -45,7 +45,7 @@ const numberAttr: SchemaAttribute = {
 };
 
 const V1 = "00000000-0000-4000-8000-0000000000a1";
-/** 098 — a product with no options is created with exactly one variant, which carries the price. */
+/** A product with no options is created with exactly one variant, which carries the price. */
 const baseVariant = { id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: "9.99" };
 const baseBody = {
   productTypeId: "type-1",
@@ -183,12 +183,7 @@ describe("presignUpload (ownership + type/size validation)", () => {
   });
 });
 
-// ── Shipping weight (032, FR-036a/FR-037a) ────────────────────────────────────────────────────
-//
-// ⚠ The point of these is that "measured" must mean MEASURED. The flag is derived from the act of
-// supplying a weight and is never accepted from a client — otherwise "measured" would collapse into
-// "the client said so", and the whole distinction between a real weight and the platform's stated
-// assumption would stop meaning anything.
+// "Measured" must mean measured: the flag comes from supplying a weight, never from the client.
 describe("createProduct — shipping weight", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -208,8 +203,7 @@ describe("createProduct — shipping weight", () => {
     );
   });
 
-  // ⚠ NULL means "not supplied, keep the column default (an assumption)". It must not become 0 —
-  // a zero-weight product would ship free, and no test downstream would notice.
+  // Null means not supplied (the column default, an assumption); never 0, which would ship free.
   it("omitting a weight passes null, never zero", async () => {
     await createProduct("shop-1", baseBody, "sub");
     const input = repo.createProduct.mock.calls[0]![1] as { variants: { weightGrams: number | null }[] };
@@ -228,13 +222,12 @@ describe("createProduct — shipping weight", () => {
     expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: "heavy" }), "sub"))).toBe("validation");
   });
 
-  // 250000 for "250 g" is the obvious slip, and it would price that basket at the cap forever.
+  // 250000 for "250 g" is the obvious slip.
   it("rejects an implausible weight with a units hint", async () => {
     expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: 300_000 }), "sub"))).toBe("validation");
   });
 
-  // ⚠ FR-037a. A client that sends weightIsAssumed:false with no weight must not be able to declare
-  // the platform's own default a measurement.
+  // `weightIsAssumed:false` with no weight must not make the default a measurement.
   it("ignores a client-supplied weightIsAssumed", async () => {
     await createProduct("shop-1", withVariant({ weightIsAssumed: false }), "sub");
     const input = repo.createProduct.mock.calls[0]![1] as { variants: Record<string, unknown>[] };

@@ -1,23 +1,23 @@
-# One environment's email SENDING identity.
+# One environment's email sending identity.
 #
-# WHY THIS MATTERS MORE THAN IT LOOKS: passwordless EMAIL_OTP is the ONLY credential this platform
+# why this matters more than it looks: passwordless EMAIL_OTP is the only credential this platform
 # issues — customers, drivers, shop operators, and back-office staff all sign in with an emailed
 # code, and there is no password fallback anywhere by design. So "can we send mail, and does it land
 # in the inbox" is not deliverability polish; it is the availability of authentication itself.
 #
-# ⚠ THE SEVERE FAILURE MODE: if SES pauses sending (bounce > 5% or complaint > 0.1%), NOBODY on ANY
+# the severe failure mode: if SES pauses sending (bounce > 5% or complaint > 0.1%), nobody on any
 # of the four audiences can sign in. It is invisible until it is total. Hence the reputation alarms
-# in the env root (research R9).
+# in the env root.
 #
-# NOTE: the SES identity POLICY that lets Cognito send through this identity is NOT here — it lives
+# note: the SES identity policy that lets Cognito send through this identity is not here — it lives
 # in the env root. Putting it here would create a module cycle (this module would need the pool ARNs,
 # while the pools need this module's identity ARN for their source_arn). See infra/envs/dev/dns.tf.
 
 locals {
-  # Custom MAIL FROM subdomain. WITHOUT it the envelope sender is an amazonses.com address, so SPF
+  # Custom mail from subdomain. Without it the envelope sender is an amazonses.com address, so SPF
   # aligns to Amazon's domain rather than Effy's — DMARC would still pass on DKIM alone, but on one
   # leg instead of two. This makes the mail unambiguously legitimate to a receiving system rather
-  # than merely acceptable (data-model E4).
+  # than merely acceptable.
   mail_from_domain = "mail.${var.domain}"
 }
 
@@ -25,8 +25,8 @@ resource "aws_sesv2_email_identity" "this" {
   email_identity = var.domain
   tags           = var.tags
 
-  # 037: every send from this identity is attributed to a configuration set, so SES publishes a
-  # per-message outcome for it. Without one the platform's only signal is an account-wide RATE —
+  # Every send from this identity is attributed to a configuration set, so SES publishes a
+  # per-message outcome for it. Without one the platform's only signal is an account-wide rate
   # and a single person being locked out never moves a rate.
   configuration_set_name = var.configuration_set_name
 
@@ -48,14 +48,14 @@ resource "aws_route53_record" "dkim" {
   allow_overwrite = true
 }
 
-# ── Custom MAIL FROM ──────────────────────────────────────────────────────────────────────────
+# ── Custom mail from ──────────────────────────────────────────────────────────────────────────
 resource "aws_sesv2_email_identity_mail_from_attributes" "this" {
   email_identity = aws_sesv2_email_identity.this.email_identity
 
   mail_from_domain = local.mail_from_domain
 
   # If the MX record ever fails to resolve, fall back to the amazonses.com envelope rather than
-  # DROPPING the mail. On a platform where the only credential arrives by email, a degraded send
+  # dropping the mail. On a platform where the only credential arrives by email, a degraded send
   # beats a silent non-send.
   behavior_on_mx_failure = "USE_DEFAULT_VALUE"
 }
@@ -83,8 +83,8 @@ resource "aws_route53_record" "mail_from_spf" {
 # ── DMARC ─────────────────────────────────────────────────────────────────────────────────────
 # p=none by default — see the dmarc_policy variable for why starting at reject is dangerous here.
 #
-# ⚠ EVERY ENVIRONMENT PUBLISHES ITS OWN (037 FR-015). A receiver queries the From domain's own
-# _dmarc record FIRST and only falls back to the organisational domain when it finds nothing — so
+# every environment publishes its own. A receiver queries the From domain's own
+# _dmarc record first and only falls back to the organisational domain when it finds nothing — so
 # this record makes dev self-governing, and the apex's policy (and its sp=) never reaches it. That
 # is the property that lets the apex tighten to reject while an environment is still at none.
 resource "aws_route53_record" "dmarc" {

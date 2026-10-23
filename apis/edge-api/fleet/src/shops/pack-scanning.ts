@@ -1,8 +1,5 @@
-// 096 US4 — "Require pack scanning" (FR-020): when on, a shop cannot mark a portion ready until every
-// bag's label has been scanned as packed. It is dispatch's rule for a shop, so it lives in fleet (the
-// staff gateway), not in the admin stack, which is at CloudFormation's resource limit (095).
-//
-// ⚠ The ONE writer of `shop.pack_scan_required`. The shop service only reads it, at the ready gate.
+// "Require pack scanning": a shop cannot mark a portion ready until every bag is scanned as packed.
+// Dispatch's rule, so it lives in fleet. The one writer of `shop.pack_scan_required`; shop only reads it.
 import { withTransaction } from "@effy/edge-shared";
 import type pg from "pg";
 
@@ -26,7 +23,7 @@ async function write(tx: pg.PoolClient, shopId: string, required: boolean): Prom
   return { changed: res.rows[0]!.before !== required };
 }
 
-/** Set the rule; a repeat of the same value changes nothing and writes no audit row. */
+/** A repeat of the same value writes no audit row. */
 export async function setPackScanning(shopId: string, required: boolean, actorSub: string): Promise<PackScanning> {
   return withTransaction(async (tx) => {
     const out = await write(tx, shopId, required);

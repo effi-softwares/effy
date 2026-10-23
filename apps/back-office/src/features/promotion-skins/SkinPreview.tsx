@@ -17,7 +17,7 @@ import { PromoSkin, type PromoSkinPromotion } from "@effy/web-kit/promo-skin";
 import { cn } from "@/lib/utils";
 
 /**
- * 095 — a promotion as shoppers will see it in a skin. This IS the website's renderer
+ * A promotion as shoppers will see it in a skin. This IS the website's renderer
  * (`@effy/web-kit/promo-skin`), so the preview cannot drift from the real thing. Classic is the website's
  * own pre-095 drawing, which back-office cannot render: it is shown as a labelled stand-in.
  */

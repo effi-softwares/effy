@@ -2,14 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 069 US5/US6 — delivery slots and the standard-delivery calendar, against the REAL migrations.
- *
- * ⚠ WHAT CANNOT BE A UNIT TEST HERE: that "booked today" agrees with what checkout counts (it is a
- * view both read), that editing a slot leaves every placed order's window alone (they are different
- * rows), and that a second slot with the same window is refused by the database rather than by a
- * check-then-insert race.
- */
+/** "Booked" matches checkout (one view), edits leave placed orders alone, duplicate windows are refused by the database. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -35,7 +28,8 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql, type RequestScope } from "@effy/edge-shared";
+import { type RequestScope } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import {
   addNonDeliveryDate,
@@ -76,15 +70,15 @@ async function audits(action: string) {
   )).rows;
 }
 
-/** A paid order with one package, booked into `slotId` today (or promised `day` as standard). */
+/** One package, booked into `slotId` today, or promised `day` as standard. */
 async function order(opts: { slotId?: string; state?: string; heldFor?: string; standardDay?: string; status?: string; windowDay?: string }) {
   const cust = await one<{ id: string }>(
     `INSERT INTO public.customer (cognito_sub, email)
      VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
   );
   const o = await one<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 10, 12, '{}'::jsonb, 'paid') RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 10, 12, '{}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust.id],
   );
   const shop = await one<{ id: string }>(
@@ -167,7 +161,7 @@ d("069 — same-day delivery slots", () => {
   });
 
   it("085 — THE Any time window: its hours and limit change, it is never switched off, and none can be made", async () => {
-    // (This suite empties the table before each test; the migration is what creates the window.)
+    // The suite empties the table; the migration is what creates the window.
     const id = (await pool.query<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by)
        VALUES ('12:00', '21:00', '10:00', NULL, true, 'test') RETURNING id::text AS id`,
@@ -204,7 +198,7 @@ d("069 — same-day delivery slots", () => {
     const slot = await createSlot({ ...EVENING, capacity: 9 }, ACTOR, scope);
     await order({ slotId: slot.id, state: "confirmed" });
     await order({ slotId: slot.id, state: "held" });
-    await order({ slotId: slot.id, state: "held", heldFor: "-1 minute" }); // lapsed
+    await order({ slotId: slot.id, state: "held", heldFor: "-1 minute" });
     await order({ slotId: slot.id, state: "released" });
 
     expect((await listSlots())[0]!.bookedToday).toBe(2);
@@ -214,10 +208,10 @@ d("069 — same-day delivery slots", () => {
     const days = effyDays(new Date(), 3, [], new Set(), true).map((x) => x.date);
     const evening = await createSlot(EVENING, ACTOR, scope);
     const late = await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00" }, ACTOR, scope);
-    await order({ slotId: evening.id });                                        // today, confirmed
-    await order({ slotId: evening.id, windowDay: days[2] });                    // a later day, confirmed
-    await order({ slotId: evening.id, windowDay: days[2], state: "held" });     // …and a live hold
-    await order({ slotId: evening.id, windowDay: days[2], state: "held", heldFor: "-1 minute" }); // lapsed
+    await order({ slotId: evening.id });
+    await order({ slotId: evening.id, windowDay: days[2] });
+    await order({ slotId: evening.id, windowDay: days[2], state: "held" });
+    await order({ slotId: evening.id, windowDay: days[2], state: "held", heldFor: "-1 minute" });
     const over = await order({ slotId: evening.id, windowDay: days[3] });
     await pool.query(`UPDATE public.delivery_slot_booking SET over_capacity = true WHERE order_id = $1`, [over]);
 
@@ -306,7 +300,7 @@ d("069 — the delivery calendar", () => {
   it("reads the migration's defaults before anything is saved", async () => {
     expect(await getDeliveryDays()).toEqual({
       noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
-      // 093 — drivers' work: the migration's defaults, the vehicle check off.
+      // Drivers' work: the defaults, vehicle check off.
       loadOverdueMin: 20, checkinOverdueMin: 30, vehicleCheckRequired: false, asapEstimate: expect.any(String),
     });
   });
@@ -342,7 +336,7 @@ d("069 — the delivery calendar", () => {
     const day = (await one<{ day: string }>(`SELECT ((now() AT TIME ZONE 'Australia/Melbourne')::date + 3)::text AS day`)).day;
     const affected = await order({ standardDay: day });
     await order({ standardDay: day });
-    await order({ standardDay: day, status: "delivered" }); // already arrived: not affected
+    await order({ standardDay: day, status: "delivered" });
 
     const added = await addNonDeliveryDate({ day, label: "  Stocktake  " }, ACTOR, scope);
     expect(added).toEqual({ day, label: "Stocktake", affectedOrders: 2 });
@@ -362,7 +356,6 @@ d("069 — the delivery calendar", () => {
   it("078 — the days offered after today are a setting of 1–14, and a save that does not mention it keeps it", async () => {
     await hub();
     expect((await putDeliveryDays({ ...SETTINGS, effyLookaheadDays: 5 }, ACTOR, scope)).effyLookaheadDays).toBe(5);
-    // A console built before 078 saves without the field.
     expect((await putDeliveryDays(SETTINGS, ACTOR, scope)).effyLookaheadDays).toBe(5);
     for (const bad of [0, 15, 2.5]) {
       const err = await refusal(putDeliveryDays({ ...SETTINGS, effyLookaheadDays: bad }, ACTOR, scope));
@@ -374,8 +367,8 @@ d("069 — the delivery calendar", () => {
   it("078 — closing a date counts everyone promised that day, a window as much as a carrier day", async () => {
     const day = (await one<{ day: string }>(`SELECT ((now() AT TIME ZONE 'Australia/Melbourne')::date + 2)::text AS day`)).day;
     const slot = await createSlot(EVENING, ACTOR, scope);
-    await order({ standardDay: day });                       // a carrier day (sold before the new model)
-    await order({ slotId: slot.id, windowDay: day });        // Effy, in a window, on a later day
+    await order({ standardDay: day });
+    await order({ slotId: slot.id, windowDay: day });
     await order({ slotId: slot.id, windowDay: day, status: "delivered" });
     expect((await addNonDeliveryDate({ day }, ACTOR, scope)).affectedOrders).toBe(2);
     expect(await one(`SELECT count(*)::int AS n FROM public.order_package_delivery WHERE promised_to = $1::date`, [day])).toEqual({ n: 3 });

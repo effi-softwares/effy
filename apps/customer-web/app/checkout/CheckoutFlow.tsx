@@ -60,73 +60,63 @@ import { splitTotal } from "./_components/points"
 type Step = "review" | "paying"
 
 /**
- * The checkout flow (021, extending 019's US3; reworked 027). It walks three steps:
- *
- *   review (address)  →  delivery (per-package options)  →  paying (Stripe Payment Element)
- *
- * After the customer picks an address we QUOTE the server (`/commerce/v1/checkout/quote`) for the anonymous
- * per-package options; the delivery step prices them client-side for display only. At placement we send
- * the captured `quoteId` + the customer's per-package `selections` + the confirmed `excludedPackageKeys`
- * to `/commerce/v1/checkout/intent`. The server owns every fee (SC-004). A 409 means the captured quote is stale
- * (expired, or a package/rate changed) — we RE-QUOTE and re-show the options, never blind-retry (FR-011a).
- *
- * 023 reconciles the review step to the 022 Address Book: the customer's saved addresses drive a picker
- * (default pre-selected as SHIPPING — FR-001) with an inline add-new, and a "Billing same as shipping"
- * toggle. Switching the shipping address invalidates the captured quote so delivery/amount re-price for
- * the new destination before pay (FR-005). Billing defaults to shipping (NULL) and only sends a
- * `billingAddressId` when the customer diverges (FR-008–FR-013).
+ * The checkout flow: choose the shipping address (saved addresses, default pre-selected, add inline) and
+ * billing ("same as shipping" by default), take the delivery quote, choose the delivery, then pay with
+ * the Stripe Payment Element. The server owns every fee: the intent carries the delivery choice and the
+ * totals the shopper saw, and a 409 means they changed (re-quote and show again, never retry blindly).
+ * Changing the shipping address re-quotes.
  */
 export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDTO[] }) {
   const router = useRouter()
   const guestLines = useCart()
-  // 027: the mirror is what the UI reads, and nothing here empties it — the cart is cleared only when an
-  // order is actually paid for (FR-058). The estimate and the "has items" gate read it live; the AMOUNT is
-  // never taken from it, because the platform computes every figure that is charged (FR-027).
+  // The mirror is what the UI reads, and nothing here empties it — the cart is cleared only when an
+  // order is actually paid for. The estimate and the "has items" gate read it live; the amount is
+  // never taken from it, because the platform computes every figure that is charged.
   const estimate = useMemo(() => computeCartTotals(guestLines), [guestLines])
   const currency = guestLines[0]?.currency ?? "AUD"
 
   const [addresses, setAddresses] = useState<AddressDTO[]>(initialAddresses)
-  // Pre-select the SHIPPING address (FR-001): the default, else — when none is default — the first of
-  // the default-first list, a deterministic most-recent choice (FR-002).
+  // Pre-select the shipping address: the default, else — when none is default — the first of
+  // the default-first list, a deterministic most-recent choice.
   const [selectedId, setSelectedId] = useState<string | null>(
     initialAddresses.find((a) => a.isDefault)?.id ?? initialAddresses[0]?.id ?? null,
   )
-  // 066 — what the shopper tells the driver. Starts from the selected address's SAVED default, and is
+  // What the shopper tells the driver. Starts from the selected address's saved default, and is
   // held here (not in the control) so it survives the move to the payment step and a failed payment.
   const [instructions, setInstructions] = useState<InstructionsDraft>(() =>
     draftFrom(
       (initialAddresses.find((a) => a.isDefault) ?? initialAddresses[0])?.defaultDeliveryInstructions,
     ),
   )
-  // ⚠ OFF by default, and reset whenever the address changes: editing instructions for ONE order must
-  // never rewrite the address's saved default unless the shopper asks (066 FR-014).
+  // Off by default, and reset whenever the address changes: editing instructions for one order must
+  // never rewrite the address's saved default unless the shopper asks.
   const [saveInstructions, setSaveInstructions] = useState(false)
-  // Billing defaults to "same as shipping" (FR-009); `billingId` is only meaningful while the toggle is
-  // OFF, and is discarded when it returns ON (FR-013).
+  // Billing defaults to "same as shipping"; `billingId` is only meaningful while the toggle is
+  // off, and is discarded when it returns ON.
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true)
   const [billingId, setBillingId] = useState<string | null>(null)
   const [step, setStep] = useState<Step>("review")
   const [intent, setIntent] = useState<CreateCheckoutIntentResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  // 047: the delivery quote for the chosen address — serviceability + the standard fee, shown BEFORE
+  // The delivery quote for the chosen address — serviceability + the standard fee, shown before
   // pay (no drip). The server owns the fee; this display never sends one. Re-fetched when the shipping
-  // address changes (FR-004/033/036).
+  // address changes.
   const [quote, setQuote] = useState<DeliveryQuoteDTO | null>(null)
   const [quoting, setQuoting] = useState(false)
-  // The ONE window for the order (078). Never chosen for the shopper — a window is a promise about
+  // The one window for the order. Never chosen for the shopper — a window is a promise about
   // when someone will be home; kept across steps and a failed payment while it is
-  // still offered (FR-011); dropped when the address changes — nothing chosen for one address is
+  // still offered; dropped when the address changes — nothing chosen for one address is
   // silently carried to another.
   const [chosenWindow, setChosenWindow] = useState<DeliveryChoice | null>(null)
-  // 079 — WHERE the order is going, as far as delivery cares: the address AND its postcode. Who
+  // Where the order is going, as far as delivery cares: the address and its postcode. Who
   // delivers, the fee and the windows are all decided from the postcode, so a different one under the
-  // same address id is a different destination and must be re-decided like any other (FR-016).
+  // same address id is a different destination and must be re-decided like any other.
   const selectedPostcode = addresses.find((a) => a.id === selectedId)?.postalCode ?? null
   useEffect(() => {
     setChosenWindow(null)
   }, [selectedId, selectedPostcode])
-  // Bumped to ask for a fresh quote for the SAME address — after a refused slot or day.
+  // Bumped to ask for a fresh quote for the same address — after a refused slot or day.
   const [quoteEpoch, setQuoteEpoch] = useState(0)
 
   useEffect(() => {
@@ -156,11 +146,11 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }, [selectedId, selectedPostcode, quoteEpoch])
 
   // A new quote (a new address, or a re-quote after a refusal) keeps the window only while it is
-  // still on offer. ⚠ One that has gone is NOT replaced by another: nothing is selected, and the
-  // shopper chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe it.
+  // still on offer. One that has gone is not replaced by another: nothing is selected, and the
+  // shopper chooses again. Skipped while there is no quote, so a refresh cannot wipe it.
   //
-  // 085 — "Standard" is the DEFAULT: the first quote for a destination starts with it chosen when
-  // it is offered. ⚠ Once per destination — a re-quote after a REFUSED choice never falls back to it.
+  // "Standard" is the default: the first quote for a destination starts with it chosen when
+  // it is offered. Once per destination — a re-quote after a refused choice never falls back to it.
   const defaultedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!quote) return
@@ -180,7 +170,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     if (windowsUnavailable) capture({ name: "checkout_windows_unavailable", props: { reason: windowsUnavailable } })
   }, [windowsUnavailable])
 
-  // 079 — WHO DELIVERS, as this page is showing it: a courier, or Effy. Sent back on the intent,
+  // Who delivers, as this page is showing it: a courier, or Effy. Sent back on the intent,
   // which refuses if it is not what applies by then. Told once per distinct answer (lib/telemetry.ts).
   const courier = useMemo(() => courierOf(quote), [quote])
   const deliveryType = useMemo(() => deliveryTypeOf(quote), [quote])
@@ -191,17 +181,17 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     capture({ name: "checkout_delivery_type_shown", props: { type, reason } })
   }, [typeShown])
 
-  // 077 — ONE fee for the order, as the server priced it: the courier's, or the chosen window's.
-  // Lines and a total; no distance, weight or plan ever reaches here (FR-032). Null until a window is
+  // One fee for the order, as the server priced it: the courier's, or the chosen window's.
+  // Lines and a total; no distance, weight or plan ever reaches here. Null until a window is
   // chosen — there is nothing to show yet.
   const deliveryFee = useMemo(() => chosenFee(quote, chosenWindow), [quote, chosenWindow])
   const deliveryCents = deliveryFee ? parseCents(deliveryFee.totalAmount) : 0
-  // 094 — what promotions take off: the goods (from the server cart) and this option's delivery offer.
+  // What promotions take off: the goods (from the server cart) and this option's delivery offer.
   const mirror = useCartMirror()
   const goodsDiscountCents = parseCents(mirror.discountAmount || "0")
   const deliveryOfferCents = deliveryFee?.promotionAmount ? parseCents(deliveryFee.promotionAmount) : 0
 
-  // 077 — once per fee the shopper is shown: whether it was free, had a small-order fee, or a
+  // Once per fee the shopper is shown: whether it was free, had a small-order fee, or a
   // surcharge. Booleans only (lib/telemetry.ts).
   const feeShape = deliveryFee
     ? `${isFreeDelivery(deliveryFee)}|${deliveryFee.lines.some((l) => l.kind === "small_order")}|${deliveryFee.lines.some((l) => l.kind === "window_surcharge")}`
@@ -215,7 +205,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const serviced = quote?.serviced === true
   const totalCents = Math.max(0, parseCents(estimate.itemSubtotal) - goodsDiscountCents) + deliveryCents - deliveryOfferCents
 
-  // 074 — points. ON by default at the most they can use (FR-012); `chosenPoints` null = "the most".
+  // Points. ON by default at the most they can use; `chosenPoints` null = "the most".
   const [usePoints, setUsePoints] = useState(true)
   const [chosenPoints, setChosenPoints] = useState<number | null>(null)
   const split = useMemo(
@@ -223,26 +213,19 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     [quote?.points, totalCents, usePoints, chosenPoints],
   )
 
-  // ⚠ 027: the checkout-entry cart snapshot is GONE, and its route with it.
-  //
-  // Under 019's Option B the device cart was the source of truth, so checkout had to PUT it to the server
-  // before quoting. The platform is authoritative now (research R0), which means checkout quotes and
-  // prices the SAME cart every other surface reads. Keeping a snapshot here would hand checkout a second
-  // source of truth — which is exactly the 2026-07-23 bug family (a cart emptied by entering checkout, a
-  // prior attempt's items reappearing) under a new name. The device cart is folded into the account cart
-  // ONCE, at sign-in, via `POST /api/cart/merge`.
+  // No cart snapshot at checkout: the platform's cart is authoritative, and the device cart was merged at sign-in.
 
   /** Reflect a newly created address into the shared saved-address list (dedup on id). */
   function appendAddress(created: AddressDTO) {
     setAddresses((prev) => (prev.some((a) => a.id === created.id) ? prev : [...prev, created]))
   }
 
-  // Switch the SHIPPING address (a per-order choice — never the saved default, FR-006). Invalidate the
-  // captured quote so delivery/amount re-price for the new destination on the next continue (FR-005).
+  // Switch the shipping address (a per-order choice — never the saved default, FR-006). Invalidate the
+  // captured quote so delivery/amount re-price for the new destination on the next continue.
   function selectShipping(id: string) {
     if (id === selectedId) return
     setSelectedId(id)
-    // ⚠ 066 FR-015: the draft is REPLACED by the new address's saved instructions, even if the shopper
+    // The draft is replaced by the new address's saved instructions, even if the shopper
     // had typed something. A note is about a place — "use the side gate" carried to a different
     // building is worse than an empty field.
     setInstructions(draftFrom(addresses.find((a) => a.id === id)?.defaultDeliveryInstructions))
@@ -250,7 +233,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     capture({ name: "checkout_address_changed" })
   }
 
-  // A new address added from the shipping picker → save it, select it as shipping, re-price (FR-005).
+  // A new address added from the shipping picker → save it, select it as shipping, re-price.
   function onShippingAddressAdded(created: AddressDTO) {
     appendAddress(created)
     setSelectedId(created.id)
@@ -259,7 +242,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     capture({ name: "checkout_address_added" })
   }
 
-  // Switch the BILLING address (toggle already OFF). A billing distinct from shipping is a divergence.
+  // Switch the billing address (toggle already off). A billing distinct from shipping is a divergence.
   function selectBilling(id: string) {
     setBillingId(id)
     if (id !== selectedId) capture({ name: "checkout_billing_diverged" })
@@ -272,37 +255,37 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     if (created.id !== selectedId) capture({ name: "checkout_billing_diverged" })
   }
 
-  // The "same as shipping" toggle. Turning it back ON discards any divergent billing choice (FR-013).
+  // The "same as shipping" toggle. Turning it back ON discards any divergent billing choice.
   function toggleBillingSame(value: boolean) {
     setBillingSameAsShipping(value)
     if (value) setBillingId(null)
   }
 
-  // 066 — what the selected address has SAVED, to tell "using my default" from "changed for this order".
+  // What the selected address has saved, to tell "using my default" from "changed for this order".
   const savedInstructions = draftFrom(
     addresses.find((a) => a.id === selectedId)?.defaultDeliveryInstructions,
   )
   const instructionsDiffer = !sameInstructions(instructions, savedInstructions)
 
-  // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
-  // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
+  // Pay is blocked until shipping is set and, when billing diverges, a billing address is
+  // chosen. Enforced at the review → delivery gate, before any payment.
   //
-  // 069: and until a delivery time is chosen where one is needed. ⚠ The server refuses a same-day
+  // And until a delivery time is chosen where one is needed. The server refuses a same-day
   // order with no slot whatever this says (`slot_required`); this only keeps the button honest.
   const canContinue =
     !!selectedId &&
     (billingSameAsShipping || !!billingId) &&
     guestLines.length > 0 &&
     serviced &&
-    // A courier order has nothing to choose (079); an Effy order needs its one window (078).
+    // A courier order has nothing to choose; an Effy order needs its one window.
     (courier ? true : !!effyWindows && !effyWindows.unavailable && !!chosenWindow)
 
   /**
    * Place the order.
    *
-   * 047: delivery is back, but standard-only for US1 — there is no per-package method choice yet, so the
+   * Delivery is back, but standard-only for US1 — there is no per-package method choice yet, so the
    * shopper picks an address and pays. The server computes + captures the delivery fee at intent from the
-   * destination zone + package weights (SC-004); the grand total it returns already includes it. A
+   * destination zone + package weights; the grand total it returns already includes it. A
    * not-serviceable address is refused server-side (ErrNotServiceable) and blocked here (canContinue).
    */
   async function placeOrder(): Promise<boolean> {
@@ -317,37 +300,37 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setBusy(true)
     setError(null)
     try {
-      // Send `billingAddressId` ONLY when the customer diverged — the toggle is OFF and the chosen
-      // billing differs from shipping. Same-as / equal → omit it so the server stores NULL (FR-009/010).
+      // Send `billingAddressId` only when the customer diverged — the toggle is off and the chosen
+      // billing differs from shipping. Same-as / equal → omit it so the server stores null.
       const body: Record<string, unknown> = { addressId: selectedId }
       if (!billingSameAsShipping && billingId && billingId !== selectedId) {
         body.billingAddressId = billingId
       }
-      // 079 — who delivers, as shown. A courier order is refused without it; one that says "courier"
+      // Who delivers, as shown. A courier order is refused without it; one that says "courier"
       // for an address Effy now delivers to is refused too (409 `delivery_type_changed`).
       if (deliveryType) body.deliveryType = deliveryType
       if (courier) {
         // Nothing to choose: no window, no slot, no day.
       } else if (isAsap(chosenWindow)) {
-        // 085 — "as soon as possible": no window and no day.
+        // "as soon as possible": no window and no day.
         body.deliveryPromise = "asap"
       } else if (chosenWindow) {
-        // 078 — ONE window for the order. The server works out same-day or standard from its date,
+        // One window for the order. The server works out same-day or standard from its date,
         // holds a place on that day, and refuses (409 + `code`) if it is no longer on offer.
-        // 085 — a later day with no time is this too: the day's Any-time window.
+        // A later day with no time is this too: the day's Any-time window.
         body.deliveryWindow = chosenWindow
       }
-      // 066 — sent on EVERY placement, including as null: a shopper who cleared the note and pays
+      // Sent on every placement, including as null: a shopper who cleared the note and pays
       // must not have an earlier attempt's draft delivered with the order.
       const deliveryInstructions = draftToRequest(instructions)
       body.deliveryInstructions = deliveryInstructions
-      // 074 — the points the shopper chose. The server re-decides the split and refuses what it cannot
+      // The points the shopper chose. The server re-decides the split and refuses what it cannot
       // honour; it never quietly changes the number.
       if (split.pointsUsed > 0) body.pointsToUse = split.pointsUsed
-      // 077 — the delivery total this page is SHOWING. If the server would now charge another (a new
+      // The delivery total this page is showing. If the server would now charge another (a new
       // fee plan, a basket that crossed a threshold), it refuses and nothing is written or charged.
       if (deliveryFee) body.shownDeliveryAmount = deliveryFee.totalAmount
-      // 094 — the promotions total this page shows; a different one is refused before anything is charged.
+      // The promotions total this page shows; a different one is refused before anything is charged.
       body.expectedDiscount = formatCents(goodsDiscountCents + deliveryOfferCents)
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
@@ -359,10 +342,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         error?: string
         code?: string
       }
-      // The window could not be honoured (069, 078). Nothing has been charged and no payment
-      // exists. ⚠ The choice is NOT replaced: the shopper is brought back to the options, told
-      // plainly, and shown what is on offer now (FR-009, FR-010).
-      // 079 — who delivers is not what this page showed (the address's coverage changed, or the last
+      // The window could not be honoured. Nothing has been charged and no payment
+      // exists. The choice is not replaced: the shopper is brought back to the options, told
+      // plainly, and shown what is on offer now.
+      // Who delivers is not what this page showed (the address's coverage changed, or the last
       // window went and courier is offered instead). Nothing was written or charged. The fresh quote
       // re-draws the delivery section — a different one — and nothing chosen for the old one is kept.
       if (res.status === 409 && data.code === "delivery_type_changed") {
@@ -385,7 +368,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setQuoteEpoch((n) => n + 1)
         return false
       }
-      // 077 — the delivery total changed between the quote and the pay button. Nothing was charged.
+      // The delivery total changed between the quote and the pay button. Nothing was charged.
       // The new total is shown and the shopper presses pay again; it is never charged unseen.
       if (res.status === 409 && data.code === DELIVERY_FEE_CHANGED_CODE) {
         capture({ name: "checkout_delivery_fee_changed", props: {} })
@@ -395,7 +378,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setQuoteEpoch((n) => n + 1)
         return false
       }
-      // 094 — an offer changed or its last use went (FR-037). Nothing was charged; the new total is shown.
+      // An offer changed or its last use went. Nothing was charged; the new total is shown.
       if (res.status === 409 && data.code === PROMOTIONS_CHANGED_CODE) {
         capture({ name: "checkout_promotions_changed", props: {} })
         setIntent(null)
@@ -404,7 +387,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setQuoteEpoch((n) => n + 1)
         return false
       }
-      // 074 — a points refusal. Nothing was charged; the shopper is shown what they can do now.
+      // A points refusal. Nothing was charged; the shopper is shown what they can do now.
       const pointsMessage = pointsRefusal(data.code)
       if (pointsMessage) {
         // A changed balance is re-read (the quote carries it); a too-large number is left for the
@@ -415,7 +398,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setQuoteEpoch((n) => n + 1)
         return false
       }
-      // 074 — points paid for all of it: the order is ALREADY placed. Straight to the receipt.
+      // Points paid for all of it: the order is already placed. Straight to the receipt.
       if (res.ok && data.paidWithPoints && data.orderId) {
         capture({ name: "checkout_paid_with_points", props: { share: "all" } })
         window.location.assign(`/checkout/complete?order=${data.orderId}`)
@@ -439,7 +422,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           fromSavedDefault: sameInstructions(instructions, savedInstructions),
         },
       })
-      // 066 FR-014 — ONLY when asked, and only AFTER the order accepted them: a refused note must not
+      // Only when asked, and only after the order accepted them: a refused note must not
       // become an address's default. Best-effort: the order is already right, so a failure here costs
       // the shopper some retyping next time and must not stand between them and paying.
       if (saveInstructions && !sameInstructions(instructions, savedInstructions)) {
@@ -448,7 +431,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           setAddresses((prev) => prev.map((a) => (a.id === saved.address.id ? saved.address : a)))
           setSaveInstructions(false)
         }
-        // A failure is deliberately silent: the flow is already moving to payment, the ORDER has the
+        // A failure is deliberately silent: the flow is already moving to payment, the order has the
         // instructions, and the checkbox stays ticked so a return to this step tries again.
       }
       if ((data.pointsUsed ?? 0) > 0) capture({ name: "checkout_paid_with_points", props: { share: "part" } })
@@ -463,12 +446,12 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   useEffect(() => setCheckoutStep(step === "paying" ? 2 : 1), [step])
 
   if (step === "paying" && intent) {
-    // ⚠ 051: the payment step carries the amount and NOTHING else — no basket recap, no address, no
-    // delivery row (FR-003). The `OrderSummary` strip that used to sit above the form is gone with it,
+    // The payment step carries the amount and nothing else — no basket recap, no address, no
+    // delivery row. The `OrderSummary` strip that used to sit above the form is gone with it,
     // along with `PaymentForm`; the amount now lives in the step's own pay rail.
     return (
       <Elements stripe={getStripe()} options={paymentElementsOptions(intent.clientSecret)}>
-        {/* 069: `renewHold` re-runs the intent when the same-day place has lapsed. The server either
+        {/* `renewHold` re-runs the intent when the same-day place has lapsed. The server either
             holds it again (same order, same payment) or refuses — and a refusal returns here. */}
         <PaymentStep intent={intent} onBack={() => setStep("review")} renewHold={placeOrder} />
       </Elements>
@@ -476,10 +459,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }
 
   return (
-    // 025 FR-042: two columns above `lg`, with the summary STICKY, so the amount payable never
+    // Two columns above `lg`, with the summary sticky, so the amount payable never
     // scrolls away from the form it belongs to. 084: each step is its own card, numbered as the
     // reference numbers them.
-    // ⚠ `grid-cols-1` is not decoration: with no template the one column is `auto`, which grows to its
+    // `grid-cols-1` is not decoration: with no template the one column is `auto`, which grows to its
     // widest unbreakable row and takes every card past the screen edge with it.
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
       <div className="min-w-0 space-y-6">
@@ -500,7 +483,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           />
         </section>
 
-        {/* ⚠ Exactly one of these, decided by the quote: a courier address has nothing to choose, an
+        {/* Exactly one of these, decided by the quote: a courier address has nothing to choose, an
             Effy address has windows, and an unserviced one says the one refusal sentence. */}
         {courier ? (
           <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
@@ -578,7 +561,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{line.name}</p>
-                    {/* 098 — the size chosen, beside the quantity. */}
+                    {/* The size chosen, beside the quantity. */}
                     <p className="text-xs text-muted-foreground">
                       {line.variantLabel ? `${line.variantLabel} · ` : ""}Qty {line.quantity}
                     </p>
@@ -688,7 +671,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 </div>
               </dl>
             ) : null}
-            {/* ⚠ THE refusal, in its one sentence, where the amount would have been. */}
+            {/* The refusal, in its one sentence, where the amount would have been. */}
             {quote && !serviced ? (
               <Alert variant="destructive" live={false} className="mt-3">
                 <span data-testid="checkout-coverage-refusal">{COVERAGE_REFUSAL_SENTENCE}</span>
@@ -705,16 +688,16 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   )
 }
 
-/** 079 — who delivers changed under the shopper. Says what to do, and that nothing was taken. */
+/** Who delivers changed under the shopper. Says what to do, and that nothing was taken. */
 export const DELIVERY_TYPE_CHANGED_MESSAGE =
   "How this order is delivered has changed. Please check the delivery option below — you haven't been charged."
 
-/** The three reasons the server refuses a checkout over the delivery choice (069), in our own words. */
+/** The three reasons the server refuses a checkout over the delivery choice, in our own words. */
 function deliveryRefusal(
   code: string | undefined,
 ): { reason: "slot_unavailable" | "date_unavailable" | "slot_required" | "no_windows_available"; message: string } | null {
   switch (code) {
-    // 078 — the one sentence, from the one place it is written.
+    // The one sentence, from the one place it is written.
     case "no_windows_available":
       return { reason: code, message: DELIVERY_WINDOW_WORDS.noWindows }
     case "slot_unavailable":
@@ -728,7 +711,7 @@ function deliveryRefusal(
   }
 }
 
-/** 074 — a points refusal from the intent, in our own words; null when it is not one. */
+/** A points refusal from the intent, in our own words; null when it is not one. */
 function pointsRefusal(code: string | undefined): string | null {
   switch (code) {
     case "points_balance_changed":

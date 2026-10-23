@@ -32,7 +32,7 @@ const fitsWords = (size: GroupSize) =>
     .join(", ");
 
 /**
- * 095 — how a group's place looks: its size (which decides the layouts that fit) and the skins its
+ * How a group's place looks: its size (which decides the layouts that fit) and the skins its
  * promotions wear unless one is chosen for them.
  */
 export function LookPanel({ group, skins, canManage, onError }: { group: AdminPromotionGroupDetailDTO; skins: AdminSkinListItemDTO[]; canManage: boolean; onError: (m: string | null) => void }) {

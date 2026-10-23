@@ -34,7 +34,7 @@ class OfflineQueueTest {
 
     @Test
     fun a_persisted_queue_is_loaded_on_construction() {
-        // Simulate a prior run having persisted a pending action; a fresh queue must load it (FR-040).
+        // Simulate a prior run having persisted a pending action; a fresh queue must load it.
         val settings = MapSettings()
         settings.putString(
             "driver.offline.queue.v1",

@@ -1,5 +1,3 @@
-// Handler test for GET /me — records the staff member (JIT) and returns the platform record,
-// admitting role-less callers (roles: []).
 import type { Context } from "aws-lambda";
 import { describe, expect, it, vi } from "vitest";
 

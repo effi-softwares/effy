@@ -48,7 +48,7 @@ describe("OrderAddresses (US5, FR-016)", () => {
   })
 })
 
-// ── 066 — delivery instructions ─────────────────────────────────────────────────────────────────
+// Delivery instructions
 
 describe("066 — delivery instructions on the receipt", () => {
   const shipping = {
@@ -68,7 +68,7 @@ describe("066 — delivery instructions on the receipt", () => {
     expect(screen.getByText(/Side gate/)).toHaveTextContent("Side gate code 4411")
   })
 
-  /** SC-003 — every order placed before 066, and every order whose shopper said nothing. */
+  /** Every order placed before 066, and every order whose shopper said nothing. */
   it("⚠ shows NOTHING when there are none — no heading, no placeholder", () => {
     for (const instructions of [undefined, null, { handover: null, note: null }]) {
       const { unmount } = render(<OrderAddresses shipping={shipping} instructions={instructions} />)
@@ -78,7 +78,7 @@ describe("066 — delivery instructions on the receipt", () => {
     }
   })
 
-  /** ⚠ SC-006 — customer-authored text is never interpreted. */
+  /** Customer-authored text is never interpreted. */
   it("⚠ renders markup in the note as the literal characters typed", () => {
     const hostile =
       '<b>bold</b> <a href="javascript:alert(1)">link</a> <img src=x onerror=alert(1)> <script>alert(1)</script>'

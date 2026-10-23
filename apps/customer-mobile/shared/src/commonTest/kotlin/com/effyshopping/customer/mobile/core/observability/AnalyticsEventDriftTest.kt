@@ -5,12 +5,12 @@ import kotlin.test.assertTrue
 import kotlin.test.assertEquals
 
 /**
- * 050 US2 (research R8) — the taxonomy drift check. Every event this app can emit MUST have a name in
+ * The taxonomy drift check. Every event this app can emit must have a name in
  * the documented cross-surface taxonomy (docs/telemetry/{commerce,platform}-events.md), so mobile and
  * web never diverge on names and a funnel spans both. Fails loudly, naming the offender.
  *
  * The documented set is duplicated here deliberately (there is no shared runtime source across the
- * independent mobile builds); if you add an event, add it to the docs AND here.
+ * independent mobile builds); if you add an event, add it to the docs and here.
  */
 class AnalyticsEventDriftTest {
 
@@ -29,7 +29,7 @@ class AnalyticsEventDriftTest {
         "checkout_started",
         "order_placed",
         "search_performed",
-        // commerce-events.md — Points (074)
+        // commerce-events.md — Points
         "points_viewed",
         "checkout_points_toggled",
         "checkout_paid_with_points",

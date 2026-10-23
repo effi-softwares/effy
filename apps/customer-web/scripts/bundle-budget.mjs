@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * THE GUEST BUNDLE BUDGET (FR-005, FR-006, SC-003).
+ * The guest bundle budget.
  *
  * Why this script exists instead of an off-the-shelf tool:
  *
- *   Next 16 REMOVED "First Load JS" from `next build` output entirely ("inaccurate in
- *   server-driven architectures using RSC"), and ships no budget feature of its own. Nor can a
- *   glob over `.next/static/chunks/**` do the job — it sums chunks that no single page loads,
- *   and it counts the `noModule` core-js polyfill bundle that NO MODERN BROWSER EVER DOWNLOADS
- *   (~39 KB of phantom weight). Both mistakes make the number fiction, and a fictional budget
- *   is worse than none: it gets "fixed" by raising the limit.
+ *  Next 16 removed "First Load JS" from `next build` output entirely ("inaccurate in
+ *  server-driven architectures using RSC"), and ships no budget feature of its own. Nor can a
+ *  glob over `.next/static/chunks/**` do the job — it sums chunks that no single page loads,
+ *  and it counts the `noModule` core-js polyfill bundle that no modern browser ever downloads
+ *  (~39 KB of phantom weight). Both mistakes make the number fiction, and a fictional budget
+ *  is worse than none: it gets "fixed" by raising the limit.
  *
- * So this reads the PRERENDERED HTML NEXT ACTUALLY SERVES, takes the exact <script> tags a
+ * So this reads the prerendered HTML next actually serves, takes the exact <script> tags a
  * modern browser will fetch from it (skipping `noModule`), and gzips them. It is ground truth
  * by construction — if the page's HTML doesn't reference it, the browser doesn't download it.
  *
- * This gate FAILS THE BUILD. It does not warn (FR-005).
+ * This gate fails the build. It does not warn.
  */
 import { readFileSync, existsSync } from "node:fs"
 import { gzipSync } from "node:zlib"
@@ -24,139 +24,31 @@ import { join } from "node:path"
 const KB = 1024
 
 /**
- * BUDGETS — measured, not aspirational. See research.md D9 (CORRECTED 2026-07-14).
- *
- * ⚠ The research pass proposed a 120 KB guest budget on the stated assumption that Next's
- * framework baseline was "~90–110 KB compressed before you write a line". THAT ESTIMATE WAS
- * WRONG for Next 16 + React 19: measured on this app, with essentially zero client code, the
- * floor is ~136 KB. A 120 KB budget was therefore unreachable by construction — it would have
- * failed on an empty app, which is a broken gate, not a strict one. Research D9 itself said
- * "measure it in your own build; do not trust the number." We did, and it didn't.
- *
- * The budget below is the measured floor plus deliberate, modest headroom. It still does the
- * job it was created for:
- *
- *   • `aws-amplify` (~30–45 KB gz) cannot reach the guest path without blowing it.
- *   • App-code and vendor bloat on public pages is caught.
- *   • It RATCHETS: raising the number requires editing this file in a reviewed diff, with a
- *     reason. It cannot drift upward silently, which is how bundle budgets normally die.
- *
- * ── RATCHET, 2026-07-27 (feature 025, task T020) ────────────────────────────────────────────
- *
- * 160 KB → 176 KB. Measured, not conceded. Both guest routes were ALREADY over before feature
- * 025 changed a line: `/` at 167.4 KB and `/browse` at 160.1 KB.
- *
- * A per-chunk gzip breakdown (specs/025-customer-ui-refresh/research.md § R6a) attributed it:
- *
- *   • 143.5 KB — the Next 16.2.6 + React 19.2.4 framework floor. NINE chunks, one carrying the
- *     only `react-dom` marker, on `/browse` — which at the time of measurement was a static
- *     placeholder with essentially no app content. That is 89.6% of the old budget spent before
- *     this app's own code runs.
- *   • 16.6 KB — the appearance switcher (`next-themes` + AppearanceControl), at the time of that
- *     measurement. ⚠ REMOVED SINCE: the customer storefront is now LIGHT-ONLY (operator decision),
- *     so it ships no appearance switcher at all — that weight, and the appearance store that later
- *     replaced next-themes (the T102 note below), are both gone from the guest path.
- *   • 7.3 KB — RecentlyViewedRail, on `/` only. It is the entire difference between the routes.
- *
- * The floor 011 measured was ~136 KB, and 160 was set to leave ~24 KB of app headroom on top of
- * it. The floor grew ~7.5 KB; 176 restores that same headroom rather than inventing new slack.
- *
- * ⚠ AND THEN WIDENING THIS LIST FOUND A REAL LEAK. On `/` and `/browse` there was none. But this
- * gate had only ever measured those two of the five routes a guest can reach — and the moment
- * /search, /product/[id] and /cart were added, the product page came in at 234.8 KB: 58.8 KB over,
- * never once measured, for two features.
- *
- * The cause was 67.9 KB gz of `posthog-js`, reached via product/[id]/page.tsx → RecordView.tsx →
- * lib/telemetry.ts, which STATICALLY imported it while its own module comment promised "for a
- * guest who never consents, the analytics SDK never loads at all". Consent gated whether it was
- * called, never whether it was downloaded. The import is now dynamic; the product page dropped to
- * 166.9 KB.
- *
- * The lesson is in this list, not in the number: a gate that watches two of five routes has three
- * blind spots, and they were the routes shoppers actually spend time on.
- *
- * At 176 KB with routes sitting at 160–168, the gate still does its original job — a 30–45 KB SDK
- * cannot hide in that headroom.
- *
- * ⚠ THE NUMBER THAT LANDED IS 174, NOT 176. The 176 above is the ratchet as PROPOSED; the T102 note
- * below then measured a 0.9 KB saving and the constant was set to 174. Everything above this line
- * that says "176" is describing the proposal, not `GUEST_LIMIT`. Read the constant, not the prose.
- *
- * ⚠ T102 (`next-themes` → an inline pre-paint script + a `useSyncExternalStore` store) IS NOW DONE,
- * and the estimate that justified it was WRONG. It was recorded here as "~8.3 KB on every guest
- * page"; the dependency's own `dist/index.mjs` is **1.5 KB gzipped**, and the replacement store
- * costs ~0.6 KB of its own, so the measured saving is **0.9 KB** — not the ~8 KB that would have
- * brought this limit to ~168 KB. The change was still worth making (one fewer dependency, and the
- * appearance logic is now ours and unit-tested), but it does not buy the headroom that was claimed.
- *
- * The number below is ratcheted by what was actually measured, not by what was hoped for. If a
- * future change needs more room, MEASURE FIRST — this line is the cautionary tale.
- *
- * ── MEASURED, 2026-07-29 (feature 026, task T001) ───────────────────────────────────────────
- *
- * Baseline before the monochrome identity change, all five guest routes:
- *
- *   /              170.5 KB      /browse        168.5 KB      /search        171.9 KB
- *   /product/[id]  170.7 KB      /cart          170.9 KB
- *
- * ⚠ HEADROOM IS 2.1–5.5 KB, NOT the ~24 KB the ratchet rationale above assumes. `/search` has
- * ~2 KB of slack. The "a 30–45 KB SDK cannot hide in that headroom" claim is still true, but the
- * margin for ordinary growth is now thin enough that any dependency change must be measured
- * immediately rather than at the end of a feature.
+ * The guest budget: the measured Next 16 + React 19 framework floor plus modest headroom, so
+ * `aws-amplify` (~30–45 KB gz) or vendor bloat cannot reach a public page unnoticed. Raising it needs a
+ * reviewed edit with a reason; measure first.
  */
 const GUEST_LIMIT = 174 * KB
 
-/** The public pages a guest can reach. (auth)/(account) are budgeted separately — the SDK
- *  legitimately lives there.
- *
- *  ⚠ Feature 025 added /search, /product/[id], and /cart. Before that this list was just `/` and
- *  /browse — so the gate was silently ignoring the routes a shopper actually spends time on, and
- *  a leak on the product page would not have failed the build. A budget that only watches two of
- *  five guest routes is a budget with three blind spots. */
+/**
+ * The public pages a guest can reach ((auth)/(account) are budgeted separately). A new public route joins
+ * this list in the commit that creates it: an unmeasured product page once sat 58.8 KB over budget
+ * (a statically imported analytics SDK).
+ */
 const GUEST_PAGES = [
   { route: "/", html: ".next/server/app/index.html" },
-  // The standalone /browse category index was retired (operator decision) — the storefront now has
-  // ONE catalogue page, /search ("All products"), which category tiles funnel into via ?category=.
+  // `/search` is the one catalogue page; category tiles link into it with ?category=.
   { route: "/search", html: ".next/server/app/search.html" },
   { route: "/product/[id]", html: ".next/server/app/product/[id].html" },
   { route: "/cart", html: ".next/server/app/cart.html" },
-  // ⚠ Added 2026-08-01 with the route itself, not afterwards. A guest reaches this page by tapping a
-  // promotional banner on the home page — the most prominent link on the storefront. The note above
-  // records what happened the last time a guest-reachable route went unmeasured: /product/[id] was
-  // 58.8 KB over budget for two features before anyone looked. A new public route joins this list in
-  // the same commit that creates it, or the gate is measuring a storefront that no longer exists.
   { route: "/promotions/[id]", html: ".next/server/app/promotions/[id].html" },
-  // ⚠ Added 2026-08-03 with the routes themselves (034 FR-058c), not afterwards.
-  //
-  // All three are PUBLIC by requirement, not by accident:
-  //   • /delete-account — Google Play requires a deletion path reachable OUTSIDE the app, by someone
-  //     who has uninstalled it. Apple does not require this, which is why it gets skipped, and why a
-  //     missing or invalid deletion link is the most-reported Play rejection in this area.
-  //   • /legal/privacy, /legal/terms — both stores require an in-app privacy policy link backed by
-  //     an active, publicly accessible, non-geofenced URL.
-  //
-  // They are static content today. They are listed anyway, because the note above records exactly
-  // what happens when a public route is not measured: /product/[id] sat 58.8 KB over budget for two
-  // features before anyone looked.
-  // ⚠ Added 2026-08-07 with the route itself (039 US6), not afterwards. A guest reaches this page by
-  // following a link in a confirmation email — it is public by requirement, since the recipient may
-  // have no account and never will. The note above records what happened the last time a
-  // guest-reachable route went unmeasured: /product/[id] sat 58.8 KB over budget for two features.
+  // Public by requirement: a confirmation email links a guest to the first; Google Play requires a deletion path outside the app.
   { route: "/newsletter/confirm", html: ".next/server/app/newsletter/confirm.html" },
   { route: "/delete-account", html: ".next/server/app/delete-account.html" },
-  // ⚠ Added 2026-08-16 with the route itself (046 US1), not afterwards. A guest reaches /feedback from
-  // the checkout header's "Give us feedback" link and the footer — public by requirement (the checkout
-  // funnel is open to guests). It is a PPR route (static intro shell + a Suspense form island); the
-  // shell is what is measured here. The note above records what happens when a public route goes
-  // unmeasured: /product/[id] sat 58.8 KB over budget for two features before anyone looked.
-  // 084: the message form moved under the help answers; `/feedback` now redirects to `/help`.
+  // `/feedback` redirects here.
   { route: "/help", html: ".next/server/app/help.html" },
   { route: "/offers", html: ".next/server/app/offers.html" },
-  // ⚠ Added 2026-08-13 with the routes themselves (045). Legal documents are now rendered from
-  // @effy/legal-content on statically-generated public routes; /legal/privacy + /legal/terms are now
-  // redirect aliases (no measurable HTML), so the canonical document routes are measured instead.
-  // They are server-rendered, zero-client-JS pages — listed anyway, because the note above records
-  // what happens when a public route goes unmeasured (/product/[id] sat 58.8 KB over budget).
+  // The legal documents are rendered from @effy/legal-content.
   { route: "/legal", html: ".next/server/app/legal.html" },
   { route: "/about", html: ".next/server/app/about.html" },
   { route: "/legal/privacy-policy", html: ".next/server/app/legal/privacy-policy.html" },
@@ -165,12 +57,12 @@ const GUEST_PAGES = [
   { route: "/legal/delivery-policy", html: ".next/server/app/legal/delivery-policy.html" },
   { route: "/legal/promotions-terms", html: ".next/server/app/legal/promotions-terms.html" },
   { route: "/legal/food-safety-allergens", html: ".next/server/app/legal/food-safety-allergens.html" },
-  // ⚠ `/checkout/complete` is DELIBERATELY ABSENT, and so is every other checkout/account route.
-  // This gate measures the GUEST bundle — what someone who has never signed in must download. Those
-  // routes sit behind `requireCustomer()` and outside the `(shop)` group, so neither this budget nor
+  // `/checkout/complete` is deliberately absent, and so is every other checkout/account route.
+  // This gate measures the guest bundle — what someone who has never signed in must download. Those
+  // routes sit behind `requireCustomer` and outside the `(shop)` group, so neither this budget nor
   // the dependency-cruiser Amplify quarantine applies to them. Adding one here would not tighten
   // anything; it would measure a page no guest can reach and fail the build on a signed-in-only cost
-  // this budget was never written to govern. (052 research R7.)
+  // this budget was never written to govern.
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

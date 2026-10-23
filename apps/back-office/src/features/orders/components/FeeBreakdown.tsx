@@ -5,11 +5,8 @@ const signed = (amount: string) => (amount.startsWith("-") ? `−$${amount.slice
 const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`;
 
 /**
- * "How this fee was built" (077 FR-037) — read from what the ORDER stored when it was placed, never
- * worked out again, so it explains the fee that was charged even after the business changed prices.
- *
- * ⚠ STAFF ONLY: it names the distance, the weight and the plan. Rendered nowhere a customer or a
- * shop can see. ⚠ A detail list, not a card.
+ * "How this fee was built", read from what the order stored, never re-worked, so it explains what was
+ * charged after prices change. Staff only: it names the distance, weight and plan.
  */
 export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO }) {
   const { inputs, parts } = breakdown;

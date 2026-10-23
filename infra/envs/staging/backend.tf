@@ -4,10 +4,10 @@ terraform {
     # is the literal contract; see infra/bootstrap/README.md before changing it.
     bucket = "effy-apse2-tfstate"
 
-    # Per-env state isolation: one bucket, one key per env (FR-012).
+    # Per-env state isolation: one bucket, one key per env.
     key = "envs/staging/terraform.tfstate"
 
-    # Where the STATE bucket lives — independent of var.aws_region (resources can
+    # Where the state bucket lives — independent of var.aws_region (resources can
     # relocate; state stays put).
     region = "ap-southeast-2"
 

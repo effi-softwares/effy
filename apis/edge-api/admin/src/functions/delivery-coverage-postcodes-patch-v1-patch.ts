@@ -1,4 +1,3 @@
-// PATCH /admin/v1/delivery/coverage/postcodes — move postcodes between groups, or set one distance (076). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

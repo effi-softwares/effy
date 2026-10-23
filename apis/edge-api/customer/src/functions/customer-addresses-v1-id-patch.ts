@@ -6,12 +6,7 @@ import { json, parseJsonBody, preamble, problem, ProblemType, subject } from "@e
 import { addressErrorResponse, toAddressInput } from "../addresses/http";
 import { updateAddress } from "../addresses/service";
 
-/**
- * PATCH /customer/v1/addresses/{id} — edit an address AND/OR set it as default (022 US3, US5).
- *
- * One endpoint covers both: field edits update those fields; `makeDefault: true` promotes this the
- * default, atomically clearing the prior one (idempotent if already default). 404 not-found/not-owned.
- */
+/** Field edits and/or `makeDefault: true`, which atomically clears the prior default. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

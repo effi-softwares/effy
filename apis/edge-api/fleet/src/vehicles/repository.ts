@@ -1,13 +1,5 @@
-// Repository for the vehicle register (061): raw parameterized SQL, no ORM (Principle VI).
-//
-// Row shapes stay in this file and are mapped explicitly at the boundary; they never leak past the
-// mapper. Two rules from 056 are carried over deliberately, because each was a fixed defect:
-//   1. UPDATE reads the PRESENCE of a key, never COALESCE($n, col) — which cannot distinguish
-//      "leave alone" from "clear", and is why a driver's zone could once never be un-assigned.
-//   2. The optimistic-concurrency token is rendered with MICROSECOND precision. toISOString() on a
-//      pg Date truncates to milliseconds, so `WHERE updated_at = $2` would never match its own row
-//      and every save would report "changed by someone else". Invisible to tsc (both strings) and to
-//      a mocked test; only a container test finds it.
+// UPDATE reads a key's presence (null clears, absent leaves alone), and the concurrency token carries
+// microseconds: `toISOString` truncates to ms, so `WHERE updated_at = $2` would never match.
 
 import { query, withTransaction } from "@effy/edge-shared";
 import type {
@@ -19,8 +11,6 @@ import type {
 import type pg from "pg";
 
 import { COMPLIANCE_ISSUES, CURRENT_HOLDING_JOIN } from "./sql";
-
-// ── Row shapes (data layer only) ─────────────────────────────────────────────────────────────────
 
 interface ListRow {
   id: string;
@@ -65,7 +55,7 @@ interface HoldingRow {
   note: string | null;
 }
 
-/** `YYYY-MM-DD` or null — a date column carries no time and must not grow one in transit. */
+/** A date column carries no time and must not grow one in transit. */
 function dateOnly(d: Date | null): string | null {
   return d ? d.toISOString().slice(0, 10) : null;
 }
@@ -102,13 +92,7 @@ export interface ListParams {
   limit?: number;
 }
 
-/**
- * The register. Keyset-paginated on (registration_plate, id).
- *
- * ⚠ The cursor is minted from the SAME columns the ORDER BY uses. 053 shipped a console that ordered
- * on one column and cut its cursor from another, so rows re-appeared on the next page — and the first
- * test written for it passed, because it supplied its own cursor and never touched the minting.
- */
+/** Keyset-paginated on (registration_plate, id), with the cursor minted from the same columns. */
 export async function listVehicles(p: ListParams): Promise<{ items: VehicleListItem[]; nextCursor: string | null }> {
   const limit = Math.min(Math.max(p.limit ?? 50, 1), 100);
   const args: unknown[] = [];
@@ -186,8 +170,7 @@ export async function getVehicle(id: string): Promise<VehicleDetail | null> {
   };
 }
 
-/** Every holding period for a vehicle, newest first (FR-016). ⚠ Includes periods whose driver has
- *  since been offboarded — history is what this list is for. */
+/** Newest first, including periods whose driver has since been offboarded. */
 export async function listHoldings(vehicleId: string): Promise<VehicleHolding[]> {
   const res = await query<HoldingRow>(
     `SELECT h.id, h.driver_id, d.name AS driver_name, h.started_at, h.ended_at,
@@ -231,7 +214,6 @@ const INSERT_COLUMNS: Record<string, string> = {
   notes: "notes",
 };
 
-/** Date columns need an explicit cast when the value can be null. */
 const COLUMN_CAST: Record<string, string> = {
   registration_expires_on: "::date",
   insurance_expires_on: "::date",
@@ -257,11 +239,7 @@ export async function insertVehicle(body: Record<string, unknown>): Promise<stri
 
 export type UpdateOutcome = "updated" | "not_found" | "stale";
 
-/**
- * ⚠ PRESENCE, NOT VALUE. A key present with `null` CLEARS the column; a key absent leaves it alone.
- * `COALESCE($n, col)` collapses those two into one, which is exactly the defect 056 fixed on drivers
- * and the reason a zone could never be un-assigned before it.
- */
+/** Presence, not value: null clears, absent leaves alone. */
 export async function updateVehicle(
   id: string,
   body: Record<string, unknown>,
@@ -318,8 +296,7 @@ export async function setStatus(
   });
 }
 
-/** Does a non-retired vehicle already use this plate? ⚠ Case-insensitive, because `abc123` and
- *  `ABC123` are the same plate to everyone except a database. */
+/** Case-insensitive. */
 export async function plateInUse(plate: string, excludeId?: string): Promise<string | null> {
   const args: unknown[] = [plate];
   let sql = `SELECT registration_plate FROM public.vehicle

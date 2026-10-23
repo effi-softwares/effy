@@ -2,13 +2,13 @@ import type { DeliveryType, DeliveryTypeReason } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 
-/** Who did it: the checkout itself, at payment — or a member of staff. */
+/** The checkout at payment, or a member of staff. */
 export type DeliveryTypeActor = { kind: "checkout" } | { kind: "staff"; sub: string };
 
 export interface DeliveryTypeChange {
   to: DeliveryType;
   reason: DeliveryTypeReason;
-  /** The courier's timeframe as the customer is now told it. Required when `to` is `courier`. */
+  /** The courier timeframe the customer is now told; required when `to` is `courier`. */
   courierEstimate: string | null;
   note: string | null;
 }
@@ -16,28 +16,14 @@ export interface DeliveryTypeChange {
 export interface RecordDeliveryTypeInput {
   orderId: string;
   actor: DeliveryTypeActor;
-  /**
-   * Absent: record the FIRST entry — the type the checkout decided, as the order already carries it.
-   * Present: move the order to another type and record that.
-   */
+  /** Absent: record the first entry (the type the checkout decided). Present: move the order and record that. */
   change?: DeliveryTypeChange;
 }
 
 /**
- * ⚠ THE ONE WRITER of an order's delivery-type history, and — once an order is paid — of its type
- * (079 research R7). `delivery-type.guard.test.ts` fails a second one.
- *
- * Runs in the CALLER's transaction: the history row and the order's columns commit together or not
- * at all, with whatever else the caller is doing (the paid transition; later, a staff override and
- * its compensation).
- *
- * Returns whether a row was written.
- *   - The first entry is written at most once however often payment is finalised (a partial unique
- *     index is the conflict target), and never for an order placed before 079 — it has no type, and
- *     its history is not invented.
- *   - A change to the type it already has is not a change.
- *
- * ⚠ It does not announce. The caller does, after its transaction commits (`announceOrder`).
+ * The one writer of an order's delivery-type history and, once paid, of its type, in the caller's
+ * transaction. The first entry is written at most once (a partial unique index); a change to the type
+ * it already has writes nothing. Returns whether a row was written. Does not announce.
  */
 export async function recordDeliveryType(tx: Queryable, input: RecordDeliveryTypeInput): Promise<boolean> {
   const actorSub = input.actor.kind === "staff" ? input.actor.sub : null;
@@ -58,21 +44,14 @@ ON CONFLICT (order_id) WHERE from_type IS NULL DO NOTHING`,
   return (await changeDeliveryType(tx, { ...input, change: input.change })) !== null;
 }
 
-/**
- * The same change as `recordDeliveryType` with a `change` — returning the history row it wrote, or
- * null when nothing changed (no such order, an order with no type, or the type it already has).
- *
- * 081 — a staff move records what it adds (the window, the courier, the compensation) against the
- * row that says the move happened, so it needs that row's id. ⚠ Still the one writer: this IS it.
- */
+/** As `recordDeliveryType` with a `change`, returning the row it wrote (or null): a staff move hangs its details on it. */
 export async function changeDeliveryType(
   tx: Queryable,
   input: RecordDeliveryTypeInput & { change: DeliveryTypeChange },
 ): Promise<{ changeId: string } | null> {
   const actorSub = input.actor.kind === "staff" ? input.actor.sub : null;
   const { to, reason, note } = input.change;
-  // The order row's lock is what makes "from" true: two changes at once are serialised, and the
-  // second sees the first's result.
+  // The order row's lock makes "from" true: two changes serialise.
   const current = (
     await tx.query<{ delivery_type: DeliveryType | null }>(`SELECT delivery_type FROM public."order" WHERE id = $1 FOR UPDATE`, [input.orderId])
   ).rows[0];
@@ -97,10 +76,7 @@ UPDATE public."order"
   return { changeId: written.id };
 }
 
-/**
- * 081 — the staff note (the reason a person gave) on each of these history rows. ⚠ Staff only: the
- * reason is never on a customer or shop contract.
- */
+/** The staff note on each row. Staff only, never on a customer or shop contract. */
 export async function deliveryTypeChangeNotes(q: Queryable, changeIds: readonly string[]): Promise<Map<string, string | null>> {
   if (changeIds.length === 0) return new Map();
   const rows = (

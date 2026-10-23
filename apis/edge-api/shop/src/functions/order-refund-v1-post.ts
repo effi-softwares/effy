@@ -11,22 +11,14 @@ import {
 
 import { shopMayRefundOrder } from "../staff/service";
 
-// ⚠ NO SHOP-LOCAL REFUND MECHANISM (057 FR-014). The rules are the platform's one implementation;
-// all this route adds is a differently-authorized way in, and a scope check. Built once per container.
+// The platform's one refund implementation, with a differently authorized way in. Built once per container.
 const refunds = createRefundService({ repo: createRefundRepository(), gateway: stripeGateway });
 
 const denied = (reason: string) => emitMetric(MONEY_METRIC_NAMESPACE, "ShopRefundDenied", 1, { reason });
 
 /**
- * POST /shop/v1/orders/{orderId}/refunds — a shop manager refunds their own portion of an order.
- *
- * ⚠ THE ORDER OF THE TWO GATES MATTERS. Authorization (may this person refund this order at all)
- * runs BEFORE line scoping (are these lines theirs), so a caller who is not a manager at a shop on
- * this order learns nothing about which lines exist.
- *
- * ⚠ The 403 is uniform: not a manager, shop suspended, no shop, or simply not this shop's order
- * all read the same — saying which would make the route a probe for which orders exist. The reason
- * is counted as a metric, where only Effy can read it. A failed check is 503, never a grant.
+ * A shop manager refunds their own portion. Authorization runs before line scoping, so a non-manager
+ * learns nothing about which lines exist. The 403 is uniform; the reason is a metric only Effy reads.
  */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
@@ -65,18 +57,16 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   if (lines.length === 0) return validationFailed(scope, "select at least one item to refund");
 
   try {
-    // ⚠ The WHOLE request is refused if any line is another shop's — never the subset it likes.
+    // The whole request is refused if any line is another shop's.
     await refunds.repo.assertLinesBelongToShop(orderId, shopId, lines);
-    // ⚠ 074 FR-027: the result is returned WITHOUT how the refund was split — a shop must not learn
-    // that an order was paid with points.
+    // Returned without the refund split: a shop must not learn an order used points.
     return json(200, withoutPaymentSplit(await refunds.issue({
       orderId, lines, reason, note, amount: "",
-      // ⚠ Always `item`. A shop may not issue goodwill: that spends Effy's money on a gesture Effy
-      // did not make.
+      // Always `item`: a shop may not spend Effy's money on goodwill.
       kind: "item",
       actorSub: sub,
       actorKind: "shop",
-      // ⚠ Stock goes back only when the shop says the goods are fit to sell. Absent means no.
+      // Stock goes back only when the shop says the goods are fit to sell.
       skipStockReturn: body.restock !== true,
     })), scope);
   } catch (err) {

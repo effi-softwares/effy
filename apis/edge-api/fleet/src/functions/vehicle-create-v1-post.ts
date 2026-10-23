@@ -1,5 +1,4 @@
-// POST /fleet/v1/vehicles — add a vehicle to the register (061 US1, FR-001…FR-006).
-// Mutate = admin/manager only.
+// Admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

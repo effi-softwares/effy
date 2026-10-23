@@ -2,7 +2,6 @@ import type { AuthedEvent } from "@effy/edge-shared";
 import type { Context } from "aws-lambda";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Authorize from the platform record — mock the two predicates at the module boundary.
 const canReadCatalog = vi.hoisted(() => vi.fn());
 const canManageCatalog = vi.hoisted(() => vi.fn());
 vi.mock("../catalog/authz", () => ({ canReadCatalog, canManageCatalog }));

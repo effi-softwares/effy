@@ -1,13 +1,12 @@
-// The order of a driver's work, as dispatch sees it (093): held packages, overdue steps, vehicle checks.
-// Every list here is derived on read except the three facts the migration stores.
+// Held packages, overdue steps and vehicle checks; all derived on read except the three stored facts.
 
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL } from "@effy/edge-shared/delivery";
 
-/** Open holds, oldest first. */
+/** Oldest first. */
 export const HELD_PACKAGES = `
   SELECT ph.id AS hold_id, ph.shop_fulfillment_id AS package_id, o.order_number, s.name AS shop_name,
          d.name AS driver_name, ph.round_id, ph.step, ph.reason, ph.note, ph.created_at,
-         -- 096 — a hold on ONE bag names it; a hold on the whole package has no bag.
+         -- A hold on ONE bag names it; a hold on the whole package has no bag.
          pp.parcel_code, pp.seq AS parcel_seq, pp.zone AS parcel_zone,
          (SELECT count(*) FROM public.package_parcel l
            WHERE l.shop_fulfillment_id = ph.shop_fulfillment_id AND l.voided_at IS NULL)::int AS parcel_of
@@ -25,10 +24,9 @@ const SETTINGS = `(SELECT COALESCE((SELECT load_overdue_min FROM public.delivery
                           COALESCE((SELECT checkin_overdue_min FROM public.delivery_settings WHERE id = 1), 30) AS checkin_min) cfg`;
 
 /**
- * When each unfinished round's next step became due, and the threshold after which it is overdue.
- * Delivery: due at its opening (or, with no window, when it was planned), overdue `load_min` after,
- * while any drop is unloaded. Collection: due when its last shop was settled, overdue `checkin_min`
- * after, while it has not been checked in.
+ * When each unfinished round's next step became due and its overdue threshold. Delivery: due at its
+ * opening (or when planned, with no window), overdue `load_min` after, while a drop is unloaded.
+ * Collection: due when its last shop settled, overdue `checkin_min` after, until checked in.
  */
 const DUE = `
   SELECT dr.id AS round_id, dr.kind, dr.status, d.name AS driver_name, ${ROUND_STAGE_COLUMNS},
@@ -49,14 +47,13 @@ const DUE = `
          )
 `;
 
-/** Rounds whose next step is overdue now. */
 export const OVERDUE_RUNS = `
   SELECT * FROM (${DUE}) due
    WHERE due.due_at IS NOT NULL AND due.due_at + make_interval(mins => due.threshold_min) <= now()
    ORDER BY due.due_at
 `;
 
-/** How many rounds became overdue in [$1, now) — what the planner pass announces. */
+/** In [$1, now): what the planner pass announces. */
 export const OVERDUE_CROSSED_SINCE = `
   SELECT count(*)::int AS n FROM (${DUE}) due
    WHERE due.due_at IS NOT NULL
@@ -64,7 +61,7 @@ export const OVERDUE_CROSSED_SINCE = `
      AND due.due_at + make_interval(mins => due.threshold_min) < now()
 `;
 
-/** Today's (Melbourne) vehicle checks that found anything, newest first. */
+/** Today's (Melbourne) checks that found anything, newest first. */
 export const VEHICLE_CHECKS_TODAY = `
   SELECT vc.id AS check_id, d.name AS driver_name,
          concat_ws(' ', v.make, v.model) || ' · ' || v.registration_plate AS vehicle_label,

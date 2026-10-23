@@ -1,13 +1,8 @@
 /**
- * 074-customer-points — store credit Effy gives and the customer spends.
- *
- * ⚠ TWO AUDIENCES, TWO SHAPES, as 055 drew them for refunds. A customer sees a points line as a
- * sentence ("Sorry your order was late"); staff also see the reason code, the internal NOTE and who
- * made the change. The note must never reach a customer, so the customer shape has no field it could be
- * put in.
- *
- * ⚠ POINTS ARE A WAY OF PAYING, NEVER A DISCOUNT (FR-018). Every money field below is a decimal string
- * like the rest of the platform's wire; a point count is an integer.
+ * Points: store credit Effy gives and the customer spends. Two shapes: a customer sees a sentence; staff
+ * also see the reason code, the internal note and who made the change (the customer shape has no field
+ * for the note). Points are a way of paying, never a discount. Money is a decimal string; a point count
+ * is an integer.
  */
 
 import type { WireInt } from "./cart"
@@ -30,7 +25,7 @@ export type PointsCreditReason = (typeof POINTS_CREDIT_REASONS)[number]
 export const POINTS_DEBIT_REASONS = ["credited_in_error", "correction", "other"] as const
 export type PointsDebitReason = (typeof POINTS_DEBIT_REASONS)[number]
 
-/** What staff call each reason. (The customer's words are decided by the server, per entry.) */
+/** What staff call each reason (the customer's words are decided by the server, per entry). */
 export const POINTS_REASON_LABELS: Readonly<Record<string, string>> = {
   late_delivery: "Late delivery",
   missing_item: "Missing item",
@@ -46,7 +41,7 @@ export const POINTS_REASON_LABELS: Readonly<Record<string, string>> = {
   forfeited: "Account closed",
 }
 
-// ── Customer ────────────────────────────────────────────────────────────────────────────────────────
+// Customer
 
 /** GET /customer/v1/points */
 export interface PointsBalanceDTO {
@@ -57,14 +52,14 @@ export interface PointsBalanceDTO {
   nextExpiry: { points: WireInt; date: string } | null
 }
 
-/** One history line as the CUSTOMER sees it. */
+/** One history line as the customer sees it. */
 export interface PointsHistoryEntryDTO {
   id: string
   kind: PointsEntryKind
   /** Signed. */
   points: WireInt
   valueAmount: string
-  /** The sentence to show — decided by the server from the reason. */
+  /** The sentence to show, decided by the server from the reason. */
   words: string
   orderNumber: string | null
   /** Credits only: the last date these points can be used (yyyy-mm-dd, Melbourne). */
@@ -78,23 +73,17 @@ export interface PointsHistoryPageDTO {
   nextCursor?: string
 }
 
-/**
- * GET /customer/v1/points — the balance AND a page of history, in one answer.
- *
- * ⚠ ONE ROUTE ON PURPOSE. Every screen that shows points shows both, so two routes would be two round
- * trips for one screen — and the shared gateway's route and integration ceilings (300 each) were
- * reached the day this shipped. `?cursor=` pages the history; the balance is always current.
- */
+/** GET /customer/v1/points: the balance and a page of history in one answer (every points screen shows both). `?cursor=` pages it. */
 export interface CustomerPointsDTO extends PointsBalanceDTO {
   history: PointsHistoryPageDTO
 }
 
-// ── Back-office ─────────────────────────────────────────────────────────────────────────────────────
+// Back-office
 
-/** One history line as STAFF see it: the customer's line plus the facts behind it. */
+/** One history line as staff see it: the customer's line plus the facts behind it. */
 export interface StaffPointsHistoryEntryDTO extends PointsHistoryEntryDTO {
   reason: string
-  /** ⚠ Internal. Staff only. */
+  /** Internal, staff only. */
   note: string | null
   authorKind: "staff" | "system" | "customer"
   /** A staff member's name, "Customer", or the platform flow's name. */
@@ -103,7 +92,7 @@ export interface StaffPointsHistoryEntryDTO extends PointsHistoryEntryDTO {
   refundId: string | null
 }
 
-/** The staff history page. Concrete, not generic, so the Kotlin generators can read every shape. */
+/** The staff history page, concrete rather than generic so the Kotlin generators can read it. */
 export interface StaffPointsHistoryPageDTO {
   entries: StaffPointsHistoryEntryDTO[]
   nextCursor?: string
@@ -165,9 +154,9 @@ export interface PointsSettingsDTO {
   history?: { field: string; oldValue: string; newValue: string; changedBy: string; changedAt: string }[]
 }
 
-// ── Orders ──────────────────────────────────────────────────────────────────────────────────────────
+// Orders
 
-/** How an order was paid and what has come back — on customer and staff order reads. */
+/** How an order was paid and what has come back, on customer and staff order reads. */
 export interface OrderPaymentSplitDTO {
   pointsUsed: WireInt
   pointsAmount: string
@@ -176,15 +165,3 @@ export interface OrderPaymentSplitDTO {
   cardReturned: string
 }
 
-/** Refusal codes a points change or a points checkout can answer with. */
-export type PointsRefusalCode =
-  | "points_invalid"
-  | "reason_invalid"
-  | "note_required"
-  | "over_agent_limit"
-  | "order_not_found"
-  | "insufficient_points"
-  | "points_balance_changed"
-  | "points_exceed_total"
-  | "points_card_remainder_too_small"
-  | "refund_not_splittable"

@@ -27,7 +27,7 @@ describe("requireSession (shop-web)", () => {
     expect(result).toEqual(identity);
   });
 
-  // FR-004 / SC-010: a deep link while signed out returns the operator to where they were headed.
+  // A deep link while signed out returns the operator to where they were headed.
   it("redirects to sign-in preserving the intended destination", async () => {
     await expect(
       requireSession(fakeQueryClient({ status: "signed-out" }), "/manager"),

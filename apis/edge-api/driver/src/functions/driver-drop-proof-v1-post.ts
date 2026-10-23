@@ -11,17 +11,7 @@ import { NothingToHandOver, ParcelsUnaccounted, parcelsUnaccountedProblem } from
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
-/**
- * POST /driver/v1/delivery/drops/{dropId}/proof (064, US1).
- *
- * ⚠ THIS ROUTE IS THE DELIVERY COMPLETION. Before 064 a same-day order could not reach `delivered`
- * by any driver action at all — the only writer of that status was back-office's manual arrival path
- * for carrier packages (research R2).
- *
- * ⚠ "NOT YOURS" AND "NO SUCH DROP" ARE THE SAME ANSWER, BYTE FOR BYTE. They come from one query that
- * returns no row. Distinguishing them would make this route an oracle for other drivers' work (052's
- * rule, applied to the driver audience).
- */
+/** Completes the delivery. "NOT YOURS" and "NO SUCH DROP" are the same answer from one query. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -43,12 +33,9 @@ export const handler = async (
 
   try {
     const result = await submitProof(dropId, guard.driver.id, guard.driver.subject, body);
-    // 071 — committed; tell the screens that show it.
     await announceDelivered(dropId);
 
-    // ⚠ A REPLAY ANSWERS 200 WITH THE ORIGINAL OUTCOME, not a conflict (FR-005). A request that
-    // arrived without its response reaching the phone is ordinary in a loading bay, and the retry
-    // must not be something the driver has to think about.
+    // A replay answers 200 with the original outcome.
     const response: ProofResponse = { status: "delivered" };
     guard.scope.log.info(
       {
@@ -61,7 +48,7 @@ export const handler = async (
     );
     return json(200, response, guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);

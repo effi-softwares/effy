@@ -1,7 +1,4 @@
-// The customer's order history and receipt (019, 052, 055, 066, 069). No HTTP, no SQL.
-//
-// The receipt is ONE order itemised by product, with an ANONYMOUS per-package summary: a shop's
-// identity never appears, and neither does how many shops there were beyond the packages shown.
+// The receipt itemises by product with an anonymous per-package summary: no shop ever appears.
 import {
   countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageWidthsField,
   operatingStamp, parseCents, publicImageAddress, stageFor, widthsOf, type RequestScope,
@@ -12,20 +9,14 @@ import { distinctArrivals, type CustomerRefundDTO, type DeliveryPromise, type Or
 import { isUuid } from "../lib/ids";
 import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
 
-/** Raised for a missing order AND for someone else's — the two are indistinguishable by design. */
+/** Missing and someone else's are deliberately indistinguishable. */
 export class OrderNotFoundError extends Error {}
 
 type ImageAddress = (key: string | null) => Promise<string | null>;
 
 /**
- * What has happened to the shopper's money (055 FR-023), or nothing at all.
- *
- * ⚠ AN ORDER WITH NO REFUNDS GETS NO KEYS — not an empty array, not "0.00", not `false`. It must
- * read exactly as it did before refunds existed (055 SC-011).
- * ⚠ INTEGER CENTS, formatted once. A refund puts a second set of figures on a document whose first
- * set must already add up.
- * ⚠ THE RECEIPT ITSELF IS NOT REWRITTEN (FR-024): the totals above stay what was CHARGED, and a
- * refund is a later event shown beside them — so the order still reconciles to a bank statement.
+ * What has happened to the shopper's money. An order with no refunds gets no keys at all. The
+ * charged totals are never rewritten: refunds are shown beside them, so the order still reconciles.
  */
 export interface RefundBlock {
   refunds?: CustomerRefundDTO[];
@@ -42,21 +33,17 @@ export function refundBlock(grandTotal: string, rows: readonly RefundRow[]): Ref
     return { amount: r.amount, state: customerRefundState(r.status), refundedAt: r.settled_at };
   });
   const paidCents = parseCents(grandTotal);
-  const fullyRefunded = paidCents > 0 && refundedCents >= paidCents; // `> 0`: a free order is not "fully refunded"
+  const fullyRefunded = paidCents > 0 && refundedCents >= paidCents;
   return {
     refunds,
     refundedTotal: formatCents(refundedCents),
     amountPaidAfterRefunds: formatCents(Math.max(0, paidCents - refundedCents)),
-    // ⚠ Derived from the totals, never stored — and absent, not false, when it is not so.
+    // Absent, not false, when it is not so.
     ...(fullyRefunded ? { fullyRefunded: true } : {}),
   };
 }
 
-/**
- * 074 — how the order was paid when points were part of it, and what has come back of each (FR-018,
- * FR-028). ⚠ ABSENT on an order that used no points, so such an order reads exactly as before 074.
- * ⚠ Points are a way of paying, shown beside the card — never a discount line.
- */
+/** Absent when no points were used. Points are a way of paying, never a discount line. */
 export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_amount" | "card_paid_amount">, refunds: readonly RefundRow[]) {
   if (!row.points_used) return {};
   let cardReturned = 0;
@@ -77,11 +64,7 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
   };
 }
 
-/**
- * 079 — who delivers the order, as the customer contract carries it: the type, and a courier's
- * timeframe AS SOLD (the order's own copy — never today's setting). Every surface prints the result
- * through `deliverySummary`.
- */
+/** The courier timeframe is the order's own copy as sold, never today's setting. */
 function deliveryOf(row: {
   delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
@@ -111,9 +94,8 @@ function deliveryOf(row: {
 }
 
 /**
- * 085 — the arrival a customer may be told, from what the order was SOLD — not from what its
- * packages carry. ⚠ A day with no time rides the Any-time window, so its packages have hours the
- * customer is never shown. ⚠ "As soon as possible" was told an estimate: no day and no hours.
+ * The arrival a customer may be told, from what was sold rather than the packages: a day-only order's
+ * packages carry the Any-time window's hours, and an asap order was told only an estimate.
  */
 function soldArrivals<T extends { windowStart: string | null; windowEnd: string | null }>(
   row: { delivery_type?: "effy" | "courier" | null; delivery_promise?: DeliveryPromise | null },
@@ -124,10 +106,7 @@ function soldArrivals<T extends { windowStart: string | null; windowEnd: string 
   return arrivals;
 }
 
-/**
- * 081 — the latest move by back-office, as the customer is told it: where to, when, and what they
- * received (through the one mapping, `customerCompensationOf`). Absent when the order was never moved.
- */
+/** Absent when back-office never moved the order. */
 function movedOf(row: {
   moved_to?: "effy" | "courier" | null; moved_at?: string | null; moved_compensation?: string | null;
   moved_amount_cents?: number | null; moved_points?: number | null;
@@ -140,14 +119,8 @@ function movedOf(row: {
 }
 
 /**
- * 080 Q8 — how a customer follows a courier order, decided ONCE here:
- *   nothing with the courier yet                 → absent;
- *   more than one parcel (or consignment)        → "sent by email" — each parcel's tracking is emailed;
- *   exactly one, and the courier gave a link     → that link;
- *   exactly one, no link                         → absent (a reference without a link is not tracking).
- *
- * ⚠ NEVER A COUNT. "By email" is the one thing a customer learns about there being several parcels,
- * and only once one has gone; how many suppliers filled the order is not theirs to know.
+ * How a customer follows a courier order: nothing yet or one parcel with no link → absent; several
+ * parcels → "sent by email"; one with a link → that link. Never a count.
  */
 export function trackingOf(row: {
   parcel_count?: number;
@@ -165,7 +138,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
   const { repo } = deps;
   const imageAddress = deps.imageAddress ?? publicImageAddress;
 
-  /** A supporting read: its failure must never cost the shopper their receipt. */
+  /** Its failure must never cost the shopper their receipt. */
   async function optional<T>(scope: Pick<RequestScope, "log">, what: string, read: () => Promise<T>, fallback: T): Promise<T> {
     try {
       return await read();
@@ -177,13 +150,8 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
 
   return {
     /**
-     * The order history. Each row carries what the list shows beside the totals (084): the one
-     * stage word, the promise it was sold, when it arrived, whether it was refunded, and the
-     * pictures of its first lines.
-     *
-     * ⚠ EVERY ONE OF THOSE IS DERIVED BY THE FUNCTION THE RECEIPT USES — `stageFor`,
-     * `distinctArrivals`, `refundBlock` — so the list and the order page can never tell the same
-     * order two different ways. ⚠ And each is ABSENT, not empty, when it does not apply.
+     * Each row's stage, promise, arrival, refund and pictures come from the same functions the receipt
+     * uses, so the list and the order page agree. Each is absent when it does not apply.
      */
     async list(customerId: string): Promise<OrderSummaryDTO[]> {
       return Promise.all((await repo.list(customerId)).map(async (r) => {
@@ -191,15 +159,15 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
         const stage = paid && r.portion_statuses ? stageFor(r.portion_statuses) : undefined;
         const arrivals = distinctArrivals(soldArrivals(r, (r.arrivals ?? []).map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
-          // json_agg hands a timestamp back as text; the receipt's own read hands back a Date.
+          // json_agg returns timestamps as text; the receipt's read returns a Date.
           windowStart: a.window_start ? operatingStamp(new Date(a.window_start)) : null,
           windowEnd: a.window_end ? operatingStamp(new Date(a.window_end)) : null,
         }))));
         const refunded = refundBlock(r.grand_total_amount, (r.refunds ?? []) as RefundRow[]);
-        // ⚠ A picture must not be able to fail the list: a failed address is a missing picture.
+        // A failed picture address is a missing picture, never a failed list.
         const refs = r.image_refs ?? undefined;
         const thumbnails = refs ? await Promise.all(refs.map((ref) => imageAddress(ref.key).catch(() => null))) : undefined;
-        // 086 — each thumbnail's copies, index-aligned; sent only when at least one has any.
+        // Sent only when at least one thumbnail has copies.
         const thumbnailWidths = refs?.map((ref) => widthsOf(ref.widths));
         return {
           id: r.id, orderNumber: r.order_number, status: r.status as OrderSummaryDTO["status"], placedAt: r.placed_at,
@@ -243,28 +211,25 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
         placedAt: row.placed_at,
         items: await Promise.all(
           items.map(async (it) => {
-            // ⚠ A failed address is swallowed: a photograph must not be able to fail a receipt.
+            // A failed picture address must not fail the receipt.
             const imageUrl = await imageAddress(it.image_key).catch(() => null);
             return {
               orderItemId: it.order_item_id, productId: it.product_id, productName: it.product_name,
               variantId: it.variant_id, variantLabel: it.variant_label,
               unitPriceAmount: it.unit_price_amount, quantity: it.quantity, lineSubtotalAmount: it.line_subtotal_amount,
               discountAmount: it.discount_amount,
-              // Absent, not null or "", when there is no image.
               ...(imageUrl ? { imageUrl, ...imageWidthsField(it.image_widths) } : {}),
             };
           }),
         ),
         deliveryAddress: row.delivery_address ?? {},
-        // Absent means "billing is the same as shipping". Never defaulted to {}.
+        // Absent means billing is the same as shipping.
         ...(row.billing_address ? { billingAddress: row.billing_address } : {}),
-        // null when the customer said nothing; always present so a client can rely on the key.
         deliveryInstructions:
           row.delivery_handover === null && row.delivery_note === null ? null : { handover: row.delivery_handover, note: row.delivery_note },
         itemSubtotalAmount: row.item_subtotal_amount,
         discountAmount: row.discount_amount,
         deliveryFeeAmount: row.delivery_fee_amount,
-        // 077 — the same charge as lines, exactly as sold.
         deliveryFee: { lines: row.delivery_fee_lines, totalAmount: row.delivery_fee_amount },
         promoCode: row.promo_code,
         promotions: (row.promotions ?? []).map((p) => ({ headline: p.headline ?? p.name, code: p.code, goodsAmount: p.goods, deliveryAmount: p.delivery })),
@@ -276,24 +241,17 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
           const unavailableItems = shortByPortion.get(p.id);
           return {
             status: p.status, itemCount: p.item_count, subtotalAmount: p.subtotal_amount,
-            // ⚠ Absent while the portion is still being picked, so a flag later undone never shows.
+            // Absent while the portion is being picked, so a flag later undone never shows.
             ...(unavailableItems ? { unavailableItems } : {}),
           };
         }),
-        // ⚠ Both DERIVED HERE and put on the wire; no client computes either.
         stage: stageFor(statuses),
         cancellable: customerCancellable(row.status, statuses),
         ...refundBlock(row.grand_total_amount, refunds),
         ...paymentSplit(row, refunds),
-        // null on an order whose method was never captured; the client omits the line.
         paymentMethod: method?.method_type ? { type: method.method_type, brand: method.method_brand, last4: method.method_last4 } : null,
-        // Always an array. ⚠ Dates stay dates; a window carries the Melbourne offset (069 FR-029).
-        // ⚠ 078 — one entry per DISTINCT promise, never one per package: an order delivered in one
-        // window is one delivery, however many suppliers filled it.
-        // ⚠ 079 — EMPTY for a courier order. It has no window and no day, and its packages' own
-        // word for the delivery is routing ("standard"), not what the customer was sold: sent on, a
-        // client built before 079 would print "Standard delivery" for a parcel a courier is carrying.
-        // ⚠ 085 — and from what was SOLD (`soldArrivals`).
+        // One entry per distinct promise, from what was sold. Empty for a courier order: its packages'
+        // "standard" is routing, not what the customer bought.
         arrivalEstimates: distinctArrivals(soldArrivals(row, arrivals.map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           windowStart: a.window_start ? operatingStamp(a.window_start) : null,

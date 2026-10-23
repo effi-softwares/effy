@@ -10,7 +10,6 @@ const repo = vi.hoisted(() => ({
   hasPrimaryImage: vi.fn(),
   hardDeleteProduct: vi.fn(),
   setProductSections: vi.fn(),
-  // 067
   reviewFacts: vi.fn(),
   submitForReview: vi.fn(),
   withdrawSubmission: vi.fn(),
@@ -24,7 +23,7 @@ const changeMod = vi.hoisted(() => ({
 const mediaMod = vi.hoisted(() => ({ presignRead: vi.fn() }));
 vi.mock("./repository", () => repo);
 vi.mock("./media", () => mediaMod);
-// 067 — the pure helpers (diff, overlay, merge) are REAL; only the database-touching ones are mocked.
+// The pure helpers (diff, overlay, merge) are real; only database-touching ones are mocked.
 vi.mock("./change", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("./change");
   return { ...actual, ...changeMod };
@@ -44,7 +43,7 @@ async function kindOf(p: Promise<unknown>): Promise<string> {
 }
 
 const V1 = "00000000-0000-4000-8000-0000000000a1";
-/** 098 — the one variant of a product with no options. */
+/** The one variant of a product with no options. */
 const variantRow = {
   id: V1, productId: "p1", position: 0, optionValueIds: [null, null], label: null, sku: null, gtin: null,
   shopPriceAmount: "1.00", shopCompareAtAmount: null, priceAmount: "1.00", compareAtAmount: null,
@@ -58,7 +57,7 @@ const detail = {
   missingMandatoryAttributes: [], createdAt: "t", updatedAt: "2026-07-16T00:00:00.000Z",
   unitBasis: null, options: [], variants: [variantRow], shopDefaultThreshold: null, gstStatus: null,
 };
-/** The variant set as a shop would send it, with its price changed. */
+/** As a shop would send it, with its price changed. */
 const repriced = (price: string) => ({ options: [], variants: [{ id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: price }] });
 
 describe("updateProduct — optimistic concurrency (FR-023a)", () => {
@@ -91,7 +90,7 @@ describe("updateProduct — optimistic concurrency (FR-023a)", () => {
     await updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "Renamed" }, "sub-1");
     const values = repo.updateProduct.mock.calls[0]![3];
     expect(values.name).toBe("Renamed");
-    expect(values.shortDescription).toBe("d"); // untouched field kept from current
+    expect(values.shortDescription).toBe("d");
   });
 });
 
@@ -101,11 +100,11 @@ describe("changeStatus — publish re-validates mandatory (FR-010)", () => {
     mediaMod.presignRead.mockResolvedValue("url");
     repo.getProductDetail.mockResolvedValue({ ...detail });
     repo.changeStatus.mockResolvedValue(true);
-    // 067 — an APPROVED product going back on sale: the readiness checks still apply to it.
+    // An approved product going back on sale still passes the readiness checks.
     repo.reviewFacts.mockResolvedValue({ approved: true, reviewState: "none", status: "unavailable" });
   });
 
-  /** ⚠ 067 FR-001 — "publish" no longer exists for a product Effy has never approved. */
+  /** "Publish" does not exist for a product Effy has never approved. */
   it("⚠ refuses to put a never-approved product on sale, and points at review", async () => {
     repo.reviewFacts.mockResolvedValue({ approved: false, reviewState: "none", status: "draft" });
     repo.hasPrimaryImage.mockResolvedValue(true);
@@ -113,7 +112,7 @@ describe("changeStatus — publish re-validates mandatory (FR-010)", () => {
     expect(repo.changeStatus).not.toHaveBeenCalled();
   });
 
-  /** 067 FR-024 — off sale never waits, approved or not. */
+  /** Off sale never waits, approved or not. */
   it("takes a never-approved product off the shelf without asking about review", async () => {
     await changeStatus("shop-1", "p1", { status: "unavailable" });
     expect(repo.reviewFacts).not.toHaveBeenCalled();
@@ -180,8 +179,6 @@ describe("setSections", () => {
     expect(repo.setProductSections).toHaveBeenCalledWith("shop-1", "p1", ["s1", "s2"]);
   });
 });
-
-// ── 067 — review ────────────────────────────────────────────────────────────────────────────────
 
 const approvedDetail = { ...detail, status: "active", approved: true, pendingChange: null };
 
@@ -262,13 +259,13 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     changeMod.saveProposal.mockResolvedValue("saved");
   });
 
-  /** ⚠ FR-015 — the live row is not written. */
+  /** The live row is not written. */
   it("⚠ saves a proposal and NEVER writes the live product", async () => {
     await updateProduct("shop-1", "p1", { name: "Renamed", ...repriced("2.50") }, "sub-1");
     expect(repo.updateProduct).not.toHaveBeenCalled();
     expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", expect.objectContaining({
       name: "Renamed",
-      // 098 — a price is a VARIANT's; the whole set travels with the proposal.
+      // A price is a variant's; the whole set travels with the proposal.
       variants: [expect.objectContaining({ id: V1, shopPriceAmount: "2.50" })],
     }));
   });
@@ -277,7 +274,7 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     expect(await kindOf(updateProduct("shop-1", "p1", { name: "Renamed" }, "sub-1"))).toBe("no-throw");
   });
 
-  /** FR-017 — a second edit builds on the first proposal, it does not replace it. */
+  /** A second edit builds on the first proposal. */
   it("merges a further edit over what was already proposed", async () => {
     changeMod.readChange.mockResolvedValue({
       id: "c1", proposed: { name: "Renamed" }, mediaChanged: false, state: "in_review", reason: null, submittedAt: "t",
@@ -286,7 +283,7 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", { name: "Renamed", brand: "Acme" });
   });
 
-  /** FR-022 — changing it back proposes nothing. */
+  /** Changing it back proposes nothing. */
   it("proposes nothing when the edit returns a detail to its live value", async () => {
     changeMod.readChange.mockResolvedValue({
       id: "c1", proposed: { name: "Renamed" }, mediaChanged: false, state: "in_review", reason: null, submittedAt: "t",

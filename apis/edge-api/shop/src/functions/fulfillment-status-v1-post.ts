@@ -1,8 +1,4 @@
-// POST /shop/v1/fulfillments/{id}/status — advance or reverse a portion (020, US3).
-//
-// This is the endpoint that finally moves shop_fulfillment.status off `pending`, where 019 left it
-// with no consumer. Concurrency-safe: a transition another operator already applied returns 200 with
-// the current portion rather than an error (FR-014, SC-005).
+// A transition another operator already applied returns 200 with the current portion.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -13,7 +9,6 @@ import { transition } from "../fulfillments/service";
 import { REQUESTABLE_TRANSITIONS } from "../fulfillments/types";
 import type { RequestableTransition } from "../fulfillments/types";
 
-// ⚠ Imported, never restated — see the note on REQUESTABLE_TRANSITIONS.
 const REQUESTABLE: readonly string[] = REQUESTABLE_TRANSITIONS;
 
 export const handler = async (
@@ -33,12 +28,7 @@ export const handler = async (
       "a JSON body is required", scope, parsed.errors);
   }
 
-  // `received` and `collected` are deliberately not requestable: the first is implicit on open
-  // (FR-011a), the second belongs to the dev-only pickup stub alone (FR-030).
-  //
-  // ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously
-  // lacked. `withdrawn` is NOT requestable and must never become so: it is written by the platform's cancellation when
-  // an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
+  // `received` is implicit on open and `collected` is driver work; `withdrawn` is cancellation's alone.
   const to = parsed.value.to;
   if (typeof to !== "string" || !REQUESTABLE.includes(to)) {
     return problem(400, ProblemType.ValidationFailed, "Validation failed",
@@ -48,9 +38,7 @@ export const handler = async (
   }
 
   try {
-    // ⚠ The reason is REQUIRED for `unfulfillable` — enforced by the service and, underneath it, by a
-    // CHECK constraint. Back-office is asked to decide a refund on the strength of this; "the shop
-    // said no" is not a basis for returning a customer's money.
+    // The reason is required for `unfulfillable` (and by a check).
     const reason = typeof parsed.value.reason === "string" ? parsed.value.reason : undefined;
     return json(
       200,

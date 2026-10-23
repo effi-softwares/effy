@@ -1,10 +1,4 @@
-// Today's reads: raw SQL, shop-scoped, counted on every request (058).
-//
-// ⚠ EVERY FIGURE HERE IS LIVE, AND NONE OF IT COMES FROM THE ROLLUPS (FR-025). The rollups are
-// minutes behind by design; a pick backlog that is minutes behind is a person walking to a shelf
-// for an order someone else already packed. The split is the whole point of the two screens having
-// two endpoints: operational state is counted from the rows that define it, analytics is read from
-// figures prepared ahead of time.
+// Live figures, counted on every request, never from the (minutes-behind) rollups.
 import {
   EFFECTIVE_LOW_STOCK_THRESHOLD,
   LOW_STOCK_PREDICATE,
@@ -18,15 +12,8 @@ import type { Backlog, LiveOrder, StockAttention } from "./types";
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
 /**
- * The backlog, the ready count and the low-stock counts — ONE round trip.
- *
- * ⚠ `awaiting_units` sums THIS SHOP's lines on those orders (`oi.shop_id = sf.shop_id`), not the
- * order's lines: a two-shop order is two portions, and the units this shop has to pack are its own.
- * The same join rule as everywhere else in the shop family.
- *
- * ⚠ `oldest_paid_at` is an instant, not a duration. Ages are rendered client-side against the
- * server's clock, so "3 h 12 m" keeps counting while a tab sits open instead of freezing at whatever
- * it was when the response was built.
+ * Backlog, ready and low-stock counts in one round trip. `awaiting_units` sums this shop's lines only.
+ * `oldest_paid_at` is an instant, so the age keeps counting on screen.
  */
 const SELECT_BACKLOG = `
 WITH portions AS (
@@ -42,7 +29,7 @@ awaiting AS (
    WHERE p.status IN ('pending', 'received')
 ),
 stock AS (
-  -- 098 — counted per VARIANT: "1 kg running low" is a different shelf from "500 g".
+  -- Counted per VARIANT: "1 kg running low" is a different shelf from "500 g".
   SELECT COUNT(*)::int AS skus,
          COUNT(*) FILTER (WHERE v.stock_on_hand <= 0)::int AS out_of_stock
     FROM public.product_variant v
@@ -86,24 +73,13 @@ export async function readBacklog(shopId: string): Promise<Backlog> {
 }
 
 /**
- * Products needing restocking, with the demand behind each.
- *
- * ⚠ THE PREDICATE IS THE SHARED ONE (`LOW_STOCK_PREDICATE`). The restock list, back-office and this
- * screen must not be able to disagree about what "running out" means — 054's lesson, made structural.
- *
- * ⚠ `sold_7d` is real recorded demand: units that left the shelf through a PAID ORDER in the last
- * seven days (`reason = 'order_paid'`, so a correction or a damage write-off is not read as
- * appetite). The imported design's "17 views today" has no equivalent on this platform — nothing
- * records product views for a shop — and inventing a number for that slot would put a figure on the
- * operator's screen that nothing can be held to.
- *
- * ⚠ `days_of_cover` is NULL rather than 0 when nothing sold. Zero would read as "no cover left,
- * act now"; the truth is "there is no demand to divide into", which is not urgent at all.
+ * Products needing restocking, by the shared `LOW_STOCK_PREDICATE`. `sold_7d` counts units that left
+ * through paid orders only. `days_of_cover` is null, not 0, when nothing sold.
  */
 const SELECT_STOCK_ATTENTION = `
 SELECT p.id::text AS product_id,
        v.id::text AS variant_id,
-       -- 098 — one row per VARIANT, named with its label ("Basmati Rice — 1 kg").
+       -- One row per VARIANT, named with its label ("Basmati Rice — 1 kg").
        ${lineNameSql("p.name", variantLabelSql("v"))} AS name,
        v.stock_on_hand AS on_hand,
        ${LOW_STOCK_SEVERITY} AS severity,
@@ -162,16 +138,8 @@ export async function readStockAttention(shopId: string, limit: number): Promise
 }
 
 /**
- * The five most recently paid orders at this shop.
- *
- * ⚠ EVERY ROW IS A STORED PORTION, and its id is what the row opens (FR-009). The imported design
- * generated arrivals on a timer and had to special-case rows whose detail page did not exist yet;
- * on this platform a shop learns of an order only after the payment transaction has committed and
- * fanned it out (019), so that state is unrepresentable here rather than merely handled.
- *
- * ⚠ The total is the ORDER's, the same figure the Orders list shows for this row (057 A3) — which is
- * deliberately NOT the basis Insights' Revenue uses (this shop's goods only, FR-032). The two
- * screens label theirs, so a $80 order beside a $30 revenue step is explainable rather than alarming.
+ * The five most recently paid orders, each a stored portion. The total is the order's, as on the Orders
+ * list, not Insights' this-shop-goods revenue.
  */
 const SELECT_LIVE = `
 SELECT sf.id::text AS fulfillment_id,
@@ -219,14 +187,7 @@ export async function readLiveOrders(shopId: string, limit: number): Promise<Liv
   }));
 }
 
-/**
- * The shop's clock.
- *
- * ⚠ Validated against `pg_timezone_names` rather than trusted: a bad value would not throw, it would
- * silently shift every boundary on both screens — the day a figure belongs to, when "today" starts,
- * which hour a bar is. A shop whose zone is unrecognised falls back to the platform's, and the
- * service logs it, because a wrong day is worse than a default one.
- */
+/** Validated against `pg_timezone_names`; an unknown zone falls back to the platform's, logged. */
 const SELECT_TIMEZONE = `
 SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names n WHERE n.name = s.timezone)
             THEN s.timezone ELSE NULL END AS timezone,

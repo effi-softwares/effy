@@ -1,13 +1,9 @@
 import type { AddressDTO } from "@effy/shared-types"
 
 /**
- * Address-book domain model (022).
- *
- * The wire DTO (`AddressDTO`) is already close to what the UI needs — this module adds the ONE piece
- * of presentation logic the spec calls for: the **label chips**. The column is a free-text `label`
- * (019); the form offers Home / Work / Other chips over it (FR-006a), and on read a stored label
- * re-selects the matching chip (Home/Work) or falls to Other with the value in a free-text field.
- * See data-model.md §"The label chips → free-text mapping".
+ * Address-book domain model. The wire DTO is close to what the UI needs; this adds the label chips: the
+ * stored `label` is free text, the form offers Home / Work / Other over it, and a stored label re-selects
+ * Home or Work, or falls to Other with the value in a free-text field.
  */
 
 /** A saved delivery address as the address book renders it. Structurally the DTO — kept as its own

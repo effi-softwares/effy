@@ -5,19 +5,19 @@ import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.util.newUuid
 
 /**
- * The cart's use cases (027) — the domain layer the UI calls, between the ViewModel/View and the
+ * The cart's use cases — the domain layer the UI calls, between the ViewModel/View and the
  * repository (Principle VI: presentation never reaches data directly).
  *
- * ── The one shape every mutation has ────────────────────────────────────────────────────────────
+ * The one shape every mutation has
  *
- *      1. apply to the mirror          — synchronous, so the tap lands immediately (FR-014)
- *      2. submit to the coordinator    — which sends it, or drops it for a guest
+ *  1. apply to the mirror — synchronous, so the tap lands immediately
+ *  2. submit to the coordinator — which sends it, or drops it for a guest
  *
  * In that order, always. Reversing them would mean the UI waits on a network call before it moves, which
  * is the whole thing this design exists to avoid.
  *
- * ⚠ Each mutation mints ONE `changeId` per shopper action, here. Not per attempt — a retry reuses it, so a
- * request that arrived without its response reaching us cannot apply twice (FR-018). Minting inside the
+ * Each mutation mints one `changeId` per shopper action, here. Not per attempt — a retry reuses it, so a
+ * request that arrived without its response reaching us cannot apply twice. Minting inside the
  * retry loop would turn "add 1 milk" into "add 1 milk twice" precisely when the network is worst.
  */
 
@@ -42,7 +42,7 @@ class AddToCart(
 /**
  * Set a line's quantity; 0 removes it.
  *
- * The quantity sent is ABSOLUTE, which is what will let US4 debounce ten taps into one request and drop
+ * The quantity sent is absolute, which is what will let US4 debounce ten taps into one request and drop
  * the values in between without corrupting anything.
  */
 class SetCartQuantity(
@@ -51,8 +51,8 @@ class SetCartQuantity(
 ) {
     operator fun invoke(variantId: String, quantity: Int) {
         store.setQuantity(variantId, quantity)
-        // ⚠ DEBOUNCED, unlike add: a stepper is tapped repeatedly and only the value the shopper settles on
-        // matters. Safe only because the payload is absolute (FR-016/SC-005).
+        // Debounced, unlike add: a stepper is tapped repeatedly and only the value the shopper settles on
+        // matters. Safe only because the payload is absolute.
         sync.submitDebounced(
             PendingChange(
                 changeId = newUuid(),
@@ -77,7 +77,7 @@ class RemoveFromCart(
     }
 }
 
-/** Empty the payable cart. Set-aside items survive (FR-030/FR-032). */
+/** Empty the payable cart. Set-aside items survive. */
 class ClearCart(
     private val store: CartStore,
     private val sync: CartSyncCoordinator,
@@ -89,9 +89,9 @@ class ClearCart(
 }
 
 /**
- * Move a line out of the payable cart, keeping it (FR-028).
+ * Move a line out of the payable cart, keeping it.
  *
- * ⚠ Set-aside is the ONE cart operation with no local shortcut. The mirror cannot move a line between the
+ * Set-aside is the one cart operation with no local shortcut. The mirror cannot move a line between the
  * two lists on its own without inventing what the saved list looks like — quantities, prices and
  * availability all come from the platform — so this waits for the answer and adopts it. A guest has no
  * server cart and therefore no saved list at all, which is why it is a no-op for them rather than a
@@ -108,7 +108,7 @@ class SetAside(
     }
 }
 
-/** Move a set-aside line back into the cart, at its CURRENT price (FR-029). */
+/** Move a set-aside line back into the cart, at its current price. */
 class RestoreSaved(
     private val store: CartStore,
     private val repo: CartRepository,
@@ -133,9 +133,9 @@ class DeleteSaved(
 }
 
 /**
- * Put a past order back in the cart (FR-034), and say what could not come back (FR-035).
+ * Put a past order back in the cart, and say what could not come back.
  *
- * ⚠ Server-side in ONE call, not a client loop over the order's items. A loop would be N round trips, would
+ * Server-side in one call, not a client loop over the order's items. A loop would be N round trips, would
  * leave a half-reordered cart on a dropped connection, and — decisively — could not produce the report:
  * whether an item is unavailable or gone for good is only knowable where the catalogue is.
  *
@@ -157,11 +157,11 @@ class ReorderPastOrder(
 }
 
 /**
- * Apply a promotional code (FR-041).
+ * Apply a promotional code.
  *
- * ⚠ Returns the REFUSAL REASON on failure rather than a bare false. "That code doesn't work" tells a
- * shopper nothing about whether to wait, spend more, or give up — and those are different answers
- * (FR-043). The reason comes from the platform; this client never judges a code itself (FR-042).
+ * Returns the refusal reason on failure rather than a bare false. "That code doesn't work" tells a
+ * shopper nothing about whether to wait, spend more, or give up — and those are different answers.
+ * The reason comes from the platform; this client never judges a code itself.
  *
  * Signed-in only: a per-shopper cap is unenforceable without an identity, so a guest is shown a sign-in
  * affordance where the field would be rather than a discount that might be withdrawn.
@@ -182,7 +182,7 @@ class ApplyPromoCode(
     }
 }
 
-/** Remove the applied code; the total returns to the undiscounted amount (FR-041). */
+/** Remove the applied code; the total returns to the undiscounted amount. */
 class RemovePromoCode(
     private val store: CartStore,
     private val repo: CartRepository,
@@ -200,19 +200,9 @@ class SyncCart(private val sync: CartSyncCoordinator) {
 }
 
 /**
- * Fold the device cart into the account cart at sign-in (FR-011/FR-012).
- *
- * ── Why this is the whole answer to "my cart isn't on my other phone" ───────────────────────────
- *
- * A guest's cart is local, and a guest sends nothing. So the moment they sign in, the device's lines have
- * to cross over — and they cross by UNION WITH MAXIMUM quantity, which means nothing is lost from either
- * side and running it twice changes nothing. That last property is what makes it safe to call on every
- * sign-in without checking whether it already ran.
- *
- * ⚠ The local lines are cleared ONLY after the platform has acknowledged the merge, and only because the
- * adopted account cart already contains them. Clearing first would lose the cart if the request failed —
- * which is exactly the class of bug 019's Option B was invented to fix, and it is not being reintroduced
- * here.
+ * Fold the device cart into the account cart at sign-in: union with maximum quantity, so nothing is lost
+ * and a repeat changes nothing. The local lines are cleared only after the platform acknowledges, because
+ * the adopted account cart then contains them.
  */
 class MergeCartOnSignIn(
     private val store: CartStore,
@@ -221,7 +211,7 @@ class MergeCartOnSignIn(
     suspend operator fun invoke(): Boolean {
         val lines = store.snapshot().lines
         if (lines.isEmpty()) {
-            // Nothing of our own to contribute — but the ACCOUNT cart still has to be adopted, or a
+            // Nothing of our own to contribute — but the account cart still has to be adopted, or a
             // shopper signing in on a fresh device would see an empty cart while the platform holds theirs.
             return runCatching { store.adopt(repo.get()) }.getOrDefault(false)
         }

@@ -1,7 +1,4 @@
-// Unit tests for the shop staff repository — SQL orchestration + row→domain mapping, with the db
-// seam mocked (the codebase pattern). The LIVE behavior of the three-term gate is verified by the
-// operator quickstart §6; what we assert here is that the SQL says what we think it says, and that
-// the platform-owned columns are never written from token data.
+// The SQL says what we think, and platform-owned columns are never written from token data.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
@@ -29,8 +26,7 @@ describe("authorizeShopManager (platform record: role AND status AND shop scope)
     expect(await authorizeShopManager("sub-1")).toBe(false);
   });
 
-  // The gate must decide from the platform record, and all three terms must be in the predicate:
-  // role, status, and shop scope. Dropping any one of them silently widens access.
+  // Role, status and shop scope must all be in the predicate.
   it("conjoins role, status, and an inner join to an active shop", async () => {
     query.mockResolvedValue({ rows: [{ ok: true }] });
     await authorizeShopManager("sub-1");
@@ -40,7 +36,7 @@ describe("authorizeShopManager (platform record: role AND status AND shop scope)
     expect(sql).toContain("ssr.role_key = 'shop_manager'");
     expect(sql).toContain("JOIN public.shop st ON st.id = ss.shop_id");
     expect(sql).toContain("st.status = 'active'");
-    // An unassigned operator must drop out of the join, not be LEFT JOINed back in.
+    // An unassigned operator drops out of the join.
     expect(sql).not.toContain("LEFT JOIN public.shop st");
   });
 });
@@ -48,8 +44,7 @@ describe("authorizeShopManager (platform record: role AND status AND shop scope)
 describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
   beforeEach(() => {
     withTransaction.mockReset();
-    // Reset the row fixtures HERE, not inside fakeClient() — the client is constructed lazily when
-    // withTransaction runs, i.e. after a test has already customized the fixture.
+    // Fixtures reset here: the client is constructed lazily, after a test customised them.
     roleKeys = ["shop_manager"];
     shopRow = {
       shop_id: "shop-1",
@@ -69,13 +64,13 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
     expect(record).toEqual({
       subject: "sub-1",
       email: "sam@effy.test",
-      roles: ["shop_manager"], // unknown group filtered out before reconcile
+      roles: ["shop_manager"],
       status: "active",
       shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", status: "active" },
       lastSeenAt: "2026-07-09T00:00:00.000Z",
     });
 
-    // SC-011: the idempotency guarantee is the ON CONFLICT upsert on the unique subject.
+    // Idempotent: the on conflict upsert on the unique subject.
     expect(lastQueries.some((q) => q.includes("ON CONFLICT (cognito_sub)"))).toBe(true);
     // Reconcile removes roles the claim no longer carries.
     expect(lastQueries.some((q) => q.includes("DELETE FROM public.shop_staff_role"))).toBe(true);
@@ -104,7 +99,7 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
     expect(record.shop).toBeNull();
   });
 
-  // research R6: a token that carries no email must never clobber the address provisioning set.
+  // A token without an email never clobbers the provisioned address.
   it("preserves a stored email when the token supplies none (COALESCE)", async () => {
     await upsertOnContact("sub-1", null, []);
     const upsert = lastQueries.find((q) => q.includes("ON CONFLICT (cognito_sub)")) ?? "";
@@ -113,7 +108,7 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
     );
   });
 
-  // FR-006a: status and shop_id are platform-owned. No token-derived value may reach them.
+  // status and shop_id are platform-owned.
   it("never writes status or shop_id from token data", async () => {
     await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
     const writes = lastQueries.filter(
@@ -126,7 +121,6 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
   });
 });
 
-// A fake pool client answering each statement of upsertOnContact by SQL shape.
 const lastQueries: string[] = [];
 const lastQueryArgs: unknown[][] = [];
 let roleKeys: string[] = ["shop_manager"];

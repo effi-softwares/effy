@@ -5,15 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 080 P13 — courier fulfilment's single writers, which every behavioural test would go on passing
- * without:
- *
- *   1. A consignment, its events, a courier order's collection mode and its history are written in
- *      `consignment.ts` only. A second writer is a second idea of where a parcel is.
- *   2. "Handed over" (`carrier_handoff`) is written by `consignment.ts` only — the orders and shop
- *      services both hand parcels over, through it.
- *   3. Whether a package reaches its courier from the supplier is `courier_parcel_collection` — asked
- *      through the one SQL fragment, so the planner and the hub list cannot disagree about a parcel.
+ * Single writers: consignments, their events, the collection mode and its history, and
+ * `carrier_handoff`, all in `consignment.ts`; supplier-or-hub is asked only through
+ * `courier_parcel_collection`.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");

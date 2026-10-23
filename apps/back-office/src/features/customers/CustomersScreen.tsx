@@ -16,13 +16,9 @@ import { formatPoints } from "./components/points-format";
 import { customerSearchQuery } from "./queries";
 
 /**
- * Customers (074; redesign, board "Customers — search"). Find a customer — by order number or email —
- * to see and change their points.
- *
- * ⚠ SEARCH-FIRST, NOT A REGISTER. There is no "all customers" list: staff come here with a person in
- * mind, and a browsable list of every customer is a privacy surface this console does not need.
- *
- * `?tab=settings` is Points settings (its own page in the redesign, reached from the sidebar).
+ * Customers: find one by order number or email to see and change their points. Search-first, with no
+ * list of every customer (a privacy surface this console does not need). `?tab=settings` is Points
+ * settings.
  */
 export function CustomersScreen() {
   const { tab } = useSearch({ strict: false }) as { tab?: string };

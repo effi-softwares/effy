@@ -10,7 +10,7 @@ import { GapList } from "./GapList";
 import { pricingError } from "./gapText";
 
 /**
- * Make a plan the one in force (077). Says which plan it replaces; asks, in words, before a $0
+ * Make a plan the one in force. Says which plan it replaces; asks, in words, before a $0
  * minimum goes live; and when refused, shows what is missing rather than "cannot activate".
  */
 export function ActivateDialog({ plan, retiring, onClose }: { plan: FeePlanDTO; retiring: FeePlanDTO | null; onClose: () => void }) {

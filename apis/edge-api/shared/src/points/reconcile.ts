@@ -1,24 +1,12 @@
 /**
- * Does the ledger still add up? (074 SC-001, SC-002; quickstart P15)
- *
- * The balance is derived, so there is no stored figure to disagree with the rows — what CAN go wrong is
- * the rows disagreeing with each other. Each of these is impossible through @effy/edge-shared/points;
- * this is what notices a write that did not go through it, or a bug in it.
- *
- *   · a lot allocated beyond its points            (points spent that were never there)
- *   · a debit whose allocations do not equal it    (a debit that took the wrong amount)
- *   · a customer whose usable balance is negative
- *   · a hold still `held` on an order that is no longer pending
- *
- * ⚠ The count is emitted EVERY run, zero included, so the alarm has data when all is well.
+ * Does the ledger still add up? The balance is derived, so what can go wrong is rows disagreeing: a lot
+ * over-allocated, a debit whose allocations differ from it, a negative usable balance, or a hold still
+ * `held` on an order no longer pending.
  */
 import type { Queryable } from "../lib/db";
 import { emitMetric } from "../lib/metrics";
 
-/**
- * Points metrics have ONE namespace whichever service emits them — the money namespace the alarms in
- * infra/envs/dev/commerce-alarms.tf watch (the rule `payments/index.ts` records for refunds).
- */
+/** The money namespace, watched by infra/envs/dev/commerce-alarms.tf. */
 export const POINTS_METRIC_NAMESPACE = "Effy/Commerce";
 
 export interface LedgerCheck {
@@ -53,7 +41,7 @@ SELECT
   return { ...out, violations: out.overAllocatedLots + out.unbalancedDebits + out.negativeBalances + out.strandedHolds };
 }
 
-/** Check the ledger and REPORT the count — every run, zero included, so the alarm always has data. */
+/** Checks the ledger and reports the count every run, zero included, so the alarm has data. */
 export async function reportLedger(q: Queryable, now: Date): Promise<LedgerCheck> {
   const check = await checkLedger(q, now);
   emitMetric(POINTS_METRIC_NAMESPACE, "PointsInvariantViolations", check.violations);

@@ -1,9 +1,4 @@
-// Back-office customer reads (074). Raw SQL, no ORM (Principle VI).
-//
-// ⚠ THE FIRST CUSTOMER VIEW IN BACK-OFFICE. Until 074 staff could find a customer only through one of
-// their orders; crediting points — a goodwill gesture for someone who phoned in, a correction with no
-// order at all — needs the customer first. Deliberately minimal: who they are, their points, their
-// last few orders. Points figures come from @effy/edge-shared/points, never recomputed here.
+// Deliberately minimal: who the customer is, their points and last orders. Points come from @effy/edge-shared/points.
 import { query } from "@effy/edge-shared";
 
 export interface CustomerRow {
@@ -19,16 +14,11 @@ export interface SearchRow extends CustomerRow {
 
 const ORDER_NUMBER = /^EFY-[0-9A-Z]{4,}$/i;
 
-/** `%` and `_` typed into the box are text, not wildcards. */
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 const NAME = `COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.given_name, c.family_name)), ''), '')`;
 
-/**
- * Find customers by an order number, an exact email, or an email prefix of 3+ characters.
- * Anything else finds nothing — a free-text name search over the customer base is a privacy surface
- * this feature does not need.
- */
+/** By order number, exact email, or an email prefix of 3+ characters. No free-text name search. */
 export async function search(q: string, limit = 20): Promise<SearchRow[]> {
   const text = q.trim();
   let where: string;
@@ -37,7 +27,7 @@ export async function search(q: string, limit = 20): Promise<SearchRow[]> {
     where = `c.id = (SELECT o.customer_id FROM public."order" o WHERE o.order_number = upper($1))`;
     arg = text;
   } else if (text.length >= 3) {
-    // citext: LIKE is case-insensitive without lower(). A whole address is its own prefix.
+    // citext: Like is case-insensitive without lower.
     where = `c.email LIKE ($1 || '%')::citext`;
     arg = likeEscape(text);
   } else {

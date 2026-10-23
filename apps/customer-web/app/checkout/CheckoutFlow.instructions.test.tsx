@@ -11,7 +11,7 @@ import { CheckoutFlow } from "./CheckoutFlow"
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock("@/lib/stripe", () => ({
   getStripe: () => Promise.resolve(null),
-  // 051: the flow now asks lib/stripe for the Elements options (which carry the generated appearance),
+  // The flow now asks lib/stripe for the Elements options (which carry the generated appearance),
   // so a mock that omits it makes the paying step throw rather than render.
   paymentElementsOptions: (clientSecret: string) => ({ clientSecret }),
 }))
@@ -19,7 +19,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 // The paying step is out of scope here — stub the Stripe form so placement succeeds without the SDK.
-// 051: PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
+// PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
 vi.mock("./PaymentStep", () => ({ PaymentStep: () => <div>Payment step</div> }))
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => false }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
@@ -54,7 +54,7 @@ beforeEach(() => {
   intentBodies = []
   addressWrites = 0
   addressPatches = []
-  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  // A cart line is a size (variant); seeded through the store, never its storage key.
   resetCart()
   addToCart({ variantId: "v1", productId: "p1", name: "Sourdough loaf", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a1b2" })
 
@@ -73,7 +73,7 @@ beforeEach(() => {
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))
       }
       if (u.endsWith("/api/checkout/quote")) {
-        // Serviced, $5 delivery. ⚠ A COURIER quote on purpose: one fee and nothing to choose, so
+        // Serviced, $5 delivery. A courier quote on purpose: one fee and nothing to choose, so
         // these tests go straight to paying — they are not about picking a delivery window.
         return jsonRes({
           postcode: "3000",
@@ -98,14 +98,9 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/**
- * Place the order (the intent request).
- *
- * ⚠ ONE CLICK, not two. There used to be a delivery step between the address and payment; delivery
- * zones, quotes and fees were withdrawn from the platform, so checkout is: choose an address, pay.
- */
+/** Places the order (the intent request). */
 async function placeOrder(user: ReturnType<typeof userEvent.setup>) {
-  // 047: the pay button gates on a serviced delivery quote, fetched async when the address is set.
+  // The pay button gates on a serviced delivery quote, fetched async when the address is set.
   await waitFor(() =>
     expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled(),
   )
@@ -113,8 +108,8 @@ async function placeOrder(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * 066 — delivery instructions in the checkout flow: what is sent, what is prefilled, and what is
- * (and is NOT) written back to the address book.
+ * Delivery instructions in the checkout flow: what is sent, what is prefilled, and what is
+ * (and is not) written back to the address book.
  */
 const HOME = () =>
   addr({ id: "a1", recipientName: "Pat", defaultDeliveryInstructions: { handover: "leave_at_door", note: "Side gate" } })
@@ -151,7 +146,7 @@ describe("066 — delivery instructions at checkout", () => {
     expect(addressPatches).toHaveLength(0)
   })
 
-  /** ⚠ FR-014 — the override is for THIS order; the address keeps what it had. */
+  /** The override is for this order; the address keeps what it had. */
   it("⚠ editing for one order does NOT write to the address", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[HOME()]} />)
@@ -186,7 +181,7 @@ describe("066 — delivery instructions at checkout", () => {
     expect(screen.getByRole("checkbox", { name: /save to this address/i })).toBeInTheDocument()
   })
 
-  /** ⚠ FR-015 — a note is about a place. Typed text does not follow the shopper to another address. */
+  /** A note is about a place. Typed text does not follow the shopper to another address. */
   it("⚠ switching address REPLACES the draft with that address's saved instructions", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[HOME(), WORK()]} />)

@@ -141,10 +141,9 @@ data class AccountUiState(
 )
 
 /**
- * Account management (013 US5). The security core: setting a FIRST password requires an emailed code,
- * verified by the BACKEND in the same request (FR-024); changing one requires the current password
- * (FR-025). Neither call touches Cognito directly — they go to `edge-api/customer`. A successful
- * password write revokes EVERY session including this device (FR-027), so the app returns to sign-in.
+ * Account management. Setting a first password needs an emailed code, verified by the backend in the same
+ * request; changing one needs the current password. Both go to `edge-api/customer`, never Cognito. A
+ * password write revokes every session, this one included.
  */
 class AccountViewModel(
     private val requestPasswordChallengeUseCase: RequestPasswordChallenge,
@@ -157,13 +156,13 @@ class AccountViewModel(
     private val _state = MutableStateFlow(AccountUiState())
     val state = _state.asStateFlow()
 
-    /** Step 1 of set-password: email the step-up code (FR-024). Returns the masked destination. */
+    /** Step 1 of set-password: email the step-up code. Returns the masked destination. */
     fun sendSetPasswordCode() = launch {
         val masked = requestPasswordChallengeUseCase()
         _state.value = _state.value.copy(maskedDestination = masked, info = "Enter the code we sent to $masked.")
     }
 
-    /** Step 2: write the first password WITH the emailed code. Revokes all sessions → return to sign-in. */
+    /** Step 2: write the first password with the emailed code. Revokes all sessions → return to sign-in. */
     fun setPassword(code: String, newPassword: String) = run {
         if (!longEnough(newPassword)) return@run
         launch {
@@ -172,7 +171,7 @@ class AccountViewModel(
         }
     }
 
-    /** Change an existing password; the current one is required (FR-025). Revokes all sessions. */
+    /** Change an existing password; the current one is required. Revokes all sessions. */
     fun changePassword(current: String, newPassword: String) = run {
         if (!longEnough(newPassword)) return@run
         launch {
@@ -193,20 +192,9 @@ class AccountViewModel(
     }
 
     /**
-     * Where signing out lands: the Home tab, at its root.
-     *
-     * ⚠ It used to be `resetToRoot()` alone, which left the shopper on the ACCOUNT tab — whose guest
-     * root was a page containing nothing but a "Sign in" button. Signing out is not a request to sign
-     * in again; it is a request to stop being signed in, and the app is guest-first, so the store is
-     * the honest destination.
-     *
-     * ⚠ BOTH tabs are cleared, and that is not belt-and-braces. `resetToRoot()` acts on the ACTIVE tab
-     * only (see `CustomerNavState.resetToRoot`), so clearing Home alone would leave the Account tab
-     * holding the signed-in screen the shopper just left — Security, or a password form — waiting to be
-     * re-rendered the moment they sign in again. Clear where we are, then clear where we are going.
-     *
-     * The device is already wiped by this point: `signOutLocally` runs `onSignedOut`, which resets the
-     * cart and saved stores and removes their persisted keys (034 FR-031).
+     * Signing out lands on Home's root (the app is guest-first). Both tabs are cleared: `resetToRoot` acts on
+     * the active tab only, so Account would otherwise keep the signed-in screen just left. The device is
+     * already wiped (`signOutLocally` runs `onSignedOut`).
      */
     private fun goHomeAsGuest() {
         navigator.resetToRoot()
@@ -221,9 +209,9 @@ class AccountViewModel(
     }
 
     private suspend fun finishAfterPasswordWrite() {
-        // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
+        // The write revoked every session, including this device. Back to sign-in with the news.
         session.signOutLocally()
-        // ⚠ Sign-in is pushed onto HOME, not onto the Account tab. Backing out of it has to land on a
+        // Sign-in is pushed onto home, not onto the Account tab. Backing out of it has to land on a
         // screen a guest can actually see, and the Account tab's guest page no longer exists.
         goHomeAsGuest()
         navigator.push(CustomerNavKey.SignIn())
@@ -292,13 +280,13 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         CustomerNavKey.DeleteAccount -> DeleteAccountScreen(container)
         // `setFirst` now travels ON the route rather than as two separate routes — a data class the
         // compiler checks, instead of two objects that had to be kept in step with the screen.
-        // 034 — two journeys, chosen ONLY by the platform-owned `hasPassword`, never by how the
+        // Two journeys, chosen only by the platform-owned `hasPassword`, never by how the
         // shopper signed in. A Google-linked customer is an ordinary native user and can hold one.
         is CustomerNavKey.Password ->
             if (route.setFirst) SetPasswordScreen(container, customer.email)
             else ChangePasswordScreen(container, customer.email)
         CustomerNavKey.PasswordReset -> ResetPasswordScreen(container, customer.email)
-        // 026 US4 — the new screens. Each is presentational and carries no session requirement of its
+        // The new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
         CustomerNavKey.Notifications -> NotificationsScreen()
         CustomerNavKey.Faqs, CustomerNavKey.HelpCenter, CustomerNavKey.CustomerService ->
@@ -344,7 +332,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
         ) {
-            // ⚠ 034 FR-002 — THE HEADER IS THE TAP TARGET for personal info; there is no separate row.
+            // The header is the tap target for personal info; there is no separate row.
             val interactions = remember { MutableInteractionSource() }
             Row(
                 modifier = Modifier
@@ -392,14 +380,14 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 }
             }
 
-            // Three shortcuts (FR-004/FR-005 — each with a VISIBLE label).
+            // Three shortcuts (FR-004/FR-005 — each with a visible label).
             Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
                 AccountShortcut("Saved", Res.drawable.lucide_heart, { nav.push(CustomerNavKey.Saved) }, Modifier.weight(1f))
                 AccountShortcut("Orders", Res.drawable.lucide_package, { nav.push(CustomerNavKey.Orders) }, Modifier.weight(1f))
                 AccountShortcut("Notifications", Res.drawable.lucide_bell, { nav.push(CustomerNavKey.Notifications) }, Modifier.weight(1f))
             }
 
-            // ⚠ FR-006 — LABELLED GROUPS, ≤4 groups of ≤6 rows (SC-004).
+            // Labelled groups, ≤4 groups of ≤6 rows.
             EffyGroup(caption = "Shopping") {
                 AccountRow("Address book", Res.drawable.lucide_map_pin) { nav.push(CustomerNavKey.AddressBook) }
                 AccountRow("Payment methods", Res.drawable.lucide_credit_card) { nav.push(CustomerNavKey.PaymentMethods) }
@@ -408,7 +396,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             EffyGroup(caption = "Account") {
                 AccountRow("Security", Res.drawable.lucide_shield) { nav.push(CustomerNavKey.Security) }
                 AccountRow("Privacy & data", Res.drawable.lucide_lock) { nav.push(CustomerNavKey.Privacy) }
-                // 087 / v3.4.0 — Light, Dark, or Match my phone; a sheet, remembered on this device.
+                // Light, Dark, or Match my phone; a sheet, remembered on this device.
                 EffyNavRow(
                     "Appearance",
                     onClick = { choosingAppearance = true },
@@ -418,17 +406,17 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 )
             }
             EffyGroup(caption = "Help") {
-                // 087 — ONE help page (Help board): answers, contact, and a way to report an order.
+                // One help page (Help board): answers, contact, and a way to report an order.
                 AccountRow("Help", Res.drawable.lucide_circle_help) { nav.push(CustomerNavKey.HelpCenter) }
-                // 046 — give feedback (guest or signed-in).
+                // Give feedback (guest or signed-in).
                 AccountRow("Give feedback", Res.drawable.lucide_message_square, last = true) { nav.push(CustomerNavKey.Feedback) }
             }
-            // 045 — the ONE entry to the full legal list (About is inside it).
+            // The one entry to the full legal list (About is inside it).
             EffyGroup(caption = "Legal") {
                 AccountRow("Legal & policies", Res.drawable.lucide_file_text, last = true) { nav.push(CustomerNavKey.LegalIndex) }
             }
 
-            // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN; it lives on Security (SC-005).
+            // No sign-out control on this screen; it lives on Security.
 
             state.error?.let { EffyInlineError(it) }
             Text(
@@ -442,7 +430,7 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
     }
 }
 
-/** An account shortcut — a bordered square with an icon over a VISIBLE label (Account board). */
+/** An account shortcut — a bordered square with an icon over a visible label (Account board). */
 @Composable
 private fun AccountShortcut(label: String, icon: DrawableResource, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
@@ -469,16 +457,10 @@ private fun AccountRow(label: String, icon: DrawableResource, last: Boolean = fa
     if (!last) EffyGroupDivider()
 }
 
-
 /**
- * Security — composed from the credentials the account ACTUALLY holds (034 FR-025).
- *
- * ⚠ NOT A FIXED ROW LIST, and that is the point. Effy's customer pool has three credential routes
- * (email+password, email OTP, Google), so a screen that always shows "Change password" is wrong for
- * a large share of customers — the presentation half of the defect feature 012 found in Cognito's
- * own semantics. Uber is a poor reference here precisely because it has no passwordless account.
- *
- * ⚠ SIGN OUT LIVES HERE NOW (FR-028), not on the account root where a stray tap could reach it.
+ * Security, composed from the credentials the account actually holds (email+password, email code,
+ * Google), so "Change password" is not shown to someone with none. Sign out lives here, away from a stray
+ * tap on the account root.
  */
 @Composable
 private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, customer: Customer) {
@@ -492,7 +474,7 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
         ) {
-            // FR-026 — a password row OR an invitation to set one. NEVER both.
+            // A password row OR an invitation to set one. Never both.
             EffyGroup(caption = "Signing in") {
                 EffyNavRow(
                     "Password",
@@ -509,7 +491,7 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
                 )
             }
 
-            // ⚠ FR-030 — sign-out is not destructive (you sign back in).
+            // Sign-out is not destructive (you sign back in).
             EffyGroup(caption = "Sessions") {
                 EffyNavRow(
                     "Sign out",
@@ -533,7 +515,7 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
         }
     }
 
-    // FR-029 — confirmation for ALL devices only. 087: a bottom sheet with its actions pinned
+    // Confirmation for all devices only. 087: a bottom sheet with its actions pinned
     // (Security board), never a dialog.
     if (confirmingSignOutAll) {
         EffyConfirmSheet(
@@ -553,13 +535,8 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
 }
 
 /**
- * Privacy & data (034 US6) — and the host for account deletion.
- *
- * ⚠ THE DELETION CONTROL IS THE LAST ITEM (FR-039), deliberately, and one navigation level deep.
- * Both stores name "account settings" as the canonical home and Apple's guidance warns against
- * burying the link; `Account → Privacy & data → bottom` matches the VERIFIED Uber path
- * (`Account → Settings → Privacy → Account Deletion`), so the placement is a judged risk rather than
- * an accident. SC-007 makes a fresh-account reviewer the test.
+ * Privacy & data, and the host for account deletion: the last item, one level deep (the stores name
+ * account settings as its home and warn against burying it).
  */
 @Composable
 private fun PrivacyScreen(container: AppContainer) {
@@ -579,7 +556,7 @@ private fun PrivacyScreen(container: AppContainer) {
             )
 
             EffyGroup(caption = "Privacy") {
-                // ⚠ An in-app privacy policy link is required by BOTH stores and belongs HERE.
+                // An in-app privacy policy link is required by both stores and belongs here.
                 EffyNavRow(
                     "Privacy policy",
                     leading = { EffyRowIcon(Res.drawable.lucide_file_text) },
@@ -587,7 +564,7 @@ private fun PrivacyScreen(container: AppContainer) {
                     divider = false,
                 )
                 EffyGroupDivider()
-                // 050 FR-023 — the standing analytics opt-in/out control (crash reporting unaffected).
+                // The standing analytics opt-in/out control (crash reporting unaffected).
                 EffySwitchRow(
                     label = "Share usage analytics",
                     supporting = analyticsConsentSubtitle(if (analyticsOn) ConsentState.GRANTED else ConsentState.DENIED),
@@ -599,7 +576,7 @@ private fun PrivacyScreen(container: AppContainer) {
                 )
             }
 
-            // 050 T015 — DEBUG-ONLY observability test panel (DEBUG_TOOLS=true only, never in prod).
+            // Debug-only observability test panel (DEBUG_TOOLS=true only, never in prod).
             if (AppConfig.debugTools) {
                 EffyGroup(caption = "Developer — observability test") {
                     EffyNavRow("Fire test analytics event", onClick = { container.analyticsDriver.capture(AnalyticsEvent.ScreenViewed("debug_test")) }, showChevron = false)
@@ -608,7 +585,7 @@ private fun PrivacyScreen(container: AppContainer) {
                 }
             }
 
-            // The LAST item on the screen (FR-039). Black, with its own icon and words — no red.
+            // The last item on the screen. Black, with its own icon and words — no red.
             EffyGroup {
                 EffyNavRow(
                     "Delete account",
@@ -622,7 +599,6 @@ private fun PrivacyScreen(container: AppContainer) {
         }
     }
 }
-
 
 @Composable
 private fun InitialsAvatar(initials: String) {

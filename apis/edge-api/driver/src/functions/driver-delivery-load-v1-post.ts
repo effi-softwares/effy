@@ -12,10 +12,7 @@ import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 import { NotFoundError } from "../work/service";
 
-/**
- * POST /driver/v1/delivery/runs/{runId}/load (090) — the van is loaded: every staged drop on the run
- * goes out for delivery together. "Not yours" and "no such run" are one 404 (052's rule).
- */
+/** Every staged drop goes out for delivery together. "Not yours" and "no such run" are one 404. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await authenticate(event, context);
   if (!guard.ok) return guard.response;
@@ -34,12 +31,10 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
       { field: "changeId", message: "A changeId is required." },
     ]);
   }
-  // 096 — a bag not loaded needs a reason that can be said at loading, and "Other" a note. A bag left
-  // without one is not accounted for, and the whole load is refused with the bags it names (409).
+  // A bag not loaded needs a reason ("Other" needs a note), or the whole load is refused.
 
   try {
     const { loadedDropIds, held, dropsRemoved } = await loadRun(runId, guard.driver.id, body.changeId, body.parcels, body.missingParcels ?? [], body.reads);
-    // 073 — each drop now reads "Out for delivery" on its shops' and back-office's screens.
     for (const dropId of loadedDropIds) await announceStop(dropId);
     if (held > 0) await announceHeld();
     guard.scope.log.info({ runId, loaded: loadedDropIds.length, held, dropsRemoved }, "driver.run_loaded");

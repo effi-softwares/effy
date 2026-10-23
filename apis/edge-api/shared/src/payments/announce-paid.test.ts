@@ -49,7 +49,7 @@ describe("announcePaid (071)", () => {
     expect(announce).not.toHaveBeenCalled();
   });
 
-  // FR-024: the customer's update is one update whatever the number of shops, and names no shop.
+  // One update whatever the number of shops, naming no shop.
   it("sends the customer exactly one change, with no shop in it, however many shops fulfil", async () => {
     await announcePaid(paid({ shopIds: ["shop-a", "shop-b", "shop-c"] }));
     const changes = announce.mock.calls[0]![0] as { scope: string }[];

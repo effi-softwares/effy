@@ -63,13 +63,13 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
     stage: "confirmed",
     paymentMethod: null,
     arrivalEstimates: [],
-    // 055 — a delivered order is long past cancellable; the receipt never renders the control anyway.
+    // A delivered order is long past cancellable; the receipt never renders the control anyway.
     cancellable: false,
     ...over,
   }
 }
 
-/** Parse "$30.60" back to a number so the assertion is about ARITHMETIC, not about formatting. */
+/** Parse "$30.60" back to a number so the assertion is about arithmetic, not about formatting. */
 function money(text: string): number {
   return Number(text.replace(/[^0-9.-]/g, ""))
 }
@@ -122,7 +122,7 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
   })
 
   /**
-   * ⚠ A component that is genuinely zero is OMITTED, never rendered as a dash. On a financial record
+   * A component that is genuinely zero is omitted, never rendered as a dash. On a financial record
    * "nothing" and "unknown" are different claims, and a dash reads as the second.
    */
   it("omits a zero discount and a zero delivery fee entirely", () => {
@@ -195,7 +195,7 @@ describe("ReceiptDocument — what a line must show (FR-003)", () => {
 describe("ReceiptDocument — degrading on a pre-052 order (FR-006)", () => {
   /**
    * A pre-052 order, or one whose post-commit capture failed, carries no payment method. The line must
-   * be ABSENT — not blank, and not a dash that could be read as "unknown".
+   * be absent — not blank, and not a dash that could be read as "unknown".
    */
   it("omits the payment line entirely when nothing was captured", () => {
     render(<ReceiptDocument order={order({ paymentMethod: null })} />)
@@ -228,7 +228,7 @@ describe("ReceiptDocument — degrading on a pre-052 order (FR-006)", () => {
 })
 
 /**
- * ⚠ SC-011. Effy is ONE brand with hidden fulfilment: nothing on this document may disclose that an
+ * SC-011. Effy is one brand with hidden fulfilment: nothing on this document may disclose that an
  * order was split, into how many parts, or which nodes handled it.
  */
 describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)", () => {
@@ -245,13 +245,13 @@ describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)
     )
     const text = container.textContent ?? ""
 
-    // ⚠ WORD BOUNDARIES, not substrings — and that distinction is itself the finding. A bare
+    // Word boundaries, not substrings — and that distinction is itself the finding. A bare
     // `toContain("shop")` fails on the seller's own address, `hello@effyshopping.com`, which is
-    // supposed to be there (FR-030). The rule is "no shop IDENTITY", not "the letters s-h-o-p".
+    // supposed to be there. The rule is "no shop IDENTITY", not "the letters s-h-o-p".
     for (const banned of [/\bshops?\b/i, /\brings?\b/i, /\bdistance\b/i, /\bnodes?\b/i, /\bwarehouse\b/i]) {
       expect(text).not.toMatch(banned)
     }
-    // And nothing that betrays the COUNT of portions.
+    // And nothing that betrays the count of portions.
     expect(text).not.toMatch(/\b\d+ of \d+\b|\bpart \d\b|\bparcel \d\b/i)
   })
 })

@@ -8,10 +8,7 @@ import { intField, objectBody, pointsProblem, textField } from "../customers/res
 import { customerService } from "../customers/service";
 import { requireWriter } from "../lib/guard";
 
-/**
- * POST /orders/v1/customers/{customerId}/points/debit — correct a balance (074 US5).
- * ⚠ WRITE GATE: admin|manager from the staff record. A csa may credit but never debit (FR-008).
- */
+/** Admin/manager only: a csa may credit but never debit. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireWriter(event, context);
   if (!guard.ok) return guard.response;

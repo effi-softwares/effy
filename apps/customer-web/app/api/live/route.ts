@@ -5,19 +5,10 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
 
 /**
- * Where the signed-in customer's live-update channel is, and the token to open it with (071).
- *
- * The channel tells an open order page "your orders changed" — nothing else — and the page re-reads
- * from the server exactly as it already does. It never names a shop (FR-024).
- *
- * ⚠ THIS RETURNS THE ID TOKEN TO THE PAGE, deliberately. The socket is opened by the browser, so
- * the browser must present a credential, and the only one the channel's authorizer accepts is the
- * customer's own token. ⚠ This is the ONE place a token reaches page script: the session cookies
- * are `HttpOnly` (lib/session-cookies.ts). It is the hour-long id token only — never the refresh
- * token — sent only to the signed-in customer, on their own same-origin request, and never cached.
- *
- * 204 = no live channel for this visitor (signed out, or none in this environment). The page then
- * simply does not update by itself, as it never did before 071.
+ * Where the signed-in customer's live channel is, and the token to open it with: the browser opens the
+ * socket, so it must present the customer's own ID token. The one place a token reaches page script (the
+ * session cookies are `HttpOnly`): the hour-long ID token only, never the refresh token, uncached. 204:
+ * no channel for this visitor; the page then does not update by itself.
  */
 export async function GET() {
   const session = await getSession()

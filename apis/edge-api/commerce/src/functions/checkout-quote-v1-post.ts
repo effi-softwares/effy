@@ -1,5 +1,3 @@
-// POST /commerce/v1/checkout/quote — what delivery will cost and when it can arrive, for the
-// shopper's current cart to one of their addresses. Reads only.
 import { json, validationFailed } from "@effy/edge-shared";
 
 import { checkoutError } from "../checkout/respond";

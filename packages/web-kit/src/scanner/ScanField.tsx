@@ -9,7 +9,7 @@ import { createWedge } from "./wedge"
 export type ScanMethod = "scan" | "typed"
 
 export interface ScanFieldProps {
-  /** Which texts this screen reads — a completed keyboard burst that fails this is ordinary typing. */
+  /** Which texts this screen reads: a keyboard burst that fails this is ordinary typing. */
   accept: (text: string) => boolean
   /** One read: from a handheld scanner or the camera (`scan`), or typed and submitted (`typed`). */
   onRead: (read: { raw: string; method: ScanMethod }) => void
@@ -32,11 +32,7 @@ function setFieldValue(el: HTMLInputElement | HTMLTextAreaElement, value: string
   el.dispatchEvent(new Event("input", { bubbles: true }))
 }
 
-/**
- * 096 — the one way a web console reads a label (research R13): a handheld scanner anywhere on the page,
- * the camera, or a code typed and submitted. Every read is reported with how it was made, and the screen
- * judges it with the shared scan rule (`judgeRead`).
- */
+/** How a web console reads a label: a handheld scanner anywhere on the page, the camera, or a typed code, judged by `judgeRead`. */
 export function ScanField({
   accept,
   onRead,

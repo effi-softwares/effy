@@ -1,4 +1,3 @@
-// GET /admin/v1/delivery/collection-runs — the daily driver collection runs (047 US2). Read.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble } from "@effy/edge-shared";

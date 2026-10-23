@@ -5,13 +5,7 @@ import type { Address } from "@/lib/addresses/model"
 
 import { AddressForm } from "./AddressForm"
 
-/**
- * Add or edit an address in a dialog (reference: Account · Edit address): centred from `md`, a sheet
- * from the bottom edge on a phone.
- *
- * ⚠ THE FORM EXISTS ONLY WHILE THE DIALOG IS OPEN, so each opening starts from the address it was
- * given (or from blank) — never from what was typed and abandoned last time (SC-009).
- */
+/** Add or edit an address in a dialog (centred from `md`, a bottom sheet on a phone). The form exists only while open, so each opening starts fresh. */
 export function AddressFormModal({
   open,
   onOpenChange,

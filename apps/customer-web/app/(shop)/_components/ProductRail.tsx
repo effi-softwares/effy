@@ -6,15 +6,8 @@ import { FIRST_ROW, ProductCard } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
 
 /**
- * A merchandising row, from the tech-store reference (025 UI refresh).
- *
- * The reference's pattern: a section header with the title on the LEFT and a "See all …" link on the
- * RIGHT, separated by a rule, then a DENSE row of up to six products. Stacking several of these is how
- * it puts a large catalogue on one page without it turning into a wall — each row is bounded by its
- * own header and rule.
- *
- * That density is the point. The previous design showed four large tiles per row; six compact ones
- * fit a grocery catalogue far better, where a shopper is comparing many similar items on price.
+ * A merchandising row: a header with the title and a "See all …" link, a rule, then up to six compact
+ * products, so a large catalogue fits on one page without becoming a wall.
  */
 /** How many cards a rail shows before "See all" takes over. Two desktop screens' worth. */
 export const RAIL_CAP = 12
@@ -22,10 +15,10 @@ export const RAIL_CAP = 12
 /**
  * One merchandised row (reference: Home · "Today's deals", aisle rails, "New arrivals").
  *
- * A heading with its "See all" link on the right, then ONE line of cards that scrolls sideways: 2.2
+ * A heading with its "See all" link on the right, then one line of cards that scrolls sideways: 2.2
  * cards on a phone (the cut-off third card is what says "there is more"), 4 from `md`, 6 from `xl`.
  *
- * ⚠ CSS scroll-snap, no script and no arrow buttons: a rail is content, and it must work in the
+ * CSS scroll-snap, no script and no arrow buttons: a rail is content, and it must work in the
  * static shell. Keyboard users reach every card by tabbing; the list itself is focusable so the row
  * can be scrolled with the arrow keys.
  */

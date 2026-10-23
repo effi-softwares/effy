@@ -8,9 +8,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * The iOS side of the auth boundary (013 D5). Kotlin/Native cannot call Amplify Swift, so Swift
+ * The iOS side of the auth boundary. Kotlin/Native cannot call Amplify Swift, so Swift
  * implements the simple, callback-based [IosAuthBridge] (no `suspend`, no `Flow` — neither of which a
- * Swift class can produce), and THIS Kotlin class adapts it to the common [AuthDriver] contract: it
+ * Swift class can produce), and this Kotlin class adapts it to the common [AuthDriver] contract: it
  * converts each callback into a coroutine, maps the bridge's flat result to [AuthStep], and owns the
  * [sessionChanges] Flow itself. Swift builds [IosAuthDriver] and hands it to `MainViewController`.
  *
@@ -51,7 +51,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
     override suspend fun resendSignUpCode(email: String): AuthStep =
         mapResult(await { cb -> bridge.resendSignUpCode(email, cb) })
 
-    /** ⚠ NOT a resend — a fresh sign-in. See `AuthDriver.resendSignInCode`. */
+    /** Not a resend — a fresh sign-in. See `AuthDriver.resendSignInCode`. */
     override suspend fun resendSignInCode(email: String): AuthStep = signInWithEmailOtp(email)
 
     override suspend fun startPasswordReset(email: String): AuthStep =
@@ -61,7 +61,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
         suspendCancellableCoroutine<Unit> { cont -> bridge.signOut { cont.resumeIfActive(Unit) } }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────────────────────────
+    // helpers
 
     private suspend fun await(register: ((BridgeAuthResult) -> Unit) -> Unit): BridgeAuthResult =
         suspendCancellableCoroutine { cont -> register { cont.resumeIfActive(it) } }
@@ -103,10 +103,10 @@ data class BridgeAuthResult(
 )
 
 /**
- * The Swift-implemented bridge (013 D5). Plain callbacks — no `suspend`, no `Flow`, no Kotlin sealed
+ * The Swift-implemented bridge. Plain callbacks — no `suspend`, no `Flow`, no Kotlin sealed
  * types on the wire — so a Swift `NSObject` can conform to it and call Amplify Swift's async APIs,
  * invoking the callback when done. It has NO password-write / global-sign-out / escape-hatch method,
- * mirroring [AuthDriver]'s absences (FR-024).
+ * mirroring [AuthDriver]'s absences.
  */
 interface IosAuthBridge {
     fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSession?) -> Unit)

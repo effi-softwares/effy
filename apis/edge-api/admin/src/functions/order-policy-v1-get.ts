@@ -1,4 +1,3 @@
-// GET /admin/v1/order-policy — the minimum spend and the two cart ceilings (027 FR-053).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -22,12 +22,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/**
- * Account · Overview (reference: Account · Overview; FR-028, FR-029).
- *
- * New in 084. Until then `/account` opened Personal info and the sections were tabs chosen by
- * `?tab=`. ⚠ An old `?tab=` link still arrives: it is redirected to that section's page (FR-014).
- */
+/** Account overview. An old `?tab=` link is redirected to that section's page. */
 export default function AccountPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   return (
     <>
@@ -48,11 +43,7 @@ function day(iso: string | null | undefined, fmt: Intl.DateTimeFormat): string |
   return Number.isNaN(d.getTime()) ? null : fmt.format(d)
 }
 
-/**
- * ⚠ EVERY TILE FAILS ALONE. Five independent reads feed five parts of the page; one that errors
- * leaves its own tile saying nothing and touches no other. And a tile with nothing true to say shows
- * its empty wording — never a placeholder number.
- */
+/** Every tile fails alone: five independent reads; a failed one says nothing and touches no other. */
 async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const tab = parseTab((await searchParams).tab)
   if (tab) redirect(tabHref(tab))

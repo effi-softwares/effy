@@ -1,11 +1,5 @@
-// How each BAG was handed over at each step (090, per parcel since 096) — the record dispatch reads to
-// see which labels fail and which hand-overs skip scanning (091).
-//
-// ⚠ ONE WRITER, CALLED INSIDE EACH HAND-OVER'S OWN TRANSACTION, so the record and the hand-over commit
-// together. `labels.guard.test.ts` fails any other INSERT into `package_handover`.
-//
-// ⚠ 096 — PER PARCEL, BY ANY ACTOR. A driver at every step, shop staff at pack / courier hand-over /
-// shop pickup, hub staff at check-in. Arrival at the hub is ONE step (`checkin`), whoever scans it.
+// How each bag was handed over at each step. One writer, called inside each hand-over's own
+// transaction (`labels.guard.test.ts`). By any actor: drivers, shop staff, hub staff.
 
 import type { HandoverMethod, ParcelHandover } from "@effy/shared-types";
 
@@ -21,21 +15,18 @@ const METHODS: ReadonlySet<string> = new Set<HandoverMethod>(["scan", "typed", "
 export interface RecordHandoversInput {
   step: HandoverStep;
   actor: HandoverActor;
-  /** The round the hand-over belongs to, when there is one (every driver step; a hub check-in). */
+  /** Every driver step and a hub check-in have one. */
   roundId?: string | null;
   changeId: string;
-  /** What the client said; anything malformed is skipped, never an error. */
+  /** Anything malformed is skipped, never an error. */
   parcels: ReadonlyArray<Partial<ParcelHandover>> | undefined;
-  /**
-   * The parcels this hand-over actually covers: parcel id → its package id. A parcel outside it is
-   * ignored — the record says what happened at THIS hand-over, and a stray id must not invent one.
-   */
+  /** Parcel id → package id for what this hand-over covers; a stray id is ignored. */
   allowed: ReadonlyMap<string, string>;
-  /** When it happened on the device, if the client said. */
+  /** On the device, if the client said. */
   deviceAt?: string | null;
 }
 
-/** Record one row per parcel; a retried hand-over (same changeId) records nothing new. */
+/** One row per parcel; a retry (same changeId) records nothing new. */
 export async function recordHandovers(tx: any, input: RecordHandoversInput): Promise<number> {
   if (input.allowed.size === 0) return 0;
   const wellFormed = (input.parcels ?? []).filter(
@@ -50,7 +41,7 @@ export async function recordHandovers(tx: any, input: RecordHandoversInput): Pro
     );
     for (const r of res.rows as Array<{ id: string; parcel_code: string }>) idOfCode.set(r.parcel_code, r.id);
   }
-  // One method per parcel per hand-over: a parcel listed twice keeps its first.
+  // A parcel listed twice keeps its first method.
   const byParcel = new Map<string, HandoverMethod>();
   for (const p of wellFormed) {
     const id = typeof p.parcelId === "string" ? p.parcelId : p.parcelCode ? idOfCode.get(p.parcelCode.toUpperCase()) : undefined;
@@ -84,7 +75,7 @@ export async function recordHandovers(tx: any, input: RecordHandoversInput): Pro
   return res.rowCount ?? 0;
 }
 
-/** An ISO instant the client sent, or null when it is missing or not a date. */
+/** null when missing or not a date. */
 export function validInstant(v: unknown): string | null {
   if (typeof v !== "string" || v.length > 40) return null;
   const t = Date.parse(v);

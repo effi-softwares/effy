@@ -1,26 +1,16 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+
+import { migrationSql } from "../testing/migrations";
 
 import {
   AUTO_CREDIT_REASONS, CREDIT_KINDS, customerWords, DEBIT_KINDS, isValidReason, STAFF_CREDIT_REASONS, STAFF_DEBIT_REASONS,
 } from "./vocabulary";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const migrations = resolve(here, "../../../../../db/migrations");
-
-/** The reason list the database CHECK on points_entry holds, read from the LAST migration that sets it. */
+/** The reasons the points_entry check holds. */
 function reasonsInSchema(): string[] {
-  const files = readdirSync(migrations).filter((f) => f.endsWith(".sql")).sort();
-  let found: string[] = [];
-  for (const f of files) {
-    const up = readFileSync(join(migrations, f), "utf8").split(/^--\s*\+goose\s+Down/m)[0]!;
-    const m = /reason\s+text\s+NOT NULL CHECK \(reason IN \(([\s\S]*?)\)\)/.exec(up.slice(up.indexOf("points_entry")));
-    if (up.includes("CREATE TABLE public.points_entry") && m) found = [...m[1]!.matchAll(/'([a-z_]+)'/g)].map((x) => x[1]!);
-  }
-  return found.sort();
+  const check = /points_entry_reason_check CHECK \((.*)\),?$/m.exec(migrationSql())?.[1] ?? "";
+  return [...check.matchAll(/'([a-z_]+)'/g)].map((x) => x[1]!).sort();
 }
 
 describe("074 — points vocabulary", () => {

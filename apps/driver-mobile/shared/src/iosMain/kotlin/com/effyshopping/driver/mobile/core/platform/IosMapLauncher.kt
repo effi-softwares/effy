@@ -9,7 +9,7 @@ import platform.Foundation.stringByAddingPercentEncodingWithAllowedCharacters
 import platform.UIKit.UIApplication
 
 /**
- * iOS external-maps hand-off (049 US4, FR-022). Opens Apple Maps with the address as a query.
+ * iOS external-maps hand-off. Opens Apple Maps with the address as a query.
  */
 class IosMapLauncher : MapLauncher {
     override fun navigateTo(address: String) {

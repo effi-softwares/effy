@@ -11,9 +11,9 @@ import { SkinsListScreen } from "@/features/promotion-skins/SkinsListScreen";
 
 import { appRoute } from "./app";
 
-// Promotions, their display groups and the order rules (027, 094). All routes nest under the protected
+// Promotions, their display groups and the order rules. All routes nest under the protected
 // app shell. Read access is open to any signed-in back-office role; mutating controls are gated in the
-// screens (and enforced by the backend). ⚠ The static paths (/order-rules, /new, /groups) are declared
+// screens (and enforced by the backend). The static paths (/order-rules, /new, /groups) are declared
 // before /$promoId so TanStack ranks them first.
 export const promotionsIndexRoute = createRoute({ getParentRoute: () => appRoute, path: "promotions", component: PromotionsListScreen });
 
@@ -32,7 +32,7 @@ export const promotionGroupRoute = createRoute({
   },
 });
 
-// 095 — skins: how promotions look. /skins/new is declared before /skins/$skinId.
+// Skins: how promotions look. /skins/new is declared before /skins/$skinId.
 export const promotionSkinsRoute = createRoute({ getParentRoute: () => appRoute, path: "promotions/skins", component: SkinsListScreen });
 
 export const createSkinRoute = createRoute({ getParentRoute: () => appRoute, path: "promotions/skins/new", component: () => <SkinEditorScreen /> });

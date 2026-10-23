@@ -1,5 +1,4 @@
-// PATCH /admin/v1/shops/{shopId} — edit mutable details (name/contactPhone/notes; code immutable).
-// Mutate access.
+// The code is immutable.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

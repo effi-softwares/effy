@@ -4,7 +4,7 @@ import type { ApproveReviewRequest, SendBackReviewRequest, SetMarginRequest } fr
 
 import { approve, getItem, listGstMissing, listMarginNotSet, listQueue, sendBack, setGstBulk, setMargin, type QueueParams } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Every decision INVALIDATES the
+// Server state lives only in the TanStack Query cache (Principle VI). Every decision invalidates the
 // whole review tree rather than patching it: a decided item leaves the queue, may change the
 // margin-not-set list, and its own detail no longer exists.
 
@@ -25,7 +25,7 @@ export const marginNotSetQuery = (cursor: string | null = null) =>
     queryFn: () => listMarginNotSet(cursor),
   });
 
-/** 096 — live products with no GST status. */
+/** Live products with no GST status. */
 export const gstMissingQuery = () => queryOptions({ queryKey: reviewKeys.gstMissing, queryFn: listGstMissing });
 
 export function useSetGstBulk() {
@@ -40,8 +40,8 @@ export const reviewItemQuery = (productId: string) =>
   queryOptions({
     queryKey: reviewKeys.item(productId),
     queryFn: () => getItem(productId),
-    // ⚠ Never served stale. The item carries the VERSION a decision must echo, and a reviewer must
-    // decide on what the shop has submitted NOW, not on what this tab remembered.
+    // Never served stale. The item carries the version a decision must echo, and a reviewer must
+    // decide on what the shop has submitted now, not on what this tab remembered.
     staleTime: 0,
     gcTime: 0,
   });

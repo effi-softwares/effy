@@ -18,9 +18,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * The payment destination (051 US1) — resolves the handed-off intent and builds the screen's ViewModel.
+ * The payment destination — resolves the handed-off intent and builds the screen's ViewModel.
  *
- * ⚠ THE INTENT COMES FROM MEMORY, NOT FROM THE ROUTE. `CustomerNavKey.Payment` deliberately carries no
+ * The intent comes from memory, not from the route. `CustomerNavKey.Payment` deliberately carries no
  * arguments: routes are serialized and persisted, and this one would otherwise be persisting a payment
  * client secret. See `PaymentHandoff`.
  */
@@ -35,8 +35,8 @@ fun PaymentRoute(
         PaymentSessionLost(onBackToCheckout)
         return
     }
-    // ⚠ Keyed by ORDER. `viewModel {}` without a key resolves one instance per type per store owner, and
-    // the store owner here outlives the screen — so a second order would be paid through the FIRST
+    // Keyed by order. `viewModel {}` without a key resolves one instance per type per store owner, and
+    // the store owner here outlives the screen — so a second order would be paid through the first
     // order's ViewModel, holding the first order's intent. That is a shopper charged for the wrong thing,
     // not a glitch.
     val vm = viewModel(key = intent.orderId) { container.paymentViewModel(intent) }
@@ -46,7 +46,7 @@ fun PaymentRoute(
 /**
  * The process was killed while paying, so the intent that lived in memory is gone.
  *
- * ⚠ Nothing has been charged and the order still exists, unpaid — which is exactly what this says. The
+ * Nothing has been charged and the order still exists, unpaid — which is exactly what this says. The
  * alternative, rendering the payment screen with no intent, would show a pay button that cannot charge
  * anything and fail at the last possible moment instead of the first.
  */

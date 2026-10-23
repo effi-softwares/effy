@@ -9,7 +9,7 @@ import { obtainToken } from "@/features/notifications/messaging";
 
 import { loadSession, signOutUser } from "./repo";
 
-// The session is a QUERY — one cached source of truth for "who am I / am I signed in". Mutations
+// The session is a query — one cached source of truth for "who am I / am I signed in". Mutations
 // (sign-in/out) invalidate it; it is never hand-cached in component state (Principle VI).
 export const sessionQuery = queryOptions({
   queryKey: ["auth", "session"] as const,
@@ -21,23 +21,11 @@ export function useSignOut() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      // ⚠ 059 FR-027 — UNREGISTER BEFORE THE SESSION CLEARS, because the DELETE needs the very
-      // credential signing out is about to destroy. Afterwards the call would 401 and this device
-      // would keep receiving this shop's notifications for a shop the operator has left.
-      //
-      // ⚠ BEST EFFORT, NEVER BLOCKING. If it fails, signing out still proceeds — the row is cleaned
-      // up by the worker's existing dead-token pruning on the next send. A notification setting must
-      // not be able to trap an operator in a session.
-      //
-      // ⚠ BOTH SIDES, OR NEITHER — AND THIS ORDER. `forgetToken()` calls Firebase's `deleteToken()`,
-      // which unsubscribes the browser and KILLS THE TOKEN AT FCM. Calling it unconditionally (the
-      // first version of this) meant that whenever `obtainToken()` returned null — a fresh load
-      // where the service-worker registration had not resolved yet — the server DELETE was skipped
-      // but the token was destroyed anyway. The row then pointed at a token FCM considered dead, the
-      // next order's send was rejected, and the worker pruned the registration.
-      //
-      // The operator saw: notifications enabled successfully, then silently never again. Diagnosed
-      // from a `pruned: 1` counter, because nothing logged the reason.
+      // Unregister before the session clears: the DELETE needs the credential sign-out destroys.
+      // Best effort and never blocking (a dead row is pruned on the next send). Both sides or neither:
+      // `forgetToken` kills the token at FCM, so destroying it while the server DELETE was skipped (no
+      // token yet obtained) would leave the row pointing at a dead token, and notifications would
+      // silently stop.
       try {
         const token = await obtainToken();
         if (token) {
@@ -58,7 +46,7 @@ export function useSignOut() {
       // must not see the previous one's staff record for a frame.
       await queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
       queryClient.removeQueries({ queryKey: ["shop"] });
-      // ⚠ 059 — and the PERSISTED copy of those reads too. It holds one shop's operational data on
+      // And the persisted copy of those reads too. It holds one shop's operational data on
       // what is often a shared shop tablet; invalidating the in-memory cache while leaving the
       // IndexedDB one intact would leave the previous operator's orders readable after sign-out.
       await clearPersistedQueries();

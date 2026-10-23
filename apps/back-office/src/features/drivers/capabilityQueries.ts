@@ -19,7 +19,7 @@ export const coverageQuery = () =>
   queryOptions({ queryKey: capabilityKeys.coverage, queryFn: () => repo.getCoverage() });
 
 /**
- * ⚠ EVERY CLEARANCE MUTATION INVALIDATES COVERAGE AND THE DRIVER LIST, not just this driver.
+ * Every clearance mutation invalidates coverage and the driver list, not just this driver.
  *
  * Granting one clearance can close a gap in a zone the operator was not looking at, and revoking one
  * can open a gap somewhere else. A stale coverage view after a grant would show a problem the

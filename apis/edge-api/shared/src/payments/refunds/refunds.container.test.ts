@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "../../lib/db";
-import { migrationSql } from "../../lib/load-migrations";
+import { migrationSql } from "../../testing/migrations";
 import { finalizeSucceeded } from "../finalize";
 import { RefusedError, type CreateRefundInput, type PaymentGateway, type Refund, type WebhookEvent } from "../gateway";
 import {
@@ -14,12 +14,8 @@ import { createRefundRepository, recordRefundIn } from "./repository";
 import { createRefundService, type IssueInput, type RefundService } from "./service";
 
 /**
- * 070 — refunds, cancellation and refund requests against the REAL schema.
- *
- * ⚠ THESE CANNOT BE UNIT TESTS. "Never more than was paid" is a row lock on the payment; "two
- * cancels refund once" is a row lock on the order plus a unique key; "a terminal refund is never
- * reopened" is a WHERE clause; "one open request per order" is a partial unique index. Only the
- * payment PROVIDER is faked.
+ * Refunds, cancellation and refund requests against the real schema: the rules are row locks, unique
+ * keys and where clauses. Only the provider is faked.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -69,14 +65,14 @@ const refunds = (orderId: string) =>
   ).then((r) => r.rows);
 const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product_variant WHERE product_id = $1`, [product[name]])).n;
 
-/** A PAID order: 2 × Tracked (5.00) from shop A and 1 × Plain (10.00) from shop B, plus 6.00 delivery = 26.00. */
+/** A paid order: 2 × Tracked (5.00) from shop a and 1 × Plain (10.00) from shop B, plus 6.00 delivery = 26.00. */
 async function paidOrder() {
   const tag = `rf-${++seq}`;
   const customerId = (await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ($1, $2) RETURNING id::text AS id`, [tag, `${tag}@example.test`])).id;
   const orderId = (
     await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-       VALUES ($1, $2, 'pending_payment', 'AUD', 20.00, 26.00, 6.00, '{}'::jsonb) RETURNING id::text AS id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+       VALUES ($1, $2, 'pending_payment', 'AUD', 20.00, 26.00, 6.00, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
       [customerId, `EFY-${tag}`],
     )
   ).id;
@@ -84,8 +80,8 @@ async function paidOrder() {
   for (const [name, shop, price, qty] of [["Tracked", shopA, "5.00", 2], ["Plain", shopB, "10.00", 1]] as const) {
     item[name] = (
       await one<{ id: string }>(
-        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5::numeric, $6::int, $5::numeric * $6::int) RETURNING id::text AS id`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5::numeric, $6::int, $5::numeric * $6::int, $5::numeric, $5::numeric * $6::int) RETURNING id::text AS id`,
         [orderId, product[name], shop, name, price, qty],
       )
     ).id;
@@ -99,10 +95,7 @@ async function paidOrder() {
   return { orderId, customerId, item, intent };
 }
 
-/**
- * 074 — the same order as `paidOrder`, part- or wholly-paid with points: the order total stays 26.00,
- * the card paid `cardCents`, the points paid the rest at one cent each.
- */
+/** As `paidOrder`, part- or wholly-paid with points at one cent each; the total stays 26.00. */
 async function pointsPaidOrder(cardCents: number) {
   const o = await paidOrder();
   const points = 2600 - cardCents;
@@ -168,8 +161,6 @@ SELECT id::text AS id FROM p`,
     await container?.stop();
   });
 
-  // ── Issuing ─────────────────────────────────────────────────────────────────────────────────────
-
   it("an item refund is priced from the receipt, submitted under its stored key, and puts tracked stock back", async () => {
     const o = await paidOrder();
     const before = await stockOf("Tracked");
@@ -201,7 +192,7 @@ SELECT id::text AS id FROM p`,
     const o = await paidOrder();
     const once = goodwill(o.orderId, "3.00");
     const a = await svc.issue(once);
-    const b = await svc.issue(once); // a double-click
+    const b = await svc.issue(once);
     expect(b.refundId).toBe(a.refundId);
     expect(b).toMatchObject({ status: "submitted", amount: "3.00" });
     expect(await refunds(o.orderId)).toHaveLength(1);
@@ -225,7 +216,7 @@ SELECT id::text AS id FROM p`,
 
   it("⚠ two staff refunding at the same instant cannot together exceed what was paid", async () => {
     const o = await paidOrder();
-    // Both are released immediately before the lock, so they genuinely contend for it.
+    // Released just before the lock, so they genuinely contend.
     let waiting = 0;
     let release!: () => void;
     const gate = new Promise<void>((res) => { release = res; });
@@ -249,7 +240,7 @@ SELECT id::text AS id FROM p`,
 
   it("⚠ a refund still on its way to the provider already holds the ceiling — the window the old backend left open", async () => {
     const o = await paidOrder();
-    // The first refund is recorded and COMMITTED, and its provider call is held open.
+    // The first refund is committed and its provider call held open.
     let letProviderAnswer!: () => void;
     const held = new Promise<void>((res) => { letProviderAnswer = res; });
     const slow = { ...provider.gw, createRefund: async (input: CreateRefundInput) => { await held; return provider.gw.createRefund(input); } } as PaymentGateway;
@@ -259,7 +250,7 @@ SELECT id::text AS id FROM p`,
     for (let i = 0; i < 100 && (await refunds(o.orderId)).length === 0; i++) await new Promise((r) => setTimeout(r, 10));
     expect(await refunds(o.orderId)).toMatchObject([{ status: "submitting" }]);
 
-    // A second refund arrives in that window. It must be judged against 26 − 20, not against 26.
+    // A second refund in that window is judged against 26 − 20.
     const second = await svc.issue(goodwill(o.orderId, "15.00", { note: "second" })).catch((e: unknown) => e);
     expect(second).toBeInstanceOf(CeilingExceededError);
     expect((second as CeilingExceededError).remainingCents).toBe(600);
@@ -306,8 +297,6 @@ SELECT id::text AS id FROM p`,
     ).rejects.toBeInstanceOf(LinesNotYoursError);
   });
 
-  // ── Uncertain refunds (FR-024) ──────────────────────────────────────────────────────────────────
-
   it("a submission that gets no answer is left `submitting`, said to be stalled — counted while in flight, and not once it has stalled", async () => {
     const o = await paidOrder();
     provider.set("timeout");
@@ -317,20 +306,17 @@ SELECT id::text AS id FROM p`,
     expect(provider.calls[0]!.idempotencyKey).toBe(provider.calls[1]!.idempotencyKey);
 
     provider.set("ok");
-    // ⚠ Seconds old, it may still be on its way: it holds the ceiling, exactly as a refund whose
-    // request is still running must.
+    // Seconds old, it may still be on its way: it holds the ceiling.
     const tooSoon = await svc.issue(goodwill(o.orderId, "26.00", { note: "the whole thing" })).catch((e: unknown) => e);
     expect(tooSoon).toBeInstanceOf(CeilingExceededError);
     expect((tooSoon as CeilingExceededError).remainingCents).toBe(600);
 
-    // Past the in-flight window no request can still be running. It went nowhere, and an attempt
-    // that went nowhere must not make the platform refuse to return money it still holds.
+    // Past the in-flight window it went nowhere, and must not block returning money still held.
     await pool.query(`UPDATE public.refund SET created_at = now() - interval '2 minutes' WHERE order_id = $1`, [o.orderId]);
     await svc.issue(goodwill(o.orderId, "26.00", { note: "the whole thing" }));
     expect((await refunds(o.orderId)).map((x) => x.status).sort()).toEqual(["submitted", "submitting"]);
 
-    // ⚠ The stalled one must NOT now be sent: the order has nothing left, and sending it would
-    // return more than was paid. The reconciler closes it instead.
+    // Not sent now: the order has nothing left. The reconciler closes it.
     const sent = provider.calls.length;
     expect(await svc.reconcile({ olderThanSeconds: 0, stuckAfterSeconds: 0 })).toMatchObject({ refused: 1, resubmitted: 0, stuck: 0 });
     expect(provider.calls.length).toBe(sent);
@@ -338,7 +324,7 @@ SELECT id::text AS id FROM p`,
   });
 
   it("⚠ the reconciler resolves it: recorded when the provider has it, submitted under the stored key when it does not — never twice", async () => {
-    // (a) the provider ACCEPTED it and the answer was lost.
+    // (a) the provider accepted it and the answer was lost.
     const a = await paidOrder();
     provider.set("timeout-after-accepting");
     const first = await svc.issue(goodwill(a.orderId, "5.00"));
@@ -354,7 +340,7 @@ SELECT id::text AS id FROM p`,
 
     expect((await refunds(a.orderId))[0]).toMatchObject({ status: "submitted" });
     expect((await refunds(b.orderId))[0]).toMatchObject({ status: "submitted" });
-    // (a) asked and was told; only (b) was sent again, with the key stored on its row.
+    // (a) asked and told; only (b) sent again, with its stored key.
     expect(provider.calls.length - callsBefore).toBe(1);
     const stored = (await one<{ k: string }>(`SELECT idempotency_key AS k FROM public.refund WHERE order_id = $1`, [b.orderId])).k;
     expect(provider.calls.at(-1)!.idempotencyKey).toBe(stored);
@@ -377,8 +363,6 @@ SELECT id::text AS id FROM p`,
     await svc.reconcile({ olderThanSeconds: 0 }); // leave nothing behind for the other tests
   });
 
-  // ── The provider's reports ──────────────────────────────────────────────────────────────────────
-
   const refundEvent = (refundId: string, status: WebhookEvent["refundStatus"], over: Partial<WebhookEvent> = {}): WebhookEvent => ({
     id: `evt_${refundId}_${status}`, type: `refund.${status === "failed" ? "failed" : "updated"}`, paymentIntentId: "", refundId, refundStatus: status, ...over,
   });
@@ -394,7 +378,7 @@ SELECT id::text AS id FROM p`,
     expect(await svc.handleRefundEvent(pool, refundEvent(providerId, "succeeded"))).toEqual({ recognised: true, changed: false });
     expect(await one(`SELECT status, failure_reason FROM public.refund WHERE provider_refund_id = $1`, [providerId]))
       .toEqual({ status: "failed", failure_reason: "insufficient_funds" });
-    // ⚠ It still counts against the ceiling: staff must resolve it, not re-issue around it.
+    // It still counts against the ceiling: staff resolve it.
     await expect(svc.issue(goodwill(o.orderId, "22.00", { note: "again" }))).rejects.toBeInstanceOf(CeilingExceededError);
   });
 
@@ -410,8 +394,6 @@ SELECT id::text AS id FROM p`,
     await svc.handleRefundEvent(pool, refundEvent("re_not_ours", "succeeded", { refundAmountCents: 400, refundPaymentIntentId: "pi_somebody_else" }));
     expect(await count(`SELECT 1 FROM public.refund WHERE provider_refund_id = 're_not_ours'`)).toBe(0);
   });
-
-  // ── Cancellation ────────────────────────────────────────────────────────────────────────────────
 
   const asCustomer = (o: { orderId: string; customerId: string }) => ({ orderId: o.orderId, customerId: o.customerId, actorKind: "customer", actorSub: o.customerId });
   const asStaff = (orderId: string) => ({ orderId, customerId: null, actorKind: "back_office", actorSub: "staff-1" });
@@ -486,8 +468,6 @@ SELECT id::text AS id FROM p`,
     expect(await one(`SELECT state FROM public.delivery_slot_booking WHERE order_id = $1`, [o.orderId])).toEqual({ state: "released" });
   });
 
-  // ── Asking for a refund ─────────────────────────────────────────────────────────────────────────
-
   it("a shopper can ask once per order; it moves no money; a refund answers it", async () => {
     const o = await paidOrder();
     const stranger = await paidOrder();
@@ -516,7 +496,7 @@ SELECT id::text AS id FROM p`,
     await expect(svc.declineRequest("not-a-uuid", "", "staff-3")).rejects.toBeInstanceOf(RequestNotFoundError);
   });
 
-  // ── 074 — refunds of orders paid with points ────────────────────────────────────────────────────
+  // Orders paid with points.
 
   it("081 — a refund recorded in a transaction that rolls back leaves nothing", async () => {
     const o = await paidOrder();

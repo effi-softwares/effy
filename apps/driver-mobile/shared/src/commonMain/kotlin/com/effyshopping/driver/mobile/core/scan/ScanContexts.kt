@@ -7,10 +7,10 @@ import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 
 /**
- * 090 — what each scanning step expects, built from the work the phone already holds. One builder per
+ * What each scanning step expects, built from the work the phone already holds. One builder per
  * step (docs/driver-app-barcode-scanning.md §2, S1–S5).
  *
- * ⚠ 096 — WHAT A STEP COUNTS IS BAGS. Each bag has its own code; a package of three bags is three scans.
+ * What a step counts is bags. Each bag has its own code; a package of three bags is three scans.
  * From an older server (no bags sent) a package's own code stands for its one bag.
  */
 object ScanContexts {
@@ -43,7 +43,7 @@ object ScanContexts {
     )
 
     /**
-     * S4 — at the door: this drop's bags. ⚠ Another drop's bag is the hard stop — the wrong customer's
+     * S4 — at the door: this drop's bags. Another drop's bag is the hard stop — the wrong customer's
      * bag — named by its drop number and suburb.
      */
     fun drop(run: DeliveryRun, drop: Drop): ScanContext {

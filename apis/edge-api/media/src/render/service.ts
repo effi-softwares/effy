@@ -1,12 +1,10 @@
-// Make one picture's smaller copies and record them (086 contracts/rendition-worker.md). No SQL here,
-// no SQS: the S3 client and the repository are handed in.
 import { GetObjectCommand, NoSuchKey, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
 import type { RenditionFailure, RenditionRepository } from "./repository";
 import { isOriginalKey, renditionKey, widthsFor } from "./widths";
 
-/** Beyond this many pixels a picture is refused, not decoded — a decompression bomb, or a poster. */
+/** Larger pictures are refused, not decoded (decompression bombs). */
 export const MAX_INPUT_PIXELS = 50_000_000;
 const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp"]);
 const WEBP = { quality: 78, effort: 4 } as const;
@@ -14,8 +12,8 @@ const WEBP = { quality: 78, effort: 4 } as const;
 export type RenderOutcome =
   | { kind: "ready"; widths: number[] }
   | { kind: "failed"; failure: RenditionFailure }
-  | { kind: "refused" } // not an original key: never ours to touch
-  | { kind: "gone" }; // deleted since it was uploaded
+  | { kind: "refused" }
+  | { kind: "gone" };
 
 export interface RenderDeps {
   s3: Pick<S3Client, "send">;
@@ -24,12 +22,8 @@ export interface RenderDeps {
 }
 
 /**
- * Render one original.
- *
- * ⚠ A picture that cannot be made smaller is RECORDED and RETURNED, not thrown: retrying a corrupt
- * file three times changes nothing, and the alarm on `RenditionFailed` is what tells someone. A fault
- * of the platform (S3 or the database unreachable) IS thrown, so the queue retries it and, after three
- * tries, parks it where the dead-letter alarm sees it.
+ * A picture that cannot be resized is recorded and returned, not thrown: retrying a corrupt file
+ * changes nothing, and `RenditionFailed` alarms. Platform faults are thrown so the queue retries.
  */
 export async function render(key: string, deps: RenderDeps): Promise<RenderOutcome> {
   if (!isOriginalKey(key)) return { kind: "refused" };
@@ -61,12 +55,12 @@ export async function render(key: string, deps: RenderDeps): Promise<RenderOutco
     return { kind: "failed", failure: "too_large" };
   }
 
-  // EXIF orientation 5–8 swaps the axes: the width a viewer sees is the stored height.
+  // Exif orientation 5–8 swaps the axes: the width a viewer sees is the stored height.
   const rotated = (meta.orientation ?? 1) >= 5;
   const width = (rotated ? meta.height : meta.width) ?? 0;
   const height = (rotated ? meta.width : meta.height) ?? 0;
 
-  // An animation would be cut to its first frame. The original is served instead (spec edge case).
+  // An animation would be cut to its first frame, so the original is served instead.
   if ((meta.pages ?? 1) > 1) {
     await deps.repo.recordReady(key, [], width, height);
     return { kind: "ready", widths: [] };
@@ -76,7 +70,7 @@ export async function render(key: string, deps: RenderDeps): Promise<RenderOutco
   try {
     for (const w of widths) {
       const body = await sharp(original, { limitInputPixels: MAX_INPUT_PIXELS })
-        .rotate() // apply EXIF orientation, then strip all metadata (sharp keeps none by default)
+        .rotate()
         .resize({ width: w, withoutEnlargement: true })
         .webp(WEBP)
         .toBuffer();

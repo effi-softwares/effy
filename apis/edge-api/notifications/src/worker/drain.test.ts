@@ -37,15 +37,7 @@ const req = (over: Partial<PendingRequest> = {}): PendingRequest => ({
 });
 
 describe("drainOnce", () => {
-  /**
-   * ⚠ 053 NARROWED THIS, and the previous version of this test asserted the wider behaviour
-   * (`claimPending` was never called at all when FCM was unconfigured).
-   *
-   * That was correct while the outbox carried push only. Once the EMAIL channel shares it, skipping
-   * the whole batch means a missing FCM service account silently suppresses the only message a
-   * web-only shopper gets about their delivery — one channel's misconfiguration taking out an
-   * unrelated one. Push still fails open per row; the batch is still claimed.
-   */
+  /** Without FCM the batch is still claimed: push fails open per row and email still drains. */
   it("leaves PUSH rows pending when FCM is unconfigured, without blocking the batch (FR-027)", async () => {
     const d = deps({ senderConfigured: false, pending: [req()] });
     const s = await drainOnce(d);
@@ -124,7 +116,7 @@ describe("drainOnce", () => {
   it("fails (not retries) once the attempt cap is reached", async () => {
     const d = deps({
       maxAttempts: 3,
-      pending: [req({ attempts: 2 })], // this attempt makes 3 → cap
+      pending: [req({ attempts: 2 })],
       resolveTokens: vi.fn(async () => [{ fcmToken: "x", platform: "android" as const }]),
       send: vi.fn(async () => ({ ok: false, prune: false, errorClass: "messaging/internal-error" })),
     });
@@ -135,10 +127,6 @@ describe("drainOnce", () => {
   });
 });
 
-/**
- * The email channel (053 US3) — the only way a shopper who never installed the app hears that their
- * order arrived.
- */
 describe("drainOnce — the email channel", () => {
   const emailReq = (over: Partial<PendingRequest> = {}) =>
     req({
@@ -149,9 +137,7 @@ describe("drainOnce — the email channel", () => {
     });
 
   it("sends to the address SNAPSHOTTED on the row, never a looked-up one", async () => {
-    // ⚠ 052's rule. A customer who later changes their account email must not retroactively
-    // redirect a message about an order that has already arrived. The drain must pass through what
-    // the producer captured.
+    // The address captured at enqueue is used, so a later email change cannot redirect it.
     const d = deps({ pending: [emailReq({ recipientEmail: "at-the-time@example.com" })] });
     await drainOnce(d);
     expect(d.sendEmail).toHaveBeenCalledWith("at-the-time@example.com", "order_delivered", "order-1");
@@ -187,8 +173,7 @@ describe("drainOnce — the email channel", () => {
   });
 
   it("fans one order out to both channels independently", async () => {
-    // The shape the arrival produces: two rows, one intent. A push failure must not suppress the
-    // email, and vice versa — which is the whole reason they are separate rows.
+    // Two rows, one intent: a push failure must not suppress the email, or vice versa.
     const d = deps({
       pending: [
         req({ id: "push-row", type: "order_delivered" }),

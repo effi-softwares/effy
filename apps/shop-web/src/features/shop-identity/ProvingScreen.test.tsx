@@ -38,7 +38,7 @@ describe("ProvingScreen", () => {
     expect(screen.getByText("Colombo 01 (CMB-01)")).toBeInTheDocument();
   });
 
-  // A role-less operator is RECORDED, not refused — this must not read as an error.
+  // A role-less operator is recorded, not refused — this must not read as an error.
   it("explains a role-less operator instead of showing a failure", async () => {
     loadMe.mockResolvedValue({ ...RECORD, roles: [] });
     wrap(<ProvingScreen />);
@@ -47,7 +47,7 @@ describe("ProvingScreen", () => {
     expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
   });
 
-  // Unassigned is an EXPECTED state: the JIT upsert meets an operator before their shop is known.
+  // Unassigned is an expected state: the JIT upsert meets an operator before their shop is known.
   it("explains a missing shop assignment instead of showing a failure", async () => {
     loadMe.mockResolvedValue({ ...RECORD, shop: null });
     wrap(<ProvingScreen />);

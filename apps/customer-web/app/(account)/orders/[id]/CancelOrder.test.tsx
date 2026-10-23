@@ -20,14 +20,13 @@ beforeEach(() => {
   respond(200)
 })
 
-// ⚠ This returns money and empties an order the shopper may have spent time building.
 describe("confirmation", () => {
   it("does not cancel on the first tap — it asks, and says what will happen", async () => {
     render(<CancelOrder orderId="o1" />)
     await userEvent.click(screen.getByRole("button", { name: /cancel this order/i }))
 
     expect(fetch).not.toHaveBeenCalled()
-    // ⚠ Names the consequence rather than asking "are you sure?", which tells nobody anything.
+    // Names the consequence rather than asking "are you sure?".
     expect(screen.getByText(/refund everything you paid, including delivery/i)).toBeInTheDocument()
   })
 
@@ -48,13 +47,11 @@ describe("cancelling", () => {
     await userEvent.click(screen.getByRole("button", { name: /yes, cancel it/i }))
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/orders/o1/cancel", { method: "POST" }))
-    // ⚠ No body at all. There is nothing for a client to say — which order is in the path, who they
-    // are comes from the session, and the amount is the platform's arithmetic.
+    // No body: the order is in the path, the shopper comes from the session, the amount is the platform's.
     expect((fetch as never as ReturnType<typeof vi.fn>).mock.calls[0]![1]).not.toHaveProperty("body")
   })
 
-  // ⚠ The status, the stage and the refund all changed. This component knows about none of them, so
-  // it re-reads from the server rather than patching a local guess.
+  // Status, stage and refund all changed, so it re-reads from the server.
   it("re-reads the order from the server rather than patching state", async () => {
     render(<CancelOrder orderId="o1" />)
     await userEvent.click(screen.getByRole("button", { name: /cancel this order/i }))
@@ -65,8 +62,7 @@ describe("cancelling", () => {
 })
 
 describe("when the platform refuses", () => {
-  // ⚠ A shop can start picking between this page loading and the tap, so the server re-decides under
-  // a row lock and this may be refused. It is a fact about the order, not an error.
+  // A shop may have started picking since; the server re-decides under a row lock.
   it("shows the server's own sentence, which keeps the door open", async () => {
     respond(422, {
       error: "someone has already started preparing this order. Contact us and we'll see what we can do.",
@@ -77,8 +73,7 @@ describe("when the platform refuses", () => {
 
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent(/already started preparing/i)
-    // ⚠ The wording must never imply the order can NEVER be cancelled — staff still can, right up
-    // until it leaves the shop, and a shopper told otherwise simply gives up instead of ringing.
+    // Never implies the order can never be cancelled: staff still can until it leaves the shop.
     expect(alert).toHaveTextContent(/contact us/i)
   })
 

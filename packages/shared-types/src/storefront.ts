@@ -1,57 +1,35 @@
 import type { ProductOfferDTO } from "./promotions";
 
 /**
- * Customer storefront (public read) contracts — 019-customer-commerce-flow.
- *
- * The single source of truth (Principle II) for the customer-facing catalog read shapes served by
- * `apis/edge-api/storefront` and consumed by customer-web + (regenerated to Kotlin)
- * customer-mobile. These are the CUSTOMER projection of the 016 catalog: they carry NO shop identity
- * and NO internal fields — shops are hidden fulfillment nodes (FR-038).
- *
- * Money is a decimal STRING + a `currency` field (matches catalog.ts / R9). Image URLs are short-lived
- * presigned S3 GET URLs minted by the server (R7). Every enum has a tolerant-reader narrowing helper so a
- * value the back office adds later maps to nothing here rather than throwing (versioning-policy rule 4).
- *
- * Data design: see specs/019-customer-commerce-flow/data-model.md §3.
+ * Customer storefront contracts (the public catalogue read), served by the storefront service and used
+ * by customer-web and the customer app. The customer projection of the catalogue: no shop identity and
+ * no internal fields. Money is a decimal string plus `currency`.
  */
 
-// ⚠ IMPORTED, not redeclared. `WireInt` carries the `@asType integer` annotation that makes the
-// generated Kotlin emit an Int rather than a Double — a second copy of the alias would be a second
-// thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
+// `WireInt` is imported, so the generated Kotlin emits an Int.
 import type { WireInt } from "./cart";
 import type { UnitBasis, UnitPriceDTO } from "./unit-price";
 import type { OptionDTO, StorefrontVariantDTO } from "./variants";
 
-/** A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest). */
+/** A badge on a product card, derived server-side (on_sale = has compare-at; new = newest). */
 export type ProductBadge = "on_sale" | "new";
-export const PRODUCT_BADGES: readonly ProductBadge[] = ["on_sale", "new"];
-
-/** Narrow an arbitrary server string to a known badge, dropping the unknown (tolerant reader). */
-export function toProductBadges(values: readonly string[] | null | undefined): ProductBadge[] {
-  if (!values) return [];
-  return values.filter((v): v is ProductBadge => (PRODUCT_BADGES as readonly string[]).includes(v));
-}
-
-/** A product image (its permanent public address + alt text). */
+/** A product image: its permanent public address and alt text. */
 export interface MediaDTO {
   imageUrl: string;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
   alt: string | null;
 }
 
-/** The at-a-glance product card used in rails, search results, saved items and recently-viewed. */
+/** The product card used in rails, search results, saved items and recently viewed. */
 export interface StorefrontProductCardDTO {
   id: string;
   name: string;
   brand: string | null;
   imageUrl: string | null;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
-  /**
-   * 098 — the LISTING price: the lowest price among the product's active variants. Say "From" when
-   * `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec FR-013.)
-   */
+  /** The listing price: the lowest among active variants (say "From" when `priceVaries`). Selling out one size never moves it. */
   priceAmount: string;
   currency: string;
   /** The "was" price of the variant `priceAmount` came from. */
@@ -59,18 +37,15 @@ export interface StorefrontProductCardDTO {
   badges: ProductBadge[];
   /** Some variant can be bought now (the one availability rule). */
   available: boolean;
-  /** 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11). */
+  /** An item or buy-X-get-Y promotion open to everyone that covers this product. */
   offer?: ProductOfferDTO | null;
-  /** 098 — active variants' prices differ: show "From". */
+  /** Active variants' prices differ: show "From". */
   priceVaries: boolean;
-  /**
-   * 098 — the variant this tile stands for: the one whose stock code or barcode a search matched,
-   * else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
-   */
+  /** The variant this tile stands for (the one a stock-code or barcode search matched, else the default); quick-add adds it when `variantCount` is 1. */
   variantId: string;
-  /** 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of quick-add. */
+  /** Active variants; above 1 the tile offers "Choose" instead of quick-add. */
   variantCount: WireInt;
-  /** 098 — the comparison price of `priceAmount`, when the product has a unit basis and that variant a pack size. */
+  /** The comparison price of `priceAmount`, with a unit basis and a pack size. */
   unitPrice: UnitPriceDTO | null;
 }
 
@@ -86,17 +61,14 @@ export interface StorefrontProductDetailDTO extends StorefrontProductCardDTO {
   gallery: MediaDTO[];
   attributes: ProductAttributeGroupDTO[];
   categoryPath: string[];
-  /** The primary category's key — drives the related-products rail (025 FR-026). `categoryPath`
-   * carries display NAMES, which cannot be used to query. */
+  /** The primary category's key, for the related-products rail (`categoryPath` carries display names,
+   * which cannot be queried). */
   categoryKey: string;
-  /** 098 — the product's options in the shop's order; empty when it has none (no selector). */
+  /** The product's options in the shop's order; empty when none (no selector). */
   options: OptionDTO[];
-  /** 098 — ACTIVE variants only, in display order. Inactive and removed variants are never sent. */
+  /** Active variants only, in display order. */
   variants: StorefrontVariantDTO[];
-  /**
-   * 098 — the variant to open on (FR-014): the one the link named if it is active, else the first
-   * that can be bought, else the first.
-   */
+  /** The variant to open on: the one the link named if active, else the first that can be bought, else the first. */
   defaultVariantId: string;
   unitBasis: UnitBasis | null;
 }
@@ -109,20 +81,8 @@ export interface StorefrontRailDTO {
 }
 
 /**
- * Where a promotional banner leads (028).
- *
- * ⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router —
- * inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises
- * and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at
- * compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does
- * nothing is worse than no tap.
- *
- * ⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every tap to the
- * unfiltered store — the Search tab by another name, carrying none of the promotion's facts. FR-034
- * (no banner-only destinations) was read as forbidding a promotion screen; it does not. That rule
- * protects shoppers from CONTENT reachable only via a carousel slide, and a promotion detail contains
- * nothing the banner face does not already announce — it is the banner's own message, stated in full.
- * See `PromotionDTO`.
+ * Where a promotion tile leads: a closed vocabulary (mobile has no URL router), mapped exhaustively by
+ * each client; an unrecognised value renders the tile non-tappable.
  */
 export type BannerTarget =
   | { kind: "search" }
@@ -132,75 +92,50 @@ export type BannerTarget =
   | { kind: "promotion"; promotionId: string };
 
 /**
- * A promotional banner on Home — the shopper-facing face of an advertised promotion (028).
- *
- * ⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps typechecking
- * without an edit. What is NOT backward compatible is the LIST: this used to always contain one
- * derived "welcome" stub and is now empty whenever no promotion is advertised. Any layout that
- * assumed at least one banner has to handle `[]`.
- */
-/**
- * One advertised promotion in full — the destination of a banner tap
- * (`GET /v1/storefront/promotions/:id`).
- *
- * ⚠ WHY A PROMOTION HAS NO OTHER DESTINATION. `promo_code` carries no product or category scoping: a
- * promotion is a whole-cart discount with an optional minimum. There is no set of qualifying products
- * to filter a results list to, so a banner pointed at one was always pointing at nothing in
- * particular. A cart-level code is a message, and the destination for a message is the message itself.
- *
- * ⚠ Served through the SAME visibility predicate Home used, so a promotion that expired, was exhausted
- * or was withdrawn between Home loading and the tap is **404, not stale terms** (028 FR-036). This is
- * also why the response is uncached.
+ * One promotion in full, the destination of a tap (`GET /storefront/v1/promotions/{id}`). Served through
+ * the same visibility rule as Home, so one that ended meanwhile is 404, not stale terms (hence uncached).
  */
 export interface PromotionDTO {
   id: string;
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
-  /** NON-nullable: a screen whose purpose is to hand over a code must have one. */
+  /** Non-nullable: a screen whose purpose is to hand over a code must have one. */
   code: string;
   /** The terms sentence, from the server-side composer. */
   terms: string | null;
-  /**
-   * How long is left — `"Ends in 3 days"`, `"Ends tomorrow"`. Null when the promotion never ends.
-   *
-   * ⚠ RELATIVE, not a calendar date, and composed server-side. A date means nothing without a
-   * timezone and the platform has no timezone concept; a duration reads the same from anywhere. Mobile
-   * additionally has no date formatting of any kind, so a raw timestamp could not be rendered there.
-   */
+  /** How long is left ("Ends in 3 days"), composed server-side; null when it never ends. */
   validity: string | null;
 }
 
-/** The composed Home payload (GET /v1/storefront/home). */
+/** The composed Home payload (GET /storefront/v1/home). */
 export interface StorefrontHomeDTO {
   rails: StorefrontRailDTO[];
 }
 
-/** A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the
- * admin/shop `CategoryDTO` in catalog.ts — this carries no internal id/status/order. */
+/** A browse category, customer projection (GET /storefront/v1/categories); unlike catalog.ts's
+ * `CategoryDTO` it carries no internal id, status or order. */
 export interface StorefrontCategoryDTO {
   key: string;
   name: string;
   parentKey: string | null;
-  /** Purchasable products in this category AND everything under it (025; subtree since 084) — the
-   * number on an aisle is the number its page shows. Drives "N items" and the empty-category case. */
+  /** Purchasable products in this category and everything under it, so an aisle's number is what its
+   * page shows. */
   productCount: number;
-  /** Representative image, DERIVED from a product in the category — categories store no imagery, and
-   * 025 FR-001 forbids adding a column for it. Null → the client renders a brand tile, never a broken
-   * frame. The choice is deterministic so a category does not change its face between page loads. */
+  /** A representative image derived from a product in the category (categories store none), chosen
+   * deterministically; null renders a brand tile. */
   imageUrl: string | null;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
 }
 
 /**
- * One thing the search field offers to search for (084).
- *
- * - no `categorySlug` — search for `text`;
- * - `categorySlug` and a different `text` — search for `text` inside that aisle ("oat milk in Dairy & eggs");
- * - `text` equal to `categoryName` — the aisle itself, by name: open it.
+ * One thing the search field offers:
+ * - no `categorySlug`: search for `text`;
+ * - `categorySlug` and a different `text`: search for `text` inside that aisle ("oat milk in Dairy & eggs");
+ * - `text` equal to `categoryName`: the aisle itself; open it.
  */
 export interface SearchPhraseDTO {
   text: string;
@@ -208,12 +143,7 @@ export interface SearchPhraseDTO {
   categoryName?: string;
 }
 
-/**
- * Suggestions for the text typed so far (GET /v1/storefront/suggestions?q=).
- *
- * ⚠ Built from the CATALOGUE — product names, brands, aisles. Never from other shoppers' searches.
- * Both lists are empty for fewer than two characters.
- */
+/** Suggestions for the text typed so far (GET /storefront/v1/suggestions?q=), from the catalogue only, never other shoppers' searches. Empty under two characters. */
 export interface SuggestionsDTO {
   /** At most five. */
   phrases: SearchPhraseDTO[];
@@ -221,66 +151,37 @@ export interface SuggestionsDTO {
   products: StorefrontProductCardDTO[];
 }
 
-/** The orderings a result set can be presented in (025 FR-016).
- *
- * `relevance` is only meaningful alongside a text query; without one the server falls back to
- * `newest` and reports what it actually did in `ProductSearchResultDTO.sort`. */
+/** How a result set can be ordered. `relevance` needs a text query; without one the server uses
+ * `newest` and says so in `ProductSearchResultDTO.sort`. */
 export type ProductSort = "newest" | "price_asc" | "price_desc" | "relevance";
 
-/** Search/browse query params (facets are query params, never path segments — SEO, FR-017). */
-export interface ProductSearchQuery {
-  q?: string;
-  categoryKey?: string;
-  minPrice?: string;
-  maxPrice?: string;
-  saleOnly?: boolean;
-  /** Selected brands — OR within the facet, e.g. `brand=Acme&brand=Beta` (043 FR-003). */
-  brands?: string[];
-  /** Attribute facets, keyed by attribute key → selected value(s). OR within a key, AND across keys
-   * (043 FR-003). On the wire: repeated `attr.<key>=<value>` params. */
-  attributes?: Record<string, string[]>;
-  /** Defaults to `newest`, which is the pre-025 ordering. */
-  sort?: ProductSort;
-  cursor?: string;
-  limit?: number;
-}
-
-/** A page of search results with a keyset cursor for infinite scroll.
- *
- * ⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a sort
- * change — the server rejects a cursor issued under a different ordering with 400
- * `cursor_sort_mismatch`, because honouring it would silently drop and repeat products (FR-016b). */
+/** A page of results with a keyset cursor. `cursor` is opaque and sort-tagged: one from another
+ * ordering is 400 `cursor_sort_mismatch`. */
 export interface ProductSearchResultDTO {
   items: StorefrontProductCardDTO[];
   nextCursor: string | null;
-  /** Total products matching the refinements, ignoring pagination (025 FR-016a). */
+  /** Total products matching the refinements, ignoring pagination. */
   total: number;
-  /** The ordering ACTUALLY applied — may differ from the request. Render the sort control from this,
-   * not from what was asked for, or the control will misdescribe the list beneath it. */
+  /** The ordering actually applied (may differ from the request): render the sort control from this. */
   sort: ProductSort;
 }
 
-/** The control a facet drives (043).
- *
- * `single_select` — pick one (category; reuses the `categoryKey` filter param).
- * `multi_select`  — tick many, OR within (brand, single/multi-select + boolean attributes).
- * `toggle`        — an on/off control (offers). Closed vocabulary: a client meeting an unknown value
- *                   renders nothing for that facet (tolerant reader). */
+/** The control a facet drives:
+ * `single_select` pick one (category; reuses the `categoryKey` filter).
+ * `multi_select` tick many, OR within (brand, select and boolean attributes).
+ * `toggle` on/off (offers).
+ * A client meeting an unknown value renders nothing for that facet. */
 export type FacetType = "single_select" | "multi_select" | "toggle";
 
-/** One selectable value within a facet, carrying its count in the CURRENT result set (043 FR-008).
- *
- * ⚠ Zero-count options are OMITTED by the server (FR-009) — an option that leads nowhere is not an
- * option. `count` is therefore always ≥ 1 as delivered. */
+/** One value within a facet, with its count in the current result set. Zero-count options are omitted, so `count` is ≥ 1. */
 export interface FacetOptionDTO {
   value: string;
   label: string;
-  /** ⚠ `WireInt` (`@asType integer`) so the generated Kotlin reads an Int, not a Double — the 027
-   * `1.0`-into-an-int lesson, applied to the count field. */
+  /** `WireInt`, so the generated Kotlin reads an Int. */
   count: WireInt;
 }
 
-/** One refinable dimension: category, brand, an attribute-definition key, or `offers` (043). */
+/** One refinable dimension: category, brand, an attribute key, or `offers`. */
 export interface FacetDTO {
   /** `"category"`, `"brand"`, `"offers"`, or an attribute-definition key (e.g. `"diet"`). */
   key: string;
@@ -289,14 +190,10 @@ export interface FacetDTO {
   options: FacetOptionDTO[];
 }
 
-/** The facets available for a query + applied filters, with per-option counts (043 US2).
- *
- * Computed on filter-change, NOT per page — the product grid pages independently via
- * `ProductSearchResultDTO`. `priceBounds` drives the price control's range and is null when the set
- * is empty. */
+/** The facets for a query and its filters, with per-option counts. Computed on filter change, not per
+ * page; `priceBounds` is null for an empty set. */
 export interface FacetSetDTO {
   priceBounds: { min: string; max: string } | null;
   facets: FacetDTO[];
 }
-
 

@@ -14,7 +14,7 @@ import { pointsSettingsQuery } from "../queries";
 import { CreditPointsSheet } from "./CreditPointsSheet";
 
 /**
- * "Credit points" from an order (074 T034): the commonest moment to make things right is while looking
+ * "Credit points" from an order: the commonest moment to make things right is while looking
  * at the order that went wrong, so the credit is pre-tied to it. Also the way from an order to its
  * customer's page.
  */

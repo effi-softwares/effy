@@ -6,7 +6,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// The data layer for driver clearances and coverage (062). Screens never touch the api client
+// The data layer for driver clearances and coverage. Screens never touch the api client
 // directly (Principle VI).
 
 export async function listCapabilities(driverId: string): Promise<DriverCapabilityListResponse> {
@@ -14,7 +14,7 @@ export async function listCapabilities(driverId: string): Promise<DriverCapabili
 }
 
 /**
- * ⚠ `zoneId` is sent EXPLICITLY, including as `null` for "every zone". A key absent and a key
+ * `zoneId` is sent explicitly, including as `null` for "every zone". A key absent and a key
  * present-with-null must not be conflated, or "everywhere" becomes indistinguishable from "the
  * operator forgot to choose" — and the platform would grant the broadest possible clearance by
  * accident.

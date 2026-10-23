@@ -1,15 +1,15 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * Choosing a size on the product page (098) — pure, host-tested. The SAME rules as the storefront's
+ * Choosing a size on the product page — pure, host-tested. The same rules as the storefront's
  * `lib/variant-selection.ts`:
  *
- *  - the selection is always ONE variant, never a half-chosen state;
+ *  - the selection is always one variant, never a half-chosen state;
  *  - picking a value keeps the other option's value when that combination is sold, else moves to the
- *    first variant carrying the picked value (an available one first);
+ *  first variant carrying the picked value (an available one first);
  *  - a value is [ValueState.Available] when, with the other option as chosen, a variant with it can be
- *    bought; [ValueState.SoldOut] when it exists but cannot; values no variant carries are not offered.
- *    Sold-out values stay visible (FR-015) — hiding one would hide that the size exists.
+ *  bought; [ValueState.SoldOut] when it exists but cannot; values no variant carries are not offered.
+ *  Sold-out values stay visible — hiding one would hide that the size exists.
  */
 enum class ValueState { Available, SoldOut, Unsold }
 

@@ -11,11 +11,7 @@ import {
   type DeliveryInstructionsResult,
 } from "./delivery-instructions";
 
-/**
- * ⚠ THE FIXTURE IS THE RULE'S TABLE. Until 070 a second implementation, in a second language on a
- * second backend, read this same file to stay in step. The backend now imports the function below
- * directly, so there is one implementation and this is simply its test — the cases are unchanged.
- */
+/** The fixture is the rule's table of cases. */
 interface Case {
   name: string;
   input: unknown;
@@ -52,7 +48,7 @@ describe("066 — delivery instructions", () => {
     expect(normaliseDeliveryInstructions([])).toMatchObject({ ok: false });
   });
 
-  /** FR-028 — a refusal is the kind of thing that gets logged, and a note may hold a gate code. */
+  /** A refusal gets logged, and a note may hold a gate code. */
   it("⚠ a refusal never carries the submitted text", () => {
     const secret = "GATE-CODE-4411 ".repeat(30);
     const out = normaliseDeliveryInstructions({ handover: null, note: secret });

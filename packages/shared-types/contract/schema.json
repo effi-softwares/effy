@@ -4,7 +4,7 @@
   "definitions": {
     "ChangePasswordDTO": {
       "additionalProperties": false,
-      "description": "Changing an EXISTING password. Cognito verifies `currentPassword` itself (FR-016).",
+      "description": "Changing an existing password; Cognito verifies `currentPassword`.",
       "properties": {
         "currentPassword": {
           "type": "string"
@@ -28,11 +28,11 @@
       "additionalProperties": false,
       "properties": {
         "clearsAt": {
-          "description": "⚠ NEVER null. FR-042 forbids a block that cannot state its own end.",
+          "description": "Never null.",
           "type": "string"
         },
         "href": {
-          "description": "Where the customer goes to act on it — FR-042's \"direct route\". Web routes on this.",
+          "description": "Where the customer goes to act on it (web).",
           "type": "string"
         },
         "kind": {
@@ -43,12 +43,12 @@
           "type": "string"
         },
         "resolvableByShopper": {
-          "description": "Can the customer act on it, or only wait? Both are acceptable; a dead end is not.",
+          "description": "Whether the customer can act on it, or only wait.",
           "type": "boolean"
         },
         "target": {
           "additionalProperties": false,
-          "description": "The same destination in the closed vocabulary mobile needs, having no URL router.",
+          "description": "The same destination as a closed vocabulary (mobile has no URL router).",
           "properties": {
             "id": {
               "type": "string"
@@ -76,7 +76,7 @@
       "type": "object"
     },
     "ClosureBlockerKind": {
-      "description": "Why a customer cannot be deleted yet (034 FR-042).\n\n⚠ THIS REQUIREMENT HAS BEEN WRONG TWICE, so the shape encodes the lesson rather than trusting a comment. First it blocked on any non-terminal order — but an order's only terminal state is a fulfilment reaching `collected`, which ships behind a dev-only stub with no route in any environment, so EVERY customer who had ever paid became permanently undeletable. The fix bounded it at 30 days, matched to the grace period — and that was the same dead end in disguise, because Effy is a WEEKLY-RE-BUY grocery platform: a shopper who buys every week is always within 30 days of an order, so the platform's most engaged customers still could never delete.\n\nHence `clearsAt` is NON-NULLABLE: a blocker that cannot say when it ends is unrepresentable, not merely discouraged.",
+      "description": "Why a customer cannot be deleted yet. Every blocker must say when it clears (`clearsAt` is non-nullable): earlier rules left frequent shoppers permanently undeletable.",
       "enum": [
         "order_awaiting_payment",
         "order_in_transit"
@@ -85,7 +85,7 @@
     },
     "ClosureChallengeResultDTO": {
       "additionalProperties": false,
-      "description": "The step-up challenge for closure — the same masked-destination shape the password flow uses.",
+      "description": "The step-up challenge for closure (the password flow's masked-destination shape).",
       "properties": {
         "maskedDestination": {
           "type": "string"
@@ -98,7 +98,7 @@
     },
     "ClosurePreviewDTO": {
       "additionalProperties": false,
-      "description": "Everything the customer must see BEFORE any irreversible step (FR-040). Side-effect free.",
+      "description": "Everything the customer sees before any irreversible step. Side-effect free.",
       "properties": {
         "activeRequest": {
           "anyOf": [
@@ -125,7 +125,7 @@
           "description": "Present only when a request is already live."
         },
         "blockers": {
-          "description": "Empty ⇒ closure may proceed.",
+          "description": "Empty: closure may proceed.",
           "items": {
             "$ref": "#/definitions/ClosureBlockerDTO"
           },
@@ -137,7 +137,7 @@
         },
         "pointsHeld": {
           "$ref": "#/definitions/WireInt",
-          "description": "074 FR-024 — the points the customer will lose when closure becomes final, and their value. Told BEFORE they confirm. Optional so a client built before 074 still reads the preview."
+          "description": "The points lost when closure becomes final, and their value, told before confirming."
         },
         "pointsValueAmount": {
           "type": "string"
@@ -159,7 +159,7 @@
     },
     "ClosureRequestDTO": {
       "additionalProperties": false,
-      "description": "Confirming closure. The code is what pays for it (FR-043); a valid session alone may not.",
+      "description": "Confirming closure: the code pays for it; a session alone may not.",
       "properties": {
         "code": {
           "type": "string"
@@ -172,7 +172,7 @@
     },
     "ClosureRestoreResultDTO": {
       "additionalProperties": false,
-      "description": "Cancelling a live closure request during the grace window (FR-041a).\n\n⚠ RESTORE IS AN EXPLICIT CALL, never an inference from an authenticated read. Making it implicit is unimplementable — the refusal and the restore run through the SAME identity lookup, so the gate would refuse the very request meant to restore — and unsafe, because anyone holding the customer's token during the window would silently un-delete the account merely by opening the app.",
+      "description": "Cancels a live closure during the grace window. An explicit call, never inferred from a read: the gate would refuse it, and any holder of the token would un-delete the account by opening the app.",
       "properties": {
         "restoredAt": {
           "type": "string"
@@ -191,7 +191,7 @@
           "type": "boolean"
         },
         "eraseAfter": {
-          "description": "The date the customer is now owed (FR-040).",
+          "description": "The date the customer is now owed.",
           "type": "string"
         }
       },
@@ -202,7 +202,7 @@
       "type": "object"
     },
     "ClosureState": {
-      "description": "Where a customer sits in the closure lifecycle (034).\n\n`\"closing\"` means they asked to be deleted and the grace window is running. Every request is refused while it holds — with exactly ONE exception, the explicit restore call (FR-041a).",
+      "description": "Where a customer is in closure. `\"closing\"`: the grace window is running and every request is refused except restore.",
       "enum": [
         "open",
         "closing"
@@ -210,7 +210,7 @@
       "type": "string"
     },
     "CredentialRoute": {
-      "description": "How a customer proved who they are. Telemetry + UI only — never an authorization input.",
+      "description": "How a customer proved who they are. Telemetry and UI only, never an authorization input.",
       "enum": [
         "password",
         "otp",
@@ -220,22 +220,22 @@
     },
     "CustomerDTO": {
       "additionalProperties": false,
-      "description": "The platform's own record of a customer — distinct from their Cognito credential, and authoritative for the access decision (FR-025).\n\nA `barred` customer is refused no matter how valid their credential is. That is the whole point of holding our own record: the claim is the ORIGIN of identity, the record is the AUTHORITY on access.\n\nNote there is no `role` here, and none is coming: the customer pool defines no RBAC groups (constitution Principle IV). That is also a token-size safety measure — id + access + refresh cookies already run to ~4.5 KB against a ~4 KB browser limit, and a fattened claim set would silently truncate the session.",
+      "description": "The platform's own record of a customer, authoritative for access: a `barred` customer is refused whatever their credential. No `role`: the customer pool has no groups (which also keeps the session cookies under the browser's size limit).",
       "properties": {
         "closureState": {
           "$ref": "#/definitions/ClosureState",
-          "description": "Has this customer asked to be deleted? (034 FR-041.)\n\n⚠ DELIBERATELY NOT a third value of `status`. `status` is a PLATFORM SANCTION, and its entire safety property is that the customer cannot influence it; closure is the customer's OWN decision. Collapsing them would make \"barred AND closing\" unrepresentable — and FR-049 requires an answer to exactly that case.\n\nThere is no `\"closed\"`: once erasure runs, the row is gone. A terminal state would be a row every future read must remember to exclude."
+          "description": "Has this customer asked to be deleted? Not a value of `status`, which is a platform sanction the customer cannot influence (a customer can be barred and closing). No `\"closed\"`: erasure removes the row."
         },
         "createdAt": {
           "type": "string"
         },
         "email": {
-          "description": "The verified email. It is the identity key across every credential route.",
+          "description": "The verified email: the identity key across every credential route.",
           "type": "string"
         },
         "emailDelivery": {
           "$ref": "#/definitions/EmailDeliveryState",
-          "description": "How reliably the platform can reach this account's email address (037 FR-030).\n\n⚠ AUTHENTICATED SURFACES ONLY. This MUST NOT be exposed on any unauthenticated surface, and no sign-in screen may branch on it. Delivery state is only knowable for an address the platform has actually emailed, so disclosing it to whoever typed an address answers \"does this address have an Effy account?\" — an enumeration oracle, and a direct regression against 035's phantom-send and timing-parity defences. The unauthenticated escape hatch is UNIFORM instead (FR-030a).\n\n⚠ Defaults to `\"reachable\"` when the platform holds no outcome for the address. Absence of evidence is not evidence of failure, and the overwhelmingly common case is an address that has simply never bounced.\n\n⚠ There is deliberately no `reason` or `diagnostic` companion. Those are the receiving server's own words, written for a postmaster — on an account page they are noise at best and alarming at worst. They live in the back-office console, where an operator has asked for them."
+          "description": "How reliably the platform can reach this email. Authenticated surfaces only: on a sign-in screen it would reveal whether an address has an account. `\"reachable\"` when nothing is known. No reason or diagnostic (those stay in back-office)."
         },
         "familyName": {
           "type": [
@@ -244,28 +244,28 @@
           ]
         },
         "givenName": {
-          "description": "First and last name, captured AT REGISTRATION (FR-009a) and mapped 1:1 onto Cognito's standard `given_name` / `family_name` attributes — so they ride on the ID token with no custom claim.\n\nTwo fields, not one: a delivery label, an order confirmation and a support conversation all need the parts, and a single free-text name cannot be split back into them reliably (ask anyone with two surnames, or one name). Captured at source; never inferred.\n\nNullable because the FEDERATED route supplies whatever the provider asserts, and may assert neither. The platform must not invent a name it was never given.",
+          "description": "First and last name, captured at registration and mapped onto Cognito's `given_name` / `family_name`. Nullable: a federated provider may assert neither, and no name is invented.",
           "type": [
             "string",
             "null"
           ]
         },
         "hasPassword": {
-          "description": "Does this account have a password? (012 FR-013.)\n\n⚠ THE PLATFORM MUST HOLD THIS ITSELF, because Cognito cannot be asked. There is no API that reports whether a user has a password: `AdminGetUser` does not return it, and `UserStatus` does not distinguish it — a passwordless CONFIRMED user and an email+password CONFIRMED user are identical on the wire (research R5).\n\n⚠ AND IT IS THE ONLY THING THE ACCOUNT PAGE MAY BRANCH ON. Never branch on \"how did they sign in\": a Google-LINKED customer is an ordinary native user and CAN hold a password. Inferring from the sign-in route would show the wrong control to a real cohort.",
+          "description": "Does this account have a password? The platform holds it because Cognito cannot be asked. The account page branches on this only, never on how the customer signed in.",
           "type": "boolean"
         },
         "id": {
           "type": "string"
         },
         "passwordUpdatedAt": {
-          "description": "When the password last changed. `null` means NEVER — which is a legitimate, complete, permanent state for an email-OTP customer, not a missing value and not an incomplete profile (FR-015).",
+          "description": "When the password last changed; `null` means never, a complete state for an email-code customer.",
           "type": [
             "string",
             "null"
           ]
         },
         "phone": {
-          "description": "A self-asserted contact phone (034 FR-060).\n\n⚠ NEVER VERIFIED by feature 034, and that has two hard consequences (FR-060a): it MUST NOT be rendered with a verified/confirmed indicator, and it MUST NOT be accepted by any identity, recovery or authentication path. There is deliberately no `phoneVerified` companion — a field whose only honest value is `false` is a trap, because someone will eventually render it as a badge.\n\n⚠ DISTINCT from `AddressDTO.phone`, which is the per-address DELIVERY contact a driver calls (FR-060b). This one is a profile convenience; it does not override the address's, and nothing copies one into the other. Two fields disagreeing about who to ring is worse than one gap.",
+          "description": "A self-asserted contact phone, never verified: never shown with a verified mark and never accepted by any identity or recovery path (so there is no `phoneVerified`). Distinct from `AddressDTO.phone`, the per-address delivery contact; neither overrides the other.",
           "type": [
             "string",
             "null"
@@ -292,7 +292,7 @@
     },
     "CustomerPointsDTO": {
       "additionalProperties": false,
-      "description": "GET /customer/v1/points — the balance AND a page of history, in one answer.\n\n⚠ ONE ROUTE ON PURPOSE. Every screen that shows points shows both, so two routes would be two round trips for one screen — and the shared gateway's route and integration ceilings (300 each) were reached the day this shipped. `?cursor=` pages the history; the balance is always current.",
+      "description": "GET /customer/v1/points: the balance and a page of history in one answer (every points screen shows both). `?cursor=` pages it.",
       "properties": {
         "centsPerPoint": {
           "$ref": "#/definitions/WireInt"
@@ -341,7 +341,7 @@
       "type": "object"
     },
     "CustomerStatus": {
-      "description": "A customer's standing with Effy. PLATFORM-OWNED — never derived from a token claim.",
+      "description": "A customer's standing with Effy: platform-owned, never derived from a token claim.",
       "enum": [
         "active",
         "barred"
@@ -349,7 +349,7 @@
       "type": "string"
     },
     "EmailDeliveryState": {
-      "description": "The platform's conclusion about whether it can reach an address (037).\n\nDerived from per-message outcomes, never from a single send: `SendEmail` returns success and a message id even for an address the mail service has permanently blocked, so \"the call succeeded\" is not evidence of delivery.\n\n- `reachable`      — last outcome was a delivery, or nothing is known.\n- `soft_failing`   — a transient failure (mailbox full, a delay, an out-of-office). Informational;                      it gates nothing.\n- `undeliverable`  — a PERMANENT failure. ⚠ For driver, shop and back-office this is a total                      account lockout: email is their only credential and there is no fallback.\n- `complained`     — the recipient marked a message as spam. ⚠ Recorded and surfaced, but it MUST                      NOT bar anyone from signing in to their own account — a complaint usually                      means someone typed a stranger's address into sign-in, and barring on it locks                      out an account that stranger may legitimately own later (FR-031).",
+      "description": "The platform's conclusion about reaching an address, from per-message outcomes (a successful `SendEmail` proves nothing):\n- `reachable`      the last outcome was a delivery, or nothing is known.\n- `soft_failing`   a transient failure; informational, gates nothing.\n- `undeliverable`  a permanent failure; a lockout for the passwordless audiences.\n- `complained`     marked as spam; surfaced, but never bars sign-in (it usually means someone typed                    a stranger's address).",
       "enum": [
         "reachable",
         "soft_failing",
@@ -360,7 +360,7 @@
     },
     "PasswordChallengeResultDTO": {
       "additionalProperties": false,
-      "description": "The step-up challenge result. It carries a MASKED destination and nothing else — never the full address (an information leak) and obviously never the code.",
+      "description": "The step-up result: a masked destination only, never the address or the code.",
       "properties": {
         "maskedDestination": {
           "description": "e.g. `j•••@example.com`",
@@ -384,7 +384,7 @@
     },
     "PasswordWriteResultDTO": {
       "additionalProperties": false,
-      "description": "What the storefront must do after a successful password write.\n\n`allSessionsRevoked` is always true (FR-024): Cognito's revocation is all-or-nothing, so a password change ends EVERY session, including the one that made it. The customer is returned to sign-in to prove the new password. See research R7 — and note the window is not zero.",
+      "description": "After a password write every session is revoked (Cognito's revocation is all-or-nothing), this one included.",
       "properties": {
         "allSessionsRevoked": {
           "const": true,
@@ -493,7 +493,7 @@
           "type": "string"
         },
         "words": {
-          "description": "The sentence to show — decided by the server from the reason.",
+          "description": "The sentence to show, decided by the server from the reason.",
           "type": "string"
         }
       },
@@ -530,10 +530,10 @@
     },
     "ProblemFieldIssue": {
       "additionalProperties": false,
-      "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
+      "description": "RFC 9457 problem+json: the platform's one machine-readable error shape.",
       "properties": {
         "field": {
-          "description": "The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE CODE.\n\n⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`, `bands_required`, …). \"Please check the fields and try again\" tells an operator nothing about which of five rules they broke, and every one of those rules fails SILENTLY in production if it is not understood — a cap below the floor makes every delivery cost the cap, forever.",
+          "description": "The offending field path, or for a whole-request refusal a stable machine-readable code (e.g. `cap_below_floor`, `bands_required`), so the client can say which rule was broken.",
           "type": "string"
         },
         "message": {
@@ -550,14 +550,14 @@
       "additionalProperties": {},
       "properties": {
         "code": {
-          "description": "A stable, machine-readable refusal code, where the route defines one (069: the checkout's `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client switches on and maps to its OWN copy — unlike `detail`, which is prose.",
+          "description": "A stable refusal code where the route defines one (e.g. `slot_required`), mapped by the client to its own copy; `detail` is prose.",
           "type": "string"
         },
         "detail": {
           "type": "string"
         },
         "errors": {
-          "description": "⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors`; `fields` was the name only this type used, so every reader keying off it saw nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).",
+          "description": "Field issues (the wire key is `errors`).",
           "items": {
             "$ref": "#/definitions/ProblemFieldIssue"
           },
@@ -585,7 +585,7 @@
     },
     "ResetConfirmDTO": {
       "additionalProperties": false,
-      "description": "Recovery confirm — the \"forgot password\" completion, moved behind the backend (FR-022b).",
+      "description": "Completes \"forgot password\" through the backend.",
       "properties": {
         "code": {
           "type": "string"
@@ -606,7 +606,7 @@
     },
     "RetainedCategoryDTO": {
       "additionalProperties": false,
-      "description": "A category of data kept after erasure, and why (FR-045).\n\n⚠ The reason is carried as data, not hardcoded per surface, because SC-010 requires every claim in the disclosure to be TRUE of the built system — and Apple has demanded that developers cite the specific law behind a retention claim. One source, two surfaces, no drift.",
+      "description": "A category of data kept after erasure, and why, carried as data so every surface states the same true reason.",
       "properties": {
         "category": {
           "type": "string"
@@ -623,10 +623,10 @@
     },
     "SetPasswordDTO": {
       "additionalProperties": false,
-      "description": "Setting a FIRST password. The `code` is what pays for it (FR-017) — a session alone may not.",
+      "description": "Setting a first password: the code pays for it; a session alone may not.",
       "properties": {
         "code": {
-          "description": "The step-up code, emailed to the account's verified address at the time of the request.",
+          "description": "The step-up code, emailed to the account's verified address.",
           "type": "string"
         },
         "mode": {
@@ -646,7 +646,7 @@
     },
     "UpdateCustomerDTO": {
       "additionalProperties": false,
-      "description": "What a customer may change about themselves (FR-026).\n\n`email` is deliberately absent: changing it is an identity operation, and a customer who can rewrite their own email can walk onto another customer's record (the well-known Cognito takeover). `status` is absent because it is platform-owned. `hasPassword` is absent because it is a CONSEQUENCE of the password endpoints, never an input to them.\n\n⚠ `closureState` IS ABSENT FOR THE SAME REASON AS `status`, and the omission is load-bearing. Closure is written only by the closure endpoints, after a freshly issued verification code. A profile PATCH must never be able to open or close an account — it would turn a routine name edit into an un-delete, and it would bypass the proof-of-control FR-043 exists to demand.",
+      "description": "What a customer may change about themselves. No `email` (an identity operation), `status` (platform-owned), `hasPassword` (a consequence of the password routes) or `closureState` (only the closure routes write it, after a fresh code).",
       "properties": {
         "familyName": {
           "type": [
@@ -661,7 +661,7 @@
           ]
         },
         "phone": {
-          "description": "⚠ Send `\"\"` to CLEAR it, never `null`.\n\nThe mobile client serialises with `explicitNulls = false`, which drops nulls from the payload entirely — so a `null` phone is indistinguishable from \"field not sent\" and the clear silently no-ops. The backend maps `\"\"` → `NULL`, on the identical path the name parts already use.",
+          "description": "Send `\"\"` to clear, never `null`: the mobile client drops nulls, so `null` reads as \"not sent\".",
           "type": [
             "string",
             "null"
@@ -676,11 +676,11 @@
       "type": "object"
     },
     "WireInt": {
-      "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
+      "description": "A whole number on the wire. A plain `number` becomes a Kotlin `Double` and sends `1.0`; this makes the schema say `\"integer\"` (a Kotlin `Long`). Use it for every count, quantity, limit and revision.",
       "type": "integer"
     }
   },
-  "description": "Aggregator — codegen entry only (see file header). Every field forces a type into the schema.",
+  "description": "Codegen entry only. Every field forces a type into the schema.",
   "properties": {
     "changePassword": {
       "$ref": "#/definitions/ChangePasswordDTO"

@@ -6,12 +6,8 @@ import { describe, expect, it } from "vitest";
 import { COVERAGE_LABEL, COVERAGE_REFUSAL_SENTENCE } from "./delivery";
 
 /**
- * ⚠ THE REFUSAL IS THE SAME SENTENCE WHEREVER A CUSTOMER MEETS IT (076 FR-022, SC-004).
- *
- * The server and the website import the constants in `delivery.ts`. The mobile app cannot import a
- * TypeScript file, so it keeps a mirror — and a mirror nobody checks is a second wording waiting to
- * happen (before 076 the refusal existed three times, in three wordings). This reads the Kotlin and
- * holds it, character for character, to the source.
+ * The refusal is the same sentence wherever a customer meets it. The server and the website import
+ * `delivery.ts`; the mobile app keeps a Kotlin mirror, held here character for character to the source.
  */
 const kotlin = resolve(
   __dirname,

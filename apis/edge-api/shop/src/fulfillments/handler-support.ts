@@ -1,7 +1,3 @@
-// Shared handler support for the fulfilment slice (020): the auth gate, error mapping, and
-// domain → wire-DTO mappers. Each thin handler still owns its own parse/authorize/map flow
-// (ARCHITECTURE: no middleware framework).
-
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -20,20 +16,13 @@ import type { DeliveryPromise, FulfillmentDetail, FulfillmentItem, FulfillmentSu
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 
-/** 096 — a named refusal's problem type: `https://effyshopping.com/problems/<code>`. */
+/** `https://effyshopping.com/problems/<code>`. */
 export const problemType = (code: string): string => `https://effyshopping.com/problems/${code}`;
 
 /**
- * Resolve the actor: their shop AND their staff id, in one round trip.
- *
- * Membership-only — NO role term. Both `shop_manager` and `shop_staff` have full fulfilment access
- * (FR-019a, clarification 2), so reusing 007's manager gate here would be wrong. The three terms
- * that DO apply are conjoined in one predicate: operator active, assigned to a shop, and that shop
- * active. The inner JOIN collapses "unassigned" and "inactive shop" into the same falsity, so no
- * extra branch can leak which one failed.
- *
- * `staffId` comes back because the audit trail is this feature's sole accountability control
- * (FR-019b) — without it, a transition could only be attributed to a shop, not a person.
+ * The actor's shop and staff id in one round trip. Membership only: both shop roles have full
+ * fulfilment access. Operator active, assigned, shop active are one predicate, so a refusal never
+ * says which term failed. `staffId` attributes every transition to a person.
  */
 const RESOLVE_ACTOR = `
 SELECT ss.id AS staff_id, st.id AS shop_id
@@ -51,10 +40,7 @@ export async function resolveActor(sub: string): Promise<{ shopId: string; staff
   return row ? { shopId: row.shop_id, staffId: row.staff_id } : null;
 }
 
-/**
- * Authenticate (401 without a verified sub) + authorize from the platform record (uniform 403 on
- * deny). Fail-closed to 503 if the check itself throws — a failed authorization is never a grant.
- */
+/** Without a verified sub, uniform 403 on deny, 503 if the check itself throws. */
 export async function gate(
   event: AuthedEvent,
   scope: RequestScope,
@@ -85,14 +71,7 @@ export async function gate(
   }
 }
 
-/**
- * Map a domain error to problem+json.
- *
- * ⚠ `not_found` maps to **403, not 404** — deliberately, and unlike the sibling products slice.
- * Every fulfilment read is already shop-scoped, so "no such portion" and "another shop's portion"
- * are indistinguishable by construction. Emitting a distinct 404 would hand a caller an oracle for
- * enumerating other shops' orders by id (SC-007). One code, one body, no signal.
- */
+/** `not_found` maps to 403, not 404: every read is shop-scoped, so another shop's portion must look the same as none. */
 export function mapFulfillmentError(
   err: unknown,
   scope: RequestScope,
@@ -123,7 +102,7 @@ export function mapFulfillmentError(
   return unavailable(scope);
 }
 
-// ── Domain → wire DTOs. Nothing here selects a shop or a payment field. ────────────────────────
+// Domain → wire DTOs. Nothing here selects a shop or a payment field.
 
 function toPromiseDTO(p: DeliveryPromise): DeliveryPromiseDTO {
   return {

@@ -1,7 +1,4 @@
-# edge-shop — Effy shop/operator service (004-backend-bootstrap, amendment A3).
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
-# under /shop/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# Shop routes on the shared gateway, under /shop/, behind the shop authorizer.
 service: effy-edge-shop
 frameworkVersion: "3"
 
@@ -12,7 +9,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -30,14 +26,12 @@ provider:
     project: effy
     slice: 004-backend-bootstrap
     service: shop
-  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
@@ -45,21 +39,14 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Product-media bucket (016). Provisioned by infra/envs/<env>/media.tf; the name is published
-    # at /effy/<env>/media/bucket. Direct-to-S3 presigned upload/read (research R9).
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
-    # ⚠ 057 US7 — shop-scoped team management provisions colleagues on the SHOP pool, reusing 009's
-    # mechanism rather than a second one (FR-019). Resolved from the auth contract at deploy time,
-    # never hard-coded. Without it every invite fails at runtime with a pool-id error.
+    # Team management provisions colleagues on the shop pool.
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
-    # 070 — a shop manager's refund of their own portion is issued HERE now (it ran on the Go
-    # backend, which alone held the payment secret). ⚠ The ARN, never the secret; and the SECRET
-    # KEY ONLY — this service verifies no webhook.
+    # The Stripe secret key's ARN only, for shop-manager refunds; no webhook is verified here.
     STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
@@ -68,21 +55,14 @@ provider:
           Resource:
             - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
             - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
-        # Product media (016): read/write objects in the product-media bucket only. Scoped to the
-        # bucket's object ARN — never a wildcard. Presigned URLs inherit this identity's authority.
+        # Product media objects only: presigned URLs inherit this identity's authority.
         - Effect: Allow
           Action:
             - s3:PutObject
             - s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
-        # ⚠ 057 US7: admin Cognito actions for team management, scoped to the SHOP pool ARN ONLY.
-        #
-        # A shop manager provisioning a colleague at their OWN shop is an authorized server-side write,
-        # not token brokering — the routes sit behind the shop authorizer and the service re-checks
-        # `shop_manager` against the platform record before reaching Cognito at all.
-        #
-        # ⚠ There is deliberately NO AdminDeleteUser. Standing someone down disables them; erasing the
-        # identity would orphan every audit row that names their subject.
+        # Admin Cognito actions for team management, on the shop pool only; the service re-checks shop_manager
+        # first. No AdminDeleteUser: erasing an identity would orphan the audit rows naming it.
         - Effect: Allow
           Action:
             - cognito-idp:AdminCreateUser
@@ -94,9 +74,7 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). Same rationale
-  # as edge-admin: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev DB is
-  # reachable on its public endpoint instead. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -114,8 +92,7 @@ package:
   individually: true
 
 functions:
-  # Two probes, both PUBLIC and unversioned. Split on purpose: a combined probe cannot tell
-  # "this service is not deployed" from "the database is down" — both just look red.
+  # Two probes: a combined one cannot tell "not deployed" from "database down".
   healthz:
     handler: src/functions/healthz-get.handler
     description: Liveness — is the shop service deployed and executing? Touches nothing. Public.
@@ -143,7 +120,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── Product catalog (016). Shop authorizer; any active shop member; every query shop-scoped. ──
+  # Product catalog: any active shop member, every query shop-scoped.
   catalogSchemaV1:
     handler: src/functions/catalog-schema-v1-get.handler
     description: Catalog schema-read — active types + attributes + category tree (drives the create form) — 016
@@ -221,10 +198,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── 067 — review ──────────────────────────────────────────────────────────────────────────────
-  # ⚠ The APPROVE / SEND-BACK / MARGIN routes are deliberately NOT in this service. They live in
-  # `edge-api/catalog` behind the back-office authorizer: a decision route declared here would sit
-  # one mis-wired authorizer id away from a shop approving its own product.
+  # Review: approve, send back and margin live in `catalog`, behind the back-office authorizer.
   productSubmitV1:
     handler: src/functions/product-submit-v1-post.handler
     description: Submit a never-approved product for Effy's review — 067
@@ -357,9 +331,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── Order fulfilment (020). Shop authorizer; ANY active shop member (both shop_manager and
-  # shop_staff — fulfilment is floor work, FR-019a); every query scoped to the caller's own shop,
-  # never client input. ──
+  # Order fulfilment: any active shop member (both roles), scoped to the caller's own shop.
   fulfillmentsListV1:
     handler: src/functions/fulfillments-list-v1-get.handler
     description: The shop's order queue — promise-ordered, shop-scoped (SC-002) — 020
@@ -404,10 +376,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── 057 Amendment A3 — the shop ORDER CONSOLE (shop-web's Orders list + order detail). ──
-  # A sibling of the pick routes above, not a replacement: `/shop/v1/fulfillments…` is what shop-mobile
-  # and the dashboard read and is unchanged. These carry the order's money (operator decision A3), its
-  # tags, notes and full history. Same membership gate (both roles), same uniform 403, same shop scope.
+  # The order console: carries the order's money, tags, notes and history. Same gate as fulfilment.
   ordersListV1:
     handler: src/functions/orders-list-v1-get.handler
     description: Order console list — server-side search/filters/sort/paging + per-state counts — 057 A3
@@ -430,9 +399,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── 058: Today & Insights ──────────────────────────────────────────────────────────────────────
-  # Today is LIVE state, counted on every read; Insights is PREPARED figures, read from the rollups.
-  # Two endpoints on purpose (FR-025/FR-026): one payload cannot honestly claim two freshnesses.
+  # Today (live, counted on every read) and Insights (prepared rollups): one payload cannot claim two freshnesses.
   todayV1:
     handler: src/functions/today-v1-get.handler
     description: Today — live pick backlog, needs-attention list and the five most recent orders — 058
@@ -466,8 +433,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # The rollup job and its nightly check. ⚠ The dirty table IS the queue, so a failed run loses
-  # nothing: the rows it could not process are still there a minute later.
+  # The rollup job and its nightly check. The dirty table is the queue, so a failed run loses nothing.
   teamActivityV1:
     handler: src/functions/team-activity-v1-get.handler
     description: Team activity — a union over the audit trails the platform already keeps — 058
@@ -502,7 +468,7 @@ functions:
     description: Nightly sweep — recompute 35 days per shop and alarm if anything had to change (058)
     timeout: 300
     events:
-      # 03:30 Melbourne (17:30 UTC) — after the shops are shut, before anyone reads yesterday.
+      # 03:30 Melbourne (17:30 UTC): after the shops shut, before anyone reads yesterday.
       - schedule: cron(30 17 * * ? *)
 
   orderActivityV1:
@@ -549,7 +515,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── 096 — bags: declare, void, print record, pack-scan ──────────────────────────────────────────
+  # Bags: declare, void, print record, pack-scan
   parcelsPutV1:
     handler: src/functions/parcels-put-v1.handler
     description: Set how many bags per zone the shop packed (096)
@@ -594,26 +560,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ⚠ THE DEV-ONLY PICKUP STUB IS DELIBERATELY **NOT REGISTERED HERE** (020 FR-031, SC-013).
-  #
-  # src/functions/fulfillment-pickup-v1-post.ts exists and is unit-tested, but NO route points at it
-  # in ANY environment — so `POST /shop/v1/fulfillments/{id}/pickup` correctly returns 404 even in
-  # dev. That is the expected probe result, and a 403 would mean the route had been added and is a
-  # SC-013 failure.
-  #
-  # Why absence rather than a flag: the endpoint accepts a CALLER-SUPPLIED driver identity. Reachable
-  # anywhere deployed, it is an order-state forgery primitive — anyone who can reach the URL could
-  # mark any shop's order collected with no driver involved. A runtime flag or env var is the wrong
-  # control because it can be misconfigured into being on; an absent route cannot.
-  #
-  # To exercise it locally: `pnpm --filter @effy/edge-shop stub:pickup` (scripts/invoke-pickup-stub.mjs)
-  # invokes the handler in-process against your local DB. Do NOT add an httpApi event to make that
-  # easier. REMOVAL TRIGGER: delete the handler, this comment, scripts/invoke-pickup-stub.mjs, and
-  # repository.collectViaStub() when the driver slice ships a real dispatch path (FR-034).
-
-# No per-function alarms (see the note at the end of this file). The API-level 5xx alarm lives in
-# Terraform (A3 — the API's owner) and is the one that notifies.
-
   shopDevicesV1Post:
     handler: src/functions/shop-devices-v1-post.handler
     description: Register/refresh this device's FCM push token for the signed-in shop operator (050)
@@ -636,13 +582,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── 059: the attention evaluator (US3) ────────────────────────────────────────────────────────
-  #
-  # ⚠ EVERY FIVE MINUTES, NOT EVERY MINUTE. The rollup job next door runs at a minute because a
-  # figure an operator is reading goes stale that fast. An attention condition is different: three of
-  # the four are things a human then walks across a shop to deal with, and the fourth (a backlog
-  # ageing past its threshold) is not more urgent for being noticed sixty seconds sooner. Five
-  # minutes bounds the interruption rate as much as it bounds the cost.
+  # The attention evaluator, every five minutes: a person then walks across the shop; a minute sooner helps no one.
   attentionEvaluate:
     handler: src/functions/attention-evaluate.handler
     description: Detect newly-appeared attention conditions per shop and enqueue one notification per kind (059 US3)
@@ -650,9 +590,7 @@ functions:
     events:
       - schedule: rate(5 minutes)
 
-  # ── 059: per-registration notification preferences (US4) ──────────────────────────────────────
-  # ⚠ PER REGISTRATION, NOT PER OPERATOR. FR-025 requires a manager's tablet and a picker's tablet
-  # to be independently controllable, so the token is the key on both routes.
+  # Notification preferences, per registration (token), not per operator.
   shopNotificationPrefsV1Get:
     handler: src/functions/shop-notification-prefs-v1-get.handler
     description: What this device's notification settings are, and which types exist (059 FR-024)
@@ -675,8 +613,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-
-  # ── 057: shop-scoped team management (US7) ────────────────────────────────────────────────────
+  # Team management
   teamListV1:
     handler: src/functions/team-list-v1-get.handler
     description: This shop's roster — 057
@@ -721,8 +658,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # 070 — moved here from the Go backend. The refund rules are @effy/edge-shared/payments; this is
-  # the shop manager's route into them. timeout 25: it calls the payment provider (research R8).
+  # A shop manager's route into @effy/edge-shared/payments; timeout 25 (it calls Stripe).
   orderRefundV1:
     handler: src/functions/order-refund-v1-post.handler
     description: Shop manager — refund lines in this shop's own portion of an order. Record-gated (active manager, active shop, shop is on the order).
@@ -735,13 +671,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-# ⚠ NO `resources:` BLOCK, DELIBERATELY. This service once declared 32 per-function alarms here, none
-# with an action — they notified nobody and cost $0.10 a month each. Removed 2026-10-05. A server
-# error on any route is caught by ONE alarm that does notify: `effy-<env>-edge-api-5xx` on the
-# shared gateway (infra/envs/<env>/edge-gateway.tf). None of the 32 watched a scheduled function.
-#
-# The three scheduled functions here are not behind the gateway. Each has a failure alarm in
-# Terraform that does not depend on its own code running: `insightsRollup` in
-# infra/envs/<env>/insights.tf, `insightsReconcile` and `attentionEvaluate` in
-# infra/envs/<env>/background-functions.tf. ⚠ Those alarms address the function BY NAME — rename a
-# function here and rename it there (`background-alarms.contract.test.ts` fails if you forget).
+# No `resources:` block: a server error on any route is caught by `effy-<env>-edge-api-5xx`. The three
+# scheduled functions have failure alarms in Terraform (insights.tf, background-functions.tf) that
+# address them by name; `background-alarms.contract.test.ts` fails a rename on one side only.

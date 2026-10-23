@@ -16,23 +16,23 @@ import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText
 import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";
 
 /**
- * Same-day delivery slots (069 US5).
+ * Same-day delivery slots.
  *
- * ⚠ LIVE ON SAVE. There is no draft: a slot created here is offered at the next checkout, and one
+ * Live on save. There is no draft: a slot created here is offered at the next checkout, and one
  * switched off stops being offered at once. The copy under the heading says so, because the screen
  * looks like configuration and behaves like a storefront control.
  *
- * ⚠ A TABLE, not cards (Principle V), and no metric tiles above it: the limit and what is booked
+ * A table, not cards (Principle V), and no metric tiles above it: the limit and what is booked
  * against it are columns on the row they describe.
  *
- * ⚠ There is no delete. A slot is switched off, because placed orders reference it.
+ * There is no delete. A slot is switched off, because placed orders reference it.
  *
- * ⚠ 078 — ONE COLUMN PER DAY A CUSTOMER CAN BE OFFERED: today, then the Effy delivery days after it
+ * One column per day a customer can be offered: today, then the Effy delivery days after it
  * (the service works them out with the function checkout uses, so a closed day is skipped here
- * exactly as it is there). Each cell is that window's bookings ON THAT DAY — a full Thursday says
+ * exactly as it is there). Each cell is that window's bookings on that day — a full Thursday says
  * nothing about Friday. Still one table: the days are columns on the row they describe.
  *
- * ⚠ NO LIMIT IS THE DEFAULT. A slot takes every order until its cutoff unless an operator types a
+ * No limit is the default. A slot takes every order until its cutoff unless an operator types a
  * limit; `capacity: null` is that state. The dialog asks with a checkbox, unticked by default, and
  * the number field exists only while it is ticked.
  */
@@ -96,8 +96,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
               {booked}
               {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
               {over > 0 ? (
-                // ⚠ Said in words, and never by colour alone. A late payer was honoured above the
-                // slot's capacity (FR-009b) — the operator needs to know the evening is one over.
+                // Said in words, and never by colour alone. A late payer was honoured above the
+                // slot's capacity — the operator needs to know the evening is one over.
                 <span className="ml-2 text-warning">{over} over capacity</span>
               ) : null}
             </span>
@@ -121,7 +121,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
                 <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
                   Edit
                 </Button>
-                {/* 085 — the Any time window is how a day with no time is sold: it is never switched off. */}
+                {/* The Any time window is how a day with no time is sold: it is never switched off. */}
                 {row.original.anyTime ? null : row.original.status === "active" ? (
                   <Button variant="ghost" size="sm" disabled={patch.isPending} onClick={() => void setStatus(row.original, "disabled")}>
                     Switch off
@@ -165,7 +165,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       ) : (
         <>
           {!anyActive ? (
-            // ⚠ The one consequence an operator must not discover from a customer.
+            // The one consequence an operator must not discover from a customer.
             <Callout tone="destructive" role="status" title="No window is active, so Effy delivery is not being offered to anyone." />
           ) : null}
           {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
@@ -198,7 +198,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       cutoffTime: cutoffTime.trim(),
-      // ⚠ Unticked is "no limit", sent as null — on an edit that is what REMOVES a limit. Ticked
+      // Unticked is "no limit", sent as null — on an edit that is what removes a limit. Ticked
       // with nothing typed is sent as 0, so the service refuses it on the field.
       capacity: limited ? Number(capacity) : null,
     };

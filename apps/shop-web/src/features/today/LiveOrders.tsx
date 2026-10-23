@@ -8,19 +8,19 @@ import { formatMoney } from "@/features/fulfillment/orderConsole"
 import { isNewArrival, liveMeta } from "./model"
 
 /**
- * "Live orders" — the five most recent, ageing in place (058, FR-008/FR-009).
+ * "Live orders" — the five most recent, ageing in place.
  *
- * ⚠ EVERY ROW OPENS THE ORDER IT NAMES. The imported design generated arrivals on a timer and had
+ * Every row opens the order it names. The imported design generated arrivals on a timer and had
  * to give some rows a default cursor and a "still coming in" toast, because their detail pages did
  * not exist. On this platform a shop learns of an order only after the payment transaction has
- * committed and fanned it out (019), so that state is unrepresentable — and the rule the design was
+ * committed and fanned it out, so that state is unrepresentable — and the rule the design was
  * working around ("never send a row to a different order's id") holds by construction here.
  *
- * ⚠ THE `New` BADGE AND THE NEWEST ROW NOW USE `--success-soft`, AS THE DESIGN DRAWS THEM. Both were
+ * The `New` badge and the newest row now use `--success-soft`, as the design draws them. Both were
  * monochrome because the old `--success` measured 4.00:1 and could not legally carry text; the
- * adopted #0d8043 clears 4.5:1 on white AND on its own tint, so the word may sit on the colour.
+ * adopted #0d8043 clears 4.5:1 on white and on its own tint, so the word may sit on the colour.
  *
- * ⚠ THE DOT STAYS. The word "New" still appears, so the row reads as new in greyscale and to a
+ * The dot stays. The word "New" still appears, so the row reads as new in greyscale and to a
  * screen reader — the tint is what makes it findable, not what makes it legible.
  */
 export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[]; now: number }) {
@@ -29,7 +29,7 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
       <header className="flex items-center gap-3 border-b px-[18px] py-4">
         <div className="grid min-w-0 gap-[3px]">
           <div className="flex items-center gap-2">
-            {/* ⚠ THE DESIGN'S SPINNER, not a pulsing dot. "Anything that updates on its own carries
+            {/* The design's spinner, not a pulsing dot. "Anything that updates on its own carries
                 the spinner" — a dot that fades in and out reads as decoration, while a turning ring
                 reads as work in flight, which is the actual claim this header is making. It is
                 exempt from the reduced-motion flattening by `data-effy-spinner` (see spinner.tsx):

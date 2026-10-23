@@ -9,7 +9,7 @@ import { coverageError } from "../errorText";
 import { usePatchCoveragePostcodes } from "../queries";
 
 /**
- * One postcode's distance from the hub (076 US6).
+ * One postcode's distance from the hub.
  *
  * The platform works it out from the place's location and recalculates it when the hub moves. A
  * person may enter it instead — it is then theirs: never recalculated, and flagged for another look

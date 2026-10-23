@@ -11,22 +11,9 @@ import { PaymentMethodList } from "./PaymentMethodList"
 import { SessionCard } from "./SessionCard"
 import { DeleteAccountFlow } from "./privacy/DeleteAccountFlow"
 
-/*
- * The account area's sections — each rendered by ITS OWN PAGE since 084.
- *
- * Until 084 these were tabs of one `/account` page selected by `?tab=`. The reference gives every
- * section an address of its own behind a shared sidebar, so they moved here unchanged and each page
- * renders one. `/account?tab=x` still arrives: the Overview page redirects it (FR-014).
- */
+/* The account area's sections, each rendered by its own page; `/account?tab=x` is redirected by the Overview. */
 
-/**
- * The address book (022), rendered in the content area rather than on its own page. The list is
- * fetched server-side and handed to the client `AddressList`, which owns add / edit / delete /
- * set-default and reflects each mutation locally (FR-008) — the same component the old `/addresses`
- * page used, now hosted here so managing addresses never leaves the account hub.
- *
- * Cold path — customer profile management (022, routing law 011 FR-028). Per-customer → no cache.
- */
+/** The address book: fetched server-side, handed to the client `AddressList`, which owns add, edit, delete and set-default. Per-customer, so uncached. */
 export async function AddressBook() {
   const session = await getSession()
   let addresses: AddressDTO[] = []
@@ -45,16 +32,7 @@ export async function AddressBook() {
   )
 }
 
-/**
- * Payment methods (051 US6) — the cards a shopper chose to keep.
- *
- * ⚠ Served by the commerce service, unlike the address book above it (the customer service):
- * listing a card is a call to the payment provider, so it lives with checkout.
- *
- * ⚠ A FAILED READ IS NOT AN EMPTY LIST. Falling back to `[]` here would tell a shopper with saved cards
- * that they have none — a false statement about their own account, and exactly the FR-036 failure mode.
- * The flag keeps the two apart.
- */
+/** Payment methods (served by commerce, since listing a card calls the provider). A failed read is not an empty list. */
 export async function PaymentMethods() {
   const session = await getSession()
   let cards: PaymentMethodDTO[] = []
@@ -81,14 +59,7 @@ export async function PaymentMethods() {
   )
 }
 
-/**
- * Security (034 US4) — how you sign in, and the controls that end your sessions.
- *
- * ⚠ COMPOSED FROM THE CREDENTIALS THE ACCOUNT ACTUALLY HOLDS (FR-025), never a fixed row list.
- * `PasswordCard` branches on the platform-owned `hasPassword`, never on how the customer signed in.
- * ⚠ SIGN OUT LIVES HERE (FR-028), off the account root where a stray tap could reach it while
- * browsing — the reason this is its own tab and not part of the personal view.
- */
+/** Security: built from the credentials the account holds (`PasswordCard` branches on `hasPassword`), plus sign-out, away from the account root. */
 export function SecuritySection({
   hasPassword,
   passwordUpdatedAt,
@@ -113,12 +84,7 @@ export function SecuritySection({
   )
 }
 
-/**
- * Privacy & data (034 US6) — and the host for account deletion.
- *
- * ⚠ THE DELETION CONTROL IS THE LAST THING IN THE TAB (FR-039), deliberately. `Account → Privacy &
- * data → bottom` matches the VERIFIED Uber path; SC-007 makes a fresh-account reviewer the test.
- */
+/** Privacy and data, with account deletion as the last thing in the tab. */
 export function PrivacySection() {
   return (
     <div className="space-y-8">
@@ -127,9 +93,7 @@ export function PrivacySection() {
           Privacy &amp; data
         </h1>
         <ul className="mt-4 divide-y">
-          {/* ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
-              Data policy) and belongs HERE, in the privacy area. The full list of documents lives in
-              the Legal tab, not duplicated here. */}
+          {/* An in-app privacy policy link, required by both app stores; the full list is in the Legal tab. */}
           <li>
             <Link
               href="/legal/privacy-policy"
@@ -142,19 +106,8 @@ export function PrivacySection() {
       </section>
 
       {/*
-        The LAST item in the tab, and the one bordered container in the customer account area.
-
-        ⚠ A CARD HERE IS A DELIBERATE PRINCIPLE V EXCEPTION, not a lapse. The doctrine's objection is
-        to cards used as a LAYOUT device — a grid of equal-weight boxes that flattens hierarchy. This
-        is the opposite job: a border that QUARANTINES one irreversible action from the reversible
-        policy links above it, so the boundary itself carries the warning. It is the long-established
-        "danger zone" convention, and no sectioned-list alternative separates destructive from
-        non-destructive without it.
-
-        ⚠ The tint is `--destructive` — one of the platform's exactly two semantic colours — used as
-        a BORDER and a barely-there ground, never as a fill or a label. The heading stays neutral: the
-        border and the destructive confirm button are the signal, and a third red would spend the
-        colour's meaning on decoration.
+        The one bordered container in the account area: a danger zone quarantining the irreversible action
+        from the policy links above. `--destructive` as a border and faint ground only; the heading stays neutral.
       */}
       <section
         aria-labelledby="delete-heading"
@@ -165,8 +118,7 @@ export function PrivacySection() {
           Delete account
         </h2>
 
-        {/* The good explanation that used to live only on the public /delete-account page — shown
-            here too, where a signed-in customer actually deletes. */}
+        {/* The explanation from the public /delete-account page, shown where a signed-in customer deletes. */}
         <p className="mt-2 text-sm text-muted-foreground">
           Deleting removes your account, your saved items, your saved addresses and your personal
           details. We keep completed orders and payment records, because tax and accounting rules
@@ -185,11 +137,7 @@ export function PrivacySection() {
   )
 }
 
-/**
- * The Legal tab (045) — every legal & informational document in one place, from @effy/legal-content
- * (the single source shared with mobile). Contextual links still live where the decision is made
- * (checkout, sign-up, product, footer); this is the canonical "browse them all" home.
- */
+/** The Legal tab: every document from @effy/legal-content in one place (contextual links stay where decisions are made). */
 export function LegalSection() {
   const legal = allDocuments().filter((d) => d.category === "legal")
   const info = allDocuments().filter((d) => d.category === "info")

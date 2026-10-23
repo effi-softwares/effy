@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { applyTheme, setTheme, uiStore } from "../ui-store"
 
 /**
- * US4 (T040) — Light / Dark / Follow-System survives sign-out and sign-in.
+ * Light / Dark / Follow-System survives sign-out and sign-in.
  *
- * ⚠ THE REASON THIS IS A TEST AND NOT AN INSPECTION. Appearance is stored in localStorage under this
- * surface's own prefix, and sign-out clears the SESSION. If a future sign-out ever reached for
- * `localStorage.clear()` — the obvious way to "log out cleanly" — it would take the operator's
+ * The reason this is a test and not an inspection. Appearance is stored in localStorage under this
+ * surface's own prefix, and sign-out clears the session. If a future sign-out ever reached for
+ * `localStorage.clear` — the obvious way to "log out cleanly" — it would take the operator's
  * appearance with it, and a shop tablet mounted under bright lights would silently revert to light
  * mode every shift. Nothing else in the codebase would fail.
  */
@@ -35,7 +35,7 @@ describe("appearance selection", () => {
   })
 
   /**
-   * ⚠ Namespacing is not cosmetic: an un-prefixed key would have one console's theme flip the other's
+   * Namespacing is not cosmetic: an un-prefixed key would have one console's theme flip the other's
    * when both are run locally against the same origin.
    */
   it("writes nothing under a bare, un-namespaced key", () => {
@@ -52,16 +52,9 @@ describe("appearance selection", () => {
 })
 
 /**
- * ⚠ THE PRE-PAINT SCRIPT AND THE STORE MUST AGREE ON ONE STRING, AND NOTHING ELSE WOULD CATCH IT.
- *
- * index.html restores the appearance before first paint by reading localStorage directly — it runs
- * before any module loads, so it cannot import the key. If that literal drifts from
- * `createUiStore(prefix)`'s `${prefix}.theme`, the script silently reads `null`, falls back to
- * system, and a dark-mode operator gets a full-brightness flash on every load. Nothing throws, no
- * test fails, and the app looks correct one frame later.
- *
- * This was not hypothetical: the first draft of that script shipped `effy-shop:theme` (a colon) and
- * back-office's shipped the wrong prefix entirely. Both are pinned here by reading the real file.
+ * The pre-paint script in index.html reads localStorage before any module loads, so it cannot import the
+ * key. If its literal drifts from `createUiStore(prefix)`'s `${prefix}.theme`, a dark-mode operator gets
+ * a bright flash on every load and nothing fails. Pinned by reading the real file.
  */
 describe("pre-paint appearance restore", () => {
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8")

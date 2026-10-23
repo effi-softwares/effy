@@ -10,7 +10,7 @@ import {
   storefrontText,
 } from "./detailFormat";
 
-// T066: the detail page maps a typed EAV value → a human-readable `<dl>` cell, and orders media
+// The detail page maps a typed EAV value → a human-readable `<dl>` cell, and orders media
 // primary-first for the gallery.
 
 function attr(over: Partial<ProductAttributeValue>): ProductAttributeValue {
@@ -99,7 +99,7 @@ describe("discountText (057 pricing block)", () => {
   });
 
   it("says nothing when there is no saving to state", () => {
-    // ⚠ A "was" at or below "now" is not a discount; "0% off" or "-5% off" would claim one.
+    // A "was" at or below "now" is not a discount; "0% off" or "-5% off" would claim one.
     expect(discountText("8.00", null)).toBe("—");
     expect(discountText("8.00", "8.00")).toBe("—");
     expect(discountText("8.00", "7.50")).toBe("—");

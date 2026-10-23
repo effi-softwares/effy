@@ -1,14 +1,9 @@
 package com.effyshopping.driver.mobile.core.observability
 
 /**
- * Crash & non-fatal error reporting (050 US1; ARCHITECTURE.md §Crash reporting). Firebase Crashlytics
- * behind a platform boundary, exactly like [com.effyshopping.driver.mobile.core.auth.AuthDriver]:
- * ONE interface in commonMain, a real implementation per target (Android = Firebase Android SDK; iOS =
- * a Swift bridge injected at the entry point). Wired into [com.effyshopping.driver.mobile.app.AppContainer].
- *
- * ⚠ INDEPENDENT OF ANALYTICS CONSENT (spec clarification Q1): crash reporting stays on for a customer
- * who declined analytics. ⚠ NO PII beyond the auth subject id — never an email, name, address, or any
- * value a shopper typed (Principle VII).
+ * Crash and non-fatal reporting: Firebase Crashlytics behind a platform boundary (Android SDK; iOS a Swift
+ * bridge), wired in [com.effyshopping.driver.mobile.app.AppContainer]. Independent of analytics consent. No
+ * PII beyond the record id.
  */
 interface CrashReporter {
     /** Start reporting. Called off the main thread after first frame (performance, R11). */
@@ -23,7 +18,7 @@ interface CrashReporter {
 
 /**
  * The default when no platform reporter is injected (iOS today, and any misconfiguration). Fail-open:
- * the app runs perfectly with crash reporting as a no-op (FR-005/FR-027).
+ * the app runs perfectly with crash reporting as a no-op.
  */
 object NoOpCrashReporter : CrashReporter {
     override fun init() {}

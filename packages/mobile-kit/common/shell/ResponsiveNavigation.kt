@@ -59,37 +59,12 @@ data class ResponsiveDestination<T>(
 )
 
 /**
- * The adaptive navigation shell — bottom bar on a compact window, side rail on a wide one, and the
- * navigation component animated away entirely on destinations that ask for it.
- *
- * ── ⚠ THE LAYOUT AND THE ANIMATION ARE THE LIBRARY'S, NOT OURS ──────────────────────────────────
- *
- * This is built on **`NavigationSuiteScaffoldLayout`** from `material3-adaptive-navigation-suite`,
- * which the library documents as the intended escape hatch: *"The usage of this function is
- * recommended when you need some customization that is not viable via the use of
- * `NavigationSuiteScaffold`."* That is exactly our position — the bar's LOOK is ours (72dp, an
- * underline indicator, a weight-stepped label; see [NavigationButton]) because FR-040 needs three
- * non-colour signals and `NavigationBarItem`'s pill indicator cannot express them — but the LAYOUT
- * has no business being ours.
- *
- * What this replaced, and why it had to go:
- *
- *   - a `Column` whose content had `weight(1f)` above an `AnimatedVisibility(slideIn/slideOut)` bar.
- *     ⚠ **`slideIn`/`slideOut` do not affect the size of an `AnimatedVisibility`** — the library says
- *     so in as many words — so the bar kept its full footprint for the whole exit and then left the
- *     layout in ONE FRAME. Content jumped ~48dp *after* the animation finished. A comment above that
- *     code asserted the opposite; the comment was wrong, not the observation.
- *   - a `Row` whose rail was a bare `if`, so on a tablet the rail and its divider vanished instantly
- *     and content jumped 88dp sideways with no animation at all.
- *
- * `NavigationSuiteScaffoldLayout` measures content as
- * `layoutHeight - (navigationHeight * animationProgress)` and places the navigation at
- * `layoutHeight - (navigationHeight * animationProgress)` — so the component's **layout contribution**
- * is animated continuously, for the rail as well as the bar. There is no frame where anything jumps.
- *
- * ⚠ The animation's timing is therefore the LIBRARY's spring, not `EffyMotion`. Reduced motion is
- * still honoured, and more strictly than before: anything below [MotionLevel.Full] uses `snapTo`, so
- * the component appears and disappears with no travel at all (025 FR-037).
+ * The adaptive navigation shell: a bottom bar on a compact window, a side rail on a wide one, animated
+ * away on destinations that ask. Built on `NavigationSuiteScaffoldLayout` (the library's documented
+ * escape hatch): the bar's look is ours ([NavigationButton]: an underline and a heavier label, which
+ * `NavigationBarItem`'s pill cannot express), but the layout and its animation are the library's, which
+ * animates the component's layout contribution continuously so content never jumps. Below
+ * [MotionLevel.Full] it snaps.
  */
 @Composable
 fun <T> ResponsiveNavigation(
@@ -100,24 +75,11 @@ fun <T> ResponsiveNavigation(
     railHeader: (@Composable () -> Unit)? = null,
     railFooter: (@Composable () -> Unit)? = null,
     /**
-     * Whether the bar/rail is shown at all (026).
-     *
-     * ⚠ Defaults to `true`, so shop-mobile — which this feature does not restyle — is unaffected.
-     *
-     * The customer app passes `false` below a tab's root: those destinations own a bottom-anchored
-     * primary action (product detail's sticky "Add to Cart", cart, checkout) or are focused
-     * full-screen flows (auth). Two stacked bottom bars is the one thing Material 3, the iOS HIG,
-     * classic iOS practice and iOS 26 all agree is broken; they disagree about everything else, which
-     * is why this stays a per-destination decision the CALLER makes rather than a rule baked in here.
+     * Whether the bar or rail is shown. Callers pass `false` below a tab's root, where a screen owns a
+     * bottom-anchored action or is a focused flow: two stacked bottom bars is broken on every platform.
      */
     showNavigation: Boolean = true,
-    /**
-     * 087 — a caller-drawn bottom bar for the compact presentation, replacing the default one.
-     *
-     * ⚠ Defaults to `null` (the shared bar), so shop-mobile and driver-mobile are unaffected. The
-     * customer app passes its storefront tab bar (five tabs, a cart badge, Lucide icons); the side rail
-     * on a wide window is still drawn here from [destinations].
-     */
+    /** A caller-drawn bottom bar for the compact presentation (the customer app's tab bar); the rail is still drawn from [destinations]. */
     bottomBar: (@Composable () -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -136,22 +98,12 @@ fun <T> ResponsiveNavigation(
         }
     }
 
-    // The bar↔rail breakpoint stays OURS: `navigationPresentationFor` is 600dp, unit-tested, and
-    // identical to the Material 3 default the library would apply. Using `BoxWithConstraints` rather
-    // than `currentWindowAdaptiveInfo()` keeps that decision free of an experimental opt-in.
+    // The bar/rail breakpoint is ours (`navigationPresentationFor`, 600dp, unit-tested), via
+    // `BoxWithConstraints` to avoid an experimental opt-in.
     //
-    // ⚠ `clipToBounds()` IS LOAD-BEARING — do not remove it as redundant.
-    //
-    // `NavigationSuiteScaffoldLayout` parks the hidden component just past its own edge: at
-    // `layoutHeight` for the bar, at `-width` for the rail. That is exactly off-screen ONLY when the
-    // scaffold fills the window, which is how Google uses it. It does not fill the window here — the
-    // app root consumes `safeDrawing` ABOVE this shell, so the layout ends at the safe-area boundary
-    // and "just past the edge" still leaves the component inside the gesture-inset strip. Measured:
-    // 14px of the first tab's icon visible at the very bottom of the screen.
-    //
-    // A `Layout` does not clip its children, so nothing else would stop it. The previous
-    // `AnimatedVisibility` implementation hid this by removing the bar from composition outright —
-    // which is also why it snapped.
+    // `clipToBounds` is load-bearing: the layout parks the hidden component just past its edge, and
+    // here (inside the safe area) that edge is not the screen's, so without clipping part of the bar
+    // shows in the gesture-inset strip.
     BoxWithConstraints(modifier.fillMaxSize().clipToBounds()) {
         val presentation = navigationPresentationFor(maxWidth)
         NavigationSuiteScaffoldLayout(
@@ -170,9 +122,7 @@ fun <T> ResponsiveNavigation(
             },
             state = state,
         ) {
-            // ONE content container for both forms. It used to be two — the rail branch painted
-            // `background` and the bar branch painted nothing, which only looked the same because
-            // both resolve to `background` today.
+            // One content container for both forms.
             Box(
                 modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                 content = content,
@@ -190,25 +140,12 @@ private fun <T> BottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // ⚠ `background`, NOT `surface`.
-            //
-            // In LIGHT the two tokens are the same value, so this looked correct for as long as
-            // anyone only checked light mode. In DARK they diverge — `surface` is #333333 and
-            // `background` is #1A1A1A — so the whole navigation strip rendered as a distinctly
-            // lighter band across the bottom of every screen. The bar is part of the page, not a
-            // raised sheet on it; the source design draws it that way too.
-            //
-            // The background sits on the COLUMN rather than the row so it still paints behind the
-            // gesture-inset strip below the tabs, exactly as it did when the row owned it.
+            // `background`, not `surface` (they differ in dark): the bar is part of the page. Set on the
+            // column so it also paints behind the gesture-inset strip.
             .background(MaterialTheme.colorScheme.background),
     ) {
-        // The hairline that separates the bar from the page above it. Because the bar and the page
-        // share one `background` value, nothing else marks where the content ends — the rail form
-        // has always drawn its own edge (see [SideRail]) and the bar had no equivalent.
-        //
-        // It is the platform `border` token (`outlineVariant`), so it follows the appearance in both
-        // directions and introduces no colour of its own, and it is drawn ABOVE the horizontal
-        // window insets so it runs edge to edge rather than stopping at the tab row's cutout inset.
+        // The hairline between the bar and the page, which share one background. The `border` token
+        // (`outlineVariant`), drawn above the horizontal insets so it runs edge to edge.
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             modifier = Modifier
@@ -217,8 +154,7 @@ private fun <T> BottomBar(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                 )
                 .heightIn(min = 72.dp)
-                // Material 3's own `NavigationBar` does this and our hand-rolled Row did not: without
-                // it a screen reader announces each tab in isolation, with no "2 of 4" position.
+                // As Material 3's `NavigationBar` does, so a screen reader announces each tab's position.
                 .selectableGroup(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -249,7 +185,7 @@ private fun <T> SideRail(
             modifier = Modifier
                 .width(88.dp)
                 .fillMaxHeight()
-                // `background`, matching the bottom bar — see the note there.
+                // `background`, matching the bottom bar.
                 .background(MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(
@@ -306,18 +242,8 @@ private fun NavigationButton(
                 contentDescription = label
             },
     ) {
-        // ⚠ 026 / FR-040 — MEANING MUST NOT REST ON COLOUR ALONE, and under the monochrome palette
-        // it was: `primary` vs `onSurfaceVariant` is now a near-black/grey LIGHTNESS difference, not
-        // a hue one, so the selected tab was distinguished only by being slightly darker.
-        //
-        // The source design language solves this with THREE simultaneous signals — a filled icon
-        // (the caller already swaps that via `icon(selected)`), a heavier label, and an underline
-        // bar. The latter two are added here. This changes shop-mobile too, deliberately: it is an
-        // accessibility correction that applies to every audience, not a customer restyle.
-        //
-        // ⚠ This is also why the shell does NOT use `NavigationBar`/`NavigationBarItem` and drops to
-        // `NavigationSuiteScaffoldLayout` instead: the M3 item draws a pill indicator behind the icon
-        // and offers no way to replace it with an underline.
+        // The selected tab is not told by colour alone: a filled icon (the caller's `icon(selected)`),
+        // a heavier label and an underline. The M3 item's pill indicator cannot do the underline.
         if (!edgeIndicator && selected) {
             Box(
                 Modifier
@@ -349,8 +275,7 @@ private fun NavigationButton(
             CompositionLocalProvider(LocalContentColor provides color) { icon() }
             Text(
                 label,
-                // The second non-colour signal: the selected label steps up a weight. SemiBold is the
-                // heaviest face the platform typeface ships — asking for Bold would synthesise.
+                // The second non-colour signal: the selected label is SemiBold.
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 ),

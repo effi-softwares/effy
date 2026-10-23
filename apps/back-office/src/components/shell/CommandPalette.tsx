@@ -55,7 +55,7 @@ interface Item {
   link: LinkProps;
   /** A record worth remembering under "Recent". */
   recent?: RecentEntry;
-  /** 096 — an item that looks something up before it knows where to go (a bag code). */
+  /** An item that looks something up before it knows where to go (a bag code). */
   run?: () => Promise<void>;
 }
 
@@ -149,10 +149,10 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
     const matches = (s: string) => !text || s.toLowerCase().includes(text);
     const out: Section[] = [];
 
-    // 096 — a bag's code (bag 2 onwards has no order-search match): look it up, then open its order.
+    // A bag's code (bag 2 onwards has no order-search match): look it up, then open its order.
     const bagCode = readCode(query, "typed");
-    // ⚠ Many words ("search", "drafts") are also the shape of a code: unless it has a digit or the
-    // label's prefix, the bag item goes LAST so Enter still picks the page or command.
+    // Many words ("search", "drafts") are also the shape of a code: unless it has a digit or the
+    // label's prefix, the bag item goes last so Enter still picks the page or command.
     const bagFirst = bagCode !== null && (/\d/.test(query) || /^\s*efy1:/i.test(query));
     const bagSection: Section[] = [];
     if (bagCode) {

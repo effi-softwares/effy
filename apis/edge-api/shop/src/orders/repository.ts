@@ -1,12 +1,6 @@
-// Repository for the shop ORDER CONSOLE (057 Amendment A3): raw parameterized SQL, no ORM.
-//
-// ⚠ EVERY STATEMENT IS BOUND TO `shopId` — the value gate() resolved from the operator's own
-// shop_staff record, never client input — exactly as `fulfillments/repository.ts` is. The portion
-// (`shop_fulfillment`) is the only way in: tags, notes and events hang off it, and the order's money
-// is reached THROUGH it, so a caller can only ever see an order their shop is fulfilling part of.
-//
-// ⚠ NOTHING CLIENT-SUPPLIED IS EVER SPLICED INTO SQL TEXT. The sort column and direction are looked up
-// in a fixed map below; every value is a bind parameter.
+// Every statement is bound to the `shopId` gate resolved, as in `fulfillments/repository.ts`. The
+// portion is the only way in, so a caller only ever sees orders their shop is filling part of. Nothing
+// client-supplied is spliced into SQL: sort columns come from a fixed map.
 
 import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
 
@@ -33,31 +27,19 @@ import type {
 import { ORDER_TABS } from "./types";
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 
-// ── Shared SQL fragments — ONE definition each, used by the list and the detail ────────────────
+// Shared fragments, one definition each for the list and the detail.
 
-/**
- * When the order was placed. `placed_at` is set by the paid transition; `created_at` covers any row
- * that predates it, so no portion drops out of a date filter for want of a timestamp.
- */
+/** `placed_at` from the paid transition; `created_at` covers a row without one. */
 const PLACED = `COALESCE(o.placed_at, o.created_at)`;
 
-/**
- * At risk against its promise (020 FR-001a), in SQL so the "Status" filter and the badge agree.
- *
- * ⚠ THE INTERVALS ARE DERIVED FROM `promise.ts`, not retyped. That file is the one place the promise
- * is decided (020 research R7); a second "1 hour" here would be free to drift from it.
- */
+/** At risk against its promise, in SQL so the filter and the badge agree; intervals from `promise.ts`. */
 const AT_RISK = `(sf.status IN ('pending', 'received', 'picking')
   AND ${PLACED} + interval '${DEFAULT_READY_WINDOW_MS / 1000} seconds'
       <= now() + interval '${AT_RISK_THRESHOLD_MS / 1000} seconds')`;
 
 /**
- * Where the money stands, DERIVED from the refund rows (027's counted-not-stored rule).
- *
- * ⚠ ONE EXPRESSION FOR BOTH READS. The list filters on it and the detail badges with it; two
- * implementations would let the Payment filter return a row whose own badge disagrees.
- * ⚠ `refund_pending` sits BELOW `refunded`: a fully-returned order with a stray pending attempt is
- * still fully returned. And "submitted" is never "returned" (055) — it counts as pending, not refunded.
+ * Where the money stands, derived from the refund rows; one expression for list and detail.
+ * `refund_pending` ranks below `refunded`, and "submitted" counts as pending, never returned.
  */
 function paymentStateSql(total: string, refunded: string, pending: string): string {
   return `CASE
@@ -68,7 +50,7 @@ function paymentStateSql(total: string, refunded: string, pending: string): stri
   END`;
 }
 
-/** Refund totals for one order, split by whether the money has actually gone back. */
+/** Split by whether the money has actually gone back. */
 const REFUND_TOTALS = `
   LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(r.amount) FILTER (WHERE r.status = 'succeeded'), 0)                  AS settled,
@@ -77,15 +59,10 @@ const REFUND_TOTALS = `
      WHERE r.order_id = o.id
   ) rf ON true`;
 
-// ── The list ────────────────────────────────────────────────────────────────────────────────────
-
 /**
- * Every portion this shop holds, with everything a row or a filter needs, computed once.
- *
- * `$1` shop · `$2` search pattern over order number, customer, item names and SKUs (NULL = none) · `$3` attention · `$4` payment · `$5` method ·
- * `$6` range. The tab is deliberately NOT a predicate here: the per-tab counts are taken over this
- * set, which is what makes each count answer "how many would I see if I clicked it" under whatever
- * else is applied.
+ * Every portion this shop holds. `$1` shop · `$2` search over order number, customer, items and SKUs
+ * (null = none) · `$3` attention · `$4` payment · `$5` method · `$6` range. The tab is not a predicate:
+ * the per-tab counts are taken over this set.
  */
 const FILTERED = `
 WITH base AS (
@@ -117,7 +94,7 @@ WITH base AS (
     -- The design's Items column: "Eggs ×2, Oat milk" over THIS shop's lines only (the fan-out key,
     -- oi.shop_id = sf.shop_id, as everywhere else). SKUs ride along so search can match them.
     LEFT JOIN LATERAL (
-      -- 098 — a line is named with its variant ("Rice (1 kg) ×2"); the codes are the sold snapshot.
+      -- A line is named with its variant ("Rice (1 kg) ×2"); the codes are the sold snapshot.
       SELECT string_agg(split_part(oi.product_name, ',', 1)
                           || CASE WHEN oi.variant_label IS NULL THEN '' ELSE ' (' || oi.variant_label || ')' END
                           || ' ×' || oi.quantity, ', '
@@ -142,10 +119,10 @@ WITH base AS (
           OR ($3::text = 'short'    AND unavailable_count > 0)
           OR ($3::text = 'on_track' AND NOT at_risk AND unavailable_count = 0))
      AND ($4::text = 'any' OR payment = $4)
-     -- 079 — who takes it away.
+     -- Who takes it away.
      AND ($6::text = 'any' OR delivered_by = $6)
      AND (   $5::text = 'any'
-          -- ⚠ "Today" is the Melbourne day (047's timezone rule), not the server's UTC day — a 9am
+          -- ⚠ "Today" is the Melbourne day, not the server's UTC day — a 9am
           -- order in Melbourne is still "yesterday" in UTC.
           OR ($5::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
                                              AT TIME ZONE 'Australia/Melbourne'))
@@ -153,11 +130,7 @@ WITH base AS (
           OR ($5::text = '30d' AND placed_at >= now() - interval '30 days'))
 )`;
 
-/**
- * The sort columns. ⚠ A FIXED MAP, never the client's string — the only way a user-chosen ORDER BY
- * stays out of the SQL text. Every entry ends in `id` so the order is TOTAL: two rows with the same
- * placed time must not swap between page loads (020 SC-018's reasoning, carried over).
- */
+/** A fixed map, never the client's string; every entry ends in `id` so the order is total. */
 const ORDER_BY: Record<OrderListQuery["sort"], string> = {
   placed: "placed_at",
   number: "order_number",
@@ -185,23 +158,20 @@ interface RowRecord {
   full_count: string;
 }
 
-/** Escape LIKE metacharacters so a search for "50%" means the characters, not "starts with 50". */
+/** So a search for "50%" means the characters. */
 function likePattern(q: string): string | null {
   const trimmed = q.trim();
   if (!trimmed) return null;
   return `%${trimmed.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-/** ⚠ Through `query`, so the container tests' database is the one asked. */
+/** Through `query`, so container tests ask their own database. */
 const db: Queryable = { query: (text, values) => query(text, values) };
 
-/** A package's status when the shared read has nothing for it — never claims progress it cannot see. */
+/** Never claims progress it cannot see. */
 const fallbackView = (): PackageStatusView => ({ status: "preparing", word: STATUS_WORD.preparing, detail: null, driverName: null });
 
-/**
- * 073 — where each of this shop's packages really is, for the SHOP: through the one shared derivation,
- * with driver names stripped (`audience: "shop"`).
- */
+/** Through the shared derivation, with driver names stripped (`audience: "shop"`). */
 async function shopStatuses(ids: readonly string[]): Promise<Map<string, PackageStatusView>> {
   return packageStatuses(db, ids, "shop");
 }
@@ -238,8 +208,7 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
   const [statuses, pickups] = await Promise.all([shopStatuses(ids), courierPickups(shopId, ids)]);
   return {
     items: page.rows.map((r) => ({ ...toRow(r), ...pickupOf(pickups, r.id), statusView: statuses.get(r.id) ?? fallbackView() })),
-    // ⚠ Past the last page the window function has no rows to ride on, so the total falls back to the
-    // tab's count rather than claiming zero matches exist.
+    // Past the last page there are no rows for the window function, so the total falls back to the tab's count.
     total: page.rows[0] ? Number(page.rows[0].full_count) : byTab[q.tab],
     page: q.page,
     pageSize: q.pageSize,
@@ -267,8 +236,6 @@ function toRow(r: RowRecord): Omit<OrderRow, "statusView"> {
   };
 }
 
-// ── The detail ──────────────────────────────────────────────────────────────────────────────────
-
 interface HeadRecord {
   id: string;
   order_id: string;
@@ -293,17 +260,10 @@ interface HeadRecord {
   refund_pending: string;
   payment: PaymentState;
   at_risk: boolean;
-  collected_at: Date | null;
   delivered_at: Date | null;
 }
 
-/**
- * The portion and its order's money.
- *
- * ⚠ The delivery snapshot is the ONLY address selected. The order carries a second, payment-side
- * address that 023 FR-018 keeps from every shop surface; this query never names it, and the guard in
- * the 023 address guard in `fulfillments/` reads this file to prove it.
- */
+/** The delivery snapshot is the only address selected (the address guard reads this file). */
 const READ_HEAD = `
 SELECT sf.id, sf.order_id, o.order_number,
        ${PLACED} AS placed_at, o.placed_at AS paid_at,
@@ -316,11 +276,6 @@ SELECT sf.id, sf.order_id, o.order_number,
        rf.settled AS refunded, rf.pending AS refund_pending,
        ${paymentStateSql("o.grand_total_amount", "rf.settled", "rf.pending")} AS payment,
        ${AT_RISK} AS at_risk,
-       -- ⚠ collected_at came from the driver's own collection_task row, dropped with the 049 work
-       -- model. The shop's own fulfillment_event is the only record of a collection now, and nothing
-       -- writes one until dispatch is rebuilt, so this reads NULL — which is accurate: no package is
-       -- being collected by anybody.
-       NULL::timestamptz AS collected_at,
        (SELECT pa.arrived_at   FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id) AS delivered_at
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
@@ -347,17 +302,13 @@ interface LineRecord {
 }
 
 /**
- * This shop's lines, priced from the receipt snapshot.
- *
- * `oi.shop_id = sf.shop_id` is the load-bearing predicate, as in the pick read: without it a two-shop
- * order would show the whole order's lines. `refunded_quantity` counts every refund that is not
- * `failed`/`refused` — pending ones included, because offering to refund a unit that is already on its
- * way back is how a line gets refunded twice (055's ceiling counts them the same way).
+ * This shop's lines (`oi.shop_id = sf.shop_id`), priced from the receipt. `refunded_quantity` counts
+ * every refund not failed or refused, pending included, so a unit is never refunded twice.
  */
 const READ_LINES = `
 SELECT oi.id AS order_item_id,
        oi.product_name AS name,
-       -- 098 — the variant, its stock code and its barcode AS SOLD (snapshots on the line).
+       -- The variant, its stock code and its barcode AS SOLD (snapshots on the line).
        oi.variant_label,
        oi.variant_code,
        oi.sku,
@@ -372,11 +323,9 @@ SELECT oi.id AS order_item_id,
           JOIN public.refund r ON r.id = rl.refund_id
          WHERE rl.order_item_id = oi.id
            AND r.status NOT IN ('failed', 'refused')) AS refunded_quantity,
-       -- ⚠ 067: a shop is shown its OWN price for a line — what it is owed — not what the customer
-       -- paid. The column aliases are unchanged so the mapping below reads the same; NULL shop columns
-       -- (a line written before 067) mean "the same as the customer's".
-       COALESCE(oi.shop_unit_price_amount, oi.unit_price_amount) AS unit_price_amount,
-       COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount) AS line_subtotal_amount
+       -- ⚠ a shop is shown its OWN price for a line — what it is owed — not what the customer paid.
+       oi.shop_unit_price_amount AS unit_price_amount,
+       oi.shop_line_subtotal_amount AS line_subtotal_amount
   FROM public.shop_fulfillment sf
   JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
   -- The line's picture: the sold variant's own, else the product's primary (decoration only).
@@ -402,13 +351,7 @@ interface RefundRecord {
   created_at: Date;
 }
 
-/**
- * Every refund on the order, any issuer — a shop should see money Effy returned for its lines too.
- *
- * ⚠ ONLY A SHOP ACTOR IS NAMED. A back-office refund reads "Effy", never the staff member: an
- * internal employee's name is not the shop's business, and the label resolves the same way whoever
- * at Effy did it. Hence the join is to `public.shop_staff` alone, and only for `actor_kind = 'shop'`.
- */
+/** Every refund on the order. Only a shop actor is named; a back-office refund reads "Effy". */
 const READ_REFUNDS = `
 SELECT r.id, r.amount::text AS amount, r.status, r.reason, r.actor_kind,
        ss.name AS shop_actor_name, r.created_at
@@ -436,11 +379,7 @@ SELECT n.id, n.body, ss.name AS author_name, n.created_at
  ORDER BY n.created_at DESC, n.id DESC
 `;
 
-/**
- * 096 — this package's live bags for the label and the pack step. "Printed" (`current`) means printed
- * since the bag's number or zone last changed; `custody` is the latest hand-over, in shop words — never
- * a driver's name (073).
- */
+/** Live bags. "Printed" means since the bag's number or zone last changed; custody never names a driver. */
 const READ_PARCELS = `
   SELECT p.id, p.parcel_code, p.seq, p.zone,
          count(*) OVER ()::int AS of,
@@ -461,7 +400,7 @@ const READ_PARCELS = `
    ORDER BY p.seq
 `;
 
-/** 096 — the cold zones this package's lines need a bag for (065's line snapshot). */
+/** From the line snapshot. */
 const READ_ZONES_NEEDED = `
   SELECT DISTINCT oi.storage_class
     FROM public.shop_fulfillment sf
@@ -490,7 +429,7 @@ interface ParcelRecord {
 export async function readOrder(fulfillmentId: string, shopId: string): Promise<OrderDetail> {
   const head = await query<HeadRecord>(READ_HEAD, [fulfillmentId, shopId]);
   const row = head.rows[0];
-  // Missing and another shop's are indistinguishable BY DESIGN — the handler answers 403 for both.
+  // Missing and another shop's are indistinguishable; the handler answers 403.
   if (!row) throw new FulfillmentError("not_found", "order not found");
 
   const args = [fulfillmentId, shopId];
@@ -501,7 +440,7 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
     query<{ id: string; body: string; author_name: string | null; created_at: Date }>(READ_NOTES, args),
     query<ParcelRecord>(READ_PARCELS, args),
     query<{ storage_class: ParcelZone }>(READ_ZONES_NEEDED, args),
-    // 096 — whether back-office requires every bag scanned as packed (fleet writes it).
+    // Whether every bag must be scanned as packed (fleet writes it).
     query<{ pack_scan_required: boolean }>(`SELECT pack_scan_required FROM public.shop WHERE id = $1`, [shopId]),
   ]);
   const mappedLines = await Promise.all(lines.rows.map(toLine));
@@ -509,7 +448,7 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   const total = cents(row.grand_total_amount);
   const refunded = cents(row.refunded);
 
-  // 073 — where it really is, for the shop: never a driver's name.
+  // Never a driver's name.
   const [statuses, pickups] = await Promise.all([shopStatuses([fulfillmentId]), courierPickups(shopId, [fulfillmentId])]);
   const statusView = statuses.get(fulfillmentId) ?? fallbackView();
   return {
@@ -531,7 +470,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       shopSubtotal: fromCents(shopSubtotal),
       itemSubtotal: money(row.item_subtotal_amount),
       discount: money(row.discount_amount),
-      // ⚠ 094 FR-035 — a shop never sees which promotion applied. Kept on the wire for installed apps.
       total: money(row.grand_total_amount),
       refunded: money(row.refunded),
       refundPending: money(row.refund_pending),
@@ -557,7 +495,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       }),
     ),
     handoff: {
-      collectedAt: row.collected_at,
       deliveredAt: row.delivered_at,
       unfulfillableReason: row.unfulfillable_reason,
     },
@@ -599,8 +536,7 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
     variantCode: r.variant_code,
     sku: r.sku,
     gtin: r.gtin,
-    // ⚠ PRESIGNED, not the raw storage key. The pick DTO hands the key through as `imageUrl`, which
-    // no browser can load; the console renders a thumbnail, so it gets a URL that works.
+    // Presigned: the raw storage key cannot be loaded by a browser.
     imageUrl: r.storage_key ? await presignRead(r.storage_key) : null,
     orderedQuantity: r.ordered_quantity,
     gatheredQuantity: r.gathered_quantity ?? 0,
@@ -612,7 +548,7 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
   };
 }
 
-/** The shop's view of who issued a refund. See READ_REFUNDS for why back-office is not named. */
+/** See READ_REFUNDS for why back-office is not named. */
 export function actorLabel(kind: OrderRefund["actorKind"], shopName: string | null): string | null {
   switch (kind) {
     case "shop":
@@ -626,7 +562,7 @@ export function actorLabel(kind: OrderRefund["actorKind"], shopName: string | nu
   }
 }
 
-/** 096 — what every bag's label shares. Never a window, day, price, phone or email (FR-011). */
+/** Never a window, day, price, phone or email. */
 function labelCommonOf(row: HeadRecord, packedOn: Date | null): ShopLabelCommonDTO {
   const a = (row.delivery_address ?? {}) as Record<string, unknown>;
   const s = (k: string) => (typeof a[k] === "string" ? (a[k] as string).trim() : "");
@@ -634,7 +570,7 @@ function labelCommonOf(row: HeadRecord, packedOn: Date | null): ShopLabelCommonD
     service: row.delivered_by,
     orderNumber: row.order_number,
     packedOn: packedOn ? packedOn.toISOString().slice(0, 10) : null,
-    // ⚠ The SHIPPING address (`delivery_address`) — never the payer's (023 FR-018).
+    // The shipping address, never the payer's.
     recipientName: s("recipientName"),
     line1: s("line1"),
     line2: s("line2") || null,
@@ -661,8 +597,6 @@ function mapDelivery(raw: Record<string, unknown>) {
   };
 }
 
-// ── The activity log ────────────────────────────────────────────────────────────────────────────
-
 export interface ActivityRecord {
   source: "event" | "refund" | "collection" | "arrival";
   id: string;
@@ -673,7 +607,7 @@ export interface ActivityRecord {
   quantity: number | null;
   detail: string | null;
   item_name: string | null;
-  /** The line's ordered quantity, for "2 of 3 picked" — item events only. */
+  /** For "2 of 3 picked"; item events only. */
   item_ordered: number | null;
   amount: string | null;
   refund_status: string | null;
@@ -683,17 +617,8 @@ export interface ActivityRecord {
 }
 
 /**
- * The portion's full history, newest first — a four-way union, like back-office's (053).
- *
- * ⚠ ONE OF THE DRIVER'S TWO FACTS IS GONE. The driver path recorded a collection in
- * `collection_task` and an arrival in `package_arrival`, and did not always write
- * `fulfillment_event` — so where both existed the event-table copy was dropped, and one fact
- * appeared once. `collection_task` went with the work model; `package_arrival` (053) stays, and so
- * does its de-duplication.
- *
- * ⚠ SO THE LOG NOW ENDS AT "ready for pickup" AND RESUMES AT "arrived", with nothing between. That
- * is what is true — no driver is collecting anything — and it is the shop-facing symptom of the
- * teardown that an operator will notice first.
+ * Newest first: a union of the portion's events and `package_arrival`, de-duplicated. Nothing records
+ * the journey, so the log goes from "ready for pickup" to "arrived".
  */
 const READ_ACTIVITY = `
 SELECT * FROM (
@@ -733,7 +658,7 @@ SELECT * FROM (
 ORDER BY at DESC, id DESC
 `;
 
-/** Returns `null` when the portion is not this shop's, so the caller can refuse uniformly. */
+/** `null` when the portion is not this shop's. */
 export async function readActivity(
   fulfillmentId: string,
   shopId: string,
@@ -747,15 +672,9 @@ export async function readActivity(
   return res.rows;
 }
 
-// ── Writes: tags and notes ──────────────────────────────────────────────────────────────────────
-
 /**
- * Replace the portion's tag set, and record the change — in ONE transaction, so the log can never
- * claim a set the table does not hold.
- *
- * ⚠ A NO-OP WRITES NOTHING. Saving the same set twice (a retry, a double-click) must not leave two
- * "tags changed" entries saying nothing changed; a history full of those is one nobody reads.
- * Returns whether anything changed, or `null` when the portion is not this shop's.
+ * Replaces the tag set and logs it in one transaction. A no-op writes nothing. Returns whether anything
+ * changed, or `null` when the portion is not this shop's.
  */
 export async function replaceTags(
   fulfillmentId: string,
@@ -764,8 +683,7 @@ export async function replaceTags(
   actorStaffId: string | null,
 ): Promise<boolean | null> {
   return withTransaction(async (client) => {
-    // ⚠ Locks the portion row, so two operators saving at once serialise instead of each computing
-    // "what changed" against a set the other is replacing.
+    // Locks the portion row, so two operators saving at once serialise.
     const owned = await client.query<{ id: string }>(
       `SELECT id FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
       [fulfillmentId, shopId],
@@ -801,7 +719,7 @@ export async function replaceTags(
   });
 }
 
-/** Append a note and its log entry together. `null` when the portion is not this shop's. */
+/** `null` when the portion is not this shop's. */
 export async function addNote(
   fulfillmentId: string,
   shopId: string,
@@ -822,32 +740,21 @@ export async function addNote(
   });
 }
 
-// ── Writes: item-level picking ──────────────────────────────────────────────────────────────────
-
-/** One line's resolved pick, as absolute counts. The service derives these from the operator's mode. */
+/** Absolute counts derived from the operator's mode. */
 export interface PickWrite {
   orderItemId: string;
   mode: "full" | "part" | "unavailable" | "none";
-  /** Units picked — meaningful for `part`; derived for the others. */
+  /** Meaningful for `part`; derived for the others. */
   units: number;
   note: string | null;
 }
 
 /**
- * Record item-level picks on this shop's lines — every line in ONE transaction with its log entry,
- * so the log can never describe a pick the counts do not hold.
- *
- * ⚠ THE COUNTS ARE STILL 020's TWO ABSOLUTE NUMBERS. A mode is translated, never stored:
- *   full → gathered = ordered, unavailable = 0 · part → gathered = n, unavailable = ordered − n
- *   unavailable → gathered = 0, unavailable = ordered · none → both 0.
- * ⚠ "part" RECORDS THE REMAINDER AS UNAVAILABLE. A unit the picker did not pick is not going in the
- * bag, and the platform's shortfall path (055's refund proposal, 054's shelf correction) keys on
- * `unavailable_quantity`. Leaving it merely "not picked" would short the customer silently.
- *
- * ⚠ UPSERTED, scoped through the portion. Rows are seeded on entry to picking, but a portion that
- * predates that seed still gets its row rather than a silent no-op.
- *
- * Returns `null` when the portion is not this shop's; throws `validation` for a line not on it.
+ * Every line and its log entry in one transaction. A mode becomes two absolute numbers:
+ *  full → gathered = ordered, unavailable = 0 · part → gathered = n, unavailable = ordered − n
+ *  unavailable → gathered = 0, unavailable = ordered · none → both 0.
+ * "part" records the remainder as unavailable, so the shortfall path sees it. Upserted, scoped through
+ * the portion. `null` when the portion is not this shop's; `validation` for a line not on it.
  */
 export async function applyPicks(
   fulfillmentId: string,
@@ -906,19 +813,14 @@ export async function applyPicks(
         detail: p.note,
       });
 
-      // ⚠ 054 FR-023 — a real shortfall empties the shelf count, as a per-quantity pick does.
+      // A real shortfall empties the shelf count.
       if (unavailable > 0) await emptyShelfFromPick(client, p.orderItemId, actorStaffId);
     }
     return true;
   });
 }
 
-// ── Money helpers ───────────────────────────────────────────────────────────────────────────────
-
-/**
- * ⚠ INTEGER CENTS, never floats — `numeric` arrives from pg as a string, and summing strings through
- * `Number` accumulates binary error on exactly the figures an operator reconciles against a bank.
- */
+/** Integer cents: `numeric` arrives as a string, and summing through `Number` accumulates error. */
 function cents(amount: string | null): number {
   if (!amount) return 0;
   const [whole = "0", frac = ""] = amount.split(".");
@@ -932,7 +834,7 @@ function fromCents(c: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
-/** Normalise a pg `numeric` string to exactly two decimals. */
+/** Exactly two decimals. */
 function money(amount: string | null): string {
   return fromCents(cents(amount));
 }

@@ -1,8 +1,5 @@
-// What a code, a label or an order number names (096) — the one resolver every surface's server uses.
-//
-// A bag's label carries `EFY1:<code>`; a person may type the bare code (any case, grouped for reading
-// aloud) or an order number. Parcel 1's code is the package's 089 code, so an old package label resolves
-// to its bag 1 by data.
+// What a code, label or order number names: the one resolver. A label carries `EFY1:<code>`; a person
+// may type the bare code (any case, grouped) or an order number. Bag 1's code is the package's code.
 
 import { readCode } from "@effy/shared-types";
 
@@ -17,7 +14,7 @@ export interface ResolvedParcel {
   shopId: string;
   orderId: string;
   orderNumber: string;
-  /** The package was withdrawn (cancelled or refunded in full). */
+  /** Cancelled or refunded in full. */
   cancelled: boolean;
 }
 
@@ -29,7 +26,7 @@ export interface ResolvedOrder {
 
 const ORDER_NUMBER = /^EFY-[0-9A-Z]{4,12}$/;
 
-/** Resolve a bag code or an order number, or null when nothing matches. */
+/** null when nothing matches. */
 export async function resolveCode(db: { query: (t: string, v?: unknown[]) => Promise<any> }, raw: string): Promise<ResolvedParcel | ResolvedOrder | null> {
   const code = readCode(raw, "typed");
   if (code) {

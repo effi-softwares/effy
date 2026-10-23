@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils"
 /**
  * The order's progress: four steps, the one it is at marked (reference: Orders · Order — on the way).
  *
- * ⚠ THE STAGE IS THE SERVER'S ONE WORD FOR THE WHOLE ORDER. Nothing here reads packages, and nothing
- * here can show that an order was filled by more than one supplier (052 FR-008).
+ * The stage is the server's one word for the whole order. Nothing here reads packages, and nothing
+ * here can show that an order was filled by more than one supplier.
  *
- * ⚠ EVERY STATE IS SAID AS WELL AS DRAWN: a finished step carries a tick and "completed", the current
+ * Every state is said as well as drawn: a finished step carries a tick and "completed", the current
  * one "current step" — a colour alone tells a screen reader, and a colour-blind customer, nothing.
  *
  * A row from the width of a phone up; a column in anything narrower (the checkout confirmation's side
- * panel) — decided by the SPACE IT IS GIVEN, not the screen, so the same component fits both.
+ * panel) — decided by the space it is given, not the screen, so the same component fits both.
  */
 const STEPS: ReadonlyArray<{ stage: OrderStage; label: string; note: string; icon: LucideIcon }> = [
   { stage: "confirmed", label: "Confirmed", note: "We've received your payment", icon: Check },

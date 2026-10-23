@@ -39,15 +39,15 @@ import {
 } from "@effy/design-system/ui";
 
 /**
- * THE VERIFICATION HARNESS for Phases 1 and 2 of the theme adoption.
+ * The verification harness for Phases 1 and 2 of the theme adoption.
  *
- * ⚠ DEV-ONLY, AND NOT A NAV DESTINATION. It is registered in `router.tsx` behind
+ * Dev-only, and not a nav destination. It is registered in `router.tsx` behind
  * `import.meta.env.DEV` and appears in no sidebar; production never ships the route. It exists so
  * "does every token resolve in both appearances?" and "does every component match the reference in
- * every state?" are questions someone can ANSWER BY LOOKING, on one page, rather than by hunting the
+ * every state?" are questions someone can answer by looking, on one page, rather than by hunting the
  * states across nine feature screens.
  *
- * ⚠ THIS IS THE ONE FILE ALLOWED TO NAME TOKENS AS STRINGS. Everything else references them through
+ * This is the one file allowed to name tokens as strings. Everything else references them through
  * Tailwind utilities. A swatch grid whose labels are hand-written prose would drift from the real
  * token set silently — so the list below IS the contract, and a token missing from tokens.css
  * renders as a visibly blank chip rather than as a passing test.

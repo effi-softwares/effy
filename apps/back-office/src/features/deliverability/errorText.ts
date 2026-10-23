@@ -1,11 +1,8 @@
 import { isDomainError } from "@effy/api-client";
 
 /**
- * Copy for a failed deliverability call. Keys off the HTTP status only — never the raw `detail`,
- * which is written for a developer.
- *
- * ⚠ And never echo the address: problem responses are logged by intermediaries, and 035's "never put
- * a recipient in CloudWatch" rule does not stop at the service boundary.
+ * Copy for a failed deliverability call, keyed off the HTTP status only (never the raw `detail`). Never
+ * echoes the address: problem responses are logged by intermediaries.
  */
 export function deliverabilityError(err: unknown): string {
   if (isDomainError(err)) {

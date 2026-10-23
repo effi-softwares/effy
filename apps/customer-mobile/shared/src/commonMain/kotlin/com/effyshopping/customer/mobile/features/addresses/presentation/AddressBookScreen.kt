@@ -59,9 +59,9 @@ import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.size
 
 /**
- * The address book (022). A LazyColumn of addresses (never cards — Principle V), the default clearly
- * marked, an empty state, and a FAB that raises the add form in a ModalBottomSheet. The row BODY opens
- * edit (a large forgiving target); "Set default" and "Delete" are distinct per-row controls (FR-017a).
+ * The address book. A LazyColumn of addresses (never cards — Principle V), the default clearly
+ * marked, an empty state, and a FAB that raises the add form in a ModalBottomSheet. The row body opens
+ * edit (a large forgiving target); "Set default" and "Delete" are distinct per-row controls.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,19 +74,9 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
     }
     val state by vm.state.collectAsState()
 
-    // ⚠ 034 FR-032 — THE FLOATING ACTION BUTTON IS GONE, replaced by a bottom-anchored full-width
-    // primary button. This AMENDS feature 022's FR-007, which mandated the FAB; the amendment is
-    // recorded in 022's spec, not only here.
-    //
-    // Two reasons, and the second is the one that matters:
-    //   1. A circular FAB OCCLUDES THE LAST ROW of a short list — exactly where a newly added
-    //      address lands (FR-033). An address book is neither long nor scrolling; a FAB earns its
-    //      keep on content-first feeds, not here.
-    //   2. ⚠ A FAB is by construction the LOUDEST thing on the screen, and Baymard measured that
-    //      nudging shoppers toward "Add" over "Edit" makes them ACCUMULATE STALE ADDRESSES and then
-    //      pick the wrong one at checkout. On a delivery platform that is a mis-delivered order, not
-    //      an untidy list. Edit must stay as reachable as Add (FR-035) — the row body is the edit
-    //      target, and this button no longer out-shouts it.
+    // A bottom-anchored full-width button, not a FAB: a FAB covers the last row (where a new address lands)
+    // and out-shouts Edit, and nudging shoppers to add rather than edit leaves stale addresses to pick
+    // wrongly at checkout. The row body is the edit target.
     Scaffold(
         bottomBar = {
             Column(
@@ -100,7 +90,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // 026: the source's app bar — a real back affordance instead of a "Back" text button
+            // The source's app bar — a real back affordance instead of a "Back" text button
             // floating opposite the title (025 FR-030 banned improvised text-link navigation, and
             // this screen was the last place one survived).
             EffyAppBar(title = "Address book", onBack = onBack)
@@ -147,7 +137,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
 
     // Add / edit form.
     state.sheet?.let { sheet ->
-        // 034 T017 — on the SHARED EffySheet now, rather than a hand-rolled ModalBottomSheet with
+        // On the shared EffySheet now, rather than a hand-rolled ModalBottomSheet with
         // its own state and padding. `dirty = false` deliberately: this form's draft already lives in
         // the ViewModel and survives dismissal, so the discard prompt would be asking about work that
         // is not actually lost. The single-field editors, whose value dies with the sheet, pass true.
@@ -182,7 +172,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         )
     }
 
-    // Delete-default blocked (server 409): prompt to reassign first (FR-016a).
+    // Delete-default blocked (server 409): prompt to reassign first.
     if (state.reassignPrompt) {
         EffySheet(
             title = "Set another default first",
@@ -208,9 +198,9 @@ private fun AddressRow(
     onDelete: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        // The row BODY is the edit affordance (022 FR-017a) — a big touch target.
+        // The row body is the edit affordance — a big touch target.
         //
-        // ⚠ 034 pass: it now carries a CHEVRON. The body has always been tappable and nothing said
+        // Pass: it now carries a chevron. The body has always been tappable and nothing said
         // so, which is the same gap the account centre's detail rows were built to close: an
         // affordance a shopper cannot see is one they do not use, and Baymard's finding is that when
         // Edit is hard to notice people press Add instead and accumulate stale addresses — which on a
@@ -249,7 +239,7 @@ private fun AddressRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                // 076 — who delivers here, or the one refusal sentence: the same words checkout
+                // Who delivers here, or the one refusal sentence: the same words checkout
                 // uses, so the shopper learns it here rather than after building an order.
                 // 087 (Addresses board): "Delivered by Effy" in Effy green, the refusal with an icon.
                 CoverageWords.describe(address.coverage)?.let {
@@ -264,12 +254,7 @@ private fun AddressRow(
             EffyChevron()
         }
 
-        // The per-row controls — deliberately NOT part of the edit target (022 FR-017a).
-        //
-        // ⚠ 034 pass: "Delete" is no longer shouted on every row. It was one of two identically
-        // weighted text buttons, so the most destructive action on the screen had the same voice as a
-        // routine one, repeated down the whole list. It is now the quiet one, and the row's own
-        // spacing comes from the shared scale rather than five hand-picked dp values.
+        // The per-row controls, not part of the edit target; Delete is the quiet one.
         Row(
             Modifier
                 .fillMaxWidth()
@@ -286,7 +271,7 @@ private fun AddressRow(
 
 @Composable
 private fun DefaultBadge() {
-    // ⚠ The WORD "Default", not a coloured dot (034 FR-036 / FR-057). Under a monochrome palette a
+    // The word "Default", not a coloured dot. Under a monochrome palette a
     // colour-only marker is a lightness difference and nothing more — invisible to a shopper who
     // cannot distinguish it, and nearly invisible to everyone else. The word carries the meaning; the
     // fill is only emphasis.

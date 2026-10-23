@@ -27,14 +27,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/** Order history (US5). Most-recent-first; each row opens the full receipt. Gated + request-time → Suspense. */
 type Search = Promise<{ status?: string; period?: string; page?: string }>
 
 /**
- * The order history (reference: Orders · Order history).
- *
- * The filters, the period and the page are all in the URL, so a filtered list can be bookmarked and
- * the back button undoes one choice at a time. The list itself is one read; filtering it is ours.
+ * The order history, most recent first; filters, period and page live in the URL, so a filtered list
+ * can be bookmarked and back undoes one choice at a time. Gated and request-time, so in Suspense.
  */
 export default function OrdersPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -91,7 +88,7 @@ async function OrdersList({ searchParams }: { searchParams: Search }) {
   const page = Math.min(pages, Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1))
   const rows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  /** A link to this list with one thing changed. The defaults leave the URL clean. */
+  /** A link to this list with one thing changed; defaults leave the URL clean. */
   const href = (next: { status?: string; period?: string; page?: number }) => {
     const q = new URLSearchParams()
     const status = next.status ?? filter
@@ -129,8 +126,7 @@ async function OrdersList({ searchParams }: { searchParams: Search }) {
       </div>
 
       {rows.length === 0 ? (
-        // ⚠ NOT the "No orders yet" state: this customer has orders, just none here — and a filter
-        // that silently shows nothing reads as the history having been lost.
+        // Not "No orders yet": there are orders, just none under these filters.
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
           <h2 className="text-lg font-semibold">No orders match</h2>
           <p className="max-w-md text-sm text-muted-foreground">
@@ -190,7 +186,7 @@ const TONE = { outline: "outline", default: "default", brand: "brand", secondary
 
 function OrderRow({ order: o, now }: { order: OrderSummaryDTO; now: Date }) {
   const words = orderRowWords(o, now)
-  // Three pictures, as the reference shows; a fourth from the server only tells us there is more.
+  // Three pictures; a fourth only tells us there are more.
   const pictures = (o.thumbnails ?? []).slice(0, 3)
   const more = (o.thumbnails?.length ?? 0) > pictures.length
   const items = `${o.itemCount} item${o.itemCount === 1 ? "" : "s"}`
@@ -218,7 +214,7 @@ function OrderRow({ order: o, now }: { order: OrderSummaryDTO; now: Date }) {
           <div className="flex items-center gap-2">
             {pictures.map((src, i) => (
               <span key={i} aria-hidden="true" className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-muted-foreground">
-                {/* 086 — a 56px tile: the smallest copy that covers it, lazily (closes backlog PERF-19). */}
+                {/* A 56px tile: the smallest copy that covers it, lazily. */}
                 {src ? (
                   <CatalogImage src={src} widths={o.thumbnailWidths?.[i]} alt="" sizes="56px" className="size-full object-cover" />
                 ) : (

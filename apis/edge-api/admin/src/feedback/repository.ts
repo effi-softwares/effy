@@ -3,20 +3,13 @@ import type { FeedbackStatus } from "@effy/shared-types"
 
 import type { ListParams, NoteRow, ReplyRow, StaffActor, SubmissionRow } from "./types"
 
-/**
- * The feedback console repository (046 US2/US3). Raw SQL, no ORM (Principle VI).
- *
- * ⚠ FILTERS ARE PARAMETERISED AND COMBINABLE (FR-020). Each active filter appends a condition and a
- * bound parameter — never string-interpolated — so a search term can contain anything. The text search
- * is an ILIKE over message + email, served by the `pg_trgm` GIN index on message.
- */
+/** Each filter appends a bound parameter, never interpolated. Search is ILIKE over message + email (trigram index on message). */
 
 const SUBMISSION_COLUMNS = `
   reference_code, category, status, rating, message, submitter_name, submitter_email,
   email_verified, customer_id, source, platform, created_at, updated_at
 `
 
-/** Build the shared WHERE clause + params from the filter bag. */
 function buildWhere(params: ListParams): { where: string; values: unknown[] } {
   const conds: string[] = []
   const values: unknown[] = []
@@ -24,7 +17,7 @@ function buildWhere(params: ListParams): { where: string; values: unknown[] } {
 
   if (params.q) {
     const term = `%${params.q}%`
-    // Two separate params so the planner can use the trigram index on message.
+    // Two params so the planner can use the trigram index on message.
     conds.push(`(message ILIKE ${p(term)} OR submitter_email ILIKE ${p(term)})`)
   }
   if (params.category) conds.push(`category = ${p(params.category)}`)
@@ -88,7 +81,7 @@ export async function listNotes(referenceCode: string): Promise<NoteRow[]> {
   return res.rows
 }
 
-/** Set the triage status. Returns false when no such submission (→ 404). `replied` is never set here. */
+/** false when there is no such submission. Never sets `replied`. */
 export async function updateStatus(referenceCode: string, status: FeedbackStatus): Promise<boolean> {
   const res = await query<{ id: string }>(
     `UPDATE public.feedback_submission
@@ -114,10 +107,7 @@ export async function insertNote(
   return res.rows.length > 0
 }
 
-/**
- * Write a reply AND flip the submission to `replied`, in ONE transaction (FR-029). Called ONLY after a
- * successful email send (the service guarantees that ordering) — a send failure never reaches here.
- */
+/** Writes the reply and sets `replied` in one transaction; only ever called after a successful send. */
 export async function insertReplyAndMarkReplied(
   referenceCode: string,
   body: string,

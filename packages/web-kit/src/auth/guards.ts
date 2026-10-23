@@ -1,12 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { redirect } from "@tanstack/react-router";
 
-/**
- * Route guard factory — generic over the surface's session/identity shape.
- *
- * A surface supplies its own `sessionQuery` (its roles differ); the redirect-and-return-to-intent
- * behavior is identical everywhere, so it lives here.
- */
+/** Route guard factory, generic over the surface's session shape; the redirect-and-return behaviour is shared. */
 
 export interface SessionLike<TIdentity> {
   status: "signed-in" | "signed-out";
@@ -14,11 +9,9 @@ export interface SessionLike<TIdentity> {
 }
 
 /**
- * The structural minimum of a `queryOptions({ queryKey, queryFn })` result.
- *
- * Deliberately not `Parameters<QueryClient["ensureQueryData"]>[0]`: that instantiation collapses
- * the option generics to `unknown`, and a concretely-typed `sessionQuery` then fails variance on
- * `staleTime`. A surface hands its own options object in; the guard only ever needs the key.
+ * The structural minimum of a `queryOptions({ queryKey, queryFn })` result. Not
+ * `Parameters<QueryClient["ensureQueryData"]>[0]`, whose generics collapse to `unknown` and break
+ * variance on `staleTime`.
  */
 export interface SessionQueryLike {
   queryKey: readonly unknown[];
@@ -43,7 +36,7 @@ export function createSessionGuard<TIdentity, TSession extends SessionLike<TIden
       sessionQuery as EnsureQueryDataOptions,
     )) as TSession;
     if (session.status !== "signed-in" || !session.identity) {
-      // `next` carries the intended destination so the operator lands where they meant to go.
+      // `next` carries the intended destination.
       throw redirect({ to: signInPath, search: { next: href } });
     }
     return session.identity;

@@ -5,11 +5,9 @@ import type { AttributeDraftValue } from "./draft";
 import { collectAttributeInputs } from "./validation";
 
 /**
- * Pure payload builders for the focused-edit dialogs (US4 — no React, no I/O, unit-testable).
- *
- * A focused edit PATCHes a small subset: the fields in the one section the operator opened, and
- * NOTHING else. (098 — price, codes and weight are a VARIANT's; the sizes dialog sends the whole set.) Every payload additionally carries `expectedUpdatedAt` — the `updatedAt` from the
- * loaded detail — so a stale edit is rejected server-side with 409 (optimistic concurrency, FR-023a).
+ * Pure payload builders for the focused-edit dialogs. Each PATCHes only the fields of the section opened
+ * (price, codes and weight are a variant's; the sizes dialog sends the whole set) with `expectedUpdatedAt`,
+ * so a stale edit is refused with 409.
  */
 
 /** The scalar (non-attribute) fields a focused-edit dialog may change. */
@@ -20,7 +18,7 @@ export interface ScalarFieldPatch {
   brand?: string | null;
   productTypeId?: string;
   primaryCategoryId?: string;
-  /** 096 — on a live product this is proposed and reviewed, like the rest. */
+  /** On a live product this is proposed and reviewed, like the rest. */
   gstStatus?: "taxable" | "gst_free";
 }
 
@@ -57,7 +55,7 @@ export function diffScalarFields(
   return out;
 }
 
-/** Wrap a changed subset with the required concurrency token → the exact PATCH body (FR-023a). */
+/** Wrap a changed subset with the required concurrency token → the exact PATCH body. */
 export function buildProductUpdate(
   expectedUpdatedAt: string,
   changed: ScalarFieldPatch,

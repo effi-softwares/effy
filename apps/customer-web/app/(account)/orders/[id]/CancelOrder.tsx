@@ -7,14 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/dialog"
 
 /**
- * Cancel an order the shopper may still cancel (055 FR-012; reference: Orders · Cancel order).
- *
- * ⚠ SHOWN ONLY WHILE `cancellable` IS TRUE, and that is the server's word. It is also only advice:
- * a shop may have started picking since the page loaded, and the server decides again when the cancel
- * arrives. A refusal is shown HERE, in the question that was asked.
- *
- * ⚠ THE QUESTION NAMES WHAT HAPPENS — everything refunded, delivery included — rather than asking
- * "are you sure?", which tells nobody anything.
+ * Cancel an order the shopper may still cancel: shown only while the server says `cancellable` (advice;
+ * the server decides again). The question names what happens (everything refunded, delivery included),
+ * and a refusal is shown in it.
  */
 export function CancelOrder({ orderId }: { orderId: string }) {
   const router = useRouter()

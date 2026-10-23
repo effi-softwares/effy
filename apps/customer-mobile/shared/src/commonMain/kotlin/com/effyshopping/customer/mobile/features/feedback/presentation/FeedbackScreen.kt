@@ -30,7 +30,7 @@ import com.effyshopping.customer.mobile.features.feedback.domain.SubmitFeedbackR
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The feedback screen (046 US1). One immutable state, rendered; the View calls the ViewModel for
+ * The feedback screen. One immutable state, rendered; the View calls the ViewModel for
  * actions (MVVM). On success it swaps to a confirmation with the reference code; on failure the fields
  * are left intact so the shopper's words survive.
  */
@@ -103,7 +103,7 @@ private fun FeedbackForm(state: FeedbackUiState, viewModel: FeedbackViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // ⚠ Signed-in shoppers don't see this — the authed route uses their verified profile email.
+        // Signed-in shoppers don't see this — the authed route uses their verified profile email.
         if (!state.signedIn) {
             EffyField(
                 label = "Your email (optional)",

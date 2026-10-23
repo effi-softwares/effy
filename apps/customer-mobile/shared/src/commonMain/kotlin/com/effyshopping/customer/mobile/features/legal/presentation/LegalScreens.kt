@@ -18,13 +18,13 @@ import com.effyshopping.customer.mobile.features.legal.generated.LEGAL_DOCUMENTS
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * Legal & informational documents on mobile (045).
+ * Legal & informational documents on mobile.
  *
  * The content is generated from @effy/legal-content (`LegalContent.kt`) — one source of truth shared
  * with the web storefront — and rendered natively by [LegalDocumentBody]. Two screens serve all
  * documents: an index that lists every one (so none can be missed), and a generic document screen
  * that renders any slug (Privacy, Terms, Refunds, Delivery, Promotions, Food safety, Cookies,
- * Acceptable use, EULA, Acknowledgements, About).
+ * Acceptable use, eula, Acknowledgements, About).
  */
 
 /** The `/legal` index — lists every document so a person (and a store reviewer) can find them all. */
@@ -53,7 +53,7 @@ fun LegalIndexScreen(container: AppContainer) {
                     divider = i < info.lastIndex, // no trailing divider under the last row
                 )
             }
-            // ⚠ No "Delete account" here. Deletion is an ACTION, not a document — it lives in
+            // No "Delete account" here. Deletion is an action, not a document — it lives in
             // Account → Privacy & data → Delete account (which satisfies Apple 5.1.1(v) / Google).
         }
     }

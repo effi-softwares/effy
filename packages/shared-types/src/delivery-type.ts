@@ -1,16 +1,8 @@
 /**
- * Who delivers an order — Effy, or a courier — and how every customer surface says it (079).
- *
- * Contract: `specs/079-effy-vs-courier-checkout/contracts/routes.md`.
- *
- * ⚠ ONE WORDING, IN ONE PLACE. The checkout, the order list, the order page, the receipt and the
- * emailed receipt all print `deliverySummary`; the customer app carries a Kotlin twin pinned to
- * `delivery-type.fixtures.json`. Seven surfaces that each word it themselves never fail when they
- * disagree — and a receipt that says "Standard delivery, Thursday" for a parcel a courier is carrying
- * is a broken promise in writing.
- *
- * ⚠ THE CUSTOMER'S WORDS FOR AN EFFY ORDER STAY "Same-day delivery" and "Standard delivery"
- * (operator decision, 078). A courier order is never either: it has no window and no day.
+ * Who delivers an order (Effy or a courier) and how every customer surface says it: checkout, the order
+ * list and page, the receipt and its email print `deliverySummary`; the customer app's Kotlin twin is
+ * pinned to `delivery-type.fixtures.json`. The customer's words for an Effy order are "Same-day delivery"
+ * and "Standard delivery"; a courier order is neither.
  */
 import { COVERAGE_LABEL, DELIVERY_WINDOW_WORDS } from "./delivery";
 import { distinctArrivals, formatArrival, type ArrivalPromise } from "./delivery-window";
@@ -19,97 +11,84 @@ import { distinctArrivals, formatArrival, type ArrivalPromise } from "./delivery
 export type DeliveryType = "effy" | "courier";
 
 /**
- * Why an order has its type. STAFF ONLY — a customer is told the type and never the reason.
- *   in_coverage      the address is on Effy's list
- *   out_of_coverage  it is not, and a courier reaches it
- *   no_window        it is, but no Effy window was available and the business allows courier instead
- *   staff_change     changed by back-office after payment
+ * Why an order has its type. Staff only; a customer is told the type, never the reason.
+ *  in_coverage the address is on Effy's list
+ *  out_of_coverage it is not, and a courier reaches it
+ *  no_window it is, but no window was available and the business allows courier instead
+ *  staff_change changed by back-office after payment
  */
 export type DeliveryTypeReason = "in_coverage" | "out_of_coverage" | "no_window" | "staff_change";
 
-/** 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as possible". */
+/** What an Effy order was sold: a time on a day, a day with no time, or "as soon as possible". */
 export type DeliveryPromise = "window" | "day" | "asap";
 
 /** An order's delivery, as a customer contract carries it. */
 export interface OrderDeliveryDTO {
   type: DeliveryType;
-  /**
-   * 085 — absent on a courier order.
-   * ⚠ `day`: the arrival carries the day and no hours. `asap`: no arrival at all, only `asapEstimate`.
-   */
+  /** Absent on a courier order. `day`: the arrival has the day and no hours. `asap`: no arrival, only `asapEstimate`. */
   promise?: DeliveryPromise;
   /** Present exactly when `promise` is `asap`. */
   asapEstimate?: string;
   /** The courier's usual timeframe as it was sold ("2–4 business days"); null for an Effy order. */
   courierEstimate: string | null;
   /**
-   * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
-   * consignment and the courier gave a tracking link. `email`: it travels as more than one, and each
-   * parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link given).
-   * ⚠ Never a count, a reference without a link, or anything per parcel.
+   * How the customer follows a courier order: `link` (one consignment with a tracking link) or `email`
+   * (several, each tracking emailed). Absent otherwise. Never a count or anything per parcel.
    */
   tracking?: { kind: "link"; url: string; courierName: string } | { kind: "email" };
   /**
-   * 081 — present only after back-office moved the order to the other delivery type: the LATEST move,
-   * and what the customer received for it. ⚠ Never the staff reason, the courier fee, the difference
-   * or Effy's cost — a customer is told what happened and what they got, nothing else.
+   * Present only after back-office moved the order to the other type: the latest move and what the
+   * customer received. Never the reason, the courier fee, the difference or Effy's cost.
    */
   moved?: OrderDeliveryMoveDTO;
 }
 
-/** 081 — what a customer received when their order was moved to courier. Null when nothing was given. */
+/** What a customer received when their order was moved to courier; null when nothing was given. */
 export type CustomerCompensationDTO =
   | { kind: "points"; amount: string; points: number }
   | { kind: "refund"; amount: string };
 
-/** 081 — the latest move of an order's delivery type by back-office, as the customer reads it. */
+/** The latest move of an order's delivery type by back-office, as the customer reads it. */
 export interface OrderDeliveryMoveDTO {
   to: DeliveryType;
   at: string;
   compensation: CustomerCompensationDTO | null;
 }
 
-/**
- * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN. `effy` and `courier` are 076's coverage labels and
- * `sameDay` / `standard` are 078's section names — re-used, not retyped.
- */
+/** The only place these words are written; `effy`/`courier` and `sameDay`/`standard` reuse the coverage labels and window section names. */
 export const DELIVERY_TYPE_WORDS = {
   effy: COVERAGE_LABEL.effy,
   courier: COVERAGE_LABEL.courier,
   courierPartner: "Delivered by a courier partner.",
   courierEstimatePrefix: "Usually arrives in",
-  /** ⚠ Never drop this: without it the estimate reads as a promised date (FR-015). */
+  /** Never drop this: without it the estimate reads as a promised date. */
   courierEstimateSuffix: "— an estimate, not a guaranteed date.",
   /**
-   * The two sentences an address Effy DOES deliver to reads when no window is left and the business
-   * sends such an order by courier instead. ⚠ Not `DELIVERY_WINDOW_WORDS.noWindows`: that one ends
-   * "Please try again later", which is the opposite of what is being offered here.
+   * What a listed address reads when no window is left and the business sends the order by courier.
+   * Not `DELIVERY_WINDOW_WORDS.noWindows`, which ends "Please try again later".
    */
   noWindowsLeft: "There are no Effy delivery windows available in the next few days.",
   courierInsteadOfWindows: "We can send this order by courier instead.",
   sameDay: DELIVERY_WINDOW_WORDS.sectionSameDay,
   standard: DELIVERY_WINDOW_WORDS.sectionStandard,
-  /** 080 — tracking a courier order. */
+  /** Tracking a courier order. */
   trackParcel: "Track your parcel",
   trackingByEmail: "Tracking for each parcel is sent to you by email.",
   withCourier: "Your order is with the courier.",
-  /** A method no checkout has sold since 047; an old order may still carry it. */
+  /** The `scheduled` method, never sold since 047. */
   scheduled: "Scheduled delivery",
-  /** 081 — back-office moved the order. ⚠ Said once, after the delivery lines; never why. */
+  /** Back-office moved the order: said once, after the delivery lines; never why. */
   movedToCourier: "We've changed this order to courier delivery.",
   movedToEffy: "We've changed this order back to delivery by Effy.",
-  /** 081 — `%POINTS%` and `%AMOUNT%` are filled by `compensationLine`; `%AMOUNT%` is "$3.50". */
+  /** `%POINTS%` and `%AMOUNT%` are filled by `compensationLine`; `%AMOUNT%` is "$3.50". */
   compensationPoints: "We've added %POINTS% points (%AMOUNT%) to your account to make up for it.",
   compensationRefund: "We've refunded %AMOUNT% to your card to make up for it.",
 } as const;
 
-/** 081 — "$3.50" from a wire amount ("3.50"). */
+/** "$3.50" from a wire amount ("3.50"). */
 const dollars = (amount: string) => `$${amount}`;
 
-/**
- * 081 — the one sentence that says what a customer received for a move to courier; null when nothing
- * was given. ⚠ The ONE wording: the order page, the receipt, the app and the email all print this.
- */
+/** The one sentence saying what a customer received for a move to courier, on every surface; null when nothing. */
 export function compensationLine(c: CustomerCompensationDTO | null | undefined): string | null {
   if (!c) return null;
   if (c.kind === "points") {
@@ -118,7 +97,7 @@ export function compensationLine(c: CustomerCompensationDTO | null | undefined):
   return DELIVERY_TYPE_WORDS.compensationRefund.replace("%AMOUNT%", dollars(c.amount));
 }
 
-/** 081 — the lines a move adds: what changed, then what the customer received (if anything). */
+/** The lines a move adds: what changed, then what the customer received (if anything). */
 export function movedLines(m: OrderDeliveryMoveDTO | null | undefined): string[] {
   if (!m) return [];
   const said = m.to === "courier" ? DELIVERY_TYPE_WORDS.movedToCourier : DELIVERY_TYPE_WORDS.movedToEffy;
@@ -131,7 +110,7 @@ export function courierEstimateSentence(estimate: string): string {
   return `${DELIVERY_TYPE_WORDS.courierEstimatePrefix} ${estimate} ${DELIVERY_TYPE_WORDS.courierEstimateSuffix}`;
 }
 
-/** The two lines a customer reads under "Courier delivery" — at checkout and on the order alike. */
+/** The two lines under "Courier delivery", at checkout and on the order alike. */
 export function courierLines(estimate: string): string[] {
   return [DELIVERY_TYPE_WORDS.courierPartner, courierEstimateSentence(estimate)];
 }
@@ -149,16 +128,15 @@ export interface DeliverySummary {
   lines: string[];
 }
 
-/** The fields `deliverySummary` reads — the customer's `OrderDTO` satisfies it. */
+/** The fields `deliverySummary` reads; the customer's `OrderDTO` satisfies it. */
 export interface DeliverySummaryInput {
   delivery: OrderDeliveryDTO;
   arrivalEstimates: readonly (ArrivalPromise & { method?: string | null })[];
 }
 
 /**
- * The customer's word for an Effy delivery, from the package's method: "Same-day delivery" for a
- * window today, "Standard delivery" for a later day.
- * ⚠ Never call it for a courier order: its packages' method is how they are routed, not what was sold.
+ * The customer's word for an Effy delivery from the package's method: "Same-day delivery" for a window
+ * today, "Standard delivery" for a later day. Never for a courier order (its method is routing).
  */
 export function deliveryMethodWord(method: string | null | undefined): string {
   if (method === "same_day") return DELIVERY_TYPE_WORDS.sameDay;
@@ -167,27 +145,22 @@ export function deliveryMethodWord(method: string | null | undefined): string {
 }
 
 /**
- * How an order is delivered, in the words every customer surface prints.
- *
- *   courier                → "Courier delivery" · the partner line, then the estimate as an estimate
- *   Effy, a window today   → "Delivered by Effy" · "Same-day delivery · Today, 4 pm – 6 pm"
- *   Effy, a later day      → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
- *   Effy, a day, no time   → "Delivered by Effy" · "Standard delivery · Thu 8 Oct · Any time during the day"
- *   Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible — usually within 2–3 days"
- *   moved by back-office   → the above, then `movedLines` (081)
- *
- * ⚠ A courier order NEVER reads its arrival estimates: it has no window and no day, and the
- * package's own method word would call it "Standard delivery".
- * ⚠ One line per DISTINCT promise (`distinctArrivals`): a line per package told the customer how
- * many suppliers there were.
+ * How an order is delivered, in the words every customer surface prints:
+ *  courier → "Courier delivery" · the partner line, then the estimate as an estimate
+ *  Effy, a window today → "Delivered by Effy" · "Same-day delivery · Today, 4 pm – 6 pm"
+ *  Effy, a later day → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
+ *  Effy, a day, no time → "Delivered by Effy" · "Standard delivery · Thu 8 Oct · Any time during the day"
+ *  Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible — usually within 2–3 days"
+ *  moved by back-office → the above, then `movedLines`
+ * A courier order never reads its arrival estimates. One line per distinct promise (`distinctArrivals`),
+ * so the line count never reveals the number of suppliers.
  */
 export function deliverySummary(order: DeliverySummaryInput, now: Date): DeliverySummary {
   if (order.delivery.type === "courier") {
     const lines = courierLines(order.delivery.courierEstimate ?? "");
-    // 080 — several consignments: say tracking comes by email. One link is a link, not a sentence;
-    // surfaces render it from `delivery.tracking` themselves.
+    // Several consignments: tracking comes by email. A single link is rendered by the surface from `delivery.tracking`.
     if (order.delivery.tracking?.kind === "email") lines.push(DELIVERY_TYPE_WORDS.trackingByEmail);
-    // 081 — a move by back-office is said after the delivery lines.
+    // A back-office move is said after the delivery lines.
     lines.push(...movedLines(order.delivery.moved));
     return { heading: DELIVERY_TYPE_WORDS.courier, lines };
   }
@@ -205,21 +178,18 @@ export function deliverySummary(order: DeliverySummaryInput, now: Date): Deliver
   return { heading: DELIVERY_TYPE_WORDS.effy, lines };
 }
 
-/**
- * 085 — what DRIVERS and STAFF read for a parcel sold a day with no time. ⚠ Never shown to a shop or
- * a customer (who reads `DELIVERY_WINDOW_WORDS.anyTimeDay`).
- */
+/** What drivers and staff read for a parcel sold a day with no time; shops and customers read `DELIVERY_WINDOW_WORDS.anyTimeDay`. */
 export const ANY_TIME_LABEL = "Any time";
 
-/** "Thu 8 Oct · Any time" — an untimed parcel is named by its day, never by its window's hours. */
+/** "Thu 8 Oct · Any time": an untimed parcel is named by its day, never by its window's hours. */
 export function anyTimeDayLabel(date: string, now: Date): string {
   return `${formatArrival({ promisedFrom: date, promisedTo: date }, now)} · ${ANY_TIME_LABEL}`;
 }
 
-/** Who takes a package away from the shop, as SHOP staff read it. Never a window, a day or a fee. */
+/** Who takes a package away from the shop, as shop staff read it. Never a window, a day or a fee. */
 export type DeliveredBy = "effy_driver" | "courier";
 
-/** ⚠ The shop's two words. "Same-day" and "standard" are the customer's and never shown to a shop. */
+/** The shop's two words; "Same-day" and "standard" are the customer's and never shown to a shop. */
 export const DELIVERED_BY_WORDS = {
   effy_driver: "Effy driver",
   courier: "Courier",

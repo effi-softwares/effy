@@ -37,7 +37,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.VariantOption
 import com.effyshopping.customer.mobile.features.catalog.domain.VariantOptionValue
 
 /**
- * Wire DTO → domain mappers (019 US1). Kept as internal top-level functions so `commonTest` can exercise
+ * Wire DTO → domain mappers. Kept as internal top-level functions so `commonTest` can exercise
  * them without a live client. The generated DTO enum is narrowed to the app's own [ProductBadge]; an
  * unknown badge the backend adds later is dropped (tolerant reader), never crashes.
  */
@@ -67,7 +67,7 @@ internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
 /**
  * Map the wire's flattened target onto the domain's sealed one.
  *
- * ⚠ A TOLERANT READER (versioning-policy rule 4). The generator flattens the TS discriminated union
+ * A tolerant reader (versioning-policy rule 4). The generator flattens the TS discriminated union
  * into a `kind` enum plus optional fields, so a `category` with no `categoryKey` is representable on
  * the wire and meaningless here — it maps to `null`, and the banner renders non-tappable.
  *
@@ -99,7 +99,7 @@ internal fun StorefrontRailDTO.toDomain(): Rail = Rail(
 )
 
 /**
- * 094 — a display group's promotion as a Home banner: the hero group fills the carousel, the
+ * A display group's promotion as a Home banner: the hero group fills the carousel, the
  * between-sections group fills the inline slots in order. Drawn, never artwork.
  */
 internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: Int): Banner = Banner(
@@ -181,7 +181,7 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
     defaultVariantId = defaultVariantID,
 )
 
-// ── Facets (043) ─────────────────────────────────────────────────────────────────────────────────
+// Facets
 
 internal fun FacetSetDTO.toDomain(): FacetSet = FacetSet(
     priceBounds = priceBounds?.let { PriceBounds(min = it.min, max = it.max) },

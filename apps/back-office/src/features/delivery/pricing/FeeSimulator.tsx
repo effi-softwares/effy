@@ -11,11 +11,9 @@ import { pricingError } from "./gapText";
 const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 /**
- * Try a plan (077 FR-025). Any plan — draft, active or retired — against a postcode, a weight, a
- * basket value and a window: the fee the customer would see, then every step that built it.
- *
- * ⚠ READ-ONLY, and open to customer-service agents: it is how a fee is explained on the phone.
- * ⚠ It does not add anything up. The service prices with the engine checkout uses; this shows it.
+ * Try a plan (draft, active or retired) against a postcode, weight, basket value and window: the fee the
+ * customer would see, then every step that built it. Read-only and open to agents (it is how a fee is
+ * explained on the phone). The service prices with checkout's engine; this adds nothing up.
  */
 export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePlanKind }) {
   const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" });

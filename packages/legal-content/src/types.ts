@@ -1,7 +1,4 @@
-/**
- * The content model for Effy's legal & informational documents.
- * See specs/045-legal-documentation/data-model.md — this is a CONTENT model, not a DB schema.
- */
+/** The content model for Effy's legal and informational documents (not a DB schema). */
 
 export type DocumentSlug =
   | "privacy-policy"
@@ -20,7 +17,7 @@ export type DocumentCategory = "legal" | "info"
 
 export interface DocumentVersion {
   version: string // v1, v2, …
-  effectiveDate: string // ISO date (YYYY-MM-DD)
+  effectiveDate: string // ISO date (yyyy-mm-dd)
   status: "current" | "superseded"
   /** The raw Markdown body (constrained subset — see markdown.ts) with identifiers already substituted. */
   body: string
@@ -37,7 +34,7 @@ export interface LegalDocument {
   versions: DocumentVersion[] // newest first, includes current
 }
 
-/** ---- Constrained Markdown subset (parsed once here, rendered on web + mobile) ---- */
+/** Constrained Markdown subset, parsed once and rendered on web and mobile. */
 
 export interface InlineRun {
   text: string

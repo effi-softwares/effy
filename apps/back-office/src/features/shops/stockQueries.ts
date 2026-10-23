@@ -9,7 +9,7 @@ import {
   setShopStockSettings,
 } from "./stockRepo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI).
+// Server state lives only in the TanStack Query cache (Principle VI).
 
 const STOCK_ROOT = ["admin", "shop-stock"] as const;
 
@@ -17,7 +17,7 @@ export const shopLowStockQuery = (shopId: string) =>
   queryOptions({
     queryKey: [...STOCK_ROOT, "low", shopId] as const,
     queryFn: () => getShopLowStock(shopId),
-    // ⚠ Short. This is the list a support agent reads WHILE a shop is on the phone describing it;
+    // Short. This is the list a support agent reads while a shop is on the phone describing it;
     // a stale one sends them to correct a number that has already moved.
     staleTime: 15_000,
   });

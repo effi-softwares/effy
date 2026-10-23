@@ -4,35 +4,20 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * ⚠ SC-012 / Principle VII — what payment telemetry may NEVER carry.
- *
- * The type union in `lib/telemetry.ts` is the real enforcement: a `props` shape that has no field for
- * a card reference cannot carry one, and adding it fails the build. This test guards the OTHER half —
- * that nobody widens those shapes later without noticing what they are widening.
- *
- * ⚠ Why a source assertion rather than a runtime one: the failure mode is a well-meaning future edit
- * ("let's add last4 so we can segment by network"), which is a compile-time change. There is no
- * runtime moment at which it goes wrong — it just quietly starts shipping card data to an analytics
- * store, and no test that captures events would notice, because the event would be perfectly valid.
+ * What payment telemetry may never carry. The type union in `lib/telemetry.ts` enforces it; this source
+ * check catches a later widening of those shapes (a compile-time change no runtime test would notice).
  */
-describe("payment telemetry (051 T097)", () => {
+describe("payment telemetry", () => {
   const source = readFileSync(join(process.cwd(), "lib/telemetry.ts"), "utf8")
 
-  /**
-   * The payment event block, with COMMENTS STRIPPED.
-   *
-   * ⚠ Stripping is not cosmetic — the first version of this test failed against its own documentation,
-   * because the comments explaining why `amount` and `insufficient_funds` are forbidden contain those
-   * very words. A guard that cannot tell a banned field from a note explaining the ban is a guard that
-   * punishes writing the note.
-   */
+  /** The payment event block, with comments stripped (they name the forbidden fields to explain them). */
   const stripComments = (text: string) =>
     text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
 
   const paymentEvents = stripComments(
     source.slice(
-      source.indexOf("// 051 payment experience."),
-      source.indexOf("// 025 customer experience refresh."),
+      source.indexOf("// Payment. Never"),
+      source.indexOf("// Customer experience refresh."),
     ),
   )
   const declarations = stripComments(source)
@@ -52,7 +37,7 @@ describe("payment telemetry (051 T097)", () => {
   })
 
   /**
-   * ⚠ THE ASSERTION THIS FILE EXISTS FOR. None of these may become a prop, and each one is a real
+   * The assertion this file exists for. None of these may become a prop, and each one is a real
    * temptation: last4 "to segment by network", amount "to measure basket value at failure",
    * paymentMethodId "to join with Stripe".
    */
@@ -74,7 +59,7 @@ describe("payment telemetry (051 T097)", () => {
   })
 
   /**
-   * ⚠ The method is a FAMILY, not a provider name. "Klarna at 11pm by this subject id" is a record of
+   * The method is a family, not a provider name. "Klarna at 11pm by this subject id" is a record of
    * someone's credit decision; "instalments" answers the product question without holding it.
    */
   it("records a method family rather than a named provider", () => {
@@ -84,7 +69,7 @@ describe("payment telemetry (051 T097)", () => {
     expect(declarations).toContain("PaymentMethodFamily")
   })
 
-  /** Effy's own coarse reason, never the provider's code (SC-012). */
+  /** Effy's own coarse reason, never the provider's code. */
   it("records a coarse failure reason in Effy's own vocabulary", () => {
     expect(declarations).toContain("PaymentFailureReason")
     for (const code of ["insufficient_funds", "do_not_honor", "generic_decline"]) {

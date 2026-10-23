@@ -24,7 +24,7 @@ const item = (id: string, name: string, over: Partial<SavedItemDTO> = {}): Saved
   savedAt: `2026-10-0${id}T00:00:00Z`,
   savedPriceAmount: "6.50",
   verdict: "purchasable",
-  // 098 — one size: "Add to cart" adds it.
+  // One size: "Add to cart" adds it.
   variantId: `v${id}`,
   variantLabel: null,
   variantCount: 1,
@@ -61,7 +61,7 @@ describe("068 — one list's page", () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  /** FR-028: the weekly-shop action is scoped to the list on screen. */
+  /** The weekly-shop action is scoped to the list on screen. */
   it("add-all posts to THIS list and names what was left out", async () => {
     const calls = platform()
     render(<SavedList initial={[eggs, milk, tea]} listId={WEEKLY} />)
@@ -72,7 +72,7 @@ describe("068 — one list's page", () => {
     expect(calls.some((c) => c.key === `POST /api/lists/${WEEKLY}/add-to-cart`)).toBe(true)
     expect(calls.some((c) => c.key === "POST /api/saved/add-to-cart")).toBe(false)
     expect(screen.getByText(/Tea —/)).toBeInTheDocument()
-    // FR-029: nothing leaves the list.
+    // Nothing leaves the list.
     expect(screen.getAllByRole("listitem").filter((li) => within(li).queryByRole("link"))).toHaveLength(3)
   })
 
@@ -82,7 +82,7 @@ describe("068 — one list's page", () => {
     expect(screen.queryByRole("button", { name: "Add everything available to cart" })).toBeNull()
   })
 
-  /** 033 FR-050a, on every list: a second "Add to cart" would raise the quantity. */
+  /** A second "Add to cart" would raise the quantity. */
   it("says a row is already in the cart, and how many, instead of offering to add it again", () => {
     platform()
     addToCart({ variantId: "v3", productId: "3", name: "Eggs", imageUrl: null, unitPriceAmount: "6.50", currency: "AUD", quantity: 2, packageKey: DEFAULT_PACKAGE_KEY })
@@ -92,7 +92,7 @@ describe("068 — one list's page", () => {
     expect(screen.getAllByRole("button", { name: "Add to cart" })).toHaveLength(1)
   })
 
-  /** FR-024: remove is scoped to this list, and undo restores the position it held. */
+  /** Remove is scoped to this list; undo restores its position. */
   it("removes from this list only, and undo puts the row back where it was", async () => {
     const calls = platform()
     render(<SavedList initial={[eggs, milk, tea]} listId={WEEKLY} />)
@@ -112,7 +112,7 @@ describe("068 — one list's page", () => {
     )
   })
 
-  /** FR-026: an empty named list must not read as "you have saved nothing". */
+  /** An empty named list must not read as "you have saved nothing". */
   it("an empty named list says the LIST is empty", () => {
     platform()
     render(<SavedList initial={[]} listId={WEEKLY} />)

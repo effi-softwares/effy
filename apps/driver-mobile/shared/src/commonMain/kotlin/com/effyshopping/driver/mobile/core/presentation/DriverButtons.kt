@@ -43,7 +43,7 @@ enum class DriverButtonStyle {
     Ghost,
     /** Grey fill — a quiet action beside an outline one ("View stop" before a run opens). */
     Secondary,
-    /** Black — a problem or a destructive action. ⚠ Never red (v3.5.0). */
+    /** Black — a problem or a destructive action. Never red (v3.5.0). */
     Problem,
 }
 

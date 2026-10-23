@@ -1,42 +1,22 @@
-// GENERATOR — parses src/tokens.css and emits compose/EffyTokens.kt (013 research D16).
+// Generates the mobile apps' Compose theme from the CSS tokens: colours, type and shapes from
+// src/storefront/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
+// from src/tokens.css. The output is committed; `tokens:check` regenerates it and fails on any
+// difference. Node stdlib only.
 //
-// tokens.css is the SINGLE SOURCE OF TRUTH for the brand. This script makes the Compose
-// theme a DERIVED, COMMITTED artifact that cannot drift: CI runs `tokens:check`, which snapshots the
-// committed artifacts, regenerates them, and fails if their contents changed. This stays reliable in a
-// dirty development worktree and does not depend on Git staging state.
-//
-// Zero dependencies by design — Node's stdlib only. If this script ever needs a package,
-// reconsider it: the whole point is that the generator is NOT load-bearing in any build graph.
-//
-// Design notes:
-//  - The shadcn token names → Material 3 ColorScheme slots via a FIXED lookup table below.
-//  - Every Material role used by the mobile foundation maps to an existing semantic token. Container,
-//    inverse, fixed and tertiary roles intentionally reuse the nearest authored Effy role; no library
-//    default is allowed to leak a second palette into navigation, controls or feedback.
-//  - The brand is MONOCHROME (constitution v1.11.0): a neutral ramp with NO brand hue. The accent
-//    INVERTS between appearances — near-black on light, near-white on dark — so `primary` is NOT the
-//    same value in both schemes, unlike the retired emerald. Two bounded semantic hues (error,
-//    success) come along; retired Jade and Emerald values are gone.
+// Every Material 3 slot maps to an authored token through the fixed table below, so no library default
+// leaks a second palette into the app.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-// Two identities, each declared once in this package (constitution v3.3.0, Principle V). The CONSOLE
-// file drives the shop app; the STOREFRONT file drives the customer app since 087 and the driver app
-// since 092 (084
-// research D14 named it as the expected input — which is why its `:root` is kept a plain hex block).
 const CONSOLE_CSS = resolve(here, "../src/tokens.css");
 const STOREFRONT_CSS = resolve(here, "../src/storefront/tokens.css");
-
-// ⚠ The banner canvas is NOT in tokens.css, and deliberately so: tokens.css is the BRAND source of
-// truth, and a 1200px image canvas is an asset constraint rather than a style token (029 research R4).
-// It is read here so the Compose side and the console consume one definition.
+// An asset constraint, not a style token, so it lives beside the shared types.
 const BANNER_CANVAS = JSON.parse(readFileSync(resolve(here, "../../shared-types/src/banner-canvas.json"), "utf8"));
 
-// ONE generator, ONE brand source — one derived, diff-guarded theme PER KMP app (Principle II/V). Each
-// app has its own package root, so each gets its own committed copy. tokens:check compares them all.
+// One committed copy per KMP app, each in its own package.
 const TARGETS = [
   {
     out: resolve(here, "../compose/EffyTokens.kt"),
@@ -45,15 +25,10 @@ const TARGETS = [
     typographyOut: resolve(here, "../compose/EffyTypography.kt"),
     shapeOut: resolve(here, "../compose/EffyStorefrontShape.kt"),
     resPkg: "com.effyshopping.customer.mobile.resources",
-    // 087 — the customer app wears the STOREFRONT identity: light only, Geist, Effy blue + Effy green.
-    identity: "storefront",
   },
   {
     out: resolve(here, "../compose-driver/EffyTokens.kt"),
     pkg: "com.effyshopping.driver.mobile.design",
-    // 092 / constitution v3.5.0 — the driver app wears the STOREFRONT identity too (its redesign canvas):
-    // Effy blue for the next action, Effy green for done, no red; light and dark; Geist.
-    identity: "storefront",
     sharedOut: resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
     typographyOut: resolve(here, "../compose-driver/EffyTypography.kt"),
     shapeOut: resolve(here, "../compose-driver/EffyStorefrontShape.kt"),
@@ -61,30 +36,23 @@ const TARGETS = [
   },
 ];
 
-// The AUDIENCE-NEUTRAL package for the layout vocabulary (spacing + radius).
-//
-// ⚠ Why this is not in the per-app package like the colours: `packages/mobile-kit` holds components
-// shared by every mobile surface, and a shared component cannot import
-// `com.effyshopping.<app>.mobile.design`. Duplicating the scale into the kit would be exactly the
-// copy-paste Principle II prohibits, and the two copies would drift the first time a step changed.
-//
-// Each app still gets its OWN generated copy of this file (they are separate Gradle builds, so the
-// identical package name never collides) — the same authored-source → committed-derived-artifact →
-// drift-check pattern the colours already use.
+// The layout vocabulary's package: shared mobile-kit components cannot import an app's own package.
 const SHARED_PKG = "com.effyshopping.mobile.design";
+
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** Parse a `:root { … }` or `.dark { … }` block into { cssVarName: "#rrggbb" }. */
 function parseBlock(css, selector) {
-  // Match the FIRST top-level `selector { … }` — tokens.css has exactly one of each.
+  // The first top-level `selector { … }`.
   const re = new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m");
   const body = css.match(re);
   if (!body) throw new Error(`gen-compose-theme: no '${selector}' block in tokens.css`);
   const out = {};
   for (const line of body[1].split("\n")) {
-    // --name: #hex;   (ignore non-color values like --radius, and calc()/var() in the @theme block)
+    // --name: #hex; (non-colour values and calc/var are ignored)
     const m = line.match(/^\s*--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/);
     if (m) out[m[1]] = m[2].toLowerCase();
-    // 087 — the storefront's `--scrim` is rgba(); carried as "#aarrggbb" (alpha first, as Compose wants).
+    // `--scrim` is rgba; carried as "#aarrggbb" (alpha first, as Compose wants).
     const r = line.match(/^\s*--([\w-]+)\s*:\s*rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)\s*;/);
     if (r) {
       const hex = (n) => Number(n).toString(16).padStart(2, "0");
@@ -94,10 +62,10 @@ function parseBlock(css, selector) {
   return out;
 }
 
-/** "#0fb57e" -> "0xFF0FB57E" (opaque ARGB for Compose Color). */
+/** "#0fb57e" -> "0xFF0FB57E" (opaque argb for Compose Color). */
 const argb = (hex) => (hex.length === 9 ? `0x${hex.slice(1).toUpperCase()}` : `0xFF${hex.slice(1).toUpperCase()}`);
 
-// The tokens we surface to Compose, in a stable order. camelCase Kotlin name -> css var name.
+// The tokens surfaced to Compose, in a stable order: camelCase Kotlin name -> CSS var name.
 const COLOR_TOKENS = [
   ["background", "background"],
   ["foreground", "foreground"],
@@ -115,9 +83,7 @@ const COLOR_TOKENS = [
   ["accentForeground", "accent-foreground"],
   ["destructive", "destructive"],
   ["destructiveForeground", "destructive-foreground"],
-  // 026: no Material 3 slot maps to these, so they are raw EffyColors only — which is what the
-  // presentation layer consumes. `success` deliberately has no Foreground sibling: it is a non-text
-  // indicator (a field border, a ✓ glyph) and check-tokens.mjs fails the build if one is added.
+  // No Material 3 slot maps to these; screens read them from EffyColor.
   ["success", "success"],
   ["disabled", "disabled"],
   ["disabledForeground", "disabled-foreground"],
@@ -125,39 +91,28 @@ const COLOR_TOKENS = [
   ["border", "border"],
   ["input", "input"],
   ["ring", "ring"],
-];
-
-// 087 — the storefront file names some roles differently. The four console-only names the customer
-// app's code already reads are ALIASED onto storefront values here (a mapping, not new tokens: adding
-// them to storefront/tokens.css would restate the console palette there). And the storefront's own
-// roles are surfaced.
-const STOREFRONT_ALIASES = {
-  success: "brand", // "paid", "delivered", savings — the storefront says them in Effy green
-  disabled: "muted",
-  "disabled-foreground": "muted-foreground",
-  placeholder: "muted-foreground",
-};
-const STOREFRONT_EXTRA_TOKENS = [
   ["primaryMuted", "primary-muted"], // the light-blue search field, selection, info
-  ["brand", "brand"], // Effy green — Sale, savings, "Delivered by Effy", paid. NEVER an action.
+  ["brand", "brand"], // Effy green: Sale, savings, "Delivered by Effy", paid. Never an action.
   ["brandForeground", "brand-foreground"],
   ["brandMuted", "brand-muted"],
   ["scrim", "scrim"], // sheet backdrop, with its alpha
 ];
-// Slots whose storefront meaning differs from the console mapping below.
-const STOREFRONT_M3_OVERRIDES = {
-  primaryContainer: "primaryMuted", // selection = light blue, as on the web
-  onPrimaryContainer: "primary",
-  scrim: "scrim",
+
+// Console names the app's code reads that the storefront file calls differently.
+const ALIASES = {
+  success: "brand", // "paid", "delivered", savings are said in Effy green
+  disabled: "muted",
+  "disabled-foreground": "muted-foreground",
+  placeholder: "muted-foreground",
 };
 
-// Authored token -> Material 3 ColorScheme slot. FIXED. Reuse is deliberate: CSS remains the only
-// color authority while Material components receive a complete semantic scheme rather than defaults.
+// Authored token -> Material 3 ColorScheme slot. Reuse is deliberate: Material components get a
+// complete scheme from the CSS rather than library defaults.
 const M3_MAP = [
   ["primary", "primary"],
   ["primaryForeground", "onPrimary"],
-  ["accent", "primaryContainer"],
-  ["accentForeground", "onPrimaryContainer"],
+  ["primaryMuted", "primaryContainer"],
+  ["primary", "onPrimaryContainer"],
   ["primary", "inversePrimary"],
   ["secondary", "secondary"],
   ["secondaryForeground", "onSecondary"],
@@ -182,7 +137,7 @@ const M3_MAP = [
   ["destructiveForeground", "onErrorContainer"],
   ["border", "outline"],
   ["border", "outlineVariant"],
-  ["foreground", "scrim"],
+  ["scrim", "scrim"],
   ["card", "surfaceBright"],
   ["background", "surfaceDim"],
   ["card", "surfaceContainer"],
@@ -204,58 +159,41 @@ const M3_MAP = [
   ["accentForeground", "onTertiaryFixedVariant"],
 ];
 
-function colorObject(name, tokens, identity = "console") {
-  const list = identity === "storefront" ? [...COLOR_TOKENS, ...STOREFRONT_EXTRA_TOKENS] : COLOR_TOKENS;
-  const lines = list.map(([k, css]) => {
-    const source = identity === "storefront" && !(css in tokens) ? STOREFRONT_ALIASES[css] : css;
+function colorObject(name, tokens) {
+  const lines = COLOR_TOKENS.map(([k, css]) => {
+    const source = css in tokens ? css : ALIASES[css];
     if (!source || !(source in tokens)) throw new Error(`gen-compose-theme: missing --${css} in ${name}`);
     return `        val ${k} = Color(${argb(tokens[source])})`;
   });
   return `    object ${name} {\n${lines.join("\n")}\n    }`;
 }
 
-function colorScheme(fnName, valName, objName, identity = "console") {
-  const args = M3_MAP.map(([tok, slot]) => {
-    const t = identity === "storefront" && STOREFRONT_M3_OVERRIDES[slot] ? STOREFRONT_M3_OVERRIDES[slot] : tok;
-    return `    ${slot} = EffyColor.${objName}.${t},`;
-  });
+function colorScheme(fnName, valName, objName) {
+  const args = M3_MAP.map(([tok, slot]) => `    ${slot} = EffyColor.${objName}.${tok},`);
   return `val ${valName}: ColorScheme = ${fnName}(\n${args.join("\n")}\n)`;
 }
 
+const banner = (sourceName) => `// GENERATED FROM packages/design-system/${sourceName} — DO NOT EDIT.
+// Regenerate: pnpm --filter @effy/design-system tokens:gen`;
+
 function generate(target) {
-  // ⚠ Comments stripped before parsing: tokens.css prose legitimately names the selectors it
-  // declares, and an unstripped comment mentioning the dark block is matched AS the block — the
-  // generator would then emit a light-only theme with nothing failing. See check-tokens.mjs.
-  const storefront = target.identity === "storefront";
-  const sourcePath = storefront ? STOREFRONT_CSS : CONSOLE_CSS;
-  const sourceName = storefront ? "src/storefront/tokens.css" : "src/tokens.css";
-  // ⚠ The LAYOUT vocabulary (EffyRadius/EffySpacing, package com.effyshopping.mobile.design) is read
-  // by packages/mobile-kit, which shop and driver compile too — it always comes from the console file
-  // so the shared kit draws the same in every app. The customer's own shapes are EffyStorefrontShape.
-  const css = readFileSync(CONSOLE_CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const colorCss = readFileSync(sourcePath, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Comments are stripped first: prose naming a selector would otherwise be matched as the block.
+  const css = stripComments(readFileSync(CONSOLE_CSS, "utf8"));
+  const colorCss = stripComments(readFileSync(STOREFRONT_CSS, "utf8"));
   const light = parseBlock(colorCss, ":root");
-  // 087 / constitution v3.4.0 — the storefront file carries the mobile app's dark appearance too.
   const dark = parseBlock(colorCss, ".dark");
 
-  // Radii: rem -> dp at the 16px root. --radius (base = md), --radius-sm, --radius-md — pinned EXPLICITLY
-  // in tokens.css so web px == these dp (017 SC-004). Pill (scale xl = 100) is RoundedCornerShape(50%),
-  // NOT a numeric token, so it is not emitted here.
+  // Radii: rem -> dp at the 16px root, so web px == these dp. A pill is RoundedCornerShape(50%).
   const radiusRem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
     if (!m) throw new Error(`gen-compose-theme: no ${name} in tokens.css`);
     return Math.round(parseFloat(m[1]) * 16);
   };
-  const radiusDefaultDp = radiusRem("--radius"); // 16
-  const radiusSmDp = radiusRem("--radius-sm"); // 8
-  const radiusMdDp = radiusRem("--radius-md"); // 16
+  const radiusDefaultDp = radiusRem("--radius");
+  const radiusSmDp = radiusRem("--radius-sm");
+  const radiusMdDp = radiusRem("--radius-md");
 
-  const banner = `// GENERATED FROM packages/design-system/${sourceName} — DO NOT EDIT.
-// Regenerate: pnpm --filter @effy/design-system tokens:gen
-// The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).`;
-
-  const out = storefront
-    ? `${banner}
+  const out = `${banner("src/storefront/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.ColorScheme
@@ -264,30 +202,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The raw Effy STOREFRONT tokens (087), light and dark (the dark appearance is the mobile app's; the
- * website is light only). Colour is rationed: black, white, zinc, Effy blue (primary — every action)
- * and Effy green (brand — Sale, savings, "Delivered by Effy", paid; never an action). No red:
- * destructive is the text colour.
+ * The raw Effy storefront tokens, light and dark. Colour is rationed: black, white, zinc, Effy blue
+ * (primary, every action) and Effy green (brand: Sale, savings, "Delivered by Effy", paid; never an
+ * action). No red: destructive is the text colour.
  */
-object EffyColor {
-${colorObject("Light", light, "storefront")}
-
-${colorObject("Dark", dark, "storefront")}
-}
-
-${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light", "storefront")}
-
-${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark", "storefront")}
-`
-    : `${banner}
-package ${target.pkg}
-
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.ui.graphics.Color
-
-/** The raw Effy brand tokens, light and dark. The accent is the neutral ramp and INVERTS by appearance. */
 object EffyColor {
 ${colorObject("Light", light)}
 
@@ -302,10 +220,7 @@ ${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark")}
   mkdirSync(dirname(target.out), { recursive: true });
   writeFileSync(target.out, out);
 
-  // The audience-neutral half: spacing + radius, consumable by packages/mobile-kit. Always the console
-  // file (see above), so its banner names that file whatever the target's colour source is.
-  const layoutBanner = banner.replace(sourceName, "src/tokens.css");
-  const shared = `${layoutBanner}
+  const shared = `${banner("src/tokens.css")}
 package ${SHARED_PKG}
 
 import androidx.compose.ui.unit.dp
@@ -328,15 +243,8 @@ object EffySpacing {
 }
 
 /**
- * The canonical promotional banner canvas (029), from packages/shared-types/src/banner-canvas.json.
- *
- * ⚠ EMITTED INTO THIS FILE ON PURPOSE, not into a new EffyBannerTokens.kt. \`check-compose-theme.mjs\`
- * carries a hardcoded list of the files it guards, and its own comment warns that anything the
- * generator writes which is missing from that list is UNGUARDED. A new file would have been generated
- * and silently undefended — the exact failure the generate-and-check pattern exists to prevent.
- *
- * ⚠ [ratio] is what makes cropping a non-problem: the render box uses it, and conformant artwork
- * shares it, so the scale is uniform and nothing is ever cropped (029 research R2).
+ * The promotional banner canvas, from packages/shared-types/src/banner-canvas.json. The render box and
+ * conformant artwork share [ratio], so nothing is ever cropped.
  */
 object EffyBanner {
     /** The authored canvas, in pixels. Artwork conforms to exactly this. */
@@ -346,15 +254,10 @@ object EffyBanner {
     /** Width ÷ height. The render box is locked to this at every window size. */
     const val ratio = ${BANNER_CANVAS.aspectRatio}f
 
-    /** Above this the banner is centred rather than grown — a tablet gets no promotional slab. */
+    /** Above this the banner is centred rather than grown. */
     val maxRenderWidth = ${BANNER_CANVAS.maxRenderWidthDp}.dp
 
-    /**
-     * Where the live message is drawn over the artwork, as fractions of the canvas.
-     *
-     * ⚠ NOT a trim-safe region — nothing is ever trimmed. This is the part of an operator's picture
-     * the platform prints text on, which is what they need to leave quiet.
-     */
+    /** Where the live message is drawn over the artwork, as fractions of the canvas: the part an operator leaves quiet. */
     const val textInsetLeft = ${BANNER_CANVAS.textZone.insetLeftPct / 100}f
     const val textInsetBottom = ${BANNER_CANVAS.textZone.insetBottomPct / 100}f
     const val textWidth = ${BANNER_CANVAS.textZone.widthPct / 100}f
@@ -362,113 +265,22 @@ object EffyBanner {
 }
 `;
   writeFileSync(target.sharedOut, shared);
-
-  // The Material 3 type scale, bound to Nunito Sans.
-  //
-  // ⚠ Generated PER APP rather than shared, because it is the one part of the theme that genuinely
-  // cannot be: it imports the app's own generated Compose resource accessors (`Res.font.…`), whose
-  // package differs per module. The SCALE itself is identical everywhere — it is data, and it comes
-  // from here so the two surfaces cannot drift into different type hierarchies. 018 authored this by
-  // hand inside shop-mobile, which is exactly why customer-mobile never had it.
-  if (target.typographyOut && storefront) {
-    writeFileSync(target.typographyOut, storefrontTypography(banner, target));
-    writeFileSync(target.shapeOut, storefrontShape(banner, target, colorCss));
-  } else if (target.typographyOut) {
-    const typography = `${banner}
-package ${target.pkg}
-
-import androidx.compose.material3.Typography
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import org.jetbrains.compose.resources.Font
-import ${target.resPkg}.Res
-import ${target.resPkg}.general_sans_medium
-import ${target.resPkg}.general_sans_regular
-import ${target.resPkg}.general_sans_semibold
-
-/**
- * General Sans, the platform typeface (constitution Principle V, v1.11.0).
- *
- * ⚠ There is NO Bold 700. The design language tops out at SemiBold 600, so the scale below is
- * SemiBold-led — Medium 500 replaces the weight slot Nunito Sans filled with Bold. Requesting
- * FontWeight.Bold resolves to the nearest available face rather than a real bold.
- */
-@Composable
-fun effyFontFamily(): FontFamily = FontFamily(
-    Font(Res.font.general_sans_regular, FontWeight.Normal),
-    Font(Res.font.general_sans_medium, FontWeight.Medium),
-    Font(Res.font.general_sans_semibold, FontWeight.SemiBold),
-)
-
-/**
- * The Effy Material 3 type scale. Identical across every mobile surface by construction.
- *
- * Sizes come from the source design language's 14 styles (026 data-model §3): H1 64 / H2 32 / H3 24 /
- * H4 20, and B1 16 / B2 14 / B3 12 in Regular, Medium and SemiBold. Material 3 has more slots than the
- * design has steps, so some slots deliberately share a step.
- *
- * ⚠ TRACKING. H1 and H2 carry the design's signature -5% letter-spacing; everything else is 0.
- * ⚠ H1's line height is 0.8 x its size (64 -> 51sp), which sits BELOW the cap height. That is
- *   intentional for one- or two-word display strings and WILL clip descenders on longer text — use
- *   displayLarge only where the source does (the onboarding screen).
- */
-@Composable
-fun effyTypography(): Typography {
-    val family = effyFontFamily()
-    return Typography(
-        displayLarge = effyTextStyle(family, FontWeight.SemiBold, 64, 51, -0.05f),
-        headlineLarge = effyTextStyle(family, FontWeight.SemiBold, 32, 32, -0.05f),
-        headlineMedium = effyTextStyle(family, FontWeight.SemiBold, 24, 29),
-        headlineSmall = effyTextStyle(family, FontWeight.SemiBold, 20, 24),
-        titleLarge = effyTextStyle(family, FontWeight.SemiBold, 20, 24),
-        titleMedium = effyTextStyle(family, FontWeight.Medium, 20, 24),
-        titleSmall = effyTextStyle(family, FontWeight.SemiBold, 16, 22),
-        bodyLarge = effyTextStyle(family, FontWeight.Normal, 16, 22),
-        bodyMedium = effyTextStyle(family, FontWeight.Normal, 14, 20),
-        bodySmall = effyTextStyle(family, FontWeight.Normal, 12, 17),
-        labelLarge = effyTextStyle(family, FontWeight.Medium, 16, 22),
-        labelMedium = effyTextStyle(family, FontWeight.Medium, 14, 20),
-        labelSmall = effyTextStyle(family, FontWeight.Medium, 12, 17),
-    )
-}
-
-private fun effyTextStyle(
-    family: FontFamily,
-    weight: FontWeight,
-    size: Int,
-    lineHeight: Int,
-    /** Tracking as a FRACTION OF THE FONT SIZE (em), matching the source design's percentage units. */
-    letterSpacingEm: Float = 0f,
-) = TextStyle(
-    fontFamily = family,
-    fontWeight = weight,
-    fontSize = size.sp,
-    lineHeight = lineHeight.sp,
-    letterSpacing = (size * letterSpacingEm).sp,
-)
-`;
-    writeFileSync(target.typographyOut, typography);
-  }
+  writeFileSync(target.typographyOut, typography(target));
+  writeFileSync(target.shapeOut, shape(target, colorCss));
 
   console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors) + ${target.sharedOut} (radius sm/md/default ${radiusSmDp}/${radiusMdDp}/${radiusDefaultDp}.dp)`);
 }
 
 /**
- * 087 — the storefront type scale, bound to Geist (bundled TTFs, research D3). Sizes are the canvas
- * Foundations board's (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv) mapped onto Material 3's
- * slots so every screen that reads a slot gets the storefront step:
- *   display L/M/S  — 36 thank-you · 34 large title (tab roots) · 30 product price
- *   headline L/M/S — 32 auth title · 24 page / arrival · 20 section
- *   title L/M/S    — 20 sheet / empty-state title · 17 app-bar title · 16 row title
- *   body           — 16 default · 14 secondary · 12 meta
- *   label          — 16 buttons · 14 chips · 12 badges / tab labels
- * ⚠ Geist has a real Bold 700 (General Sans did not): the large titles and prices are 700.
+ * The type scale, bound to Geist. Sizes map the design's steps onto Material 3's slots:
+ *  display L/M/S — 36 thank-you · 34 large title (tab roots) · 30 product price
+ *  headline L/M/S — 32 auth title · 24 page / arrival · 20 section
+ *  title L/M/S — 20 sheet / empty-state title · 17 app-bar title · 16 row title
+ *  body — 16 default · 14 secondary · 12 meta
+ *  label — 16 buttons · 14 chips · 12 badges / tab labels
  */
-function storefrontTypography(banner, target) {
-  return `${banner}
+function typography(target) {
+  return `${banner("src/storefront/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.Typography
@@ -485,7 +297,7 @@ import ${target.resPkg}.geist_mono_medium
 import ${target.resPkg}.geist_regular
 import ${target.resPkg}.geist_semibold
 
-/** Geist — the storefront typeface (constitution v3.3.0), bundled; no run-time download. */
+/** Geist, bundled; no run-time download. */
 @Composable
 fun effyFontFamily(): FontFamily = FontFamily(
     Font(Res.font.geist_regular, FontWeight.Normal),
@@ -498,7 +310,7 @@ fun effyFontFamily(): FontFamily = FontFamily(
 @Composable
 fun effyMonoFontFamily(): FontFamily = FontFamily(Font(Res.font.geist_mono_medium, FontWeight.Medium))
 
-/** The storefront Material 3 type scale (all fifteen slots defined — none falls back to the platform font). */
+/** The Material 3 type scale: all fifteen slots defined, so none falls back to the platform font. */
 @Composable
 fun effyTypography(): Typography {
     val family = effyFontFamily()
@@ -526,7 +338,7 @@ private fun effyTextStyle(
     weight: FontWeight,
     size: Int,
     lineHeight: Int,
-    /** Tracking as a FRACTION OF THE FONT SIZE (em). */
+    /** Tracking as a fraction of the font size (em). */
     letterSpacingEm: Float = 0f,
 ) = TextStyle(
     fontFamily = family,
@@ -538,14 +350,14 @@ private fun effyTextStyle(
 `;
 }
 
-/** 087 — the storefront's own corner radii, from storefront/tokens.css (customer app only). */
-function storefrontShape(banner, target, css) {
+/** The storefront's own corner radii. */
+function shape(target, css) {
   const rem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
     if (!m) throw new Error(`gen-compose-theme: no ${name} in storefront/tokens.css`);
     return Math.round(parseFloat(m[1]) * 16);
   };
-  return `${banner}
+  return `${banner("src/storefront/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.foundation.shape.RoundedCornerShape

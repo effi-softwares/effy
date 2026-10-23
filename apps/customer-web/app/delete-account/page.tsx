@@ -20,11 +20,11 @@ export const metadata: Metadata = {
  * How to delete an Effy account, and what happens to the data (reference: Help & info · Deleting
  * your account).
  *
- * ⚠ THIS PAGE IS PUBLIC AND MUST STAY REACHABLE WITHOUT THE APP OR A SIGN-IN: the app stores link
+ * This page is public and must stay reachable without the app or a sign-in: the app stores link
  * to it as the account-deletion address, and someone who cannot sign in still has to be able to read
  * it and reach us.
  *
- * ⚠ The contact address is the business's own, read from `@effy/legal-content` — never typed here.
+ * The contact address is the business's own, read from `@effy/legal-content` — never typed here.
  */
 export default function DeleteAccountPage() {
   const { supportEmail } = sellerIdentity()

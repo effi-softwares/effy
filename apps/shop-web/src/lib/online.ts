@@ -1,12 +1,12 @@
 /**
  * Connectivity, and the guard that stops a write being reported as saved when it was not
- * (059, US5 / FR-033, FR-036, FR-037).
+ * .
  *
- * ⚠ THIS IS GENUINE CLIENT STATE, which is why it lives in a TanStack Store and not in the query
+ * This is genuine client state, which is why it lives in a TanStack Store and not in the query
  * cache (Principle VI). "Is this device connected" is not something the server can tell us.
  */
-// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
-// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
+// `@tanstack/react-store`, not `@tanstack/store`. It re-exports `Store` (`export * from
+// "@tanstack/store"`), and react-store is what this app declares. Importing the core package
 // directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
 // into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
 // resolving the moment the hoisting layout changes. Every other store in this app imports it the
@@ -20,7 +20,7 @@ export interface OnlineState {
 }
 
 export const onlineStore = new Store<OnlineState>({
-  // ⚠ Default TRUE, not false. `navigator.onLine` is unavailable in some test environments and in
+  // Default true, not false. `navigator.onLine` is unavailable in some test environments and in
   // older browsers, and defaulting to offline would render the offline banner and refuse every
   // write on a perfectly connected console — a far worse failure than the reverse.
   online: typeof navigator === "undefined" ? true : (navigator.onLine ?? true),
@@ -28,9 +28,9 @@ export const onlineStore = new Store<OnlineState>({
 })
 
 /**
- * Raised instead of sending a mutation while offline (FR-036).
+ * Raised instead of sending a mutation while offline.
  *
- * ⚠ A DISTINCT TYPE, so the UI can say "you are offline" rather than the generic failure it would
+ * A distinct type, so the UI can say "you are offline" rather than the generic failure it would
  * otherwise show. "Told it cannot be done right now" and "appeared to work and quietly did nothing"
  * look identical to an operator for about two seconds, and only one of them is honest.
  */
@@ -46,15 +46,9 @@ export function isOffline(): boolean {
 }
 
 /**
- * Refuse a write while offline.
- *
- * ⚠ REFUSES; IT DOES NOT QUEUE, and that is a requirement rather than a limitation (spec Decisions
- * taken, 2026-09-19). A pick recorded on a tablet and sent an hour later is a claim about a shelf
- * ANOTHER OPERATOR MAY HAVE EMPTIED in between, and the platform has no conflict rule that could
- * settle it. 054 already accepts a residual oversell window it cannot close; a replayed pick would
- * widen it invisibly.
- *
- * Call this at the top of every mutation function, before anything optimistic happens.
+ * Refuse a write while offline; never queue it. A pick sent an hour late is a claim about a shelf another
+ * operator may have emptied since, and nothing could settle the conflict. Call this at the top of every
+ * mutation, before anything optimistic.
  */
 export function assertOnline(): void {
   if (isOffline()) throw new OfflineError()
@@ -69,12 +63,7 @@ export function noteContact(): void {
   }))
 }
 
-/**
- * Record that a request failed for a reason that looks like connectivity.
- *
- * ⚠ ONLY a network-level failure. An HTTP 500 means we reached the server, so treating it as
- * offline would tell an operator to check their wifi over a backend defect.
- */
+/** Record a failure that looks like connectivity: network-level only (a 500 reached the server). */
 export function noteNetworkFailure(): void {
   onlineStore.setState((s) => ({ ...s, online: false }))
 }
@@ -82,7 +71,7 @@ export function noteNetworkFailure(): void {
 /**
  * Start tracking. Returns a teardown, and is safe to call where `window` does not exist.
  *
- * `onReconnect` is where the console refetches (FR-037), so recovery needs no manual reload.
+ * `onReconnect` is where the console refetches, so recovery needs no manual reload.
  */
 export function watchConnectivity(onReconnect?: () => void): () => void {
   if (typeof window === "undefined") return () => undefined
@@ -90,7 +79,7 @@ export function watchConnectivity(onReconnect?: () => void): () => void {
   const goOnline = () => {
     const wasOffline = !onlineStore.state.online
     onlineStore.setState((s) => ({ ...s, online: true }))
-    // ⚠ Fire only on a TRANSITION. `online` fires on some platforms for events that are not a
+    // Fire only on a transition. `online` fires on some platforms for events that are not a
     // recovery, and refetching every screen each time is a burst of requests for nothing.
     if (wasOffline) onReconnect?.()
   }

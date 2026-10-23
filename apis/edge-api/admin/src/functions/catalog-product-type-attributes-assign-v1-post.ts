@@ -1,4 +1,3 @@
-// POST /admin/v1/catalog/product-types/{id}/attributes — assign an attribute. Mutate access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

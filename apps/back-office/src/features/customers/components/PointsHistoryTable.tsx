@@ -27,7 +27,7 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
     cell: ({ row }) => (
       <span className="space-y-0.5">
         <span className="block">{POINTS_REASON_LABELS[row.original.reason] ?? row.original.reason}</span>
-        {/* ⚠ Internal: shown to staff, never to the customer. */}
+        {/* Internal: shown to staff, never to the customer. */}
         {row.original.note ? <span className="block text-sm text-muted-foreground">{row.original.note}</span> : null}
       </span>
     ),
@@ -57,7 +57,7 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
   },
 ];
 
-/** Every change to a customer's points, newest first (074). A table, never cards (Principle V). */
+/** Every change to a customer's points, newest first. A table, never cards (Principle V). */
 export function PointsHistoryTable({ customerId }: { customerId: string }) {
   const history = usePointsHistory(customerId);
   if (history.isError) return <ErrorState error={history.error} onRetry={() => void history.refetch()} />;

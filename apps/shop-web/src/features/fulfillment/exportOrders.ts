@@ -3,14 +3,14 @@ import { toCsv, toListQuery } from "./orderConsole"
 import { listOrders } from "./repo"
 
 /**
- * The Orders CSV export — ONE implementation, two call sites (058 T065).
+ * The Orders CSV export — one implementation, two call sites.
  *
- * ⚠ EXTRACTED FROM `OrderListScreen` when Today's Quick actions became its second caller. Two
+ * Extracted from `OrderListScreen` when Today's Quick actions became its second caller. Two
  * exports would mean two CSV shapes, and the divergence would only ever be noticed in a spreadsheet
  * on someone else's desk — long after the change that caused it.
  */
 
-/** ⚠ Capped: a CSV of a shop's entire history is a report, not an export button. */
+/** Capped: a CSV of a shop's entire history is a report, not an export button. */
 const MAX_PAGES = 40
 
 export async function collectOrders(search: OrdersSearch): Promise<OrderRow[]> {

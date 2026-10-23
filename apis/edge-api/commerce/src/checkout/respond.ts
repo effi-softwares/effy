@@ -1,4 +1,3 @@
-// The checkout error mapping.
 import {
   ConnectionLimitError, formatCents, internal, notFound, ProblemType, refused, validationFailed, type RequestScope,
 } from "@effy/edge-shared";
@@ -17,17 +16,12 @@ const CHOICE_DETAIL = {
   slot_required: "choose a delivery time",
   slot_unavailable: "that delivery time is no longer available — choose another",
   date_unavailable: "that delivery day is no longer available — choose another",
-  // 078 — the one sentence, from the one place it is written.
   no_windows_available: DELIVERY_WINDOW_WORDS.noWindows,
-  // 079 — who delivers to this address is not what the screen showed; the fresh quote says who does.
+  // The address's delivery type is not what the screen showed; the fresh quote says which it is.
   delivery_type_changed: "how this order is delivered has changed — check the delivery option and try again",
 } as const;
 
-/**
- * 409 for a slot or a day that is no longer on offer. It carries the machine `code` the client
- * switches on and, when it could be computed, a FRESH quote — so the shopper is shown what they
- * can choose now instead of being sent to ask again.
- */
+/** For a window or day no longer offered, with a fresh quote when one could be computed. */
 export function deliveryChoiceRefused(scope: RequestScope, err: DeliveryChoiceError, quote: unknown | null): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 409,
@@ -40,11 +34,7 @@ export function deliveryChoiceRefused(scope: RequestScope, err: DeliveryChoiceEr
   };
 }
 
-/**
- * 409 when the delivery total is no longer the one the client showed (077 FR-031). Nothing was
- * written and nothing was charged. It carries the options as they stand NOW, so the shopper is shown
- * the new total and presses pay again — the same shape as a delivery-choice refusal.
- */
+/** The delivery total is not the one shown. Nothing was written; carries the current options. */
 export function deliveryFeeChanged(scope: RequestScope, quote: unknown | null): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 409,
@@ -57,7 +47,6 @@ export function deliveryFeeChanged(scope: RequestScope, quote: unknown | null): 
   };
 }
 
-/** 094 — 409 `promotions_changed`, with the cart as it stands. Nothing was charged. */
 export function promotionsChanged(scope: RequestScope, cart: unknown | null): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 409,
@@ -79,22 +68,18 @@ export function checkoutError(scope: RequestScope, err: unknown, what: string): 
     return refused(scope, 409, "product_unavailable", "something in your cart is no longer available", { code: "product_unavailable" });
   }
   if (err instanceof AddressNotFoundError) return validationFailed(scope, "choose a valid delivery address");
-  // ⚠ THE refusal (076 FR-022): one code and one sentence, from the one file that holds them, so
-  // the checkout says exactly what the address book says. 422, not 400 — the request is well
-  // formed; it is the address nobody delivers to.
+  // The request is well formed, nobody delivers to the address.
   if (err instanceof NotServiceableError || err instanceof CourierNotPurchasableError) {
-    // A courier-only address reaching checkout is an invariant breach, not a customer's mistake
-    // (see CourierNotPurchasableError). The customer gets the same sentence; the log says why.
+    // A courier-only address reaching here is an invariant breach; the log says so.
     if (err instanceof CourierNotPurchasableError) scope.log.error({ err: err.message }, "checkout: courier coverage reached the quote before courier ordering exists");
     return refused(scope, 422, COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, { code: COVERAGE_REFUSAL_CODE });
   }
   if (err instanceof BelowMinimumError) {
-    // Carries how much more is needed — never a shop.
     return validationFailed(scope, `add ${formatCents(err.remainingCents)} more to reach the ${formatCents(err.minimumCents)} minimum order`);
   }
   if (err instanceof OrderNotFoundError || err instanceof PaymentMethodNotFoundError) return notFound(scope);
 
-  // 074 — each points refusal says what IS possible, so the client can offer it.
+  // Each points refusal says what is possible, so the client can offer it.
   if (err instanceof InsufficientPointsError) {
     return refused(scope, 409, "points_balance_changed", "your points balance has changed", { code: "points_balance_changed", usable: err.usable });
   }

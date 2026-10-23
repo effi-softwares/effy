@@ -28,9 +28,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Where a contactless package was left (060 FR-023).
+ * Where a contactless package was left.
  *
- * ⚠ Replaces free text, and that is a correctness change rather than styling: a typed answer
+ * Replaces free text, and that is a correctness change rather than styling: a typed answer
  * cannot be matched against a customer's later claim, and at a doorstep it mostly is not typed at
  * all. Serialised into the existing note field, so no contract changes.
  */
@@ -50,28 +50,28 @@ data class DeliveryUiState(
     val isWorking: Boolean = false,
     val message: String? = null,
     /**
-     * A note attached to the proof (060 FR-022).
+     * A note attached to the proof.
      *
-     * ⚠ The repository has ALWAYS accepted a note on every proof method — and every call site in
+     * The repository has always accepted a note on every proof method — and every call site in
      * the app passed `null`. This is a UI gap being closed, not a contract change.
      */
     val proofNote: String = "",
-    /** A note attached to an undeliverable report (060 FR-022). Same story: the parameter existed. */
+    /** A note attached to an undeliverable report. Same story: the parameter existed. */
     val failNote: String = "",
-    /** The chosen drop location for contactless proof (060 FR-023). */
+    /** The chosen drop location for contactless proof. */
     val dropSpot: DropSpot? = null,
     /** Delivered with no signal: the proof is saved on the phone and sends when it can (backlog B3). */
     val proofSending: Boolean = false,
-    /** 092 — how the last drop was completed, for the Delivered screen; null until one is. */
+    /** How the last drop was completed, for the Delivered screen; null until one is. */
     val deliveredWith: ProofMethod? = null,
-    /** 092 — when it was completed (or recorded as not delivered), on this phone's clock. */
+    /** When it was completed (or recorded as not delivered), on this phone's clock. */
     val deliveredAtEpochMillis: Long? = null,
-    /** 092 rev 2 — the proof note as sent ("Left at: Front door — …"), for the Delivered line. */
+    /** Rev 2 — the proof note as sent ("Left at: Front door — …"), for the Delivered line. */
     val deliveredNote: String? = null,
-    /** 092 rev 2 — why the last drop was not delivered, and the driver's words, for Not delivered. */
+    /** Rev 2 — why the last drop was not delivered, and the driver's words, for Not delivered. */
     val failedReason: FailureReason? = null,
     val failedNote: String? = null,
-    /** 092 — a short confirmation for the snackbar ("Van loaded"); cleared once shown. */
+    /** A short confirmation for the snackbar ("Van loaded"); cleared once shown. */
     val notice: String? = null,
 )
 
@@ -83,11 +83,11 @@ class DeliveryViewModel(
     private val completeWithMedia: CompleteWithMedia,
     private val failDrop: FailDrop,
     private val newChangeId: () -> String,
-    /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
+    /** "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
-    /** 088 — return the run's failed parcels to the hub. Null in tests that do not care. */
+    /** Return the run's failed parcels to the hub. Null in tests that do not care. */
     private val returnToHub: ReturnToHub? = null,
-    /** 090 — load the van: every staged drop goes out together. Null in tests that do not care. */
+    /** Load the van: every staged drop goes out together. Null in tests that do not care. */
     private val loadVan: LoadVan? = null,
     private val now: () -> Long = { com.effyshopping.driver.mobile.core.presentation.nowEpochMillis() },
 ) : ViewModel() {
@@ -104,8 +104,8 @@ class DeliveryViewModel(
      * A dispatcher changed this round (re-ordered its stops, moved it, withdrew it). Re-read the
      * round the driver is looking at, quietly.
      *
-     * ⚠ NEVER WHILE THE DRIVER IS MID-ACTION (FR-016): a load or a submission of theirs is in
-     * flight and its own answer is about to replace this state. And only once a round has loaded —
+     * Never while the driver is mid-action: a load or a submission of theirs is in
+     * flight and its own answer is about to replace this state. And only once a round has loaded
      * the first load is `loadRun`'s, with its own loading and error states.
      */
     private suspend fun reloadRunQuietly() {
@@ -118,7 +118,7 @@ class DeliveryViewModel(
     }
 
     /**
-     * 092 rev 2 — the drop on screen is re-read too: an order cancelled, a drop moved to someone else,
+     * Rev 2 — the drop on screen is re-read too: an order cancelled, a drop moved to someone else,
      * or new instructions from the customer show while the driver is at the door. Not once the driver
      * has finished it — the Delivered / Not delivered screen describes what they did, not the record.
      */
@@ -155,8 +155,8 @@ class DeliveryViewModel(
     fun clearNotice() = _state.update { it.copy(notice = null) }
 
     /**
-     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
-     * time after, it re-reads quietly. ⚠ A FALLBACK: the driver's own writes already re-read every
+     * Rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly. A fallback: the driver's own writes already re-read every
      * work screen through `WorkChanges` (the server never announces a driver's change back to them).
      * This catches what slips past that — a write made before the app last closed, a missed signal.
      */
@@ -192,7 +192,7 @@ class DeliveryViewModel(
     }
 
     /**
-     * 093 — nothing on a drop before the van is loaded. The platform refuses it too; this says so at once,
+     * Nothing on a drop before the van is loaded. The platform refuses it too; this says so at once,
      * with no write — a refusal arriving later from the offline queue would be a dead end at the door.
      */
     private fun refuseIfNotLoaded(dropId: String): Boolean {
@@ -231,9 +231,9 @@ class DeliveryViewModel(
     /**
      * Complete an unattended drop.
      *
-     * ⚠ IT TAKES BYTES NOW (064, FR-002). Leaving a package with no evidence of where it was left is
+     * It takes bytes now. Leaving a package with no evidence of where it was left is
      * the case most likely to become a dispute, so contactless carries a photograph like every other
-     * proof — the METHOD is what records that nobody took it in hand. The backend refuses a
+     * proof — the method is what records that nobody took it in hand. The backend refuses a
      * contactless proof with no media, so a no-photo path here would simply 422 at the doorstep.
      */
     fun deliverContactless(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.CONTACTLESS, bytes, note)
@@ -243,12 +243,9 @@ class DeliveryViewModel(
     fun deliverWithSignature(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.SIGNATURE, bytes, note)
 
     /**
-     * Complete a drop — the second of its two taps (092, R5). ⚠ ARRIVAL IS RECORDED HERE, SILENTLY,
-     * before the proof: the driver no longer says "On my way" or "I've arrived", but the platform's
-     * timeline still has an arrival, written in the same order (both saved and sent in order with no
-     * signal). A drop already arrived is not moved again.
-     *
-     * One changeId per drop's proof, whichever method — a retry of the same delivery is one write.
+     * Complete a drop, the second of its two taps. Arrival is recorded first, silently, so the timeline
+     * still has one (saved and sent in order with no signal); a drop already arrived is not moved again. One
+     * changeId per drop's proof, whichever method.
      */
     fun deliver(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
         if (_state.value.isWorking || refuseIfNotLoaded(dropId)) return
@@ -262,7 +259,7 @@ class DeliveryViewModel(
                     advanceDrop(dropId, "arrived", ids.of(arrive))
                     ids.settled(arrive)
                 }
-                // 096 — every bag of the drop goes with the proof: scanned, typed, or handed over by hand.
+                // Every bag of the drop goes with the proof: scanned, typed, or handed over by hand.
                 val bags = _state.value.drop?.takeIf { it.dropId == dropId }?.packages.orEmpty().flatMap { it.bags }.map { it.code }
                 val outcome = completeWithMedia(dropId, method, bytes, note, ids.of(action), withRestByHand(handed, bags))
                 ids.settled(action)
@@ -286,11 +283,9 @@ class DeliveryViewModel(
     }
 
     /**
-     * 090 — the van is loaded: every staged drop goes out for delivery in one step (093: the only way a
-     * drop goes out). Saved with no signal, the run's copy is moved on here so the driver can start.
-     *
-     * 093 — [notLoaded] is what the driver could not find, each with a reason: those packages come off
-     * the run, and a drop left with none comes off with them.
+     * The van is loaded: every staged drop goes out for delivery in one step (the only way a drop goes out).
+     * With no signal, the run's copy moves on here so the driver can start. [notLoaded] are what the driver
+     * could not find, each with a reason: those packages come off the run, and an emptied drop with them.
      */
     fun loadVan(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()) {
         val send = loadVan ?: return
@@ -331,7 +326,7 @@ class DeliveryViewModel(
         }
     }
 
-    /** 088 — the parcels from this run's failed drops are back at the hub: return them all at once. */
+    /** The parcels from this run's failed drops are back at the hub: return them all at once. */
     fun returnParcels(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
         val send = returnToHub ?: return
         if (_state.value.isWorking || _state.value.run?.toReturn == null) return
@@ -339,7 +334,7 @@ class DeliveryViewModel(
         val action = "return:$runId"
         viewModelScope.launch {
             try {
-                // 096 — every bag coming back is accounted for: scanned, typed, or checked in by hand.
+                // Every bag coming back is accounted for: scanned, typed, or checked in by hand.
                 val bags = _state.value.run?.toReturn?.bagCodes.orEmpty()
                 val outcome = send(runId, ids.of(action), withRestByHand(handed, bags))
                 ids.settled(action)
@@ -381,11 +376,11 @@ private fun dropStatusFor(to: String): DropStatus = when (to) {
     else -> DropStatus.ARRIVED
 }
 
-/** 093 — the platform's own sentence for a drop that has not been loaded. */
+/** The platform's own sentence for a drop that has not been loaded. */
 internal const val LOAD_FIRST = "Load the van first."
 
 /**
- * 096 — what a step hands over: every bag scanned or typed, and the rest of [allBags] by hand. A step
+ * What a step hands over: every bag scanned or typed, and the rest of [allBags] by hand. A step
  * must account for every bag (the platform refuses one that does not); a bag the driver did not scan
  * was handed over all the same — the scan screen's fallback is the driver saying so.
  */

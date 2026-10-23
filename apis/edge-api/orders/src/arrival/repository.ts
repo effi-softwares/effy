@@ -1,18 +1,14 @@
-// Recording that a package arrived (053 US2) — the transaction this whole feature exists for.
-//
-// Before this slice, a STANDARD package could never leave `collected`: `edge-api/driver` writes
-// `delivered` only from a delivery task, and delivery tasks are created only for `same_day`
-// packages. So most orders never finished. This is the other route to the same terminal state.
+// Staff record that a package arrived: the route to `delivered` for a package no driver delivers.
 
 import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
 
 import { OrderActionError } from "../lib/errors";
 
 export interface ArrivalResult {
-  /** false when this call found the arrival already recorded — the idempotent replay (FR-005). */
+  /** false when this call found the arrival already recorded. */
   created: boolean;
   arrivedAt: string;
-  /** True when this arrival completed the order (every package now has one). */
+  /** This arrival completed the order. */
   orderFinished: boolean;
   orderId: string;
 }
@@ -26,34 +22,15 @@ export interface RecordArrivalInput {
 }
 
 /**
- * Record an arrival, idempotently.
- *
- * ⚠ IDEMPOTENCY IS THE `finalizeSucceeded` SHAPE (`@effy/edge-shared/payments`), and it is belt AND braces:
- *
- *  1. The row lock + status-guarded UPDATE (`WHERE id = $1 AND status = 'collected'`) means a second
- *     call affects 0 rows and takes the early return — no second notification, and critically the
- *     ORIGINAL `arrived_at` is returned untouched. A "successful" repeat that silently moved the
- *     arrival time would corrupt the one fact this table exists to hold.
- *  2. `package_arrival_package_uq` is a UNIQUE the DATABASE enforces, independent of this code. If
- *     this function were ever called twice concurrently, or rewritten wrongly, the second insert
- *     still cannot land.
- *
- * The two guarantees are deliberately not the same mechanism: code can be edited, a constraint
- * cannot be edited by accident.
+ * Idempotent twice over: the status-guarded UPDATE makes a repeat a no-op that returns the original
+ * `arrived_at`, and `package_arrival_package_uq` refuses a second insert regardless of this code.
  */
 export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalResult> {
   return withTransaction(async (tx) => {
-    // ⚠ THE LOCK IS TAKEN FIRST, IN ITS OWN STATEMENT (079). It used to be `FOR UPDATE OF sf` on the
-    // read below — one statement that both waited for the row and read the joined tables. A second
-    // caller that waited there was handed the UPDATED package row (re-checked after the wait) beside
-    // the joined rows as they stood when its statement BEGAN: status already moved on, and no sign
-    // of the record the first caller had just written. So the replay it was meant to be was refused
-    // instead. Locking first means the read below starts after the winner has committed and sees
-    // everything it wrote. (Found when a test that races two callers began failing every run.)
+    // The lock is taken in its own statement first: `FOR UPDATE OF sf` on the joined read handed a
+    // waiting caller stale joined rows, refusing its replay. Now the read starts after the winner commits.
     await tx.query(`SELECT 1 FROM public.shop_fulfillment WHERE id = $1 FOR UPDATE`, [input.fulfillmentId]);
 
-    // Serialised by the lock above: two operators pressing at once resolve to one winner and one
-    // idempotent replay, rather than racing the status guard.
     const pkg = await tx.query<{
       id: string;
       order_id: string;
@@ -81,7 +58,7 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
     const row = pkg.rows[0];
     if (!row) throw new OrderActionError("not_found");
 
-    // Already arrived → the idempotent replay. Report the ORIGINAL time, not a new one.
+    // Already arrived: report the original time.
     if (row.arrived_at) {
       return {
         created: false,
@@ -93,8 +70,7 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
 
     if (row.status !== "collected") throw new OrderActionError("not_collected");
 
-    // ⚠ FR-006. A same-day package reaches `delivered` through the driver's proof-of-delivery, not
-    // here; a standard one must have a recorded handover first, or nobody can say who had it.
+    // A handover must be recorded first, or nobody can say who had it.
     if (!row.has_handoff) throw new OrderActionError("no_handoff");
 
     const arrivedAt = input.arrivedAt ?? new Date().toISOString();
@@ -114,7 +90,7 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
       [input.fulfillmentId],
     );
     if (advanced.rowCount === 0) {
-      // Someone else won the race between the SELECT and here. Their arrival stands.
+      // Lost the race; the other arrival stands.
       const existing = await tx.query<{ arrived_at: string }>(
         `SELECT arrived_at FROM public.package_arrival WHERE shop_fulfillment_id = $1`,
         [input.fulfillmentId],
@@ -127,7 +103,6 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
       };
     }
 
-    // The append-only accountability record the shop console already reads (020 FR-019a).
     await tx.query(
       `INSERT INTO public.fulfillment_event
            (shop_fulfillment_id, event_type, from_status, to_status)
@@ -135,11 +110,9 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
       [input.fulfillmentId],
     );
 
-    // ⚠ Only when this was the LAST package (FR-007). Enqueued in THIS transaction so the intent and
-    // the fact commit together.
+    // Only for the last package, in this transaction, so intent and fact commit together.
     const orderFinished = await enqueueOrderDeliveredIfComplete(tx, row.order_id);
 
-    // FR-014 — attributed, and retained where 009 put every other back-office action.
     await tx.query(
       `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
        VALUES ($1, 'order.arrival_recorded', 'shop_fulfillment', $2, $3::jsonb)`,

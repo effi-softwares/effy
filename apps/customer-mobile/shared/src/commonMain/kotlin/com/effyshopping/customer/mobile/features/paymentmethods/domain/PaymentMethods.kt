@@ -1,15 +1,9 @@
 package com.effyshopping.customer.mobile.features.paymentmethods.domain
 
 /**
- * Payment methods domain (051 US6) — the cards a shopper chose to keep.
- *
- * ⚠ NOTHING HERE IS STORED ON THE DEVICE, and there is deliberately no field that could hold a card
- * number, a security code or a cardholder name (FR-025 / SC-012). `last4` is the only part of a card
- * number permitted to leave the provider at all.
- *
- * ⚠ Read live, never cached. A card removed at the provider, expired, or replaced by the issuer's
- * auto-updater would keep being offered from a stale copy, which is exactly what makes FR-023
- * unmeetable (data-model § 2).
+ * The cards a shopper chose to keep. Nothing is stored on the device, and no field could hold a card
+ * number, security code or cardholder name (`last4` only). Read live, never cached, so a card removed,
+ * expired or replaced at the provider is never offered from a stale copy.
  */
 data class KeptCard(
     val id: String,
@@ -18,7 +12,7 @@ data class KeptCard(
     val expMonth: Long,
     val expYear: Long,
     val isDefault: Boolean,
-    /** ⚠ Server-computed. The client must not decide usability from the expiry (FR-023). */
+    /** Server-computed. The client must not decide usability from the expiry. */
     val usable: Boolean,
     /** Why it cannot be used, when it cannot. Stated, never left for the shopper to work out. */
     val unusableReason: String?,
@@ -28,9 +22,9 @@ interface PaymentMethodsRepository {
     /**
      * The shopper's kept cards.
      *
-     * ⚠ An empty list means "no kept cards". A FAILURE must throw rather than return empty — "you have
+     * An empty list means "no kept cards". A failure must throw rather than return empty — "you have
      * no cards" and "we could not ask" are different facts, and answering the second with the first is
-     * a false statement about the shopper's own account (FR-036).
+     * a false statement about the shopper's own account.
      */
     suspend fun list(): List<KeptCard>
 

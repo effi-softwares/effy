@@ -12,7 +12,7 @@ import { promotionMutationError } from "../errorText";
 import { chosenCustomersQuery, useAddChosenCustomers, useRemoveChosenCustomer } from "../queries";
 
 /**
- * The customers a "chosen customers" promotion is for (094 US6). Add by pasting emails — one per line,
+ * The customers a "chosen customers" promotion is for. Add by pasting emails — one per line,
  * or comma-separated — and the ones that match no account are listed back, never guessed.
  */
 export function ChosenCustomers({ promotionId, canManage }: { promotionId: string; canManage: boolean }) {

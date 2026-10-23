@@ -10,14 +10,9 @@ export const metadata: Metadata = {
 }
 
 /**
- * ⚠ NO `next/dynamic({ ssr: false })` here — Next 16 forbids it in a Server Component ("`ssr: false`
- * is not allowed with `next/dynamic` in Server Components"). It is also unnecessary: `SignUpForm`
- * is a Client Component, so Next already emits it — and everything it imports, including the Amplify
- * SDK — as a chunk belonging to THIS ROUTE SEGMENT. Guest pages never load it.
- *
- * That route-group split is the whole quarantine, and it is enforced by .dependency-cruiser.cjs.
- *
- * <Suspense> is required because the form reads `useSearchParams` (the `next` destination).
+ * No `next/dynamic({ ssr: false })` (Next 16 forbids it in a Server Component, and the form is a Client
+ * Component, so it and the Amplify SDK are this segment's chunk anyway). <Suspense> because the form
+ * reads `useSearchParams`.
  */
 export default function SignUpPage() {
   return (

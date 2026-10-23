@@ -32,12 +32,8 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
 }
 
 /**
- * Add a vehicle (061 FR-001…FR-006).
- *
- * ⚠ ONLY THE FOUR FIELDS THE BUSINESS CANNOT DO WITHOUT ARE REQUIRED. Everything else — capacity,
- * refrigeration, compliance dates — is editable afterwards on the detail screen. A create form that
- * demands a roadworthy date an operator does not have in front of them is a form they will fill with
- * something wrong to get past it.
+ * Add a vehicle. Only the four fields the business cannot do without are required; capacity, refrigeration
+ * and compliance dates are edited afterwards, so nobody fills in a wrong date to get past the form.
  */
 export function CreateVehicleDialog() {
   const [open, setOpen] = useState(false);
@@ -138,7 +134,7 @@ export function CreateVehicleDialog() {
             </select>
           </Field>
 
-          {/* ⚠ Ownership is a FACT ABOUT THE VEHICLE, not a different kind of record. A driver-owned
+          {/* Ownership is a fact about the vehicle, not a different kind of record. A driver-owned
               van is issued, inspected and retired exactly like an Effy-owned one. */}
           <Field
             id="v-owner"

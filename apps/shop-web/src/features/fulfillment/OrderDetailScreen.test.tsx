@@ -61,12 +61,12 @@ afterEach(() => {
 describe("the summary bar", () => {
   it("shows the total, the pills and 'placed · channel'", async () => {
     open(orderDetail({ atRisk: true, payment: { ...orderDetail().payment, state: "partially_refunded" } }));
-    // 073 — the pill is the shared status ("Preparing" covers new, received and picking).
+    // The pill is the shared status ("Preparing" covers new, received and picking).
     expect(await screen.findByText("Preparing")).toBeInTheDocument();
     expect(screen.getAllByText("Partially refunded").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("At risk")).toBeInTheDocument();
     expect(screen.getByText(/ · Online store ·/)).toBeInTheDocument();
-    // 089 — the code on the package's label.
+    // The code on the package's label.
     expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M");
   });
 
@@ -85,7 +85,7 @@ describe("the summary bar", () => {
     }
   });
 
-  /** ⚠ Revision 2: the order pagination lives in the app header, never in the page body. */
+  /** Revision 2: the order pagination lives in the app header, never in the page body. */
   it("carries no previous/next of its own", async () => {
     open();
     await screen.findByText("Items and fulfilment");
@@ -106,9 +106,9 @@ describe("layout", () => {
     await screen.findByText("Items and fulfilment");
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(titles).toEqual(["Items and fulfilment", "Bags & labels", "Internal notes", "Customer and delivery"]);
-    // ⚠ The Fulfilment section is gone — merged into Items and fulfilment.
+    // The Fulfilment section is gone — merged into Items and fulfilment.
     expect(screen.queryByRole("heading", { name: "Fulfilment" })).not.toBeInTheDocument();
-    // ⚠ The activity log is a sheet, not a section.
+    // The activity log is a sheet, not a section.
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
 
@@ -141,7 +141,7 @@ describe("layout", () => {
     expect(screen.getByText("Items from other shops")).toBeInTheDocument();
     expect(screen.getByText("$30.00")).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/);
-    // ⚠ 077: no delivery or shipping amount reaches a shop (FR-038).
+    // No delivery or shipping amount reaches a shop.
     expect(screen.queryByText("Shipping")).toBeNull();
     expect(screen.queryByText(/delivery fee/i)).toBeNull();
   });
@@ -305,7 +305,7 @@ describe("the Activity sheet", () => {
     expect(within(sheet).getByText("Everything that has happened on this order.")).toBeInTheDocument();
     expect(await within(sheet).findByText("Oat milk — marked unavailable · supplier short")).toBeInTheDocument();
     expect(within(sheet).getAllByText(/^Sam · /)).toHaveLength(2);
-    // ⚠ The order's log only — never product stats or the product change log.
+    // The order's log only — never product stats or the product change log.
     expect(within(sheet).queryByText(/last 30 days|change log/i)).not.toBeInTheDocument();
   });
 });

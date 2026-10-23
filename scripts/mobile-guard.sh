@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
-# 013 mobile guard — the KMP equivalent of 011's Amplify quarantine (research D8).
+# Mobile guard: build-failing checks for apps/customer-mobile.
 #
-# Two build-failing checks for apps/customer-mobile:
+# 1. No escape hatch: Amplify's `escapeHatch` / `getEscapeHatch` hands out the raw Cognito client, whose
+# `ChangePassword` works without a previous password (an account-takeover primitive IAM cannot stop).
+# Password writes go to the backend. Touching it, or importing the raw Cognito SDK, fails the build; the
+# allowlist is empty on purpose.
+# 2. No secret-shaped config key: a mobile binary is published, so no BuildKonfig required-key name may look
+# like a secret.
 #
-#   1. THE ESCAPE-HATCH BAN (FR-024). Amplify's `escapeHatch` / `getEscapeHatch` hands out the raw
-#      CognitoIdentityProviderClient, from which `ChangePassword` can be called WITHOUT a previous
-#      password — the account-takeover primitive the whole slice exists to close, and one IAM cannot
-#      stop. Password writes go to the BACKEND (which verifies an emailed step-up in the same
-#      request). So touching the escape hatch — or importing the raw Cognito SDK — is a BUILD FAILURE,
-#      not a code-review catch. The allowlist is empty on purpose.
-#
-#   2. THE NO-SECRET-KEY CHECK (FR-042). A user-pool id / app-client id is a NAME, not a key — it
-#      authorizes nothing. But a mobile binary is a published artifact: anything credentialed in it is
-#      a leaked credential. So no BuildKonfig required-key name may look like a secret.
-#
-# Proven by DELIBERATELY breaking it (the 011 lesson: break a guard the way it will actually break).
-# The customer app is guarded: no escape hatch, no secret-shaped config key.
-# Run: make mobile-guard   ·   scripts/mobile-guard.sh
+# Run: make mobile-guard · scripts/mobile-guard.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,7 +20,7 @@ for REL in $APPS; do
   [ -d "$APP" ] || continue
 
   # ── 1. Escape-hatch ban ────────────────────────────────────────────────────────────────────────
-  # Forbidden anywhere under the app's Kotlin/Swift sources. Allowlist is intentionally empty.
+  # forbidden anywhere under the app's Kotlin/Swift sources. Allowlist is intentionally empty.
   ESCAPE_PATTERN='escapeHatch|getEscapeHatch|cognitoidentityprovider|CognitoIdentityProviderClient'
   HITS="$(grep -rInE "$ESCAPE_PATTERN" \
       --include='*.kt' --include='*.swift' \
@@ -41,14 +33,14 @@ for REL in $APPS; do
     FAIL=1
   fi
 
-  # ── 2. No secret-shaped required config key (FR-042/FR-036) ─────────────────────────────────────
+  # ── 2. No secret-shaped required config key ─────────────────────────────────────
   # Extract the `requiredKeys` list from build.gradle.kts and reject any credential-shaped name.
   GRADLE="$APP/build.gradle.kts"
   if [ -f "$GRADLE" ]; then
     # Pull quoted identifiers from the requiredKeys = listOf( … ) block.
     KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
             | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
-    # STRIPE_PUBLISHABLE_KEY is the ONE allowed `_KEY`-named value: a Stripe publishable key (pk_…) is
+    # STRIPE_PUBLISHABLE_KEY is the one allowed `_KEY`-named value: a Stripe publishable key (pk_…) is
     # designed to ship in clients and authorizes nothing (the sk_… secret stays in the backend — 019 R3).
     BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' \
             | grep -vxE 'STRIPE_PUBLISHABLE_KEY' || true)"
@@ -62,20 +54,14 @@ for REL in $APPS; do
   fi
 done
 
-# ── 025 SC-006: the customer app must never regrow its "unfinished app" tells ───────────────────
-#
-# Three of the four SC-006 signals are greppable, so they get a permanent guard rather than a one-off
-# sweep at sign-off. The fourth (spinner-only first loads) is not reliably detectable by pattern and
-# stays a review item.
-#
-#   NavGlyph / AdaptiveNavShell — the lettered "H/S/O/A" navigation icons. The component is DELETED
-#                                 from packages/mobile-kit, so a reference means someone reintroduced it.
-#   "← Back"                    — an improvised text-link back control instead of a real header.
-#   ♥ / ♡ in a Text(...)        — glyph-as-icon buttons.
+# The customer app never regrows these "unfinished app" tells:
+# NavGlyph / AdaptiveNavShell — the lettered "H/S/O/A" navigation icons (deleted from mobile-kit)
+# "← Back" — an improvised text-link back control instead of a real header
+# ♥ / ♡ in a Text(...) — glyph-as-icon buttons
 CUSTOMER_APP="$ROOT/apps/customer-mobile"
 RETIRED_CUSTOMER_PATTERN='NavGlyph|AdaptiveNavShell|Text\("← Back"\)|Text\("♥|Text\("♡'
-# ⚠ Comment lines are filtered out. The first version of this guard did not, and it failed on the
-# CODE COMMENT that explains why the lettered glyphs were removed — a guard that forbids naming the
+# Comment lines are filtered out. The first version of this guard did not, and it failed on the
+# code comment that explains why the lettered glyphs were removed — a guard that forbids naming the
 # thing it forbids makes the codebase harder to explain, and trains people to delete the explanation
 # rather than the defect. Matching only non-comment lines keeps it aimed at usage.
 RETIRED_CUSTOMER_HITS="$(grep -rInE "$RETIRED_CUSTOMER_PATTERN" \
@@ -90,22 +76,13 @@ if [ -n "$RETIRED_CUSTOMER_HITS" ]; then
   FAIL=1
 fi
 
-# ── 026 (T044 / contracts S4) — affordances the SOURCE DESIGN has that Effy must NOT ──────────────
-#
-# The customer app was rebuilt against a fashion-catalogue UI kit. Four of that kit's affordances are
-# forbidden here, and each is something a well-meaning "match the mockup" edit would plausibly add
-# back. This lives in the guard rather than in a Kotlin test on purpose: `commonTest` has no
-# filesystem access on Native, so a multiplatform test could only assert against a hand-maintained
-# list of sources — which is a blind spot pretending to be a check. Grepping the real tree catches a
-# reintroduction in a screen nobody remembered to add to a list.
-#
-#   size pickers      — LIFTED BY 098. 026 FR-007 kept the kit's apparel size picker out; 098 gave
-#                       products real sizes and flavours (variants), chosen through `VariantChips`
-#                       from the product's own options — not the kit's fixed S/M/L row.
-#   ratings/reviews   — FR-029: no such capability; invented stars would be a lie on every tile.
-#   Facebook sign-in  — FR-030a: not an Effy credential route.
-#   card-entry fields — FR-030: the payment provider's sheet owns these, and card data must never
-#                       land in this app.
+# Affordances the source UI kit has that Effy must not. A grep over the real tree, because `commonTest` has
+# no filesystem on Native and could only check a hand-kept list.
+# size pickers — the kit's fixed S/M/L row; sizes and flavours are the product's own variants
+# (`VariantChips`)
+# ratings/reviews — no such capability; invented stars would be a lie on every tile
+# Facebook sign-in — not an Effy credential route
+# card-entry fields — the payment provider's element owns these; card data never lands in this app
 EXCLUDED_PATTERN='out of 5|Write a review|Facebook|Card number|CVV|Cardholder'
 EXCLUDED_HITS="$(grep -rInE "$EXCLUDED_PATTERN" \
   --include='*.kt' --include='*.swift' \
@@ -119,18 +96,8 @@ if [ -n "$EXCLUDED_HITS" ]; then
   FAIL=1
 fi
 
-# ── 026 — every declared destination must be REACHABLE ────────────────────────────────────────────
-#
-# ⚠ THIS EXISTS BECAUSE IT ALREADY HAPPENED. The Navigation 3 migration rewrote the shell and the Home
-# screen together, and in doing so dropped the header that carried the cart and saved-items icons.
-# Both routes still existed, still had entries in the entry provider, and still compiled — and the
-# whole test suite stayed green, because nothing anywhere calls them. The visible symptom was that
-# "Add to cart" worked and the cart could never be opened: the entire checkout journey was
-# unreachable, on the app's primary purpose, and no automated check said a word.
-#
-# A `commonTest` cannot catch this (Native has no filesystem, so it could only assert against a
-# hand-maintained list — the blind spot this file's other checks avoid the same way). Grepping the
-# real tree can: a destination is reachable if something outside the navigation package names it.
+# Every declared destination must be reachable: something outside the navigation package names it (a route
+# with an entry that nothing navigates to compiles and passes every test; the cart once was).
 NAV_DIR="$CUSTOMER_APP/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav"
 NAV_KEY_FILE="$NAV_DIR/CustomerNavKey.kt"
 UNREACHABLE=""
@@ -139,7 +106,7 @@ if [ -f "$NAV_KEY_FILE" ]; then
   ROUTES="$(grep -oE '@Serializable *(data )?(object|class) [A-Za-z]+' "$NAV_KEY_FILE" \
     | awk '{print $NF}' | sort -u)"
   for route in $ROUTES; do
-    # Reachable = named outside core/nav (a push, a resetTo, a tab list, an entry<> is not enough —
+    # Reachable = named outside core/nav (a push, a resetTo, a tab list, an entry<> is not enough
     # entries are the destination, not the way in — so entry declarations are excluded below).
     HITS="$(grep -rIn "CustomerNavKey\.$route\b" \
       --include='*.kt' \
@@ -162,16 +129,8 @@ if [ -n "$UNREACHABLE" ]; then
   FAIL=1
 fi
 
-
-# ── 034 FR-007 / SC-005: no sign-out control on the customer account ROOT ──────────────────────────
-#
-# Both sign-out rows used to sit on the account root, styled destructive, immediately below ordinary
-# navigation rows — one stray tap while browsing ended the session. They now live on Security, with
-# the other credential actions.
-#
-# ⚠ This is a GUARD rather than a unit test because the assertion is an ABSENCE, and Compose UI is not
-# unit-testable on the JVM host here. A behavioural test could only assert that today's screen has no
-# sign-out; it could not notice the day someone helpfully adds one back.
+# No sign-out control on the customer account root (one stray tap ended the session); sign-out lives on
+# Security. A guard, because the assertion is an absence.
 ACCOUNT_SCREENS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt"
 if [ -f "$ACCOUNT_SCREENS" ]; then
   # The account root is everything from `fun AccountScreen(` to the next top-level composable.
@@ -184,19 +143,9 @@ if [ -f "$ACCOUNT_SCREENS" ]; then
   fi
 fi
 
-
-# ── 034: every declared route must have an `entry<>` in the shell ─────────────────────────────────
-#
-# ⚠ THIS GUARD EXISTS BECAUSE ITS ABSENCE SHIPPED A CRASH.
-#
-# `CustomerNavKey.kt` documents THREE places a new route must be registered — the sealed interface,
-# the polymorphic serializer module, and ALL_CUSTOMER_ROUTES. That list is incomplete. A route also
-# needs an `entry<CustomerNavKey.X>` in CustomerShell's NavDisplay, or the fallback throws
-# `IllegalStateException: Unknown screen X` the instant a shopper taps it.
-#
-# Nothing caught it: it compiles, the serialization round-trip test passes (the route IS in all three
-# lists), and the reachability check below passes too — that proves something NAVIGATES to the route,
-# not that the shell can RENDER it. 034's Security screen crashed on a device with every gate green.
+# Every declared route has an `entry<CustomerNavKey.X>` in CustomerShell's NavDisplay, or the first tap
+# throws `IllegalStateException: Unknown screen X`; serialization and reachability checks both pass without
+# it.
 NAV_KEYS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav/CustomerNavKey.kt"
 SHELL_FILE="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/app/CustomerShell.kt"
 UNRENDERABLE=""
@@ -217,19 +166,14 @@ if [ -n "$UNRENDERABLE" ]; then
   FAIL=1
 fi
 
-# ── 087 — the storefront frame: sheets not dialogs, one kit, theme colours only ────────────────────
-#
-# The operator's direction for the redesign, made mechanical (087 FR-013, FR-030, FR-031, SC-002,
-# SC-004):
-#   · no centred dialog or drop-down menu anywhere — every overlay is the kit's bottom sheet;
-#   · no raw Material control that the kit replaces (they draw the console/M3 look, not the storefront);
-#   · no colour literal in a screen — colours come from the generated storefront theme;
-#   · the only Effy address a customer sees is hello@effyshopping.com (⚠ the GENERATED legal documents
-#     are excluded: they are authored prose from 045's source, outside 087 — and they still name an
-#     unapproved address, recorded as an open item in 087's FEATURE-HISTORY entry);
-#   · the cart and checkout never say how many packages (suppliers) fill an order.
-# ⚠ ENFORCE_087 was 0 (report only) while 087's screens were converted, and was switched to 1 by
-#   087 T095. Comment lines are ignored, as in the 025 check above.
+# The storefront frame:
+# · no centred dialog or drop-down menu anywhere — every overlay is the kit's bottom sheet;
+# · no raw Material control that the kit replaces;
+# · no colour literal in a screen — colours come from the generated storefront theme;
+# · the only Effy address a customer sees is hello@effyshopping.com (the generated legal documents are
+# excluded: authored prose, which still names an unapproved address, an open item);
+# · the cart and checkout never say how many packages (suppliers) fill an order.
+# Comment lines are ignored.
 ENFORCE_087=1
 CM_SRC="$CUSTOMER_APP/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile"
 strip_comments() { grep -vE '^[^:]+:[0-9]+: *(//|\*|/\*)' || true; }
@@ -244,7 +188,7 @@ add_087 "a colour literal in a screen (read the theme / EffyRoles):" "$(grep -rn
 add_087 "an Effy address other than hello@effyshopping.com:" "$(grep -rnoE '[A-Za-z0-9._%+-]+@effyshopping\.com' --include='*.kt' "$CUSTOMER_APP/shared/src" 2>/dev/null | grep -v ':hello@effyshopping\.com$' | grep -v '/features/legal/generated/' | strip_comments)"
 add_087 "the cart or checkout says how many packages fill the order (hidden fulfilment):" "$(grep -rnE '"[^"]*\bpackages?\b[^"]*"' --include='*.kt' "$CM_SRC/features/cart/presentation" "$CM_SRC/features/checkout/presentation/CheckoutScreen.kt" 2>/dev/null | strip_comments)"
 
-# Enforced now (not report-only): the cart is a TAB (087 FR-007). Pushing it would put a second copy
+# Enforced now (not report-only): the cart is a TAB. Pushing it would put a second copy
 # of the cart on another tab's stack, with no tab bar under it.
 PUSHED_CART="$( (grep -rnE 'push\(CustomerNavKey\.Cart\)' --include='*.kt' "$CM_SRC" 2>/dev/null || true) | strip_comments)"
 if [ -n "$PUSHED_CART" ]; then

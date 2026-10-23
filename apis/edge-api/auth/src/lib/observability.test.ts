@@ -6,26 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { emit } from "./observability";
 
 /**
- * ⚠ THE ALARM ↔ METRIC CONTRACT — the gap that made 035's sign-in alarms unable to fire.
- *
- * WHAT HAPPENED (2026-08-06). The auth service failed EVERY code send for hours with
- * `AccessDeniedException`. Seven failures were recorded on the customer pool alone. Sign-in was
- * impossible on all four audiences — and `effy-dev-otp-send-failures`, whose own description reads
- * "a failed send IS a failed sign-in", stayed at **OK** the entire time, reporting "no datapoints
- * were received".
- *
- * WHY. In CloudWatch EMF, **each dimension set defines a separate metric**. The emitter published
- * only `[["userPoolId"]]`, so `Effy/Auth otp_send_failed` *with no dimensions* never existed. Every
- * alarm in `infra/envs/dev/otp-store.tf` names namespace + metric and **no dimensions**, so each
- * was watching a metric that is never published. They could not fire under any circumstances.
- *
- * ⚠ NEITHER SIDE IS WRONG ON ITS OWN, WHICH IS WHY NOTHING CAUGHT IT. The emitter is a correct
- * emitter. The alarms are correct alarms. The defect exists only in the relationship between them,
- * and no unit test on either side of the boundary can see it — the same shape as 027's R13
- * (Kotlin and Go each correct, the wire between them wrong) and 035's audience-map gap (code and
- * tests each correct, the deployment silent).
- *
- * So this test reads the ACTUAL Terraform and the ACTUAL emitter and asserts they agree.
+ * Reads the real Terraform and emitter: an alarm with no dimensions watches the undimensioned metric,
+ * which exists only if it is published with an empty dimension set.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -75,8 +57,7 @@ describe("EMF metric emission", () => {
 });
 
 describe("⚠ every Effy/Auth alarm watches a metric this service actually publishes", () => {
-  // Parsing Terraform crudely and on purpose: an HCL parser would be a dependency, and the shape
-  // here is fixed and reviewed. Each `resource "aws_cloudwatch_metric_alarm"` block is taken whole.
+  // Crude Terraform parsing on purpose: each metric-alarm block is taken whole.
   function alarmBlocks(): { name: string; body: string }[] {
     const tf = readFileSync(resolve(repoRoot, "infra/envs/dev/otp-store.tf"), "utf8");
     const blocks: { name: string; body: string }[] = [];
@@ -107,7 +88,6 @@ describe("⚠ every Effy/Auth alarm watches a metric this service actually publi
       const declared = /dimensions\s*=\s*\{([^}]*)\}/.exec(alarm.body);
 
       if (!declared) {
-        // No dimensions declared → it watches the aggregate, which must therefore be published.
         expect(
           publishedSets.some((s) => s.length === 0),
           `${alarm.name} declares no dimensions, so the emitter MUST publish an empty dimension ` +
@@ -116,7 +96,6 @@ describe("⚠ every Effy/Auth alarm watches a metric this service actually publi
         return;
       }
 
-      // Dimensions declared → some published set must match those keys exactly.
       const keys = [...(declared[1] ?? "").matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=/g)]
         .map((m) => m[1] as string)
         .sort();

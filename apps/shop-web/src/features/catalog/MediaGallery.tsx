@@ -16,8 +16,8 @@ import { useDeleteMedia, useUpdateMedia, useUploadMedia } from "./queries";
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
 /**
- * Media gallery management (US4 T064): add (presign→PUT→register), set-primary, reorder, delete.
- * No cards — a wrap of 110px thumbnails in the product screen's Media tab (057, DOCTRINE-2). Every write invalidates the detail query, so
+ * Media gallery management: add (presign→PUT→register), set-primary, reorder, delete.
+ * No cards — a wrap of 110px thumbnails in the product screen's Media tab (057, doctrine-2). Every write invalidates the detail query, so
  * the gallery re-renders from the server's truth rather than a hand-patched local copy (Principle VI).
  */
 export function MediaGallery({ detail }: { detail: ProductDetail }) {
@@ -113,7 +113,7 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
             No images yet. Add one to give this product a picture.
           </div>
         ) : (
-          /* ⚠ THE MOCKUP'S 110px SQUARES, and the management stays inline under each one. The mockup
+          /* The mockup's 110px squares, and the management stays inline under each one. The mockup
              hides reorder/primary/delete behind a "Manage" sheet; ours are four icon buttons beneath
              the tile they act on, so there is no second surface restating the same gallery. */
           <ul className="flex flex-wrap gap-3">

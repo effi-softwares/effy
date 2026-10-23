@@ -10,21 +10,9 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 
 /**
- * The customer app's navigation state — **one back stack per tab**, plus which tab is active (026).
- *
- * This is the pattern the official Navigation 3 `multiplestacks` recipe uses: a `Map` of back stacks
- * keyed by the tab root, and a `MutableState` for the active tab. Switching tabs swaps which stack
- * `NavDisplay` renders; the other four keep their contents and their state, which is the whole point.
- *
- * ── What this replaced, and why it matters ──────────────────────────────────────────────────────
- *
- * 015 kept the Home tab's stack as a delimiter-joined **String** — `"homeproduct:42"` — parsed
- * with `startsWith("product:")` and `removePrefix(...)`. Orders kept its detail in a separate nullable
- * `String` id, and the Account tab used a third mechanism (`AppNavigator`). Three tabs, three
- * different notions of "where am I", and a typo in any prefix produced a blank screen at runtime
- * rather than a compile error.
- *
- * Now every tab has the same kind of stack, holding the same typed keys.
+ * The customer app's navigation state: one back stack per tab, plus the active tab (the Navigation 3
+ * `multiplestacks` recipe). Switching tabs swaps which stack `NavDisplay` renders; the others keep their
+ * contents.
  */
 class CustomerNavState internal constructor(
     private val stacks: Map<CustomerNavKey, NavBackStack<NavKey>>,
@@ -40,17 +28,7 @@ class CustomerNavState internal constructor(
     /** The destination on screen right now. */
     val current: CustomerNavKey get() = currentStack.last() as CustomerNavKey
 
-    /**
-     * The bottom bar shows only at a tab's ROOT.
-     *
-     * That is the whole rule: the bar exists to move between the four tabs, and once you have gone
-     * deeper into one, Back and the app bar are what you need. It falls straight out of the per-tab
-     * stack — no per-destination flag to keep in step, and a new screen gets the right behaviour by
-     * existing rather than by remembering to declare something.
-     *
-     * It also fixes the defect that prompted this: product detail, cart and checkout each render a
-     * sticky full-width primary action, and the nav bar was stacking underneath it.
-     */
+    /** The bottom bar shows only at a tab's root, falling out of the per-tab stack with no per-screen flag. */
     val showBottomBar: Boolean get() = currentStack.size == 1
 
     /** True when the active tab has somewhere to go back to. */
@@ -62,15 +40,15 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * A tap on a tab in the bar (087). Another tab: switch to it, where the shopper left it. The tab
-     * they are ALREADY in: return it to its root — the iOS convention, and the only way back to the
+     * A tap on a tab in the bar. Another tab: switch to it, where the shopper left it. The tab
+     * they are already in: return it to its root — the iOS convention, and the only way back to the
      * top of a tab after going several pages deep without pressing Back repeatedly.
      */
     fun tapTab(tab: CustomerNavKey) {
         if (tab == activeTab) resetToRoot() else selectTab(tab)
     }
 
-    // ── The search-focus one-shot (028 US1, research R1) ────────────────────────────────────────
+    // The search-focus one-shot
 
     private var searchFocusRequested = false
 
@@ -78,17 +56,17 @@ class CustomerNavState internal constructor(
      * Ask the Search screen to open with its field focused and the keyboard up.
      *
      * Set by Home's search entry immediately before `selectTab(Search)`, so one tap reaches a live
-     * keyboard (FR-008).
+     * keyboard.
      *
-     * ── ⚠ Why a flag and not a parameter on the route ───────────────────────────────────────────
+     * Why a flag and not a parameter on the route
      *
      * The obvious move is `data class Search(val focus: Boolean)`. It is a trap: tab roots are used
-     * as MAP KEYS in [stacks], so the tab's identity IS the key. `Search(focus = true)` is a
+     * as map keys in [stacks], so the tab's identity IS the key. `Search(focus = true)` is a
      * different key from `Search(focus = false)`, and `stacks.getValue(activeTab)` throws the moment
      * the flag is set. Re-keying the map on a separate tab identity is churn in the one file whose
      * own header documents a permanent wrong-tab bug — not worth it for a transient signal.
      *
-     * ⚠ Deliberately NOT saved across process death. A restored app should show the shopper their
+     * Deliberately not saved across process death. A restored app should show the shopper their
      * results, not reopen the keyboard on top of them.
      */
     fun requestSearchFocus() {
@@ -96,7 +74,7 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * Take the pending focus request, if any. Returns `true` at most ONCE per [requestSearchFocus].
+     * Take the pending focus request, if any. Returns `true` at most once per [requestSearchFocus].
      *
      * The one-shot is what stops the keyboard reappearing every time Search recomposes — and, more
      * visibly, every time the shopper returns to the Search tab from the bottom bar having never
@@ -125,18 +103,18 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * Send the active tab back to its OWN root — the graph swap (sign-in completing, sign-out
+     * Send the active tab back to its own root — the graph swap (sign-in completing, sign-out
      * returning to guest, an order finishing).
      *
-     * ── ⚠ Use this, not `resetTo(SomeTabRoot)` ──────────────────────────────────────────────────
+     * Use this, not `resetTo(SomeTabRoot)`
      *
      * This exists because the Nav3 migration got it wrong in a way nothing caught. The old navigator
      * used `AppRoute.Home` to mean **"the root of whichever sub-graph you are in"** — inside the
-     * Account tab it rendered the account screen. The migration renamed it to `CustomerNavKey.Home`,
+     * account tab it rendered the account screen. The migration renamed it to `CustomerNavKey.Home`,
      * which means the **Discover tab**. Same name, opposite meaning.
      *
      * So `completeSignIn` ran `resetTo(Home)` while the customer was in the Account tab, and set the
-     * ACCOUNT tab's stack to `[Home]`. From then on, tapping Account showed Discover — permanently,
+     * account tab's stack to `[Home]`. From then on, tapping Account showed Discover — permanently,
      * because nothing ever put `Account` back. Signing in broke the account page.
      *
      * Resetting to "the active tab's root" is what every one of those callers actually meant, and it
@@ -148,14 +126,8 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * Replace the ACTIVE TAB's stack with one destination.
-     *
-     * Deliberately scoped to one tab: wiping every tab's history because the customer signed in would
-     * throw away a half-built cart journey in Home for no reason.
-     *
-     * ⚠ [key] MUST NOT be another tab's root — that is the defect described on [resetToRoot], and it
-     * is a programming error rather than anything a customer can cause, so it fails loudly here
-     * instead of silently rendering the wrong tab forever.
+     * Replace the active tab's stack with one destination (one tab only: signing in should not wipe a cart
+     * journey in Home). [key] must not be another tab's root (see [resetToRoot]); that fails loudly.
      */
     fun resetTo(key: CustomerNavKey) {
         require(key !in CUSTOMER_TAB_ROOTS || key == activeTab) {
@@ -171,7 +143,7 @@ class CustomerNavState internal constructor(
 /**
  * Create the per-tab back stacks, restored across configuration change and process death.
  *
- * ⚠ Uses the [customerNavSavedState] overload of `rememberNavBackStack`, NOT the reflection-based
+ * Uses the [customerNavSavedState] overload of `rememberNavBackStack`, not the reflection-based
  * one. The convenient overload works on Android and throws on iOS, so using it would produce a
  * restore bug that no Android test could catch.
  */
@@ -185,18 +157,9 @@ fun rememberCustomerNavState(): CustomerNavState {
 }
 
 /**
- * The handle ViewModels navigate through.
- *
- * ── ⚠ Why this exists at all ────────────────────────────────────────────────────────────────────
- *
- * Nav3's model is that the **composable owns the back stack**. This app's ViewModels, however, drive
- * navigation directly (`AuthViewModel` resets to the account screen once sign-in completes), and
- * 026 FR-025b forbids disturbing ViewModel wiring while replacing presentation.
- *
- * So the stack stays owned by the composable and this is a thin, late-bound handle onto it. It is NOT
- * a second source of truth: it holds no stack of its own and every call forwards to [CustomerNavState].
- * Before the shell binds it, calls are no-ops rather than crashes — a ViewModel constructed during a
- * preview or a test has nothing to navigate, and that should not be fatal.
+ * The handle ViewModels navigate through (`AuthViewModel` resets to the account screen after sign-in).
+ * Nav3's composable owns the stack; this late-bound handle holds none of its own and forwards to
+ * [CustomerNavState]. Before the shell binds it, calls are no-ops (previews, tests).
  */
 class CustomerNavigator {
     private var state: CustomerNavState? = null
@@ -219,7 +182,6 @@ class CustomerNavigator {
     fun resetToRoot() {
         state?.resetToRoot()
     }
-
 
     fun selectTab(tab: CustomerNavKey) {
         state?.selectTab(tab)

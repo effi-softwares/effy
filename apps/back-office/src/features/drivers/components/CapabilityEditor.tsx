@@ -16,14 +16,14 @@ import { zonesQuery } from "../queries";
 const EVERY_ZONE = "__every__";
 
 /**
- * What a driver is cleared to do, and where (062 US1/US2).
+ * What a driver is cleared to do, and where.
  *
- * ⚠ 082 — TWO THINGS, EACH WITH ITS AREAS: **Collects** and **Delivers**. The old second half of a
+ * Two things, each with its areas: **Collects** and **Delivers**. The old second half of a
  * clearance ("standard" or "same-day") is gone from this screen and from the platform's decision:
  * who delivers a parcel is settled by the order, and a driver who may deliver in an area delivers
  * whatever Effy delivers there. A postcode filed under no area can go to any driver who delivers.
  *
- * ⚠ "EVERY ZONE" IS A CHOICE IN THE PICKER, NOT A SHORTCUT FOR SELECTING ALL OF THEM. Choosing it
+ * "EVERY ZONE" IS A choice in the picker, not a shortcut for selecting all of them. Choosing it
  * sends `zoneId: null`, which the platform stores as a fact — so the driver covers a zone created
  * next month with nobody revisiting this screen. Selecting today's zones one by one would be right
  * on the day and quietly wrong afterwards, with nothing failing and nobody told.
@@ -46,7 +46,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
   return (
     <div className="space-y-5">
       {items.length === 0 ? (
-        // ⚠ FR-015 — a stated fact, not blank space. This is the single thing stopping this driver
+        // A stated fact, not blank space. This is the single thing stopping this driver
         // being given any work at all, and an empty area reads as "nothing to say here".
         <p className="text-sm font-medium">
           Not cleared for any work. Until something is granted below, this driver cannot be given
@@ -65,7 +65,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
                   <ul className="divide-y border-y">
                     {mine.map((c: DriverCapability) => (
                       <li key={c.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3 text-sm">
-                        {/* ⚠ Rendered from `zoneId === null`, never from a server-supplied label. */}
+                        {/* Rendered from `zoneId === null`, never from a server-supplied label. */}
                         <span className={c.zoneId === null ? "font-medium" : undefined}>{zoneLabel(c.zoneName)}</span>
                         {canManage ? (
                           <Button
@@ -116,7 +116,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
               value={zone}
               onChange={(e) => setZone(e.target.value)}
             >
-              {/* ⚠ First, and stated as a fact — it is the broadest and the most useful. */}
+              {/* First, and stated as a fact — it is the broadest and the most useful. */}
               <option value={EVERY_ZONE}>Everywhere (including new areas)</option>
               {(zones.data ?? []).map((z) => (
                 <option key={z.id} value={z.id}>

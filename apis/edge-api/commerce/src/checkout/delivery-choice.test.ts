@@ -4,12 +4,7 @@ import { windowKey, type PricedFee, type QuoteResult } from "@effy/edge-shared/d
 
 import { DeliveryChoiceError, resolveAsap, resolveCourier, resolveEffyChoice, resolveEffyWindow } from "./delivery-choice";
 
-/**
- * 085 — what a shopper's choice becomes. Pure: the quote is built here, so no clock and no database.
- *
- * The calendar: TODAY (Thu 8 Oct) and two later days. `evening` is a timed window; `anytime` is the
- * business's Any-time window (midday – 9 pm).
- */
+/** Today is Thu 8 Oct, plus two later days; `evening` is timed, `anytime` is the Any-time window (12–9 pm). */
 type EffyQuote = Extract<QuoteResult, { coverage: "effy" }>;
 type Day = EffyQuote["effyWindows"]["days"][number];
 

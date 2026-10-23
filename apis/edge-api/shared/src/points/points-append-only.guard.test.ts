@@ -4,15 +4,9 @@ import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE GUARD FOR THE POINTS LEDGER (074 FR-003, quickstart P13).
- *
- * `points_entry` and `points_allocation` are the record that VALUE MOVED. They are never updated and
- * never deleted — a mistake is corrected by a further entry — and only `@effy/edge-shared/points`
- * writes them at all. The balance is derived from them (research R1), so a stray UPDATE would silently
- * change what a customer holds with no history line to say so.
- *
- * ⚠ A SOURCE SCAN, NOT A TRIGGER — the platform's convention (refund, stock_movement, audit_log). The
- * shopper role additionally has UPDATE and DELETE revoked on both tables in the migration.
+ * `points_entry` and `points_allocation` are never updated or deleted, and only
+ * `@effy/edge-shared/points` writes them; the balance is derived from them. A source scan (the shopper
+ * role also has UPDATE and DELETE revoked).
  */
 
 const edgeApi = resolve(__dirname, "../../..");

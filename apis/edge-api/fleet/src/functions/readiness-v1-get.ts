@@ -1,5 +1,3 @@
-// GET /fleet/v1/readiness — the gaps, before an order is affected (056 US6, FR-044…FR-046).
-// Read = any active back-office staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

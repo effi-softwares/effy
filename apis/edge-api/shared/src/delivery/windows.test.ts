@@ -162,7 +162,7 @@ describe("openWindows", () => {
   it("P5 — a window chosen as 'tomorrow' is judged by today's rules once midnight passes", () => {
     // 23:58 on Tuesday: Wednesday's morning window is a later day — open, whatever the runs.
     expect(judgeWindow(melbourne(2026, 10, 6, 23, 58), "2026-10-07", morning, 0, [], BUFFER, TURNAROUND).verdict).toBe("open");
-    // 00:01 on Wednesday: the same window is TODAY's, and with no run it cannot be collected for.
+    // 00:01 on Wednesday: the same window is today's, and with no run it cannot be collected for.
     expect(judgeWindow(melbourne(2026, 10, 7, 0, 1), "2026-10-07", morning, 0, [], BUFFER, TURNAROUND).verdict).toBe("uncollectable");
   });
 });
@@ -206,9 +206,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
     // Thursday has taken its two.
     const full = open(tue(7), new Map([["2026-10-08", new Map([["anytime", 2]])]]));
     expect(full.map((d) => d.anyTime?.id ?? null)).toEqual(["anytime", "anytime", null, "anytime"]);
-    // ⚠ TODAY it also needs a collection run that reaches the hub before it STARTS — the same test
-    // as any window. At 08:00 the 08:00 run is gone and the 13:00 one is too late for midday, so
-    // today cannot take an untimed order although its 10:00 cutoff has not passed.
+    // Today an untimed order also needs a run reaching the hub before the window starts.
     expect(open(tue(8))[0]!.anyTime).toBeNull();
     expect(judgeWindow(tue(8), "2026-10-06", anyTime, 0, runs, BUFFER, TURNAROUND).verdict).toBe("uncollectable");
     // …and each verdict is exactly judgeWindow's.
@@ -217,8 +215,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
   });
 
   it("a day's untimed room and its windows are independent — each can be gone without the other", () => {
-    // Every timed window on Thursday is taken (only `evening` has a limit, so close the others by
-    // making them limited here), untimed still open.
+    // Every timed window on Thursday taken, untimed still open.
     const limited = [{ ...morning, capacity: 1 }, { ...afternoon, capacity: 1 }, evening, anyTime];
     const load = new Map([["2026-10-08", new Map([["morning", 1], ["afternoon", 1], ["evening", 2]])]]);
     const thu = open(tue(8), load, limited)[2]!;
@@ -237,8 +234,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
     const days = open(tue(8), new Map(), onlyAnyTime);
     expect(days.every((d) => d.windows.length === 0)).toBe(true);
     expect(windowsUnavailable(days, onlyAnyTime)).toBeNull();
-    // With it full on every day there is nothing — and with no TIMED window at all that is still the
-    // alarm it always was: the business has defined none (the Any time window always exists).
+    // Full on every day with no timed window defined: still the alarm (Any time always exists).
     const all = new Map(days.map((d) => [d.date, new Map([["anytime", 2]])]));
     expect(windowsUnavailable(open(tue(8), all, onlyAnyTime), onlyAnyTime)).toBe("none_defined");
     // Timed windows exist and every one, on every day, is gone or taken: nothing left to choose.

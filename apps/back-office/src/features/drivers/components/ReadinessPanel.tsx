@@ -18,7 +18,7 @@ import { CoveragePanel } from "./CoveragePanel";
  * drivers who cannot be given work and why, licences and registrations to renew, and work nobody
  * can cover. Each says where to fix it; the next assignment pass picks the change up.
  *
- * ⚠ "Work nobody can cover" lives HERE rather than on its own page (062 FR-020): two screens
+ * "Work nobody can cover" lives here rather than on its own page: two screens
  * answering "can this driver work?" would eventually disagree. On the server both read one rule.
  */
 export function ReadinessPanel() {

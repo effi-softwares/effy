@@ -1,6 +1,6 @@
 package com.effyshopping.driver.mobile.features.history.domain
 
-/** Read-only history (049 US5). Both record types, grouped by day. */
+/** Read-only history. Both record types, grouped by day. */
 
 data class HistoryRunRow(val runId: String, val type: String, val completedAt: String?, val stopCount: Int, val packageCount: Int = 0, val window: String? = null)
 /**
@@ -22,7 +22,7 @@ data class History(val days: List<HistoryDay>)
 
 data class TimelineEntry(val status: String, val at: String)
 data class ProofRecord(val method: String, val mediaUrl: String?, val note: String?, val capturedAt: String)
-/** 092 — one stop of a finished run. [kind] is `shop` | `drop` | `hub`; [proofMethod] as the wire says it. */
+/** One stop of a finished run. [kind] is `shop` | `drop` | `hub`; [proofMethod] as the wire says it. */
 data class HistoryStopRow(
     val stopId: String,
     val sequence: Int,
@@ -38,14 +38,14 @@ data class HistoryDetail(
     val timeline: List<TimelineEntry>,
     val proof: ProofRecord?,
     val addressFull: String?,
-    /** 092 — a run's stops in order; empty for a drop. */
+    /** A run's stops in order; empty for a drop. */
     val stops: List<HistoryStopRow> = emptyList(),
-    /** 092 rev 2 — a run's map; a drop's order, package count and (when it came back) why. */
+    /** Rev 2 — a run's map; a drop's order, package count and (when it came back) why. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
     val orderRef: String? = null,
     val packageCount: Int = 0,
     val failureReason: String? = null,
-    /** 092 rev 2 — the window in words: a run's span, or the one a drop was sold. */
+    /** Rev 2 — the window in words: a run's span, or the one a drop was sold. */
     val window: String? = null,
 )
 

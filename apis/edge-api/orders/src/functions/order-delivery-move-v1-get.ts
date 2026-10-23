@@ -1,4 +1,4 @@
-// GET /orders/v1/orders/{orderId}/delivery-move?to=courier|effy — what moving the order would do (081). Read = any active staff.
+// Any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

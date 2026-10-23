@@ -1,6 +1,4 @@
-// A staff member records that a driver's failed parcels are back at the hub (088, Story 4). The write
-// is the shared `recordParcelReturn` — the same one the driver's app calls — with the staff member as
-// the one who recorded it, and an audit row.
+// Staff record that a driver's failed parcels are back: the driver's own `recordParcelReturn`, with an audit row.
 
 import { withTransaction } from "@effy/edge-shared";
 import { recordParcelReturn, type ParcelReturnResult } from "@effy/edge-shared/delivery";

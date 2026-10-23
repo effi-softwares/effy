@@ -1,8 +1,4 @@
-// Problem types the shared `ProblemType` enum does not carry, plus the OrderActionError mapper.
-//
-// Follows the convention already used by admin's `*/handler-support.ts`: the URI is spelled out
-// locally rather than added to the shared enum, so a service can name a condition the platform has
-// not standardised without every other service inheriting it.
+// Problem types the shared enum does not carry, spelled out locally.
 
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
@@ -16,13 +12,7 @@ export const VALIDATION_FAILED = "https://effyshopping.com/problems/validation-f
 
 import { ACTION_REFUSALS, OrderActionError } from "./errors";
 
-/**
- * Turn a state refusal into its response.
- *
- * ⚠ These refusals NAME THEIR REASON, unlike the guard's uniform 403. The caller has already proved
- * who they are, so there is no oracle to protect — and "cannot record that" without saying why is
- * how a support ticket gets written instead of a problem getting fixed (FR-006).
- */
+/** State refusals name their reason: the caller is already authorized. */
 export function refusalResponse(
   err: unknown,
   scope: RequestScope,

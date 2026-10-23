@@ -1,16 +1,6 @@
-// Where a package is — derived from what actually happened to it (073).
-//
-// ⚠ PURE. The repository reads the facts (`PACKAGE_STATUS_FACTS`); this decides what they mean. Every
-// combination is then a row in a table-driven test rather than a database fixture.
-//
-// ⚠ THE FURTHEST FACT WINS. A package that has an arrival recorded is Delivered even if, through some
-// earlier failure, its hub check-in was never written; showing an earlier step than something we
-// KNOW happened would be the same defect this replaces, in the other direction.
-//
-// ⚠ WHY IT IS NOT A COLUMN. `shop_fulfillment.status` deliberately stops at `collected` (063 R9): a
-// check-in, a started drop and a carrier handover are each recorded once, in their own rows. A
-// stored "at_hub" would be a second record of each of them, written by a second writer, and the two
-// would disagree the first time one write failed.
+// Where a package is, derived from what happened to it. Pure: the repository reads the facts
+// (`PACKAGE_STATUS_FACTS`). The furthest fact wins. Not a column: check-in, drop and carrier handover
+// each have their own rows, and a stored status would be a second writer.
 
 import { STATUS_WORD, type PackageStatus, type PackageStatusView } from "@effy/shared-types";
 
@@ -31,12 +21,9 @@ export interface PackageFacts {
   failedReason: string | null;
   handedToCarrier: boolean;
   arrived: boolean;
-  /** 080 — an open problem with the courier: failed | lost | damaged | returned; null when none. */
+  /** An open courier problem (failed | lost | damaged | returned); null when none. */
   courierProblem?: string | null;
-  /**
-   * 096 — bags declared missing and not yet decided (one bag held; the rest of the package moved on).
-   * ⚠ STAFF ONLY: `packageStatuses` passes 0 for the shop, whose view is unchanged.
-   */
+  /** Bags declared missing and not yet decided. Staff only: 0 for the shop. */
   bagsHeld?: number;
 }
 
@@ -67,18 +54,16 @@ export function packageStatus(f: PackageFacts): PackageStatusView {
   if (f.shopStatus === "unfulfillable") return view("problem", "Shop can't supply");
 
   if (f.shopStatus === "delivered" || f.arrived) return view("delivered");
-  // 088 — back at the hub after a failed drop, waiting for a person to choose its next step. Its
-  // failure is still open (that is what holds it), but it is no longer in anybody's van.
+  // Back at the hub after a failed drop, waiting for a person to choose its next step.
   if (f.failedReason !== null && f.deliveryState === "returned") {
     return view("at_hub", "Returned after a failed delivery — needs a next step");
   }
   if (f.failedReason !== null) {
     return view("problem", `Delivery attempt failed — ${FAILURE_WORDS[f.failedReason] ?? f.failedReason}`, f.deliveryDriver);
   }
-  // 080 — a courier reported a problem and nobody has resolved it. After "delivered" (the furthest
-  // fact still wins), before "with carrier" — which is otherwise all a lost parcel would ever say.
+  // An unresolved courier problem: after "delivered", before "with carrier".
   if (f.courierProblem) return view("problem", `With the courier — ${COURIER_PROBLEM_WORDS[f.courierProblem] ?? f.courierProblem}`);
-  // 096 — part of the package is missing: the existing "Problem" word, pointing at Exceptions.
+  // Part of the package is missing.
   if ((f.bagsHeld ?? 0) > 0) {
     return view("problem", `${f.bagsHeld} bag${f.bagsHeld === 1 ? "" : "s"} missing — see Exceptions`);
   }
@@ -89,18 +74,17 @@ export function packageStatus(f: PackageFacts): PackageStatusView {
   if (f.checkedInAtHub) return view("at_hub");
   if (f.collectionState === "picked_up") return view("with_driver", null, f.collectionDriver);
 
-  // ⚠ A driver came and could not take it. The shop still has it (status unchanged, ready again for
-  // the next round) — but saying only "Ready" would hide that a collection was missed.
+  // A driver came and could not take it: still at the shop, but a missed collection is shown.
   if (f.collectionState === "not_available" && f.shopStatus === "ready_for_pickup") {
     return view("problem", "Not collected at the shop");
   }
   if (f.shopStatus === "ready_for_pickup") return view("ready");
-  // `collected` with no round row is a package collected before 063's model; it left the shop.
+  // `collected` with no round row: it left the shop.
   if (f.shopStatus === "collected") return view("with_driver");
   return view("preparing");
 }
 
-/** The same, for the shop: never a driver's name (073 FR-003). */
+/** The same, for the shop: never a driver's name. */
 export function forShop(v: PackageStatusView): PackageStatusView {
   return { ...v, driverName: null };
 }

@@ -1,10 +1,7 @@
 /**
- * 096 — reading labels with a camera (research R13): the native `BarcodeDetector` where the browser has
- * one (Chrome on Android, ChromeOS, macOS), otherwise the `barcode-detector` ponyfill over zxing-wasm,
- * which exposes the same API. Formats are limited to what an Effy label carries: QR and Code 128.
- *
- * ⚠ THE WASM IS SELF-HOSTED. It is imported as a Vite asset, so the build emits it beside the app and
- * nothing is fetched from a CDN at run time (the ponyfill's default is jsDelivr).
+ * Reads labels with a camera: the native `BarcodeDetector` where there is one, else the
+ * `barcode-detector` ponyfill over zxing-wasm. QR and Code 128 only. The wasm is a self-hosted Vite
+ * asset, never fetched from a CDN.
  */
 import wasmUrl from "zxing-wasm/reader/zxing_reader.wasm?url"
 

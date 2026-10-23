@@ -1,4 +1,3 @@
-// PATCH /admin/v1/delivery/coverage/groups/{groupId} — rename a group (076 FR-015). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -1,9 +1,5 @@
-// The dispatcher's overrides (063, US4).
-//
-// ⚠ A DISPATCHER MAY OVERRIDE A PREFERENCE. THEY MAY NOT OVERRIDE A FACT (FR-034). Reassigning to a
-// driver the engine merely ranked lower is the whole point of this screen. Reassigning to one who is
-// unlicensed, stood down, or holding no suitable vehicle is refused, naming the condition — those are
-// not opinions the engine formed, they are things about the world.
+// A dispatcher may override a preference, never a fact: reassigning to a driver ranked lower is the
+// point; one unlicensed, stood down or without a suitable vehicle is refused by name.
 
 import {
   eligibilityReasons,
@@ -43,10 +39,7 @@ export class DispatchError extends Error {
   }
 }
 
-/**
- * 088 (research R10) — a round whose failed parcels are still in its driver's van cannot be moved or
- * ended: "who has it" would stop being the round's driver, and the parcel would be stranded on paper.
- */
+/** A round with failed parcels still in its van cannot be moved or ended. */
 async function refuseWhileParcelsToReturn(tx: any, roundId: string): Promise<void> {
   const held = await tx.query(
     `SELECT 1 FROM public.round_package rp
@@ -67,16 +60,14 @@ async function refuseWhileParcelsToReturn(tx: any, roundId: string): Promise<voi
 export async function readDay() {
   const [rounds, unassigned, schedule, failed] = await Promise.all([
     query<any>(DAY_ROUNDS),
-    // 082 — $1: the end of the local day. A hub parcel for a later day is waiting, not unassigned.
+    // $1: the end of the local day. A hub parcel for a later day is waiting, not unassigned.
     query<any>(UNASSIGNED_WORK, [endOfLocalDay(new Date())]),
     loadSchedule(),
     query<{ with_drivers: number; returned_awaiting_decision: number }>(FAILED_PARCEL_COUNTS),
   ]);
 
   const now = Date.now();
-  // 072 — what each unassigned package is waiting FOR. A shop-side package belongs to the next
-  // collection run (the planner's own rule, `nextRunInstant`); a hub-side one to the end of its
-  // delivery window, or the end of the day where it has none or has already missed it.
+  // What each unassigned package waits for: the next collection run (`nextRunInstant`), or its window's end (else the day's).
   const nextRun = nextRunInstant(schedule.runs, new Date(now));
   const endOfDay = endOfLocalDay(new Date(now));
   const targetOf = (u: { stage: string; window_end: Date | null }): string | null => {
@@ -84,9 +75,7 @@ export async function readDay() {
     const end = u.window_end && u.window_end.getTime() > now ? u.window_end : endOfDay;
     return end.toISOString();
   };
-  // 082 — the planner's own rule for WHICH run a shop-side parcel travels on (`dueRun`). One not yet
-  // due on the next run is waiting at its supplier on purpose and is left out; one whose run has gone
-  // is listed and marked late.
+  // The planner's own `dueRun`: a parcel not due on the next run is left out; one whose run has gone is late.
   const calendar = {
     noWeekdays: schedule.settings.noDeliveryWeekdays,
     noDates: await nonDeliveryDates({ query: (t, v) => query(t, v) }, isoDateOf(new Date(now), -8)),
@@ -104,8 +93,7 @@ export async function readDay() {
         kind: r.kind,
         status: r.status,
         deadlineAt: r.deadline_at.toISOString(),
-        // 072 — null means open. A past instant is open too; it is sent as it is so the console can
-        // say "opened at" if it ever wants to, and judged against the clock there.
+        // null means open; a past instant is sent as it is.
         opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
         changedNote: r.changed_note,
         stops: [],
@@ -114,10 +102,9 @@ export async function readDay() {
       driverName: r.driver_name,
       stopsRemaining: Number(r.stops_remaining),
       packagesRemaining: Number(r.packages_remaining),
-      // ⚠ Derived on read, never stored (027's counted-not-stored rule). A stored `isLate` would be
-      // wrong every minute nothing wrote to it.
+      // Derived on read, never stored.
       isLate: r.status !== "completed" && r.status !== "cancelled" && r.deadline_at.getTime() < now,
-      // 093 — where the run is, worded as the driver's app words it, and any waiver of the gate.
+      // Where the run is, in the driver app's words, and any waiver of the gate.
       ...stageFields(r),
     })),
     unassigned: listed.map((u: any) => ({
@@ -130,12 +117,11 @@ export async function readDay() {
         const due = dueOf(u);
         return due !== null && nextRun !== null && due.getTime() < nextRun.getTime();
       })(),
-      // ⚠ An EMPTY array means no candidate existed at all — a staffing problem, not a fixable list.
+      // Empty means no candidate existed at all: a staffing problem.
       reasons: u.no_candidate ? [] : (u.reasons ?? []),
       stage: u.stage,
       targetAt: targetOf(u),
     })),
-    // 088 — FR-009.
     failedParcels: {
       withDrivers: Number(failed.rows[0]?.with_drivers ?? 0),
       returnedAwaitingDecision: Number(failed.rows[0]?.returned_awaiting_decision ?? 0),
@@ -143,7 +129,6 @@ export async function readDay() {
   };
 }
 
-/** 093 — a round's stage and waiver, from a row carrying the stage lateral's and waiver's columns. */
 function stageFields(r: any): { stage: string; stageLabel: string; waiver: RoundWaiverDTO | null } {
   const stage = stageOfRound(r.kind, r.status, r as RoundStageRow);
   return {
@@ -155,10 +140,7 @@ function stageFields(r: any): { stage: string; stageLabel: string; waiver: Round
   };
 }
 
-/**
- * 093 — were the stops finished in a different order from the one shown? Shown, never prevented: the
- * finishing order (`completed_at`) against the shared display order.
- */
+/** Shown, never prevented: the finishing order (`completed_at`) against the shared display order. */
 function workedOutOfOrder(orderedStops: Array<{ kind: string; completed_at: Date | null }>): boolean {
   const finished = orderedStops
     .map((s, i) => ({ i, at: s.completed_at, kind: s.kind }))
@@ -198,10 +180,7 @@ export async function readRound(roundId: string) {
     updatedAt: r.updated_at,
     deadlineAt: (r.deadline_at as Date).toISOString(),
     opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
-    // ⚠ ORDERED BY THE SHARED RULE, the same one the driver's app is ordered by (research R5). This
-    // read used to return the query's own `seq NULLS LAST, id` order, which agreed with the driver
-    // only while no stop had a due time. 069 gives drops one — the window's start — so the two
-    // would have diverged the first time a round carried two windows, and nothing would have failed.
+    // Ordered by the shared rule, the same as the driver's app.
     stops: orderRoundStops(
       stops.rows.map((s) => ({
         id: s.stop_id as string,
@@ -220,13 +199,12 @@ export async function readRound(roundId: string) {
       zoneName: s.zone_name,
       label: s.shop_name ?? s.destination_suburb ?? "",
       orderNumber: s.order_number,
-      // 069 — the window the customer was sold, as instants; the console says Due and Late from it.
+      // The window the customer was sold, as instants.
       deliveryWindow:
         s.window_start && s.window_end
           ? { startAt: (s.window_start as Date).toISOString(), endAt: (s.window_end as Date).toISOString() }
           : null,
-      // 091 — scanned / typed / by hand, for the hand-overs recorded at this stop on this round. Absent
-      // when none was recorded: nothing is assumed.
+      // Scanned / typed / by hand, for this stop on this round; absent when none was recorded.
       ...(s.handovers_scan + s.handovers_typed + s.handovers_manual > 0
         ? { handovers: { scan: s.handovers_scan, typed: s.handovers_typed, manual: s.handovers_manual } }
         : {}),
@@ -234,16 +212,14 @@ export async function readRound(roundId: string) {
   };
 }
 
-/** Optimistic lock. ⚠ Compared at MICROSECOND precision — see ROUND_FOR_UPDATE's comment. */
+/** Optimistic lock, compared at microsecond precision (see ROUND_FOR_UPDATE). */
 function assertFresh(actual: string, expected: string) {
   if (actual !== expected) {
     throw new DispatchError("stale", "Somebody else changed this round. Reload and try again.");
   }
 }
 
-/**
- * Move a round to another driver (FR-029), refusing an ineligible one by name (FR-034).
- */
+/** Refuses an ineligible driver by name. */
 export async function reassign(
   roundId: string,
   toDriverId: string,
@@ -261,10 +237,7 @@ export async function reassign(
     assertFresh(r.updated_at, expectedUpdatedAt);
     await refuseWhileParcelsToReturn(tx, roundId);
 
-    // ⚠ THE SAME RULE THE PLANNER USES, imported not retyped (063 R5) — AND, SINCE 072, ASKED ABOUT
-    // THE ROUND AS IT REALLY IS (research R11). Until 072 this call hard-coded "no refrigeration",
-    // an eight-hour deadline, twelve minutes a stop and the round's first zone, so a dispatcher
-    // could do what the planner would not: put a chilled round in a van that cannot carry chilled.
+    // The planner's own rule, asked about the round as it really is (refrigeration, deadline, stops, zones).
     const work: {
       rows: Array<{
         zone_id: string | null;
@@ -282,18 +255,13 @@ export async function reassign(
     const now = new Date();
     const deadlineAt = r.deadline_at as Date;
     const stops = Number(work.rows[0]?.stops ?? 0);
-    // ⚠ A ROUND ALREADY LATE CAN STILL BE MOVED. The deadline gate would refuse every driver for a
-    // round whose deadline has passed — and a late round is exactly the one a dispatcher most needs
-    // to hand to somebody else. Its lateness is already shown; here only the driver's own shift end
-    // limits it, so the deadline is set to when the remaining stops would finish.
+    // A late round can still be moved: only the driver's shift end limits it.
     const late = deadlineAt.getTime() <= now.getTime();
     const effectiveDeadline = late ? new Date(now.getTime() + stops * perStopAllowanceMin * 60_000) : deadlineAt;
-    // A round not yet begun cannot be worked before it opens (FR-005); one under way starts now.
+    // An unstarted round cannot be worked before it opens; one under way starts now.
     const startAt = r.status === "planned" && r.opens_at ? (r.opens_at as Date) : now;
 
-    // One question per distinct area on the round — a driver must be cleared for ALL of it
-    // — each carrying the whole round's weight, stops and refrigeration. An empty round still asks
-    // the conditions that are about the driver and not the work.
+    // One question per distinct area (a driver must be cleared for all), each with the round's weight, stops and refrigeration.
     const units =
       work.rows.length > 0
         ? work.rows
@@ -315,7 +283,7 @@ export async function reassign(
         perStopAllowanceMin,
         startAt,
       })) {
-        // An empty round has no zone to be cleared for; that one answer would be about nothing.
+        // An empty round has no zone to be cleared for.
         if (work.rows.length === 0 && reason === "not_cleared") continue;
         found.add(reason);
       }
@@ -334,13 +302,13 @@ export async function reassign(
       `UPDATE public.driver_round SET driver_id = $2, updated_at = now() WHERE id = $1`,
       [roundId, toDriverId],
     );
-    await enqueueRunAssigned(tx, roundId); // backlog D1 — the new driver is told
-    if (r.driver_id && r.driver_id !== toDriverId) await enqueueRoundChanged(tx, roundId, r.driver_id); // D2 — the old one too
+    await enqueueRunAssigned(tx, roundId);
+    if (r.driver_id && r.driver_id !== toDriverId) await enqueueRoundChanged(tx, roundId, r.driver_id);
     await audit(tx, actorSub, "dispatch.reassign", roundId, { toDriverId });
   });
 }
 
-/** Take work back (FR-030) — it returns to the pool for the next wave, never disappears. */
+/** Work goes back to the pool for the next wave. */
 export async function unassign(roundId: string, expectedUpdatedAt: string, actorSub: string): Promise<void> {
   await withTransaction(async (tx: any) => {
     const cur = await tx.query(ROUND_FOR_UPDATE, [roundId]);
@@ -349,9 +317,7 @@ export async function unassign(roundId: string, expectedUpdatedAt: string, actor
     assertFresh(r.updated_at, expectedUpdatedAt);
     await refuseWhileParcelsToReturn(tx, roundId);
 
-    // ⚠ ONLY WORK STILL IN THE ROUND, NOT WORK ALREADY COLLECTED (FR-035). A `picked_up` package is
-    // physically in a van and no query can know otherwise — 056's stranded-work finding. Releasing it
-    // here would tell the planner to send a second driver for goods somebody already has.
+    // Only work still in the round: a `picked_up` package is in a van, and releasing it would send a second driver.
     await tx.query(
       `DELETE FROM public.round_package rp
         USING public.round_stop rs
@@ -362,12 +328,11 @@ export async function unassign(roundId: string, expectedUpdatedAt: string, actor
       `UPDATE public.driver_round SET status = 'cancelled', updated_at = now() WHERE id = $1`,
       [roundId],
     );
-    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id); // backlog D2 — "Run removed"
+    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id);
     await audit(tx, actorSub, "dispatch.unassign", roundId, {});
   });
 }
 
-/** Set a dispatcher's own stop order (FR-031). */
 export async function reorder(
   roundId: string,
   stopIds: string[],
@@ -383,8 +348,7 @@ export async function reorder(
     const own = await tx.query(`SELECT id FROM public.round_stop WHERE round_id = $1`, [roundId]);
     const owned = new Set(own.rows.map((s: any) => s.id));
     if (stopIds.length !== owned.size || stopIds.some((id) => !owned.has(id))) {
-      // ⚠ Every stop, exactly once. A partial order would leave some stops with a seq and some
-      // without, and the shared rule would then mix a manual order with a derived one.
+      // Every stop exactly once, or manual and derived orders would mix.
       throw new DispatchError("invalid", "The order must list every stop on this round exactly once.");
     }
 
@@ -392,21 +356,12 @@ export async function reorder(
       await tx.query(`UPDATE public.round_stop SET seq = $2 WHERE id = $1`, [id, i]);
     }
     await tx.query(`UPDATE public.driver_round SET updated_at = now() WHERE id = $1`, [roundId]);
-    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id); // backlog D2 — "Run updated"
+    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id);
     await audit(tx, actorSub, "dispatch.reorder", roundId, { stops: stopIds.length });
   });
 }
 
-
-/**
- * ⚠ Every manual change is recorded — who and when (FR-033).
- *
- * ⚠ THIS DELEGATES TO 056's WRITER RATHER THAN WRITING ITS OWN INSERT. The first draft of this file
- * had a private `audit()` doing exactly that — a second implementation of one rule, in a service that
- * already imports the first. `shared/audit.ts` also redacts PII field VALUES while recording that
- * they changed (056: an emergency contact is a third party who never dealt with Effy), and a
- * hand-rolled insert would have quietly skipped that.
- */
+/** Every manual change is recorded through the shared audit writer, which redacts PII values. */
 async function audit(tx: any, actorSub: string, action: DispatchAuditAction, targetId: string, detail: Record<string, unknown>) {
   await recordAudit({ actorSub, action, targetType: "driver_round", driverId: targetId, detail }, tx);
 }

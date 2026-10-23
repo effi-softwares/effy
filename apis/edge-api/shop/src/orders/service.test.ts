@@ -38,11 +38,7 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
     });
   });
 
-  /**
-   * ⚠ Newest-first by operator direction (2026-09-19), reversing the queue's FIFO default. The FIFO
-   * read is one click away (the `placed` header flips to ascending) and an order nobody has opened
-   * is marked in the row, so the urgency the old default carried is still findable.
-   */
+  /** Newest first by default; FIFO is one click away and unopened orders are marked. */
   it("opens newest-first", () => {
     const q = parseListQuery({});
     expect(q.sort).toBe("placed");
@@ -200,12 +196,7 @@ describe("the log's wording", () => {
     expect(e).toMatchObject({ title: "Picking reopened", tone: "strong" });
   });
 
-  it("drops the dev stub's placeholder suffix from the state word", () => {
-    const e = toEntry(record({ event_type: "state_changed", from_status: "ready_for_pickup", to_status: "collected:placeholder:drv" }));
-    expect(e.title).toBe("Marked collected");
-  });
-
-  /** ⚠ The log never copies a note's body — the words stay in the Notes section. */
+  /** The log never copies a note's body. */
   it("records that a note was added without repeating it", () => {
     const e = toEntry(record({ event_type: "note_added", detail: "secret words" }));
     expect(e.title).toBe("Internal note added");
@@ -217,16 +208,14 @@ describe("the log's wording", () => {
     expect(toEntry(record({ event_type: "tags_changed", detail: "" })).title).toBe("Tags cleared");
   });
 
-  /**
-   * ⚠ "submitted" is not "returned" (055). A refund with the provider must not read as money back.
-   */
+  /** "Submitted" is not "returned". */
   it("does not call a submitted refund returned", () => {
     const e = toEntry(record({ source: "refund", amount: "12.50", refund_status: "submitted", refund_kind: "item", actor_kind: "shop" }));
     expect(e.title).toBe("Refund of $12.50 sent — waiting for the bank");
     expect(e.title).not.toMatch(/returned/);
   });
 
-  /** ⚠ An Effy employee is "Effy" on a shop's screen, never a name. */
+  /** An Effy employee is "Effy" on a shop's screen. */
   it("labels a back-office refund as Effy", () => {
     const e = toEntry(record({ source: "refund", amount: "5.00", refund_status: "succeeded", actor_kind: "back_office", actor_name: "Someone At Effy" }));
     expect(e.actorLabel).toBe("Effy");
@@ -271,7 +260,7 @@ describe("item-level picking (A3 revision 2)", () => {
     expect(fulfillmentsRepo.transition).not.toHaveBeenCalled();
   });
 
-  /** ⚠ The tick IS the start: a received order moves to picking through the guarded machine. */
+  /** The tick is the start: a received order moves to picking through the guarded machine. */
   it("starts picking when the first tick lands on a received order", async () => {
     fulfillmentsRepo.readStatus.mockResolvedValue("received");
     fulfillmentsRepo.transition.mockResolvedValue(true);

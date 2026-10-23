@@ -1,4 +1,3 @@
-// GET /shop/v1/sections — this shop's sections (US5).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

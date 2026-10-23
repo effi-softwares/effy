@@ -7,31 +7,15 @@ import { describe, expect, it } from "vitest";
 import { functionsOf, listStacks } from "./serverless-stacks.js";
 
 /**
- * ⚠ EVERY SCHEDULED FUNCTION HAS AN ALARM THAT DOES NOT DEPEND ON ITS OWN CODE RUNNING.
- *
- * A scheduled function is watched by what it is for — a refund left stuck, a wave that placed
- * nothing — and every one of those signals is emitted BY the function. If it throws first, it emits
- * nothing, "no data" reads as healthy, and the work stops with every alarm green. So each has an
- * alarm on the platform's own count of failed invocations (`infra/envs/dev/background-functions.tf`).
- *
- * That alarm addresses the function BY NAME, in a different file, in a different language. Rename
- * the function and the alarm keeps watching a name that no longer exists — nothing fails, nothing
- * warns. This holds the two to each other, in both directions:
- *
- *   · every alarm names a function that exists and really is scheduled;
- *   · every scheduled function has an alarm — here, or one of its own that notifies.
+ * Every scheduled function has an alarm on its failed invocations (background-functions.tf), which
+ * names it in another file: every alarm names a real scheduled function, and every scheduled function
+ * has an alarm.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
 const infra = resolve(edgeApi, "../../infra/envs/dev");
 
-/**
- * Every stack's functions that have a `schedule` event.
- *
- * ⚠ Through `listStacks()`, not by reading `<dir>/serverless.yml` (075): a service may deploy as
- * more than one stack, and a scheduled function in the second file would otherwise be scheduled,
- * unwatched, and invisible to this guard.
- */
+/** Through `listStacks`, so a scheduled function in a second stack file is not missed. */
 function scheduledFunctions(): { service: string; key: string; name: string }[] {
   return listStacks().flatMap((stack) =>
     functionsOf(stack)
@@ -43,7 +27,7 @@ function scheduledFunctions(): { service: string; key: string; name: string }[] 
 const tf = readFileSync(resolve(infra, "background-functions.tf"), "utf8");
 const alarmed = [...tf.matchAll(/function\s*=\s*"(effy-edge-[a-z-]+?)-\$\{var\.env\}-(\w+)"/g)].map((m) => `${m[1]}-dev-${m[2]}`);
 
-/** Scheduled functions watched by a wired error alarm declared somewhere else. Each says where. */
+/** Watched by a wired error alarm declared elsewhere; each says where. */
 const ALARMED_ELSEWHERE: Record<string, string> = {
   "effy-edge-shop-dev-insightsRollup": "infra/envs/dev/insights.tf — insights_rollup_errors",
   "effy-edge-admin-dev-sesIdentityHealth": "apis/edge-api/admin/serverless.yml — SesIdentityHealthErrorsAlarm",

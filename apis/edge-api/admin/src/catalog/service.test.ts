@@ -137,7 +137,7 @@ describe("category cycle / parent validation", () => {
   it("rejects moving a category under its own descendant (cycle)", async () => {
     repo.listCategories.mockResolvedValue([{ id: "c1", parentId: null, key: "food", name: "Food", displayOrder: 0, status: "active" }]);
     repo.categoryExists.mockResolvedValue(true);
-    repo.categorySubtree.mockResolvedValue(["c1", "c2"]); // c2 is a descendant of c1
+    repo.categorySubtree.mockResolvedValue(["c1", "c2"]);
     expect(await kindOf(updateCategory("c1", { parentId: "c2" }, "actor"))).toBe("validation");
     expect(repo.updateCategory).not.toHaveBeenCalled();
   });

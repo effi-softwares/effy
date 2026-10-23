@@ -6,7 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 
 /**
- * Drives the shutter from the shared screen chrome (060 US1).
+ * Drives the shutter from the shared screen chrome.
  *
  * The shutter button lives in `commonMain` with the rest of the designed frame; whatever takes the
  * picture lives per-platform. The platform surface publishes a [capture] lambda here, and the
@@ -26,21 +26,12 @@ class CameraCaptureController {
 fun rememberCameraCaptureController(): CameraCaptureController = remember { CameraCaptureController() }
 
 /**
- * A live camera viewfinder (design screen `proof-photo`).
- *
- * ⚠ **The SCREEN is shared; only this SURFACE is per-platform.** The design's photo-proof screen is
- * an in-app viewfinder with framing guidance, a caption bar and shutter/flash/flip controls. All of
- * that chrome is built once in `commonMain`, so the screen exists identically on both platforms
- * (FR-001). What differs is what fills the rectangle.
- *
- * ⚠ **This closes a live defect on iOS as a side effect.** `rememberPhotoCapture` returns `null`
- * there, so the Photo proof option is **hidden entirely** — iOS drivers have had no photo proof at
- * all since 049. After 060 they do, via the system camera; since driver backlog H13 (2026-10-16) iOS
- * has a live viewfinder too, on AVFoundation directly (no Swift bridge was needed).
+ * A live camera viewfinder. The photo-proof screen's chrome (framing guidance, caption bar, shutter, flash,
+ * flip) is built once in `commonMain`; only this rectangle is per-platform.
  *
  * @param onCaptured upright JPEG bytes, when a live preview produces an image
- * @return true if a LIVE preview is being rendered. When false the caller shows its stand-in and
- *   the shutter hands off to the system camera.
+ * @return true if a live preview is being rendered. When false the caller shows its stand-in and the
+ *  shutter hands off to the system camera.
  */
 @Composable
 expect fun CameraPreviewSurface(

@@ -20,23 +20,12 @@ import { useSetStockThreshold, useSetStockTracking } from "./stockQueries";
 import { sizeLabelOf } from "./variants";
 
 /**
- * The mockup's "Edit rules" sheet — the STANDING facts about how this product's stock behaves, as
- * opposed to a one-off movement of the count.
- *
- * ⚠ THE MOCKUP'S FIELDS ARE `Reorder point`, `Location`, `Barcode (EAN)` AND `Track inventory`. Two of
- * the four survive contact with this platform, one is renamed, and one is refused:
- *
- *   • `Track inventory`  → kept verbatim. It is 054's `stock_tracked`, and off is a real state: an
- *     untracked product behaves exactly as it did before 054 existed.
- *   • `Reorder point`    → the LOW-STOCK THRESHOLD, and renamed on purpose. Effy's threshold does not
- *     reorder anything; it marks the product as running low (the dashboard and its own detail say
- *     so) for a person to decide about. A field called "reorder point" promises automatic replenishment the platform does not have.
- *   • `Location`         → REFUSED. A shop IS the location — 049's model is one fulfilment node per
- *     shop, and the schema has no per-shop bin/warehouse anywhere. A select offering "Borås workshop"
- *     would be three options that all mean the same shelf.
- *   • `Barcode (EAN)`    → NOT REPEATED HERE. It is the product's GTIN, and it is already shown and
- *     edited under Product details. Two editors for one column is how one operator's save reverts
- *     another's; the mockup only separates them because its inventory is a different record.
+ * "Edit rules": the standing facts about how this product's stock behaves.
+ *  • Track inventory: `stock_tracked`; off is a real state (an uncounted product).
+ *  • Low-stock threshold, not "reorder point": nothing reorders; it marks the product as running low for
+ *  a person to decide.
+ *  • No location: a shop is the location (no bins or warehouses).
+ *  • No barcode: the GTIN is edited under Product details; two editors for one column revert each other.
  */
 export function InventoryRulesDialog({
   detail,
@@ -46,13 +35,13 @@ export function InventoryRulesDialog({
   onOpenChange,
 }: {
   detail: ProductDetail;
-  /** 098 — the size whose rules these are. */
+  /** The size whose rules these are. */
   variantId: string;
   stock: ProductStockDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  // 098 — tracking and the threshold are per size; the title says which.
+  // Tracking and the threshold are per size; the title says which.
   const size = sizeLabelOf(detail, variantId);
   const setTracking = useSetStockTracking(variantId);
   const setThreshold = useSetStockThreshold(variantId);
@@ -78,7 +67,7 @@ export function InventoryRulesDialog({
   const opening = wholeNumber(openingCount);
   const thresholdValue = threshold.trim() === "" ? null : wholeNumber(threshold);
 
-  // ⚠ FR-003: turning tracking on without a count makes the product instantly unbuyable with no
+  // Turning tracking on without a count makes the product instantly unbuyable with no
   // operator intent behind it — a state the shop hears about from a customer rather than from their
   // own action. The server refuses it too; this just stops the round trip.
   const openingValid = !turningOn || (opening !== null && opening >= 0);
@@ -89,12 +78,12 @@ export function InventoryRulesDialog({
   const failure = setTracking.error ?? setThreshold.error;
 
   /**
-   * ⚠ TWO ROUTES, SAVED IN ORDER, AND TRACKING GOES FIRST. A threshold is meaningless on an
+   * Two routes, saved in order, and tracking goes first. A threshold is meaningless on an
    * untracked product, and the server refuses a threshold write when tracking is off — so
    * saving them in any other order turns one operator action into a confusing refusal for a product
    * that is, by the time they read it, being tracked perfectly well.
    *
-   * ⚠ EACH IS SENT ONLY IF IT ACTUALLY CHANGED. A PATCH that resends untouched fields is how one
+   * Each is sent only if it actually changed. A PATCH that resends untouched fields is how one
    * operator's save silently reverts another's — the same rule the focused-edit dialogs follow.
    */
   async function save() {

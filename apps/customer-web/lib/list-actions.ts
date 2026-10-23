@@ -1,12 +1,12 @@
 "use client"
 
 /**
- * List mutations (068): the shopper's own named lists, and which products are in them.
+ * List mutations: the shopper's own named lists, and which products are in them.
  *
- * ⚠ NOT IMPORTED BY THE HEART. `SaveControl` is on the guest path with a measured byte budget; this
+ * Not imported by the heart. `SaveControl` is on the guest path with a measured byte budget; this
  * module is reached only from the list chooser (loaded on demand) and the account pages.
  *
- * ⚠ AFTER EVERY CHANGE THE MIRROR IS RE-READ FROM THE PLATFORM rather than patched locally. Whether
+ * After every change the mirror is re-read from the platform rather than patched locally. Whether
  * a product is still saved, and whether it is still in a named list, depends on every list it is in;
  * computing that here would be a second copy of a rule the platform already owns.
  */
@@ -55,7 +55,7 @@ export function fetchListItems(listId: string): Promise<ListResult<SavedItemDTO[
 }
 
 /**
- * Create a list; with `productId`, the product is placed in it in the same action (FR-015). 098 —
+ * Create a list; with `productId`, the product is placed in it in the same action. 098
  * `variantId` is the size on screen, remembered with the product.
  */
 export async function createList(name: string, productId?: string, variantId?: string | null): Promise<ListResult<SavedListDTO>> {
@@ -64,7 +64,7 @@ export async function createList(name: string, productId?: string, variantId?: s
     json("POST", productId ? { name, productId, ...(variantId ? { variantId } : {}) } : { name }),
   )
   if (result.ok) {
-    // ⚠ Where it was made and whether a product came with it. Never `name`.
+    // Where it was made and whether a product came with it. Never `name`.
     capture({
       name: "saved_list_created",
       props: { source: productId ? "chooser" : "lists_page", withProduct: Boolean(productId) },
@@ -86,7 +86,7 @@ export async function deleteList(listId: string): Promise<ListResult> {
 }
 
 /**
- * `restoreAddedAt` is set only by undo: the product returns to the position it held. 098 —
+ * `restoreAddedAt` is set only by undo: the product returns to the position it held. 098
  * `variantId` is the size on screen, remembered with the product (lists hold products, not sizes).
  */
 export async function addToList(listId: string, productId: string, restoreAddedAt?: string, variantId?: string | null): Promise<ListResult> {
@@ -104,7 +104,7 @@ export async function addToList(listId: string, productId: string, restoreAddedA
   return result
 }
 
-/** Takes the product out of THIS list only. */
+/** Takes the product out of this list only. */
 export async function removeFromList(listId: string, productId: string): Promise<ListResult> {
   const result = await call<void>(
     `/api/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(productId)}`,

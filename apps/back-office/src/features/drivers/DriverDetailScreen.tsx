@@ -117,15 +117,15 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         }
       />
 
-      {/* ⚠ FR-044/SC-009 — stated at the top of the record, in words, with the remedy implied. */}
+      {/* Stated at the top of the record, in words, with the remedy implied. */}
       {d.blockedReasons.length > 0 ? (
         <Callout tone="destructive" title="This driver cannot be given work.">
           {d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}
         </Callout>
       ) : null}
 
-      {/* ⚠ THE HALF-PROVISIONED DRIVER. Creating a driver writes to two systems and cannot be atomic;
-          the profile must SHOW a half rather than render a half-working driver as normal. */}
+      {/* The half-provisioned driver. Creating a driver writes to two systems and cannot be atomic;
+          the profile must show a half rather than render a half-working driver as normal. */}
       {d.accountState !== "ok" ? (
         <Callout tone="destructive" title="This driver is only half set up.">
           {d.accountState === "record_only"
@@ -183,7 +183,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                 />
               </Panel>
               <Panel title="Work assignment" icon={<Car aria-hidden="true" />}>
-                {/* ⚠ 061: the vehicle is the one the driver is CURRENTLY HOLDING (the open holding row). */}
+                {/* The vehicle is the one the driver is currently holding (the open holding row). */}
                 <DetailRows
                   rows={[
                     { label: "Hub", value: d.hub ?? dash },
@@ -228,7 +228,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             </TabsContent>
 
             <TabsContent value="clearances" className="bo-tabpanel">
-              {/* ⚠ 062 — what this driver may actually do: one row per (function, area). */}
+              {/* What this driver may actually do: one row per (function, area). */}
               <Panel title="Cleared for" icon={<BadgeCheck aria-hidden="true" />} description="Each clearance is one kind of work in one area, or everywhere.">
                 <CapabilityEditor driverId={driverId} />
               </Panel>

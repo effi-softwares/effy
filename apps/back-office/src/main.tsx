@@ -19,7 +19,7 @@ const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Missing #root element");
 
 try {
-  // Fail-fast on missing config (FR-014), then wire the app top-down (explicit, no DI framework).
+  // Fail-fast on missing config, then wire the app top-down (explicit, no DI framework).
   assertConfig();
   configureAmplify();
   initTelemetry();

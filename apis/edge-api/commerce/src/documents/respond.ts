@@ -2,7 +2,6 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { problem, type RequestScope } from "@effy/edge-shared";
 
-/** A PDF, base64 through the gateway, named for the download. */
 export function pdfResponse(bytes: Uint8Array, filename: string): APIGatewayProxyStructuredResultV2 {
   return {
     statusCode: 200,
@@ -16,7 +15,7 @@ export function pdfResponse(bytes: Uint8Array, filename: string): APIGatewayProx
   };
 }
 
-/** 409 with a named type the client words itself (never server prose shown to a customer). */
+/** With a named type the client words itself. */
 export function documentConflict(scope: RequestScope, code: string, detail: string): APIGatewayProxyStructuredResultV2 {
   return problem(409, `https://effyshopping.com/problems/${code}`, "Not available yet", detail, scope);
 }

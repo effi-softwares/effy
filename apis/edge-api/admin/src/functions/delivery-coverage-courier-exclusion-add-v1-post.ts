@@ -1,4 +1,3 @@
-// POST /admin/v1/delivery/coverage/courier/exclusions — exclude a postcode from courier delivery (076 FR-018). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -17,11 +17,11 @@ export function deliveryMutationError(err: unknown, conflictMessage?: string): s
 
 
 
-// ── 069 ───────────────────────────────────────────────────────────────────────────────────────────
+// 069
 
 /**
- * The console's OWN wording for each field the service can refuse (FR-037). Keyed on the field the
- * service named — never its `message`, which is server prose (FR-008).
+ * The console's own wording for each field the service can refuse. Keyed on the field the
+ * service named — never its `message`, which is server prose.
  */
 const SLOT_FIELD_COPY: Record<string, string> = {
   startTime: "Enter the start as a time of day, like 17:00.",
@@ -51,11 +51,11 @@ export function fieldErrors(err: unknown): Record<string, string> {
   return out;
 }
 
-// ── 076: coverage ────────────────────────────────────────────────────────────────────────────────
+// Coverage
 
 /**
- * The console's OWN sentence for each coverage refusal, keyed on the code the service sent — never
- * its `detail`, which is server prose (FR-008).
+ * The console's own sentence for each coverage refusal, keyed on the code the service sent — never
+ * its `detail`, which is server prose.
  */
 const COVERAGE_COPY: Record<string, string> = {
   invalid_postcode: "A postcode is four digits.",
@@ -72,18 +72,18 @@ const COVERAGE_COPY: Record<string, string> = {
   not_excluded: "That postcode is no longer excluded.",
   reason_required: "Say why, in a few words.",
   courier_plan_missing: "Make a courier fee table active on the Pricing tab before switching courier delivery on.",
-  // 079 — what a customer is told about when a courier order arrives.
+  // What a customer is told about when a courier order arrives.
   courier_estimate_missing: "Say how long a courier usually takes before switching courier delivery on.",
   courier_estimate_in_use: "Switch courier delivery off before removing its estimate.",
   invalid_estimate: "The estimate is 3 to 60 characters on one line, like \"2–4 business days\".",
-  // 080 — courier services carry the timeframe now.
+  // Courier services carry the timeframe now.
   courier_service_missing: "Add a courier service and make it the default before switching courier delivery on.",
   name_taken: "There is already a courier service with that courier and service name.",
   default_service_required: "Make another service the default first — checkout tells courier customers the default's timeframe.",
   invalid_service: "Check the highlighted fields.",
 };
 
-/** 080 — what staff read for each refused courier-service field, in the console's own words. */
+/** What staff read for each refused courier-service field, in the console's own words. */
 const COURIER_SERVICE_FIELD_COPY: Record<string, string> = {
   courierName: "The courier's name is 2 to 60 characters.",
   serviceName: "The service's name is 2 to 60 characters.",
@@ -121,13 +121,13 @@ export function coverageError(err: unknown): string {
   return (code && COVERAGE_COPY[code]) || deliveryMutationError(err);
 }
 
-/** What staff read in the checker, for each reason the service can give (FR-025). */
+/** What staff read in the checker, for each reason the service can give. */
 export const COVERAGE_REASON_COPY: Record<string, string> = {
   listed: "On Effy's list.",
   courier_offered: "Not on Effy's list. Courier delivery is offered there.",
   courier_off: "Not on Effy's list. Courier delivery is switched off, so nobody delivers there.",
   courier_excluded: "Not on Effy's list, and excluded from courier delivery.",
-  // 079 — on, and no customer is offered it yet.
+  // On, and no customer is offered it yet.
   courier_not_ready: "Not on Effy's list. Courier delivery is switched on but has no fee table or no default courier service, so nobody delivers there.",
   unknown_postcode: "Not a known postcode.",
 };
@@ -136,7 +136,7 @@ export const NO_DRIVER_GROUP = "No driver is cleared to deliver to that group. O
 export const NO_DRIVER_UNGROUPED =
   "These postcodes would be in no group, and no driver is cleared to deliver everywhere. Orders placed there could not be given to anyone.";
 
-// ── 083: going live ────────────────────────────────────────────────────────────────────────────────
+// Going live
 
 /** The console's own words for each way the switch is refused; keyed on the contract's `code`. */
 const GO_LIVE_COPY: Record<string, string> = {

@@ -1,4 +1,3 @@
-// PUT /inventory/v1/variants/{variantId}/stock/threshold — set or clear this product's own low-stock threshold (054 US1, FR-005).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

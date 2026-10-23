@@ -1,10 +1,10 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * List / create the signed-in customer's delivery addresses (022 US1/US2).
+ * List / create the signed-in customer's delivery addresses.
  *
- * Address management is customer-profile capability → the COLD path (edge-api/customer), per the
- * routing law (011 FR-028). Forwards to `/customer/v1/addresses`.
+ * Address management is customer-profile capability → the cold path (edge-api/customer), per the
+ * routing law. Forwards to `/customer/v1/addresses`.
  */
 export async function GET() {
   return proxyToEdge((c) => c.get("/customer/v1/addresses"))

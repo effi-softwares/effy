@@ -3,13 +3,13 @@ import type { ShopInsightsDTO } from "@effy/shared-types"
 import { freshness, RANGE_TITLE } from "./model"
 
 /**
- * Export the figures ON SCREEN (058, FR-015).
+ * Export the figures on screen.
  *
- * ⚠ IT SERIALISES THE PAYLOAD THE OPERATOR IS LOOKING AT, rather than asking the server for a second,
+ * It serialises the payload the operator is looking at, rather than asking the server for a second,
  * differently-computed version. A CSV that disagrees with the page it was exported from is the worst
  * kind of report: it gets mailed to someone who never saw the page.
  *
- * ⚠ IT STAMPS THE WINDOW AND THE COMPUTED-AT into the file. A spreadsheet outlives the screen, and a
+ * It stamps the window and the computed-at into the file. A spreadsheet outlives the screen, and a
  * column of numbers with no window attached is a number nobody can check later.
  */
 export function insightsCsv(dto: ShopInsightsDTO, now = Date.now()): string {

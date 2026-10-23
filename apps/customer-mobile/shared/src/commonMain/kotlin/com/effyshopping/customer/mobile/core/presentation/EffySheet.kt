@@ -46,20 +46,17 @@ import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * THE ONLY OVERLAY IN THE APP — a bottom sheet (087 FR-013; operator direction: "no dialog modals,
- * bottom sheets for everything"). Every choice, confirmation, picker and short form is one of these.
+ * The only overlay in the app: a bottom sheet. Every choice, confirmation, picker and short form is one.
  *
- * - A 48×5 grab handle, 16dp top corners, the storefront scrim (Filters / AddToList / Security boards).
- * - The CONTENT scrolls; the ACTIONS ARE PINNED at the bottom, above the home indicator AND above the
- *   keyboard (FR-014) — a long form never pushes its Save off-screen.
- * - It closes by dragging down, tapping outside, or the cancel action — except while [busy].
- * - ⚠ A [dirty] sheet never discards silently: dragging, tapping outside or cancelling turns the
- *   sheet's own page into "Discard your changes?" with two pinned buttons. It is the same sheet, not a
- *   dialog on top of it (there are no dialogs).
+ * - A 48×5 grab handle, 16dp top corners, the storefront scrim.
+ * - The content scrolls; the actions are pinned above the home indicator and the keyboard.
+ * - It closes by dragging down, tapping outside or cancelling, except while [busy].
+ * - A [dirty] sheet never discards silently: each of those turns its own page into "Discard your
+ *  changes?" with two pinned buttons (the same sheet, not a dialog).
  *
- * ⚠ The drag is intercepted by `confirmValueChange`, a KEY of the sheet state's `rememberSaveable`:
- * the lambda must be one stable instance reading state at call time, or the sheet dips and springs
- * back on the first keystroke (the 034 Heisenbug). Keep it in `remember {}` with no keys.
+ * The drag is intercepted by `confirmValueChange`, a key of the sheet state's `rememberSaveable`: the
+ * lambda must be one stable instance reading state at call time, or the sheet dips and springs back on the
+ * first keystroke. Keep it in `remember {}` with no keys.
  *
  * @param footer replaces the default primary + cancel pair when a sheet needs its own actions.
  */
@@ -225,7 +222,7 @@ private fun EffySheetBody(
 }
 
 /**
- * A CONFIRMATION — the sheet that replaces every "Are you sure?" dialog (Security board):
+ * A confirmation — the sheet that replaces every "Are you sure?" dialog (Security board):
  * an icon in a zinc circle, a 20sp title, one sentence, then the pinned confirm (black when it
  * destroys something) and a quiet way out.
  */

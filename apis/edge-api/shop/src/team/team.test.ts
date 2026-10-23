@@ -37,7 +37,6 @@ function member(over: Record<string, unknown> = {}) {
   };
 }
 
-/** The caller is an active manager unless a test says otherwise. */
 function callerIsManager() {
   repo.listTeam.mockResolvedValue([member()]);
 }
@@ -51,13 +50,7 @@ beforeEach(() => {
   repo.deactivate.mockResolvedValue("them@effy.shop");
 });
 
-/**
- * 057 US7 (T061) — the authority gate, decided from the PLATFORM RECORD.
- *
- * ⚠ NOT FROM `cognito:groups`. Principle IV: the claim is the ORIGIN of a role assignment; where the
- * platform keeps its own record, the record is authoritative. A manager stood down five minutes ago
- * still holds a valid token for up to an hour.
- */
+/** Decided from the platform record, not `cognito:groups`. */
 describe("team management is manager-only, from the record", () => {
   const attempts: [string, () => Promise<unknown>][] = [
     ["invite", () => invite(SHOP, ME, { email: "new@effy.shop", name: "New", role: "shop_staff" })],
@@ -89,18 +82,7 @@ describe("team management is manager-only, from the record", () => {
   });
 });
 
-/**
- * ⚠ THE MOST IMPORTANT TESTS IN THIS FILE, and the correction to this feature's own research.
- *
- * R5 said 009's provisioning was "built correctly" and safe to reuse as-is. It is not, for THIS
- * caller: `ensureShopUser` recovers an existing account on conflict and RE-ENABLES it if disabled —
- * documented by 009 as break-glass parity for a back-office admin. 056 records the identical shape on
- * the driver path as a shipped defect: "reusing a departed employee's work email adopted their record
- * and brought their sign-in back to life — and reported success."
- *
- * A shop manager typing a former colleague's address cannot know any of that. So the service refuses
- * BEFORE provisioning, and the refusal names the situation.
- */
+/** A reused email is refused before provisioning, so a departed colleague's sign-in never comes back. */
 describe("inviting a reused email refuses instead of resurrecting an account", () => {
   it("refuses a stood-down colleague and says how to bring them back deliberately", async () => {
     repo.findByEmail.mockResolvedValue({ staffId: "st-9", status: "disabled", sameShop: true });
@@ -109,7 +91,7 @@ describe("inviting a reused email refuses instead of resurrecting an account", (
       invite(SHOP, ME, { email: "gone@effy.shop", name: "Gone", role: "shop_staff" }),
     ).rejects.toMatchObject({ kind: "conflict" });
 
-    // ⚠ The whole point: Cognito is never touched, so no sign-in comes back to life.
+    // Cognito is never touched.
     expect(cognito.ensureShopUser).not.toHaveBeenCalled();
     expect(repo.upsertMember).not.toHaveBeenCalled();
   });
@@ -122,7 +104,7 @@ describe("inviting a reused email refuses instead of resurrecting an account", (
     expect(cognito.ensureShopUser).not.toHaveBeenCalled();
   });
 
-  /** ⚠ It must NOT say "they work at another shop" — that discloses staffing elsewhere. */
+  /** Never "they work at another shop". */
   it("refuses an email belonging to another shop without disclosing where", async () => {
     repo.findByEmail.mockResolvedValue({ staffId: "st-3", status: "active", sameShop: false });
     await expect(
@@ -134,7 +116,7 @@ describe("inviting a reused email refuses instead of resurrecting an account", (
     repo.findByEmail.mockResolvedValue(null);
     await invite(SHOP, ME, { email: "  New@Effy.Shop ", name: " New Person ", role: "shop_staff" });
 
-    // Normalised: an address that differs only in case is the same person.
+    // Differs only in case: the same person.
     expect(cognito.ensureShopUser).toHaveBeenCalledWith("new@effy.shop", "New Person", "shop_staff");
     expect(repo.upsertMember).toHaveBeenCalledWith(SHOP, "sub-new", "new@effy.shop", "New Person", "shop_staff");
   });
@@ -152,11 +134,7 @@ describe("inviting a reused email refuses instead of resurrecting an account", (
   });
 });
 
-/**
- * ⚠ A SHOP MUST NEVER BE LEFT WITHOUT AN ACTIVE MANAGER. It could then not invite anyone, change a
- * role, or refund — it locks itself out permanently and only back-office can undo it. Both routes that
- * could cause it are guarded, because guarding only `deactivate` leaves demotion as the way in.
- */
+/** A shop must never be left without an active manager; demotion and deactivation are both guarded. */
 describe("the last manager cannot be removed", () => {
   it("refuses to deactivate the last active manager", async () => {
     repo.activeManagersExcluding.mockResolvedValue(0);
@@ -187,11 +165,7 @@ describe("the last manager cannot be removed", () => {
   });
 });
 
-/**
- * ⚠ A ROLE CHANGE MUST TOUCH COGNITO TOO. The claim is the ORIGIN the shop service reconciles from on
- * every authenticated contact (007), so leaving the old group attached means the next sign-in
- * reinstates the role that was just removed.
- */
+/** A role change touches Cognito, or the next sign-in reinstates the old group. */
 describe("role changes reconcile both systems", () => {
   it("replaces the Cognito groups rather than adding to them", async () => {
     await changeRole(SHOP, ME, "st-2", { role: "shop_staff" });

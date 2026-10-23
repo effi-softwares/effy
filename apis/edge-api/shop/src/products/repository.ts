@@ -1,13 +1,5 @@
-// Repository layer for the shop product catalog (016): raw parameterized SQL + explicit row →
-// domain mapping (constitution Principle VI, no ORM). Reads the back-office-managed schema
-// (read-only projection) and writes shop-owned products. EVERY product query is scoped
-// `WHERE shop_id = :actorShopId` — the shop-isolation invariant (FR-019/FR-031, SC-005); the shop
-// id is always the caller-resolved value from authz, never client input.
-//
-// S3 presigning is an async I/O concern owned by the SERVICE layer (like Cognito in the shops
-// service). This layer returns storage KEYS: `ProductListItem.primaryImageUrl` and
-// `ProductMedia.url` carry the S3 key here, and the service replaces them with short-lived
-// presigned URLs before the DTO leaves the process.
+// Every product query is scoped `where shop_id =:actorShopId` (the authz-resolved value). Returns
+// storage keys; the service swaps them for presigned URLs before the DTO leaves the process.
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
@@ -35,7 +27,6 @@ import {
   type ShopReviewState,
 } from "./types";
 
-// Map a Postgres unique_violation (23505) to a domain conflict, else rethrow.
 function asConflict(err: unknown, message: string): ProductError {
   if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
     return new ProductError("conflict", message);
@@ -43,13 +34,11 @@ function asConflict(err: unknown, message: string): ProductError {
   throw err;
 }
 
-/** 098 — the one writer refused the option/variant set: every refusal points at its input. */
+/** The one writer refused the option/variant set; each refusal points at its input. */
 function asVariantError(err: unknown): never {
   if (err instanceof VariantSetInvalid) throw new ProductError("validation", "the sizes and options are not valid", err.errors);
   throw err;
 }
-
-// ── Catalog schema-read (drives the create form) ──────────────────────────────────────────────
 
 interface SchemaTypeRow {
   id: string;
@@ -99,7 +88,6 @@ function mapAllowed(rows: AllowedRow[], attributeId: string): AllowedValue[] {
     .map((r) => ({ id: r.id, value: r.value, label: r.label, displayOrder: r.display_order }));
 }
 
-/** Active product types (each with active-attribute assignments) + the active category tree. */
 export async function readCatalogSchema(): Promise<CatalogSchema> {
   const types = await query<SchemaTypeRow>(
     `SELECT id, key, name, description, status, created_at, updated_at FROM public.product_type
@@ -167,7 +155,7 @@ export async function readCatalogSchema(): Promise<CatalogSchema> {
   return { productTypes, categories: cats };
 }
 
-/** The active-attribute assignments of a type, for typed-value validation (data_type + allowed set). */
+/** For typed-value validation (data type and allowed set). */
 export async function assignmentsForType(productTypeId: string): Promise<SchemaAttribute[]> {
   const schema = await readCatalogSchema();
   const type = schema.productTypes.find((t) => t.id === productTypeId);
@@ -189,8 +177,6 @@ export async function categoryIsActive(id: string): Promise<boolean> {
   );
   return res.rows[0]?.ok ?? false;
 }
-
-// ── Create ────────────────────────────────────────────────────────────────────────────────────
 
 async function insertAttributeValues(
   client: PoolClient,
@@ -218,9 +204,7 @@ async function insertAttributeValues(
   }
 }
 
-/** Insert a shop-owned product + its attribute values, media, and section memberships in ONE
- *  transaction. `shopId` is the caller-resolved actor shop (never client input). Returns the id;
- *  the service then loads the full detail. A duplicate SKU (partial unique index) → 409 conflict. */
+/** One transaction with its attribute values, media and sections. A duplicate SKU is 409. */
 export async function createProduct(
   shopId: string,
   input: CreateProductInput,
@@ -229,7 +213,7 @@ export async function createProduct(
   return withTransaction(async (client) => {
     let productId: string;
     try {
-      // 098 — prices, codes, weight and stock are the VARIANTS' (written below, same transaction).
+      // Prices, codes, weight and stock are the variants' (written below).
       const ins = await client.query<{ id: string }>(
         `INSERT INTO public.product
              (shop_id, product_type_id, primary_category_id, name, brand,
@@ -254,7 +238,7 @@ export async function createProduct(
     }
 
     await insertAttributeValues(client, productId, input.attributes);
-    // 096 — through the one writer, so the status has its history from the first moment.
+    // Through the one writer, so the status has history from the start.
     await setGstStatus(client, productId, input.gstStatus, { kind: "shop_staff", sub: createdBy }, "create");
 
     for (const m of input.media) {
@@ -271,8 +255,7 @@ export async function createProduct(
         [productId, sectionId],
       );
     }
-    // 098 — the options and variants, through the ONE writer, AFTER the pictures (a variant may name
-    // one). A product and its variants exist together or not at all.
+    // Variants through the one writer, after the pictures (a variant may name one).
     await applyVariantSet(client, {
       productId, shopId, options: input.options, variants: input.variants, unitBasis: input.unitBasis, mode: "draft",
     }).catch(asVariantError);
@@ -280,14 +263,10 @@ export async function createProduct(
   });
 }
 
-/** Focused-edit update with optimistic concurrency (FR-023a). The whole (merged) column set is
- *  written under `WHERE id AND shop_id AND updated_at = expectedUpdatedAt`; 0 rows affected → the
- *  row changed since the client read it → "stale". Attribute upserts run in the same transaction.
- *
- *  NB the concurrency token is compared with millisecond truncation: the pg driver returns
- *  timestamptz as a JS Date (ms precision), so the token the client last read is already
- *  ms-truncated — comparing against the raw µs-precision column would never match. `date_trunc`
- *  makes the equality robust without adding a version column (data-model §3). */
+/**
+ * Under `WHERE id AND shop_id AND updated_at = expectedUpdatedAt`; zero rows is "stale". The token is
+ * compared with millisecond truncation (`date_trunc`), since the driver returns ms-precision Dates.
+ */
 export async function updateProduct(
   shopId: string,
   id: string,
@@ -299,11 +278,11 @@ export async function updateProduct(
     brand: string | null;
     shortDescription: string;
     longDescription: string | null;
-    /** 096 — null leaves it as it stands. */
+    /** null leaves it as it stands. */
     gstStatus: GstStatus | null;
-    /** 098 — undefined leaves it as it stands. */
+    /** undefined leaves it as it stands. */
     unitBasis: UnitBasis | null | undefined;
-    /** 098 — both or neither: the complete target sets. Null leaves them as they stand. */
+    /** Both or neither; null leaves them as they stand. */
     variantSet: { options: OptionInputDTO[]; variants: VariantInputDTO[] } | null;
   },
   attributes: CreateProductInput["attributes"],
@@ -318,7 +297,7 @@ export async function updateProduct(
              brand = $6, short_description = $7, long_description = $8, updated_at = now()
           WHERE id = $1 AND shop_id = $2
             -- ⚠ The guard is IN the statement: even a caller that skipped the service cannot write
-            -- an approved product's live details from here (067 FR-015).
+            -- an approved product's live details from here.
             AND approved_at IS NULL
             AND date_trunc('milliseconds', updated_at) = $9::timestamptz
           RETURNING id`,
@@ -339,14 +318,14 @@ export async function updateProduct(
     }
     if (res.rowCount === 0) return "stale";
     await insertAttributeValues(client, id, attributes);
-    // 098 — a draft's variants are written as they are (nothing is on sale), through the one writer.
+    // A draft's variants are written as they are, through the one writer.
     if (values.variantSet) {
       await applyVariantSet(client, {
         productId: id, shopId, options: values.variantSet.options, variants: values.variantSet.variants,
         unitBasis: values.unitBasis, mode: "draft",
       }).catch(asVariantError);
     } else if (values.unitBasis !== undefined) {
-      // A basis on its own must still agree with the variants' pack units: the writer re-validates.
+      // A basis alone must still agree with the variants' pack units.
       const current = (await readVariantSets(client, [id])).get(id)!;
       await applyVariantSet(client, {
         productId: id, shopId, unitBasis: values.unitBasis, mode: "draft",
@@ -364,13 +343,7 @@ export async function updateProduct(
   });
 }
 
-/**
- * Change lifecycle status under shop scope; false if not this shop's.
- *
- * ⚠ 067: `→ active` needs an approval, and the predicate says so here as well as in the service and
- * in the table's CHECK. Three layers for one rule is deliberate: the service gives the shop a useful
- * message, this keeps a different caller honest, and the CHECK is the one nothing can skip.
- */
+/** false if not this shop's. `→ active` needs an approval, here as in the service and the check. */
 export async function changeStatus(shopId: string, id: string, status: ProductStatus): Promise<boolean> {
   const res = await query<{ id: string }>(
     `UPDATE public.product SET status = $3, updated_at = now()
@@ -382,12 +355,7 @@ export async function changeStatus(shopId: string, id: string, status: ProductSt
   return (res.rowCount ?? 0) > 0;
 }
 
-// ── 067 — review ───────────────────────────────────────────────────────────────────────────────
-
-/**
- * The review state a shop is shown, from TWO facts: has Effy ever approved this product, and is
- * something waiting. Needs `p` (product) and a LEFT JOIN of `public.product_change pc`.
- */
+/** From two facts: ever approved, and something waiting. Needs `p` and a left join `product_change pc`. */
 export const REVIEW_STATE_SQL = `CASE
     WHEN p.approved_at IS NULL THEN
       CASE p.review_state WHEN 'in_review' THEN 'in_review' WHEN 'sent_back' THEN 'sent_back' ELSE 'draft' END
@@ -412,19 +380,12 @@ export async function reviewFacts(shopId: string, id: string): Promise<ReviewFac
   return r ? { approved: r.approved, reviewState: r.review_state, status: r.status } : null;
 }
 
-/**
- * Move a product's version forward without changing a detail.
- *
- * ⚠ A reviewer's decision is refused if the item changed after they opened it, and "changed" is
- * `updated_at`. An image added to a product IN REVIEW writes `product_media`, not `product` — so
- * without this, a shop could swap the photo after the reviewer looked and the approval would still
- * go through on what they saw before.
- */
+/** Bumps the version so a photo swapped after the reviewer looked invalidates their decision. */
 export async function touchProduct(shopId: string, id: string): Promise<void> {
   await query(`UPDATE public.product SET updated_at = now() WHERE id = $1 AND shop_id = $2`, [id, shopId]);
 }
 
-/** Put a never-approved product in Effy's queue. False if it is not this shop's, or is approved. */
+/** false if not this shop's, or already approved. */
 export async function submitForReview(shopId: string, id: string): Promise<boolean> {
   const res = await query(
     `UPDATE public.product
@@ -435,7 +396,7 @@ export async function submitForReview(shopId: string, id: string): Promise<boole
   return (res.rowCount ?? 0) > 0;
 }
 
-/** Take a never-approved product back out of the queue. A sent-back product keeps its reason. */
+/** A sent-back product keeps its reason. */
 export async function withdrawSubmission(shopId: string, id: string): Promise<boolean> {
   const res = await query(
     `UPDATE public.product
@@ -446,8 +407,7 @@ export async function withdrawSubmission(shopId: string, id: string): Promise<bo
   return (res.rowCount ?? 0) > 0;
 }
 
-/** Hard-delete guard (R8): only a still-draft product may be removed; anything published/retained
- *  is refused (409 → archive instead). Returns 'deleted' | 'not_found' | 'blocked'. */
+/** Only a draft may be removed (409: archive instead). */
 export async function hardDeleteProduct(
   shopId: string,
   id: string,
@@ -465,7 +425,7 @@ export async function hardDeleteProduct(
   });
 }
 
-/** Set a product's section membership (replace-all), shop-scoped. */
+/** Replace-all. */
 export async function setProductSections(
   shopId: string,
   id: string,
@@ -479,7 +439,7 @@ export async function setProductSections(
     if (!owns.rows[0]) return false;
     await client.query(`DELETE FROM public.product_section WHERE product_id = $1`, [id]);
     for (const sectionId of sectionIds) {
-      // The section must belong to this shop, else it is silently skipped (never cross-shop).
+      // A section must belong to this shop, else it is skipped.
       await client.query(
         `INSERT INTO public.product_section (product_id, shop_section_id)
          SELECT $1, $2 WHERE EXISTS (SELECT 1 FROM public.shop_section WHERE id = $2 AND shop_id = $3)
@@ -491,7 +451,6 @@ export async function setProductSections(
   });
 }
 
-/** Update a media row (reorder / set primary / alt text), shop-scoped via the product. */
 export async function updateMedia(
   shopId: string,
   productId: string,
@@ -526,8 +485,7 @@ export async function updateMedia(
   });
 }
 
-/** Delete a media row, shop-scoped. Returns 'deleted' | 'not_found' | 'blocked' (last/primary of an
- *  active product cannot be removed). */
+/** The last or primary image of an active product cannot be removed. */
 export async function deleteMedia(
   shopId: string,
   productId: string,
@@ -544,14 +502,12 @@ export async function deleteMedia(
     );
     const r = row.rows[0];
     if (!r) return "not_found";
-    // An active product must keep at least one (primary) image.
     if (r.status === "active" && (r.is_primary || Number(r.count) <= 1)) return "blocked";
     await client.query(`DELETE FROM public.product_media WHERE id = $1`, [mediaId]);
     return "deleted";
   });
 }
 
-/** For publish validation: does the product have a primary image? */
 export async function hasPrimaryImage(shopId: string, id: string): Promise<boolean> {
   const res = await query<{ ok: boolean }>(
     `SELECT EXISTS (
@@ -562,7 +518,6 @@ export async function hasPrimaryImage(shopId: string, id: string): Promise<boole
   return res.rows[0]?.ok ?? false;
 }
 
-/** True when the product exists and belongs to this shop (ownership check before media writes). */
 export async function productBelongsToShop(shopId: string, id: string): Promise<boolean> {
   const res = await query<{ ok: boolean }>(
     `SELECT EXISTS (SELECT 1 FROM public.product WHERE id = $1 AND shop_id = $2) AS ok`,
@@ -571,8 +526,7 @@ export async function productBelongsToShop(shopId: string, id: string): Promise<
   return res.rows[0]?.ok ?? false;
 }
 
-/** Record an uploaded object. If flagged primary, demote the existing primary first (the partial
- *  unique index allows only one). Returns the new media row (url carries the storage KEY). */
+/** A new primary demotes the existing one first (one per product). `url` carries the key. */
 export async function registerMedia(
   productId: string,
   m: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number },
@@ -602,8 +556,6 @@ export async function registerMedia(
   });
 }
 
-// ── List (backend search/filter/sort/pagination; shop-scoped) ──────────────────────────────────
-
 interface ProductListRow {
   id: string;
   name: string;
@@ -622,10 +574,7 @@ interface ProductListRow {
   total: string;
 }
 
-/**
- * 098 — a shop's product list shows the LOWEST shop price among its active variants (what the shop
- * console calls "From"). A shop's catalogue is hundreds of products, so this aggregate is cheap.
- */
+/** The lowest shop price among active variants ("From"). */
 const SHOP_FROM_PRICE = `(SELECT min(v.shop_price_amount) FROM public.product_variant v
                            WHERE v.product_id = p.id AND v.state = 'active')`;
 
@@ -635,8 +584,7 @@ const SORT_COLUMNS: Record<ListParams["sort"], string> = {
   recent: "p.created_at",
 };
 
-/** Shop-scoped, backend-paginated product list. `primaryImageUrl` carries the S3 KEY (service
- *  presigns it). `total` from `count(*) OVER()`. All filtering/sorting/pagination is server-side. */
+/** Server-side filtering, sorting and paging; `total` from `count(*) over`. */
 export async function listProducts(shopId: string, params: ListParams): Promise<Paged<ProductListItem>> {
   const sortCol = SORT_COLUMNS[params.sort];
   const dir = params.order === "asc" ? "ASC" : "DESC";
@@ -645,8 +593,8 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
             (SELECT storage_key FROM public.product_media m
               WHERE m.product_id = p.id AND m.is_primary LIMIT 1) AS primary_storage_key,
             pt.name AS type_name, c.name AS category_name,
-            -- 067: a shop is shown what IT is paid; the customer's price rides beside it. 098: the
-            -- cheapest active variant's, with "From" when they differ.
+            -- A shop is shown what IT is paid; the customer's price rides beside it. The cheapest
+            -- active variant's, with "From" when they differ.
             ${SHOP_FROM_PRICE}::text AS price_amount,
             p.list_price_amount::text AS customer_price_amount,
             (SELECT count(DISTINCT v.shop_price_amount) > 1 FROM public.product_variant v
@@ -665,7 +613,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
         AND ($2::text IS NULL OR
              lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)
                LIKE '%' || lower($2) || '%'
-             -- 098 — a variant's stock code or barcode finds its product.
+             -- A variant's stock code or barcode finds its product.
              OR EXISTS (SELECT 1 FROM public.product_variant sv
                          WHERE sv.product_id = p.id AND sv.state <> 'removed'
                            AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2 OR sv.code = upper($2))))
@@ -699,7 +647,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       id: r.id,
       name: r.name,
       brand: r.brand,
-      primaryImageUrl: r.primary_storage_key, // service replaces with a presigned url
+      primaryImageUrl: r.primary_storage_key,
       typeName: r.type_name,
       categoryName: r.category_name,
       priceAmount: r.price_amount ?? "0.00",
@@ -716,8 +664,6 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
     pageSize: params.pageSize,
   };
 }
-
-// ── Detail (shop-scoped) ────────────────────────────────────────────────────────────────────────
 
 interface ProductRow {
   id: string;
@@ -762,15 +708,13 @@ interface MediaRow {
   alt_text: string | null;
 }
 
-/** Full detail, shop-scoped (404 if not this shop's). `media[].url` carries the S3 KEY (service
- *  presigns). `missingMandatoryAttributes` (FR-020a) = mandatory attributes of the type the product
- *  has no value for — a non-blocking schema-drift notice. */
+/** If not this shop's. `missingMandatoryAttributes` is a non-blocking schema-drift notice. */
 export async function getProductDetail(shopId: string, id: string): Promise<ProductDetail | null> {
   const res = await query<ProductRow>(
     `SELECT p.id, p.shop_id, p.product_type_id, pt.name AS type_name,
             p.primary_category_id, c.name AS category_name,
             -- Named columns only — never p.*, which would carry Effy's margin to a shop (a guard
-            -- test fails on it). 098: prices, codes, weight and stock are read per VARIANT below.
+            -- test fails on it). Prices, codes, weight and stock are read per VARIANT below.
             p.name, p.brand, p.currency,
             p.short_description, p.long_description,
             p.gst_status, p.unit_basis,
@@ -804,7 +748,6 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
        FROM public.product_media WHERE product_id = $1 ORDER BY is_primary DESC, display_order`,
     [id],
   );
-  // 098 — options and every variant (removed last), through the one shared read.
   const variantSet = (await readVariantSets({ query }, [id])).get(id)!;
   const sections = await query<{ name: string }>(
     `SELECT s.name FROM public.product_section ps
@@ -837,7 +780,7 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
   }));
   const mediaOut: ProductMedia[] = media.rows.map((m) => ({
     id: m.id,
-    url: m.storage_key, // service replaces with a presigned url
+    url: m.storage_key,
     storageKey: m.storage_key,
     isPrimary: m.is_primary,
     displayOrder: m.display_order,
@@ -871,7 +814,7 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     reviewState: row.review_state_shown,
     reviewReason: row.review_reason,
     approved: row.approved,
-    // Filled by the service from ./change.ts — the live product above is ALWAYS the approved one.
+    // Filled by the service from./change.ts; the live product is always the approved one.
     pendingChange: null,
   };
 }

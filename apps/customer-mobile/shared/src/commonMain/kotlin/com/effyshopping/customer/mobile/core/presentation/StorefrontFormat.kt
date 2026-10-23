@@ -2,32 +2,16 @@ package com.effyshopping.customer.mobile.core.presentation
 
 import kotlin.math.roundToInt
 
-/**
- * Storefront presentation formatting — the pure half of the storefront vocabulary (025).
- *
- * ⚠ These live OUTSIDE the composables on purpose. Both were previously private functions
- * copy-pasted into the screens that needed them — `money` into SIX files — so a formatting fix had
- * to be found six times, and the compare-at rule was expressed differently in each. They are pure
- * string/number functions with no Compose dependency, so they are also the only part of the card
- * that can be unit-tested without a UI harness.
- *
- * Mirrors `apps/customer-web/lib/money.ts`, which is the same two functions on the web surface.
- */
+/** Storefront formatting, pure and unit-tested; mirrors `apps/customer-web/lib/money.ts`. */
 
-/**
- * Format a wire amount for display.
- *
- * The amount arrives as an already-2dp decimal STRING (`numeric(12,2)::text` — research R9), never a
- * float, so there is no rounding to do here and none should be introduced: parsing to a Double to
- * "format" it is how a storefront starts showing $19.989999.
- */
+/** Format a wire amount: it arrives as a 2dp decimal string, so nothing is rounded (and never parsed to a Double). */
 fun money(amount: String, currency: String): String =
     if (currency == "AUD") "$$amount" else "$currency $amount"
 
 /**
  * Whether a product is genuinely discounted.
  *
- * ⚠ A `compareAtAmount` that is present but NOT above the price is not a discount — it is stale or
+ * A `compareAtAmount` that is present but not above the price is not a discount — it is stale or
  * mis-entered data, and rendering it would print a struck-through price identical to (or below) the
  * price being charged. Every caller must gate on this rather than on `compareAtAmount != null`.
  */
@@ -40,7 +24,7 @@ fun isDiscounted(priceAmount: String, compareAtAmount: String?): Boolean {
 /**
  * The discount as a whole percentage, or null when there is nothing to claim.
  *
- * ⚠ ROUNDS, matching `ProductCard.tsx`'s `Math.round(...)` on the web. Truncating instead would put
+ * Rounds, matching `ProductCard.tsx`'s `Math.round(...)` on the web. Truncating instead would put
  * the two surfaces one point apart on most products — a $10 item at $6.66 reads "-33%" on one and
  * "-34%" on the other, which is the kind of difference a shopper notices and support cannot explain.
  *

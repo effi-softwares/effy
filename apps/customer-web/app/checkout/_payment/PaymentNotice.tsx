@@ -4,15 +4,7 @@ import { AlertCircle, Clock, Lock } from "lucide-react"
 
 import type { PaymentFailure } from "./failures"
 
-/**
- * A refusal the shopper can act on (051 US5).
- *
- * ⚠ `role="alert"` so it is ANNOUNCED, not merely rendered. A shopper using a screen reader who
- * presses pay and hears nothing has no way to know the payment was refused — they will press again
- * (FR-034, and it is why FR-041's single-submission guard is separate from this).
- *
- * ⚠ Not a card container (FR-035): a left rule and space carry it, same as everything else here.
- */
+/** A refusal the shopper can act on, announced (`role="alert"`). A left rule and space, not a card. */
 export function PaymentNotice({
   failure,
   kind = "error",

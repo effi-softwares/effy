@@ -17,10 +17,10 @@ import { exceptionMutationError } from "./errorText";
 import { useRecordReturn } from "./queries";
 
 /**
- * 088 — a driver handed failed parcels in at the hub without returning them in the app. Staff record
+ * A driver handed failed parcels in at the hub without returning them in the app. Staff record
  * it for them: every parcel still to return on that round, all together, attributed to whoever confirms.
  *
- * ⚠ One changeId per opening of the dialog, so a double click or a retry is one return.
+ * One changeId per opening of the dialog, so a double click or a retry is one return.
  */
 export function RecordReturnButton({ exception }: { exception: DeliveryExceptionDTO }) {
   const [open, setOpen] = useState(false);

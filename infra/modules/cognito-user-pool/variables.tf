@@ -40,9 +40,9 @@ variable "allowed_first_auth_factors" {
   }
 
   # Still never passed explicitly — the module appends it (the CreateUserPool API refuses to omit
-  # it). But the reason has changed: under constitution v1.7.0 the CUSTOMER pool may legitimately
-  # OFFER passwords, and the pool-level policy entry is what enables that. Whether a password can
-  # actually be USED is decided by the app client's auth flows (var.enable_password_auth), which
+  # it). But the reason has changed: under constitution v1.7.0 the customer pool may legitimately
+  # offer passwords, and the pool-level policy entry is what enables that. Whether a password can
+  # actually be used is decided by the app client's auth flows (var.enable_password_auth), which
   # stays false for driver/shop/admin — so those three remain strictly passwordless.
   validation {
     condition     = alltrue([for f in var.allowed_first_auth_factors : contains(["EMAIL_OTP", "SMS_OTP", "WEB_AUTHN"], f)])
@@ -50,13 +50,9 @@ variable "allowed_first_auth_factors" {
   }
 }
 
-# --- 011: the customer audience's three credential routes. -------------------------------------
-# Every variable below defaults to the pre-011 behaviour, so driver / shop / back_office are
-# UNCHANGED by construction: strictly passwordless email one-time code, admin-provisioned, no IdP,
-# no OAuth. (⚠ 035 changed WHO ISSUES that code — the platform, not Cognito's managed EMAIL_OTP
-# factor — via enable_custom_auth_flow / disable_choice_based_auth below. The credential is the
-# same; its length is now six digits everywhere.)
-# Constitution v1.7.0 permits these ONLY on the customer pool.
+# --- The customer audience's three credential routes. ------------------------------------------
+# Every variable below defaults to the internal pools' behaviour: passwordless email code, admin-provisioned,
+# no IdP, no OAuth. Only the customer pool sets them.
 
 variable "enable_password_auth" {
   description = "Customer pool ONLY (constitution v1.7.0). Adds ALLOW_USER_SRP_AUTH to the app client, making the PASSWORD/PASSWORD_SRP challenge usable. SRP never puts the password on the wire. The three internal audiences MUST leave this false — they are Effy employees and have no need of a credential that can be stolen or a reset flow that can be attacked."
@@ -106,19 +102,9 @@ variable "google" {
   })
   default = null
 
-  # ⚠ NOT `sensitive = true`, and the secret is carried in a SEPARATE variable below. That split is
-  # deliberate, and it was learned the hard way:
-  #
-  # Marking this whole object sensitive TAINTS EVERY EXPRESSION THAT READS IT. Because the app
-  # client's `supported_identity_providers`, `allowed_oauth_flows` and `allowed_oauth_scopes` are all
-  # computed from `var.google`, they printed as "(sensitive value)" in `terraform plan` — ON ALL FOUR
-  # POOLS, including the ones that pass `null`. It also made a root output containing the (entirely
-  # public) hosted-domain name a hard error.
-  #
-  # An unreadable plan is not a security win. It is a security LOSS: this module's whole safety story
-  # is "read the plan, abort if a pool would be replaced", and an operator cannot audit a diff that
-  # redacts the very attributes being changed. Nothing here is secret — the domain is a public URL and
-  # a Google OAuth client id is public by design. Only the SECRET is secret.
+  # Not `sensitive = true`; the secret has its own variable below. A sensitive object taints every expression
+  # reading it, so the client's identity providers and OAuth flows printed as "(sensitive value)" on every
+  # pool, and an operator cannot audit a plan that redacts what is changing. Only the secret is secret.
 }
 
 variable "google_client_secret" {
@@ -282,8 +268,8 @@ variable "email_configuration" {
     source_arn             = optional(string)
     from_email_address     = optional(string)
     reply_to_email_address = optional(string)
-    # 037: attributes Cognito's own mail to a configuration set, so its sends produce per-message
-    # delivery outcomes like the platform's own do. ⚠ Inert under COGNITO_DEFAULT.
+    # Attributes Cognito's own mail to a configuration set, so its sends produce per-message
+    # delivery outcomes like the platform's own do. Inert under COGNITO_DEFAULT.
     configuration_set = optional(string)
   })
   default = {}

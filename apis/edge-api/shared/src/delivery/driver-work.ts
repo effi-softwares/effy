@@ -1,22 +1,10 @@
 import type { Queryable } from "../lib/db";
 
-/**
- * Taking a package off a driver's round — 073's Unassign, shared since 081.
- *
- * ⚠ ONE IMPLEMENTATION. Fleet's "Unassign" and back-office's move of an order to courier (081) both
- * take a package off a round. Before 081 this lived in the fleet service; a second copy in the orders
- * service would be the "two implementations of one rule" shape 072 found three defects through. Both
- * now call this, inside their own transaction.
- */
+/** Taking a package off a driver's round: one implementation for fleet's Unassign and back-office's move to courier. */
 
-/**
- * ⚠ THE PLANNER'S PASS LOCK — blocking, transaction-scoped. Anything that changes driver work outside
- * a planning pass takes it FIRST (before any row lock), so it waits a moment for a pass rather than
- * racing one. Same key as the pass's own `pg_try_advisory_xact_lock`.
- */
+/** The planner's pass lock, blocking and transaction-scoped; taken first by anything changing driver work outside a pass. */
 export const PLANNER_PASS_LOCK = `SELECT pg_advisory_xact_lock(72063001)`;
 
-/** One open assignment of a package, as `removeAssignment` needs it. */
 export interface OpenAssignment {
   id: string;
   stop_id: string;
@@ -24,10 +12,7 @@ export interface OpenAssignment {
   round_status: string;
 }
 
-/**
- * Remove one `round_package`, then its stop if nothing is left on it, then the round if it had not
- * begun and is now empty. A round under way keeps going with what it has.
- */
+/** Removes one `round_package`, then an emptied stop, then an emptied unstarted round. A round under way continues. */
 export async function removeAssignment(tx: Queryable, current: OpenAssignment): Promise<void> {
   await tx.query(`DELETE FROM public.round_package WHERE id = $1`, [current.id]);
   await tx.query(

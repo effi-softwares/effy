@@ -126,7 +126,7 @@ internal fun ProofChooser(drop: Drop, selected: ProofMethod, onSelect: (ProofMet
 }
 
 /**
- * The camera for photo proof (canvas `ProofPhoto`). ⚠ Always dark, whatever the appearance: it frames
+ * The camera for photo proof (canvas `ProofPhoto`). Always dark, whatever the appearance: it frames
  * a live picture, and a light frame around a viewfinder is glare at a doorstep at night. A live preview
  * where the platform has one; otherwise the shutter opens the system camera.
  */
@@ -242,7 +242,7 @@ internal fun ProofReview(
                             .joinToString(" — ").ifBlank { null },
                     )
                 },
-                // ⚠ A spot is required when nobody took it: "left at the door" with no place is the report
+                // A spot is required when nobody took it: "left at the door" with no place is the report
                 // that helps no one in a dispute.
                 enabled = !contactless || spot != null,
                 loading = working,

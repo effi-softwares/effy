@@ -1,4 +1,3 @@
-// GET /admin/v1/feedback/{referenceCode} — full submission + replies + notes (046 US2). Any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

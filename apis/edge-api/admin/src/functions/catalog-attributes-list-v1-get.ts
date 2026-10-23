@@ -1,4 +1,3 @@
-// GET /admin/v1/catalog/attributes — list attribute definitions (+ allowed values). Read access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -1,8 +1,4 @@
-// Coverage — which zones cannot be served, and why (062). Raw parameterized SQL, no ORM.
-//
-// ⚠ DERIVED ON READ, NEVER STORED. Coverage is a function of TODAY: who is employed, who is blocked,
-// which zones are active, who is cleared. A stored flag would go stale silently — 027's
-// counted-not-stored rule, fifth application on this platform.
+// Derived on read, never stored: coverage depends on today's people, zones and clearances.
 
 import { query } from "@effy/edge-shared";
 import type { CoverageGap } from "@effy/shared-types";
@@ -18,21 +14,8 @@ interface GapRow {
 }
 
 /**
- * Every (area, function) that cannot be served, with the reason.
- *
- * ⚠ 082 — ONE ROW PER AREA AND FUNCTION. Until 082 this enumerated a delivery METHOD as well, and
- * took care to list same-day only where it was sold (a permanent, unfixable row teaches an operator
- * to ignore the screen). A clearance no longer has a method: a driver who may deliver in an area
- * delivers whatever Effy delivers there, so the question is simply whether anyone can collect for,
- * and deliver in, each area.
- *
- * ⚠ THE AVAILABILITY RULE IS READ FROM `drivers/sql.ts`, NOT RE-DERIVED. FR-020 requires that this
- * view and the work-readiness view never disagree about whether a driver can work. Two copies of that
- * rule would drift the first time either changed, and an operator would have no way to tell which
- * screen was right. Importing the fragment makes agreement STRUCTURAL rather than a matter of
- * discipline — the shape 058 used to keep a shop's Needs-attention figure pinned to one query.
- *
- * ⚠ A COVERED COMBINATION EMITS NO ROW (FR-019). The response is a list of problems, not a matrix.
+ * Every (area, function) that cannot be served, with the reason; a covered combination emits no row.
+ * The availability rule comes from `drivers/sql.ts`, so this and the readiness view always agree.
  */
 export async function coverageGaps(): Promise<CoverageGap[]> {
   const res = await query<GapRow>(
@@ -46,7 +29,7 @@ export async function coverageGaps(): Promise<CoverageGap[]> {
        SELECT needed.zone_id,
               needed.zone_name,
               needed.function,
-              -- ⚠ DISTINCT: a driver cleared before 082 may hold two rows for one area and function.
+              -- ⚠ DISTINCT: a driver can match through more than one clearance.
               count(DISTINCT d.id)                                                    AS cleared,
               count(DISTINCT d.id) FILTER (WHERE cardinality(${BLOCKED_REASONS}) = 0) AS available
          FROM needed
@@ -69,9 +52,7 @@ export async function coverageGaps(): Promise<CoverageGap[]> {
     zoneId: r.zone_id,
     zoneName: r.zone_name,
     function: r.function as CoverageGap["function"],
-    // ⚠ TWO REASONS, NOT ONE. "Nobody is cleared" is an administrative gap — grant somebody a
-    // clearance. "Everybody cleared is unavailable" is a rostering problem — the fix is in the
-    // readiness view. Collapsing them tells an operator nothing about what to do next.
+    // Two reasons: nobody cleared (grant a clearance) and everybody cleared unavailable (a rostering problem).
     reason: Number(r.cleared) === 0 ? "no_driver_cleared" : "all_cleared_unavailable",
     clearedDriverCount: Number(r.cleared),
   }));

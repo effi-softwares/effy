@@ -1,22 +1,13 @@
-// 063-driver-work-assignment — the wire shapes for work assignment and wave planning.
-//
-// Two audiences read these: the driver app (its own work) and the back-office dispatcher console
-// (everybody's). One contract, because the underlying facts are the same facts — a round is a round
-// whoever is looking at it — and two contracts would drift.
-//
-// ⚠ NO MONEY ANYWHERE IN THIS FILE. A driver is never told what an order is worth (049 FR-013), and a
-// dispatcher does not need it to move work around. There is no field to leak it through.
-//
-// ⚠ NO COORDINATE, DISTANCE OR TRAVEL TIME ANYWHERE IN THIS FILE (operator direction, D20/D22).
-// Sequencing is an ordering problem here, not a geometry one. A stop carries an ADDRESS so a driver
-// can hand off to their device's maps app (D7, per-stop not per-route) — never a position.
+// Work assignment: the wire shapes the driver app (its own work) and the dispatcher console (everyone's)
+// share. No money anywhere: a driver is never told what an order is worth. No coordinate, distance or
+// travel time: sequencing is ordering, and a stop carries an address for the device's maps app.
 
 import type { WireInt } from "./cart";
 import type { DeliveryFailureReason } from "./driver";
 import type { DeliveryWindow } from "./delivery-window";
 import type { PackageStatusView } from "./package-status";
 
-/** Collecting from shops, or delivering to customers. Independent of method and zone. */
+/** Collecting from shops, or delivering to customers. */
 export type RoundKind = "collection" | "delivery";
 
 /** The lifecycle of a body of work given to one driver. */
@@ -25,23 +16,13 @@ export type RoundStatus = "planned" | "in_progress" | "completed" | "cancelled";
 /** What kind of place a stop is. */
 export type StopKind = "shop_pickup" | "customer_drop" | "hub_checkin";
 
-/**
- * ⚠ `out_for_delivery` and `en_route` ADDED 2026-09-30. They were missing, so a driver's "Start this
- * drop" was written back as `pending` and the drop could never advance to proof. Readers that mean
- * "still to do" must test for the FINISHED states (`done`, `skipped`) rather than list the open ones.
- */
+/** Readers meaning "still to do" test for the finished states (`done`, `skipped`), not a list of open ones. */
 export type StopStatus = "pending" | "out_for_delivery" | "en_route" | "arrived" | "done" | "skipped";
 
 /** Where one package has got to within a round. */
 export type RoundPackageState = "assigned" | "picked_up" | "not_available" | "delivered" | "failed";
 
-/**
- * Why a driver could not be given a piece of work.
- *
- * ⚠ THIS IS THE VOCABULARY THAT MAKES AN UNASSIGNED PACKAGE EXPLAINABLE (FR-015). Widening it is a
- * contract change with readers on both surfaces — 053, 056 and 057 each shipped a defect through an
- * enum widening, so audit every reader before adding a value.
- */
+/** Why a driver could not be given a piece of work. Readers exist on both surfaces: audit them before adding a value. */
 export type ExclusionReasonDTO =
   | "not_on_duty"
   | "not_employable"
@@ -51,24 +32,24 @@ export type ExclusionReasonDTO =
   | "no_refrigeration"
   | "over_capacity"
   | "cannot_meet_deadline"
-  // 093 — the driver has not checked their vehicle today, or the check found it unsafe.
+  // The driver has not checked their vehicle today, or the check found it unsafe.
   | "vehicle_check_due"
   | "vehicle_unsafe";
 
 /** One package to handle at a stop. */
 export interface RoundPackageDTO {
   id: string;
-  /** The shop's portion of one order — `shop_fulfillment`. */
+  /** The shop's portion of one order (`shop_fulfillment`). */
   packageId: string;
   /** The customer-facing order reference, for a driver to read aloud. */
   orderNumber: string;
   state: RoundPackageState;
   itemCount: WireInt;
-  /** ⚠ Grams, as an integer. Never a float — see `WireInt`. */
+  /** Grams, as an integer (`WireInt`). */
   weightGrams: WireInt;
   requiresChilled: boolean;
   requiresFrozen: boolean;
-  /** Set when a driver could not take it, so the discrepancy is visible (FR-026). */
+  /** Set when a driver could not take it, so the discrepancy is visible. */
   note: string | null;
 }
 
@@ -79,21 +60,13 @@ export interface StopDTO {
   status: StopStatus;
   /** Shop name for a pickup, a recipient label for a drop, "Hub" for check-in. */
   label: string;
-  /**
-   * Where to go, as a single human-readable line.
-   *
-   * ⚠ AN ADDRESS, NOT A POSITION. The app hands this to the device's own maps application (D7).
-   * There is deliberately no latitude/longitude for a later slice to "just use".
-   */
+  /** Where to go, as one human-readable line: an address for the device's maps app, never a position. */
   address: string | null;
-  /** The area this stop is in — what the ordering groups on. Null for the hub. */
+  /** The area this stop is in, which the ordering groups on. Null for the hub. */
   zoneName: string | null;
   /** When this stop must be done by, if anything constrains it. */
   dueAt: string | null;
-  /**
-   * 069 — a customer drop's delivery window. Absent or null for every other stop and for an order
-   * placed before 069. `dueAt` is this window's START, which is what puts earlier windows first.
-   */
+  /** A customer drop's delivery window; null for other stops. `dueAt` is its start, so earlier windows come first. */
   deliveryWindow?: DeliveryWindow | null;
   completedAt: string | null;
   packages: RoundPackageDTO[];
@@ -105,57 +78,30 @@ export interface RoundDTO {
   kind: RoundKind;
   status: RoundStatus;
   deadlineAt: string;
-  /**
-   * 072 — when the round opens to its driver; `null` = open. Derived by the database from the
-   * round's deadline (or its delivery window) and the configured lead — never stored.
-   */
+  /** When the round opens to its driver; `null` = open. Derived by the database, never stored. */
   opensAt: string | null;
-  /**
-   * ⚠ Set when a wave added work to a round already under way (FR-004b). The driver must be TOLD the
-   * round changed — a round that grows silently underneath somebody working it is worse than one
-   * that never grows.
-   */
+  /** Set when a wave added work to a round under way: the driver must be told the round changed. */
   changedNote: string | null;
   stops: StopDTO[];
 }
 
-/** The driver's own view: what to do next, already ordered (FR-017). */
-export interface DriverTodayDTO {
-  /**
-   * ⚠ Null is an ordinary answer, not an error: an on-duty driver with nothing assigned yet. The app
-   * must distinguish it from a failed request, or "no work" and "we could not ask" look identical.
-   */
-  round: RoundDTO | null;
-  /** Rounds this driver has already finished today, newest first. */
-  completedToday: RoundDTO[];
-}
-
-/** A package nobody could be given, with the reason — the dispatcher's whole job (FR-028). */
+/** A package nobody could be given, with the reason. */
 export interface UnassignedWorkDTO {
   packageId: string;
   orderNumber: string;
   shopName: string;
   zoneName: string | null;
   readySince: string;
-  /**
-   * 082 — a parcel still at its supplier after the collection run that would have reached the hub in
-   * time for its window. It is offered on the next run; staff see it may miss the window.
-   */
+  /** Still at its supplier after the run that would have reached the hub for its window; offered on the next run. */
   collectLate?: boolean;
   /**
-   * ⚠ Every reason, not the first (FR-026). A driver can be suspended AND holding a van with lapsed
-   * registration; sending an operator to fix one of those wastes the trip.
-   *
-   * ⚠ An EMPTY array means no candidate existed at all — a different and more urgent problem than a
-   * named driver failing a named condition.
+   * Every reason, not the first (a driver can be suspended and hold a van with lapsed registration). An
+   * empty array means no candidate existed at all, a more urgent problem.
    */
   reasons: ExclusionReasonDTO[];
-  /** 072 — where the package is waiting: at a shop to be collected, or at the hub to be delivered. */
+  /** Where the package waits: at a shop to be collected, or at the hub to be delivered. */
   stage: "collection" | "delivery";
-  /**
-   * 072 — what it is waiting for: the collection run it belongs to, or the end of its delivery
-   * window. `null` when no collection run is configured.
-   */
+  /** What it waits for: its collection run, or the end of its window. `null` when no run is configured. */
   targetAt: string | null;
 }
 
@@ -166,30 +112,30 @@ export interface DispatchRoundSummaryDTO {
   driverName: string;
   stopsRemaining: WireInt;
   packagesRemaining: WireInt;
-  /** Derived on read against `deadlineAt`, never stored (027's counted-not-stored rule). */
+  /** Derived on read against `deadlineAt`, never stored. */
   isLate: boolean;
-  /** 093 — where the run is (`RunStage`), and the same in words. */
+  /** Where the run is (`RunStage`), and the same in words. */
   stage?: string;
   stageLabel?: string;
-  /** 093 — stops or drops were finished in a different order from the plan. Shown, never prevented. */
+  /** Stops or drops were finished out of plan order. Shown, never prevented. */
   outOfOrder?: boolean;
-  /** 093 — a dispatcher let this run skip the cross-run gate. */
+  /** A dispatcher let this run skip the cross-run gate. */
   waiver?: RoundWaiverDTO | null;
 }
 
-/** 093 — a dispatcher's permission for one run to skip the cross-run gate. */
+/** A dispatcher's permission for one run to skip the cross-run gate. */
 export interface RoundWaiverDTO {
   reason: string;
   staffName: string;
   at: string;
 }
 
-/** POST /fleet/v1/dispatch/rounds/{id}/waive-sequence — 093. */
+/** POST /fleet/v1/dispatch/rounds/{id}/waive-sequence. */
 export interface WaiveSequenceRequest {
   reason: string;
 }
 
-/** A one-line answer from a 093 staff action. */
+/** A one-line answer from a staff action. */
 export interface StaffActionResponse {
   message: string;
 }
@@ -198,72 +144,28 @@ export interface StaffActionResponse {
 export interface DispatchDayDTO {
   rounds: DispatchRoundSummaryDTO[];
   unassigned: UnassignedWorkDTO[];
-  /**
-   * 088 — parcels from failed deliveries: still in a driver's van, and back at the hub waiting for a
-   * person to choose their next step (FR-009).
-   */
+  /** Parcels from failed deliveries: still in a van, or back at the hub awaiting a person's decision. */
   failedParcels?: { withDrivers: WireInt; returnedAwaitingDecision: WireInt };
 }
 
-/** Moving a round to a different driver (FR-029). */
+/** Moving a round to a different driver. */
 export interface ReassignRoundInput {
   driverId: string;
-  /** ⚠ Microsecond-precision `updated_at` from the round that was read — the concurrency token. */
+  /** The round's microsecond-precision `updated_at` as read: the concurrency token. */
   expectedUpdatedAt: string;
 }
 
-/** Setting a dispatcher's own order for a round's stops (FR-031). */
+/** A dispatcher's own order for a round's stops. */
 export interface ReorderStopsInput {
   /** Stop ids in the order the dispatcher wants them. */
   stopIds: string[];
   expectedUpdatedAt: string;
 }
 
-/** Completing a stop, with each package's outcome (FR-026). */
-export interface CompleteStopInput {
-  packages: Array<{
-    id: string;
-    /** ⚠ A package not taken must be recorded as such, never quietly omitted. */
-    outcome: "picked_up" | "not_available" | "delivered" | "failed";
-    note?: string | null;
-  }>;
-}
+// Delivery exceptions and custody (back-office). `DeliveryFailureReason` comes from `./driver`: the
+// reason a dispatcher reads is the one the driver app submits.
 
-/** The hub check-in result — the split is shown, never decided (FR-023). */
-export interface HubCheckinDTO {
-  checkedInAt: string;
-  packagesExpected: WireInt;
-  packagesArrived: WireInt;
-  /** Going back out today. */
-  sameDayCount: WireInt;
-  /**
-   * ⚠ Leaving by other means. A standard package's driver-side work ENDS here (FR-024) — it enters no
-   * delivery round.
-   */
-  standardCount: WireInt;
-}
-
-// ── 064 — delivery exceptions & custody (back-office) ────────────────────────────────────────────
-//
-// ⚠ THE READER THAT WENT MISSING TWICE. 056 was built because the driver app had been "recording
-// exceptions for a reader that does not exist" — `delivery_failure` and `collection_task_issue` were
-// annotated "recorded for back-office follow-up" and nothing had ever read either. 056 built the
-// reader; 063's teardown then dropped the tables from under it, leaving neither a writer nor a
-// reader. These shapes are the third attempt and the first with both ends.
-
-// ⚠ `DeliveryFailureReason` IS NOT REDECLARED HERE. It already exists in `./driver` as the shape the
-// driver app submits, and the reason a dispatcher reads is THE SAME REASON — one concept, one
-// definition (Principle II). A second copy would agree today and drift the first time either is
-// widened, which is how 053, 056, 057 and 059 each shipped a defect through an enum.
-// Caught by `tsc` on the first build of this file, not by review.
-
-/**
- * One delivery that could not be completed, as back-office sees it.
- *
- * ⚠ `packageLocation` IS THE FIELD THAT MAKES THIS ACTIONABLE (FR-020). "Nobody was home" and "the
- * goods are still in a van" are different problems with different urgency, and a list that cannot
- * tell them apart is a list nobody can triage.
- */
+/** A delivery that could not be completed, as back-office sees it. `packageLocation` says whether the goods are still in a van. */
 export interface DeliveryExceptionDTO {
   exceptionId: string;
   stopId: string;
@@ -272,27 +174,21 @@ export interface DeliveryExceptionDTO {
   note: string | null;
   driverId: string;
   driverName: string;
-  /** Suburb only — no street address on a list screen. */
+  /** Suburb only: no street address on a list screen. */
   destinationSuburb: string | null;
-  failedAt: string; // ISO 8601
+  failedAt: string;
   resolvedAt: string | null;
-  /**
-   * Derived, never stored (research R7). ⚠ 088 — this read `picked_up`, a state no delivery package
-   * is ever in, so every failed parcel said "at_hub" while it was in a van.
-   */
+  /** Derived, never stored. */
   packageLocation: "with_driver" | "at_hub";
-  /** 088 — the delivery round the drop was on: where a return is recorded on the driver's behalf. */
+  /** The delivery round the drop was on, where a return is recorded on the driver's behalf. */
   roundId: string;
-  /** 088 — when the parcel was checked back in at the hub; null while it is still with the driver. */
+  /** When the parcel was checked back in at the hub; null while still with the driver. */
   returnedAt: string | null;
-  /**
-   * How it ended, once dealt with. Absent from an older server; `outcome` null for one closed before
-   * outcomes were recorded.
-   */
+  /** How it ended, once dealt with. Absent from an older server; `outcome` null when closed before outcomes were recorded. */
   resolution?: DeliveryExceptionResolutionDTO | null;
 }
 
-/** POST /fleet/v1/dispatch/rounds/{roundId}/return — 088, a staff member returns on a driver's behalf. */
+/** POST /fleet/v1/dispatch/rounds/{roundId}/return: staff return parcels on a driver's behalf. */
 export interface StaffParcelReturnRequest {
   changeId: string;
 }
@@ -310,15 +206,15 @@ export interface DeliveryExceptionResolutionDTO {
 export interface DeliveryExceptionListDTO {
   exceptions: DeliveryExceptionDTO[];
   openCount: WireInt;
-  /** 093 — packages a driver declared missing at loading or check-in, still to be decided. */
+  /** Packages a driver declared missing at loading or check-in, still to be decided. */
   held?: HeldPackageDTO[];
-  /** 093 — runs whose next step is overdue. */
+  /** Runs whose next step is overdue. */
   overdue?: OverdueRunDTO[];
-  /** 093 — today's vehicle checks with anything to see (a minor or unsafe answer). */
+  /** Today's vehicle checks with something to see (a minor or unsafe answer). */
   vehicleChecks?: VehicleCheckDTO[];
 }
 
-/** 093 — a package declared missing. `step` is where: `load` (hub → van) or `checkin` (van → hub). */
+/** A package declared missing. `step` is where: `load` (hub → van) or `checkin` (van → hub). */
 export interface HeldPackageDTO {
   holdId: string;
   packageId: string;
@@ -326,13 +222,13 @@ export interface HeldPackageDTO {
   shopName: string;
   driverName: string;
   roundId: string;
-  /** 096 — every driver step can declare a bag missing now (collect, check-in, load, door, return). */
+  /** Every driver step can declare a bag missing (collect, check-in, load, door, return). */
   step: "collect" | "checkin" | "load" | "deliver" | "return";
   /** `not_at_shop` | `not_at_hub` | `damaged` | `wrong_temperature` | `not_in_van` | `other`. */
   reason: string;
   note: string | null;
   createdAt: string;
-  /** 096 — the one bag held; null when the whole package is (every bag of it missing). Optional for older deploys. */
+  /** The one bag held; null when the whole package is. Optional for older deploys. */
   parcel?: { code: string; seq: number; of: number; zone: "ambient" | "chilled" | "frozen" } | null;
 }
 
@@ -345,12 +241,12 @@ export const HOLD_REASON_WORDS: Record<string, string> = {
   other: "Other",
 };
 
-/** POST /fleet/v1/held-packages/{holdId}/resolve — 093. */
+/** POST /fleet/v1/held-packages/{holdId}/resolve. */
 export interface ResolveHoldRequest {
   resolution: "found" | "lost";
 }
 
-/** 093 — a run whose next step is late: loading (delivery) or the hub check-in (collection). */
+/** A run whose next step is late: loading (delivery) or the hub check-in (collection). */
 export interface OverdueRunDTO {
   roundId: string;
   kind: RoundKind;
@@ -363,7 +259,7 @@ export interface OverdueRunDTO {
   minutes: WireInt;
 }
 
-/** 093 — one driver's vehicle check. */
+/** One driver's vehicle check. */
 export interface VehicleCheckDTO {
   checkId: string;
   driverName: string;
@@ -375,19 +271,19 @@ export interface VehicleCheckDTO {
   clearNote: string | null;
 }
 
-/** POST /fleet/v1/vehicle-checks/{checkId}/clear — 093. */
+/** POST /fleet/v1/vehicle-checks/{checkId}/clear. */
 export interface ClearVehicleCheckRequest {
   note: string;
 }
 
-/** POST /fleet/v1/exceptions/{id}/resolve */
-/** How a failed delivery ended (redesign, "Mark dealt with — outcome"). `other` needs a note. */
+/** How a failed delivery ended. `other` needs a note. */
 export type ExceptionOutcome = "redelivered" | "refunded" | "collected" | "other";
 export const EXCEPTION_OUTCOMES: readonly ExceptionOutcome[] = ["redelivered", "refunded", "collected", "other"];
 
+/** POST /fleet/v1/exceptions/{id}/resolve. */
 export interface ResolveExceptionRequest {
   note?: string;
-  /** Optional so an older client still closes one; the back-office always sends it. */
+  /** Optional for an older client; back-office always sends it. */
   outcome?: ExceptionOutcome;
   changeId: string;
 }
@@ -396,10 +292,9 @@ export interface ResolveExceptionResponse {
   resolvedAt: string;
 }
 
-// ── 082 — dispatch across the days on sale ───────────────────────────────────────────────────────
-// Contract: `specs/082-driver-operations-realignment/contracts/routes.md`.
+// Dispatch across the days on sale
 
-/** A day that has delivery windows on sale (078's calendar), today first. */
+/** A day with delivery windows on sale, today first. */
 export interface DispatchCalendarDayDTO {
   /** yyyy-mm-dd, Melbourne. */
   date: string;
@@ -413,11 +308,11 @@ export interface DispatchWindowParcelDTO {
   packageId: string;
   orderId: string;
   orderNumber: string;
-  /** Where it is, in the platform's nine words (073). */
+  /** Where it is, in the nine status words. */
   status: PackageStatusView;
   /** Still at its supplier after the run that would have made its window. */
   collectLate: boolean;
-  /** Holds chilled or frozen items and was checked in at the hub on a day before its window's. */
+  /** Holds chilled or frozen items and was checked in at the hub before its window's day. */
   coldOvernight: boolean;
   /** The postcode group its address is in; null when in none. */
   group: string | null;
@@ -427,14 +322,11 @@ export interface DispatchWindowParcelDTO {
 export interface DispatchWindowDTO {
   windowStart: string;
   windowEnd: string;
-  /** "Wed 14 Oct, 4 pm – 6 pm"; 085 — "Wed 14 Oct · Any time (12 pm – 9 pm)" for the Any time window. */
+  /** "Wed 14 Oct, 4 pm – 6 pm", or "Wed 14 Oct · Any time (12 pm – 9 pm)" for the Any time window. */
   label: string;
-  /** 085 — the "Any time" window: its parcels were sold the day, not these hours. */
+  /** The "Any time" window: its parcels were sold the day, not these hours. */
   anyTime?: true;
-  /**
-   * The window's delivery rounds. ⚠ EMPTY BEFORE ITS DAY, and that is not a gap: a round is planned on
-   * its own day (082), so a later day's parcels are waiting, not unassigned.
-   */
+  /** The window's delivery rounds. Empty before its day: rounds are planned on their own day, so later parcels are waiting, not unassigned. */
   rounds: { roundId: string; driver: { id: string; name: string }; opensAt: string | null; parcels: WireInt }[];
   parcels: DispatchWindowParcelDTO[];
 }

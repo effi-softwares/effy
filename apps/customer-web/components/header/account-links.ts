@@ -14,17 +14,17 @@ import {
 import type { LucideIcon } from "lucide-react"
 
 /**
- * The customer's account destinations — ONE list, rendered by two different controls.
+ * The customer's account destinations — one list, rendered by two different controls.
  *
- * ⚠ It exists because the same entries are shown in two places that look nothing alike: the desktop
+ * It exists because the same entries are shown in two places that look nothing alike: the desktop
  * dropdown (`AccountMenu`) and the phone menu's account panel (`MobileNavIsland`). Written out twice,
  * they drift — a link added for the desktop menu simply never appears on a phone, and nothing fails.
  *
- * ⚠ THE GLYPH IS PART OF THE ENTRY, not of the renderer, for the same reason.
+ * The glyph is part of the entry, not of the renderer, for the same reason.
  *
  * `group` splits the list where the reference draws its separator: account destinations, then help.
  *
- * Sign-out is deliberately NOT in here. It is a `<form method="post">`, not a link (a GET sign-out is
+ * Sign-out is deliberately not in here. It is a `<form method="post">`, not a link (a GET sign-out is
  * triggerable by any `<img src="/sign-out">` on the internet — a CSRF logout), so it has a different
  * shape and belongs to each renderer.
  */
@@ -45,7 +45,7 @@ export const ACCOUNT_LINKS: ReadonlyArray<{
 ]
 
 /**
- * Every section of the account area — ONE list again, for the same reason as above: the sidebar
+ * Every section of the account area — one list again, for the same reason as above: the sidebar
  * (`AccountNav`, from `lg`) and the phone menu's account level (`MobileNavIsland`, below it) show the
  * same entries, and a section added to one must not go missing from the other.
  *

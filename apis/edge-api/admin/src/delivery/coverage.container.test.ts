@@ -6,13 +6,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 076 — the coverage console against the REAL schema: the list, groups, distances, courier reach
- * and the checker, and the audit row every change leaves.
- *
- * Only the module pool and the live channel are replaced; the SQL, the migrations and the one
- * coverage function are real.
- */
+/** Against the real schema; only the module pool and the live channel are replaced. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null, announced: [] as unknown[] }));
 
 vi.mock("@effy/edge-shared", async (importOriginal) => {
@@ -43,7 +37,7 @@ vi.mock("@effy/edge-shared/live", () => ({
   },
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import * as svc from "./coverage.service";
 import { putSettings } from "./service";
@@ -96,8 +90,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
         ON CONFLICT (name, state, postcode) DO UPDATE
           SET latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude, address_count = EXCLUDED.address_count;
     `);
-    // One driver cleared for everywhere, so the no-driver confirmation is not what these tests meet
-    // until the test that is about it.
+    // One driver cleared everywhere, so the no-driver confirmation only appears in its own test.
     await driver("everywhere", null);
   }, 240_000);
 
@@ -156,13 +149,12 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(all.postcodes.map((p) => p.postcode)).toEqual(["3121", "3900"]);
     expect(all.postcodes[0]).toMatchObject({ places: ["RICHMOND", "BURNLEY"], state: "VIC", groupId: null, distanceSource: "computed", needsReview: false });
     expect(all.counts).toEqual({ listed: 2, manualDistance: 1, needsReview: 0, todayNotOffered: 0 });
-    // 097 — delivery today is offered wherever nobody has said otherwise.
     expect(all.postcodes.map((p) => p.todayOffered)).toEqual([true, true]);
     expect(all.ungrouped).toEqual({ postcodeCount: 2, driverCount: 1 });
-    // 079 — nothing is set yet, and the screen is told BOTH things that must be done before courier can go on.
+    // Nothing is set yet, and the screen is told both things needed before courier can go on.
     expect(all.courier).toEqual({
       offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
-      blockedBy: ["no_fee_table", "no_service"], pending: false, canBeOffered: false, exclusions: [],
+      blockedBy: ["no_fee_table", "no_service"], exclusions: [],
     });
     expect((await svc.list({ source: "manual" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
     expect((await svc.list({ q: "burn" })).postcodes.map((p) => p.postcode)).toEqual(["3121"]);
@@ -224,9 +216,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
   });
 
   it("P6 — a hub move recalculates worked-out distances, leaves hand-entered ones, flags them, and says how many", async () => {
-    // ⚠ A hand-entered distance on a place the platform COULD work out — the case that matters. With
-    // only an unlocatable place in the list (3900), a recalculation that wrongly included manual rows
-    // would have nothing to overwrite and this test would pass regardless. (It did, until this row.)
+    // A hand-entered distance on a place the platform could compute: a recalculation must not overwrite it.
     await svc.addPostcodes({ postcodes: [{ postcode: "3141" }] }, SUB);
     await svc.patchPostcodes({ postcodes: ["3141"], distance: { source: "manual", km: "9.99" } }, SUB);
     holder.announced.length = 0;
@@ -266,14 +256,11 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
     expect(await svc.setCourier({ offered: false }, SUB)).toEqual({ offered: false, whenNoWindows: false, collectionDefault: "hub" });
 
-    // ⚠ 083 — there is no platform-wide estimate to set: the default courier service carries the
-    // timeframe (080). One sent by a console built before that changes nothing and is not a change.
     expect(await refusal(svc.setCourier({ estimateText: "2–4 business days" } as never, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
     expect(await svc.setCourier({ whenNoWindows: true }, SUB)).toEqual({ offered: false, whenNoWindows: true, collectionDefault: "hub" });
     const reach = (await svc.list({})).courier;
-    expect(reach).toMatchObject({ whenNoWindows: true, blockedBy: ["no_fee_table", "no_service"], pending: false, canBeOffered: false });
+    expect(reach).toMatchObject({ whenNoWindows: true, blockedBy: ["no_fee_table", "no_service"] });
     expect(reach).not.toHaveProperty("estimateText");
-    // 080 — how new courier orders reach the courier.
     expect(await svc.setCourier({ collectionDefault: "supplier" }, SUB)).toMatchObject({ collectionDefault: "supplier" });
     expect(await refusal(svc.setCourier({ collectionDefault: "drone" }, SUB))).toMatchObject({ status: 400 });
     expect((await audits("coverage.courier.collection_default")).at(-1)?.detail).toEqual({ before: "hub", after: "supplier" });
@@ -290,10 +277,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await refusal(svc.addExclusion({ postcode: "7000", reason: "Again" }, SUB))).toMatchObject({ status: 409, code: "already_excluded" });
     expect((await svc.list({})).courier.exclusions).toEqual([{ postcode: "7000", places: ["HOBART"], reason: "No chilled courier service" }]);
 
-    // With courier on (set in the database — this database has no fee table, so the service will not),
-    // the checker gives the exclusion's own reason; and an unexcluded place is NOT promised a courier,
-    // because nothing could sell one: no fee table, no estimate (079 — `pricing.container.test.ts`
-    // P19 carries it through to "courier").
+    // With courier on but no fee table, an unexcluded place is not promised a courier.
     await q(`UPDATE public.delivery_settings SET courier_offered = true WHERE id = 1`);
     expect((await svc.check("7000")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_excluded", exclusionReason: "No chilled courier service" });
     expect((await svc.check("2753")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_not_ready" });
@@ -315,7 +299,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
   });
 
   it("no driver can deliver there: adding ungrouped, moving, or removing a group asks first", async () => {
-    await q(`DELETE FROM public.driver`); // nobody is cleared for anything
+    await q(`DELETE FROM public.driver`);
     const inner = (await svc.list({})).groups.find((g) => g.name === "Inner East")!.id;
     expect((await svc.list({})).ungrouped.driverCount).toBe(0);
 
@@ -389,12 +373,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
   });
 });
 
-/**
- * P13 — who may do what (FR-026). The decision is `guard()`'s, from the `admin.staff` record: "read"
- * admits any active staff member including a customer-service agent, "mutate" only an admin or a
- * manager. What can go wrong is a write route asking for "read". So this reads every coverage
- * handler and holds its level to its verb.
- */
+/** Each coverage handler's guard level matches its verb: write routes must ask for "mutate". */
 describe("076 — P13: every coverage route asks for the right level", () => {
   const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../functions");
   const handlers = readdirSync(dir).filter((f) => f.startsWith("delivery-coverage-") && f.endsWith(".ts"));

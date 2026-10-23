@@ -11,7 +11,7 @@ import { describeReasons, waitingFor } from "../model";
  * "Needs a driver" (redesign, board "Dispatch — today"): every package ready at a shop or waiting at
  * the hub that nobody has, and why auto-assign could not place it.
  *
- * ⚠ THE READER THAT MAKES AN UNASSIGNED PACKAGE EXPLAINABLE (FR-028). Every reason is shown, in words
+ * The reader that makes an unassigned package explainable. Every reason is shown, in words
  * (`describeReasons`), never a code — a person fixes a licence, not `licence_expired`.
  */
 export function UnassignedPanel({
@@ -69,10 +69,10 @@ export function UnassignedPanel({
                   <span className="font-medium">{describeReasons(item.reasons)}</span>
                 </td>
                 <td data-m="meta">
-                  {/* 072 — where it is and what it is waiting for. A package readied in the evening for
+                  {/* Where it is and what it is waiting for. A package readied in the evening for
                       tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
                   <span>{waitingFor(item, new Date())}</span>
-                  {/* 082 — still at its supplier after the run that would have made its window. */}
+                  {/* Still at its supplier after the run that would have made its window. */}
                   {item.collectLate ? (
                     <span className="bo-late ml-2">
                       <Clock aria-hidden="true" />

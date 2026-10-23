@@ -1,5 +1,4 @@
-// POST /shop/v1/products/{id}/variants/{variantId}/state — put one variant on or off sale, or remove
-// it, immediately (098 FR-009: stopping a sale never waits on review). 409 when it is the last on sale.
+// Immediate: stopping a sale never waits on review. 409 for the last variant on sale.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -22,10 +22,10 @@ vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => fals
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
 /**
- * 079 — who delivers is decided from the address, the checkout shows exactly that, and nothing chosen
- * for one address survives a change to another (P21).
+ * Who delivers is decided from the address, the checkout shows exactly that, and nothing chosen
+ * for one address survives a change to another.
  *
- * The harness answers the quote PER ADDRESS, because that is the whole point: the same page must
+ * The harness answers the quote per address, because that is the whole point: the same page must
  * become a different delivery section the moment the address under it changes.
  */
 const address = (id: string, recipientName: string, postalCode: string, isDefault = false): AddressDTO => ({
@@ -75,7 +75,7 @@ beforeEach(() => {
   quoted = []
   intentBodies = []
   intentReplies = [ACCEPTED]
-  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  // A cart line is a size (variant); seeded through the store, never its storage key.
   resetCart()
   addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal(
@@ -104,7 +104,7 @@ afterEach(() => {
 
 const payButton = () => screen.getByRole("button", { name: /continue to payment/i })
 const delivery = () => screen.getByRole("region", { name: "Delivery" })
-/** 085 — choose the first later day. These quotes offer no day without a time, so its times open by themselves. */
+/** Choose the first later day. These quotes offer no day without a time, so its times open by themselves. */
 async function openFirstDay(user: ReturnType<typeof userEvent.setup>) {
   const days = (await screen.findAllByRole("radio")).filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
   await user.click(days[0]!)
@@ -122,7 +122,7 @@ describe("079 — a courier delivers: the estimate, the fee, and nothing to choo
     expect(section).toHaveTextContent("Delivered by a courier partner.")
     expect(section).toHaveTextContent("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.")
     expect(section).toHaveTextContent("$9.00")
-    // ⚠ Nothing to choose: no window, no day, no method — and no same-day / standard words at all.
+    // Nothing to choose: no window, no day, no method — and no same-day / standard words at all.
     expect(within(section).queryByRole("radio")).not.toBeInTheDocument()
     expect(within(section).queryByRole("tab")).not.toBeInTheDocument()
     expect(section.textContent).not.toMatch(/same-day|standard|window|today|tomorrow/i)
@@ -181,7 +181,7 @@ describe("079 — changing the address re-decides everything (US4)", () => {
     expect(within(delivery()).queryByRole("radio")).not.toBeInTheDocument()
     await user.click(payButton())
     await waitFor(() => expect(intentBodies).toHaveLength(1))
-    // ⚠ Nothing of the first address went with it: not its window, not its $6.00.
+    // Nothing of the first address went with it: not its window, not its $6.00.
     expect(intentBodies[0]).toMatchObject({ addressId: "far", deliveryType: "courier", shownDeliveryAmount: "9.00" })
     expect(intentBodies[0]).not.toHaveProperty("deliveryWindow")
   })
@@ -266,7 +266,7 @@ describe("079 — the server says who delivers has changed", () => {
     expect(screen.queryByText("Payment step")).not.toBeInTheDocument()
     expect(capture).toHaveBeenCalledWith({ name: "checkout_delivery_type_changed", props: {} })
 
-    // Pressing pay again buys what is NOW on the screen.
+    // Pressing pay again buys what is now on the screen.
     await user.click(payButton())
     await waitFor(() => expect(intentBodies).toHaveLength(2))
     expect(intentBodies[0]).toMatchObject({ deliveryType: "effy" })

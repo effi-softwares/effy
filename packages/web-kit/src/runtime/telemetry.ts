@@ -1,13 +1,8 @@
 import posthog from "posthog-js";
 
 /**
- * Product analytics + web error tracking (constitution Principle VII).
- *
- * Every surface stamps a `surface` super-property so its events are distinguishable from another
- * console's. No PII beyond the authenticated subject id — never an email, an OTP code, a token, or
- * any identifier an operator typed.
- *
- * Absent key ⇒ every call is a no-op. Telemetry never crashes a console.
+ * Product analytics and web error tracking. Every surface stamps a `surface` super-property. No PII
+ * beyond the subject id. With no key every call is a no-op.
  */
 
 /** A surface's event union: `{ name: "..." }` plus whatever non-PII props that event carries. */
@@ -20,10 +15,7 @@ export interface TelemetryConfig {
   host: string | undefined;
   /** e.g. "back-office", "shop-web" — stamped on every event. */
   surface: string;
-  /**
-   * Platform-wide analytics kill switch (050 FR-026). `false` ⇒ init is a no-op — no SDK loads, no
-   * collection — without an app release. Undefined/true ⇒ enabled. Scope is analytics only.
-   */
+  /** The analytics kill switch: `false` makes init a no-op (no SDK, no collection). */
   enabled?: boolean;
 }
 
@@ -44,7 +36,7 @@ export function createTelemetry<TEvent extends TelemetryEvent>({
   return {
     init(): void {
       if (!key) return; // no key → no-op, never a crash
-      if (!enabled) return; // kill switch (050 FR-026) → no SDK loads, no collection
+      if (!enabled) return;
       posthog.init(key, {
         api_host: host ?? "https://us.i.posthog.com",
         capture_pageview: false,
@@ -71,11 +63,7 @@ export function createTelemetry<TEvent extends TelemetryEvent>({
   };
 }
 
-/**
- * Route uncaught browser errors + unhandled promise rejections to `reportError` (050 US1, FR-002).
- * Call once at bootstrap after `init()`. A no-op if telemetry is unconfigured/killed (reportError
- * itself guards on readiness). No PII beyond the error message + a `source` tag.
- */
+/** Routes uncaught errors and unhandled rejections to `reportError`. Call once after `init`. */
 export function wireGlobalErrorReporting(
   reportError: (error: unknown, context?: Record<string, string>) => void,
 ): void {

@@ -5,7 +5,6 @@ import { authenticate } from "../driver/guard";
 import { deliveryDrop } from "../work/delivery";
 import { NotFoundError } from "../work/service";
 
-/** GET /driver/v1/delivery/drops/{dropId} — one customer stop (063). */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await authenticate(event, context);
   if (!guard.ok) return guard.response;

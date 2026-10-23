@@ -4,8 +4,8 @@ import { refreshSaved, toggleSaved } from "./saved-actions"
 import { __resetSavedCache, adoptSaved, isInNamedList, isSaved } from "./saved-store"
 
 /**
- * The heart's rule (068 FR-019, FR-020, SC-008): a tap un-saves a product that is only in "Saved",
- * and NEVER takes a product out of a list the shopper named.
+ * The heart's rule: a tap un-saves a product that is only in "Saved",
+ * and never takes a product out of a list the shopper named.
  */
 describe("toggleSaved", () => {
   const fetchMock = vi.fn()

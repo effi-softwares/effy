@@ -29,7 +29,7 @@ function renderPanel(canManage = true) {
   return render(<SlotsPanel canManage={canManage} />, { wrapper });
 }
 
-/** A refusal as `@effy/api-client` throws it: a plain object, NOT an Error (053's lesson). */
+/** A refusal as `@effy/api-client` throws it: a plain object, not an Error (053's lesson). */
 const refusal = (status: number, fields?: { field: string; message: string }[]) => ({
   kind: "unknown", status, title: "Refused", fields,
 });

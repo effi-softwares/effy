@@ -12,13 +12,7 @@ import { NotFoundError } from "../work/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
-/**
- * POST /driver/v1/hub/checkin (063, FR-022/FR-023).
- *
- * ⚠ The split in the response — Effy delivery (by day and window) and Courier — is READ, never
- * decided: who delivers was settled when the order was placed (079). The driver classifies nothing,
- * and a courier parcel's driver-side work ends here.
- */
+/** The Effy/Courier split is read, never decided: who delivers was settled at placement. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -38,12 +32,11 @@ export const handler = async (
 
   try {
     const checkedIn = await hubCheckin(body.runId, guard.driver.id, { changeId: body.changeId, parcels: body.parcels, missingParcels: body.missingParcels, reads: body.reads });
-    // 071/073 — committed; back-office AND every shop whose packages arrived see them "At hub".
     await announceCheckedIn(body.runId);
     if ((checkedIn.held ?? 0) > 0) await announceHeld();
     return json(200, checkedIn, guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);

@@ -1,22 +1,6 @@
-// An in-app numeric keypad (060 FR-020).
-//
-// ⚠ SCOPE CORRECTION, recorded rather than silently narrowed. FR-020 asks that BOTH the sign-in code
-// and the delivery code use discrete boxes plus this keypad, so "the system keyboard never appears".
-// Building that for the SIGN-IN code would destroy capability the design's mockup cannot know about:
-//
-//   * the sign-in code is EMAILED, and both platforms autofill it from the notification/inbox —
-//     an in-app keypad has no autofill, so every driver would hand-type six digits they could have
-//     tapped once;
-//   * paste (from a password manager or the mail app) stops working;
-//   * `OtpInput`/`OtpCells` already draws exactly the design's boxed positions, and 036 established
-//     WHY it is one field behind decoration rather than six inputs — six real inputs are how
-//     screen-reader users lose their place. iOS even has a bespoke UIKit actual because Compose
-//     cannot paint behind an interop view.
-//
-// So: the SIGN-IN code keeps `OtpInput` with `OtpVariant.Cells` (same appearance, no capability
-// lost), and this keypad serves the DELIVERY code, where it is unambiguously right — four digits a
-// customer reads aloud while the driver holds the phone one-handed at a doorstep. Nothing autofills
-// that, and a system keyboard would cover half the screen to collect four characters.
+// An in-app numeric keypad for the delivery code: four digits a customer reads aloud, entered one-handed
+// at a doorstep, where nothing autofills and a system keyboard would cover half the screen. The
+// sign-in code keeps `OtpInput` (emailed, so autofill and paste matter).
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.background
@@ -39,18 +23,17 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 
-/** ⚠ 56 dp, comfortably past the constitution's fat-finger minimum — a doorstep, one hand, gloves. */
+/** 56dp, well past the touch minimum: a doorstep, one hand, gloves. */
 private val KeyHeight = 56.dp
 
 private const val BACKSPACE = "⌫"
 
 /**
- * A 3×4 numeric keypad. Digits 1–9, then a blank, 0 and backspace — the layout of every phone
- * dialpad, so a driver does not have to look at it.
+ * A 3×4 numeric keypad laid out like a phone dialpad (1–9, blank, 0, backspace).
  *
  * @param onDigit a digit 0–9 was pressed
  * @param onBackspace the delete key was pressed
- * @param enabled when false every key is inert (e.g. while a submission is in flight)
+ * @param enabled when false every key is inert (e.g. while submitting)
  */
 @Composable
 fun NumericKeypad(
@@ -71,8 +54,7 @@ fun NumericKeypad(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { key ->
                     if (key.isEmpty()) {
-                        // The dialpad's empty bottom-left slot. It holds the grid's shape and must
-                        // not be announced, so it carries no semantics at all.
+                        // The dialpad's empty slot: holds the shape, carries no semantics.
                         Box(Modifier.weight(1f).height(KeyHeight))
                     } else {
                         KeypadKey(
@@ -97,8 +79,7 @@ private fun KeypadKey(
     onPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The glyph is decorative; the spoken label is what a screen reader announces. "Delete" rather
-    // than the backspace character, which most screen readers read as nothing at all.
+    // The glyph is decorative; "Delete" is the spoken label (screen readers read the backspace character as nothing).
     val spoken = if (key == BACKSPACE) "Delete" else key
 
     Box(

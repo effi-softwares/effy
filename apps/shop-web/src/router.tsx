@@ -21,7 +21,7 @@ const routeTree = rootRoute.addChildren([
     appIndexRoute,
     managerRoute,
     catalogRoute,
-    // ⚠ BEFORE the $productId route: "new" would otherwise be captured as a product id and answer 404.
+    // Before the $productId route: "new" would otherwise be captured as a product id and answer 404.
     catalogNewRoute,
     catalogProductRoute,
     ordersRoute,
@@ -29,9 +29,9 @@ const routeTree = rootRoute.addChildren([
     notificationSettingsRoute,
     printingSettingsRoute,
     insightsRoute,
-    // ⚠ DEV ONLY. The theme-adoption gallery (`/dev/tokens`) is a build-time-stripped array member,
+    // Dev only. The theme-adoption gallery (`/dev/tokens`) is a build-time-stripped array member,
     // not a runtime guard: `import.meta.env.DEV` folds to `false` in a production build, so both the
-    // route AND the screen it imports are tree-shaken out of the bundle. A `beforeLoad` redirect
+    // route and the screen it imports are tree-shaken out of the bundle. A `beforeLoad` redirect
     // would leave the whole gallery in the shipped JS.
     ...(import.meta.env.DEV ? [devTokensRoute] : []),
   ]),

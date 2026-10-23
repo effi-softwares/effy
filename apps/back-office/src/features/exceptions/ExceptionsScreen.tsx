@@ -21,11 +21,9 @@ import { OUTCOME_WORDS, ResolveDialog } from "./ResolveDialog";
 import { HeldPanel, OverduePanel, VehicleChecksPanel } from "./SequenceSections";
 
 /**
- * Delivery exceptions (064, 088, 093; redesign, board "Exceptions — open"). Deliveries a driver could
- * not complete, runs waiting on their next step, vehicles found unsafe, and packages declared missing —
- * four independent lists, one at a time. Nothing here resolves itself.
- *
- * ⚠ A csa reads every list and acts on none (FR-021); the backend refuses them anyway.
+ * Delivery exceptions: deliveries a driver could not complete, runs waiting on their next step, vehicles
+ * found unsafe, and packages declared missing, as four lists, one at a time. Nothing resolves itself. A
+ * csa reads every list and acts on none.
  */
 type Section = "failed" | "runs" | "vehicles" | "missing";
 
@@ -116,7 +114,7 @@ export function ExceptionsScreen() {
               ) : showResolved && all.isError ? (
                 <ErrorState error={all.error} onRetry={() => void all.refetch()} />
               ) : failedRows.length === 0 ? (
-                /* ⚠ A STATED FACT, not blank space. "Nothing failed" is information; an empty region is
+                /* A stated fact, not blank space. "Nothing failed" is information; an empty region is
                    indistinguishable from a screen that did not load. */
                 <EmptyState
                   icon={CircleCheck}
@@ -156,7 +154,7 @@ export function ExceptionsScreen() {
                             </td>
                             <td data-m="hide">{e.destinationSuburb ?? "—"}</td>
                             <td data-m="badge">
-                              {/* ⚠ FR-020 — "still in a van" and "back at the hub" are different problems. */}
+                              {/* "still in a van" and "back at the hub" are different problems. */}
                               {e.packageLocation === "with_driver" ? (
                                 <StatusWord tone="problem" icon={Undo2}>
                                   With {e.driverName} — to return
@@ -177,7 +175,7 @@ export function ExceptionsScreen() {
                                   {e.resolution?.note ? <span className="bo-sub">{e.resolution.note}</span> : null}
                                 </span>
                               ) : canResolve && e.packageLocation === "with_driver" ? (
-                                /* 088 — still in the van: it has to come back before anything else. */
+                                /* Still in the van: it has to come back before anything else. */
                                 <RecordReturnButton exception={e} />
                               ) : canResolve ? (
                                 <ResolveDialog exception={e} />

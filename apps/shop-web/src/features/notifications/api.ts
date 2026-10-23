@@ -2,13 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import { api } from "@/lib/api"
 
-/**
- * Device registration and notification preferences (059, US1/US4).
- *
- * ⚠ COLD PATH, and doctrinally so (Principle III): low-frequency operator CRUD. `POST/DELETE
- * /shop/v1/devices` are 050's routes, unchanged — 059 only widened the platform they accept. The
- * two preference routes are new and sit behind the same shop authorizer.
- */
+/** Device registration (`POST/DELETE /shop/v1/devices`) and notification preferences, behind the shop authorizer. */
 
 export interface NotificationTypeInfo {
   type: string
@@ -27,9 +21,9 @@ export interface NotificationPreferences {
 export const PREFS_KEY = ["shop", "notification-preferences"] as const
 
 /**
- * Preferences for ONE registration, keyed by its token.
+ * Preferences for one registration, keyed by its token.
  *
- * ⚠ The token is part of the key, so switching devices cannot show the previous device's settings
+ * The token is part of the key, so switching devices cannot show the previous device's settings
  * from cache — which would be a screen confidently reporting another tablet's state.
  */
 export function preferencesQuery(fcmToken: string | null) {
@@ -52,7 +46,7 @@ export interface RegisterDeviceBody {
   platform: "web"
   appVersion?: string
   /**
-   * ⚠ OMIT THIS KEY to preserve what is stored. Sending `[]` CLEARS the operator's choices.
+   * Omit this key to preserve what is stored. Sending `[]` clears the operator's choices.
    *
    * The console re-registers on every launch; if that call carried `mutedTypes: []` it would switch
    * muted notifications back on every time the app was opened, and the operator would conclude the

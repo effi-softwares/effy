@@ -1,13 +1,6 @@
-// Insights' reads — ROLLUPS ONLY (058, FR-026).
-//
-// ⚠ NOTHING IN THIS FILE MAY NAME `public."order"` OR `public.order_item`, and a guard enforces it
-// (`rollup-only.guard.test.ts`). The rule is not stylistic: the whole promise of this screen is that
-// opening it costs a bounded indexed scan rather than an aggregate over the shop's entire history,
-// and the way that promise dies is one innocent join added "just to get this one number".
-//
-// The bounds are small and knowable: at most 1,440 hour rows for a 30-day range plus its comparison
-// window, and one product-day aggregate. That is why no cache sits in front of this (architecture
-// doc §1.4) — there is nothing here worth caching that the query planner does not already do better.
+// Rollups only: nothing here may name `public."order"` or `public.order_item`
+// (`rollup-only.guard.test.ts`), so the screen costs a bounded indexed scan (at most 1,440 hour rows).
+// No cache: there is nothing the planner does not already do better.
 import { presignRead, query } from "@effy/edge-shared";
 
 export interface HourTotals {
@@ -71,22 +64,14 @@ export interface TopProductRow {
   revenue: string;
 }
 
-/**
- * Top products by goods sold in the window.
- *
- * ⚠ Name, SKU and image are joined from `public.product` at read time rather than copied into the
- * rollup. A renamed product then shows its current name — a copy would leave the operator looking
- * for something that no longer exists under that name anywhere else in the console.
- */
+/** Name, SKU and image are joined at read time, so a renamed product shows its current name. */
 const SELECT_TOP_PRODUCTS = `
 SELECT p.id::text AS product_id,
        p.name,
-       -- 098 — sales stay per PRODUCT (FR-025); a stock code is shown only when it has one variant.
+       -- Sales stay per PRODUCT; a stock code is shown only when it has one variant.
        (SELECT CASE WHEN count(*) = 1 THEN min(v.sku) END FROM public.product_variant v
          WHERE v.product_id = p.id AND v.state <> 'removed') AS sku,
-       -- is_primary then display_order, read off 20260716092105_product_catalog.sql. The first draft
-       -- ordered by a "position" column that does not exist: it typechecks perfectly and fails only
-       -- at runtime, which is 056's two-wrong-column-names defect exactly.
+       -- is_primary, then display_order.
        (SELECT m.storage_key
           FROM public.product_media m
          WHERE m.product_id = p.id
@@ -129,18 +114,12 @@ export async function readTopProducts(
   }));
 }
 
-/** Short-lived signed URLs, exactly as the catalog serves its own thumbnails. */
+/** Short-lived signed URLs, as the catalog serves thumbnails. */
 export async function signThumbnails(rows: TopProductRow[]): Promise<(string | null)[]> {
   return Promise.all(rows.map((r) => (r.imageKey ? presignRead(r.imageKey) : Promise.resolve(null))));
 }
 
-/**
- * When this shop's figures were last recomputed.
- *
- * ⚠ NULL IS A REAL ANSWER — the rollups have never run for this shop — and the screen says so rather
- * than showing zeros as though they had been measured. "No sales yet" and "we have not looked yet"
- * are different facts, and only one of them should make an operator worry.
- */
+/** Null means the rollups have never run for this shop: "not looked yet", not "no sales". */
 export async function readComputedAt(shopId: string): Promise<Date | null> {
   const res = await query<{ computed_at: Date }>(
     `SELECT computed_at FROM public.insights_state WHERE shop_id = $1::uuid`,

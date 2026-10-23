@@ -15,35 +15,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The Kotlin half of the saved-items wire contract (033).
- *
- * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
- * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
- * source, takes each `const val`, and compares it with what the real mapper produces — so there is
- * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
- *
- * ⚠ ONE LITERAL, TWO INDEPENDENT JUDGES. The old arrangement kept two hand-made copies on the theory
- * that a shared fixture "moves with the bug". This one cannot: the literal is judged here by whether
- * the app can DECODE it, and on the backend by whether the real mapper PRODUCES it. Change the
- * literal and both must still agree with it separately; change either side's code and its own test
- * fails. (029 found the two-copy version agreeing with itself about a payload no server ever sent.)
- *
- * ⚠ WHY THIS EXISTS. 027 lost days to a defect no unit test on either side could see: Kotlin
- * serialised quantities as `Double`, so the wire carried `1.0`, and Go's encoding/json cannot
- * unmarshal `1.0` into an `int`. Every test passed throughout, because the fakes spoke Kotlin at both
- * ends and never crossed the wire. This test is what would have caught it on day one.
+ * The Kotlin half of the saved-items wire contract. `apis/edge-api/commerce/src/wire.contract.test.ts` parses
+ * this file, takes each `const val` and compares it with what the real mapper produces; here the same
+ * literal must decode. Renaming a constant breaks that test: rename it there too.
  */
 class SavedWireContractTest {
 
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     companion object {
-        // ⚠ Read by the backend's wire.contract.test.ts (see the header). If you change it,
+        // Read by the backend's wire.contract.test.ts (see the header). If you change it,
         // change the other in the same commit.
         const val SAVED_ITEM_WIRE_JSON =
             """{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs","variantId":"9f2c1d4e-0000-0000-0000-0000000000a1","variantLabel":"12 pack","variantCount":2,"unitPrice":{"amount":"0.54","basis":"each"}}"""
 
-        // ⚠ 068 added `namedProductIds`. Byte-identical to SAVED_MEMBERSHIP_WIRE_JSON in
+        // Added `namedProductIds`. Byte-identical to SAVED_MEMBERSHIP_WIRE_JSON in
         // the backend's wire.contract.test.ts.
         const val SAVED_MEMBERSHIP_WIRE_JSON =
             """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001","1a7b0000-0000-0000-0000-000000000002"],"count":2,"namedProductIds":["9f2c1d4e-0000-0000-0000-000000000001"]}"""
@@ -71,22 +57,9 @@ class SavedWireContractTest {
     }
 
     /**
-     * ⚠ THE 027 R13 GUARD, in the direction that actually broke.
-     *
-     * `count` is a WireInt in the TS contract precisely so the generated Kotlin is a `Long`. If it
-     * ever regresses to `Double`, Kotlin emits `1.0`, Go REFUSES it into an int, and the request 422s
-     * — invisibly, because unit tests on both sides still pass.
-     *
-     * ⚠ THIS ASSERTS VALUES, NOT THE WHOLE STRING, and the reason is worth keeping. Go's
-     * `encoding/json` emits keys in STRUCT FIELD ORDER (`productIds`, then `count`) while quicktype
-     * sorts the generated Kotlin data class alphabetically (`count`, then `productIds`). So the two
-     * languages produce byte-different — and equally valid — encodings of the same object.
-     *
-     * Object key order is not semantically meaningful in JSON, so pinning it across two serialisers
-     * would pin an accident of each rather than the contract, and would fail the day either tool
-     * changed its ordering. The byte-identical literal is therefore the DECODE fixture (both sides
-     * must accept the same bytes — see the test above); the emit direction is checked at the level
-     * that actually broke in 027: the numeric literal.
+     * `count` is a WireInt, so the generated Kotlin is a `Long` and emits `1`, never `1.0`. This asserts
+     * values, not the whole string: the server and the generated class order keys differently, both
+     * validly, so the byte-identical literal is the decode fixture only.
      */
     @Test
     fun `Kotlin emits a whole number for count - never a float`() {
@@ -156,12 +129,12 @@ class SavedWireContractTest {
     }
 
     /**
-     * ⚠ The saved item deliberately carries NO `available` field.
+     * The saved item deliberately carries NO `available` field.
      *
      * That boolean — derived from catalogue status alone — is the one that lied: it reported a
      * product buyable while checkout refused it at the shopper's address. `verdict` replaces it. If
      * `available` ever reappears, two fields answer one question and a client will render the wrong
-     * one, so its ABSENCE is a requirement rather than an omission.
+     * one, so its absence is a requirement rather than an omission.
      */
     @Test
     fun `the saved item carries a verdict and no available flag`() {
@@ -173,7 +146,7 @@ class SavedWireContractTest {
     }
 
     /**
-     * An absent `priceDropped` means "no drop" (FR-044). There is deliberately no `priceRose`.
+     * An absent `priceDropped` means "no drop". There is deliberately no `priceRose`.
      */
     @Test
     fun `an absent priceDropped decodes as no drop`() {
@@ -192,7 +165,7 @@ class SavedWireContractTest {
     }
 
     /**
-     * ⚠ All three verdicts must decode. A sixth value appearing on the wire would reach a client that
+     * All three verdicts must decode. A sixth value appearing on the wire would reach a client that
      * cannot render it, which is why the mapper's `when` is exhaustive with no `else`.
      */
     @Test
@@ -209,15 +182,7 @@ class SavedWireContractTest {
         }
     }
 
-    /**
-     * ⚠ FR-008 depends on the ORDER line carrying a product id, and this pins that it survives.
-     *
-     * The wire has carried `productId` since 019 — the mobile DOMAIN model simply dropped it, so a
-     * shopper could see a past order but not save anything from it. That is the same
-     * mapper-discards-what-the-backend-sends shape that hid `brand` and `badges` on the saved list.
-     * No contract change was needed; the field needed mapping. If it is ever dropped again, this
-     * fails rather than the feature quietly losing a placement.
-     */
+    /** An order line carries its product id, so a shopper can save from a past order. */
     @Test
     fun `an order line carries the product id a save needs`() {
         val orderItemJson =
@@ -228,8 +193,8 @@ class SavedWireContractTest {
         assertEquals("9f2c1d4e-0000-0000-0000-000000000001", dto.productID)
         assertTrue(dto.productID.isNotBlank(), "a product you cannot identify is a product you cannot save")
 
-        // ⚠ 055 — THE TWO IDS ARE DIFFERENT THINGS AND BOTH ARE ON THE WIRE. `productId` is what a
-        // SAVE needs (033); `orderItemId` is what a REFUND REQUEST needs, because an order can carry
+        // The two IDS are different things and both are on the wire. `productId` is what a
+        // save needs; `orderItemId` is what a refund request needs, because an order can carry
         // the same product on two lines and a product id cannot tell them apart. Naming one where the
         // other is expected does not error — the server's join matches nothing and the item is
         // silently dropped.

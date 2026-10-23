@@ -22,30 +22,12 @@ import { ACCESS_TOKEN_HEADER } from "../password/identity"
 
 const MAX_NAME = 60
 
-/**
- * The phone is bounded but NOT format-checked (034 FR-060).
- *
- * ⚠ Deliberately loose. The value is unverified and non-authoritative — FR-060a bars it from every
- * identity, recovery and authentication path — so a strict national pattern would be a support
- * burden that buys nothing. The bound exists only to stop an unbounded write.
- */
+/** Bounded but not format-checked: the phone is unverified and never used for identity. */
 const MAX_PHONE = 32
 
 /**
- * PATCH /customer/v1/me — the customer maintains their own details (FR-026).
- *
- * ⚠ `givenName` and `familyName` ARE THE ONLY WRITABLE FIELDS, and the omissions are deliberate:
- *
- *   • `email`  — changing it is an IDENTITY operation, not a profile edit. A customer who can
- *                rewrite their own email can point it at a victim's address; that is the well-known
- *                Cognito takeover. It is locked in Cognito by requiring verification of the NEW
- *                address before the sign-in identity moves, and it is simply not accepted here.
- *   • `status` — platform-owned (FR-025). Accepting it would let a barred customer un-ban themselves
- *                in a single request.
- *   • `id` / `cognito_sub` — identity keys. Not data.
- *
- * Anything not listed above is IGNORED rather than rejected: the UPDATE names its columns
- * explicitly, so an unexpected field in the body can never reach the database.
+ * Only the name parts and phone are writable. Not `email` (an identity operation, verified in Cognito),
+ * not `status` (platform-owned), not ids. Other fields are ignored: the UPDATE names its columns.
  */
 export const handler = async (
   event: AuthedEvent,
@@ -111,9 +93,7 @@ export const handler = async (
     return json(200, customer, scope)
   } catch (err) {
     if (err instanceof CustomerBarredError || err instanceof CustomerClosingError) {
-      // ⚠ ONE uniform refusal for both. A barred customer and a closing one are different facts, and
-      // the service keeps them as distinct errors for the logs — but the WIRE must not disclose
-      // which applied, matching the posture every other customer route already holds.
+      // One uniform refusal for barred and closing.
       scope.log.warn(
         { sub, reason: err instanceof CustomerClosingError ? "closing" : "barred" },
         "profile update refused",
@@ -127,7 +107,7 @@ export const handler = async (
       )
     }
     if (err instanceof CustomerNotFoundError) {
-      // A valid token, but no record — they have never completed a GET /me.
+      // A valid token but no record: they never completed a GET /me.
       return problem(
         403,
         ProblemType.Forbidden,
@@ -142,38 +122,9 @@ export const handler = async (
 }
 
 /**
- * Mirror the name onto the Cognito profile so the ID token's claim agrees with the record.
- *
- * ⚠ THIS CALL WAS MISSING, AND ITS ABSENCE WAS A LIVE, SHIPPED BUG (036 R5).
- *
- * `updateName` has existed since 012 and had NO CALL SITES anywhere in the repository. Meanwhile
- * `app/(account)/account/actions.ts` told the reader: "The backend writes the record AND the Cognito
- * attributes. We then force a refresh here, minting a new ID token that carries the new claim."
- * It did not. The refresh minted a genuinely new token carrying the SAME OLD `given_name`, so the
- * storefront header — which greets from that claim, deliberately, because it costs zero backend calls
- * on a cached page — showed the customer's old first name PERMANENTLY, not "for up to an hour".
- *
- * 036 makes this load-bearing rather than merely correct: the name is now collected AFTER the account
- * exists (FR-032), so if this write does not happen there is no earlier moment at which the claim was
- * ever populated. The greeting would read "Account" forever.
- *
- * ── Three rules, each of which is the reason a naive version would be wrong ──────────────────────
- *
- * ⚠ DATABASE FIRST, COGNITO SECOND, AND NEVER FATAL. The record is authoritative and is already
- * committed by the time we get here. Failing the request on a Cognito blip would tell the customer
- * their save failed when it succeeded, and they would try again — writing the same thing twice and
- * still seeing an error. Same posture as `notify.ts`.
- *
- * ⚠ THE ACCESS TOKEN IS OPTIONAL HERE, unlike every other caller of `requireCaller`. Both clients
- * send `X-Effy-Access-Token` today, but making it mandatory would turn an in-flight mobile build into
- * a hard 401 on a profile save. Absent token → skip the mirror, log it, and let the record stand.
- *
- * ⚠ THE PHONE IS NEVER SENT. Writing Cognito's `phone_number` would make an unverified phone an
- * identity attribute, which 034 FR-060a forbids outright — and `customer/phone-isolation.test.ts`
- * scans this service for exactly that mistake.
- *
- * No IAM is involved: `UpdateUserAttributes` is authorised by the CUSTOMER'S OWN access token, which
- * is why `password/cognito.ts` opens by stating that the module needs no permissions at all.
+ * Mirrors the name onto Cognito so the ID token's claim (the storefront greets from it) matches the
+ * record. Database first and never fatal. The access token is optional here; without it the mirror is
+ * skipped and logged. The phone is never sent. No IAM: the customer's own access token authorises it.
  */
 async function syncNameToCognito(
   event: AuthedEvent,
@@ -194,20 +145,11 @@ async function syncNameToCognito(
   try {
     await updateName(accessToken, givenName, familyName)
   } catch (err) {
-    // Deliberately swallowed. The record is the authority and it is already written.
     scope.log.warn({ err, sub }, "profile name mirror to cognito failed")
   }
 }
 
-/**
- * `null` clears the field; a string is trimmed; an empty string means "cleared".
- *
- * ⚠ THE `""`-MEANS-CLEAR RULE IS LOAD-BEARING, NOT COSMETIC. The mobile client serialises with
- * `explicitNulls = false`, so a `null` is dropped from the payload entirely and arrives here as
- * `undefined` — indistinguishable from "field not sent". Every clearable field must therefore send
- * `""`, and every clearable field must be normalised through this one function, or clearing it
- * silently no-ops on mobile while appearing to work on web.
- */
+/** `null` or `""` clears; a string is trimmed. Mobile drops nulls, so clearing travels as `""`. */
 function normalise(raw: unknown, max: number): { value: string | null; error?: true } {
   if (raw === null || raw === undefined) return { value: null }
   if (typeof raw !== "string") return { value: null, error: true }

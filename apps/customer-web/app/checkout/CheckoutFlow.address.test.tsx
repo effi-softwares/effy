@@ -11,7 +11,7 @@ import { CheckoutFlow } from "./CheckoutFlow"
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock("@/lib/stripe", () => ({
   getStripe: () => Promise.resolve(null),
-  // 051: the flow now asks lib/stripe for the Elements options (which carry the generated appearance),
+  // The flow now asks lib/stripe for the Elements options (which carry the generated appearance),
   // so a mock that omits it makes the paying step throw rather than render.
   paymentElementsOptions: (clientSecret: string) => ({ clientSecret }),
 }))
@@ -19,7 +19,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 // The paying step is out of scope here — stub the Stripe form so placement succeeds without the SDK.
-// 051: PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
+// PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
 vi.mock("./PaymentStep", () => ({ PaymentStep: () => <div>Payment step</div> }))
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => false }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
@@ -52,7 +52,7 @@ let addressWrites: number
 beforeEach(() => {
   intentBodies = []
   addressWrites = 0
-  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  // A cart line is a size (variant); seeded through the store, never its storage key.
   resetCart()
   addToCart({ variantId: "v1", productId: "p1", name: "Sourdough loaf", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a1b2" })
 
@@ -67,7 +67,7 @@ beforeEach(() => {
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))
       }
       if (u.endsWith("/api/checkout/quote")) {
-        // Serviced, $5 delivery. ⚠ A COURIER quote on purpose: one fee and nothing to choose, so
+        // Serviced, $5 delivery. A courier quote on purpose: one fee and nothing to choose, so
         // these tests go straight to paying — they are not about picking a delivery window.
         return jsonRes({
           postcode: "3000",
@@ -92,14 +92,9 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/**
- * Place the order (the intent request).
- *
- * ⚠ ONE CLICK, not two. There used to be a delivery step between the address and payment; delivery
- * zones, quotes and fees were withdrawn from the platform, so checkout is: choose an address, pay.
- */
+/** Places the order (the intent request). */
 async function placeOrder(user: ReturnType<typeof userEvent.setup>) {
-  // 047: the pay button gates on a serviced delivery quote, fetched async when the address is set.
+  // The pay button gates on a serviced delivery quote, fetched async when the address is set.
   await waitFor(() =>
     expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled(),
   )
@@ -116,7 +111,7 @@ describe("CheckoutFlow shipping (US1/US2)", () => {
   it("pre-selects the default and lets you pay once the address is serviced (SC-001)", async () => {
     render(<CheckoutFlow initialAddresses={[addr()]} />)
     expect(screen.getByText("Pat")).toBeInTheDocument()
-    // 047: pay enables only after the delivery quote confirms the address is serviced.
+    // Pay enables only after the delivery quote confirms the address is serviced.
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled(),
     )
@@ -160,7 +155,7 @@ describe("CheckoutFlow billing (US4)", () => {
       />,
     )
 
-    await user.click(screen.getByRole("switch")) // billing OFF → billing picker (auto-expanded)
+    await user.click(screen.getByRole("switch")) // billing off → billing picker (auto-expanded)
     await user.click(screen.getByRole("radio", { name: /Sam/ }))
     await placeOrder(user)
 
@@ -175,7 +170,7 @@ describe("CheckoutFlow billing (US4)", () => {
       />,
     )
 
-    await user.click(screen.getByRole("switch")) // OFF, no billing chosen
+    await user.click(screen.getByRole("switch")) // Off, no billing chosen
     expect(screen.getByRole("button", { name: /continue to payment/i })).toBeDisabled()
   })
 
@@ -187,7 +182,7 @@ describe("CheckoutFlow billing (US4)", () => {
       />,
     )
 
-    await user.click(screen.getByRole("switch")) // OFF
+    await user.click(screen.getByRole("switch")) // Off
     await user.click(screen.getByRole("radio", { name: /Sam/ })) // pick a2 for billing
     await user.click(screen.getByRole("switch")) // back ON → discard
     await placeOrder(user)

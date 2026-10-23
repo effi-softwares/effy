@@ -1,5 +1,4 @@
-// GET /shop/v1/catalog/schema — active types (+ assigned attributes) + active category tree.
-// One call bootstraps the create form. Any active shop member.
+// Active types and their attributes plus the active category tree: one call bootstraps the create form.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

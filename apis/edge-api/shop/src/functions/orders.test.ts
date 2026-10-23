@@ -2,7 +2,7 @@ import type { AuthedEvent } from "@effy/edge-shared";
 import type { Context } from "aws-lambda";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Mock the DB seam, not the gate — so these drive the REAL authorization path (see fulfillments.test).
+// The DB seam is mocked, not the gate, so the real authorization path runs.
 const query = vi.hoisted(() => vi.fn());
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@effy/edge-shared")>()),
@@ -58,7 +58,7 @@ const DETAIL = {
   money: { currency: "AUD", shopSubtotal: "0.00", itemSubtotal: "0.00", discount: "0.00", promoCode: null, total: "0.00", refunded: "0.00", refundPending: "0.00", net: "0.00" },
   payment: { state: "paid", methodType: null, methodBrand: null, methodLast4: null, amount: "0.00", paidAt: null },
   refunds: [],
-  handoff: { collectedAt: null, deliveredAt: null, unfulfillableReason: null },
+  handoff: { deliveredAt: null, unfulfillableReason: null },
   label: { packageCode: "7K3Q9M", position: 1, packageCount: 1, suburb: "M", cold: null },
   parcels: [{ parcelId: "p-1", code: "7K3Q9M", seq: 1, of: 1, zone: "ambient", printed: { count: 0, firstAt: null, lastAt: null, current: false }, packScanned: null, custody: "at_shop" }],
   labelCommon: { service: "effy_driver", orderNumber: "EFY-1", packedOn: null, recipientName: "A", line1: "1", line2: null, suburb: "M", state: "", postcode: "3000", country: "AU", phone: null },

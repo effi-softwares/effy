@@ -42,7 +42,7 @@ describe("SavedCards (051 US3)", () => {
   })
 
   /**
-   * ⚠ FR-023, and the half that actually matters is UNSELECTABLE. A card that is merely dimmed still
+   * FR-023, and the half that actually matters is unselectable. A card that is merely dimmed still
    * lets a shopper choose it and find out from their bank — which is the worst place to learn it.
    */
   it("shows an unusable card with its reason and refuses to let it be chosen", () => {
@@ -85,7 +85,7 @@ describe("SavedCards (051 US3)", () => {
     expect(onSelect).toHaveBeenCalledWith("pm_2")
   })
 
-  /** FR-024 — removal is reachable from the payment step, not only from the account area. */
+  /** Removal is reachable from the payment step, not only from the account area. */
   it("offers removal with a label naming the card, and a full-size hit area (FR-033)", () => {
     render(
       <SavedCards cards={[card()]} selectedId="pm_1" onSelect={vi.fn()} onRemove={vi.fn()} />,

@@ -65,11 +65,7 @@ describe("createVehicle — refusals that name the obstacle", () => {
     expect(err.fields?.map((f) => f.field).sort()).toEqual(["make", "model", "registrationPlate"]);
   });
 
-  /**
-   * ⚠ THE REFUSAL NAMES THE PLATE ALREADY IN USE. "That plate is taken" sends an operator hunting;
-   * naming it sends them to the record. 053 shipped a console where exactly this information was
-   * discarded after the server had composed it.
-   */
+  /** The refusal names the plate already in use. */
   it("⚠ refuses a duplicate plate and NAMES the vehicle already using it", async () => {
     vi.mocked(repo.plateInUse).mockResolvedValue("EFY-001");
 
@@ -132,11 +128,7 @@ describe("updateVehicle — optimistic concurrency", () => {
 });
 
 describe("setVehicleStatus — retiring cannot strand a vehicle", () => {
-  /**
-   * ⚠ THE VAN IS IN A CARPARK SOMEWHERE. Retiring it while a driver holds it would remove it from
-   * the assignable fleet while a person physically has it, and nothing would say so — 056's
-   * stranded-work shape, which was in no register because nobody knew.
-   */
+  /** Retiring a van a driver still holds would hide it while a person has it. */
   it("⚠ REFUSES to retire a vehicle that is still out, and names the holder", async () => {
     vi.mocked(repo.getVehicle).mockResolvedValue({
       ...VEHICLE,

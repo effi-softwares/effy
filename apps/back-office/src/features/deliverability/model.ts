@@ -17,7 +17,7 @@ export interface DeliveryListItem {
   bounceCount: number;
   complaintCount: number;
   repairedAt: string | null;
-  /** ⚠ Nullable, and legitimately so — see the console's own note in DeliverabilityListScreen. */
+  /** Nullable, and legitimately so — see the console's own note in DeliverabilityListScreen. */
   subject: DeliverySubject | null;
 }
 
@@ -26,10 +26,8 @@ export interface DeliveryEvent {
   subType: string | null;
   messageId: string;
   /**
-   * ⚠ The template this outcome belongs to (038). `null` means the message was sent by Cognito
-   * (sign-up, password reset, verification, MFA — which cannot be tagged) or predates 038. The
-   * console renders that as "Cognito / pre-038", NOT as blank or unknown — a null here is an answer,
-   * not a gap, and the same honesty the screen already applies to `subject` and `suppressedInSes`.
+   * The template this outcome belongs to. `null` means Cognito sent it (sign-up, reset, verification, MFA:
+   * untaggable), rendered as "Cognito", not blank.
    */
   templateId: string | null;
   occurredAt: string;
@@ -39,7 +37,7 @@ export interface DeliveryDetail extends DeliveryListItem {
   diagnostic: string | null;
   lastMessageId: string | null;
   repairedBy: string | null;
-  /** ⚠ `null` means "we could not check" — it must never be rendered as "not suppressed". */
+  /** `null` means "we could not check" — it must never be rendered as "not suppressed". */
   suppressedInSes: boolean | null;
   events: DeliveryEvent[];
 }
@@ -65,9 +63,9 @@ export const STATE_LABEL: Record<EmailDeliveryState, string> = {
 };
 
 /**
- * What the state MEANS for the person — the sentence a CSA reads out.
+ * What the state means for the person — the sentence a CSA reads out.
  *
- * ⚠ The undeliverable line names the consequence, not the mechanism. "On a suppression list" is true
+ * The undeliverable line names the consequence, not the mechanism. "On a suppression list" is true
  * and useless to whoever is on the phone.
  */
 export const STATE_MEANING: Record<EmailDeliveryState, string> = {

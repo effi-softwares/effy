@@ -14,13 +14,9 @@ import { AddressRow } from "./AddressRow"
 import { DeleteAddressDialog } from "./DeleteAddressDialog"
 
 /**
- * The address book (US1–US5). Follows the FavoritesList pattern — the page fetches the initial list
- * server-side, this client component holds it in `useState` and reflects every mutation locally so the
- * list updates without a reload (FR-008). NO TanStack Query (this surface stays dependency-free).
- *
- * The one form serves add and edit; the row body opens edit, while set-default and delete are distinct
- * per-row controls (FR-017a). Deleting the default while others exist is blocked with a reassign prompt
- * (client guard + server 409 backstop, FR-016a).
+ * The address book: the page fetches the list server-side; this holds it in state and reflects each
+ * change locally. Set-default and delete are per-row controls; deleting the default while others exist
+ * asks for a new default (client guard, server 409 backstop).
  */
 export function AddressList({ initial }: { initial: Address[] }) {
   const [items, setItems] = useState<Address[]>(initial.map(toAddress))
@@ -55,7 +51,7 @@ export function AddressList({ initial }: { initial: Address[] }) {
   }
 
   async function makeDefault(address: Address) {
-    if (address.isDefault) return // idempotent no-op (FR-014) — no request needed
+    if (address.isDefault) return
     setBusyId(address.id)
     const result = await setDefault(address.id)
     setBusyId(null)
@@ -84,7 +80,7 @@ export function AddressList({ initial }: { initial: Address[] }) {
       setDeleteOpen(false)
       setDeleteTarget(null)
     } else if (result.status === 409) {
-      // Backstop: a racing device set this default again between the guard and the request.
+      // Backstop: another device set this default between the guard and the request.
       setDeleteBlocked(true)
       capture({ name: "address_delete_default_blocked" })
     }

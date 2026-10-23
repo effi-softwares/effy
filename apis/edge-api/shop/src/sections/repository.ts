@@ -1,5 +1,4 @@
-// Repository for shop-local sections (016, US5): raw SQL, shop-scoped. Every query is bound to the
-// caller-resolved shop id (never client input). A duplicate section name in a shop → 409 conflict.
+// Every query is bound to the resolved shop id. A duplicate name is 409.
 import { query } from "@effy/edge-shared";
 
 import { ProductError } from "../products/types";
@@ -69,7 +68,7 @@ export async function updateSection(
 }
 
 export async function deleteSection(shopId: string, id: string): Promise<boolean> {
-  // ON DELETE CASCADE on product_section unassigns products automatically.
+  // On DELETE cascade on product_section unassigns products.
   const res = await query<{ id: string }>(
     `DELETE FROM public.shop_section WHERE id = $1 AND shop_id = $2 RETURNING id`,
     [id, shopId],

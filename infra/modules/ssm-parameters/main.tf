@@ -1,12 +1,12 @@
 # Writes one audience's auth contract values to SSM Parameter Store — the runtime
 # app↔infra contract (research.md D10). Infra writes; backends/clients read by key.
-# Renaming a key is a BREAKING change to every consumer
+# Renaming a key is a breaking change to every consumer
 # (specs/001-infra-foundation/contracts/ssm-parameters.contract.md).
 
 locals {
   prefix = "/effy/${var.env}/auth/${var.audience}"
 
-  # Pool/client ids and ARNs are NOT secrets → String, no KMS.
+  # Pool/client ids and ARNs are not secrets → String, no KMS.
   parameters = {
     user_pool_id  = var.user_pool_id
     app_client_id = var.app_client_id

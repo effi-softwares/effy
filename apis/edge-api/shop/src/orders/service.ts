@@ -1,5 +1,4 @@
-// Service for the shop ORDER CONSOLE (057 Amendment A3): parsing, validation, and the wording of the
-// activity log. No HTTP, no SQL (Principle VI). The repository owns shop scoping.
+// Parsing, validation and the activity log's wording; the repository owns shop scoping.
 
 import { announceMoves } from "@effy/edge-shared/live";
 import * as fulfillmentsRepo from "../fulfillments/repository";
@@ -25,25 +24,15 @@ import {
 
 export const PAGE_SIZE = 25;
 
-/** Pick `raw` if it is one of `allowed`, otherwise the default — never "match everything differently". */
+/** `raw` if it is one of `allowed`, else the default. */
 function oneOf<T extends string>(raw: string | undefined, allowed: readonly T[], fallback: T): T {
   return raw !== undefined && (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
 }
 
 /**
- * Parse the list query string. Every field is optional on the wire and fully defaulted here.
- *
- * ⚠ THE DEFAULT SORT IS NEWEST FIRST (operator direction, 2026-09-19). It was oldest-first, because
- * the queue this screen replaced was strict FIFO (020 FR-001b, SC-020) and the order that has waited
- * longest is the one to pick next. That argument has not stopped being true — the console simply
- * answers a second question the queue never did ("what just came in?"), and it is the one an operator
- * asks of a list that updates while they watch it.
- *
- * ⚠ WHAT KEEPS THE FLOOR HONEST INSTEAD: the list marks an order NOBODY HAS OPENED YET
- * (`status = 'pending'` — opening it IS the acknowledgement, FR-011a) so it is findable wherever it
- * sits, and the Awaiting-pick tab plus the `placed` header's ascending flip still give strict FIFO in
- * one click. ⚠ The residual cost is recorded rather than hidden: the oldest unopened order is now at
- * the BOTTOM of the default page, not the top.
+ * Every field is optional on the wire and defaulted here. The default sort is newest first (operator
+ * direction): unopened orders are marked in the row, and FIFO is one click away (Awaiting pick, or
+ * the `placed` header ascending).
  */
 export function parseListQuery(qs: Record<string, string | undefined> | null): OrderListQuery {
   const p = qs ?? {};
@@ -66,13 +55,7 @@ export function listOrders(actor: Actor, q: OrderListQuery): Promise<OrderList> 
   return repo.listOrders(actor.shopId, q);
 }
 
-/**
- * Open an order in the console.
- *
- * ⚠ OPENING IT IS THE ACKNOWLEDGEMENT, HERE TOO (020 FR-011a). The pick screen and this one are two
- * ways into the same portion; if only one acknowledged, an order the console had shown someone would
- * still read "New" on the tablet beside them.
- */
+/** Opening is the acknowledgement here too, as on the pick screen. */
 export async function getOrder(actor: Actor, fulfillmentId: string): Promise<OrderDetail> {
   await fulfillmentsRepo.acknowledge(fulfillmentId, actor.shopId, actor.staffId);
   return repo.readOrder(fulfillmentId, actor.shopId);
@@ -84,10 +67,7 @@ export async function getActivity(actor: Actor, fulfillmentId: string): Promise<
   return rows.map(toEntry);
 }
 
-/**
- * Replace the tag set. Tags are trimmed, lower-cased and de-duplicated here, so "Fragile" and
- * "fragile " are one tag and the table's uniqueness agrees with what the operator meant.
- */
+/** Trimmed, lower-cased and de-duplicated, so "Fragile" and "fragile " are one tag. */
 export async function setTags(
   actor: Actor,
   fulfillmentId: string,
@@ -143,12 +123,8 @@ export async function addNote(
 }
 
 /**
- * Item-level picking (A3 revision 2) — "tick the line", "Select all", or "Adjust this line".
- *
- * ⚠ TICKING A LINE ON A RECEIVED ORDER STARTS PICKING. Picking is only recordable in `picking` (020),
- * and the console has no separate "start" step before the first tick: the tick IS the start. The
- * transition goes through the same guarded state machine as the header's button, so a portion that
- * moved on meanwhile refuses rather than being dragged back.
+ * Tick a line, "Select all", or "Adjust this line". The first tick on a received order starts picking,
+ * through the guarded machine, so a portion that moved on refuses.
  */
 export async function setPicks(
   actor: Actor,
@@ -172,8 +148,7 @@ export async function setPicks(
 
   const done = await repo.applyPicks(fulfillmentId, actor.shopId, picks, actor.staffId);
   if (done === null) throw notFound();
-  // 071 — the first tick also started picking, which is a status change operations can see; a
-  // later tick is progress inside `picking`, which only this shop's screens show.
+  // The first tick started picking (a status operations sees); later ticks only this shop's screens show.
   await announceMoves([{ fulfillmentId, from: started ? "received" : null }], { ops: started });
   return repo.readOrder(fulfillmentId, actor.shopId);
 }
@@ -214,9 +189,7 @@ function parsePicks(body: Record<string, unknown>): repo.PickWrite[] {
   });
 }
 
-// ── The log's wording ───────────────────────────────────────────────────────────────────────────
-
-/** Operator copy for each state — the same words the console's badges use. */
+/** The same words the console's badges use. */
 const STATE_WORDS: Record<string, string> = {
   pending: "new",
   received: "received",
@@ -237,14 +210,8 @@ const REFUND_WORDS: Record<string, string> = {
 };
 
 /**
- * One log entry's words.
- *
- * ⚠ THE LOG NEVER COPIES A NOTE'S BODY. "Note added" says that something was written and by whom; the
- * words stay in the Notes section, where they can be read in full and are not truncated mid-thought.
- *
- * ⚠ Three tones for the dot. `negative` is something the customer will not get (an unavailable line,
- * can't-supply, a cancellation, a refund that bounced) — the design's destructive dot. `strong` took a
- * decision (money, a reversal). Routine progress is `quiet`.
+ * One entry's words. Never copies a note's body. Tones: `negative` (something the customer will not
+ * get), `strong` (a decision: money, a reversal), `quiet` (routine progress).
  */
 export function toEntry(r: ActivityRecord): ActivityEntry {
   const base = { id: `${r.source}:${r.id}`, at: r.at, actorLabel: actor(r) };
@@ -273,12 +240,11 @@ export function toEntry(r: ActivityRecord): ActivityEntry {
 function eventWords(r: ActivityRecord): { title: string; tone: ActivityEntry["tone"] } {
   const item = r.item_name ?? "an item";
   const qty = r.quantity ?? 0;
-  // A picker's note rides on the item events (A3 revision 2: "Adjust this line").
+  // A picker's note rides on the item events.
   const note = r.detail ? ` · ${r.detail}` : "";
   switch (r.event_type) {
     case "state_changed": {
-      // The dev pickup stub writes `collected:placeholder:<ref>`; only the state word is operator copy.
-      const to = (r.to_status ?? "").split(":")[0] ?? "";
+      const to = r.to_status ?? "";
       if (r.from_status === "pending" && to === "received") {
         return { title: "Order opened — acknowledged", tone: "quiet" };
       }
@@ -291,8 +257,7 @@ function eventWords(r: ActivityRecord): { title: string; tone: ActivityEntry["to
         tone: to === "unfulfillable" || to === "withdrawn" ? "negative" : "quiet",
       };
     }
-    // ⚠ THE DESIGN'S WORDS: "{item} — picked in full" / "{n} of {m} picked" / "marked unavailable",
-    // plus the note. The ordered quantity comes from the line so a partial pick reads against it.
+    // "{item} — picked in full" / "{n} of {m} picked" / "marked unavailable", plus the note.
     case "item_gathered": {
       const ordered = r.item_ordered;
       if (qty === 0) return { title: `${item} — picking cleared${note}`, tone: "quiet" };
@@ -314,8 +279,7 @@ function eventWords(r: ActivityRecord): { title: string; tone: ActivityEntry["to
         tone: "quiet",
       };
     default:
-      // ⚠ An event type this code does not know yet still appears — as its wire value — rather than
-      // vanishing. A log that silently drops entries is worse than one with an ugly line.
+      // An unknown event type still appears, as its wire value, rather than vanishing.
       return { title: r.event_type ?? "Updated", tone: "quiet" };
   }
 }

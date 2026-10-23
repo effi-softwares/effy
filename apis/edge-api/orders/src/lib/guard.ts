@@ -1,20 +1,6 @@
-// Shared entry guard for authenticated /orders/v1/* handlers (053).
-//
-// TWO gates, and the split is FR-015 — the platform's standing rule, not this feature's opinion:
-//
-//   requireStaff  — read, search, detail: ANY active back-office staff, INCLUDING `csa`. Triage is
-//                   a CSA's work, and until this feature they could not see a single order they were
-//                   being asked about.
-//   requireWriter — record a handover, record an arrival: active AND role ∈ {admin, manager}.
-//
-// ⚠ WHY THE WRITE GATE IS NARROWER, recorded where the next person will read it: with no carrier
-// contract, "arrived" is an ASSERTION, not an observation. A staff member is recording that a package
-// they never saw reached a customer they never met — and that assertion finishes a financial record
-// and sends the customer a message. That places it with 046's outward reply and 037's deliverability
-// repair, not with read-and-triage.
-//
-// Both are decided from the `admin.staff` RECORD, never from the token claim (Principle IV). Every
-// refusal is uniform and non-disclosing: it says the action was refused, never which term failed.
+// requireStaff: any active back-office staff, csa included. requireWriter: admin|manager, because
+// recording an arrival is a person's assertion that completes an order and messages a customer.
+// Both read `admin.staff`, never the token, and refuse without saying which term failed.
 
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -32,7 +18,7 @@ import {
 
 export interface GuardOk {
   ok: true;
-  /** The acting back-office subject, for attribution on every write (FR-014). */
+  /** For attribution on every write. */
   sub: string;
   scope: RequestScope;
 }
@@ -76,26 +62,20 @@ async function gate(
     }
     return { ok: true, sub, scope };
   } catch (err) {
-    // ⚠ Fail-CLOSED. A gate that cannot be evaluated is a refusal, never an implicit allow.
     scope.log.error({ err, sub }, "orders guard: staff lookup failed");
     return { ok: false, response: unavailable(scope) };
   }
 }
 
-/** Read gate — any active staff, including `csa`. */
 export function requireStaff(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
   return gate(event, context, isActiveStaff);
 }
 
-/** Write gate — active AND admin|manager (FR-015). */
 export function requireWriter(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
   return gate(event, context, (sub) => hasStaffRole(sub, OUTWARD_ACTION_ROLES));
 }
 
-/**
- * 096 — admin only: Effy's own tax identity (legal name, ABN) is printed on every customer's tax
- * invoice; a manager runs operations, an admin answers for what the business tells the tax office.
- */
+/** Admin only: Effy's tax identity is printed on every customer's invoice. */
 export function requireAdmin(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
   return gate(event, context, (sub) => hasStaffRole(sub, ["admin"]));
 }

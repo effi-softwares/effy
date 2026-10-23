@@ -1,5 +1,3 @@
-// GET /admin/v1/shops — the shop register (paginated, filterable, searchable). Read access: any
-// active back-office staff incl. csa (FR-003/FR-014). Server-side paging/search (A12).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 /**
  * 082 P13 — the two groups a driver is shown at hub check-in: Effy's parcels, by the day and window each
- * is for, and the courier's. Only what goes out TODAY is the driver's delivery run.
+ * is for, and the courier's. Only what goes out today is the driver's delivery run.
  */
 class HubSplitTest {
     @Test

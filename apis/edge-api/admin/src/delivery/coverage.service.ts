@@ -1,5 +1,3 @@
-// Service for Effy's delivery coverage (076): validation, the refusals, and the two confirmations a
-// person must give in words. No SQL, no HTTP (Principle VI).
 import { pooled } from "@effy/edge-shared";
 import { coverageForPostcode, normalizePostcode } from "@effy/edge-shared/delivery";
 import { announce } from "@effy/edge-shared/live";
@@ -11,7 +9,7 @@ import type {
 import * as repo from "./coverage.repository";
 import { activePlanId } from "./pricing.repository";
 
-/** A refusal the console tells apart from the others — `code` becomes the problem's type (FR-026). */
+/** `code` becomes the problem's type. */
 export class CoverageError extends Error {
   constructor(
     public readonly status: 400 | 404 | 409 | 422,
@@ -26,11 +24,11 @@ export class CoverageError extends Error {
 
 const PAGE = 100;
 const SEARCH_LIMIT = 20;
-/** Wider than the country. It catches a distance typed in metres, not a far-away town. */
+/** Catches a distance typed in metres. */
 const MAX_KM = 5000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Where Effy delivers changed: an open Coverage screen re-reads (FR-028). After commit; never throws. */
+/** After commit; never throws. */
 const changed = (): Promise<void> => announce([{ scope: "ops", kind: "coverage" }]);
 
 function postcodeOf(input: unknown): string {
@@ -39,7 +37,7 @@ function postcodeOf(input: unknown): string {
   return pc;
 }
 
-/** A hand-entered distance: a number of km, 0 to 5000, kept to two decimals. */
+/** 0 to 5000 km, two decimals. */
 function kmOf(input: unknown): string {
   const n = typeof input === "string" && input.trim() !== "" ? Number(input) : typeof input === "number" ? input : NaN;
   if (!Number.isFinite(n) || n < 0 || n > MAX_KM) {
@@ -48,7 +46,7 @@ function kmOf(input: unknown): string {
   return n.toFixed(2);
 }
 
-/** 097 — exactly true or false; anything else is a malformed request, never a guess. */
+/** Anything but true or false is malformed. */
 function todayOfferedOf(input: unknown): boolean {
   if (typeof input !== "boolean") throw new CoverageError(400, "invalid_request", "todayOffered is true or false");
   return input;
@@ -68,12 +66,7 @@ async function groupOf(input: unknown): Promise<string | null> {
   return input;
 }
 
-/**
- * ⚠ THE ONE WAY A GROUP IS MORE THAN A LABEL, UNTIL THE DRIVER-OPERATIONS FEATURE (research R6).
- * A driver is cleared for a group, or for everywhere. Postcodes that end up where no cleared driver
- * reaches would be sold at checkout and then left unplanned. That is allowed — staff may be about
- * to clear a driver — but never by accident: it takes an explicit confirmation.
- */
+/** Leaving postcodes where no cleared driver reaches is allowed only with an explicit confirmation. */
 async function requireDrivers(groupId: string | null, confirmed: boolean | undefined): Promise<void> {
   if (confirmed === true) return;
   const n = await repo.driversFor(groupId);
@@ -84,17 +77,13 @@ async function requireDrivers(groupId: string | null, confirmed: boolean | undef
   }
 }
 
-// ── reads ───────────────────────────────────────────────────────────────────────────────────────
-
 export interface ListQuery {
   group?: string; q?: string; source?: string; review?: string; cursor?: string;
-  /** 097 — `offered` | `not_offered`. */
   today?: string;
-  /** 097 — at least this many km from the hub. */
   minKm?: string;
 }
 
-/** 097 — a filter staff typed: refused when malformed rather than silently ignored, so "farther than 2x" never lists everything. */
+/** Refused when malformed, never ignored. */
 function todayFilterOf(input: string | undefined): "offered" | "not_offered" | undefined {
   if (input === undefined || input === "") return undefined;
   if (input === "offered" || input === "not_offered") return input;
@@ -122,11 +111,9 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
     activePlanId("courier"),
     repo.listExclusions(),
   ]);
-  // What stops courier delivery being switched ON — said whether it is on or off, so the screen can
-  // tell a person what to do first instead of refusing them when they try.
+  // Reported whether courier is on or off, so the screen can say what to do first.
   const blockedBy: CourierBlocker[] = [
     ...(courierPlan === null ? ["no_fee_table" as const] : []),
-    // 080 — the default courier service carries the timeframe a customer is told.
     ...(courier.defaultService === null ? ["no_service" as const] : []),
   ];
   const page = rows.slice(0, PAGE);
@@ -141,8 +128,6 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
       collectionDefault: courier.collectionDefault,
       defaultService: courier.defaultService,
       blockedBy,
-      // On and ready, waiting for the new delivery model: no customer is offered it yet (079 FR-035).
-      pending: courier.state === "courier_pending",
       exclusions,
     },
     counts: { listed: totals.listed, manualDistance: totals.manualDistance, needsReview: totals.needsReview, todayNotOffered: totals.todayNotOffered },
@@ -172,17 +157,11 @@ async function checkOne(postcode: string): Promise<CoverageCheckDTO> {
     distanceKm: coverage.distanceKm === null ? null : coverage.distanceKm.toFixed(2),
     distanceSource: listed?.distanceSource ?? null,
     exclusionReason: coverage.reason === "courier_excluded" ? await repo.exclusionReason(postcode) : null,
-    // 097 — only a listed postcode has the setting.
     todayOffered: coverage.kind === "effy" ? coverage.todayOffered : null,
   };
 }
 
-/**
- * "What about this postcode, and why?" (FR-025). A postcode gives one answer — including "not a
- * known postcode". A place name gives one per postcode it is found in.
- *
- * ⚠ The answer is `coverageForPostcode`'s, not this file's: the checker must say what checkout does.
- */
+/** One answer per postcode, from `coverageForPostcode`, so the checker says what checkout does. */
 export async function check(q: string): Promise<CoverageCheckResultDTO> {
   const term = q.trim();
   if (/^[0-9]{4}$/.test(term)) return { matches: [await checkOne(term)] };
@@ -190,8 +169,6 @@ export async function check(q: string): Promise<CoverageCheckResultDTO> {
   const postcodes = await repo.postcodesForPlace(term, 10);
   return { matches: await Promise.all(postcodes.map(checkOne)) };
 }
-
-// ── the list ────────────────────────────────────────────────────────────────────────────────────
 
 export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: string): Promise<AddCoveragePostcodesResult> {
   if (!Array.isArray(body?.postcodes) || body.postcodes.length === 0 || body.postcodes.length > 50) {
@@ -217,7 +194,7 @@ export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: strin
   for (const [postcode, manualKm] of wanted) {
     const f = facts.get(postcode)!;
     if (f.listed) alreadyListed.push(postcode);
-    // A person's distance wins when given; otherwise the platform's; otherwise it cannot be listed (FR-009).
+    // A person's distance wins, then the platform's; otherwise it cannot be listed.
     else if (manualKm !== null) toAdd.push({ postcode, distanceKm: manualKm, source: "manual" });
     else if (f.computedKm !== null) toAdd.push({ postcode, distanceKm: f.computedKm, source: "computed" });
     else needDistance.push(postcode);
@@ -230,7 +207,7 @@ export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: strin
   await requireDrivers(groupId, body.confirmNoDrivers);
   const added = await repo.addPostcodes(toAdd, groupId, todayOffered, sub);
   if (added.length > 0) await changed();
-  // Someone else may have listed one between the check and the insert: that is "already listed", not an error.
+  // Listed by someone else meanwhile: "already listed", not an error.
   return { added, alreadyListed: [...alreadyListed, ...toAdd.map((t) => t.postcode).filter((p) => !added.includes(p))] };
 }
 
@@ -258,7 +235,7 @@ export async function patchPostcodes(body: PatchCoveragePostcodesRequest, sub: s
     }
   }
   if (setsToday) {
-    // 097 — all or nothing: one postcode not on the list and nothing is written.
+    // All or nothing.
     const res = await repo.setTodayOffered(postcodes, todayOfferedOf(body.todayOffered), sub);
     if (res === "not_listed") throw new CoverageError(404, "not_listed", "a postcode named is not on the list");
   }
@@ -269,8 +246,6 @@ export async function patchPostcodes(body: PatchCoveragePostcodesRequest, sub: s
   }
   await changed();
 }
-
-// ── groups ──────────────────────────────────────────────────────────────────────────────────────
 
 export async function createGroup(body: { name?: unknown }, sub: string): Promise<{ id: string }> {
   const name = nameOf(body?.name);
@@ -289,7 +264,7 @@ export async function renameGroup(id: string, body: { name?: unknown }, sub: str
   await changed();
 }
 
-/** Its postcodes stay listed, in no group (FR-015) — so they need a driver cleared for everywhere. */
+/** Its postcodes stay listed, ungrouped, so they need a driver cleared everywhere. */
 export async function removeGroup(id: string, confirmNoDrivers: boolean, sub: string): Promise<{ ungrouped: number }> {
   const groupId = await groupOf(id);
   if (!groupId) throw new CoverageError(404, "group_not_found", "that group no longer exists");
@@ -299,20 +274,12 @@ export async function removeGroup(id: string, confirmNoDrivers: boolean, sub: st
   return { ungrouped };
 }
 
-// ── courier reach ───────────────────────────────────────────────────────────────────────────────
-
 const COURIER_REFUSALS: Record<repo.CourierRefusal, string> = {
   courier_plan_missing: "make a courier fee table active before switching courier delivery on",
   courier_service_missing: "add a courier service and make it the default before switching courier delivery on",
 };
 
-/**
- * Change courier delivery (076 FR-016; 079; 080): on or off, whether an address with no delivery
- * window left may be sent by courier, and how new courier orders reach the courier.
- *
- * ⚠ ON NEEDS A PRICE AND A DEFAULT COURIER SERVICE, AND NOTHING ELSE. It promises nobody anything
- * before the new delivery model is on — the console says it is pending.
- */
+/** On or off, the no-window fallback, and how new courier orders reach the courier. On needs a price and a default service. */
 export async function setCourier(
   body: { offered?: unknown; whenNoWindows?: unknown; collectionDefault?: unknown },
   sub: string,

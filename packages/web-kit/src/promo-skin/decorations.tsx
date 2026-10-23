@@ -20,10 +20,7 @@ import {
 
 import type { DecorationSet } from "@effy/shared-types";
 
-/**
- * 095 — the decoration sets a skin may show: three icons each, drawn as bubbles. The customer app draws
- * the same icons (Lucide) in the same order (`PromoSkinDecorations.kt`).
- */
+/** The decoration sets: three Lucide icons each, drawn as bubbles, in the same order as `PromoSkinDecorations.kt`. */
 export const DECORATION_ICONS: Record<DecorationSet, [LucideIcon, LucideIcon, LucideIcon]> = {
   food: [Apple, Milk, Carrot],
   produce: [Carrot, Apple, Leaf],
@@ -41,7 +38,7 @@ const SPOTS = [
   { right: 0.1, top: 0.66, size: 0.22 },
 ] as const;
 
-/** Hex + alpha → rgba(). */
+/** Hex + alpha → rgba. */
 export function rgba(hex: string, alpha: number): string {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;

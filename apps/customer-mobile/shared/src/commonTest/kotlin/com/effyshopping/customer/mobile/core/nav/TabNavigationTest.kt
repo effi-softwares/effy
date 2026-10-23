@@ -9,7 +9,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * 087 — the five-tab bar.
+ * The five-tab bar.
  *
  * Two rules: the cart is a TAB (every way into it selects the tab, so it has one back stack and one
  * place in the bar), and tapping the tab you are already in returns it to its root (the iOS

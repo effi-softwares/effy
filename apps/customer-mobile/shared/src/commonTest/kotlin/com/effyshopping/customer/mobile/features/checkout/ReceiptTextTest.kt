@@ -4,12 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/**
- * 087 T085 / FR-028 — the receipt prints values, never template text.
- *
- * Every receipt used to say "Order ${receipt.orderNumber}" (an escaped dollar in a Kotlin string). This
- * renders each receipt sentence and fails on any `${` left in the output.
- */
+/** The receipt prints values, never template text: every sentence is rendered and any `${` left fails. */
 class ReceiptTextTest {
 
     private fun assertNoTemplate(s: String) = assertFalse("\${" in s || "\$it" in s, "template text leaked: $s")

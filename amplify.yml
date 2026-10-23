@@ -1,17 +1,10 @@
-# Amplify Hosting monorepo build spec.
+# Amplify Hosting monorepo build spec. Present at the repo root, it overrides the console's build settings,
+# so the build is reviewed here.
 #
-# ⚠ THIS FILE OVERRIDES the console build settings. Amplify applies console settings to all branches
-# UNLESS an amplify.yml is present at the repo root, in which case this wins. That is deliberate: the
-# build is code-reviewed here, not clicked into a console.
-#
-# ⚠ MONOREPO MODE — one entry per hosted surface (042 + 048). Amplify builds, for each Amplify app,
-# ONLY the single `applications[]` entry whose `appRoot` equals that app's `AMPLIFY_MONOREPO_APP_ROOT`
-# env var. Adding an entry here does NOT change what any other app builds. This per-app-root selection
-# is the mechanical guarantee of FR-006/FR-009 (048) and FR-006/FR-021 (042): a surface can only build
-# from its own appRoot, and a mis-set AMPLIFY_MONOREPO_APP_ROOT fails loudly ("Invalid monorepo spec,
-# no appRoot matching path found") rather than cross-building. Each new surface = a new Amplify app
-# (its own module instance) PLUS its own entry below.
-# (specs/048-console-web-cicd/contracts/amplify-build.contract.md — "Corrected invariant".)
+# One entry per hosted surface: each Amplify app builds only the `applications[]` entry whose `appRoot`
+# equals its AMPLIFY_MONOREPO_APP_ROOT, so a surface never builds another, and a mis-set root fails loudly
+# ("Invalid monorepo spec, no appRoot matching path found"). A new surface is a new Amplify app (its own
+# module instance) plus its own entry below.
 version: 1
 applications:
   # ── Customer storefront (042) — Next.js 16 SSR, WEB_COMPUTE ─────────────────────────────────────

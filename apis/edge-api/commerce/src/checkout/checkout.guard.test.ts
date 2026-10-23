@@ -11,10 +11,6 @@ import { toQuoteDTO } from "./quote";
 import { checkoutError, deliveryChoiceRefused } from "./respond";
 import { NotServiceableError } from "./service";
 
-/**
- * 070 — guards on what checkout must never say and never read. Each fails naming a file or a key,
- * and each exists because the thing it prevents would pass every behavioural test.
- */
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "..");
 
@@ -24,20 +20,14 @@ function sources(dir: string): { file: string; body: string }[] {
     .map((f) => ({ file: `${dir}/${f}`, body: readFileSync(resolve(src, dir, f), "utf8") }));
 }
 
-/**
- * ⚠ WHAT A CUSTOMER IS NEVER TOLD ABOUT A DELIVERY SLOT (069 FR-050). How full a slot is, is Effy's
- * operational business: "2 left" is a pressure tactic nobody asked for, and a count would let anyone
- * watch the evening's demand fill up. That a late payer went over capacity is a fact for dispatch.
- * And — as on every customer contract — nothing may identify a shop.
- */
+/** A customer is never told how full a window is, nor anything that identifies a shop. */
 const FORBIDDEN = [
   "capacity", "booked", "remaining", "overcapacity", "over_capacity", "load", "shopid", "shop_id", "shopname",
-  // 077 — how the fee was built is the business's: a distance places the hub, a band or a plan
-  // shows the price list, and a weight is nobody's concern but the van's (FR-032).
+  // How the fee was built (distance, band, plan, weight) is the business's.
   "km", "distance", "band", "grams", "plan", "breakdown", "basketcents", "premium",
 ];
 
-/** A priced fee as the quote carries it, with a breakdown that DOES know the distance and the plan. */
+/** A priced fee as the quote carries it, with a breakdown that does know the distance and the plan. */
 function pricedFee(totalCents: number, withoutPremiumCents = totalCents) {
   const lines = [{ kind: "delivery", cents: withoutPremiumCents }];
   if (totalCents > withoutPremiumCents) lines.push({ kind: "window_surcharge", cents: totalCents - withoutPremiumCents });
@@ -51,7 +41,6 @@ function pricedFee(totalCents: number, withoutPremiumCents = totalCents) {
 describe("the customer's delivery wire carries no capacity and no shop", () => {
   const SHOP = "99999999-9999-4999-8999-999999999999";
   const now = new Date("2026-08-24T00:00:00Z");
-  // A domain value that DOES know the shop and the slot's identity: none of it may survive.
   const window = {
     id: "33333333-3333-4333-8333-333333333333", date: "2026-08-24",
     start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T04:00:00Z"),
@@ -79,24 +68,22 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
   ).body);
 
   it.each([["the quote", wire], ["a delivery-choice refusal", refusal]])("%s", (_what, body) => {
-    expect(body.length).toBeGreaterThan(200); // the mapping produced something to check
+    expect(body.length).toBeGreaterThan(200);
     for (const bad of FORBIDDEN) expect(body.toLowerCase(), `must not disclose "${bad}"`).not.toContain(`"${bad}`);
     expect(body).not.toContain(SHOP);
   });
 
   it("there is no package list at all, the group is not sent, and a fee is a string", () => {
     const dto = JSON.parse(wire);
-    // ⚠ 083 — how the order splits across suppliers is not on the wire in any form.
+    // How the order splits across suppliers is not on the wire in any form.
     expect(Object.keys(dto).sort()).toEqual(["coverage", "effyWindows", "expiresAt", "freeDeliveryRemainingAmount", "postcode", "serviced"]);
     expect(wire).not.toContain("77777777");
-    // 077 — the fee is the ORDER's: lines and a total, for each window.
     const w = dto.effyWindows.days[0].windows[0];
     expect(w.surchargeAmount).toBe("5.00");
     expect(w.fee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00" });
     expect(dto.freeDeliveryRemainingAmount).toBe("26.00");
     expect(w.startAt).toBe("2026-08-24T17:00:00+10:00"); // Melbourne offset, not Z
-    // A full day is said to be full — never how full, and never with its windows.
-    // 085 — and a day whose untimed room is gone is not sold without a time.
+    // A full day is said to be full, never how full; a day without untimed room is not sold untimed.
     expect(dto.effyWindows.days[1]).toEqual({ date: "2026-08-25", section: "standard", windows: [], closedReason: "full", anyTime: null });
     expect(dto.effyWindows.asap).toBeNull();
   });
@@ -113,12 +100,7 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
   });
 });
 
-/**
- * 066 — AN ORDER STORES EXACTLY WHAT ITS OWN CHECKOUT REQUEST CARRIED. Prefilling from the address
- * is the client's job. The moment a server "helpfully" falls back to the address's saved default,
- * a customer who deliberately cleared the note gets their saved one delivered anyway — and every
- * test passes, because both values are valid.
- */
+/** The order stores exactly what the request carried; no fallback to the address's saved note. */
 describe("checkout never reads an address's saved default", () => {
   const files = [...sources("checkout"), ...sources("orders"), ...sources("webhook")];
 
@@ -137,11 +119,9 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
   const code = intent.split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n");
 
   it("the intent route reads no amount, total, price or discount from the request — except the one it only COMPARES", () => {
-    expect(code).toMatch(/body\?\.addressId/); // it does read the body — the check below is not vacuous
-    // 077 — `shownDeliveryAmount` is what the client says it is DISPLAYING. It is read, and it is
-    // an amount; the next test holds that it can only ever refuse a charge, never set one.
+    expect(code).toMatch(/body\?\.addressId/);
+    // `shownDeliveryAmount` and `expectedDiscount` are read only to compare, never to set a charge.
     expect(code).toMatch(/body\.shownDeliveryAmount/);
-    // 094 — `expectedDiscount` likewise: the promotions total the client is DISPLAYING, only compared.
     expect(code).toMatch(/body\.expectedDiscount/);
     expect(code.replaceAll("body.shownDeliveryAmount", "").replaceAll("body.expectedDiscount", "")).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
   });
@@ -162,8 +142,6 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
     const service = readFileSync(resolve(src, "checkout/service.ts"), "utf8")
       .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
     const uses = service.split("\n").filter((l) => l.includes("shownDeliveryAmount"));
-    // Declared on the input, tested against the computed fee, and reported in the refusal. A fourth
-    // line would be a client-sent amount finding its way into a charge.
     expect(uses.map((l) => l.trim())).toEqual([
       "shownDeliveryAmount: string;",
       'if (input.shownDeliveryAmount !== "" && parseCents(input.shownDeliveryAmount) !== deliveryFeeCents) {',
@@ -179,11 +157,7 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
   });
 });
 
-/**
- * ⚠ THE WEBHOOK RECORDS AN EVENT ONLY INSIDE THE TRANSACTION THAT HANDLES IT (070 FR-023). The
- * container test proves the behaviour; this stops a second writer appearing somewhere that test
- * does not look — which is exactly how the original defect was built.
- */
+/** No second writer of `stripe_event` outside the handling transaction. */
 describe("stripe_event has one writer, and it is inside the transaction", () => {
   it("only the webhook handler touches the table", () => {
     const writers = ["cart", "checkout", "functions", "lib", "orders", "promotions", "saved", "webhook"]
@@ -200,15 +174,12 @@ describe("stripe_event has one writer, and it is inside the transaction", () => 
     expect(opened).toBeGreaterThan(-1);
     expect(insert).toBeGreaterThan(opened);
     const between = body.slice(opened, insert);
-    expect(between.match(/\.query\(/g)).toHaveLength(1); // the insert's own call, and no statement before it
+    expect(between.match(/\.query\(/g)).toHaveLength(1);
     expect(between).toContain("tx.query(");
   });
 });
 
-/**
- * 076 — the refusal is ONE code and ONE sentence, the ones the address book shows (FR-022). The
- * checkout builds neither: it imports them. A second wording here is how the two come to differ.
- */
+/** The refusal's code and sentence are imported, never written here. */
 describe("076 — an address nobody delivers to", () => {
   const scope = { instance: "/commerce/v1/checkout/intent", requestId: "req-1", log: { error: () => undefined } } as never;
 

@@ -33,15 +33,15 @@ import platform.posix.memcpy
 /**
  * iOS photo capture through the system camera (`UIImagePickerController`).
  *
- * ⚠ This returned `null`, and the proof screen's shutter calls it — so on iOS the shutter did
- * nothing. Photo proof was impossible, and so was a contactless drop, which must be photographed
- * (064): an iOS driver could complete a delivery by signature only.
+ * This returned `null`, and the proof screen's shutter calls it — so on iOS the shutter did
+ * nothing. Photo proof was impossible, and so was a contactless drop, which must be photographed:
+ * an iOS driver could complete a delivery by signature only.
  *
  * The photograph is made upright, scaled to a 1600px long side and sent as JPEG (backlog B1): a
  * full-resolution camera frame is several times the upload ceiling, and proof needs to be legible,
  * not large.
  *
- * ⚠ A device with no camera — the simulator — falls back to the photo library so the flow can be
+ * A device with no camera — the simulator — falls back to the photo library so the flow can be
  * walked there. Every iPhone a driver carries has a camera, so a driver never sees that path.
  * Needs `NSCameraUsageDescription` in the app's Info.plist; without it iOS ends the app at first use.
  */

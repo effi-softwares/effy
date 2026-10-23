@@ -1,8 +1,4 @@
-// POST /shop/v1/fulfillments/{id}/courier-handover — the courier has collected this parcel (080 US2).
-//
-// Only for a parcel a courier collects FROM THIS SHOP, once staff have booked the pickup. Another
-// shop's package, one that goes via the hub, and one that does not exist are the same 403. A repeat
-// is the same answer (the handover is recorded once).
+// Only for a booked courier pickup from this shop; anything else is the same 403. A repeat answers the same.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -19,7 +15,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   const id = event.pathParameters?.id;
   if (!id) return mapFulfillmentError(new Error("missing id"), scope);
 
-  // The body is optional: a reference the courier's driver read out, when the label had none.
+  // Optional: a reference the courier read out when the label had none.
   const parsed = event.body ? parseJsonBody<Record<string, unknown>>(event.body) : { value: {} as Record<string, unknown>, errors: [] };
   if (!parsed.value) {
     return problem(400, ProblemType.ValidationFailed, "Validation failed", "the body is not JSON", scope, parsed.errors);
@@ -31,7 +27,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
 
   try {
-    // 096 — optional: how each bag was handed over (scanned or typed); the rest went by hand.
+    // Optional: how each bag was handed over; the rest went by hand.
     const parcels = Array.isArray(parsed.value.parcels) ? (parsed.value.parcels as unknown[]).slice(0, 50) : undefined;
     return json(200, toDetailDTO(await courierHandover(
       g.actor, id, typeof ref === "string" && ref.trim() !== "" ? ref.trim() : null, parcels as never,

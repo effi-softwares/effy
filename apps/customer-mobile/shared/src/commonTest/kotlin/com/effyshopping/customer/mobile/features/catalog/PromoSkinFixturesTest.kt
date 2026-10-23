@@ -29,7 +29,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 095 — the app draws a skin with the same numbers and words as the website (`PromoSkin.tsx`), because both
+ * The app draws a skin with the same numbers and words as the website (`PromoSkin.tsx`), because both
  * are held to `promotion-skins.fixtures.json`.
  */
 class PromoSkinFixturesTest {

@@ -1,11 +1,8 @@
 package com.effyshopping.customer.mobile.features.checkout
 
 /**
- * A COPY of `packages/shared-types/src/delivery-type.fixtures.json` (079).
- *
- * ⚠ DO NOT EDIT BY HAND. `commonTest` cannot read a file outside the app, so the fixture is embedded —
- * and `packages/shared-types/src/delivery-type.test.ts` reads THIS file and fails if it differs from
- * the JSON by one case. Change the JSON, then copy it here; the TypeScript suite says the app is stale.
+ * A copy of `packages/shared-types/src/delivery-type.fixtures.json`, embedded because `commonTest` cannot read a file outside the app. Do not edit by hand:
+ * `packages/shared-types/src/delivery-type.test.ts` reads this file and fails if it differs. Change the source first, then copy it here.
  */
 internal const val DELIVERY_TYPE_FIXTURE = """
 {

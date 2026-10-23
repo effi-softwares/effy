@@ -26,15 +26,15 @@ import { variantStockQuery } from "./stockQueries";
 import { useQuery } from "@tanstack/react-query";
 
 /**
- * The product's two named actions (057), replacing the `Change status` dropdown + `Delete/Archive`
+ * The product's two named actions, replacing the `Change status` dropdown + `Delete/Archive`
  * ghost button this screen carried.
  *
- * ⚠ THE TRANSITIONS DID NOT CHANGE — the PRESENTATION did. `availableTransitions` still describes the
+ * The transitions did not change — the presentation did. `availableTransitions` still describes the
  * same state machine and the backend still re-validates every move; what went is a menu that made the
  * operator open it to discover what it could do and then translate "make unavailable" into the thing
  * they wanted, which was "take it off the storefront". See `statusControl.ts` for the mapping.
  *
- * ⚠ AND EVERY MOVE IS CONFIRMED. The mockup confirms too, and it is right to: publishing puts a
+ * And every move is confirmed. The mockup confirms too, and it is right to: publishing puts a
  * product in front of shoppers and unpublishing takes it away from them mid-basket. The confirmation
  * body says what actually happens to orders and to the stock count, because "are you sure?" on its own
  * teaches nobody anything.
@@ -46,13 +46,13 @@ export function ProductHeaderActions({
   onDeleted,
 }: {
   detail: ProductDetail;
-  /** 098 — the size "Receive stock" receives into: the one the Inventory tab shows. */
+  /** The size "Receive stock" receives into: the one the Inventory tab shows. */
   stockVariantId: string;
   onOpenActivity: () => void;
   onDeleted: () => void;
 }) {
   const changeStatus = useChangeStatus(detail.id);
-  // 098 — stock is per size. The header's dialog opens on the size the Inventory section shows, names
+  // Stock is per size. The header's dialog opens on the size the Inventory section shows, names
   // it in its title, and lets the operator pick another — it never writes to a size nobody chose.
   const [receiveVariantId, setReceiveVariantId] = useState(stockVariantId);
   const stock = useQuery(variantStockQuery(receiveVariantId));
@@ -68,7 +68,7 @@ export function ProductHeaderActions({
   const action = visibilityAction(detail.status, detail.reviewState);
   const busy = changeStatus.isPending || submit.isPending || withdraw.isPending;
 
-  /** 067 — submit / withdraw are their own requests, not a status move. */
+  /** Submit / withdraw are their own requests, not a status move. */
   function review(kind: "submit" | "withdraw") {
     setError(null);
     (kind === "submit" ? submit : withdraw).mutate(undefined, {
@@ -136,16 +136,16 @@ export function ProductHeaderActions({
 
       {error ? <span className="text-destructive text-sm">{error}</span> : null}
 
-      {/* ⚠ Mounted only once the stock read has landed. The receive dialog shows "on hand → after"
+      {/* Mounted only once the stock read has landed. The receive dialog shows "on hand → after"
           before the write, and it cannot do that arithmetic against a count it does not have yet — an
           opening state of "0 → 24" for a shelf holding 12 is exactly the wrong thing to show someone
           about to commit a number.
 
-          ⚠ WHICH DIALOG DEPENDS ON THE PRODUCT, and the button's own label already said which one is
-          coming. Since 098 a new size is COUNTED from the start (at zero); a size whose counting a shop
+          Which dialog depends on the product, and the button's own label already said which one is
+          coming. Since 098 a new size is counted from the start (at zero); a size whose counting a shop
           switched off (made to order), or one from before that rule, gets `StartTrackingDialog`, which turns counting on and
           records the opening count in a single request. A tracked product gets the additive receive.
-          The two are not one dialog with a mode, because the operator is not choosing between them —
+          The two are not one dialog with a mode, because the operator is not choosing between them
           the product's own state decides, and a mode switch would offer a choice with one right
           answer. */}
       {stock.data ? (
@@ -197,13 +197,9 @@ export function ProductHeaderActions({
 }
 
 /**
- * The removal control — last in the header's action row (057 revision; it used to sit at the foot of
- * a right rail the revised mockup deleted). Rendered by `ProductHeaderActions`.
- *
- * ⚠ ARCHIVING IS NOT DELETION AND THE BUTTON NEVER PRETENDS IT IS. A published product cannot be hard
- * deleted — the backend refuses it, because orders and fulfilments reference the row — so the only
- * offer made for one is the archive, with copy saying what is kept. An unpublished draft has never
- * been referenced by anything, so that one really can go, and its confirmation says so plainly.
+ * The removal control, last in the header's action row (`ProductHeaderActions`). A published product
+ * cannot be deleted (orders reference it), so it offers archive, saying what is kept; a never-published
+ * draft really can go, and its confirmation says so.
  */
 export function ProductRemovalControl({
   detail,
@@ -248,7 +244,7 @@ export function ProductRemovalControl({
 
   return (
     <>
-      {/* ⚠ OUTLINED, NOT FILLED — only the WORD takes the destructive colour (operator direction,
+      {/* Outlined, not filled — only the word takes the destructive colour (operator direction,
           2026-09-10, reversing this button's earlier neutral treatment). The platform's `--destructive`
           is AA as text, so the label reads; a filled red button would shout a reversible archive as
           loudly as a permanent delete, and the confirmation is what carries the weight. */}

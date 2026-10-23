@@ -31,18 +31,14 @@ vi.mock("@effy/edge-shared/live", () => ({
     holder.announced.push(...changes);
   },
 }));
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import * as groups from "../promotion-groups/service";
 import * as extras from "./promotion-extras";
 import * as svc from "./promotion-service";
 import { isPromoError } from "./types";
 
-/**
- * 094 US10 — promotions in back-office against the REAL schema: create as a draft, publish, pause,
- * end, archive; state worked out, counted per state; what a used promotion gives refused with its
- * reason; every change audited and announced.
- */
+/** Against the real schema: lifecycle, state counts, the used-promotion refusal, audit and announce. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 const SUB = "manager-sub";
@@ -105,8 +101,8 @@ d("094 — back-office promotions", () => {
     const p = await svc.createPromotion({ name: "Used", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "5.00", publish: true }, SUB);
     const cust = (await pool.query<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('u1', 'u1@example.test') RETURNING id::text AS id`)).rows[0]!.id;
     const order = (await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-       VALUES ($1, 'EFY-U1', 'paid', 'AUD', 40, 35, 0, '{}'::jsonb) RETURNING id::text AS id`, [cust],
+      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-U1', 'paid', 'AUD', 40, 35, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`, [cust],
     )).rows[0]!.id;
     await pool.query(`INSERT INTO public.promotion_use (promotion_id, customer_id, order_id, goods_amount, status, confirmed_at) VALUES ($1, $2, $3, 5, 'confirmed', now())`, [p.id, cust, order]);
 
@@ -137,7 +133,7 @@ d("094 — back-office promotions", () => {
     const live = await svc.createPromotion({ name: "Live", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "2.00", headline: "$2 off", publish: true }, SUB);
     const draft = await svc.createPromotion({ name: "Draft", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "2.00", headline: "Soon" }, SUB);
     const mine = await svc.createPromotion({ name: "Mine", kind: "cart", trigger: "automatic", valueType: "amount", amountOff: "2.00", headline: "Welcome", audience: "first_order", publish: true }, SUB);
-    const detail = await groups.putMembers(g.id, { promotionIds: [draft.id, live.id, mine.id] }, SUB);
+    const detail = await groups.putMembers(g.id, { members: [{ promotionId: draft.id }, { promotionId: live.id }, { promotionId: mine.id }] }, SUB);
     expect(detail.members.map((m) => m.name)).toEqual(["Draft", "Live", "Mine"]);
     const preview = await groups.previewGroup(g.id);
     expect(preview.shown.map((x) => x.headline)).toEqual(["$2 off"]);

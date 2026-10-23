@@ -2,10 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-/**
- * 080 — the courier services console against the REAL schema: validation, the one default, retiring,
- * and the audit row. ⚠ Every courier name here is fictional: the real ones are the operator's.
- */
+/** Against the real schema. Every courier name is fictional. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
 vi.mock("@effy/edge-shared", async (importOriginal) => {
@@ -32,7 +29,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => {
 });
 vi.mock("@effy/edge-shared/live", () => ({ announce: async () => undefined }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import * as svc from "./courier-services.service";
 

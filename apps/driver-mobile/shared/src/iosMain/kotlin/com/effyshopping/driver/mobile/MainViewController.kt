@@ -21,12 +21,12 @@ import platform.Foundation.NSUserDomainMask
 import platform.UIKit.UIViewController
 
 /**
- * The iOS entry point (049). Swift builds an [IosAuthBridge] (over Amplify Swift, which Kotlin/Native
+ * The iOS entry point. Swift builds an [IosAuthBridge] (over Amplify Swift, which Kotlin/Native
  * cannot call — D5) and hands it in; this wraps it in the common `AuthDriver` contract. See `iosApp/`.
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
-    // 050 — observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
+    // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
     // APNs is set up (Apple Developer account — docs/observability-apple-blockers.md).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,

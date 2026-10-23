@@ -1,20 +1,9 @@
 import { expect, test, type Page } from "@playwright/test"
 
 /**
- * 044 US2 — nothing is sent to an address the platform would refuse.
- *
- * ⚠ THE LOAD-BEARING ASSERTION IN THIS FILE IS THE ABSENCE OF A NETWORK REQUEST, not the presence of
- * a message. A screen that shows an error AND still dispatches the code has not fixed anything: the
- * shopper is still parked on a code step waiting for an email that cannot arrive, on a screen that
- * deliberately cannot tell them why (distinguishing "not delivered" from "wrong code" would leak
- * whether an account exists).
- *
- * Baseline, measured against the shipped build before this slice (see `BASELINE.md`):
- *   • `person@example` was accepted at all three email entry points and a real `POST` went out to
- *     Cognito for it; on SIGN-UP the shopper was advanced to the code step.
- *   • an empty address was blocked by the browser on the first step of each journey — but NOT on the
- *     password steps, where the field is `readOnly` and therefore exempt from constraint validation,
- *     so it reached `signInWithPassword("")` and returned "Something went wrong."
+ * Nothing is sent to an address the platform would refuse: the assertion is the absence of a network
+ * request, since a code sent to an impossible address strands the shopper on a screen that cannot say
+ * why.
  */
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -85,16 +74,8 @@ test.describe("validation refuses before anything is sent (FR-009, V-14)", () =>
   test("⚠ the password step cannot be REACHED without an address (D-11, the half that was real)", async ({
     page,
   }) => {
-    // Reaching the password step without ever filling the email used to produce
-    // "Something went wrong. Please try again." — the address never existed, and the shopper was
-    // told the system had failed.
-    //
-    // ⚠ THE FIX IS TO REFUSE THE MOVE, NOT TO SHOW AN ERROR ON THE PASSWORD STEP. The email input
-    // is deliberately still mounted there (FR-040 — password managers pair it with the password to
-    // fill and to save) but inside a hidden container, so a message attached to it renders HIDDEN.
-    // This test's first version asserted exactly that message and Playwright reported
-    // "resolved to <p>Enter your email address.</p> — unexpected value hidden", which is how the
-    // problem was found. An invisible error is only marginally better than the wrong one.
+    // Moving to the password step without an email is refused: the hidden email field there would show
+    // its message hidden.
     const requests = watchCognito(page)
     await page.goto("/sign-in")
     await page.getByTestId("toggle-mode").click()
@@ -206,7 +187,7 @@ test.describe("how a message behaves (FR-011, FR-012, FR-013)", () => {
 
 test.describe("the password rule is stated and reflected (FR-016)", () => {
   /**
-   * ⚠ The address comes first. These two tests originally toggled straight to the password step with
+   * The address comes first. These two tests originally toggled straight to the password step with
    * an empty email and failed — correctly, because identifier-first now refuses that move. The tests
    * were wrong, not the guard.
    */

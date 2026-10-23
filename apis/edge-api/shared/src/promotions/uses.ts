@@ -5,19 +5,14 @@ import { formatCents, parseCents } from "../lib/money";
 import type { AppliedPromotion } from "./engine";
 
 /**
- * THE writer of `promotion_use` (094 R5). Uses are HELD at the payment intent — the last server moment
- * before the shopper is charged — CONFIRMED when payment succeeds and RELEASED when it fails, when a
- * newer intent replaces this one, or when the order is cancelled before it is fulfilled.
- *
- * ⚠ THE CAPS AND THE BUDGET ARE CHECKED HERE, UNDER A LOCK. Each applied promotion's row is locked
- * `FOR UPDATE` (in id order, so two checkouts never deadlock), its held-and-unexpired plus confirmed
- * uses are re-counted, and only then is this order's use written. The 027 model counted paid orders
- * only, so two shoppers paying at the same moment could both take the last use (SC-004).
+ * The writer of `promotion_use`. Uses are held at the payment intent, confirmed at payment, released
+ * on failure, on a newer intent, or on cancellation before fulfilment. Caps and the budget are checked
+ * here: each promotion row is locked `FOR UPDATE` in id order, live uses re-counted, then written.
  */
 
 export const PROMOTION_METRIC_NAMESPACE = "Effy/Promotions";
 
-/** A promotion no longer fits — a cap, the budget or a single-use code was taken meanwhile. */
+/** A promotion no longer fits: a cap, the budget or a single-use code was taken meanwhile. */
 export class PromotionsChangedError extends Error {
   constructor(readonly promotionId: string, readonly why: "used_up" | "out_of_budget" | "already_used" | "code_used" | "unavailable") {
     super(`promotion ${promotionId} no longer applies (${why})`);
@@ -35,15 +30,12 @@ export interface HoldInput {
   now: Date;
 }
 
-/**
- * Hold this order's uses, replacing any it held before (a newer intent supersedes the older one).
- * Must run inside the intent's transaction. Throws `PromotionsChangedError` when one no longer fits.
- */
+/** Holds this order's uses, replacing earlier ones, in the intent's transaction. Throws `PromotionsChangedError`. */
 export async function holdUses(tx: Queryable, input: HoldInput): Promise<void> {
   const { orderId, customerId, now } = input;
   const keep = new Set(input.applied.map((a) => a.promotionId));
 
-  // What this order held before and no longer applies is let go.
+  // What it held before and no longer applies is let go.
   const superseded = await tx.query(
     `UPDATE public.promotion_use
         SET status = 'released', released_at = $3, release_reason = 'superseded', hold_expires_at = NULL
@@ -124,10 +116,7 @@ function isCodeTaken(err: unknown): boolean {
   return e?.code === "23505" && e.constraint === "promotion_use_code_once";
 }
 
-/**
- * Payment succeeded: this order's held uses are confirmed — even a hold that lapsed, because the
- * shopper was charged the discounted price (the late-payer rule 069 has for windows).
- */
+/** Payment succeeded: held uses are confirmed, even lapsed ones (the shopper paid the discounted price). */
 export async function confirmUses(tx: Queryable, orderId: string, now: Date = new Date()): Promise<number> {
   const res = await tx.query(
     `UPDATE public.promotion_use
@@ -140,7 +129,7 @@ export async function confirmUses(tx: Queryable, orderId: string, now: Date = ne
   return n;
 }
 
-/** Let this order's uses go: its payment failed, or it was cancelled before it was fulfilled (FR-040). */
+/** Lets this order's uses go: payment failed, or it was cancelled before fulfilment. */
 export async function releaseUses(tx: Queryable, orderId: string, why: "payment_failed" | "cancelled", now: Date = new Date()): Promise<number> {
   const res = await tx.query(
     `UPDATE public.promotion_use

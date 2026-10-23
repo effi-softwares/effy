@@ -4,17 +4,17 @@ import type { PostHog } from "posthog-js"
 import type { CredentialRoute, DeliveryPromise, ProductSort } from "@effy/shared-types"
 
 /**
- * How the shopper chose to pay (051).
+ * How the shopper chose to pay.
  *
- * ⚠ A FAMILY, never a provider. "Klarna at 11pm by this subject id" is a record of someone's credit
+ * A family, never a provider. "Klarna at 11pm by this subject id" is a record of someone's credit
  * decision; "instalments" answers the product question without it.
  */
 type PaymentMethodFamily = "card" | "saved_card" | "wallet" | "pay_over_time"
 
 /**
- * Why a payment did not complete, in EFFY'S OWN words (051).
+ * Why a payment did not complete, in effy's own words.
  *
- * ⚠ NOT the provider's `decline_code`. `insufficient_funds` against a subject id is a fact about that
+ * Not the provider's `decline_code`. `insufficient_funds` against a subject id is a fact about that
  * person's bank balance, and an analytics store is not where it belongs. These four answer the only
  * question the platform needs — is the payment path working — and no more.
  */
@@ -24,10 +24,10 @@ type PaymentFailureReason = "declined" | "needs_action" | "network" | "unknown"
 type AuthFlow = "sign_in" | "sign_up" | "reset"
 
 /**
- * What the platform can HONESTLY say about a refused code (036 FR-011, R10).
+ * What the platform can honestly say about a refused code.
  *
- * ⚠ `code_mismatch` / `code_expired` / `limit_exceeded` are permitted ONLY on `sign_up` and `reset`,
- * which run Cognito's MANAGED flow and emit real, distinguishable exceptions. On `sign_in` — the
+ * `code_mismatch` / `code_expired` / `limit_exceeded` are permitted only on `sign_up` and `reset`,
+ * which run Cognito's managed flow and emit real, distinguishable exceptions. On `sign_in` — the
  * platform's own custom challenge — a wrong code, an expired one, a superseded one and one that was
  * never sent are indistinguishable by design, and only the first four values below may be used.
  */
@@ -44,36 +44,10 @@ type AuthCodeOutcome =
 import { posthogConfig, telemetryEnabled } from "@/lib/config"
 
 /**
- * Product analytics for the storefront (constitution Principle VII).
- *
- * TWO RULES, and they matter more here than on any surface built so far — because for the
- * first time the people being measured are members of the public, not Effy employees.
- *
- *  1. CONSENT FIRST. No analytics network call may fire before the customer consents. This is
- *     not a cookie banner bolted on at the end; `init()` is simply not called until consent
- *     exists. A pleasant side effect: for a guest who never consents, the analytics SDK never
- *     loads at all, so it costs the critical path nothing.
- *
- *  2. NO PII. The only identifier we ever attach is the auth subject id (`sub`) — an opaque
- *     UUID. The customer's EMAIL IS NEVER A PROPERTY, never an identifier, never in an event
- *     payload. If you are about to type `email` into a capture call, stop.
- *
- * ⚠ RULE 1 WAS DOCUMENTED BUT NOT IMPLEMENTED until 2026-07-27 (feature 025, T020).
- *
- * This file used to open with `import posthog from "posthog-js"`. A STATIC import is resolved at
- * build time and bundled unconditionally — so the "pleasant side effect" above was simply false:
- * every guest downloaded the full SDK whether or not they ever consented, and consent gated only
- * whether it was *called*.
- *
- * It cost **67.9 KB gzipped on /product/[id]** — the single most important guest route on the
- * storefront — and it went unnoticed for two features because the bundle gate only watched `/`
- * and the (since-retired) `/browse`. The product page was never measured. (Both were fixed
- * together: the gate now covers every guest route.)
- *
- * The import is now DYNAMIC and lives inside `initAnalytics()`, which already returns early
- * unless consent has been granted. The SDK therefore enters the network only for a customer who
- * has said yes — which is what the paragraph above always claimed. Every exported function keeps
- * its original synchronous signature; callers are unchanged.
+ * Product analytics for the storefront. Two rules:
+ *  1. Consent first: `initAnalytics` returns unless consent is granted, and the SDK is imported
+ *  dynamically inside it, so a guest who never consents never downloads it.
+ *  2. No PII: the only identifier is the auth subject id (`sub`). Never an email.
  */
 
 const CONSENT_KEY = "effy_analytics_consent"
@@ -110,23 +84,23 @@ let loading: Promise<void> | null = null
  */
 export function initAnalytics() {
   if (started || loading || typeof window === "undefined") return
-  if (!telemetryEnabled()) return // 050 FR-026 — kill switch, before any SDK loads
+  if (!telemetryEnabled()) return // Kill switch, before any SDK loads
   if (getConsent() !== "granted") return
 
   const { key, host, ingestPath } = posthogConfig()
   if (!key) return
 
-  // DYNAMIC import — this is the line that keeps ~68 KB off the guest critical path. Do not
-  // hoist it back to the top of the file; see the RULE 1 note in the module comment.
+  // Dynamic import — this is the line that keeps ~68 KB off the guest critical path. Do not
+  // hoist it back to the top of the file; see the rule 1 note in the module comment.
   loading = import("posthog-js")
     .then(({ default: posthog }) => {
       posthog.init(key, {
-        // 050 FR-028 — send through our own origin (next.config.ts rewrites it), so blockers can't
-        // drop it; the real host stays as ui_host for the SDK's toolbar links.
+        // Send through our own origin (next.config.ts rewrites it), so blockers can't
+        // drop it; the real host stays as ui_host for the sdk's toolbar links.
         api_host: ingestPath,
         ui_host: host,
         capture_pageview: true,
-        // Never fingerprint or record inputs on a public storefront. Session replay OFF (R11).
+        // Never fingerprint or record inputs on a public storefront. Session replay off.
         autocapture: false,
         disable_session_recording: true,
         persistence: "localStorage",
@@ -143,7 +117,7 @@ export function initAnalytics() {
     })
 }
 
-/** The typed event taxonomy. Adding an event means adding it HERE, not inlining a string. */
+/** The typed event taxonomy. Adding an event means adding it here, not inlining a string. */
 export type StorefrontEvent =
   | { name: "storefront_viewed"; props?: Record<string, never> }
   | { name: "sign_up_started"; props: { route: CredentialRoute } }
@@ -154,20 +128,16 @@ export type StorefrontEvent =
   | { name: "sign_in_declined"; props?: Record<string, never> }
   | { name: "account_linked"; props: { provider: "google" } }
 
-  // ── 036: the stepped auth flow ────────────────────────────────────────────────────────────────
-  //
-  // ⚠ EVERY VALUE HERE IS SOMETHING THE PLATFORM CAN ACTUALLY KNOW. Note what is ABSENT from
-  // `outcome`: there is no `expired`, no `superseded` and no `not_sent` on the sign-in route, because
-  // the platform genuinely cannot distinguish them — `VerifyAuthChallenge` computes a reason and
-  // DISCARDS it so the response cannot be used to tell whether an account exists. Inventing those
-  // values would put a fiction into the analytics and then into a product decision.
+  // The auth flow. `outcome` has no `expired`, `superseded` or `not_sent` on sign-in: the platform
+  // cannot tell them apart (VerifyAuthChallenge discards the reason so no response reveals whether an
+  // account exists).
   | { name: "auth_flow_started"; props: { flow: AuthFlow; entry: "deliberate" | "demanded" } }
   | { name: "auth_route_chosen"; props: { flow: AuthFlow; route: CredentialRoute } }
   | {
       name: "auth_code_requested"
       props: { flow: AuthFlow; sendOrdinal: number; trigger: "initial" | "resend" }
     }
-  /** ⚠ The highest-value number in this taxonomy — see the note on `AuthCodeOutcome`. */
+  /** The highest-value number in this taxonomy — see the note on `AuthCodeOutcome`. */
   | {
       name: "auth_code_resend_refused"
       props: { flow: AuthFlow; reason: "cooldown" | "flow_ceiling" }
@@ -180,17 +150,17 @@ export type StorefrontEvent =
   | { name: "auth_name_step_shown"; props: { route: CredentialRoute } }
   | { name: "auth_name_step_completed"; props: { route: CredentialRoute } }
   /**
-   * 044 FR-035 — the shopper chose to complete their profile later.
+   * The shopper chose to complete their profile later.
    *
-   * ⚠ NOT AN ABANDONMENT EVENT. The account exists and the session is live; this step completes a
+   * Not an abandonment event. The account exists and the session is live; this step completes a
    * profile and never gates access. What it measures is how often the "later" route is taken, which
    * is the evidence for whether the step belongs here at all.
    */
   | { name: "auth_name_step_skipped"; props: { route: CredentialRoute } }
   /**
-   * 044 US2 — a field was refused before anything was sent.
+   * A field was refused before anything was sent.
    *
-   * ⚠ THE VALUE IS NEVER CARRIED, only which field and which rule. The value is an email address —
+   * The value is never carried, only which field and which rule. The value is an email address
    * PII, and on this screen it is PII belonging to someone who is not yet authenticated (Principle
    * VII: no PII in telemetry beyond the auth subject id).
    */
@@ -199,23 +169,23 @@ export type StorefrontEvent =
       props: { flow: "sign_in" | "sign_up" | "reset"; field: string; rule: string }
     }
   | { name: "auth_name_step_abandoned"; props: { route: CredentialRoute } }
-  // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
-  // lands; NO PII, product ids only). discover → product → cart → checkout → order.
+  // Commerce funnel (shared taxonomy — customer-mobile adopts these same names when its telemetry
+  // lands; no PII, product ids only). discover → product → cart → checkout → order.
   | { name: "product_viewed"; props: { productId: string } }
   | { name: "product_added_to_cart"; props: { productId: string; quantity: number; variantId?: string } }
-  /** 098 — a size chosen on the product page (ids only). */
+  /** A size chosen on the product page (ids only). */
   | { name: "variant_selected"; props: { productId: string; variantId: string } }
   | { name: "cart_viewed"; props?: Record<string, never> }
   | { name: "checkout_started"; props?: Record<string, never> }
   | { name: "order_placed"; props: { orderId: string } }
   /**
-   * 052 — the receipt. ⚠ `stage` is the CUSTOMER-FACING word, and there is deliberately no amount, no
+   * The receipt. `stage` is the customer-facing word, and there is deliberately no amount, no
    * address and no email here: the taxonomy's standing rule is no PII beyond the auth subject id, and
-   * 051 records a payment FAMILY rather than a provider decline code for the same reason.
+   * Records a payment family rather than a provider decline code for the same reason.
    */
   | { name: "receipt_viewed"; props: { surface: "checkout" | "history"; stage: string } }
   | { name: "receipt_resend_requested"; props?: Record<string, never> }
-  /** 096 — the order's documents. Which document, never its contents or number. */
+  /** The order's documents. Which document, never its contents or number. */
   | { name: "delivery_note_viewed"; props?: Record<string, never> }
   | { name: "tax_invoice_downloaded"; props: { kind: "invoice" | "adjustment" } }
   /** Why a resend was refused — Effy's own vocabulary, never the transport's. */
@@ -224,39 +194,39 @@ export type StorefrontEvent =
       props: { reason: "rate_limited" | "unavailable" | "failed" }
     }
   | { name: "search_performed"; props?: Record<string, never> }
-  /** 084 — a line of the search field's list was chosen. The KIND of line, never its text. */
+  /** A line of the search field's list was chosen. The kind of line, never its text. */
   | { name: "search_suggestion_selected"; props: { kind: "phrase" | "aisle" | "product" | "recent" } }
-  // 074 customer points. ⚠ NO AMOUNTS, NO BALANCE — a points balance is account data, not behaviour.
+  // Customer points. No amounts, no balance — a points balance is account data, not behaviour.
   | { name: "points_viewed"; props?: Record<string, never> }
   | { name: "checkout_points_toggled"; props: { on: boolean } }
   | { name: "checkout_paid_with_points"; props: { share: "part" | "all" } }
-  // 022 address book. ⚠ NO PII — an address is PII (FR-019, SC-008), so these carry NO address
+  // Address book. No PII — an address is PII, so these carry NO address
   // fields at all, only the subject id already attached by `identifyCustomer`. Props is deliberately
-  // the empty object type so the compiler REFUSES any attempt to attach an address property here.
+  // the empty object type so the compiler refuses any attempt to attach an address property here.
   | { name: "address_added"; props?: Record<string, never> }
   | { name: "address_edited"; props?: Record<string, never> }
   | { name: "address_deleted"; props?: Record<string, never> }
   | { name: "address_default_set"; props?: Record<string, never> }
   | { name: "address_delete_default_blocked"; props?: Record<string, never> }
-  // 023 checkout shipping & billing. Same PII rule as the address book — an address is PII (SC-009),
+  // Checkout shipping & billing. Same PII rule as the address book — an address is PII,
   // so these carry NO address fields at all (not an id, not a label), only the subject id already
-  // attached by `identifyCustomer`. The empty-object props type makes the compiler REFUSE any address
+  // attached by `identifyCustomer`. The empty-object props type makes the compiler refuse any address
   // property here.
   | { name: "checkout_address_changed"; props?: Record<string, never> }
   | { name: "checkout_address_added"; props?: Record<string, never> }
   | { name: "checkout_billing_diverged"; props?: Record<string, never> }
-  // 066 delivery instructions.
+  // Delivery instructions.
   //
-  // ⚠ NEVER THE NOTE, ITS LENGTH, OR THE ADDRESS. The note is customer-authored and may hold a gate
+  // Never the note, its length, or the address. The note is customer-authored and may hold a gate
   // code; the type below admits a closed enum and two booleans and nothing else, so a call site that
   // tries to attach the text does not compile.
   | {
       name: "checkout_delivery_instructions_set"
       props: { handover: "leave_at_door" | "meet_at_door" | "none"; hasNote: boolean; fromSavedDefault: boolean }
     }
-  // 069 delivery slots and dates.
+  // Delivery slots and dates.
   //
-  // ⚠ COUNTS AND OFFSETS, NEVER A TIME OR AN ADDRESS. "The third of four slots, six hours ahead" says
+  // Counts and offsets, never a time or an address. "The third of four slots, six hours ahead" says
   // which slots people want; the slot's clock time joined to a session would say when a household is
   // home. `position` is 1-based among the options shown.
   | { name: "checkout_delivery_slot_selected"; props: { slotsOffered: number; position: number; hoursAhead: number } }
@@ -265,42 +235,34 @@ export type StorefrontEvent =
       name: "checkout_delivery_choice_refused"
       props: { reason: "slot_unavailable" | "date_unavailable" | "slot_required" | "no_windows_available" }
     }
-  // 078 delivery windows (the new delivery model).
+  // Delivery windows (the new delivery model).
   //
-  // ⚠ WHICH SECTION AND HOW MANY DAYS AHEAD — never the window's id or its clock time (the same
+  // Which section and how many days ahead — never the window's id or its clock time (the same
   // reason as the slot event above). `reason` is why nothing could be chosen.
-  // 085 — an "as soon as possible" order's day_offset is -1: the customer chose no day.
+  // An "as soon as possible" order's day_offset is -1: the customer chose no day.
   | { name: "checkout_window_selected"; props: { section: "same_day" | "standard"; day_offset: number; promise: DeliveryPromise } }
   | { name: "checkout_windows_unavailable"; props: { reason: "no_windows" | "none_defined" } }
-  // 079 who delivers.
+  // Who delivers.
   //
-  // ⚠ THE TYPE AND WHY, AND NOTHING ELSE — never a postcode, an address or the estimate. `reason` is
+  // The type and why, and nothing else — never a postcode, an address or the estimate. `reason` is
   // which of three situations the shopper is in; it says how often an address falls outside Effy's
   // area and how often the windows run out, not where anyone lives.
   | { name: "checkout_delivery_type_shown"; props: { type: "effy" | "courier"; reason: "in_coverage" | "out_of_coverage" | "no_window" } }
   | { name: "checkout_delivery_type_changed"; props: Record<string, never> }
-  // 077 delivery fee.
+  // Delivery fee.
   //
-  // ⚠ THREE BOOLEANS AND NOTHING ELSE — never an amount. Whether free delivery, the small-order fee
+  // Three booleans and nothing else — never an amount. Whether free delivery, the small-order fee
   // or a window surcharge appeared says how the business's pricing lands; a fee joined to a session
   // says how far from the hub someone lives.
   | { name: "delivery_fee_viewed"; props: { free: boolean; small_order: boolean; surcharge: boolean } }
   | { name: "checkout_delivery_fee_changed"; props: Record<string, never> }
-  // 094 — an offer changed between the cart and the pay button.
+  // An offer changed between the cart and the pay button.
   | { name: "checkout_promotions_changed"; props: Record<string, never> }
-  // 051 payment experience.
-  //
-  // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last
-  // four), no security code, no payment-method id, no provider customer id, no amount. The product
-  // questions worth asking are "which way do people choose to pay" and "does it work" — neither needs
-  // a value that identifies a card or a person's money (Principle VII, SC-012).
-  //
-  // ⚠ `method` is a FAMILY, not a provider-specific identifier: knowing that instalments were chosen
-  // is the insight; knowing which shopper used Klarna at what hour is surveillance of a credit
-  // decision, and it is not ours to collect.
+  // Payment. Never a card number (not even the last four), security code, payment-method id, provider
+  // customer id or amount. `method` is a family, not a provider.
   | { name: "payment_method_selected"; props: { method: PaymentMethodFamily } }
   | { name: "payment_succeeded"; props: { method: PaymentMethodFamily } }
-  // ⚠ `reason` is EFFY'S OWN vocabulary, never the provider's `decline_code`. A raw code would be a
+  // `reason` is effy's own vocabulary, never the provider's `decline_code`. A raw code would be a
   // fact about the shopper's bank relationship sitting in an analytics store; the coarse reason
   // answers "is our payment path broken" without holding that.
   | { name: "payment_failed"; props: { method: PaymentMethodFamily; reason: PaymentFailureReason } }
@@ -308,64 +270,58 @@ export type StorefrontEvent =
   | { name: "saved_card_used"; props?: Record<string, never> }
   | { name: "card_saved"; props?: Record<string, never> }
   | { name: "card_removed"; props: { from: "checkout" | "account" } }
-  // 025 customer experience refresh.
+  // Customer experience refresh.
   //
-  // ⚠ `delivery_location_set` carries the ANSWER, never the postcode. A postcode is location data
+  // `delivery_location_set` carries the answer, never the postcode. A postcode is location data
   // about an individual, and Principle VII permits no PII in telemetry beyond the auth subject id.
   // The boolean answers the only product question worth asking here — what share of interested
   // visitors are outside a serviced zone — without identifying where anyone lives. The props type is
-  // closed, so attaching a postcode is a COMPILE ERROR rather than a review catch.
+  // closed, so attaching a postcode is a compile error rather than a review catch.
   | { name: "delivery_location_set"; props: { serviced: boolean } }
   | { name: "browse_category_opened"; props: { categoryKey: string } }
-  // Facet KEYS only, never their values: a search query is shopper-entered free text and can contain
+  // Facet keys only, never their values: a search query is shopper-entered free text and can contain
   // anything at all, including things a person would not expect to be recorded.
   | { name: "search_refined"; props: { facets: string[] } }
   | { name: "search_sorted"; props: { sort: ProductSort } }
   | { name: "product_gallery_viewed"; props: { productId: string } }
   | { name: "related_product_opened"; props: { productId: string } }
-  // 027 cart sync & promotions. Product ids only, as with the rest of the commerce funnel.
+  // Cart sync & promotions. Product ids only, as with the rest of the commerce funnel.
   //
-  // ⚠ `promo_code_refused` carries the REASON, and the reason is the whole point of the event: eight
-  // refusals mean eight different things a shopper could do next (FR-043), and only the distribution
+  // `promo_code_refused` carries the reason, and the reason is the whole point of the event: eight
+  // refusals mean eight different things a shopper could do next, and only the distribution
   // says which of them the platform is actually inflicting on people. `promo_code_applied` carries the
   // code because an operator-created code is not personal data — it is the campaign being measured.
   | { name: "product_removed_from_cart"; props: { productId: string } }
   | { name: "promo_code_applied"; props: { code: string } }
   | { name: "promo_code_refused"; props: { reason: string } }
-  // ── 039 home redesign: ONE event, and read the warning before adding a second ─────────────────
-  //
-  // ⚠ THE OUTCOME, NEVER THE ADDRESS. A newsletter subscriber's email is PII and is not a customer
-  // account, so it is not even the subject id — it is nothing this taxonomy may carry. The props type
-  // is a closed three-value enum, so attaching an email is a COMPILE ERROR rather than a review catch.
-  // `already` is deliberately NOT a value: the platform does not distinguish an already-known address
-  // from a new one anywhere, including here, because a distinct outcome would rebuild in analytics the
-  // enumeration oracle FR-032 removes from the response.
+  // Newsletter: the outcome, never the address (a subscriber's email is PII). No `already` value: the
+  // platform never distinguishes a known address from a new one.
   | { name: "newsletter_submitted"; props: { outcome: "ok" | "invalid" | "error" } }
 
-  // ── 095: promotion skins ─────────────────────────────────────────────────────────────────────
+  // Promotion skins
   //
   // Which place and which skin a promotion was opened or its code copied from, so marketing can compare
-  // skins (FR-027). The promotion and skin ids are platform ids, not about a person.
+  // skins. The promotion and skin ids are platform ids, not about a person.
   | { name: "promotion_banner_tapped"; props: { promotionId: string; groupKey: string; skinId: string; layout: string; action: "open" | "copy" } }
 
-  // ── 068: customer lists ───────────────────────────────────────────────────────────────────────
+  // Customer lists
   //
-  // ⚠ NEVER THE LIST'S NAME, AND NOT ITS LENGTH EITHER (FR-040). A name is the shopper's own free
+  // Never the list's name, and not its length either. A name is the shopper's own free
   // text — "Mum's chemo snacks" is a list name — and Principle VII permits no PII beyond the subject
   // id. Every props type below is closed and holds only enums, booleans and counts, so attaching a
-  // name is a COMPILE ERROR rather than a review catch. `telemetry.test.ts` pins that.
+  // name is a compile error rather than a review catch. `telemetry.test.ts` pins that.
   //
-  // What they answer (FR-039): do shoppers make lists; do they put things in them; and is the
+  // What they answer: do shoppers make lists; do they put things in them; and is the
   // weekly-shop action used from a named list or from "Saved".
   | { name: "saved_list_created"; props: { source: "chooser" | "lists_page"; withProduct: boolean } }
   | { name: "saved_list_entry_added"; props: { listKind: "default" | "named"; source: "chooser" | "undo" } }
   | { name: "saved_list_add_all"; props: { listKind: "default" | "named"; addedCount: number; skippedCount: number } }
-  // 080 — the customer opened their courier tracking link. ⚠ No URL, reference or courier name.
+  // The customer opened their courier tracking link. No URL, reference or courier name.
   | { name: "courier_tracking_opened"; props?: Record<string, never> }
 
-  // ── 046: customer feedback ────────────────────────────────────────────────────────────────────
+  // Customer feedback
   //
-  // ⚠ NO PII. The category, whether a rating/email was given, the source and the outcome — never the
+  // No PII. The category, whether a rating/email was given, the source and the outcome — never the
   // message and never the address (Principle VII). Like everything in this taxonomy it is a no-op
   // until PostHog is initialised on customer-web (the 039 carry-forward).
   | {
@@ -379,22 +335,9 @@ export type StorefrontEvent =
       }
     }
 
-// ⚠⚠ NOTHING IN THIS FILE CAPTURES ANYTHING TODAY, AND 039 DID NOT CHANGE THAT ⚠⚠
-//
-// `initAnalytics()` returns early unless consent has been granted, and `setConsent()` is the only
-// thing that grants it. Neither is called ANYWHERE in this application except its own unit test —
-// there is no consent banner, no settings toggle, no call on load. So `started` is never true, and
-// `capture()` has returned early on every call since this surface was built (CLAUDE.md §033).
-//
-// This is recorded here, at the taxonomy, because it is invisible at the call sites: adding an event
-// and "wiring it up" looks like a completed measurement and produces a permanent silence. 039 declared
-// five events in its plan and dropped four of them for exactly this reason — the fifth is kept because
-// the typed key is the right SSOT for whenever consent lands, not because it will be measured now.
-//
-// ⚠ AND THIS MODULE IS `"use client"`. A Server Action importing `capture()` would compile and do
-// nothing twice over — once for the missing consent, once because `getConsent()` returns "unknown" off
-// the browser. The newsletter's real signal is the BACKEND STRUCTURED LOG in the edge service, which
-// runs regardless. Initialising PostHog on this surface is 033's open carry-forward and its own slice.
+// Nothing captures today: nothing in the app calls `setConsent` (there is no consent banner), so
+// `capture` always returns early. The events stay typed for when consent lands. It is `"use client"`:
+// from a Server Action it would do nothing (`getConsent` is "unknown" off the browser).
 
 export function capture(event: StorefrontEvent) {
   if (!started || !ph || getConsent() !== "granted") return
@@ -402,7 +345,7 @@ export function capture(event: StorefrontEvent) {
 }
 
 /**
- * The loaded SDK, for the ONE caller that legitimately needs it directly: web-vitals, which
+ * The loaded SDK, for the one caller that legitimately needs it directly: web-vitals, which
  * reports performance metrics rather than product events and deliberately does not go through
  * the `StorefrontEvent` taxonomy. Returns null until a consenting customer has loaded it.
  */
@@ -413,7 +356,7 @@ export function analytics(): PostHog | null {
 /**
  * Associate events with the authenticated customer.
  *
- * `sub` ONLY. Passing an email here would put PII into telemetry and violate Principle VII.
+ * `sub` only. Passing an email here would put PII into telemetry and violate Principle VII.
  */
 export function identifyCustomer(sub: string) {
   if (!started || !ph || getConsent() !== "granted") return

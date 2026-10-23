@@ -1,21 +1,17 @@
 import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryPromise, DeliveryQuoteDTO, DeliveryType, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
 
 /**
- * What a quote lets the shopper choose, and what each choice costs (077–079, one checkout since 083).
+ * What a quote lets the shopper choose, and what each choice costs; pure, so the checkout, the window
+ * picker and their tests read a quote one way. The server prices the order once per open window
+ * (`effyWindows`) or once for a courier (`courier.fee`); these pick one and add nothing. The intent
+ * refuses a total other than the one shown (`shownDeliveryAmount`).
  *
- * Pure, so the checkout flow, the window picker and their tests agree on one reading of a quote.
- *
- * ⚠ ONE FEE FOR THE ORDER. The server prices the order once per open window (`effyWindows`), or once
- * for a courier (`courier.fee`); these functions PICK one and add nothing. The server re-prices at
- * the intent and refuses if the total it works out is not the one shown (`shownDeliveryAmount`).
- *
- * ⚠ WHAT IS OFFERED, THE QUOTE SAYS: `effyWindows` → the shopper picks ONE window for the order
- * (today's under "Same-day delivery", a later day's under "Standard delivery"), sent back as
- * `deliveryWindow`; `courier` → nothing to choose.
+ * `effyWindows` → one window for the order (today's under "Same-day delivery", a later day's under
+ * "Standard delivery"), sent back as `deliveryWindow`; `courier` → nothing to choose.
  */
 
 /**
- * The ONE window chosen for the order: a slot on a day (078). 085 — it may be a later day's "Any
+ * The one window chosen for the order: a slot on a day. 085 — it may be a later day's "Any
  * time" window (`EffyDayDTO.anyTime`): the order is then promised the day and no hours.
  */
 export interface ChosenWindow {
@@ -23,12 +19,12 @@ export interface ChosenWindow {
   date: string
 }
 
-/** 085 — "as soon as possible": no day and no time; the server picks the earliest day it can. */
+/** "as soon as possible": no day and no time; the server picks the earliest day it can. */
 export interface ChosenAsap {
   asap: true
 }
 
-/** What the shopper chose for an Effy order: a window (timed or a day's Any-time one), or ASAP. */
+/** What the shopper chose for an Effy order: a window (timed or a day's Any-time one), or asap. */
 export type DeliveryChoice = ChosenWindow | ChosenAsap
 
 export const isAsap = (c: DeliveryChoice | null): c is ChosenAsap => c !== null && "asap" in c
@@ -41,17 +37,17 @@ export const effyWindowsOf = (quote: DeliveryQuoteDTO | null): EffyWindowsDTO | 
   quote?.serviced ? (quote.effyWindows ?? null) : null
 
 /**
- * 079 — what a courier order is told and charged, when the quote says a courier delivers; else null.
- * There is then NOTHING to choose: no window, no day, no method.
+ * What a courier order is told and charged, when the quote says a courier delivers; else null.
+ * There is then nothing to choose: no window, no day, no method.
  */
 export const courierOf = (quote: DeliveryQuoteDTO | null): CourierQuoteDTO | null =>
   quote?.serviced && quote.coverage === "courier" ? (quote.courier ?? null) : null
 
 /**
- * 079 — who delivers the order this quote is for, as the checkout SHOWS it and sends it back
+ * Who delivers the order this quote is for, as the checkout shows it and sends it back
  * (`deliveryType` on the intent): a courier, or Effy. Null only when the address is not served.
  *
- * ⚠ THE QUOTE SAYS, as with everything else here. The server refuses the intent if this is not what
+ * The quote says, as with everything else here. The server refuses the intent if this is not what
  * applies by then, so nobody pays a courier fee for a screen that showed Effy's windows.
  */
 export function deliveryTypeOf(quote: DeliveryQuoteDTO | null): DeliveryType | null {
@@ -60,7 +56,7 @@ export function deliveryTypeOf(quote: DeliveryQuoteDTO | null): DeliveryType | n
 }
 
 /**
- * The chosen window as the quote offers it NOW — a timed window or the day's Any-time one (085);
+ * The chosen window as the quote offers it now — a timed window or the day's Any-time one;
  * null when nothing is chosen, it is "as soon as possible", or it is no longer offered.
  */
 export function findWindow(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): EffyWindowDTO | null {
@@ -71,7 +67,7 @@ export function findWindow(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoic
   return day?.windows.find((x) => x.slotId === w.slotId) ?? null
 }
 
-/** 085 — what the choice promises; null when nothing is chosen or it is no longer offered. */
+/** What the choice promises; null when nothing is chosen or it is no longer offered. */
 export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryPromise | null {
   if (isAsap(chosen)) return "asap"
   const w = windowOf(chosen)
@@ -80,8 +76,8 @@ export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice
 }
 
 /**
- * Carry the window across a NEW quote: kept while it is still on offer, dropped when it is not.
- * ⚠ Dropped means NOTHING is selected — a window that has gone is never replaced by another (FR-010).
+ * Carry the window across a new quote: kept while it is still on offer, dropped when it is not.
+ * Dropped means nothing is selected — a window that has gone is never replaced by another.
  */
 export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryChoice | null =>
   isAsap(chosen) ? (effyWindowsOf(quote)?.asap ? chosen : null) : findWindow(quote, chosen) ? chosen : null
@@ -90,14 +86,14 @@ export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: DeliveryChoi
 export const dayOffset = (w: EffyWindowsDTO, date: string): number => w.days.findIndex((d) => d.date === date)
 
 /**
- * The delivery charge for what the shopper has chosen (077): the courier's fee, or the chosen
+ * The delivery charge for what the shopper has chosen: the courier's fee, or the chosen
  * window's. Null until a window is chosen — there is no charge to show before there is one.
  */
 export function chosenFee(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryFeeDTO | null {
   if (!quote?.serviced) return null
-  // 079 — a courier delivers: ONE fee, already decided.
+  // A courier delivers: One fee, already decided.
   if (quote.courier) return quote.courier.fee
-  // 085 — "as soon as possible" has one fee whatever day it lands on.
+  // "as soon as possible" has one fee whatever day it lands on.
   if (isAsap(chosen)) return effyWindowsOf(quote)?.asap?.fee ?? null
   return findWindow(quote, chosen)?.fee ?? null
 }
@@ -108,7 +104,7 @@ export const isFreeDelivery = (fee: DeliveryFeeDTO | null): boolean => fee?.line
 /**
  * Whether the order's place in its window has lapsed and must be renewed before payment is confirmed.
  *
- * ⚠ FALSE WHEN THERE IS NO HOLD. A courier order holds nothing, and an unparseable value is treated
+ * False when there is no hold. A courier order holds nothing, and an unparseable value is treated
  * as "no hold" rather than as "lapsed": renewing costs a round trip, but refusing to let someone pay
  * because a timestamp was malformed would cost the order.
  */

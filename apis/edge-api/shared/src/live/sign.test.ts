@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { signPublish } from "./sign";
 
-// The expected signatures were produced by the AWS SDK's own signer (@smithy/signature-v4) for
-// these exact inputs. If this file's implementation and the SDK's ever disagree, the service
-// answers 403 to every publish — so the reference is pinned rather than re-derived here.
+// Pinned to signatures from the AWS sdk's own signer: a disagreement means 403 on every publish.
 const HOST = "example.appsync-api.ap-southeast-2.amazonaws.com";
 const BODY = JSON.stringify({ channel: "/shop/abc/2932000", events: ['{"k":"orders"}'] });
 const NOW = new Date("2026-10-05T03:12:44Z");

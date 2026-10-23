@@ -9,7 +9,7 @@ const ROLE_SETS: readonly (readonly BackOfficeRole[])[] = [["admin"], ["manager"
 const leafPaths = (groups: readonly NavGroup[]) =>
   groups.flatMap((g) => g.items.flatMap((i) => (i.subs ?? [i]).map((l) => l.to)));
 
-// Role-aware nav, asserted against THIS surface's config. A hidden item is a courtesy; the backend
+// Role-aware nav, asserted against this surface's config. A hidden item is a courtesy; the backend
 // is the gate — so the menu must mirror it, never be stricter or looser than it.
 describe("back-office sidebar — who sees what", () => {
   it("shows every operational page to every role, csa included", () => {

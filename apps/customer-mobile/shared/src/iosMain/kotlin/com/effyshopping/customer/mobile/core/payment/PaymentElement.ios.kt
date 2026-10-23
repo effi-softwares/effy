@@ -21,19 +21,10 @@ import platform.UIKit.UIView
 import kotlin.coroutines.resume
 
 /**
- * The iOS in-app payment element (051 T050).
- *
- * ⚠ CORRECTION TO AN EARLIER NOTE IN THIS FILE. It previously shipped a placeholder that refused every
- * payment, on the stated grounds that the iOS SDK could not be verified from a command line. That was
- * wrong: `xcodebuild -resolvePackageDependencies` resolves SPM outside Xcode, and the pin resolves to
- * **Stripe iOS 24.25.0**, which has `EmbeddedPaymentElement.create(intentConfiguration:configuration:)`,
- * `confirm(completion:)`, `paymentOption`, and — decisively — `public var view: UIView`, which is
- * exactly what Compose Multiplatform's [UIKitView] interop consumes (research R17).
- *
- * ⚠ THE HEIGHT IS THE TRAP. The element GROWS when the shopper selects a method (a form expands beneath
- * the row), and a Compose interop view keeps whatever height it was measured at. Left alone, the card
- * fields render below the visible box and the shopper simply cannot reach them — with nothing on screen
- * suggesting anything is wrong. The bridge reports height on every change and the box follows it.
+ * The iOS in-app payment element: Stripe iOS's `EmbeddedPaymentElement`, whose `view: UIView` Compose's
+ * [UIKitView] hosts. The element grows when a method is selected, and an interop view keeps its measured
+ * height, so the card fields would render out of reach: the bridge reports every height change and the box
+ * follows it.
  */
 private class IosPaymentElementHandle(
     private val bridge: IosPaymentElementBridge,
@@ -111,8 +102,8 @@ private class IosPaymentElementHandle(
 /**
  * A handle that refuses honestly when Swift has not registered a factory.
  *
- * ⚠ This is the fallback, not the implementation. It exists so a build without the Swift bridge wired
- * still runs and SAYS SO, rather than presenting a dead screen or crashing.
+ * This is the fallback, not the implementation. It exists so a build without the Swift bridge wired
+ * still runs and says so, rather than presenting a dead screen or crashing.
  */
 private class UnavailablePaymentElementHandle : PaymentElementHandle {
     override val state: StateFlow<PaymentElementState> = MutableStateFlow(
@@ -142,7 +133,7 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
         handle.start(config) { layoutTick++ }
     }
 
-    // ⚠ The element holds a live PaymentIntent and a view controller reference. Leaving the screen
+    // The element holds a live PaymentIntent and a view controller reference. Leaving the screen
     // without tearing it down leaks both, and the next payment would build a second element over the
     // first.
     DisposableEffect(handle) {
@@ -162,9 +153,9 @@ actual fun PaymentElementContent(handle: PaymentElementHandle, modifier: Modifie
     val ios = handle as? IosPaymentElementHandle ?: return
     val view = ios.view ?: return
 
-    // ⚠ `.height(...)` from the bridge, NOT `wrapContentHeight()`. A UIKit view inside Compose does not
+    // `.height(...)` from the bridge, not `wrapContentHeight`. A UIKit view inside Compose does not
     // self-size: it is given a box and draws into it. Without an explicit, updating height the form
-    // that expands under a selected method is clipped out of reach (research R17).
+    // that expands under a selected method is clipped out of reach.
     UIKitView(
         factory = { view },
         modifier = modifier

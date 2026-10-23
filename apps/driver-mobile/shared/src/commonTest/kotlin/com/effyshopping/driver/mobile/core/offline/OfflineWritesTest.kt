@@ -23,7 +23,7 @@ class OfflineWritesTest {
         assertEquals(1, q.count)
     }
 
-    /** ⚠ Ktor's own transport error never became AppError.Network inside the wrapper, so nothing queued. */
+    /** Ktor's own transport error never became AppError.Network inside the wrapper, so nothing queued. */
     @Test fun a_transport_error_is_queued_too() = runTest {
         val q = queue()
         q.withReplay("p", "{}", "c1", "Collect", queued = { WriteOutcome.QUEUED }) { throw IOException("no route") }

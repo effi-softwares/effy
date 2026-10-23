@@ -25,7 +25,7 @@ interface ArrivalCase {
 }
 
 /**
- * ⚠ THE SHARED FIXTURE. The emailed receipt (`edge-api/notifications`) and both mobile apps are
+ * The shared fixture. The emailed receipt (`edge-api/notifications`) and both mobile apps are
  * tested against this same file. The page saying "Today, 5 pm – 7 pm" while the email says
  * "Thursday" is the defect it exists to catch.
  */
@@ -46,13 +46,7 @@ describe("arrivalLabel — one wording with the email and the apps", () => {
   }
 })
 
-/**
- * ⚠ THE RULE 052 PINNED, RESTATED FOR 069 (052 FR-007, research R4; 069 research R1).
- *
- * 052 forbade a time of day outright, because the platform had no delivery window and an earlier
- * design had drawn one anyway. 069 SELLS a window — so a time may now appear, and ONLY when the
- * order carries one. Without a window this must still never print a time.
- */
+/** A time appears only when the order carries a window; without one, never. */
 describe("arrivalLabel — a time only when a window was sold", () => {
   it("never renders a time of day for an order with no window", () => {
     for (const a of [
@@ -97,7 +91,7 @@ describe("arrivalLabel — a time only when a window was sold", () => {
   })
 
   /**
-   * ⚠ When the platform has no promise it SAYS SO. Inventing a date on a receipt would be a false
+   * When the platform has no promise it says so. Inventing a date on a receipt would be a false
    * fact on a financial record, and "we'll confirm" is both true and useful. Every order placed
    * before 069 is this case.
    */
@@ -116,7 +110,7 @@ describe("ArrivalPanel", () => {
 
   /**
    * More than one estimate means the order arrives in more than one delivery — a fact about the
-   * CUSTOMER'S experience. ⚠ It must not name a shop or imply which node handles which package.
+   * customer's experience. It must not name a shop or imply which node handles which package.
    */
   it("numbers multiple deliveries without disclosing fulfilment structure", () => {
     const { container } = render(
@@ -140,7 +134,7 @@ describe("ArrivalPanel", () => {
   })
 
   /**
-   * ⚠ SC-009's mechanical half: the stage must be announced in WORDS, not by a dot's colour alone.
+   * SC-009's mechanical half: the stage must be announced in words, not by a dot's colour alone.
    * Strip every hue and the current step is still identifiable.
    */
   it("marks the current step in text, not only in colour", () => {
@@ -151,7 +145,7 @@ describe("ArrivalPanel", () => {
 })
 
 describe("079 — who delivers the order", () => {
-  // ⚠ What a courier order's packages actually carry: "standard", no day, no window. Routing — and
+  // What a courier order's packages actually carry: "standard", no day, no window. Routing — and
   // the server sends none of it to a customer. Passed here anyway, to prove the panel would not read it.
   const routed = { method: "standard" as const, promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null }
 

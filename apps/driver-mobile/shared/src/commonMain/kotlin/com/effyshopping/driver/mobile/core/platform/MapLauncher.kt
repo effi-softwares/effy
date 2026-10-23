@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.core.platform
 
 /**
- * External-maps hand-off (049 US4, FR-022). The driver app does NOT provide turn-by-turn; it opens
+ * External-maps hand-off. The driver app does not provide turn-by-turn; it opens
  * the device's maps app directed to an address. `expect/actual` because launching a maps intent is
  * platform-specific (Android `Intent(ACTION_VIEW, geo:…)`, iOS `UIApplication.openURL(maps:…)`).
  */

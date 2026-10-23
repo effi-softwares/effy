@@ -1,8 +1,4 @@
-// Batch pick lists — every order waiting to be picked, as printable documents (058, US4).
-//
-// ⚠ NO MONEY ON A PICK LIST (020's rule for the pick document). The console shows an order's money
-// on screen by operator decision (057 A3); a sheet that goes out to the shelves does not need it and
-// should not carry it — pick lists get left on benches.
+// Printable pick lists: no money, because sheets get left on benches.
 import { query } from "@effy/edge-shared";
 import type { CourierPickupDTO } from "@effy/shared-types";
 
@@ -10,7 +6,7 @@ import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 
-/** A hard ceiling: a shop with 400 orders waiting needs help, not 400 sheets of paper. */
+/** A shop with 400 orders waiting needs help, not 400 sheets of paper. */
 export const MAX_PICK_LISTS = 100;
 
 export interface PickListRow {
@@ -18,17 +14,14 @@ export interface PickListRow {
   orderNumber: string;
   customerName: string;
   paidAt: Date;
-  /** 079 — who takes it away: what the printed sheet says, never "same-day" or "standard". */
+  /** Who takes it away, never "same-day" or "standard". */
   deliveredBy: DeliveredBy;
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
   lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
 }
 
-/**
- * Oldest first — the same order the queue itself uses (020 FR-001b), so a printed stack matches the
- * screen an operator just looked at.
- */
+/** Oldest first, matching the queue, so a printed stack matches the screen. */
 const SELECT_PICK_LISTS = `
 SELECT sf.id::text AS fulfillment_id,
        o.order_number,
@@ -37,7 +30,7 @@ SELECT sf.id::text AS fulfillment_id,
        ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(
          json_agg(
-           -- 098 — the variant and its stock code AS SOLD.
+           -- The variant and its stock code AS SOLD.
            json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'variantCode', oi.variant_code, 'sku', oi.sku, 'quantity', oi.quantity)
            ORDER BY oi.product_name, oi.variant_label NULLS FIRST
          ) FILTER (WHERE oi.id IS NOT NULL),
@@ -88,7 +81,6 @@ export async function readPickLists(
     lines: r.lines,
   }));
 
-  // ⚠ The remainder is REPORTED, not hidden. A print that quietly covers the first hundred of two
-  // hundred orders is how half a shop's work goes unpicked with nobody aware.
+  // The remainder is reported, never silently left unprinted.
   return { lists, more: Math.max(0, (total.rows[0]?.n ?? 0) - lists.length) };
 }

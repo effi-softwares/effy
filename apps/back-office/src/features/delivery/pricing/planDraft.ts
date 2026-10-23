@@ -1,7 +1,7 @@
 import type { FeePlanInput, FeePlanKind, FeePlanDTO } from "@effy/shared-types";
 
 /**
- * What the plan editor holds while someone types (077). Strings throughout, as typed: the service
+ * What the plan editor holds while someone types. Strings throughout, as typed: the service
  * is the judge of every value and names each field it refuses, so nothing is parsed or rounded here
  * — a second set of rules in the console would be a second answer to "is this a valid plan?".
  */
@@ -58,7 +58,7 @@ export function draftFrom(p: FeePlanDTO, copy: boolean): PlanDraft {
 const blankToNull = (s: string) => (s.trim() === "" ? null : s.trim());
 
 /**
- * The draft as the service takes it. A distance band with an empty "up to" is the LAST band — "and
+ * The draft as the service takes it. A distance band with an empty "up to" is the last band — "and
  * beyond" — and it is sent last whatever row it was typed on. A weight is typed in kg, sent in grams.
  */
 export function toInput(kind: FeePlanKind, d: PlanDraft): FeePlanInput {

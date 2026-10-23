@@ -21,7 +21,7 @@ data class PendingProof(
     val method: String,
     val note: String?,
     val attempts: Int = 0,
-    /** 092 — how each package was handed over at the door; empty from a proof saved before scanning. */
+    /** How each package was handed over at the door; empty from a proof saved before scanning. */
     val handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(),
 )
 
@@ -56,15 +56,9 @@ class DirectoryProofFiles(directory: String) : ProofFiles {
 }
 
 /**
- * Proof captured with no connection (backlog B3). A doorstep with no signal used to be a dead end:
- * proof was never queued, though the message said "We'll retry".
- *
- * ⚠ THE IMAGE IS WRITTEN BEFORE THE RECORD, AND DELETED AFTER IT. A kill between the two leaves at
- * worst an orphan file, never a record whose image is gone. The file is deleted only once the
- * platform has confirmed the proof — the delivery is not recorded until then.
- *
- * Sending is presign → upload → submit under ONE changeId: the submit is idempotent on it, so a
- * proof whose answer was lost is sent again safely.
+ * Proof captured with no connection. The image is written before the record and deleted after the platform
+ * confirms the proof, so a kill leaves at worst an orphan file. Sending is presign → upload → submit under
+ * one changeId, so a proof whose answer was lost is sent again safely.
  */
 class ProofOutbox(
     private val settings: Settings,

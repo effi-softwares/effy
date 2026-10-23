@@ -1,23 +1,12 @@
-# Alarms on the shopper-facing money path (070-retire-core-api, FR-031/FR-033).
+# Alarms on the shopper-facing money path, on the CloudWatch metrics the services emit (EMF).
 #
-# ⚠ THESE REPLACE FOUR FILES THAT NEVER RAN. `infra/observability/alerts/*.yml` held Prometheus rules
-# for delivery pricing, stock, refunds and delivery slots — written for a Prometheus + Grafana stack
-# that was documented for months and never built. Nothing loaded them; every threshold in them was
-# documentation. These are the same conditions on infrastructure that exists: CloudWatch metrics the
-# services emit (embedded metric format) and the alerts topic that already reaches a person (037).
+# Every metric is in one namespace, `Effy/Commerce`, whichever service emitted it (MONEY_METRIC_NAMESPACE in
+# the shared payments module): a refund from `orders`, `shop` or a customer's cancellation is one series.
 #
-# ⚠ EVERY METRIC HERE IS IN ONE NAMESPACE, `Effy/Commerce`, whichever service emitted it. A refund
-# issued from the back office (`orders`) or a shop console (`shop`) counts in the same series as one
-# from a customer's cancellation — see MONEY_METRIC_NAMESPACE in the shared payments module. An
-# alarm per service would watch one of three and let the other two fail silently.
-#
-# ⚠ AN ALARM ADDRESSES A METRIC BY ITS EXACT DIMENSIONS. A metric emitted with `outcome` and `type`
-# is a different series for every pair, and an alarm cannot discover series — so each alarm below
-# names the dimensions the code emits, and `alarms.contract.test.ts` in the commerce service fails
-# the build if an alarm here watches a name or a dimension value nothing emits.
-#
-# ⚠ THRESHOLDS ARE STARTING VALUES for an environment with no traffic. `notBreaching` on missing
-# data everywhere: a quiet platform emits nothing, and "no data" must not page.
+# An alarm addresses a metric by its exact dimensions and cannot discover series, so each names the
+# dimensions the code emits; `alarms.contract.test.ts` in the commerce service fails an alarm watching a
+# name or dimension value nothing emits. Thresholds are starting values; `notBreaching` everywhere (a quiet
+# platform emits nothing).
 
 locals {
   commerce_metric_namespace = "Effy/Commerce"
@@ -137,8 +126,8 @@ resource "aws_cloudwatch_metric_alarm" "commerce" {
   }
 }
 
-# ⚠ ONE ALARM OVER TWO SERIES. A refund submission fails in two ways the code tells apart — the
-# provider REFUSED it (a decision) or never ANSWERED (ambiguous; the reconciler takes it from there)
+# one alarm over two series. A refund submission fails in two ways the code tells apart — the
+# provider refused it (a decision) or never answered (ambiguous; the reconciler takes it from there)
 # — and each is its own series. Either one is a customer who was told money is coming, so the alarm
 # is on their sum.
 resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures" {

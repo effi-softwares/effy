@@ -11,19 +11,16 @@ import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 
 /**
- * The cart, as a product tile sees it (087 FR-027; Product card board) — how many of THIS product are
- * in the cart, and how to change that from the tile's "+" / stepper.
- *
- * ONE read of the cart for a whole screen of tiles, so two rails carrying the same product can never
- * disagree. Changes go through the same use-cases the product page and the cart use (optimistic, then
- * synchronised), so a tile is not a second way of editing the cart — it is the same way, closer.
+ * The cart as a product tile sees it: how many of this product are in it, changed from the tile's "+" /
+ * stepper. One read for a whole screen of tiles, so two rails never disagree; changes go through the same
+ * use cases as the product page and the cart.
  */
 @Stable
 class TileCart internal constructor(
     private val snapshot: CartSnapshot,
     private val container: AppContainer,
 ) {
-    /** 098 — how many of the tile's SIZE ([ProductCard.variantId]) are in the cart. */
+    /** How many of the tile's size ([ProductCard.variantId]) are in the cart. */
     fun quantityOf(variantId: String): Int = snapshot.lines.firstOrNull { it.variantId == variantId }?.quantity ?: 0
 
     fun change(product: ProductCard, quantity: Int) {

@@ -1,7 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared";
+import { insertTestProduct, migrationSql } from "@effy/edge-shared/testing";
 import { applyVariantSet, priceVariants } from "@effy/edge-shared/catalog";
-import { insertTestProduct } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -13,20 +12,13 @@ import { createHomeRepository } from "./home/repository";
 import { createHomeService } from "./home/service";
 import { createPromotionService } from "./promotions/service";
 import { createSearchRepository } from "./search/repository";
+import { TRIGRAM_EXPR } from "./search/filters";
 import { createSearchService } from "./search/service";
 import { createSuggestRepository } from "./suggest/repository";
 
 /**
- * 070 — the storefront's SQL against the REAL schema.
- *
- * The unit tests beside this fake the repositories, so they prove the composition and never run a
- * statement. That exact gap shipped a bug once: the facet attribute count grouped by an output
- * alias and Postgres refused it (42803) the first time it met a real database. Raw SQL is only
- * proven by a real engine — a wrong column, a bigint that arrives as a string, a cursor cast.
- *
- * It also proves the two properties that cannot be seen in any single response: paging by cursor
- * visits every product exactly once, under every sort; and each facet is counted with its own
- * selection cleared.
+ * The storefront's SQL against a real database, plus what no single response shows: cursor paging
+ * visits every product once under every sort, and each facet is counted with its own selection cleared.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -41,7 +33,7 @@ async function product(name: string, o: {
   price: string; brand?: string | null; category?: string; compareAt?: string; status?: string;
   tracked?: boolean; onHand?: number; ageDays?: number; shortDescription?: string; sku?: string;
 }) {
-  // 098 — a product and its one variant, as the one writer would leave them.
+  // A product and its one variant, as the one writer would leave them.
   const one = async (sql: string, args: unknown[]) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
   const created = await insertTestProduct(pool, {
     shopId: await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`, []),
@@ -79,6 +71,17 @@ d("070 — storefront reads against the real schema", () => {
   afterAll(async () => {
     await pool?.end();
     await container?.stop();
+  });
+
+  it("TRIGRAM_EXPR is product_search_trgm_idx's expression, or every search is a scan", async () => {
+    const indexDef = async (name: string) =>
+      (await pool.query<{ def: string }>(`SELECT pg_get_indexdef($1::regclass) AS def`, [`public.${name}`])).rows[0]!.def;
+    await pool.query(`CREATE INDEX trgm_probe ON public.product USING gin ((${TRIGRAM_EXPR.replace(/\bp\./g, "")}) public.gin_trgm_ops)`);
+    try {
+      expect((await indexDef("trgm_probe")).replace("trgm_probe", "product_search_trgm_idx")).toBe(await indexDef("product_search_trgm_idx"));
+    } finally {
+      await pool.query(`DROP INDEX public.trgm_probe`);
+    }
   });
 
   const search = () => createSearchService(createSearchRepository(pool), noImage);
@@ -146,7 +149,7 @@ d("070 — storefront reads against the real schema", () => {
 
     const set = await facets.facets({ ...base, categoryKey: "sft-dairy", brands: ["Oatly"] });
     const brand = set.facets.find((f) => f.key === "brand")!;
-    // Brand is counted with the brand selection CLEARED: Vitasoy is still offered.
+    // Brand is counted with the brand selection cleared: Vitasoy is still offered.
     expect(brand.options).toEqual([
       { value: "Oatly", label: "Oatly", count: 2 },
       { value: "Vitasoy", label: "Vitasoy", count: 2 },
@@ -236,13 +239,8 @@ d("070 — storefront reads against the real schema", () => {
   });
 
   /**
-   * PERF-14 — the suggestion statements that match product names and brands are answered from their
-   * trigram indexes on a catalogue of real size. Inside a transaction that is rolled back: fifty
-   * thousand products, fresh statistics, sequential scans off, and a term that matches a handful of
-   * them. (A term matching a tenth of the catalogue, or a catalogue of a few thousand, is genuinely
-   * cheaper to read through, and the planner rightly does.) A plan that reads every product means an
-   * index is missing or no longer matches the expression the query filters on — the drift
-   * `trigram-index.guard.test.ts` guards for the full search.
+   * The suggestion statements use their trigram indexes on 50k products (in a rolled-back transaction,
+   * sequential scans off).
    */
   it("suggestions are served by the name and brand trigram indexes", async () => {
     const client = await pool.connect();
@@ -259,9 +257,7 @@ d("070 — storefront reads against the real schema", () => {
                'Maker ' || (g % 400), 'x', 'seed', 'active', now()
         FROM generate_series(1, 50000) g`);
       await client.query("ANALYZE public.product");
-      // ANALYZE samples at random, and on a borderline estimate the planner then flips between the
-      // index and a scan from run to run. Scans off makes the question the stable one: CAN the index
-      // answer this statement? (Measured at this size with scans allowed: 20 ms read-through → 1.6 ms.)
+      // Scans off makes the question stable: can the index answer this statement?
       await client.query("SET LOCAL enable_seqscan = off");
       const plans: string[] = [];
       const explaining = { query: async (sql: string, args: unknown[]) => {
@@ -284,13 +280,7 @@ d("070 — storefront reads against the real schema", () => {
     }
   }, 60_000); // fifty thousand rows into trigram-indexed tables: seconds, not milliseconds
 
-  /**
-   * PERF-21 — what actually leaves the service: every picture address in every storefront answer is
-   * the media CDN's permanent one, with no query string and no signature. `media.guard.test.ts` holds
-   * the SOURCE to that; this holds the WIRE, with the real addressing (`publicImageUrl`), not the
-   * tests' `noImage`. A key outside the public set — a courier label filed against a product by
-   * mistake — must come back with no address at all, never a signed one.
-   */
+  /** Every picture address on the wire is the cdn's, unsigned; a key outside the public set gets none. */
   it("every picture address a shopper is sent is permanent and unsigned", async () => {
     const before = process.env.MEDIA_PUBLIC_BASE_URL;
     process.env.MEDIA_PUBLIC_BASE_URL = "https://media.test";
@@ -338,7 +328,6 @@ d("070 — storefront reads against the real schema", () => {
     }
   });
 
-  // ── 098 — a product with sizes ────────────────────────────────────────────────────────────────
   it("098 — one tile per product, From the cheapest ACTIVE size; the page lists only active sizes", async () => {
     const one = async (sql: string, args: unknown[] = []) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
     const shopId = await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`);

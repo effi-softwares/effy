@@ -1,13 +1,8 @@
 package com.effyshopping.customer.mobile.features.checkout
 
 /**
- * A COPY of `packages/shared-types/src/delivery-window.fixtures.json` (069).
- *
- * ⚠ DO NOT EDIT BY HAND. `commonTest` cannot read a file outside the app, so the fixture is embedded —
- * and `packages/shared-types/src/delivery-window.test.ts` reads THIS file and fails if it differs from
- * the JSON by so much as one case. Change the JSON, then copy it here; the TypeScript suite says which
- * app is stale. Two hand-kept copies that a test compares are how a divergence shows up as a failure
- * rather than as two surfaces quietly saying different things (the DeliveryWireContractTest pattern).
+ * A copy of `packages/shared-types/src/delivery-window.fixtures.json`, embedded because `commonTest` cannot read a file outside the app. Do not edit by hand:
+ * `packages/shared-types/src/delivery-window.test.ts` reads this file and fails if it differs. Change the source first, then copy it here.
  */
 internal const val DELIVERY_WINDOW_FIXTURE = """
 {

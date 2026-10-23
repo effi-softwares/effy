@@ -1,10 +1,6 @@
 /**
- * The account area's sections and where each lives.
- *
- * ⚠ NO `"use client"` — imported by server pages and by the client navigation link alike.
- *
- * Until 084 these were tabs of `/account`, addressed `?tab=<name>`. Each is now a page. `parseTab`
- * and `tabHref` remain so an old `?tab=` link can be turned into its page (FR-014).
+ * The account area's sections and where each lives. No `"use client"`: server pages and the client link
+ * both import it. `parseTab` and `tabHref` turn an old `?tab=` link into its page.
  */
 export type AccountTab = "personal" | "addresses" | "payment" | "points" | "security" | "privacy" | "legal"
 

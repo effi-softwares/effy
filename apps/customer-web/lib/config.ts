@@ -1,7 +1,7 @@
 /**
  * Surface configuration.
  *
- * FR-029: every backend address is CONFIGURATION, never a literal — an environment is repointed
+ * Every backend address is configuration, never a literal — an environment is repointed
  * with an env change and **no code edit**. If you find yourself typing an http:// literal into a
  * component, this is the file you wanted.
  */
@@ -15,7 +15,7 @@ function required(name: string, value: string | undefined): string {
   return value
 }
 
-/** Public origin of this storefront. Anchors every canonical URL, OG tag and the sitemap. */
+/** Public origin of this storefront. Anchors every canonical URL, og tag and the sitemap. */
 export function siteUrl(): string {
   return (
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3000"
@@ -23,25 +23,13 @@ export function siteUrl(): string {
 }
 
 /**
- * The backend gateway. Every service this storefront calls is behind it (see lib/api/edge.ts).
+ * The backend gateway (see lib/api/edge.ts). `NEXT_PUBLIC_` because an Amplify Hosting variable is a
+ * build variable: unprefixed, a server component cannot read it at request time, and the throw happened
+ * before any fetch, so it left no trace.
  *
- * ⚠ IT CARRIES THE `NEXT_PUBLIC_` PREFIX, AND IT DID NOT USED TO. It was `EDGE_API_BASE_URL`,
- * server-only by design — and that is precisely why every signed-in customer on dev landed on
- * /account/unavailable. An Amplify Hosting environment variable is a BUILD variable; AWS states
- * plainly that "a Next.js server component doesn't have access to those environment variables by
- * default." `NEXT_PUBLIC_` is what carries a value past the build, because Next INLINES those into
- * the output. Unprefixed, this threw "Missing required environment variable" at request time on
- * the deployed runtime — and since the throw happened BEFORE the fetch, there was no failed
- * request in the browser, no console error, and nothing in any log to find.
- *
- * The trade is that the edge API's hostname now ships in the client bundle. It is an address, not
- * a credential: every route behind it is authorized by the customer pool's JWT authorizer at the
- * gateway, and an unauthenticated caller gets a flat 401.
- *
- * ⚠ THAT IS NOT PERMISSION TO CALL IT FROM THE BROWSER. The account routes relay the customer's ID
- * *and* access tokens (see lib/api/edge.ts), which must never leave the server, so every caller in
- * this app stays server-side. What changed is the prefix — not the boundary. The boundary now
- * rests on review rather than on the address being unguessable, so keep it where it belongs.
+ * The hostname ships in the client bundle. It is an address, not a credential (every route is authorized
+ * at the gateway), and still not for the browser to call: the account routes relay ID and access tokens
+ * that never leave the server.
  */
 export function edgeApiBaseUrl(): string {
   return required(
@@ -61,8 +49,8 @@ export function cognitoConfig() {
       "NEXT_PUBLIC_COGNITO_CLIENT_ID",
       process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
     ),
-    // The Cognito hosted domain. Required ONLY for Google federation — there is no pure-SDK
-    // federation path (research D15). Absent until the Google IdP is applied.
+    // The Cognito hosted domain. Required only for Google federation — there is no pure-SDK
+    // federation path. Absent until the Google IdP is applied.
     domain: process.env.NEXT_PUBLIC_COGNITO_DOMAIN ?? "",
   }
 }
@@ -72,24 +60,24 @@ export function posthogConfig() {
   return {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "",
     host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
-    // 050 FR-028 — first-party ingest path (next.config.ts rewrites it to the PostHog host), so
+    // First-party ingest path (next.config.ts rewrites it to the PostHog host), so
     // tracking blockers can't drop it and no third-party host appears in the network tab. The real
-    // host stays as `ui_host` for the SDK's toolbar links.
+    // host stays as `ui_host` for the sdk's toolbar links.
     ingestPath: "/rc",
   }
 }
 
 /**
- * 050 FR-026 — platform-wide analytics kill switch. Anything but the string "false" (incl. unset) is
- * enabled. Gates analytics AND error-tracking init before any SDK loads, without an app release.
+ * Platform-wide analytics kill switch. Anything but the string "false" (incl. unset) is
+ * enabled. Gates analytics and error-tracking init before any SDK loads, without an app release.
  */
 export function telemetryEnabled(): boolean {
   return process.env.NEXT_PUBLIC_TELEMETRY_ENABLED !== "false"
 }
 
 /**
- * Stripe (019 checkout). The PUBLISHABLE key is browser-safe — it is a NAME, not a secret (research
- * R3): it can only confirm an intent the backend already authorized. The SECRET key lives ONLY in
+ * Stripe (019 checkout). The publishable key is browser-safe — it is a name, not a secret (research
+ * R3): it can only confirm an intent the backend already authorized. The secret key lives only in
  * the backend's secret store and never appears here. Test-mode (`pk_test_…`) in dev.
  */
 export function stripeConfig() {

@@ -39,16 +39,16 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
 
     override suspend fun createIntent(order: PlaceOrder): CheckoutIntent = request {
         val response = edge.post("commerce/v1/checkout/intent") { setBody(order.toRequest()) }
-        // 069 — a 409 carrying one of the three delivery-choice codes is a NAMED refusal with the
-        // options as they stand now. ⚠ Read BEFORE the generic mapping, which turns every 409 into an
+        // A 409 carrying one of the three delivery-choice codes is a named refusal with the
+        // options as they stand now. Read before the generic mapping, which turns every 409 into an
         // unrelated account error; a 409 that is not one of ours still falls through to it.
         if (response.status == HttpStatusCode.Conflict || response.status == HttpStatusCode.UnprocessableEntity) {
             val body = response.bodyAsText()
             if (response.status == HttpStatusCode.Conflict) deliveryRefusalOrNull(body)?.let { throw it }
-            // 077 — the delivery total is not the one shown; the body carries the fresh quote.
+            // The delivery total is not the one shown; the body carries the fresh quote.
             if (response.status == HttpStatusCode.Conflict) feeChangedOrNull(body)?.let { throw it }
             if (response.status == HttpStatusCode.Conflict) promotionsChangedOrNull(body)?.let { throw it }
-            // 074 — a points refusal, with the most the server would take when it said.
+            // A points refusal, with the most the server would take when it said.
             pointsRefusalOrNull(body)?.let { throw it }
         }
         response.ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
@@ -100,7 +100,7 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
 /**
  * Decode a delivery-choice refusal, or null when the body is some other conflict.
  *
- * ⚠ Lenient on purpose: the body is an RFC 9457 problem with `code` and `quote` beside the standard
+ * Lenient on purpose: the body is an RFC 9457 problem with `code` and `quote` beside the standard
  * members, and an unknown `code` (a refusal a newer server adds) must fall through to the generic
  * mapping rather than crash the checkout.
  */
@@ -109,7 +109,7 @@ internal fun deliveryRefusalOrNull(body: String): DeliveryChoiceRefused? =
 
 private val refusalJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; explicitNulls = false }
 
-/** 074 — decode a points refusal, or null when the body is some other refusal. */
+/** Decode a points refusal, or null when the body is some other refusal. */
 internal fun pointsRefusalOrNull(body: String): PointsRefused? = runCatching {
     val dto = refusalJson.decodeFromString(PointsRefusalBody.serializer(), body)
     val reason = when (dto.code) {
@@ -122,14 +122,14 @@ internal fun pointsRefusalOrNull(body: String): PointsRefused? = runCatching {
     PointsRefused(reason, dto.maxPoints)
 }.getOrNull()
 
-/** 077 — decode a "delivery fee changed" refusal, or null when the body is some other conflict. */
+/** Decode a "delivery fee changed" refusal, or null when the body is some other conflict. */
 internal fun feeChangedOrNull(body: String): DeliveryFeeChanged? = runCatching {
     val dto = refusalJson.decodeFromString(FeeChangedBody.serializer(), body)
     if (dto.code != "delivery_fee_changed") return@runCatching null
     DeliveryFeeChanged(dto.quote?.toDomain())
 }.getOrNull()
 
-/** 094 — decode a "promotions changed" refusal, or null when the body is some other conflict. */
+/** Decode a "promotions changed" refusal, or null when the body is some other conflict. */
 internal fun promotionsChangedOrNull(body: String): PromotionsChanged? = runCatching {
     val dto = refusalJson.decodeFromString(FeeChangedBody.serializer(), body)
     if (dto.code != "promotions_changed") return@runCatching null

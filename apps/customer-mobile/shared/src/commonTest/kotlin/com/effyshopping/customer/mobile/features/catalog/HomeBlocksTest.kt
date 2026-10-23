@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 028 T006 — the rules that decide what Home shows, tested without a device.
+ * The rules that decide what Home shows, tested without a device.
  *
  * Everything here is a rule that has a wrong answer a shopper or an operator would actually notice:
  * a promotion that silently vanishes, a heading above nothing, a category that promises products it
@@ -37,7 +37,7 @@ class HomeBlocksTest {
     private fun rail(key: String, size: Int = 2) =
         Rail(key = key, title = key.replaceFirstChar { it.uppercase() }, products = List(size) { product("$key-$it") })
 
-    /** An INLINE banner — 028's between-sections placement, which these interleaving tests are about. */
+    /** An inline banner — 028's between-sections placement, which these interleaving tests are about. */
     private fun banner(key: String, position: Int) =
         Banner(
             key = key, title = "Banner $key", subtitle = null, imageUrl = null, href = null,
@@ -53,7 +53,7 @@ class HomeBlocksTest {
     private fun category(key: String, productCount: Int = 3, parentKey: String? = null) =
         Category(key = key, name = key.replaceFirstChar { it.uppercase() }, parentKey = parentKey, productCount = productCount, imageUrl = null)
 
-    // ── Order and shape ─────────────────────────────────────────────────────────────────────────
+    // Order and shape
 
     @Test
     fun `categories come first then sections in the order the server gave them`() {
@@ -70,7 +70,7 @@ class HomeBlocksTest {
         )
     }
 
-    // ── FR-020: never a heading above nothing ───────────────────────────────────────────────────
+    // Never a heading above nothing
 
     @Test
     fun `an empty rail is omitted entirely`() {
@@ -86,7 +86,7 @@ class HomeBlocksTest {
         )
     }
 
-    // ── FR-029: the category row omits rather than lies ─────────────────────────────────────────
+    // The category row omits rather than lies
 
     @Test
     fun `only categories that have products become shortcuts`() {
@@ -110,11 +110,11 @@ class HomeBlocksTest {
 
     @Test
     fun `composeHomeWithRealisticTaxonomy surfaces the categories that actually hold products`() {
-        // ⚠ THIS IS THE SHAPE OF THE REAL CATALOGUE, and the test that should have existed first.
+        // This is the shape of the real catalogue, and the test that should have existed first.
         //
-        // Every product's primary category is a LEAF. The three top-level categories report
+        // Every product's primary category is a leaf. The three top-level categories report
         // productCount = 0 because the count does not roll up to descendants. The original filter
-        // ("top-level with products") therefore rendered an EMPTY category row against live data —
+        // ("top-level with products") therefore rendered an empty category row against live data
         // 13 authored icons showing nothing — and every unit test passed, because the fixtures gave
         // top-level categories a product count the real ones do not have.
         val blocks = composeHome(
@@ -167,7 +167,7 @@ class HomeBlocksTest {
         )
     }
 
-    // ── FR-030: banners sit BETWEEN sections ────────────────────────────────────────────────────
+    // Banners sit between sections
 
     @Test
     fun `a banner at position zero sits above the first section`() {
@@ -204,7 +204,7 @@ class HomeBlocksTest {
         )
     }
 
-    // ── The clamp: a mistyped position must never hide a live promotion ─────────────────────────
+    // The clamp: a mistyped position must never hide a live promotion
 
     @Test
     fun `an out-of-range position is clamped to the end and never dropped`() {
@@ -238,7 +238,7 @@ class HomeBlocksTest {
         assertTrue(blocks.single() is HomeBlock.Promo, "no sections to sit between must not mean no banner")
     }
 
-    // ── Several live at once → one pager, not three stacked panels ──────────────────────────────
+    // Several live at once → one pager, not three stacked panels
 
     @Test
     fun `banners at the same position group into one block`() {
@@ -254,7 +254,7 @@ class HomeBlocksTest {
         assertEquals(2, promo.banners.size, "two live promotions at one slot are one pager, not two stacked panels")
     }
 
-    // ── FR-035 / SC-012: empty means empty ──────────────────────────────────────────────────────
+    // Empty means empty
 
     @Test
     fun `no promotion produces no promo block and no placeholder`() {
@@ -276,7 +276,7 @@ class HomeBlocksTest {
         )
     }
 
-    // ── The offers carousel and exclusive placement (029 T031) ──────────────────────────────────
+    // The offers carousel and exclusive placement
 
     @Test
     fun `carousel and inline banners land in DIFFERENT blocks`() {
@@ -287,7 +287,7 @@ class HomeBlocksTest {
 
         assertEquals(1, blocks.filterIsInstance<HomeBlock.Offers>().size)
         assertEquals(1, blocks.filterIsInstance<HomeBlock.Promo>().size)
-        // ⚠ FR-027: exclusive. A banner in both would mean a shopper meets one offer twice on a screen.
+        // Exclusive. A banner in both would mean a shopper meets one offer twice on a screen.
         assertEquals(listOf("o1"), blocks.filterIsInstance<HomeBlock.Offers>().single().banners.map { it.key })
         assertEquals(listOf("i1"), blocks.filterIsInstance<HomeBlock.Promo>().single().banners.map { it.key })
     }
@@ -299,8 +299,8 @@ class HomeBlocksTest {
             listOf(category("pantry")),
         )
 
-        // SC-012: a shopper should be able to say what the current offer is without going looking.
-        // ⚠ CHANGED BY 087 (Main board): the carousel is the hero, ABOVE the aisle row.
+        // A shopper should be able to say what the current offer is without going looking.
+        // Changed by 087 (Main board): the carousel is the hero, above the aisle row.
         assertTrue(blocks[0] is HomeBlock.Offers)
         assertTrue(blocks[1] is HomeBlock.Categories)
         assertTrue(blocks[2] is HomeBlock.Section)
@@ -313,7 +313,7 @@ class HomeBlocksTest {
             emptyList(),
         )
 
-        // FR-024: absent entirely — no heading, no empty frame.
+        // Absent entirely — no heading, no empty frame.
         assertTrue(blocks.none { it is HomeBlock.Offers })
     }
 
@@ -326,8 +326,8 @@ class HomeBlocksTest {
         )
 
         val shown = blocks.filterIsInstance<HomeBlock.Offers>().single().banners
-        // FR-026: a swipeable set stops being explorable somewhere, and most shoppers never reach the
-        // last slide anyway. ⚠ The DROP must be logged at the render site — a silent cap reads to an
+        // A swipeable set stops being explorable somewhere, and most shoppers never reach the
+        // last slide anyway. The drop must be logged at the render site — a silent cap reads to an
         // operator as "my promotion did not save".
         assertEquals(MAX_OFFERS, shown.size)
         assertEquals(listOf("o1", "o2", "o3", "o4", "o5", "o6"), shown.map { it.key })

@@ -1,7 +1,4 @@
-// Service layer for the shop product catalog (016) — validation, EAV attribute typing, and the S3
-// presign boundary (keys → short-lived urls). No HTTP and no SQL (Principle VI). Dependencies wired
-// by explicit module import (no DI framework); tests mock ./repository and ./media at the module
-// boundary. `shopId` is always the caller-resolved actor shop — never client input.
+// Validation, attribute typing and the presign boundary (keys → short-lived urls). `shopId` is always the resolved actor shop.
 import { emitMetric, metricNamespace, withTransaction } from "@effy/edge-shared";
 import { setVariantState as writeVariantState } from "@effy/edge-shared/catalog";
 import { isGstStatus } from "@effy/edge-shared/documents";
@@ -41,19 +38,15 @@ const REVIEW_STATES: readonly ShopReviewState[] = [
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 const SORTS = ["name", "price", "recent"] as const;
 
-// ── Schema-read ───────────────────────────────────────────────────────────────────────────────
-
 export function getCatalogSchema(): Promise<CatalogSchema> {
   return repo.readCatalogSchema();
 }
-
-// ── Value parsing / typing helpers ──────────────────────────────────────────────────────────────
 
 function optText(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
 }
 
-/** Return the trimmed value if a non-empty string, else push a field error and return null. */
+/** The trimmed value, or a field error and null. */
 function requireNonEmpty(value: unknown, field: string, fields: FieldIssue[]): string | null {
   if (typeof value !== "string" || value.trim().length === 0) {
     fields.push({ field, message: "must be a non-empty string" });
@@ -62,8 +55,7 @@ function requireNonEmpty(value: unknown, field: string, fields: FieldIssue[]): s
   return value.trim();
 }
 
-/** Validate one supplied attribute value against its schema data type, returning the normalised
- *  (single-column) value or pushing a field error. */
+/** Normalised to a single column, or a field error. */
 function normaliseAttribute(
   raw: { attributeId?: unknown; valueText?: unknown; valueNumber?: unknown; valueBoolean?: unknown; valueOptions?: unknown },
   schema: Map<string, SchemaAttribute>,
@@ -134,13 +126,7 @@ function failMissing(field: string, fields: FieldIssue[], def: SchemaAttribute):
   return null;
 }
 
-// ── 098 — options and variants ─────────────────────────────────────────────────────────────────
-
-/**
- * The option/variant sets from a request body, in their wire shape — or null when the body sends
- * neither. Only the SHAPE is checked here; every rule a set must meet is `validateVariantSet`, run
- * below and again inside the one writer. Both must be sent together.
- */
+/** The sets in wire shape, or null when neither is sent; both must come together. Rules are `validateVariantSet`'s. */
 function parseVariantSet(body: Record<string, unknown>, fields: FieldIssue[]): { options: OptionInputDTO[]; variants: VariantInputDTO[] } | null {
   const hasOptions = "options" in body && body.options !== undefined;
   const hasVariants = "variants" in body && body.variants !== undefined;
@@ -182,7 +168,7 @@ function parseVariantSet(body: Record<string, unknown>, fields: FieldIssue[]): {
   return { options, variants };
 }
 
-/** `undefined` = not sent; null = cleared; refuses anything else that is not a basis. */
+/** `undefined` = not sent; null = cleared. */
 function parseUnitBasis(body: Record<string, unknown>, fields: FieldIssue[]): UnitBasis | null | undefined {
   if (!("unitBasis" in body) || body.unitBasis === undefined) return undefined;
   if (body.unitBasis === null || body.unitBasis === "") return null;
@@ -190,8 +176,6 @@ function parseUnitBasis(body: Record<string, unknown>, fields: FieldIssue[]): Un
   fields.push({ field: "unitBasis", message: `must be one of ${UNIT_BASES.join(", ")}` });
   return undefined;
 }
-
-// ── Create ────────────────────────────────────────────────────────────────────────────────────
 
 export async function createProduct(
   shopId: string,
@@ -209,19 +193,15 @@ export async function createProduct(
   if (!productTypeId) fields.push({ field: "productTypeId", message: "is required" });
   if (!primaryCategoryId) fields.push({ field: "primaryCategoryId", message: "is required" });
 
-  // 098 — every product is created WITH its variants: one when it has no options (FR-002).
+  // Every product is created with its variants: one when it has no options.
   const unitBasis = parseUnitBasis(body, fields) ?? null;
   const variantSet = parseVariantSet(body, fields);
   if (!variantSet) fields.push({ field: "variants", message: "a product needs at least one variant with a price" });
   else fields.push(...validateVariantSet(variantSet.options, variantSet.variants, unitBasis));
 
-  // Media at create is OPTIONAL — a product is created as a DRAFT and its image is attached
-  // immediately after (the presign endpoint needs the product id first). The primary-image and
-  // type-mandatory-completeness requirements (FR-010) are enforced at PUBLISH (draft → active,
-  // data-model §4), via assertPublishable. If media IS supplied here, exactly one must be primary.
+  // Media is optional at create (a draft; the image follows). Primary image and mandatory attributes are checked at publish.
   const mediaInput = normaliseMedia(body.media, body.primaryMediaStorageKey, fields);
 
-  // Type must be active; category must be active.
   if (productTypeId && !(await repo.productTypeIsActive(productTypeId))) {
     fields.push({ field: "productTypeId", message: "is not an active product type" });
   }
@@ -229,8 +209,7 @@ export async function createProduct(
     fields.push({ field: "primaryCategoryId", message: "is not an active category" });
   }
 
-  // Attribute typing: any provided value must match its schema data type (mandatory-completeness is
-  // a publish-time check, not a create-time one — a draft may be partial).
+  // Values must match their data type; completeness is a publish check.
   const schemaAttrs = productTypeId ? await repo.assignmentsForType(productTypeId) : [];
   const schemaMap = new Map(schemaAttrs.map((a) => [a.attributeId, a]));
   const rawAttrs = Array.isArray(body.attributes) ? (body.attributes as Record<string, unknown>[]) : [];
@@ -240,7 +219,7 @@ export async function createProduct(
     if (norm) attributes.push(norm);
   }
 
-  // 096 — every product is taxable or GST-free from the moment it exists (FR-091).
+  // Taxable or GST-free from the start.
   if (!isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
 
   if (fields.length > 0) throw new ProductError("validation", "invalid product", fields);
@@ -249,7 +228,7 @@ export async function createProduct(
     productTypeId,
     primaryCategoryId,
     name: name!,
-    brand: optText(body.brand), // first-class column (FR-010a) — never an attribute
+    brand: optText(body.brand),
     shortDescription: shortDescription!,
     longDescription: optText(body.longDescription),
     gstStatus: body.gstStatus as GstStatus,
@@ -286,19 +265,17 @@ function normaliseMedia(
       });
     });
   }
-  // A single `primaryMediaStorageKey` shorthand (create flow uploads one image then submits).
+  // A single `primaryMediaStorageKey` shorthand.
   if (typeof primaryKey === "string" && primaryKey.length > 0 && !list.some((m) => m.storageKey === primaryKey)) {
     list.push({ storageKey: primaryKey, isPrimary: true, altText: null, displayOrder: 0 });
   }
-  if (list.length === 0) return list; // a draft may have no image yet (attached after create)
-  // Exactly one primary — default the first if none flagged, reject if more than one.
+  if (list.length === 0) return list;
+  // Exactly one primary: default the first, refuse more than one.
   const primaries = list.filter((m) => m.isPrimary);
   if (primaries.length === 0) list[0]!.isPrimary = true;
   else if (primaries.length > 1) fields.push({ field: "media", message: "only one image can be primary" });
   return list;
 }
-
-// ── Media (presign + register; shop-scoped ownership) ──────────────────────────────────────────
 
 export async function presignUpload(
   shopId: string,
@@ -330,19 +307,15 @@ export async function registerMedia(
     altText: optText(body.altText),
     displayOrder: typeof body.displayOrder === "number" ? Math.floor(body.displayOrder) : 0,
   };
-  // ⚠ 067 — an image added to an APPROVED product is a proposed image. It goes into the pending
-  // change's image set and reaches `product_media` — and customers — only when Effy approves.
+  // An image added to an approved product is proposed, live only after approval.
   const approved = await isApproved(shopId, productId);
   const registered = approved
     ? await change.registerChangeMedia(shopId, productId, input)
     : await repo.registerMedia(productId, input);
   if (!registered) throw new ProductError("not_found", "product not found");
-  if (!approved) await repo.touchProduct(shopId, productId); // a reviewer's stale view must be refused
-  // Return with a presigned GET url (the stored `url` is the key).
+  if (!approved) await repo.touchProduct(shopId, productId);
   return { ...registered, url: await media.presignRead(registered.storageKey) };
 }
-
-// ── List ──────────────────────────────────────────────────────────────────────────────────────
 
 export async function listProducts(
   shopId: string,
@@ -362,7 +335,7 @@ export async function listProducts(
   },
 ): Promise<Paged<ProductListItem>> {
   const page = toPositiveInt(params.page, 1);
-  const pageSize = Math.min(toPositiveInt(params.pageSize, 20), 100); // clamp ≤100 (FR-017/R7)
+  const pageSize = Math.min(toPositiveInt(params.pageSize, 20), 100);
   const status =
     typeof params.status === "string" && (PRODUCT_STATUSES as readonly string[]).includes(params.status)
       ? (params.status as ProductStatus)
@@ -388,7 +361,6 @@ export async function listProducts(
     order,
   };
   const paged = await repo.listProducts(shopId, clean);
-  // Replace each primary-image STORAGE KEY with a short-lived presigned GET url.
   const items = await Promise.all(
     paged.items.map(async (item) => ({
       ...item,
@@ -398,27 +370,22 @@ export async function listProducts(
   return { ...paged, items };
 }
 
-// ── Focused edit (optimistic concurrency, FR-023a) ─────────────────────────────────────────────
-
 export async function updateProduct(
   shopId: string,
   id: string,
   body: Record<string, unknown>,
-  /** 096 — who changed it, for the GST status history. */
+  /** For the GST status history. */
   actorSub: string,
 ): Promise<ProductDetail> {
   const live = await repo.getProductDetail(shopId, id);
   if (!live) throw new ProductError("not_found", "product not found");
 
-  // ⚠ 067 — THE FORK. A product Effy has never approved is still the shop's own draft and is edited
-  // in place, as before. An APPROVED product is what customers see, and a shop's edit to it is a
-  // PROPOSAL: it is merged over anything already proposed, diffed against the live product, and
-  // saved beside it. The live row is not written from here at all.
+  // A never-approved product is edited in place; an approved one gets a proposal, merged and diffed, never writing the live row.
   const pending = live.approved ? await change.readChange(shopId, id) : null;
   const current = live.approved ? change.overlay(live, pending?.proposed ?? null) : live;
 
   const expectedUpdatedAt = typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : "";
-  // The concurrency token guards the LIVE row. A proposal does not write it, so it needs none.
+  // The concurrency token guards the live row; a proposal needs none.
   if (!live.approved && !expectedUpdatedAt) {
     throw new ProductError("validation", "invalid update", [
       { field: "expectedUpdatedAt", message: "is required (optimistic concurrency token)" },
@@ -426,13 +393,12 @@ export async function updateProduct(
   }
 
   const fields: FieldIssue[] = [];
-  // Merge each supplied field over the current value (a focused edit patches a subset).
   const name = "name" in body ? requireNonEmpty(body.name, "name", fields) ?? current.name : current.name;
   const shortDescription =
     "shortDescription" in body ? requireNonEmpty(body.shortDescription, "shortDescription", fields) ?? current.shortDescription : current.shortDescription;
   const productTypeId = "productTypeId" in body && typeof body.productTypeId === "string" ? body.productTypeId : current.productTypeId;
   const primaryCategoryId = "primaryCategoryId" in body && typeof body.primaryCategoryId === "string" ? body.primaryCategoryId : current.primaryCategoryId;
-  // 098 — the variant sets, when sent, are the complete target; the basis likewise.
+  // Variant sets, when sent, are the complete target; the basis likewise.
   const unitBasisSent = parseUnitBasis(body, fields);
   const unitBasis = unitBasisSent === undefined ? current.unitBasis : unitBasisSent;
   const sentSet = parseVariantSet(body, fields);
@@ -447,8 +413,7 @@ export async function updateProduct(
     fields.push({ field: "primaryCategoryId", message: "is not an active category" });
   }
 
-  // Provided attribute values are re-typed against the (possibly new) type's schema; a mandatory
-  // attribute supplied with an invalid/empty value is rejected (mandatory cannot be cleared, FR-024).
+  // Re-typed against the (possibly new) type; a mandatory attribute cannot be cleared.
   const schemaAttrs = await repo.assignmentsForType(productTypeId);
   const schemaMap = new Map(schemaAttrs.map((a) => [a.attributeId, a]));
   const rawAttrs = Array.isArray(body.attributes) ? (body.attributes as Record<string, unknown>[]) : [];
@@ -458,7 +423,7 @@ export async function updateProduct(
     if (norm) attributes.push(norm);
   }
 
-  // 096 — absent leaves it as it stands; present must be one of the two.
+  // Absent leaves it; present must be one of the two.
   if ("gstStatus" in body && !isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
   const gstStatus = isGstStatus(body.gstStatus) ? body.gstStatus : null;
 
@@ -472,9 +437,9 @@ export async function updateProduct(
       brand: "brand" in body ? optText(body.brand) : current.brand,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
-      // 096 — on a live product the GST status is PROPOSED and reviewed, like every other detail.
+      // On a live product the GST status is proposed and reviewed.
       gstStatus: gstStatus ?? current.gstStatus,
-      // 098 — so are the options and variants: added sizes, prices, codes, weights, pack sizes.
+      // So are options and variants.
       unitBasis,
       options: targetSet.options,
       variants: targetSet.variants,
@@ -514,8 +479,6 @@ export async function updateProduct(
   return getProduct(shopId, id);
 }
 
-// ── Lifecycle ──────────────────────────────────────────────────────────────────────────────────
-
 export async function changeStatus(
   shopId: string,
   id: string,
@@ -527,9 +490,7 @@ export async function changeStatus(
       { field: "status", message: `must be one of ${PRODUCT_STATUSES.join(", ")}` },
     ]);
   }
-  // ⚠ 067 — A SHOP CANNOT PUT A NEVER-APPROVED PRODUCT ON SALE. "Publish" is gone for those: the way
-  // on to the storefront is to submit for review. An approved product the shop took off sale goes
-  // back on immediately (FR-025) — nothing about it changed, so there is nothing to review.
+  // A never-approved product cannot go on sale (submit for review instead); an approved one taken off sale goes back at once.
   if (status === "active") {
     const facts = await repo.reviewFacts(shopId, id);
     if (!facts) throw new ProductError("not_found", "product not found");
@@ -537,8 +498,7 @@ export async function changeStatus(
       throw new ProductError("conflict", "submit this product for review — Effy approves a product before it goes on sale");
     }
   }
-  // Publishing (→ active) re-validates ALL mandatory fields: every type-mandatory attribute present
-  // AND a primary image (FR-010, data-model §4). This is the enforcement point create defers.
+  // Going active re-validates every mandatory attribute and a primary image.
   if (status === "active") {
     const detail = await repo.getProductDetail(shopId, id);
     if (!detail) throw new ProductError("not_found", "product not found");
@@ -609,14 +569,11 @@ export async function removeMedia(shopId: string, productId: string, mediaId: st
   }
 }
 
-// ── 098 — a variant on or off sale, immediately ───────────────────────────────────────────────
-
 const VARIANT_STATES = ["active", "inactive", "removed"] as const;
 
 /**
- * Turn one variant on or off, or remove it — at once, approved product or not (spec FR-009: stopping a
- * sale never waits on review). The product always keeps one variant on sale (FR-019). A removed
- * variant is dropped from any pending proposal too, so approving that proposal cannot bring it back.
+ * Immediately, approved or not: stopping a sale never waits on review. One variant always stays on
+ * sale. A removed variant is dropped from any pending proposal too.
  */
 export async function setVariantState(
   shopId: string,
@@ -651,23 +608,18 @@ export async function setVariantState(
   }
   if (outcome === "ok") {
     emitMetric(metricNamespace(), "VariantStateChanged", 1, { state });
-    // The shop's stock and attention lists show variants; they are now out of date (071).
     await announce([{ scope: "shop", shopId, kind: "stock" }]);
   }
   return getProduct(shopId, productId);
 }
 
-// ── Detail ────────────────────────────────────────────────────────────────────────────────────
-
 export async function getProduct(shopId: string, id: string): Promise<ProductDetail> {
   const detail = await repo.getProductDetail(shopId, id);
   if (!detail) throw new ProductError("not_found", "product not found");
-  // Replace each media STORAGE KEY (currently in `url`) with a short-lived presigned GET url.
   detail.media = await Promise.all(
     detail.media.map(async (m) => ({ ...m, url: await media.presignRead(m.storageKey) })),
   );
-  // 067 — the shop's pending proposal, shown BESIDE the live product above and never merged into it:
-  // the shop must be able to see what customers are looking at right now.
+  // The pending proposal is shown beside the live product, never merged into it.
   if (detail.approved) {
     const pending = await change.readChange(shopId, id);
     if (pending) {
@@ -686,19 +638,11 @@ export async function getProduct(shopId: string, id: string): Promise<ProductDet
   return detail;
 }
 
-// ── Review (067) ──────────────────────────────────────────────────────────────────────────────
-
 async function isApproved(shopId: string, productId: string): Promise<boolean> {
   return (await repo.reviewFacts(shopId, productId))?.approved ?? false;
 }
 
-/**
- * Submit a never-approved product for Effy's review.
- *
- * Runs the SAME checks "publish" used to run — every type-mandatory attribute and a primary image —
- * because what is being asked for is the same thing: this product, on sale. The difference is who
- * says yes.
- */
+/** The same checks "publish" ran (mandatory attributes, a primary image); Effy says yes. */
 export async function submitForReview(shopId: string, id: string): Promise<ProductDetail> {
   const detail = await repo.getProductDetail(shopId, id);
   if (!detail) throw new ProductError("not_found", "product not found");
@@ -712,7 +656,7 @@ export async function submitForReview(shopId: string, id: string): Promise<Produ
   if (!(await repo.hasPrimaryImage(shopId, id))) {
     fields.push({ field: "media", message: "a primary image is required before this can be reviewed" });
   }
-  // 098 — every variant priced, and the set valid as a whole (US1-6), before Effy is asked.
+  // Every variant priced and the set valid before Effy is asked.
   const set = change.liveVariantInputs(detail);
   if (!detail.variants.some((v) => v.state === "active")) fields.push({ field: "variants", message: "at least one variant must be on sale" });
   fields.push(...validateVariantSet(set.options, set.variants, detail.unitBasis));
@@ -721,10 +665,7 @@ export async function submitForReview(shopId: string, id: string): Promise<Produ
   return getProduct(shopId, id);
 }
 
-/**
- * Withdraw: take a submitted product back out of the queue, or discard a pending change.
- * Either way the live product — if there is one — is untouched, so there is nothing to undo.
- */
+/** Takes a submission back out of the queue or discards a pending change; the live product is untouched. */
 export async function withdraw(shopId: string, id: string): Promise<ProductDetail> {
   const facts = await repo.reviewFacts(shopId, id);
   if (!facts) throw new ProductError("not_found", "product not found");
@@ -732,8 +673,6 @@ export async function withdraw(shopId: string, id: string): Promise<ProductDetai
   if (!done) throw new ProductError("conflict", "there is nothing waiting for review on this product");
   return getProduct(shopId, id);
 }
-
-// ── small helpers ───────────────────────────────────────────────────────────────────────────────
 
 function toPositiveInt(value: unknown, fallback: number): number {
   const n = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
@@ -746,16 +685,8 @@ function numericStr(value: unknown): string | null {
 }
 
 /**
- * Normalise an optional shipping weight (032, FR-036a).
- *
- * ⚠ Returns NULL for "not supplied", which the repository turns into "keep the column default / leave
- * the row alone". It never returns 0: a zero-weight product is free-delivery-by-arithmetic — the same
- * defect class as a pricing band gap meaning no fee — and the CHECK constraint refuses it anyway, so
- * catching it here gives the operator a field error instead of a 500.
- *
- * ⚠ There is deliberately no path for a client to set `weightIsAssumed`. The flag is derived from the
- * ACT of supplying a weight; if a client could set it, "measured" would mean only "the client said so"
- * and the flag would stop distinguishing anything.
+ * Null for "not supplied" (keep the default), never 0: a zero weight ships free and the check refuses it.
+ * There is no client path to `weightIsAssumed`; it follows from supplying a weight.
  */
 function normaliseWeight(raw: unknown, fields: FieldIssue[]): number | null {
   if (raw === undefined || raw === null || raw === "") return null;
@@ -768,7 +699,7 @@ function normaliseWeight(raw: unknown, fields: FieldIssue[]): number | null {
     fields.push({ field: "weightGrams", message: "must be greater than zero — a weightless product would ship free" });
     return null;
   }
-  // A quarter-tonne single item is not a grocery; it is a typo (250000 for 250g is the obvious one).
+  // A quarter-tonne single item is a typo (250000 for 250g).
   if (n > 250_000) {
     fields.push({ field: "weightGrams", message: "is over 250 kg — check the units (this field is GRAMS)" });
     return null;

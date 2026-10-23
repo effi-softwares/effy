@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the S3 SDK + presigner so no network/credentials are touched. presignUpload's job here is
-// content-type + size validation and key shaping; the signing itself is the SDK's.
+// The S3 SDK and presigner are mocked: under test are validation and key shaping.
 const getSignedUrl = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl }));
 vi.mock("@aws-sdk/client-s3", () => ({

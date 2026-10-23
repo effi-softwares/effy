@@ -26,7 +26,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Receipt mapping (023 US5): `billingAddress` null → "same as shipping"; a value → both in full. */
+/** Receipt mapping: `billingAddress` null → "same as shipping"; a value → both in full. */
 class CheckoutMappersTest {
 
     private fun address(name: String) = OrderAddressDTO(
@@ -96,14 +96,9 @@ class CheckoutMappersTest {
         assertEquals("Bill To St, Melbourne 3000, AU", receipt.billingAddressLine)
     }
 
-    // ── 052 ─────────────────────────────────────────────────────────────────────────────────────
+    // 052
 
-    /**
-     * ⚠ THE DEFECT THIS SLICE FOUND ON MOBILE. `deliveryFeeAmount` was never mapped, so this receipt
-     * showed Items − Discount = Total while the shopper had actually been charged delivery. 051's
-     * FR-043 recorded exactly this and fixed it on customer-web only. A receipt whose lines do not add
-     * up is not one anybody can check.
-     */
+    /** The receipt maps `deliveryFeeAmount`, so its lines add up. */
     @Test
     fun deliveryFeeIsMappedSoTheLinesAddUp() {
         val receipt = order(billing = null, deliveryFee = "8.00").toReceipt()
@@ -123,7 +118,7 @@ class CheckoutMappersTest {
         assertEquals(OrderStage.Delivered, order(null, stage = DtoOrderStage.Delivered).toReceipt().stage)
     }
 
-    /** FR-006: absence is normal — a pre-052 order, or a failed post-commit capture. */
+    /** Absence is normal — a pre-052 order, or a failed post-commit capture. */
     @Test
     fun anUncapturedPaymentMethodMapsToNullRatherThanABlank() {
         assertNull(order(billing = null, method = null).toReceipt().paymentMethod)
@@ -139,7 +134,7 @@ class CheckoutMappersTest {
     }
 
     /**
-     * FR-007 / research R4: the arrival is a DATE RANGE. ⚠ Nothing mapped here may carry a time — the
+     * FR-007 / research R4: the arrival is a date range. Nothing mapped here may carry a time — the
      * platform has no delivery window and must not appear to promise one.
      */
     @Test
@@ -171,9 +166,9 @@ class CheckoutMappersTest {
     }
 
     /**
-     * ⚠ 055 — THE MAPPER MUST NOT DROP IT.
+     * The mapper must not drop it.
      *
-     * This is the exact shape that lost `brand`, `badges` and (033) `productId` on this surface: the
+     * This is the exact shape that lost `brand`, `badges` and `productId` on this surface: the
      * backend sent the field and the domain model simply did not ask for it. Nothing failed, nothing
      * logged — the control just never appeared, and the reason was invisible from the screen.
      */
@@ -184,9 +179,9 @@ class CheckoutMappersTest {
     }
 
     /**
-     * ⚠ AND IT IS NEVER DERIVED FROM THE STAGE. A client computing this from `stage` would be a second
+     * And it is never derived from the stage. A client computing this from `stage` would be a second
      * implementation of a rule the server owns — the `summarizeFulfillment` mistake 052 deleted. A
-     * `confirmed` order that a shop has already begun is NOT cancellable, and only the server knows.
+     * `confirmed` order that a shop has already begun is not cancellable, and only the server knows.
      */
     @Test
     fun cancellableIsTakenFromTheServerNotInferredFromTheStage() {
@@ -199,12 +194,12 @@ class CheckoutMappersTest {
         assertEquals(false, confirmedButStarted.cancellable)
     }
 
-    // ── 055 US5 ─────────────────────────────────────────────────────────────────────────────────
+    // 055 US5
 
     /**
-     * ⚠ FR-028 — NO REFUNDS MEANS RENDER NOTHING, not an empty section.
+     * No refunds means render nothing, not an empty section.
      *
-     * ⚠ AND `amountPaidAfterRefunds` FALLS BACK TO THE CHARGED TOTAL, not to "0.00". A zero here
+     * And `amountPaidAfterRefunds` falls back to the charged total, not to "0.00". A zero here
      * would tell a shopper who was never refunded that they paid nothing.
      */
     @Test
@@ -216,7 +211,7 @@ class CheckoutMappersTest {
         assertEquals(false, receipt.fullyRefunded)
     }
 
-    /** ⚠ The figures a shopper reconciles against their bank statement. */
+    /** The figures a shopper reconciles against their bank statement. */
     @Test
     fun refundTotalsAreMappedNotRecomputed() {
         val receipt = order(
@@ -230,14 +225,14 @@ class CheckoutMappersTest {
         ).toReceipt()
 
         assertEquals(2, receipt.refunds.size)
-        // ⚠ The SERVER's arithmetic, not this client's. A second implementation of one sum is how two
+        // The server's arithmetic, not this client's. A second implementation of one sum is how two
         // surfaces come to disagree about a shopper's money.
         assertEquals("10.00", receipt.refundedTotal)
         assertEquals("40.00", receipt.amountPaidAfterRefunds)
     }
 
     /**
-     * ⚠ THE RECEIPT IS UNCHANGED BY A REFUND (FR-024). What was CHARGED is a historical record; a
+     * The receipt is unchanged by a refund. What was charged is a historical record; a
      * document that rewrote itself could not be reconciled against a bank statement.
      */
     @Test
@@ -255,7 +250,7 @@ class CheckoutMappersTest {
         assertEquals(true, receipt.fullyRefunded)
     }
 
-    /** ⚠ Each wire state maps to exactly one domain state — none may silently become another. */
+    /** Each wire state maps to exactly one domain state — none may silently become another. */
     @Test
     fun everyWireRefundStateMapsToItsOwnDomainState() {
         val pairs = mapOf(
@@ -273,9 +268,9 @@ class CheckoutMappersTest {
     }
 
     /**
-     * ⚠ 055 — THE LINE's OWN ID MUST SURVIVE THE MAPPER.
+     * The line's own ID must survive the mapper.
      *
-     * This is the third time this exact shape has bitten this surface: `brand`, `badges` and (033)
+     * This is the third time this exact shape has bitten this surface: `brand`, `badges` and
      * `productId` were all sent by the backend and dropped by the domain model. Nothing fails — the
      * feature just silently does nothing, and the reason is invisible from the screen. Here it would
      * mean every item a shopper named in a refund request was quietly discarded by the server's join.
@@ -285,7 +280,7 @@ class CheckoutMappersTest {
         assertEquals("oi1", order(billing = null).toReceipt().items.single().orderItemId)
     }
 
-    // ── 077 — the delivery fee as lines ──────────────────────────────────────────────────────────
+    // The delivery fee as lines
 
     @Test
     fun `077 - a receipt carries the lines the order was sold with`() {

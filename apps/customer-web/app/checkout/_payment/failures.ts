@@ -1,18 +1,18 @@
 /**
- * Turning a provider's refusal into something a shopper can act on (051 US5).
+ * Turning a provider's refusal into something a shopper can act on.
  *
- * ⚠ THIS FILE EXISTS BECAUSE "SOMETHING WENT WRONG" IS NOT AN ANSWER. A shopper told only that has no
+ * This file exists because "SOMETHING WENT WRONG" is not an answer. A shopper told only that has no
  * way to decide whether to wait, try a different card, or give up — so they abandon the basket, which
- * is the outcome nobody wanted. Every message below names a cause and points at a next step (FR-036).
+ * is the outcome nobody wanted. Every message below names a cause and points at a next step.
  *
- * ⚠ AND BECAUSE A PROVIDER'S OWN STRING IS WRITTEN FOR A DEVELOPER. "Your card was declined" is fine;
+ * And because a provider's own string is written for a developer. "Your card was declined" is fine;
  * `payment_intent_authentication_failure` is not, and neither is a raw `decline_code`. Where the
  * provider gives a genuinely shopper-facing sentence we prefer it (it is localised and specific); where
  * it gives a code, we say something useful instead.
  *
- * ⚠ EVERY MESSAGE SAYS WHAT HAPPENED TO THE MONEY. "Nothing has been charged" is the single most
+ * Every message says what happened to the money. "Nothing has been charged" is the single most
  * useful fact after a failed payment, and it is true on every path here: a refused payment charges
- * nothing, and the basket survives (FR-037).
+ * nothing, and the basket survives.
  */
 
 /** What the shopper should be told, and what they can do about it. */
@@ -22,7 +22,7 @@ export type PaymentFailure = {
   /** What to do next. Always actionable, never "please try again later" alone. */
   detail: string
   /**
-   * Whether retrying the SAME method could plausibly work. A declined card will not start working on
+   * Whether retrying the same method could plausibly work. A declined card will not start working on
    * a second press, and inviting a retry that cannot succeed wastes the shopper's patience on the
    * screen where they have least of it.
    */
@@ -82,7 +82,7 @@ export function failureForDeclineCode(code: string | undefined): PaymentFailure 
       }
     case "lost_card":
     case "stolen_card":
-      // ⚠ Deliberately vague, and that is not an oversight. Stripe's own guidance is not to tell the
+      // Deliberately vague, and that is not an oversight. Stripe's own guidance is not to tell the
       // person at the keyboard that a card was reported lost or stolen — they may not be the
       // cardholder. The message is truthful without being an alert to a thief.
       return {
@@ -133,9 +133,9 @@ export const ABANDONED_AT_PROVIDER: PaymentFailure = {
 /**
  * The bank wants the shopper to approve the payment (3DS).
  *
- * ⚠ NOT A FAILURE, and it must not read like one. This is the single most common moment a shopper
+ * Not a failure, and it must not read like one. This is the single most common moment a shopper
  * panics and closes the tab — being told in advance that their bank will ask, and that they will be
- * brought back, is what stops that (FR-040).
+ * brought back, is what stops that.
  */
 export const BANK_APPROVAL_REQUIRED = {
   title: "Your bank needs to approve this payment.",

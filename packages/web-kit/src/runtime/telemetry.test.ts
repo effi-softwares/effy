@@ -17,8 +17,7 @@ interface TestEvent {
 afterEach(() => vi.clearAllMocks());
 
 describe("createTelemetry", () => {
-  // Without a PostHog key, init() never arms the SDK → track()/reportError() must degrade to a
-  // no-op, never a crash (constitution Principle VII; the console works with telemetry off).
+  // Without a PostHog key, track and reportError are no-ops, never a crash.
   it("track and reportError are safe no-ops when unconfigured", () => {
     const telemetry = createTelemetry<TestEvent>({
       key: undefined,
@@ -35,8 +34,7 @@ describe("createTelemetry", () => {
     expect(init).not.toHaveBeenCalled();
   });
 
-  // 050 FR-026 — the kill switch. `enabled: false` must prevent the SDK from initialising at all,
-  // so no analytics is collected without an app release.
+  // The kill switch: `enabled: false` keeps the SDK from initialising at all.
   it("does NOT init when the kill switch is off (enabled=false)", () => {
     const telemetry = createTelemetry<TestEvent>({
       key: "phc_test",
@@ -50,7 +48,7 @@ describe("createTelemetry", () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
-  // 050 R11 — session replay is OFF, and no autocapture/auto-pageview, on the consoles.
+  // No session replay, autocapture or auto-pageview on the consoles.
   it("initialises with autocapture off, pageview off, identified-only (no session replay)", () => {
     const telemetry = createTelemetry<TestEvent>({
       key: "phc_test",
@@ -63,7 +61,7 @@ describe("createTelemetry", () => {
     expect(cfg.autocapture).toBe(false);
     expect(cfg.capture_pageview).toBe(false);
     expect(cfg.person_profiles).toBe("identified_only");
-    // session replay is never enabled here — its config key is simply absent (default off).
+    // Session replay's config key is absent (default off).
     expect(cfg.disable_session_recording ?? true).toBeTruthy();
     expect(register).toHaveBeenCalledWith({ surface: "back-office" });
   });

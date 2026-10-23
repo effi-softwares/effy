@@ -18,17 +18,8 @@ import { dutyQuery, useEndDutySession } from "../queries";
 import { useState } from "react";
 
 /**
- * Who is working right now (US4, FR-034…FR-037).
- *
- * ⚠ WHY THIS PANEL EXISTS. Assignment on this platform is automatic and driverless by design — 049
- * settled "no dispatcher, no accept/decline", and that is the right model for a small fleet. But a
- * system that decides on its own is only safe if a human can OBSERVE what it decided. Before this,
- * nobody at Effy could see whether a single driver was on duty, and the only symptom of "nobody is
- * working" was orders quietly not moving.
- *
- * ⚠ A LIST AND A SENTENCE, NOT METRIC TILES (Principle V). "3 on duty / 12 waiting / 1 overdue" as
- * three cards is the obvious design and the constitution forbids it — and the sentence below is more
- * useful anyway, because it says what the numbers MEAN together.
+ * Who is working right now. Assignment is automatic, which is safe only if a person can see what it
+ * decided. A list and a sentence saying what the numbers mean together, not metric tiles.
  */
 export function DutyPanel() {
   const roles = useSessionRoles();
@@ -51,7 +42,7 @@ export function DutyPanel() {
       title="On duty now"
       icon={<Radio aria-hidden="true" />}
       description={
-        /* ⚠ THE SENTENCE THAT ANSWERS "WHY IS NOTHING MOVING?". With nobody on duty, an empty list
+        /* The sentence that answers "WHY IS NOTHING MOVING?". With nobody on duty, an empty list
            reads as "nothing to see" — it is the waiting count beside it that turns silence into a
            cause. FR-036 exists because that state was invisible. */
         waiting > 0 && data.unassigned.driversOnDuty === 0 ? undefined : waiting > 0 ? (
@@ -125,7 +116,7 @@ export function DutyPanel() {
                       {durationSince(d.onDutySince)}
                     </td>
                     <td data-m="meta" data-label="Finish">
-                      {/* ⚠ 061 FR-033 — "unknown" is a real answer and is SAID, not implied by a blank. */}
+                      {/* "unknown" is a real answer and is said, not implied by a blank. */}
                       <span className={d.pastExpectedEnd ? "font-medium" : d.expectedEndAt ? undefined : "text-muted-foreground"}>
                         {d.pastExpectedEnd ? "Past their expected finish" : d.expectedEndAt ? `Expects to finish ${formatTime(d.expectedEndAt)}` : "Finish time unknown"}
                       </span>

@@ -1,14 +1,5 @@
-// Repository for back-office driver management (056): raw parameterized SQL, no ORM.
-//
-// Replaces apis/edge-api/admin/src/drivers/repository.ts, which was 049's minimal provisioning
-// adjunct. Three of its behaviours are deliberately NOT carried over, each because it was a defect:
-//
-//   1. `ON CONFLICT (cognito_sub) DO UPDATE` on create — which made "add a driver" silently edit an
-//      existing one (FR-014; now a refusal, and the refusal is a DATABASE guarantee via the citext
-//      UNIQUE index that has been on work_email since 049).
-//   2. `COALESCE($n, col)` on update — which cannot distinguish "leave alone" from "clear", so a
-//      zone once assigned could never be un-assigned (FR-010).
-//   3. `ORDER BY d.name ASC` with no limit and no search — the whole table, always (FR-003/FR-004).
+// No upsert on create (a duplicate is refused, by the citext unique on work_email), presence-based
+// updates (absent leaves alone, null clears), and a paged, searchable register.
 import { query, withTransaction } from "@effy/edge-shared";
 import type {
   AdminDriverCredentials,
@@ -22,8 +13,6 @@ import type pg from "pg";
 
 import { listForDriver, summariseForDrivers } from "../capabilities/repository";
 import { BLOCKED_REASONS, ON_DUTY_EXISTS } from "./sql";
-
-// ── Row shapes (data layer only — never leak past the mapper, Principle VI) ───────────────────────
 
 interface ListRow {
   id: string;
@@ -47,24 +36,18 @@ interface ProfileRow extends ListRow {
   status_changed_at: Date;
   started_on: Date | null;
   notes: string | null;
-  /** Text, not Date — see the to_char in PROFILE_SELECT. */
+  /** Text, not Date (see the to_char in PROFILE_SELECT). */
   updated_at: string;
   hub_label: string | null;
 }
 
-/** `date` columns come back as a Date at local midnight; only the calendar day is meaningful. */
+/** Only the calendar day is meaningful. */
 function dateOnly(d: Date | null): string | null {
   if (!d) return null;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/**
- * ⚠ `capabilitySummary` is filled in by the CALLER, in one batched read (062, FR-014).
- *
- * Doing it per row would be N+1 on a paged list, and embedding the full clearance set would put an
- * unbounded array on every row — a register does not need every grant, only whether this driver is
- * broadly or narrowly cleared.
- */
+/** Filled in by the caller in one batched read: a summary, never the full clearance set. */
 function toListItem(r: ListRow, summary: DriverCapabilitySummary): AdminDriverListItem {
   return {
     id: r.id,
@@ -107,37 +90,25 @@ export interface ListResult {
   nextCursor: string | null;
 }
 
-/**
- * The register (FR-002…FR-005).
- *
- * ⚠ KEYSET PAGING ON `(name, id)`, AND THE CURSOR IS MINTED FROM THE SAME EXPRESSION. 053's order
- * list ordered and filtered on `created_at` but minted its cursor from `placed_at` — always the later
- * instant — so paging RE-SHOWED ROWS. Its first test passed with the defect in place because it
- * called the repository directly and supplied its own cursor, never touching the service where the
- * cursor is minted. `(name, id)` is a total order (id breaks ties on duplicate names), so no row can
- * be skipped or repeated.
- */
+/** Keyset paging on `(name, id)`, a total order, with the cursor minted from the same pair. */
 export async function listDrivers(params: ListParams): Promise<ListResult> {
   const where: string[] = [];
   const args: unknown[] = [];
 
   if (params.q) {
     args.push(`%${params.q}%`);
-    // ILIKE on both, backed by the trigram index on name; work_email is citext so ILIKE is
-    // case-insensitive by the column's own semantics rather than by the operator's.
+    // ILIKE on both (trigram index on name; work_email is citext).
     where.push(`(d.name ILIKE $${args.length} OR d.work_email ILIKE $${args.length})`);
   }
   if (params.statuses && params.statuses.length > 0) {
     args.push(params.statuses);
     where.push(`d.status = ANY($${args.length}::text[])`);
   } else if (!params.includeOffboarded) {
-    // FR-005 — a register full of people who left is a register nobody reads.
+    // Leavers are hidden by default.
     where.push(`d.status <> 'offboarded'`);
   }
   if (params.zoneId) {
-    // ⚠ 062 — filtering by zone now means "cleared for this zone", which includes every-zone drivers.
-    // Matching only zone-specific grants would silently hide the people with the BROADEST clearance,
-    // which is the opposite of what an operator filtering by zone is looking for.
+    // "Cleared for this zone" includes every-zone drivers.
     args.push(params.zoneId);
     where.push(`EXISTS (
       SELECT 1 FROM public.driver_zone_capability fc
@@ -152,7 +123,6 @@ export async function listDrivers(params: ListParams): Promise<ListResult> {
     }
   }
 
-  // One extra row tells us whether another page exists without a second COUNT query.
   args.push(params.limit + 1);
   const sql = `${LIST_SELECT}
     ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
@@ -163,12 +133,10 @@ export async function listDrivers(params: ListParams): Promise<ListResult> {
   const rows = res.rows.slice(0, params.limit);
   const hasMore = res.rows.length > params.limit;
   const last = rows[rows.length - 1];
-  // ⚠ ONE batched read for the whole page, not one per row (FR-014). N+1 on a register is how a
-  // screen that felt fine with three drivers stops feeling fine with thirty.
+  // One batched read for the page, not one per row.
   const summaries = await summariseForDrivers(rows.map((r) => r.id));
   return {
     items: rows.map((r) => toListItem(r, summaries.get(r.id) ?? EMPTY_SUMMARY)),
-    // ⚠ Minted from `name` and `id` — the SAME pair the ORDER BY and the WHERE use.
     nextCursor: hasMore && last ? encodeCursor(last.name, last.id) : null,
   };
 }
@@ -186,8 +154,7 @@ export function decodeCursor(raw: string): { name: string; id: string } | null {
     if (typeof parsed.n !== "string" || typeof parsed.i !== "string") return null;
     return { name: parsed.n, id: parsed.i };
   } catch {
-    // A malformed cursor restarts the listing rather than 500-ing. It can only come from a client
-    // that mangled one we issued, and losing your place is a better outcome than an error page.
+    // A malformed cursor restarts the listing rather than 500-ing.
     return null;
   }
 }
@@ -200,9 +167,7 @@ const PROFILE_SELECT = `
          d.licence_class,
          d.licence_reference,
          d.licence_expires_on,
-         -- ⚠ 061: what the driver is driving is no longer two free-text columns nobody maintained.
-         -- It is the vehicle behind their OPEN holding, so the Account screen in the driver app
-         -- shows a true answer without one line of Kotlin changing. NULL when they hold nothing,
+         -- ⚠ what the driver is driving is the vehicle behind their OPEN holding. NULL when they hold nothing,
          -- which is an ordinary state.
          hv.body_type         AS held_vehicle_type,
          hv.registration_plate AS held_vehicle_plate,
@@ -224,14 +189,13 @@ const PROFILE_SELECT = `
          (SELECT 'Effy Hub' FROM public.delivery_settings LIMIT 1) AS hub_label
     FROM public.driver d
     -- ⚠ The OPEN holding is the single source of truth for "what does this driver have".
-    -- There is deliberately no driver.current_vehicle_id: a second place stating one fact is
-    -- 033/052/053's recurring defect, where the two disagree and nobody knows which is true.
+    -- There is deliberately no driver.current_vehicle_id: two places stating one fact disagree.
     LEFT JOIN public.vehicle_holding hh ON hh.driver_id = d.id AND hh.ended_at IS NULL
     LEFT JOIN public.vehicle hv         ON hv.id = hh.vehicle_id
    WHERE d.id = $1
 `;
 
-/** The profile (FR-006). `accountState` is filled in by the service, which owns the identity read. */
+/** `accountState` is filled in by the service. */
 export async function getDriver(
   id: string,
 ): Promise<(Omit<AdminDriverProfile, "accountState"> & { workEmail: string }) | null> {
@@ -244,7 +208,6 @@ export async function getDriver(
     workEmail: r.work_email,
     contactPhone: r.contact_phone,
     hub: r.hub_label,
-    // ⚠ 062 — everything this driver is cleared for, read alongside the profile (FR-007).
     capabilities: await listForDriver(id),
     vehicle: { type: r.held_vehicle_type, plate: r.held_vehicle_plate },
     credentials: {
@@ -264,7 +227,7 @@ export async function getDriver(
   };
 }
 
-/** Find a driver by work email regardless of status — the duplicate check behind FR-014. */
+/** Regardless of status: the duplicate check. */
 export async function findByWorkEmail(
   email: string,
 ): Promise<{ id: string; name: string; status: DriverEmploymentStatus } | null> {
@@ -275,17 +238,7 @@ export async function findByWorkEmail(
   return res.rows[0] ?? null;
 }
 
-// ── Writes ───────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The mutable columns, mapped from DTO key → column name.
- *
- * ⚠ A KEY'S PRESENCE IN THE PATCH IS THE SIGNAL, NOT ITS VALUE. This map is what lets the update
- * distinguish "absent → leave alone" from "null → clear" (FR-010). `COALESCE($n, col)` collapses
- * those two into one, which is why a zone could never be un-assigned before this.
- *
- * ⚠ `work_email` is absent: it is the identity key (research R7).
- */
+/** DTO key → column. A key's presence is the signal: absent leaves alone, null clears. `work_email` is the identity key and absent. */
 const MUTABLE_COLUMNS: Record<string, string> = {
   name: "name",
   contactPhone: "contact_phone",
@@ -298,7 +251,6 @@ const MUTABLE_COLUMNS: Record<string, string> = {
   notes: "notes",
 };
 
-/** uuid and date columns need an explicit cast when the value can be null. */
 const COLUMN_CAST: Record<string, string> = {
   licence_expires_on: "::date",
   started_on: "::date",
@@ -306,12 +258,7 @@ const COLUMN_CAST: Record<string, string> = {
 
 export type UpdateOutcome = "updated" | "not_found" | "stale";
 
-/**
- * Apply a patch under optimistic concurrency.
- *
- * Returns `stale` when the row exists but `updated_at` has moved — someone else saved first, and the
- * spec's edge case requires that the second save be refused rather than silently discard the first.
- */
+/** `stale` when `updated_at` has moved: the second save is refused, never silently discarding the first. */
 export async function updateDriver(
   id: string,
   patch: Record<string, unknown>,
@@ -321,14 +268,14 @@ export async function updateDriver(
   const args: unknown[] = [id, expectedUpdatedAt];
 
   for (const [key, column] of Object.entries(MUTABLE_COLUMNS)) {
-    // `in` — not a truthiness check. A key present with `null` MUST reach the SET clause.
+    // `in`, not truthiness: a key present with null must reach the set clause.
     if (!(key in patch)) continue;
     args.push(patch[key]);
     sets.push(`${column} = $${args.length}${COLUMN_CAST[column] ?? ""}`);
   }
 
   if (sets.length === 0) {
-    // Nothing to change. Still distinguish "no such driver" from "nothing asked for".
+    // Nothing to change; still tell "no such driver" from "nothing asked for".
     const exists = await query<{ ok: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM public.driver WHERE id = $1) AS ok`,
       [id],
@@ -360,13 +307,7 @@ export interface InsertDriverInput {
   profile: Record<string, unknown>;
 }
 
-/**
- * Insert a new driver record.
- *
- * ⚠ A PLAIN INSERT. No `ON CONFLICT` clause — a duplicate must raise, so the service can turn it into
- * FR-014's named refusal. The upsert this replaces is exactly how "add a new driver" became "edit
- * whoever already has that email", silently and with a success response.
- */
+/** A plain INSERT, so a duplicate raises and becomes a named refusal. */
 export async function insertDriver(input: InsertDriverInput): Promise<string> {
   const columns = ["cognito_sub", "name", "work_email", "status", "status_changed_at"];
   const values = ["$1", "$2", "$3", "'active'", "now()"];
@@ -386,7 +327,7 @@ export async function insertDriver(input: InsertDriverInput): Promise<string> {
   return res.rows[0]!.id;
 }
 
-/** Apply an employment status transition and audit it, in one transaction. */
+/** In one transaction with its audit row. */
 export async function setStatus(
   id: string,
   status: DriverEmploymentStatus,

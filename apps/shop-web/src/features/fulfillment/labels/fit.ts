@@ -1,5 +1,5 @@
 /**
- * 096 — fitting a label's text by MEASURED width (research R10).
+ * Fitting a label's text by measured width.
  *
  * The label is a fixed-size document for paper, so text cannot reflow onto a next page: a long name or
  * address must shrink, then wrap, and never run off the label. Widths come from the Helvetica AFM tables

@@ -3,14 +3,14 @@ package com.effyshopping.customer.mobile.core.payment
 import platform.UIKit.UIView
 
 /**
- * The Swift-implemented in-app payment element bridge (051 T050).
+ * The Swift-implemented in-app payment element bridge.
  *
- * ⚠ PLAIN CALLBACKS, NO `suspend`, and no Kotlin coroutine types in the signatures — a Swift `NSObject`
+ * Plain callbacks, no `suspend`, and no Kotlin coroutine types in the signatures — a Swift `NSObject`
  * has to be able to conform to this, exactly as [IosPaymentBridge] and `IosAuthBridge` already do. The
  * `suspend` shape is reconstructed on the Kotlin side.
  *
- * ⚠ THE PROVIDER'S SDK IS SWIFT-ONLY. Kotlin/Native cannot call `EmbeddedPaymentElement` directly, so
- * Swift owns the element and hands back the two things Compose needs: a [UIView] to embed, and a stream
+ * The provider's SDK is swift-only. Kotlin/Native cannot call `EmbeddedPaymentElement` directly, so
+ * swift owns the element and hands back the two things Compose needs: a [UIView] to embed, and a stream
  * of state changes.
  */
 interface IosPaymentElementBridge {
@@ -19,8 +19,8 @@ interface IosPaymentElementBridge {
      * Build the element and load the shopper's payment options.
      *
      * [onReady] fires once with the element's view when it is usable, or with a null view and a message
-     * when it is not. ⚠ A shopper who cannot pay must be TOLD; an inert screen with no message is
-     * indistinguishable from a broken app (FR-036).
+     * when it is not. A shopper who cannot pay must be told; an inert screen with no message is
+     * indistinguishable from a broken app.
      */
     fun create(
         clientSecret: String,
@@ -43,7 +43,7 @@ interface IosPaymentElementBridge {
 /**
  * The element's view, once loaded.
  *
- * ⚠ [heightPoints] is not cosmetic. The element's height CHANGES as the shopper selects a method (a
+ * [heightPoints] is not cosmetic. The element's height changes as the shopper selects a method (a
  * form expands beneath the row), and a Compose interop view has a fixed measured height unless it is
  * told otherwise — so without this the list is clipped and the shopper cannot reach the fields. It
  * arrives again on every [BridgeElementSelection].
@@ -62,11 +62,8 @@ data class BridgeElementSelection(
 )
 
 /**
- * A flat payment result the Swift bridge returns. [outcome] is `completed` | `canceled` | `failed`.
- *
- * ⚠ Kotlin/Native cannot receive a sealed [PaymentResult] from Swift, so the bridge speaks strings and
- * the Kotlin side maps them back — the same shape the retired `IosPaymentBridge` used, which is where
- * this type lived until the modal sheet was removed.
+ * A flat payment result from the Swift bridge; [outcome] is `completed` | `canceled` | `failed`. Kotlin/Native
+ * cannot receive a sealed [PaymentResult] from Swift, so the bridge speaks strings.
  */
 data class BridgePaymentResult(val outcome: String, val message: String? = null)
 
@@ -85,7 +82,7 @@ data class BridgeBillingDetails(
 /**
  * Set once by Swift at startup, the way the auth bridge is handed to `MainViewController`.
  *
- * ⚠ A factory rather than a single instance: each payment screen needs its OWN element (a new
+ * A factory rather than a single instance: each payment screen needs its own element (a new
  * PaymentIntent means a new element), and sharing one across screens would confirm the wrong intent.
  */
 object IosPaymentElementRegistry {

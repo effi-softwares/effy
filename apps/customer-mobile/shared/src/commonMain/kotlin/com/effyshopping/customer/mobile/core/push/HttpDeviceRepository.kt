@@ -10,11 +10,11 @@ import io.ktor.http.encodeURLPathPart
 import kotlinx.serialization.Serializable
 
 /**
- * The device-token repository over the edge API (050). [edge] is the client built for
+ * The device-token repository over the edge API. [edge] is the client built for
  * `EDGE_API_BASE_URL`, carrying the two-token protocol — the gateway's customer authorizer derives the
- * owning subject, so the body never carries it (FR-012).
+ * owning subject, so the body never carries it.
  *
- * Best-effort by design: registration failures must never block a user flow (FR-024/FR-027), so the
+ * Best-effort by design: registration failures must never block a user flow, so the
  * caller wraps these in `runCatching`.
  */
 class HttpDeviceRepository(private val edge: HttpClient) : DeviceRepository {

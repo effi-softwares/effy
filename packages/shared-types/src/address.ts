@@ -1,10 +1,6 @@
 /**
- * Delivery-address contracts — 019-customer-commerce-flow.
- *
- * A customer's delivery addresses (public.customer_address). The chosen address is SNAPSHOT onto the
- * order at placement (R13), so these mutable rows never corrupt a historical receipt.
- *
- * Data design: see specs/019-customer-commerce-flow/data-model.md §2.1 / §3.
+ * A customer's delivery addresses (public.customer_address). The chosen address is snapshotted onto the
+ * order at placement, so editing one never changes a receipt.
  */
 
 import type { CoverageKind } from "./delivery";
@@ -23,15 +19,9 @@ export interface AddressDTO {
   postalCode: string;
   country: string;
   isDefault: boolean;
-  /**
-   * 076 — who delivers to this address TODAY: worked out when the address is read, never saved with
-   * it, so a postcode that leaves Effy's list changes the answer the next time it is shown.
-   */
+  /** Who delivers to this address today: decided when read, never saved with it. */
   coverage?: CoverageKind;
-  /**
-   * 066 — the instructions this address PREFILLS at checkout, or null. A convenience for the next
-   * order only: a placed order stores what its own checkout sent and never reads this.
-   */
+  /** The instructions this address prefills at checkout, or null. A placed order never reads this. */
   defaultDeliveryInstructions?: DeliveryInstructionsDTO | null;
 }
 
@@ -47,10 +37,7 @@ export interface CreateAddressRequest {
   postalCode: string;
   country?: string;
   makeDefault?: boolean;
-  /**
-   * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default alone,
-   * `null` clears it, a value replaces it.
-   */
+  /** On update the key's presence is read: absent leaves the default, `null` clears it, a value replaces it. */
   defaultDeliveryInstructions?: DeliveryInstructionsDTO | null;
 }
 
@@ -66,9 +53,6 @@ export interface UpdateAddressRequest {
   postalCode?: string;
   country?: string;
   makeDefault?: boolean;
-  /**
-   * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default alone,
-   * `null` clears it, a value replaces it.
-   */
+  /** On update the key's presence is read: absent leaves the default, `null` clears it, a value replaces it. */
   defaultDeliveryInstructions?: DeliveryInstructionsDTO | null;
 }

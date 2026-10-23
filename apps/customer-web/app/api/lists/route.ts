@@ -1,10 +1,10 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * The shopper's lists (068). With `?productId=`, each list also says whether it holds that product —
+ * The shopper's lists. With `?productId=`, each list also says whether it holds that product
  * the list chooser's one request.
  *
- * ⚠ A `401` here is not a failure: it means "you are a guest", and the chooser reads it as the
+ * A `401` here is not a failure: it means "you are a guest", and the chooser reads it as the
  * moment to say lists need an account.
  */
 export async function GET(req: Request) {

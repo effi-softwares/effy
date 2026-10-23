@@ -1,11 +1,11 @@
 /**
  * The busy indicator.
  *
- * ⚠ `motion-reduce:animate-none` is not optional. A spinner is the single most common trigger for
+ * `motion-reduce:animate-none` is not optional. A spinner is the single most common trigger for
  * vestibular discomfort on the web, and `prefers-reduced-motion` is a stated accessibility need, not
  * a preference. The ring still reads as "something is happening" when it stops turning.
  *
- * ⚠ It is DECORATIVE — `aria-hidden`. The label belongs on the region that is busy (`role="status"`
+ * It is decorative — `aria-hidden`. The label belongs on the region that is busy (`role="status"`
  * with an sr-only sentence), not on the animation, so a screen reader hears what is loading rather
  * than that a circle is spinning.
  */

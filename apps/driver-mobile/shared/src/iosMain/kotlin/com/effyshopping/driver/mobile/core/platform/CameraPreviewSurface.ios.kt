@@ -32,15 +32,9 @@ import platform.darwin.dispatch_get_global_queue
 import platform.darwin.dispatch_get_main_queue
 
 /**
- * iOS live viewfinder for photo proof (driver backlog H13), on the same AVFoundation footing as the
- * package scanner (090). Until this, iOS showed the designed stand-in and handed off to the system
- * camera.
- *
- * ⚠ It reports `false` — and draws nothing — unless the camera is already allowed. The shutter then hands
- * off to the system camera, which asks for permission itself (the Android rule, 060 T046).
- *
- * ⚠ The photo is made upright and shrunk exactly as the system-camera path does (`toProofJpeg`): one
- * proof format whichever way it was taken.
+ * iOS live viewfinder for photo proof, on AVFoundation like the package scanner. It reports `false` and
+ * draws nothing unless the camera is already allowed; the shutter then hands off to the system camera, which
+ * asks itself. The photo is made upright and shrunk like the system-camera path (`toProofJpeg`).
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -101,7 +95,7 @@ private class ViewfinderView(private val preview: AVCaptureVideoPreviewLayer) : 
 
 /**
  * Receives the captured photo, shrinks it off the main thread and hands the JPEG back on it.
- * ⚠ A failed capture is swallowed, like Android's: the viewfinder stays up and the driver presses again.
+ * A failed capture is swallowed, like Android's: the viewfinder stays up and the driver presses again.
  */
 private class ProofPhotoDelegate(private val onBytes: (ByteArray) -> Unit) : NSObject(), AVCapturePhotoCaptureDelegateProtocol {
     override fun captureOutput(output: AVCapturePhotoOutput, didFinishProcessingPhoto: AVCapturePhoto, error: NSError?) {

@@ -34,28 +34,15 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * 071 — the live-update client: one socket, one subscription, and the rules for when to read.
- *
- * The same state machine as the web client (`packages/web-kit/src/live/client.ts`), on coroutines.
- * It carries no data. It emits "this kind of thing changed" and "you may have missed something,
- * read everything once"; ViewModels collect [changes] and re-read through the repositories they
- * already use (MVVM — state flows down, this is one more event flowing in).
- *
- * ⚠ THERE IS NO DATA TIMER HERE (FR-009). The delays below keep a connection alive, back off a
- * reconnect, and move the subscription to the next ten-minute channel; none reads anything, and an
- * idle connected app makes no request to the API (FR-012).
- *
- * ⚠ WHY THE SUBSCRIPTION MOVES. The channel authorizes a subscription once and never looks again,
- * so the channel name carries a ten-minute epoch and every app must subscribe afresh — and be
- * checked afresh — each epoch. That is what stops updates reaching a person whose access has ended
- * (FR-023). A refused subscription is therefore not an error to retry: it is the answer.
- *
- * ⚠ FOREGROUND ONLY. Call [start] when the app is in the foreground and signed in, [stop] when it
- * leaves either. A backgrounded app holds no connection; returning reconnects and reads once.
+ * The live-update client, the same state machine as `packages/web-kit/src/live/client.ts` on
+ * coroutines. It carries no data: ViewModels collect [changes] and re-read through their repositories.
+ * Its delays keep the connection alive, back off reconnects and move to the next ten-minute epoch; none
+ * reads anything. The epoch is how access is re-checked, so a refused subscription is an answer.
+ * Foreground only: [start] when foregrounded and signed in, [stop] when either ends.
  */
 class LiveClient(
     private val scope: CoroutineScope,
-    /** This audience's `GET /…/v1/live`. `null` = no channel for this person. Throwing = retry. */
+    /** This audience's `GET /…/v1/live`. `null`: no channel for this person. Throwing: retry. */
     private val loadDescriptor: suspend () -> LiveDescriptor?,
     /** The token the app sends to the API. `null` when signed out. */
     private val token: suspend () -> String?,
@@ -66,18 +53,14 @@ class LiveClient(
     private val mutableState = MutableStateFlow(LiveState.OFF)
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
 
-    // Collectors that are slow must not hold the socket up; a missed emission here is followed by
-    // another (updates coalesce), and a re-read is idempotent.
+    // Slow collectors must not hold the socket up; a missed emission is followed by another, and re-reads are idempotent.
     private val updates = MutableSharedFlow<LiveKind>(extraBufferCapacity = 16)
     private val caughtUp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     private var job: Job? = null
     private val coalescers = mutableMapOf<LiveKind, Coalescer>()
 
-    /**
-     * "Read now": one of [kinds] changed, or the channel has (re)connected and anything may have.
-     * Already coalesced — a burst of updates is a few emissions, the last always after the last update.
-     */
+    /** "Read now": one of [kinds] changed, or the channel (re)connected. Coalesced; the last emission follows the last update. */
     fun changes(vararg kinds: LiveKind): Flow<Unit> {
         val wanted = kinds.toSet()
         return kotlinx.coroutines.flow.merge(updates.filter { it in wanted }.map { }, caughtUp)
@@ -116,7 +99,7 @@ class LiveClient(
             }
             mutableState.value = LiveState.RECONNECTING
             if (wasLive) attempts = 0
-            // Jittered: a hundred tablets that lost the same network must not all return together.
+            // Jittered, so devices that lost the same network do not all return together.
             val ceiling = min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2.0.pow(attempts).toLong())
             attempts++
             delay((ceiling * (0.5 + random() * 0.5)).toLong())
@@ -148,8 +131,7 @@ class LiveClient(
         var ended = Ended.LOST
         transport.connect(descriptor.realtimeHost, protocols) {
             val connection = this
-            // A child (the epoch roll) that finds the session gone fails this scope with
-            // AccessEnded; it is caught OUTSIDE the scope, where a child's failure surfaces.
+            // A child that finds the session gone fails this scope with AccessEnded, caught outside the scope.
             try { coroutineScope {
                 val subscriptions = mutableMapOf<Long, String>() // epoch → subscription id
                 var nextId = 0
@@ -158,7 +140,7 @@ class LiveClient(
 
                 suspend fun subscribe(epoch: Long): Boolean {
                     if (epoch in subscriptions) return true
-                    // A fresh token each time: the access check must see who this is NOW.
+                    // A fresh token each time: the access check must see who this is now.
                     val current = token() ?: return false
                     val id = "s${++nextId}"
                     subscriptions[epoch] = id
@@ -182,8 +164,7 @@ class LiveClient(
                 var dropJob: Job? = null
                 try {
                     while (true) {
-                        // No frame within the channel's own stated timeout: the connection is dead,
-                        // however open the socket claims to be.
+                        // No frame within the stated timeout: the connection is dead, however open the socket claims to be.
                         val raw = withTimeoutOrNull(keepAliveTimeout) { connection.receive() } ?: break
                         val message = runCatching { JSON.parseToJsonElement(raw).jsonObject }.getOrNull() ?: continue
                         val id = message.string("id")
@@ -200,13 +181,11 @@ class LiveClient(
                                 mutableState.value = LiveState.LIVE
                                 onLive()
                                 if (!caughtUpOnce) {
-                                    // First subscription of this connection: whatever happened
-                                    // while it was away is unknown.
+                                    // First subscription of this connection: anything may have changed meanwhile.
                                     caughtUpOnce = true
                                     caughtUp.tryEmit(Unit)
                                 } else {
-                                    // The next epoch is in place; drop the one before it once the
-                                    // overlap has passed.
+                                    // The next epoch is in place; drop the previous one once the overlap passes.
                                     val old = epochOf - 1
                                     dropJob?.cancel()
                                     dropJob = launch {
@@ -223,7 +202,7 @@ class LiveClient(
                                     if (!subscribe(epochOf + 1)) throw AccessEnded()
                                 }
                             }
-                            // Refused: access has ended, or this person never had a channel.
+                            // Refused: access has ended, or there never was a channel.
                             "subscribe_error" -> if (epochOf != null) { ended = Ended.OFF; break }
                             "data" -> if (epochOf != null) {
                                 val events = when (val event = message["event"]) {
@@ -273,9 +252,8 @@ class LiveClient(
 }
 
 /**
- * Turn a burst of "something changed" into a few reads (FR-014, SC-012) — the same rule as
- * `packages/web-kit/src/live/coalesce.ts`. The first update emits at once; those that follow are
- * gathered into one more emission after a second of quiet, or after five if they never go quiet.
+ * Turns a burst of "something changed" into a few reads, as `packages/web-kit/src/live/coalesce.ts`:
+ * the first update emits at once, then one more after a second of quiet, or after five.
  */
 internal class Coalescer(
     private val scope: CoroutineScope,

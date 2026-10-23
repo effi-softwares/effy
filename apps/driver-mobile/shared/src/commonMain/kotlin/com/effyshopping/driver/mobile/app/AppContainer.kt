@@ -75,22 +75,22 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * The ONE hand-wired dependency container (Principle VI — no DI framework); the whole graph is greppable
+ * The one hand-wired dependency container (Principle VI — no DI framework); the whole graph is greppable
  * here, read top to bottom. The platform's [AuthDriver] is injected in (Amplify Android on Android, a
- * Swift driver on iOS). ONE client, for the driver API only (cross-pool isolation, Principle IV).
+ * Swift driver on iOS). One client, for the driver API only (cross-pool isolation, Principle IV).
  *
  * Layered: data (repository, private) → domain (use cases) → presentation (ViewModels wire to use cases).
  */
 class AppContainer(
     val authDriver: AuthDriver,
-    // 050 — observability + push, injected per platform (Android real, iOS NoOp until Swift bridges).
+    // Observability + push, injected per platform (Android real, iOS NoOp until Swift bridges).
     val crashReporter: CrashReporter = NoOpCrashReporter,
     val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
     val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
     /**
-     * The version the installed app reports about itself, read by each platform's entry point. ⚠ Help
+     * The version the installed app reports about itself, read by each platform's entry point. Help
      * showed a version typed into the source ("0.1.0 (dev)") that no build had ever carried.
      */
     val appVersion: String? = null,
@@ -102,7 +102,7 @@ class AppContainer(
     /** Backlog C6 — the connection coming back sends what is waiting, without the driver doing anything. */
     val connectivity: Connectivity = NoConnectivity,
 ) {
-    // ── data ──────────────────────────────────────────────────────────────────────────────────────
+    // data
     private val driverClient by lazy {
         createHttpClient(
             AppConfig.driverApiBaseUrl,
@@ -115,10 +115,9 @@ class AppContainer(
     }
 
     /**
-     * 071 — the live-update channel. Tells the app when this driver's work is assigned, reassigned,
-     * withdrawn or re-ordered, so Today and an open round re-read then — before 071 they changed
-     * only when the driver pulled to refresh. Independent of push (FR-007). Held only while the app
-     * is in the foreground and signed in — `LiveLifecycle` in [App] starts and stops it.
+     * The live-update channel: tells the app when this driver's work is assigned, reassigned, withdrawn or
+     * re-ordered, so Today and an open round re-read. Independent of push. Held only while foregrounded
+     * and signed in (`LiveLifecycle` in [App]).
      */
     val live: LiveClient by lazy {
         LiveClient(
@@ -129,13 +128,13 @@ class AppContainer(
         )
     }
     /**
-     * 092 rev 2 — the ONE "work changed, read now" stream: the live channel's word, plus each write of
+     * Rev 2 — the one "work changed, read now" stream: the live channel's word, plus each write of
      * the driver's once the platform has it (the `Signalling…Repository` wrappers below and the sync
      * coordinator). Every ViewModel that shows work collects [WorkChanges.changes].
      */
     val work: WorkChanges by lazy { WorkChanges(live.changes(LiveKind.WORK)) }
 
-    // Offline write queue + drain coordinator (US6, FR-039/040). Persisted; survives process death.
+    // Offline write queue + drain coordinator. Persisted; survives process death.
     val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }
     /** Proof captured with no signal (backlog B3): the images live in [proofFiles], the list in settings. */
     val proofOutbox: ProofOutbox by lazy { ProofOutbox(Settings(), proofFiles) }
@@ -149,7 +148,7 @@ class AppContainer(
 
     /** The driver record and Today, kept so the app opens with no signal (backlog C3). */
     private val lastCopies by lazy { LastCopies(Settings()) }
-    // ⚠ The three repositories that WRITE are wrapped so each write that lands says so (092 rev 2).
+    // The three repositories that write are wrapped so each write that lands says so (092 rev 2).
     private val driver: DriverRepository by lazy { SignallingDriverRepository(HttpDriverRepository(driverClient, lastCopies), work) }
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient, lastCopies) }
     private val collection: CollectionRepository by lazy { SignallingCollectionRepository(HttpCollectionRepository(driverClient, offlineQueue), work) }
@@ -159,8 +158,8 @@ class AppContainer(
             driverClient,
             offlineQueue,
             proofOutbox,
-            // ⚠ Only the phone can see this: the image goes straight to storage, so when the upload
-            // fails the platform receives nothing at all (064 FR-006).
+            // Only the phone can see this: the image goes straight to storage, so when the upload
+            // fails the platform receives nothing at all.
             onProofUploadFailed = { reason -> analyticsDriver.capture(AnalyticsEvent.ProofUploadFailed(reason)) },
         )
     }
@@ -171,23 +170,23 @@ class AppContainer(
     // Kept on the phone: the stop in progress.
     val stopDrafts: StopDrafts by lazy { SettingsStopDrafts(Settings()) }
 
-    // ── domain (use cases) — the layer ViewModels + SessionManager depend on ─────────────────────────
+    // domain (use cases) — the layer ViewModels + SessionManager depend on
     val requestSignInCode by lazy { RequestSignInCode(authDriver) }
     val confirmSignIn by lazy { ConfirmSignIn(authDriver) }
     val getDriverIdentity by lazy { GetDriverIdentity(driver) }
     val setDuty by lazy { SetDuty(driver) }
-    // 093 — the daily vehicle check, and the record read that tells when a dispatcher has cleared it.
+    // The daily vehicle check, and the record read that tells when a dispatcher has cleared it.
     val submitVehicleCheck by lazy { com.effyshopping.driver.mobile.features.driver.domain.SubmitVehicleCheck(driver) }
     suspend fun readMe() = driver.me()
     val getToday by lazy { GetToday(today) }
 
-    // collection (US1)
+    // collection
     val getCollectionRun by lazy { GetCollectionRun(collection) }
     val getShopStop by lazy { GetShopStop(collection) }
     val collectStop by lazy { CollectStop(collection) }
     val checkInHub by lazy { CheckInHub(collection) }
 
-    // same-day delivery (US2)
+    // same-day delivery
     val getDeliveryRun by lazy { GetDeliveryRun(delivery) }
     val getDrop by lazy { GetDrop(delivery) }
     val advanceDrop by lazy { AdvanceDrop(delivery) }
@@ -196,7 +195,7 @@ class AppContainer(
     val returnToHub by lazy { ReturnToHub(delivery) }
     val loadVan by lazy { LoadVan(delivery) }
 
-    // history (US5)
+    // history
     val getHistory by lazy { GetHistory(historyRepo) }
     val getHistoryDetail by lazy { GetHistoryDetail(historyRepo) }
 
@@ -206,7 +205,7 @@ class AppContainer(
      */
     val openedNotification = MutableStateFlow<OpenedNotification?>(null)
 
-    // ── app services / presentation wiring ───────────────────────────────────────────────────────────
+    // app services / presentation wiring
     val session: SessionManager by lazy {
         SessionManager(authDriver, getDriverIdentity, appScope, onSignedOut = { lastCopies.clear() }, workChanges = work.changes)
     }
@@ -215,13 +214,13 @@ class AppContainer(
     @OptIn(ExperimentalUuidApi::class)
     fun newChangeId(): String = Uuid.random().toString()
 
-    // Permission priming shown once (FR-004). Persisted so it does not re-appear every launch.
+    // Permission priming shown once. Persisted so it does not re-appear every launch.
     private val prefs by lazy { Settings() }
     fun hasPrimedPermissions(): Boolean = prefs.getBoolean("driver.permissions.primed", false)
     fun markPermissionsPrimed() = prefs.putBoolean("driver.permissions.primed", true)
 
     /**
-     * 096 — every label read names the install it was made on: an id made once and kept on the phone
+     * Every label read names the install it was made on: an id made once and kept on the phone
      * (never a hardware id), and the app's version. Set as soon as the container exists.
      */
     @OptIn(ExperimentalUuidApi::class)
@@ -232,14 +231,13 @@ class AppContainer(
         com.effyshopping.driver.mobile.core.scan.ReadLog.appVersion = appVersion
     }
 
-    // ── observability & push (050) ──────────────────────────────────────────────────────────────
+    // observability & push
     private val devices: DeviceRepository by lazy { HttpDeviceRepository(driverClient) }
 
     /**
-     * Start crash reporting (always on — independent of analytics consent, Q1) and, when
-     * [analyticsConsented], product analytics. Observes the session: on sign-in it identifies the
-     * driver (by record id — non-PII) + registers this device; on sign-out it resets + unregisters
-     * (shared-device safety, FR-020). Called by the Android entry point; off the main thread; best-effort.
+     * Start crash reporting (always on) and, when [analyticsConsented], product analytics. On sign-in it
+     * identifies the driver by record id and registers this device; on sign-out it resets and unregisters
+     * (shared devices). Off the main thread; best-effort.
      */
     fun startObservability(analyticsConsented: Boolean) {
         appScope.launch { runCatching { crashReporter.init() } }
@@ -287,7 +285,7 @@ class AppContainer(
      */
     val analyticsConsent = MutableStateFlow(prefs.getBoolean(ANALYTICS_CONSENT_KEY, true))
 
-    /** Grant/withdraw analytics consent at runtime; crash reporting is unaffected (FR-023). */
+    /** Grant/withdraw analytics consent at runtime; crash reporting is unaffected. */
     fun setAnalyticsConsent(granted: Boolean) {
         prefs.putBoolean(ANALYTICS_CONSENT_KEY, granted)
         analyticsConsent.value = granted

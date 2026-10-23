@@ -29,7 +29,7 @@ const { CoveragePanel, CourierPage } = await import("./CoveragePanel");
 
 const courier = (over: Partial<CourierReachDTO> = {}): CourierReachDTO => ({
   offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
-  blockedBy: [], pending: false, exclusions: [], ...over,
+  blockedBy: [], exclusions: [], ...over,
 });
 
 const service = (over: Partial<CourierServiceDTO> = {}): CourierServiceDTO => ({
@@ -57,7 +57,7 @@ const place = (over: Partial<CoveragePlaceResultDTO> = {}): CoveragePlaceResultD
   postcode: "3141", state: "VIC", matched: "SOUTH YARRA", places: ["SOUTH YARRA"], listed: false, computedDistanceKm: "3.10", ...over,
 });
 
-/** A refusal as `@effy/api-client` throws it: a plain object, NOT an Error (053's lesson). */
+/** A refusal as `@effy/api-client` throws it: a plain object, not an Error (053's lesson). */
 const refusal = (status: number, code: string) => ({ kind: "unknown", status, title: "Refused", code });
 
 function renderPanel(canManage = true) {
@@ -329,7 +329,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     const items = within(await screen.findByTestId("check-results")).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Delivered by Effy");
     expect(items[0]).toHaveTextContent("On Effy's list. Group: Inner East. 3.40 km from the hub (worked out). Delivery today not offered.");
-    // 097 — said of a listed postcode only.
+    // Said of a listed postcode only.
     expect(items[1]).not.toHaveTextContent("Delivery today");
     expect(items[1]).toHaveTextContent("Cannot deliver");
     expect(items[1]).toHaveTextContent("excluded from courier delivery. Reason: No chilled courier service.");
@@ -365,7 +365,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     expect(screen.getByTestId("courier-locked")).toHaveTextContent("Add a courier service below and make it the default.");
     expect(screen.getByTestId("courier-exclusions")).toHaveTextContent("7255");
     expect(screen.getByTestId("courier-exclusions")).toHaveTextContent("No chilled courier service");
-    // 080 — nothing is seeded: the list starts empty and says why it matters.
+    // Nothing is seeded: the list starts empty and says why it matters.
     expect(await screen.findByTestId("courier-services-empty")).toHaveTextContent("can't be switched on until there is a default");
   });
 
@@ -399,11 +399,10 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ offered: true }));
     unmount();
 
-    // ⚠ 083 — on is offered: there is no "starts with the new delivery model" notice any more.
+    // On is offered: there is no "starts with the new delivery model" notice any more.
     repo.listCoverage.mockResolvedValue(list({ courier: { ...ready, offered: true } }));
     renderCourier();
     await screen.findByRole("switch", { name: "Offer courier delivery" });
-    expect(screen.queryByTestId("courier-pending")).not.toBeInTheDocument();
     expect(screen.queryByText(/starts with the new delivery model/)).not.toBeInTheDocument();
   });
 
@@ -425,7 +424,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     const first = within(table).getByText(/Test Courier · Parcel/).closest("tr")!;
     expect(within(first).getByText("Default")).toBeInTheDocument();
     expect(within(first).getByText("Mon, Tue, Wed, Thu, Fri, by 14:00")).toBeInTheDocument();
-    // ⚠ The default cannot be retired from under checkout — the button is not there.
+    // The default cannot be retired from under checkout — the button is not there.
     expect(within(first).queryByRole("button", { name: "Retire" })).not.toBeInTheDocument();
     const second = within(table).getByText(/Express/).closest("tr")!;
     expect(within(second).getByText("Mon, Wed, Fri, by 14:00")).toBeInTheDocument();

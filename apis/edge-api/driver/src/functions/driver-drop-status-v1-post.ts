@@ -9,7 +9,7 @@ import { NotFoundError } from "../work/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
-/** POST /driver/v1/delivery/drops/{dropId}/status (063). ⚠ `delivered` needs proof — Slice D. */
+/** `delivered` needs proof (the proof route). */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await authenticate(event, context);
   if (!guard.ok) return guard.response;
@@ -21,10 +21,10 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   if (!body.changeId) return problem(400, "invalid_request", "Missing changeId", "A changeId is required so a retry is recognised.", guard.scope);
   try {
     const status = await setDropStatus(dropId, guard.driver.id, body);
-    await announceStop(dropId); // 073 — the shop sees it too // 071 — committed; dispatch sees the drop's progress
+    await announceStop(dropId);
     return json(200, status, guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof NotFoundError) return problem(404, "not_found", "Not available", "That drop is not available.", guard.scope);

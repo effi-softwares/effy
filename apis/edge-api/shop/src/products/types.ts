@@ -1,7 +1,3 @@
-// Domain types for the shop product catalog (016). Wire DTOs live in @effy/shared-types and are
-// mapped explicitly in handler-support; these are the internal domain shapes and never leak wire
-// concerns (constitution Principle VI). Mirrors data-model.md §2.6–2.10 + §5.
-
 import type { OptionRow, VariantRow } from "@effy/edge-shared/catalog";
 import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
@@ -28,8 +24,6 @@ export interface AllowedValue {
   label: string;
   displayOrder: number;
 }
-
-// ── Catalog schema (read-only projection of the back-office-managed schema) ────────────────────
 
 export interface SchemaAttribute {
   attributeId: string;
@@ -70,8 +64,6 @@ export interface CatalogSchema {
   categories: SchemaCategory[];
 }
 
-// ── Products ────────────────────────────────────────────────────────────────────────────────────
-
 export interface Paged<T> {
   items: T[];
   total: number;
@@ -86,22 +78,22 @@ export interface ProductListItem {
   primaryImageUrl: string | null;
   typeName: string;
   categoryName: string;
-  /** 098 — the LOWEST shop price among active variants. */
+  /** The lowest shop price among active variants. */
   priceAmount: string;
   currency: string;
   status: ProductStatus;
   updatedAt: string;
-  /** 067 — where the product stands with Effy's review. */
+  /** Where the product stands with review. */
   reviewState: ShopReviewState;
-  /** 067/098 — the lowest CUSTOMER price among active variants; null until first approved. */
+  /** The lowest customer price among active variants; null until first approved. */
   customerPriceAmount: string | null;
-  /** 098 — active variants' shop prices differ. */
+  /** Active variants' shop prices differ. */
   priceVaries: boolean;
-  /** 098 — variants that are not removed. */
+  /** Variants that are not removed. */
   variantCount: number;
 }
 
-/** 067 — the six review states a shop is shown (see `REVIEW_STATE_SQL` in repository.ts). */
+/** See `REVIEW_STATE_SQL` in repository.ts. */
 export type ShopReviewState =
   | "draft"
   | "in_review"
@@ -110,7 +102,7 @@ export type ShopReviewState =
   | "live_change_pending"
   | "live_change_sent_back";
 
-/** 067 — what a pending change proposes: only the details that DIFFER from the live product. */
+/** Only the details that differ from the live product. */
 export interface ProductChangeProposal {
   name?: string;
   shortDescription?: string;
@@ -118,14 +110,12 @@ export interface ProductChangeProposal {
   brand?: string | null;
   primaryCategoryId?: string;
   productTypeId?: string;
-  /** 096 */
   gstStatus?: GstStatus;
   attributes?: AttributeValueInput[];
-  /** 098 */
   unitBasis?: UnitBasis | null;
-  /** 098 — the COMPLETE proposed option set; present only when it differs from live. */
+  /** The complete proposed option set, only when it differs from live. */
   options?: OptionInputDTO[];
-  /** 098 — the COMPLETE proposed variant set (SHOP prices); present only when it differs from live. */
+  /** The complete proposed variant set (shop prices), only when it differs from live. */
   variants?: VariantInputDTO[];
 }
 
@@ -134,7 +124,7 @@ export interface ProductPendingChange {
   reason: string | null;
   submittedAt: string;
   proposed: ProductChangeProposal;
-  /** The complete proposed image set, or null when images are not being changed. */
+  /** null when images are not being changed. */
   media: ProductMedia[] | null;
 }
 
@@ -171,14 +161,14 @@ export interface ProductDetail {
   currency: string;
   shortDescription: string;
   longDescription: string | null;
-  /** 096 — null for a product made before 096 and not yet classified. */
+  /** null until classified. */
   gstStatus: GstStatus | null;
-  /** 098 — how sizes are compared; null = no unit price. */
+  /** How sizes are compared; null = no unit price. */
   unitBasis: UnitBasis | null;
-  /** 098 — the options and every variant (active, inactive, removed). Price, codes, weight and stock live on the variants. */
+  /** Every variant (active, inactive, removed); price, codes, weight and stock live on them. */
   options: OptionRow[];
   variants: VariantRow[];
-  /** 098 — the shop's default low-stock threshold, for each variant's stock state. */
+  /** The shop's default low-stock threshold. */
   shopDefaultThreshold: number | null;
   status: ProductStatus;
   attributes: ProductAttributeValue[];
@@ -188,17 +178,14 @@ export interface ProductDetail {
   createdAt: string;
   updatedAt: string;
 
-  // ── 067 ──────────────────────────────────────────────────────────────────────────────────────
-  // ⚠ Each variant carries the SHOP's prices and the customer's. Nothing here carries Effy's margin as
-  // a figure (FR-039).
+  // Each variant carries the shop's and the customer's price; never Effy's margin as a figure.
   reviewState: ShopReviewState;
   reviewReason: string | null;
-  /** True once Effy has approved this product at least once. */
   approved: boolean;
   pendingChange: ProductPendingChange | null;
 }
 
-/** A typed value supplied for one attribute (only the field matching the data type is meaningful). */
+/** Only the field matching the data type is meaningful. */
 export interface AttributeValueInput {
   attributeId: string;
   valueText?: string | null;
@@ -207,7 +194,6 @@ export interface AttributeValueInput {
   valueOptions?: string[] | null;
 }
 
-/** Normalised, validated create input (service → repository). */
 export interface CreateProductInput {
   productTypeId: string;
   primaryCategoryId: string;
@@ -216,9 +202,8 @@ export interface CreateProductInput {
   shortDescription: string;
   longDescription: string | null;
   gstStatus: GstStatus;
-  /** 098 */
   unitBasis: UnitBasis | null;
-  /** 098 — validated by `validateVariantSet` inside the one writer (`applyVariantSet`). */
+  /** Validated by `validateVariantSet` inside `applyVariantSet`. */
   options: OptionInputDTO[];
   variants: VariantInputDTO[];
   attributes: AttributeValueInput[];
@@ -234,7 +219,7 @@ export interface ListParams {
   category: string | null;
   section: string | null;
   status: ProductStatus | null;
-  /** 067 — filter by review state (e.g. everything Effy sent back). */
+  /** By review state (e.g. everything sent back). */
   reviewState: ShopReviewState | null;
   priceMin: string | null;
   priceMax: string | null;
@@ -247,9 +232,7 @@ export interface FieldIssue {
   message: string;
 }
 
-// ⚠ 057 added "forbidden". A manager-only refusal is 403, and folding it into "not_found" (the
-// tempting shortcut) would be wrong in BOTH directions: it tells an authorised operator their own team
-// does not exist, and it tells an unauthorised one that a resource is absent rather than off-limits.
+// "forbidden" is distinct from "not_found": a manager-only refusal is 403.
 export type ProductErrorKind = "validation" | "conflict" | "not_found" | "forbidden";
 
 export class ProductError extends Error {

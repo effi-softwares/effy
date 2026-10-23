@@ -1,33 +1,13 @@
 /**
- * 054-product-inventory — stock as an OPERATOR sees it.
- *
- * ⚠ NOTHING HERE EVER REACHES A CUSTOMER SURFACE. FR-015 forbids disclosing a unit count on any
- * browse surface and forbids disclosing shop identity anywhere at all; the single permitted
- * disclosure is the add-to-cart refusal (FR-015b), which rides the existing cart problem body and is
- * NOT modelled here. A shopper's whole experience of this feature is the VALUE of the `available`
- * flag they already receive — which is why this slice changes no customer DTO.
- *
- * Consumed by shop-web, back-office, and shop-mobile through the generated `contract-shop/` Kotlin.
+ * Stock as an operator sees it, for shop-web and back-office. Nothing here reaches a customer surface: a
+ * shopper only sees the `available` flag and the add-to-cart refusal.
  */
 
 import type { WireInt } from "./cart"
 
 /**
- * ⚠ EVERY COUNT ON THIS CONTRACT IS A `WireInt`, NOT A BARE `number`.
- *
- * 027's R13: Kotlin serialises a bare `number` field as `Double`, so the wire carried `1.0` where the
- * backend expected an integer, and every mobile cart write was silently rejected. The fix was made AT
- * THE CONTRACT — a `WireInt` alias carrying `@asType integer` — precisely so the generated Kotlin
- * cannot regress. The first draft of this file used bare `number` and the generator duly emitted
- * `Double` for `onHand`, `delta` and `threshold`; caught by reading the generated Kotlin back, which
- * is the only place that mistake is visible.
- *
- * Why a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` — the
- * database and this union are one contract, and a value in either that the other lacks is a defect.
- *
- * ⚠ There is deliberately NO `cancellation` or `refund` member. Neither capability exists on the
- * platform (order-flow gap register, Tier 2), and a value nothing can produce implies one that does.
- * The set grows when the slice that needs it lands.
+ * Why a count moved: a closed set mirroring the check on `public.stock_movement.reason`. Every count on
+ * this contract is a `WireInt`.
  */
 export type StockMovementReason =
   | "received"
@@ -38,16 +18,10 @@ export type StockMovementReason =
   | "pick_shortfall"
   | "tracking_enabled"
   | "tracking_disabled"
-  /** 055 — returned on an item refund of an uncollected portion. */
+  /** Returned on an item refund of an uncollected portion. */
   | "refund"
 
-/**
- * WHO acted, kept separate from WHY (`reason`).
- *
- * ⚠ The separation is what makes FR-027 possible: a shop reading its own history must be able to see
- * plainly that back-office made a change, without back-office having to pick a reason that says so.
- * `system` is the paid-order path — the only actor with no person behind it.
- */
+/** Who acted, kept apart from why (`reason`), so a shop sees plainly that back-office made a change. `system` is the paid-order path. */
 export type StockActorKind = "shop" | "back_office" | "system"
 
 /** The reasons a human may choose. `order_paid` and `pick_shortfall` are written by the platform. */
@@ -60,26 +34,22 @@ export const OPERATOR_STOCK_REASONS = [
 
 export type OperatorStockReason = (typeof OPERATOR_STOCK_REASONS)[number]
 
-/** A VARIANT's stock (098; a product's before), as one operator screen needs it. */
+/** A variant's stock, as an operator screen needs it. */
 export interface ProductStockDTO {
   productId: string
-  /** 098 — stock is counted per variant. */
+  /** Stock is counted per variant. */
   variantId: string
-  /** false = unlimited, and identical to how the product behaved before 054 existed (FR-002). */
+  /** false = unlimited. */
   tracked: boolean
-  /** null exactly when untracked — the database makes "tracked with no count" unrepresentable. */
+  /** null exactly when untracked (the database makes "tracked with no count" unrepresentable). */
   onHand: WireInt | null
-  /** This product's own threshold, or null to fall back to the shop default. */
+  /** The variant's own threshold, or null to fall back to the shop default. */
   threshold: WireInt | null
-  /** Product threshold, else shop default, else null — null meaning nothing counts as low. */
+  /** Own threshold, else shop default, else null (nothing counts as low). */
   effectiveThreshold: WireInt | null
   /** tracked && onHand === 0. */
   outOfStock: boolean
-  /**
-   * tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold.
-   * ⚠ Mutually exclusive with `outOfStock`: an empty shelf and a thin one are different problems
-   * needing different actions, and collapsing them tells the operator nothing to act on.
-   */
+  /** tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. Never also `outOfStock`. */
   low: boolean
 }
 
@@ -90,9 +60,9 @@ export interface StockMovementDTO {
   quantityAfter: WireInt
   reason: StockMovementReason
   actorKind: StockActorKind
-  /** A display name where the platform holds one. ⚠ Never an email address (no PII in an audit read). */
+  /** A display name where the platform holds one; never an email address. */
   actorLabel: string | null
-  /** The order that caused it, by its customer-facing reference. null for a human's own change. */
+  /** The order that caused it, by customer-facing reference; null for a person's own change. */
   orderNumber: string | null
   note: string | null
   createdAt: string
@@ -100,32 +70,29 @@ export interface StockMovementDTO {
 
 export interface ProductStockDetailDTO {
   stock: ProductStockDTO
-  /** Newest first (FR-009). */
+  /** Newest first. */
   movements: StockMovementDTO[]
 }
 
 export interface LowStockRowDTO {
   productId: string
-  /** 098 */
   variantId: string
   name: string
-  /** 098 — "1 kg"; null for a product with no options. */
+  /** "1 kg"; null for a product with no options. */
   variantLabel: string | null
   sku: string | null
   onHand: WireInt
   effectiveThreshold: WireInt | null
-  /** "out" sorts above "low" — an empty shelf is not the same problem as a thin one. */
+  /** "out" sorts above "low". */
   severity: "out" | "low"
 }
 
 export interface ShopStockSettingsDTO {
-  /** null = no default, so nothing counts as low; zero stock is still reported as out (FR-005a). */
+  /** null = no default (nothing counts as low); zero stock is still reported as out. */
   defaultThreshold: WireInt | null
 }
 
-// ── Write bodies ────────────────────────────────────────────────────────────────────────────────
-// Every body that MOVES a count carries a reason (FR-007). Turning tracking on or off supplies its
-// own reason implicitly, so it does not ask for one.
+// Write bodies. Every body that moves a count carries a reason; turning tracking on or off implies its own.
 
 export interface SetStockRequest {
   onHand: WireInt
@@ -134,7 +101,7 @@ export interface SetStockRequest {
 }
 
 export interface AdjustStockRequest {
-  /** Signed. Never zero — a movement that moves nothing is a record with no fact behind it. */
+  /** Signed and never zero. */
   delta: WireInt
   reason: OperatorStockReason
   note?: string
@@ -142,12 +109,12 @@ export interface AdjustStockRequest {
 
 export interface SetTrackingRequest {
   tracked: boolean
-  /** REQUIRED when enabling (FR-003), ignored when disabling. */
+  /** Required when enabling, ignored when disabling. */
   onHand?: WireInt
 }
 
 export interface SetThresholdRequest {
-  /** null clears this product's own threshold, falling back to the shop default. */
+  /** null clears the variant's own threshold. */
   threshold: WireInt | null
 }
 

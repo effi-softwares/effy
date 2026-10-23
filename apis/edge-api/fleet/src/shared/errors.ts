@@ -1,12 +1,5 @@
-// One domain error type for the fleet service (056). Three kinds, because the caller's next move
-// differs for each: fix the input (validation), stop looking (not_found), or reconcile with someone
-// else's change (conflict).
-//
-// ⚠ `fields` matters more than it looks. It is serialised by `problem()` into the wire's `errors`
-// key — NOT `fields`. 053 recorded that `@effy/api-client`'s toDomainError read `problem.fields`
-// while the wire has always carried `errors`, so DomainError.fields was undefined on EVERY refusal
-// on EVERY surface; 054 fixed the client. FR-011 and FR-014 both require a NAMED refusal to survive
-// to the screen, so this is load-bearing rather than decorative.
+// Three kinds for three next moves: fix the input, stop looking, reconcile with someone else's change.
+// `fields` is serialised as the wire's `errors`, which carries a named refusal to the screen.
 import type { FieldError } from "@effy/edge-shared";
 
 export type FleetErrorKind = "validation" | "not_found" | "conflict";

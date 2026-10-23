@@ -6,25 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { animateSlideIn, warmSlideMotion } from "@/lib/slide-motion"
 
 /**
- * The hero band's behaviour (reference: Home · hero): which promotion is showing, the previous /
- * dots / next controls, and the movement between slides. Everything it SHOWS is rendered on
- * the server and handed in.
- *
- * ⚠ IT MOVES ON BY ITSELF, AND WAITS for anyone reading or reaching for it — the pointer over it, or
- * KEYBOARD focus inside it (WCAG 2.2.2) — and never starts under a reduced-motion preference, where
- * the controls still change the slide and nothing animates. There is no pause button (operator
- * direction, 2026-10-12).
- *
- * ⚠ KEYBOARD focus, not any focus. A click leaves focus on the button that was clicked; holding for
- * that stopped the carousel for good the first time anyone pressed "next".
- *
- * ⚠ EVERY SLIDE IS IN THE DOCUMENT, stacked in one grid cell, so the band is as tall as its longest
- * slide and the first one is in the server's HTML with nothing to wait for. The ones not showing are
- * `invisible` and `inert` — out of sight, out of the tab order, out of the accessibility tree.
- *
- * ⚠ The animation is Motion (motion.dev), through `lib/slide-motion` — fetched after the page is
- * interactive, never in the first load. Nothing animates on first paint: the first slide's heading is
- * the page's largest element.
+ * The hero band's behaviour: which promotion is showing, the previous / dots / next controls, and the
+ * movement between slides (all rendered on the server). It advances by itself, pauses while hovered or
+ * while keyboard focus is inside (WCAG 2.2.2; a click's focus does not count), and never auto-advances
+ * under reduced motion. Every slide is in the document in one grid cell, those not showing `invisible`
+ * and `inert`. Motion (via `lib/slide-motion`) loads after the page is interactive; nothing animates on
+ * first paint.
  */
 const DWELL_MS = 6000
 

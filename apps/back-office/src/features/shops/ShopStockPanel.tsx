@@ -19,19 +19,9 @@ import { ErrorState } from "@effy/web-kit/console";
 import { shopLowStockQuery, useSetShopStockSettings } from "./stockQueries";
 
 /**
- * The assisted stock view (054 US4) on a shop's detail page.
- *
- * ⚠ WHAT THIS IS FOR: a shop rings support because they cannot get to a tablet, or because a count is
- * wrong and they need it fixed now. Until 054 there was no way to help them — nobody at Effy could
- * see a shop's stock, because no shop had any.
- *
- * ⚠ READ is open to any active staff INCLUDING csa (triage is CSA work); WRITING is admin/manager,
- * decided by the server from `admin.staff` and mirrored here only so the UI does not dangle a dead
- * control. The server is authoritative — this is a courtesy, exactly as `canManageShops` is used
- * elsewhere on this screen.
- *
- * ⚠ A TABLE, not cards (Principle V / DOCTRINE-2), and "Out of stock" / "Low" are carried by words,
- * never a hue: 041 removed the last non-monochrome warning colour from these consoles.
+ * The assisted stock view on a shop's detail page, for a shop that rings support (no tablet to hand, or a
+ * count to fix now). Read is open to any active staff including csa; writing is admin/manager, decided by
+ * the server and mirrored here so no dead control is shown. "Out of stock" / "Low" are said in words.
  */
 export function ShopStockPanel({ shopId, canManage }: { shopId: string; canManage: boolean }) {
   const { data, error, isPending, isError, refetch } = useQuery(shopLowStockQuery(shopId));
@@ -73,7 +63,7 @@ function LowStockTable({ rows }: { rows: LowStockRowDTO[] }) {
             <TableRow key={row.variantId}>
               <TableCell>
                 {row.name}
-                {/* 098 — stock is per size; the size names the row. */}
+                {/* Stock is per size; the size names the row. */}
                 {row.variantLabel ? <span className="text-muted-foreground"> — {row.variantLabel}</span> : null}
               </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
@@ -83,7 +73,7 @@ function LowStockTable({ rows }: { rows: LowStockRowDTO[] }) {
               <TableCell className="tabular-nums text-muted-foreground">
                 {row.effectiveThreshold ?? "—"}
               </TableCell>
-              {/* ⚠ Words and weight, never colour — an empty shelf and a thin one are different
+              {/* Words and weight, never colour — an empty shelf and a thin one are different
                   problems, and a state carried by a tint is invisible to a colour-blind operator
                   and to every assertion. */}
               <TableCell className={row.severity === "out" ? "font-semibold" : undefined}>
@@ -125,7 +115,7 @@ function ShopDefaultThreshold({ shopId }: { shopId: string }) {
           variant="outline"
           disabled={setSettings.isPending}
           onClick={() =>
-            // ⚠ Blank clears to NULL, never zero. Zero would mean "warn me at zero", which would make
+            // Blank clears to null, never zero. Zero would mean "warn me at zero", which would make
             // every product permanently low — a different instruction entirely.
             setSettings.mutate({ defaultThreshold: value.trim() === "" ? null : Number(value) })
           }
@@ -143,10 +133,10 @@ function ShopDefaultThreshold({ shopId }: { shopId: string }) {
 }
 
 /**
- * ⚠ The server's reason, in our words — never its raw `detail`.
+ * The server's reason, in our words — never its raw `detail`.
  *
- * 053 found every console refusal on the order screen collapsing to one generic sentence, because it
- * tested `e instanceof Error` while the api client throws a PLAIN OBJECT. Keying off `status` and the
+ * Found every console refusal on the order screen collapsing to one generic sentence, because it
+ * tested `e instanceof Error` while the api client throws a plain object. Keying off `status` and the
  * structured field names avoids both failure modes: no server prose is rendered, and the named
  * refusal is not discarded.
  */

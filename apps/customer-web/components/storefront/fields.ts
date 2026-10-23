@@ -1,14 +1,14 @@
 /**
  * The storefront's field classes — strings only.
  *
- * ⚠ WHY THIS IS ITS OWN MODULE. `kit.tsx` imports `next/image`; a client component that takes one of
+ * Why this is its own module. `kit.tsx` imports `next/image`; a client component that takes one of
  * these strings from `kit` drags the image code and the rest of the kit into its chunk. The newsletter
- * form sits in the footer of every page, so that cost landed on every guest route (PERF-01). Client
+ * form sits in the footer of every page, so that cost landed on every guest route. Client
  * components import from here; `kit.tsx` re-exports these, so server-side `from ".../kit"` imports
  * keep working.
  */
 
-// ⚠ Focus is the BORDER changing to `--ring`, matching `@effy/design-system/ui` Input — NOT the old
+// Focus is the border changing to `--ring`, matching `@effy/design-system/ui` Input — not the old
 // `outline-primary` halo these carried, which was a third focus treatment on a platform whose shared
 // fields dropped the halo (operator direction). `bg-card` (not the shared Input's transparent) is
 // deliberate: the storefront page surface is white `--card`, so a field reads as inset on it.

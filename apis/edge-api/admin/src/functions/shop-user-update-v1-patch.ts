@@ -1,6 +1,4 @@
-// PATCH /admin/v1/shops/{shopId}/users/{userId} — change role and/or status (US4/FR-008). Mutate
-// access. Role change touches Cognito groups + DB; disable/enable touches the account + status
-// (R5/Q1). No reassignment: a userId not assigned to {shopId} is refused (A8).
+// Role changes touch Cognito groups and the DB. A user not assigned to {shopId} is refused.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

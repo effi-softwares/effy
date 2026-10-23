@@ -1,6 +1,6 @@
 package com.effyshopping.driver.mobile.features.today.domain
 
-/** The phase-aware home read (049). Goes to `edge-api/driver` with the access-token bearer. */
+/** The phase-aware home read. Goes to `edge-api/driver` with the access-token bearer. */
 interface TodayRepository {
     /** `GET /driver/v1/today`. */
     suspend fun today(): Today

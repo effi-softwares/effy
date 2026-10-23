@@ -7,13 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { ReceiptArrivalRow } from "./repository";
 import { arrivalText, deliveryLinesVars, deliveryVars } from "./sender";
 
-/**
- * 069 — the emailed receipt says when the order arrives in the SAME WORDS as the confirmation page.
- *
- * ⚠ The fixture is the one customer-web's ArrivalPanel and both mobile apps are tested against
- * (`packages/shared-types/src/delivery-window.fixtures.json`). An email that words a delivery window
- * differently from the page the customer just saw is the defect this file exists to catch.
- */
+/** The email words arrivals exactly as the confirmation page, using the shared fixture. */
 interface Case {
   name: string;
   now: string;
@@ -38,7 +32,6 @@ function row(c: Case["input"], method = "same_day"): ReceiptArrivalRow {
   };
 }
 
-/** The page's wording, as it reads mid-sentence in the email. */
 function asInEmail(pageText: string): string {
   if (pageText === "We'll confirm your delivery date") return "a date we'll confirm";
   return /^(Today|Tomorrow)/.test(pageText) ? pageText.charAt(0).toLowerCase() + pageText.slice(1) : pageText;
@@ -53,7 +46,6 @@ describe("arrivalText — one wording with the page", () => {
     it(c.name, () => {
       const now = new Date(c.now);
       expect(arrivalText([row(c.input)], now).estimate).toBe(asInEmail(c.expect));
-      // And the page's own function, on the same data, says the same thing.
       expect(asInEmail(formatArrival(c.input, now))).toBe(arrivalText([row(c.input)], now).estimate);
     });
   }
@@ -78,7 +70,7 @@ describe("arrivalText — more than one delivery", () => {
   });
 
   it("078 — one window for an order from three suppliers is ONE delivery, named by its method", () => {
-    // Before 078 this said "Multiple deliveries" — which told the customer there were several suppliers.
+    // One promise is one delivery, however many suppliers.
     expect(arrivalText([row(sameDay), row(sameDay), row(sameDay)], now)).toEqual({ estimate: "today, 5 pm – 7 pm", method: "Same-day" });
     const later: Case["input"] = {
       promisedFrom: "2026-10-13", promisedTo: "2026-10-13",
@@ -128,7 +120,7 @@ describe("deliveryVars — 079: who delivers decides what the receipt says", () 
     method: "same_day", promised_from: "2026-10-08", promised_to: "2026-10-08",
     window_start: new Date("2026-10-08T17:00:00+11:00"), window_end: new Date("2026-10-08T19:00:00+11:00"),
   };
-  // ⚠ What a courier order's packages actually hold: "standard", no day, no window — routing.
+  // A courier order's packages hold "standard", no day, no window: routing.
   const routed = { method: "standard", promised_from: null, promised_to: null, window_start: null, window_end: null };
 
   it("a courier order: the two shared sentences, no method word, and the estimate it was SOLD", () => {
@@ -139,7 +131,6 @@ describe("deliveryVars — 079: who delivers decides what the receipt says", () 
       deliveryMethod: "",
       deliveryPreheader: "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
     });
-    // Never the package's routing word, a day, or "a date we'll confirm".
     expect(Object.values(v).join(" ")).not.toMatch(/standard|same-day|confirm|today|tomorrow|multiple/i);
   });
 

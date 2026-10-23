@@ -3,12 +3,8 @@ import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type { Audience, VerifiedToken } from "./service";
 
 /**
- * Verify a token against the pool its issuer names (constitution Principle IV: per-pool, issuer
- * pinned). The verifier checks signature, expiry, issuer and app client — the same four things the
- * gateway's JWT authorizers check, against the same pools and clients.
- *
- * `tokenUse: null` accepts an access token or an id token, as the gateway does: an app sends here
- * exactly what it sends there.
+ * Verifies signature, expiry, issuer and app client against the pool the issuer names, as the
+ * gateway's authorizers do. Accepts an access or id token, like the gateway.
  */
 
 const AUDIENCES: ReadonlyArray<{ audience: Audience; poolEnv: string; clientsEnv: string }> = [
@@ -44,7 +40,7 @@ function getPools(): Pools {
   return pools;
 }
 
-/** A leading scheme is tolerated: some clients send `Bearer <token>`, as they do to the gateway. */
+/** Tolerates a `Bearer ` prefix. */
 export function bareToken(raw: string): string {
   return raw.replace(/^Bearer\s+/i, "").trim();
 }
@@ -55,10 +51,9 @@ export async function verifyToken(raw: string): Promise<VerifiedToken | null> {
   try {
     payload = await p.verify(bareToken(raw));
   } catch {
-    // Expired, forged, from another issuer, for another app client — all one answer.
     return null;
   }
-  // The issuer ends in the pool id; the verifier has already proved the issuer is one of ours.
+  // The issuer ends in the pool id, and the verifier has proved the issuer is ours.
   const poolId = payload.iss.slice(payload.iss.lastIndexOf("/") + 1);
   const audience = p.audienceOf.get(poolId);
   if (!audience || typeof payload.sub !== "string" || payload.sub.length === 0) return null;

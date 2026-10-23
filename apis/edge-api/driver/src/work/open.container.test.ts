@@ -3,19 +3,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * 072 — A ROUND IS VISIBLE THE MOMENT IT IS ASSIGNED, AND INERT UNTIL IT OPENS.
- *
- * Work is now given to a driver hours before it can be done. What stops a van leaving for a 5–7 pm
- * delivery at 2 pm is one function, `assertRoundOpen`, called by every route that moves a round
- * forward. This file proves the two halves of that against real PostgreSQL:
- *
- *   · C7 — before the round opens, EVERY such route refuses AND WRITES NOTHING;
- *   · C8 — once it has opened, the same calls succeed.
- *
- * ⚠ REAL POSTGRESQL, BECAUSE THE DECISION IS THE DATABASE'S. The opening time is a SQL function
- * (`public.round_opens_at`) compared to the database's `now()`. A mock could only agree with whatever
- * it was told; it could not notice the function reading the wrong column, or the comparison running
- * against a clock in another timezone.
+ * Before a round opens every progressing route refuses and writes nothing; after, the same calls
+ * succeed. Real Postgres, because `public.round_opens_at` and `now` are the database's.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -39,12 +28,13 @@ vi.mock("@effy/edge-shared", async () => {
         client.release();
       }
     },
-    // The gate must refuse BEFORE an upload slot is minted; a call reaching this is the failure.
+    // The gate must refuse before an upload slot is minted.
     presignUpload: vi.fn(async () => ({ uploadUrl: "https://upload.invalid/x", storageKey: "proof/x.jpg" })),
   };
 });
 
-import { migrationSql, presignUpload } from "@effy/edge-shared";
+import { presignUpload } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { recordFailure, recordProof } from "../proof/repository";
 import { presignProof } from "../proof/service";
 import { collectStop, hubCheckin } from "./complete";
@@ -65,7 +55,6 @@ let seq = 0;
 const one = async <T extends Record<string, unknown>>(sql: string, params: unknown[] = []) =>
   (await pool.query<T>(sql, params as never[])).rows[0]!;
 
-/** A package at the shop, as a paid order's portion. */
 async function aPackage(status: "ready_for_pickup" | "collected" = "ready_for_pickup"): Promise<{ sfId: string; orderId: string }> {
   seq += 1;
   const cust = await one<{ id: string }>(
@@ -73,8 +62,8 @@ async function aPackage(status: "ready_for_pickup" | "collected" = "ready_for_pi
      VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
   );
   const order = await one<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, $2, 10, 12, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid') RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 10, 12, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust.id, `EFY-OPEN${seq}`],
   );
   const sf = await one<{ id: string }>(
@@ -92,8 +81,8 @@ async function aWave(kind: "collection" | "delivery"): Promise<string> {
   )).id;
 }
 
-/** A collection round for a run `minutesToRun` away: one shop stop with one package, and the hub. */
-/** 093 — a collect names every package the driver was shown: here, all of them. */
+/** One shop stop with one package, and the hub, for a run `minutesToRun` away. */
+/** A collect names every package the driver was shown. */
 async function shown(stopId: string) {
   const { rows } = await pool.query<{ id: string }>(
     `SELECT shop_fulfillment_id AS id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`,
@@ -118,7 +107,7 @@ async function collectionRound(minutesToRun: number, forDriver = driverId) {
   return { roundId: round.id, stopId: stop.id, sfId };
 }
 
-/** A delivery round for a window starting `minutesToWindow` away (null = no window): one drop. */
+/** One drop, for a window `minutesToWindow` away (null: no window). */
 async function deliveryRound(minutesToWindow: number | null) {
   const { sfId, orderId } = await aPackage("collected");
   const round = await one<{ id: string }>(
@@ -137,7 +126,6 @@ async function deliveryRound(minutesToWindow: number | null) {
   return { roundId: round.id, dropId: drop.id, sfId };
 }
 
-/** Everything a progressing route could have changed, as one comparable value. */
 async function snapshot() {
   const q = async (sql: string) => (await pool.query(sql)).rows;
   return {
@@ -182,8 +170,6 @@ d("072 — a round cannot be worked before it opens", () => {
     shopId = (await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('SOPEN', 'Open Shop') RETURNING id`)).id;
   });
 
-  // ── C7 ──────────────────────────────────────────────────────────────────────────────────────────
-
   describe("C7 — before it opens, every progressing route refuses and writes nothing", () => {
     it("collection: collect, hub check-in", async () => {
       // A run three hours off opens in two and a quarter.
@@ -197,7 +183,7 @@ d("072 — a round cannot be worked before it opens", () => {
       for (const [name, call] of calls) {
         const err = await call().then(() => null, (e: unknown) => e);
         expect(err, `${name} must be refused`).toBeInstanceOf(RoundNotOpenError);
-        // ⚠ It says WHEN (FR-025) — and the instant is the database's.
+        // It says when, by the database's instant.
         const opensIn = (new Date((err as RoundNotOpenError).opensAt).getTime() - Date.now()) / 60_000;
         expect(opensIn, `${name}: opens 45 minutes before the run`).toBeGreaterThan(133);
         expect(opensIn).toBeLessThan(136);
@@ -227,7 +213,7 @@ d("072 — a round cannot be worked before it opens", () => {
       expect(presignUpload, "no upload slot is minted for a delivery that cannot have happened").not.toHaveBeenCalled();
     });
 
-    // ⚠ FR-038 — "not open yet" for somebody else's round would say the id is real.
+    // "Not open yet" for another driver's round would reveal the id is real.
     it("another driver's unopened round still answers NOT FOUND, never 'not open'", async () => {
       const other = (await one<{ id: string }>(
         `INSERT INTO public.driver (cognito_sub, name, work_email)
@@ -240,7 +226,7 @@ d("072 — a round cannot be worked before it opens", () => {
     });
   });
 
-  // ── C8 ──────────────────────────────────────────────────────────────────────────────────────────
+  // C8
 
   describe("C8 — once it has opened, the same calls succeed", () => {
     it("collection round whose run is inside the lead time", async () => {
@@ -257,7 +243,6 @@ d("072 — a round cannot be worked before it opens", () => {
       ).resolves.toMatchObject({ replayed: false });
     });
 
-    // Spec US2 scenario 5 — an order placed before delivery windows existed has nothing to wait for.
     it("a delivery round with NO window is open the moment it is assigned", async () => {
       const { roundId, dropId } = await deliveryRound(null);
       await expect(loadRun(roundId, driverId, change())).resolves.toBeDefined();
@@ -267,11 +252,9 @@ d("072 — a round cannot be worked before it opens", () => {
     });
   });
 
-  // ── C9 ──────────────────────────────────────────────────────────────────────────────────────────
-
-  // ⚠ FR-014. The opening time is DERIVED. A stored one would still say 45 minutes here.
+  // The opening time is derived; a stored one would still say 45 minutes here.
   it("C9 — changing the lead moves the opening time of a round that already exists", async () => {
-    const { roundId, stopId } = await collectionRound(120); // opens in 75 minutes at the default lead
+    const { roundId, stopId } = await collectionRound(120);
     await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).rejects.toBeInstanceOf(RoundNotOpenError);
 
     await pool.query(
@@ -283,8 +266,6 @@ d("072 — a round cannot be worked before it opens", () => {
     await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).resolves.toMatchObject({ collected: 1 });
   });
 
-  // ── What the driver is shown ────────────────────────────────────────────────────────────────────
-
   describe("the driver sees the round in full before it opens (FR-020)", () => {
     it("today names the round, when it opens and when it is due", async () => {
       const { roundId } = await collectionRound(180);
@@ -293,11 +274,11 @@ d("072 — a round cannot be worked before it opens", () => {
       expect(t.activeRunId).toBe(roundId);
       expect(t.phase).toBe("collection");
       expect(t.active?.kind).toBe("collection_stop");
-      expect(t.remainingCount).toBe(2); // the shop, and the hub
+      expect(t.remainingCount).toBe(2);
       const opensIn = (new Date(t.opening!.at).getTime() - Date.now()) / 60_000;
       expect(opensIn).toBeGreaterThan(133);
       expect(opensIn).toBeLessThan(136);
-      // In words too, in Melbourne time: the app never formats a time itself.
+      // In words too, in Melbourne time.
       expect(t.opening!.label).toMatch(/\d{1,2}(:\d{2})? (am|pm)$/);
       expect(t.dueLabel).toMatch(/\d{1,2}(:\d{2})? (am|pm)$/);
       expect((new Date(t.deadlineAt!).getTime() - Date.now()) / 60_000).toBeGreaterThan(178);
@@ -309,13 +290,12 @@ d("072 — a round cannot be worked before it opens", () => {
       expect(run.stops).toHaveLength(1);
       expect(run.opening).not.toBeNull();
       expect(new Date(run.deadlineAt).getTime()).toBeGreaterThan(Date.now());
-      // The stop and its packages too — and it says it is not open.
       const stop = await collectionStop(roundId, run.stops[0]!.stopId, driverId);
       expect(stop.packages).toHaveLength(1);
       expect(stop.opening).toEqual(run.opening);
     });
 
-    // ⚠ Decided by the database's clock, so a phone whose clock is wrong cannot lock an open round.
+    // The database's clock, so a wrong phone clock cannot lock an open round.
     it("an open round is sent with NO opening time", async () => {
       const { roundId } = await collectionRound(30);
       expect((await today(driverId)).opening).toBeNull();
@@ -337,11 +317,8 @@ d("072 — a round cannot be worked before it opens", () => {
     });
   });
 
-  // ── C15 ─────────────────────────────────────────────────────────────────────────────────────────
-
   describe("C15 — what to do next is always open work (FR-027)", () => {
-    // ⚠ The ordering this replaced was "delivery before collection, oldest first" — which puts the
-    // evening's delivery round, created first and not yet open, in front of the run that is.
+    // Not "delivery before collection": that put the evening's unopened delivery round first.
     it("an open collection round is current although an unopened delivery round is older", async () => {
       const evening = await deliveryRound(300);
       const now = await collectionRound(30);
@@ -350,7 +327,7 @@ d("072 — a round cannot be worked before it opens", () => {
       expect(t.activeRunId).toBe(now.roundId);
       expect(t.opening).toBeNull();
       expect(t.upcoming.map((u) => u.runId)).toEqual([evening.roundId]);
-      expect(t.upcoming[0]).toMatchObject({ kind: "same_day_delivery", stopCount: 1, packageCount: 1 });
+      expect(t.upcoming[0]).toMatchObject({ kind: "delivery", stopCount: 1, packageCount: 1 });
       expect(t.upcoming[0]!.opening).not.toBeNull();
     });
 
@@ -373,7 +350,6 @@ d("072 — a round cannot be worked before it opens", () => {
       expect(t.activeRunId).toBe(sooner.roundId);
       expect(t.opening).not.toBeNull();
       expect(t.upcoming.map((u) => u.runId)).toEqual([window.roundId, later.roundId]);
-      // The hub is not a place a driver would count.
       expect(t.upcoming[1]).toMatchObject({ kind: "collection", stopCount: 1, packageCount: 1 });
     });
 

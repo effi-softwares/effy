@@ -1,4 +1,3 @@
-// POST /shop/v1/fulfillments/{id}/parcels/pack-scans — confirm bags as they are packed by scanning their labels (096).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

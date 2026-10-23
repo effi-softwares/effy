@@ -1,15 +1,6 @@
-// How full is each gateway? (075 FR-016.)
-//
-// ⚠ WHY THIS EXISTS. An HTTP API holds at most 300 routes and 300 integrations, and the provider
-// publishes no metric for how many are in use. On 2026-10-08 the shared gateway reached both limits
-// and the first anyone knew was a deployment refused half-way through. Nothing had been counting.
 import type { GatewayReader } from "./reader"
 
-/**
- * Both limits, per HTTP API. The route limit can be raised by a quota request; the INTEGRATION limit
- * is not adjustable — so it is the one that binds, and the reason the ceiling is a constant here
- * rather than something read from the account's quotas.
- */
+/** Per HTTP API. The integration limit cannot be raised, so it binds. */
 export const GATEWAY_CEILING = 300
 
 export type GatewayName = "shared" | "staff"
@@ -20,20 +11,15 @@ export interface GatewayReading {
   limit: GatewayLimit
   used: number
   ceiling: number
-  /** 0–100, rounded UP. */
   percent: number
 }
 
-/**
- * ⚠ ROUNDED UP, deliberately. Rounding to nearest reports 299 of 300 as 100 and 224 of 300 as 75 —
- * fine — but rounding DOWN would report 299 of 300 as 99, and the number is read by alarms with
- * thresholds: a gateway one route from refusing a deployment must never read as under its line.
- */
+/** Rounded up, so a gateway one route from full never reads as under an alarm line. */
 export function percentOf(used: number, ceiling: number = GATEWAY_CEILING): number {
   return Math.min(100, Math.ceil((used / ceiling) * 100))
 }
 
-/** Four readings: each gateway, each limit. Any failure rejects — a partial answer is not an answer. */
+/** Any failure rejects: a partial answer is not an answer. */
 export async function measure(reader: GatewayReader, apis: Record<GatewayName, string>): Promise<GatewayReading[]> {
   const names: GatewayName[] = ["shared", "staff"]
   const perGateway = await Promise.all(

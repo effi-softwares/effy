@@ -5,23 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The device's mirror of which products are saved — the single source every save control reads.
- *
- * ⚠ THIS IS THE FIX FOR THE DEFECT THE WHOLE SLICE EXISTS FOR. Before it, nothing on the platform
- * could answer "is this product already saved?", so every surface assumed NOT SAVED on every render.
- * A shopper who saved something yesterday opened it today, saw an empty heart, tapped it (a no-op),
- * tapped again — and silently un-saved the thing they were trying to save.
- *
- * Every control subscribes to [saved] rather than holding its own boolean, which is what stops two
- * controls for the same product on one screen from disagreeing (FR-013).
- *
- * Design follows CartStore (027): one observable state object, optimistic edits applied to the mirror
- * FIRST and sent second, and the mirror reverted if the platform refuses.
- *
- * ⚠ A GUEST'S TAPS ARE PERSISTED (FR-025). [guestEntries] is hydrated from disk at construction —
- * before the first frame — and written on every edit, WITHOUT a sign-in check. A list that evaporated
- * on the next launch would be worse than the sign-in wall this feature removes, because the shopper
- * would believe they had kept something.
+ * The device's mirror of which products are saved, the one source every save control reads, so a saved
+ * product shows as saved and two hearts for one product agree. Like CartStore: one observable state,
+ * optimistic edits to the mirror first, reverted if the platform refuses. A guest's [guestEntries] are
+ * hydrated from disk before the first frame and written on every edit.
  */
 class SavedStore(
     private val local: GuestPersistence = GuestPersistence.None,
@@ -31,9 +18,9 @@ class SavedStore(
     val saved: StateFlow<Set<String>> = _saved.asStateFlow()
 
     /**
-     * The saved products held in a list the shopper NAMED (068).
+     * The saved products held in a list the shopper named.
      *
-     * ⚠ In memory only. A guest has no named lists, so nothing about lists is ever written to the
+     * In memory only. A guest has no named lists, so nothing about lists is ever written to the
      * device; and an empty set is the safe reading, because the platform refuses the un-save anyway.
      */
     private val _named = MutableStateFlow<Set<String>>(emptySet())
@@ -59,14 +46,14 @@ class SavedStore(
     /**
      * Replace the mirror with the platform's answer.
      *
-     * ⚠ Adopting a set WHOLESALE rather than merging is correct here and would be wrong for the cart:
+     * Adopting a set wholesale rather than merging is correct here and would be wrong for the cart:
      * the platform is authoritative for membership, there is no local-only state to preserve, and a
      * merge would resurrect items the shopper removed on another device.
      */
     fun adopt(membership: SavedMembership) {
         _saved.value = membership.productIds
         _named.value = membership.namedProductIds
-        // The account is now the record. The device copy has served its purpose and must not linger —
+        // The account is now the record. The device copy has served its purpose and must not linger
         // a shared device would otherwise hand the next person the previous shopper's interests.
         if (guest.isNotEmpty()) {
             guest = emptyList()
@@ -74,13 +61,13 @@ class SavedStore(
         }
     }
 
-    /** Apply an intent to the mirror immediately, before the platform is told (FR-012). */
+    /** Apply an intent to the mirror immediately, before the platform is told. */
     fun apply(productId: String, saved: Boolean) {
         _saved.value = if (saved) _saved.value + productId else _saved.value - productId
     }
 
     /**
-     * Apply a GUEST's intent and persist it.
+     * Apply a guest's intent and persist it.
      *
      * [savedPriceAmount] is null when the surface did not know a price. It is left absent rather than
      * defaulted, so the merge falls back to the product's real current price instead of claiming the
@@ -103,18 +90,18 @@ class SavedStore(
         local.save(guest)
     }
 
-    /** How many the guest currently holds — the cap is checked against this (FR-046). */
+    /** How many the guest currently holds — the cap is checked against this. */
     fun guestCount(): Int = guest.size
 
     /**
      * Revert a single product to [previous] after a refusal.
      *
-     * ⚠ Reverts ONE product, never the whole set. Restoring a snapshot of the entire mirror would
+     * Reverts one product, never the whole set. Restoring a snapshot of the entire mirror would
      * undo unrelated taps the shopper made while this request was in flight.
      */
     fun revert(productId: String, previous: Boolean) = apply(productId, previous)
 
-    /** Sign-out: an account's saved items must not stay readable on the device (FR-031). */
+    /** Sign-out: an account's saved items must not stay readable on the device. */
     fun reset() {
         _saved.value = emptySet()
         _named.value = emptySet()
@@ -123,17 +110,9 @@ class SavedStore(
     }
 }
 
-
 /**
- * The disk seam.
- *
- * ⚠ An interface rather than a direct `SavedLocalStore` dependency, so the domain layer keeps
- * depending on nothing (Principle VI) and tests get a real in-memory implementation instead of a
- * mock. [None] is the deliberate no-op for a store with no device behind it.
- *
- * ⚠ 030's trap lives here: its store had exactly this seam and `AppContainer` passed the no-op, so
- * nothing was ever written for an entire feature. If you add a `SavedStore()` call, check which
- * persistence it got.
+ * The disk seam: an interface, so the domain depends on nothing and tests use a real in-memory store. [None]
+ * is the no-op for a store with no device behind it; check which persistence a new `SavedStore` gets.
  */
 interface GuestPersistence {
     fun load(): List<SavedGuestEntry>

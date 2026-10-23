@@ -37,52 +37,38 @@ export const metadata: Metadata = {
 }
 
 /**
- * The storefront home (US1). GUEST-FIRST (FR-001) — fully usable with no account, never asks for one.
- *
- * ── Composition, from the reference template (025 UI refresh) ────────────────────────────────────
- *
- * The reference's homepage order is: hero band → merchandising rail → merchandising rail → category
- * mosaic panel → social proof → closing CTA → footer. This follows it, with two substitutions driven
- * by what Effy actually has:
- *
- *  - The reference's BRAND STRIP (Versace, Zara, Gucci…) has no analogue: Effy is single-brand by
- *    definition, so a logo wall would be a row of one. Dropped rather than faked.
- *  - The reference's TESTIMONIAL CAROUSEL is dropped for the same reason the product cards carry no
- *    star ratings — there are no reviews on this platform, and inventing them is not a design
- *    decision.
- *
- * The static shell (H1, hero, section scaffolding) prerenders and is present in the raw HTML for
- * crawlers (FR-002). The merchandised rails depend on the backend, so they stream inside a <Suspense>
- * boundary — the PPR model: instant static shell, then content, degrading to a skeleton and then to a
- * friendly empty/error state.
+ * The storefront home, guest-first. Hero band, merchandising rails, the category mosaic and the closing
+ * CTA; no brand strip (Effy is one brand) and no testimonials (there are no reviews). The static shell
+ * prerenders; the rails stream inside a <Suspense>, degrading to a skeleton and then an empty or error
+ * state.
  */
 export default function HomePage() {
   return (
     <>
       <JsonLd data={organizationLd(siteUrl())} />
 
-      {/* Static shell — in the prerender, present in the raw HTML a crawler receives (FR-040), and
-          NOT gated on the catalogue read below (FR-012).
+      {/* Static shell — in the prerender, present in the raw HTML a crawler receives, and
+          Not gated on the catalogue read below.
 
-          ⚠ The H1 is screen-reader-only and every section — including the hero — heads itself at H2.
+          The H1 is screen-reader-only and every section — including the hero — heads itself at H2.
           The page therefore has exactly one top-level heading no matter which sections have data
-          (SC-009), which is the one structural invariant that has to survive all six 039 sections
+          , which is the one structural invariant that has to survive all six 039 sections
           landing one at a time.
 
-          ⚠ 039 REPLACES 025's type-led hero with an image-led one. 025's note here argued a retail
+          Replaces 025's type-led hero with an image-led one. 025's note here argued a retail
           storefront should lead with what is on offer rather than a slogan, and put the promo carousel
           in the top slot; the operator's 039 direction is a hero band, and the offers now get their
           own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
 
-      {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
+      {/* Its own suspense boundary, at page level — not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
           advertised promotions, which are kept a minute at most and never prerendered. But it must
-          not be BEHIND the merchandising hole either: sharing that boundary made the page's largest element wait on the
+          not be behind the merchandising hole either: sharing that boundary made the page's largest element wait on the
           category read it has no use for, and put the whole first screen behind whichever of the two
           requests was slower. Its own boundary means it paints as soon as its own data lands.
 
-          Both boundaries read `/storefront/v1/home`; `getHome()` is `cache()`-wrapped so that is one
+          Both boundaries read `/storefront/v1/home`; `getHome` is `cache`-wrapped so that is one
           request, by construction rather than by relying on Next's memoization. */}
       <Suspense fallback={<PromoHeroSkeleton />}>
         <PromoHeroSection />
@@ -98,12 +84,12 @@ export default function HomePage() {
         <HomeContent />
       </Suspense>
 
-      {/* Contract row 7 — static shell, no request-time data, present for crawlers (FR-040). It sits
-          AFTER the streamed merchandising hole in the document, which is where a shopper meets it, and
+      {/* Contract row 7 — static shell, no request-time data, present for crawlers. It sits
+          After the streamed merchandising hole in the document, which is where a shopper meets it, and
           still prerenders because it is outside the <Suspense> boundary. */}
       <AppPromo />
 
-      {/* Contract row 9 — static shell. The form posts to a Server Action; only its RESULT state needs
+      {/* Contract row 9 — static shell. The form posts to a Server Action; only its result state needs
           a client boundary (see NewsletterForm's header for why FR-033 forces one). */}
 
       {/* Device-local recently-viewed (client island). */}
@@ -112,14 +98,7 @@ export default function HomePage() {
   )
 }
 
-/**
- * The promotions band (039 comparison build).
- *
- * ⚠ A FAILED READ RENDERS NOTHING, it does not render an error. `HomeContent` below reads the same
- * payload and already owns the "the store is unavailable" message — two boundaries reporting one
- * outage would tell the shopper the site is broken twice, once in the largest element on the page.
- * A hero is the wrong place to deliver that news.
- */
+/** The promotions band. A failed read renders nothing: `HomeContent` owns the "store unavailable" message for the same payload. */
 async function PromoHeroSection() {
   let groups: Record<string, GroupBanner[]>
   try {
@@ -138,7 +117,7 @@ async function HomeContent() {
     ;[home, categories, between] = await Promise.all([
       getHome(),
       getCategories(),
-      // 094 — the offers between Home's sections are their own display group. A failed read leaves
+      // The offers between Home's sections are their own display group. A failed read leaves
       // them out; it never takes the page down.
       getPromotionGroups(PROMOTION_GROUP_KEYS.homeBetween).then((g) => g[PROMOTION_GROUP_KEYS.homeBetween] ?? [], () => undefined),
     ])
@@ -146,9 +125,9 @@ async function HomeContent() {
     return <StoreUnavailable />
   }
 
-  // ⚠ "Empty" is decided from the PRODUCTS, not the rail count. A server that returns four rails with
+  // "Empty" is decided from the products, not the rail count. A server that returns four rails with
   // nothing in them is an empty store, and the previous `rails.length === 0` check called that a full
-  // one — then rendered four headings above four blank spaces (FR-016).
+  // one — then rendered four headings above four blank spaces.
   if (isEmptyStore(home)) {
     return <EmptyStore />
   }
@@ -162,11 +141,11 @@ async function HomeContent() {
 
   return (
     <>
-      {/* ⚠ The page RENDERS A COMPOSED SEQUENCE, it does not decide the order here. `composeSections`
-          owns the top-to-bottom argument (FR-001) and the self-hiding rule (FR-004) so both are unit
+      {/* The page renders a composed sequence, it does not decide the order here. `composeSections`
+          owns the top-to-bottom argument and the self-hiding rule so both are unit
           testable — rendering async Server Components is exactly what Vitest cannot do.
 
-          ⚠ 039 RETIRES `CategoryMosaic`, which used to sit at the BOTTOM of this page. The mosaic was a
+          Retires `CategoryMosaic`, which used to sit at the bottom of this page. The mosaic was a
           discovery block a shopper reached after scrolling the whole storefront; the shortcut strip is
           a navigation affordance, and navigation belongs before the thing it navigates. The file is
           deleted rather than left unused — its only call site was here. */}
@@ -196,14 +175,7 @@ function sectionKey(section: HomeSection): string {
   return section.kind === "rail" ? `rail:${section.key}` : section.kind
 }
 
-/**
- * The streaming fallback.
- *
- * ⚠ BUILT FROM THE SAME PRIMITIVES AS THE CONTENT, deliberately. 028 shipped a skeleton assembled from
- * different building blocks than the thing it stood in for, so it could not match its shape at any
- * width and the swap-in visibly jumped. It now mirrors the real sequence: a category strip of circles,
- * then two product rails on the shared `productGrid`.
- */
+/** The streaming fallback, built from the content's own primitives (circles, then two rails on `productGrid`) so the swap does not jump. */
 function HomeSkeleton() {
   return (
     <div className="container py-8" aria-hidden="true">
@@ -238,12 +210,7 @@ function HomeSkeleton() {
   )
 }
 
-/**
- * ⚠ BOTH DEGRADED STATES OFFER A WAY FORWARD (FR-016/FR-043). They previously explained themselves and
- * then dead-ended — "check back soon" and "try again in a moment" with nothing to press. A shopper who
- * reached the storefront and found nothing has to be able to do something other than leave, and on a
- * catalogue error the other routes may well be fine.
- */
+/** Both degraded states offer a way forward: other routes may well be fine. */
 function EmptyStore() {
   return (
     <div className="container my-16">

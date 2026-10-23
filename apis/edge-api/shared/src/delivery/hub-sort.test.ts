@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { hubSortOf } from "./hub-sort";
 
-/** 090 — the hub instruction per package (quickstart P5). 2026-10-16 01:00Z is noon in Melbourne. */
+/** 2026-10-16 01:00Z is noon in Melbourne. */
 const AT = new Date("2026-10-16T01:00:00Z");
 
 describe("hubSortOf", () => {

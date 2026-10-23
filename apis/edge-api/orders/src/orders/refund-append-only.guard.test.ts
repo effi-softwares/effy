@@ -5,29 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE GUARD FOR `public.refund` — APPEND-ONLY EXCEPT FOR THE STATE MACHINE (055).
- *
- * 054's mechanism, second outing. `refund` is the record that MONEY MOVED — it is the only child of
- * an order with `ON DELETE RESTRICT`, precisely so it cannot vanish with the row it points at. Its
- * status, failure reason, provider id and settled_at change as the money moves; NOTHING ELSE DOES,
- * and no row is ever deleted.
- *
- * ⚠ WHY A SOURCE SCAN RATHER THAN A TRIGGER: the platform's convention for `fulfillment_event`,
- * `admin.audit_log` and `stock_movement` is discipline, not a trigger. Discipline nothing checks is a
- * comment — so this reads the source and fails NAMING the file.
- *
- * ⚠ WHY THE PERMITTED SET IS TIGHT: an UPDATE that touched `amount` would rewrite what a customer was
- * refunded after the fact, and the receipt they hold would no longer match the record. An UPDATE that
- * touched `order_id` would move a refund onto somebody else's order.
+ * `public.refund` is append-only apart from its state machine: only the columns that record money
+ * moving may be updated, and no row is ever deleted. A source scan that fails naming the file.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../..");
 
-/** Every place on the platform that could plausibly write this table. */
-// ⚠ 070: the writer is `shared/src/payments` now (it was the Go backend). Every service is listed,
-// not only the three that move money — the guard exists to catch a write from somewhere it should
-// not be, which is by definition a place nobody thought to list.
+/** Every service, not just the money movers: the guard catches a write from an unexpected place. */
 const SEARCH_ROOTS = [
   "apis/edge-api/shared/src",
   "apis/edge-api/commerce/src",
@@ -43,16 +28,11 @@ const SEARCH_ROOTS = [
   "apis/edge-api/notifications/src",
 ];
 
-/** Where the refund state machine lives. The floor checks below are anchored on it. */
 const REFUND_REPOSITORY = "apis/edge-api/shared/src/payments/refunds/repository.ts";
 
-/** Any DELETE or TRUNCATE is an offence outright — a refund row is never removed. */
 const DESTRUCTIVE = /\b(DELETE\s+FROM|TRUNCATE)\s+(public\.)?refund\b/i;
 
-/**
- * The columns an UPDATE may set. Everything here is part of the money MOVING; nothing here changes
- * what the refund WAS.
- */
+/** Columns that record the money moving; none change what the refund was. */
 const MUTABLE = new Set(["status", "failure_reason", "provider_refund_id", "settled_at"]);
 
 function* sourceFiles(dir: string): Generator<string> {
@@ -73,7 +53,6 @@ function* sourceFiles(dir: string): Generator<string> {
   }
 }
 
-/** The columns an `UPDATE public.refund` statement assigns, read from the source text. */
 function assignedColumns(body: string): { columns: string[]; where: string }[] {
   const out: { columns: string[]; where: string }[] = [];
   const re = /UPDATE\s+public\.refund\b([\s\S]*?)(?:`|;|\n\s*\n)/gi;
@@ -130,7 +109,7 @@ describe("public.refund is append-only except for its state machine (055)", () =
   });
 
   it("is actually looking at source — a guard that scans nothing always passes", () => {
-    // ⚠ The failure mode of a source-scanning guard is finding no files and reporting success.
+    // A source scan that finds no files must not pass.
     for (const root of SEARCH_ROOTS) {
       expect([...sourceFiles(join(repoRoot, root))].length, `${root} has no source — was it moved?`).toBeGreaterThan(0);
     }
@@ -138,8 +117,7 @@ describe("public.refund is append-only except for its state machine (055)", () =
     expect(files.length).toBeGreaterThan(40);
     expect(files.some((f) => f.endsWith("payments/refunds/repository.ts"))).toBe(true);
 
-    // And it must be finding the real UPDATE statements, or the column check is vacuous: the three
-    // transitions (submitted, refused, settled) and nothing that is not one of them.
+    // It must find the three real transitions, or the column check is vacuous.
     const found = assignedColumns(readFileSync(join(repoRoot, REFUND_REPOSITORY), "utf8"));
     expect(found).toHaveLength(3);
     expect(new Set(found.flatMap((f) => f.columns))).toEqual(MUTABLE);
@@ -160,7 +138,6 @@ describe("public.refund is append-only except for its state machine (055)", () =
         if (/(INSERT\s+INTO|UPDATE)\s+public\.refund\b/i.test(readFileSync(file, "utf8"))) writers.add(file.slice(repoRoot.length + 1));
       }
     }
-    // Money logic lives once (070). A second writer is a second definition of what a refund is.
     expect([...writers]).toEqual([REFUND_REPOSITORY]);
   });
 });

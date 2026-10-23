@@ -6,7 +6,6 @@ import { json, problem } from "@effy/edge-shared";
 import { authenticate } from "../driver/guard";
 import { collectionStop, NotFoundError } from "../work/service";
 
-/** GET /driver/v1/collection/runs/{runId}/stops/{stopId} — the manifest for one shop (063). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

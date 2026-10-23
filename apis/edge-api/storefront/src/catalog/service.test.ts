@@ -98,7 +98,7 @@ describe("productDetail", () => {
     expect(await svc.productDetail(ID)).toEqual({
       id: ID, name: "Oat milk", brand: "Oatly", imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], priceAmount: "4.50", currency: "AUD",
       compareAtAmount: null, badges: [], available: true, longDescription: "Short",
-      // 086 — copies listed ascending; a picture with none carries no field at all.
+      // Copies listed ascending; a picture with none carries no field.
       gallery: [{ imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], alt: "Front" }, { imageUrl: "signed:b.jpg", alt: null }],
       attributes: [{ groupLabel: "Details", items: [{ label: "Size", value: "1L" }] }],
       categoryPath: ["Food", "Dairy"], categoryKey: "dairy",

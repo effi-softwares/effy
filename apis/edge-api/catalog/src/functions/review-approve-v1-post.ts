@@ -1,5 +1,4 @@
-// POST /catalog/v1/review/items/{productId}/approve — approve a new product or a pending change,
-// setting Effy's margin (067 FR-011, FR-028, FR-031). Decide = admin/manager, from the staff record.
+// Admin/manager only.
 import { announce } from "@effy/edge-shared/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -16,7 +15,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     const body = parseBody<{ version?: unknown; margin?: unknown }>(event.body);
     const approved = await approve(event.pathParameters?.productId, body, g.sub);
-    await announce([{ scope: "ops", kind: "review" }]); // 071 — committed; the review queue is one shorter
+    await announce([{ scope: "ops", kind: "review" }]);
     return json(200, approved, scope);
   } catch (err) {
     return mapReviewError(err, scope);

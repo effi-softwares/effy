@@ -24,7 +24,7 @@ import {
   updatePromotionImage,
 } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
+// Server state lives only in the TanStack Query cache (Principle VI). Mutations invalidate the root
 // rather than patch the cache — a promotion's state and uses move without us touching them.
 
 export const PROMO_ROOT = ["back-office", "promotions"] as const;
@@ -61,7 +61,7 @@ export const useAddChosenCustomers = (id: string) => useInvalidating((body: { em
 export const useRemoveChosenCustomer = (id: string) => useInvalidating((customerId: string) => removeChosenCustomer(id, customerId));
 export const useGenerateCodes = (id: string) => useInvalidating((body: { count: number; prefix?: string | null }) => generateCodes(id, body));
 
-// ── 095 — pictures ──────────────────────────────────────────────────────────────────────────────
+// Pictures
 
 export const useAddPromotionImage = (promotionId: string) =>
   useInvalidating(({ file, alt }: { file: File; alt: string }) => addPromotionImage(promotionId, file, alt));

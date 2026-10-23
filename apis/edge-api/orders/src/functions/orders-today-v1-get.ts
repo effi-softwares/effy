@@ -7,10 +7,7 @@ import type { AdminOrdersTodayDTO } from "@effy/shared-types";
 import { requireStaff } from "../lib/guard";
 import { ordersToday } from "../orders/service";
 
-/**
- * GET /orders/v1/summary/today — the back-office Overview's "Orders today": placed since midnight
- * Melbourne time by who delivers them, and refunded today. Read = any active staff incl. csa.
- */
+/** Placed since midnight Melbourne, by delivery type, and refunded today. Any active staff. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

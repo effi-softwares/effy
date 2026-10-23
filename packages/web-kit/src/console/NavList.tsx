@@ -13,30 +13,16 @@ import {
 import { groupNav, visibleNav, type NavItem } from "./nav";
 
 /**
- * The sidebar's primary navigation — flat leaf links, split into the groups each item names.
- *
- * `visibleNav` filters by the same role the backend gate checks, so a privileged item is hidden
- * for an operator who would be refused anyway. The hiding is a courtesy; the refusal is the guard.
- *
- * ⚠ IN THE COLLAPSED ICON RAIL two things the expanded rail says in text would otherwise vanish:
- * - the group labels (the primitive hides them) — so a 1px rule separates the groups instead;
- * - the count (`SidebarMenuBadge` is hidden in icon mode) — so a dot marks the item instead,
- *   `--brand` when it is the active route and `--accent2` (attention) when it is not. A count that
- *   exists only while the rail is expanded is a signal the operator loses by collapsing it.
+ * The sidebar's navigation: flat links in the groups each item names. `visibleNav` hides what the
+ * backend would refuse (a courtesy; the refusal is the guard). In the collapsed rail a 1px rule
+ * replaces the group labels and a dot replaces the count (`--brand` when active, `--accent2` otherwise).
  */
 export interface NavListProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
   roles: readonly TRole[];
   /** The label for items that name no `group`. */
   groupLabel?: string;
-  /**
-   * ⚠ 057 — OPTIONAL, AND ABSENT MEANS NO BADGE AT ALL. Keyed by the item's `to`. shop-web shows a
-   * live count of orders waiting; back-office passes nothing and renders byte-identically, which is
-   * how this shared component gains a capability without changing the other console (Principle II).
-   *
-   * ⚠ A zero is NOT rendered. "0 orders waiting" is noise on a rail read at a glance, and a badge
-   * that is always present stops being a signal.
-   */
+  /** Optional counts keyed by the item's `to`; zero renders no badge. */
   badges?: Readonly<Record<string, number | undefined>>;
 }
 
@@ -94,7 +80,7 @@ export function NavList<TRole extends string>({
   );
 }
 
-/** Absent, zero and undefined all mean "no badge" — only a positive count is worth a pixel. */
+/** Only a positive count renders a badge. */
 function badgeFor(
   badges: Readonly<Record<string, number | undefined>> | undefined,
   to: string,

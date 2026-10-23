@@ -142,7 +142,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
   );
 }
 
-/** What a hub move did to the coverage list's distances (076 FR-012), in words. */
+/** What a hub move did to the coverage list's distances, in words. */
 export function hubMoveSummary(d: { recomputed: number; unchanged: number; manualFlagged: number }): string {
   const parts = [`${d.recomputed} distance${d.recomputed === 1 ? "" : "s"} recalculated`];
   if (d.manualFlagged > 0) parts.push(`${d.manualFlagged} entered by hand flagged for review`);

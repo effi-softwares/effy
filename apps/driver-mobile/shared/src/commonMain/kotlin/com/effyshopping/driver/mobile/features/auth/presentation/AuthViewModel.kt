@@ -20,7 +20,7 @@ enum class AuthStage { Email, Code }
 enum class AuthSubmission { Idle, SendingCode, ConfirmingCode, ResendingCode }
 
 /**
- * ⚠ 060 added [LockedOut]. Until then a driver who had exhausted their attempts saw the SAME
+ * Added [LockedOut]. Until then a driver who had exhausted their attempts saw the same
  * message as one who mistyped a digit — "that code isn't right, check it and try again" — which
  * tells them to retry something that cannot now succeed. The design has it as its own screen
  * (`otp-locked`); the app had no state to render it from.
@@ -213,10 +213,10 @@ class AuthViewModel(
     }
 }
 
-// ⚠ OTP_LENGTH and normalizeOtp moved to packages/mobile-kit (035 T037). They were app-local here
+// OTP_LENGTH and normalizeOtp moved to packages/mobile-kit. They were app-local here
 // while customer-mobile had no equivalent at all — the divergence that produced this slice's defect.
 // The old normalizeOtp ended `.take(OTP_LENGTH)`, silently cutting a real 8-digit code down to six
-// and submitting the wrong value. The promoted version strips non-digits ONLY (FR-004).
+// and submitting the wrong value. The promoted version strips non-digits only.
 private const val DEFAULT_RESEND_COOLDOWN_SECONDS = 30
 
 internal fun isValidEmail(value: String): Boolean {

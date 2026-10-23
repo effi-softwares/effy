@@ -13,7 +13,7 @@ actual fun rememberShareFile(): (bytes: ByteArray, fileName: String, mimeType: S
     return remember(context) {
         { bytes, fileName, mimeType ->
             runCatching {
-                // ⚠ Under cache/documents only — the one directory `file_paths.xml` exposes.
+                // Under cache/documents only — the one directory `file_paths.xml` exposes.
                 val dir = File(context.cacheDir, "documents").apply { mkdirs() }
                 val file = File(dir, fileName.replace(Regex("[^A-Za-z0-9 ._-]"), "")).apply { writeBytes(bytes) }
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.documents", file)

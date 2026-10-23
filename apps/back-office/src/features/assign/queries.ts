@@ -38,11 +38,11 @@ export function useUnassign(packageId: string) {
   });
 }
 
-/** The refusals fleet writes for a PERSON to read, in one line (073 FR-017). */
+/** The refusals fleet writes for a person to read, in one line. */
 const OWN_WORDS = new Set(["cannot_take", "needs_confirm", "changed", "collected", "not_needed", "not_yet"]);
 
 /**
- * One line for a failed action. ⚠ Only the assignment routes' own refusals are shown as the server
+ * One line for a failed action. Only the assignment routes' own refusals are shown as the server
  * wrote them — those are written as staff copy. Anything else gets a plain generic line (the api
  * client's rule: never show an arbitrary server `detail`).
  */

@@ -26,7 +26,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
   const cart = new Map<string, { qty: number; atAdd: string | null }>();
   const saved = new Map<string, { qty: number; atAdd: string | null }>();
   const applied = new Set<string>();
-  /** 094 — the promotions on offer, by code (null = automatic). The REAL engine prices them. */
+  /** By code (null = automatic); the real engine prices them. */
   const promos = new Map<string, { code: string | null; candidate: FixtureCandidate; words: PromotionWords }>();
   const priced: PricingInput[] = [];
   const orders = new Map<string, { owner: string; items: ReorderCandidate[] }>();
@@ -37,7 +37,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
   const row = (pid: string, e: { qty: number; atAdd: string | null }): CartLineRow => {
     const p = products[pid]!;
     return {
-      // 098 — each fake product is its own single variant, keyed by the same id.
+      // Each fake product is its own single variant, keyed by the same id.
       id: `line-${pid}`, product_id: pid, variant_id: pid, variant_label: null, variant_state: "active",
       pack_quantity: null, pack_unit: null, unit_basis: null,
       shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,

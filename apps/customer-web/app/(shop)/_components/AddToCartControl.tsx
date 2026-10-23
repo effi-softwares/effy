@@ -12,13 +12,13 @@ import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
 import { toast } from "@/lib/toast-store"
 
-/** The snapshot an add-to-cart captures (price/name/image frozen at add time — R8). */
+/** The snapshot an add captures (price, name and image frozen at add time). */
 interface AddToCartProduct {
-  /** 098 — the size being bought: the cart line's identity. */
+  /** The size being bought: the cart line's identity. */
   variantId: string
   productId: string
   name: string
-  /** 098 — the size's words, carried onto the line ("1 kg"). */
+  /** The size's words, carried onto the line ("1 kg"). */
   variantLabel?: string | null
   unitPrice?: UnitPriceDTO | null
   imageUrl: string | null
@@ -26,21 +26,17 @@ interface AddToCartProduct {
   unitPriceAmount: string
   currency: string
   available: boolean
-  /**
-   * OPAQUE package-grouping token (021 FR-005a) sourced from the product, captured onto the guest line
-   * so the cart can show the anonymous split. NOT a shop id/name/location. Absent until the storefront
-   * read carries it — then everything falls into one package (single-package cart, FR-007/SC-011).
-   */
+  /** The opaque package-grouping token captured onto the guest line (not a shop id); absent means one package. */
   packageKey?: string
 }
 
-/** Quantity stepper + Add to cart (US2). Writes to the device-local guest cart and confirms briefly. */
+/** Quantity stepper and Add to cart, writing to the device-local guest cart. */
 export function AddToCartControl({
   product,
   unavailableText = "This item is currently unavailable.",
 }: {
   product: AddToCartProduct
-  /** 098 — what to say when THIS size cannot be bought ("This size is sold out."). */
+  /** What to say when this size cannot be bought ("This size is sold out."). */
   unavailableText?: string
 }) {
   const router = useRouter()
@@ -69,16 +65,13 @@ export function AddToCartControl({
       quantity: qty,
       packageKey: product.packageKey ?? DEFAULT_PACKAGE_KEY,
     })
-    // ⚠ DYNAMIC import (027's rule). A static `import { capture } from "@/lib/telemetry"`
-    // here rides the ALWAYS-LOADED guest chunk and cost +1.0 KB on four routes last time it
-    // was tried. Paying for the module at the moment of the event costs a guest nothing.
+    // A dynamic import: a static telemetry import would ride the always-loaded guest chunk.
     void import("@/lib/telemetry").then(({ capture }) =>
       capture({ name: "product_added_to_cart", props: { productId: product.productId, variantId: product.variantId, quantity: qty } }),
     )
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)
-    // 025 FR-039: acknowledge the add and offer the cart WITHOUT navigating there. The silent add is
-    // what produces duplicate adds — a shopper who cannot tell it worked tries again.
+    // Acknowledge the add and offer the cart without navigating: a silent add produces duplicate adds.
     toast(qty === 1 ? "Added to cart" : `Added ${qty} to cart`, {
       action: { label: "View cart", run: () => router.push("/cart") },
     })

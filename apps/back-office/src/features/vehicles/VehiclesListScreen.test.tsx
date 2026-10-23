@@ -59,7 +59,7 @@ describe("VehiclesListScreen — the register", () => {
   });
 
   /**
-   * ⚠ FR-009 — compliance is answerable WITHOUT opening a record, and it NAMES the lapsed item.
+   * Compliance is answerable without opening a record, and it names the lapsed item.
    * "Not compliant" would send an operator into the record to find out what to renew.
    */
   it("⚠ names the lapsed compliance item in the row, not a bare 'non-compliant'", async () => {
@@ -116,7 +116,7 @@ describe("VehiclesListScreen — the register", () => {
     expect(await screen.findByRole("button", { name: /add vehicle/i })).toBeInTheDocument();
   });
 
-  /** ⚠ 053 shipped a console silently capped at the newest 25 rows because nothing read nextCursor. */
+  /** Shipped a console silently capped at the newest 25 rows because nothing read nextCursor. */
   it("⚠ consumes nextCursor rather than silently capping the register", async () => {
     listVehicles.mockResolvedValue({ items: [vehicle()], nextCursor: "EFY-001:v-1" });
     renderScreen();

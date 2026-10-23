@@ -1,4 +1,3 @@
-// POST /admin/v1/promotions/{id}/customers — 094. Mutate: admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

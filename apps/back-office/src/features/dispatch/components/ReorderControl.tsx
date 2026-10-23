@@ -4,7 +4,7 @@ import { dispatchActionError } from "../errorText";
 import { useReorderStops, useUnassignRound } from "../queries";
 
 /**
- * A dispatcher's own order for a round's stops, and taking the round back (063 FR-031).
+ * A dispatcher's own order for a round's stops, and taking the round back.
  *
  * Nothing changes until "Save this order": moving a stop only changes this screen. Both writes carry
  * the round's `updatedAt` as they read it, so a round the driver or another dispatcher changed in the
@@ -28,7 +28,7 @@ export function useRoundEditing(roundId: string, stopIds: string[], expectedUpda
     setOrder(next);
   }
 
-  // ⚠ `mutate` with callbacks — see ReassignDialog.
+  // `mutate` with callbacks — see ReassignDialog.
   function save() {
     setError(null);
     reorder.mutate({ stopIds: order, expectedUpdatedAt }, { onError: (err) => setError(dispatchActionError(err, "reorder")) });

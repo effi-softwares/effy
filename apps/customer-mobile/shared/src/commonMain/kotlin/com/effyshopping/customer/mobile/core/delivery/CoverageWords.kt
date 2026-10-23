@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.core.delivery
 import com.effyshopping.customer.mobile.commerce.contract.CoverageKind
 
 /**
- * Who delivers to an address (076): Effy's own drivers, a courier, or nobody.
+ * Who delivers to an address: Effy's own drivers, a courier, or nobody.
  *
  * Worked out by the server when the address or the quote is read, never kept on the device — a
  * postcode that leaves Effy's list changes the answer the next time it is shown.
@@ -19,15 +19,10 @@ fun CoverageKind?.toCoverage(): Coverage? = when (this) {
 }
 
 /**
- * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN IN THE APP — AND THEY ARE A MIRROR.
- *
- * The source of truth is `packages/shared-types/src/delivery.ts` (`COVERAGE_LABEL`,
- * `COVERAGE_REFUSAL_SENTENCE`), which the server, the website and this app all show. The spec
- * requires the refusal to be the SAME sentence wherever a customer meets it (076 FR-022), and the
- * app cannot import a TypeScript file — so `packages/shared-types/src/coverage-words.test.ts` reads
- * THIS file and fails when a string here differs by a character. Change the words there first.
- *
- * Before 076 the app wrote its own refusal, twice, worded differently from the website's.
+ * The only place these words are written in the app, mirroring `packages/shared-types/src/delivery.ts`
+ * (`COVERAGE_LABEL`, `COVERAGE_REFUSAL_SENTENCE`): the refusal is one sentence everywhere.
+ * `packages/shared-types/src/coverage-words.test.ts` reads this file and fails on any difference. Change
+ * the words there first.
  */
 object CoverageWords {
     const val DELIVERED_BY_EFFY = "Delivered by Effy"

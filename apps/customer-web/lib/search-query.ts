@@ -1,10 +1,10 @@
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort } from "@effy/shared-types"
 
 /**
- * A listing's refinement, and the backend query it becomes — ONE definition, read by the server (which
+ * A listing's refinement, and the backend query it becomes — one definition, read by the server (which
  * renders the first page) and by the browser (which refines and pages).
  *
- * ⚠ The two must build the SAME string from the same address: the browser shows what the server sent
+ * The two must build the same string from the same address: the browser shows what the server sent
  * only when the server's query is the one it would have asked itself (`SearchInitial.query`). A
  * second builder that ordered a parameter differently would not show anything wrong — it would
  * quietly ask twice.

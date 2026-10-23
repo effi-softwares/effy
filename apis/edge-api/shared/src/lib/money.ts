@@ -1,22 +1,15 @@
 /**
- * Exact money: integer minor units (cents), never floats.
- *
- * Amounts cross the database and the wire as 2-dp decimal strings (`numeric(12,2)::text`). They are
- * parsed to whole cents, computed on as integers, and formatted back. Every shopper-facing sum on
- * the platform goes through here — a second parser is how two totals for one cart come to differ
- * by a cent.
- *
- * ⚠ `parseCents` TRUNCATES past two places ("5.009" → 500). That is the rule the platform has
- * always applied to prices read from the database; a caller that must REFUSE a third decimal
- * (a goodwill refund typed by staff) checks that itself before calling.
+ * Integer cents, never floats. Amounts cross the database and the wire as 2-dp strings and every
+ * shopper-facing sum goes through here. `parseCents` truncates past two places ("5.009" → 500); a
+ * caller that must refuse a third decimal checks first.
  */
 
-/** The single platform currency — a fixed commercial constant, not configuration. */
+/** A fixed commercial constant, not configuration. */
 export const CURRENCY = "AUD";
 
 const DIGITS = /^\d+$/;
 
-/** Decimal string ("5", "5.5", "5.00", "-3.50") → integer cents. Throws on a malformed amount. */
+/** "5", "5.5", "5.00", "-3.50" → integer cents; throws on a malformed amount. */
 export function parseCents(input: string): number {
   let s = input.trim();
   if (s === "") throw new Error("money: empty amount");
@@ -38,7 +31,7 @@ export function parseCents(input: string): number {
   return negative ? -cents : cents;
 }
 
-/** Integer cents → 2-dp decimal string (500 → "5.00"). */
+/** 500 → "5.00". */
 export function formatCents(cents: number): string {
   if (!Number.isInteger(cents)) throw new Error(`money: ${cents} is not a whole number of cents`);
   const abs = Math.abs(cents);

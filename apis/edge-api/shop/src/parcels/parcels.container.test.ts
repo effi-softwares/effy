@@ -1,15 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 096 — the shop's bags against real PostgreSQL and the real migrations: declaring bags per zone (R3,
- * R4), voiding (bag 1 never; once printed, the last only), the print record, pack-scanning, and the
- * ready gate (FR-016, FR-022). Spec US1, US2, US4; quickstart Q1, Q2, Q5, Q6.
- */
+/** The shop's bags against real Postgres: zones, voiding, prints, pack-scans and the ready gate. */
 
 const holder: { pool: Pool | null } = { pool: null };
 vi.mock("@effy/edge-shared", async () => {
@@ -45,16 +39,6 @@ import { declare, packScan, recordPrints, voidBag } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
-function applyMigrations(): string {
-  const dir = resolve(import.meta.dirname, "../../../../../db/migrations");
-  return readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => {
-    const body = readFileSync(join(dir, f), "utf8");
-    const rest = body.slice(Math.max(0, body.indexOf("-- +goose Up")));
-    const end = rest.indexOf("-- +goose Down");
-    return end < 0 ? rest : rest.slice(0, end);
-  }).join("\n");
-}
-
 const CUST = "11111111-1111-4111-8111-111111111111";
 const SHOP = "33333333-3333-4333-8333-333333333333";
 const OTHER_SHOP = "33333333-3333-4333-8333-000000000000";
@@ -81,7 +65,7 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(applyMigrations());
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -98,12 +82,12 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
-  /** A paid order with one portion at `shop`, its lines in these storage classes. */
+  /** One portion at `shop`, its lines in these storage classes. */
   async function order(classes: Array<"ambient" | "chilled" | "frozen"> = ["ambient"], shop = SHOP, status = "picking"): Promise<string> {
     n += 1;
     const o = await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, grand_total_amount, delivery_address, placed_at)
-       VALUES ($1, $2, 'paid', 10, 10, $3::jsonb, now()) RETURNING id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1, $2, 'paid', 10, 10, $3::jsonb, now(), 'effy', 'in_coverage') RETURNING id`,
       [CUST, `EFY-P${String(n).padStart(4, "0")}`, JSON.stringify({ recipientName: "Amelia Thompson", line1: "14 Lydiard Street North", line2: "Unit 3",
         city: "Ballarat Central", region: "VIC", postalCode: "3350", country: "AU", phone: "0412 345 678" })],
     );
@@ -114,8 +98,8 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
 SELECT id FROM p`, [shop],
       );
       await pool.query(
-        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class)
-         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Thing', 5, 1, 5, $4)`, [o.rows[0]!.id, p.rows[0]!.id, shop, cls],
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class, shop_unit_price_amount, shop_line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Thing', 5, 1, 5, $4, 5, 5)`, [o.rows[0]!.id, p.rows[0]!.id, shop, cls],
       );
     }
     const f = await pool.query<{ id: string }>(
@@ -166,7 +150,7 @@ SELECT id FROM p`, [shop],
     const fid = await order(["ambient"]);
     let d = await declare(actor, fid, { changeId: cid(), ambient: 3, chilled: 0, frozen: 0 });
     expect(await refusal(voidBag(actor, fid, d.parcels[0]!.parcelId, { changeId: cid() }))).toBe("first_bag_not_voidable");
-    // Before printing, a middle bag may go; the rest are renumbered.
+    // Before printing, a middle bag may go; the rest renumber.
     d = await voidBag(actor, fid, d.parcels[1]!.parcelId, { changeId: cid() });
     expect(d.parcels.map((p) => [p.seq, p.of])).toEqual([[1, 2], [2, 2]]);
     d = await declare(actor, fid, { changeId: cid(), ambient: 3, chilled: 0, frozen: 0 });
@@ -175,7 +159,7 @@ SELECT id FROM p`, [shop],
     expect(await refusal(voidBag(actor, fid, d.parcels[1]!.parcelId, { changeId: cid() }))).toBe("void_last_bag_only");
     d = await voidBag(actor, fid, d.parcels[2]!.parcelId, { changeId: cid() });
     expect(d.parcels.map((p) => [p.seq, p.of])).toEqual([[1, 2], [2, 2]]);
-    // N changed: every remaining label must be printed again.
+    // N changed: every remaining label must be reprinted.
     expect(d.parcels.every((p) => !p.printed.current)).toBe(true);
     expect(d.parcels.every((p) => p.printed.count === 1)).toBe(true);
   });

@@ -18,7 +18,7 @@ function relayError(err: unknown): Response {
     // 403 → 401 turns a refused session into deferred sign-in; every other 4xx (404 not-found, 409
     // the delete-default guard) forwards its status untouched so the client can map it.
     return NextResponse.json(
-      // `code` (069) is the refusal the ROUTE named — the checkout's slot/date refusals. `undefined`
+      // `code` is the refusal the route named — the checkout's slot/date refusals. `undefined`
       // drops out of the JSON, so every other caller sees the body it always saw.
       { error: e.detail ?? e.title ?? "request failed", reason: refusalReason(e.type), code: e.code },
       { status: status === 403 ? 401 : status },
@@ -28,12 +28,9 @@ function relayError(err: unknown): Response {
 }
 
 /**
- * The stable reason a refusal carries: the last segment of the problem's `type`, in the contract's
- * own spelling (`…/problems/name-taken` → `name_taken`).
- *
- * ⚠ Two 400s from one route can mean different things (068: `invalid_name` vs `list_limit`), and
- * `error` is the service's prose — fine to log, wrong to switch on. `undefined` drops out of the
- * JSON, so every existing caller sees the body it always saw.
+ * The stable reason a refusal carries: the last segment of the problem's `type`
+ * (`…/problems/name-taken` → `name_taken`). One route's 400s can differ (`invalid_name` vs `list_limit`),
+ * and `error` is prose: fine to log, wrong to switch on.
  */
 function refusalReason(type: string | undefined): string | undefined {
   const last = type?.split("/").pop()
@@ -41,7 +38,7 @@ function refusalReason(type: string | undefined): string | undefined {
 }
 
 /**
- * Runs an authenticated backend call on behalf of the signed-in customer. Lives OUTSIDE the
+ * Runs an authenticated backend call on behalf of the signed-in customer. Lives outside the
  * `(shop)` public tree so reading the session (Amplify SDK) never leaks into the storefront bundle.
  * The gateway authorizes the customer's ID token (which `edgeApi` sends). A guest → 401 (the
  * client turns it into deferred sign-in); a 4xx forwards its problem detail; anything else → 502.

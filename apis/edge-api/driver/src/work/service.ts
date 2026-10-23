@@ -1,7 +1,4 @@
-// The driver's own work — service layer (063).
-//
-// Maps the new round/stop/package model into the 049 wire contract the app is already built against
-// (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
+// Maps the round/stop/package model into the driver wire contract (see./sql.ts for the vocabulary).
 
 import { ANY_TIME_LABEL, anyTimeDayLabel, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops, query, type Queryable } from "@effy/edge-shared";
@@ -38,7 +35,7 @@ import {
   type StopRow,
 } from "./repository";
 
-/** Raised when a driver asks for work that is not theirs, or does not exist. Both, identically. */
+/** Not theirs and does not exist, identically. */
 export class NotFoundError extends Error {
   constructor() {
     super("not_found");
@@ -46,29 +43,19 @@ export class NotFoundError extends Error {
   }
 }
 
-/** The contract's stop status vocabulary, from the model's. */
 function stopStatus(s: StopRow["stop_status"], anyShort: boolean): CollectionStopSummary["status"] {
   if (s === "done") return anyShort ? "short" : "collected";
   if (s === "arrived") return "en_route";
   return "assigned";
 }
 
-/**
- * Order a round's stops for display.
- *
- * ⚠ THE RULE IS IMPORTED, NOT WRITTEN HERE (research R5). The dispatcher console orders the same
- * round with the same function; if this service sorted its own way, a dispatcher's reorder would
- * silently never reach the driver and NOTHING would fail — both surfaces would keep rendering
- * something. NP8 re-implements it locally to prove the guard catches it.
- */
+/** The shared ordering rule, so a dispatcher's reorder reaches the driver. */
 export function ordered(stops: StopRow[]): StopRow[] {
   const keyed = stops.map((s) => ({
     id: s.stop_id,
     seq: s.seq,
     status: s.stop_status,
-    // 069 — a drop is due when its window opens, so earlier windows come first (FR-031). ⚠ The rule
-    // that USES this is still the shared one; this only stops handing it null. Until 069 no stop had
-    // a time to be ordered by, because no window was ever sold.
+    // A drop is due when its window opens, so earlier windows come first.
     dueAt: s.window_start,
     zoneId: s.zone_id,
     shopId: s.shop_id,
@@ -77,11 +64,11 @@ export function ordered(stops: StopRow[]): StopRow[] {
   return orderRoundStops(keyed).map((k) => k.row);
 }
 
-/** A drop's window, as the label the list shows and the instants the app judges Due and Late by. */
+/** The label the list shows and the instants the app judges Due and Late by. */
 function windowOf(s: StopRow): { window: string | null; deliveryWindow: DeliveryWindow | null } {
   if (!s.window_start || !s.window_end) return { window: null, deliveryWindow: null };
   const deliveryWindow = { startAt: s.window_start.toISOString(), endAt: s.window_end.toISOString() };
-  // 085 — sold a day with no time: "Any time", with the round's hours so the driver knows the end.
+  // A day with no time: "Any time", with the round's hours.
   const hours = formatDeliveryWindow(deliveryWindow);
   return { window: s.any_time ? `${ANY_TIME_LABEL} · ${hours}` : hours, deliveryWindow };
 }
@@ -96,16 +83,14 @@ function packagesByStop(rows: PackageRow[]): Map<string, PackageRow[]> {
   return m;
 }
 
-/** GET /driver/v1/today — what to do next, already ordered (FR-017, FR-036). */
+/** What to do next, already ordered. */
 export async function today(driverId: string): Promise<TodayDTO> {
-  // 072 — a driver now holds several rounds at once: work is assigned the moment they can take it,
-  // hours before it opens. The query's ORDER is the rule for which one is current (under way, then
-  // open by deadline, then soonest to open); everything after the first is `upcoming`.
+  // A driver holds several rounds: the query's order picks the current one (under way, then open by
+  // deadline, then soonest to open); the rest are `upcoming`.
   const [round, ...later] = await openRounds(driverId);
 
   if (round === undefined) {
-    // ⚠ An ordinary answer, not an error: an on-duty driver with nothing assigned yet. The app must
-    // be able to tell it from a failed request, or "no work" and "we could not ask" look identical.
+    // An ordinary answer: nothing assigned yet, distinguishable from a failed request.
     return {
       phase: "idle",
       activeRunId: null,
@@ -136,7 +121,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
   ]);
   const byStop = packagesByStop(packages);
   const sorted = ordered(stops);
-  // 092 rev 2 — which packages hold cold goods, for the Today card's "1 cold".
+  // Which packages hold cold goods, for the Today card.
   const allIds = packages.map((p) => p.package_id);
   const manifests = manifestsByPackage(allIds, await packageItems(allIds));
   const coldOf = (stopId: string) =>
@@ -145,25 +130,17 @@ export async function today(driverId: string): Promise<TodayDTO> {
       return !!sm && (sm.frozen > 0 || sm.chilled > 0);
     }).length;
 
-  // ⚠ 064 — `outstanding` IS WHY THE HUB HAD TO BECOME A STOP. It keeps only work still to be done,
-  // which is correct; the defect was that a collection round had nothing left in it once the last
-  // shop was collected, while the load was still in the van. The hub stop is what fills that gap, so
-  // `active`, `upNext` and `remainingCount` all keep describing reality until the load is checked in.
-  // ⚠ NAMES THE FINISHED STATES, NOT THE OPEN ONES (2026-09-30). This listed `pending` and `arrived`,
-  // so the moment a driver pressed "Start this drop" the drop would have left the Today screen
-  // entirely — the same shape as the hub-stop defect, by a different road. Testing for what is DONE
-  // means a future in-progress state stays visible without anyone remembering to add it here.
+  // `outstanding` keeps work still to be done; the hub stop keeps a collection round non-empty until
+  // its load is checked in. It names the finished states, so any in-progress state stays visible.
   const outstanding = sorted.filter((s) => s.stop_status !== "done" && s.stop_status !== "skipped");
 
-  // What the driver is physically holding — the hub row's subtitle, and the honest count.
+  // What the driver is holding.
   const totalPackages = packages.filter((p) => p.state === "picked_up").length;
 
   const phase: DriverPhase = round.kind;
 
   const toRef = (s: StopRow): TodayItemRef => {
-    // ⚠ 064 — THE HUB IS A WORK ITEM NOW, and it needs its own title because it has no shop and no
-    // destination to borrow one from. Before this it fell through to "Shop", which is what an
-    // identity-less stop looks like when a default is doing the work a case should.
+    // The hub stop has no shop to borrow a title from.
     if (s.stop_kind === "hub_checkin") {
       const held = totalPackages;
       return {
@@ -179,12 +156,10 @@ export async function today(driverId: string): Promise<TodayDTO> {
       kind: round.kind === "collection" ? "collection_stop" : "delivery_drop",
       id: s.stop_id,
       runId: round.id,
-      // ⚠ No address detail and no money on the home screen — the contract says so and 049 FR-013
-      // keeps currency out of the driver domain entirely.
+      // No address detail and no money on the home screen.
       title: round.kind === "collection" ? (s.shop_name ?? "Shop") : (s.destination_suburb ?? "Delivery"),
       subtitle: (byStop.get(s.stop_id)?.length ?? 0) > 0 ? `${byStop.get(s.stop_id)!.length} packages` : null,
       status: s.stop_status,
-      // 092 rev 2 — what the redesigned Today card shows.
       street: round.kind === "collection" ? null : (s.destination_line1?.trim() || null),
       place: round.kind === "collection"
         ? addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode])
@@ -196,7 +171,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
     };
   };
 
-  // 092 rev 2 — progress through the round: shops (and packages) for a collection, drops for a delivery.
+  // Progress: shops and packages for a collection, drops for a delivery.
   const places = sorted.filter((s) => s.stop_kind !== "hub_checkin");
   const settled = (s: StopRow) => s.stop_status === "done" || s.stop_status === "skipped";
   const progress: TodayDTO["progress"] = round.kind === "collection"
@@ -213,13 +188,10 @@ export async function today(driverId: string): Promise<TodayDTO> {
         notDelivered: places.filter((s) => s.stop_status === "skipped").length,
       };
 
-  // 088 — parcels from failed drops still in the van. When they are all that is left on the round,
-  // `active` is null and the app shows the "Return to hub" step from this field. ⚠ NOT a new item
-  // kind: installed builds decode `kind` as a closed enum and would fail the whole response.
+  // Failed parcels still in the van. When they are all that is left, `active` is null and the app shows "Return to hub".
   const toReturn = round.kind === "delivery" ? forWire(await toReturnOnRound(db, round.id)) : null;
 
-  // 093 — where the round is. A delivery round not yet loaded has ONE next step, loading the van:
-  // `active` is null and `loadStep` says what goes in it. Its drops are still listed, as what follows.
+  // An unloaded delivery round has one next step, loading: `active` is null and `loadStep` says what goes in.
   const stage = await readRoundStage(db, round.id);
   const staged = round.kind === "delivery" ? outstanding.filter((s) => s.stop_status === "pending") : [];
   const loadStep = stage?.stage === "to_load" && staged.length > 0
@@ -235,8 +207,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
     stageLabel: stage?.label ?? null,
     loadStep,
     remainingCount: outstanding.length,
-    // ⚠ Null means OPEN. The round is shown in full either way; while this is set, every action on
-    // it is refused by the platform (`assertRoundOpen`), and the app says when it opens.
+    // Null means open; while set, every action is refused (`assertRoundOpen`).
     opening: openingOf(round.opens_at, now),
     deadlineAt: round.deadline_at.toISOString(),
     dueLabel: formatMoment(round.deadline_at, now),
@@ -248,38 +219,27 @@ export async function today(driverId: string): Promise<TodayDTO> {
   };
 }
 
-/** The read-only database handle the shared reads take. */
 const db: Queryable = { query: (text, values) => query(text, values) };
 
-/** 096 — what the driver is sent of the parcels to return: never the package ids the server keeps. */
+/** Never the package ids the server keeps. */
 function forWire<T extends { packageIds: string[] }>(t: T | null): Omit<T, "packageIds"> | null {
   if (t === null) return null;
   const { packageIds: _ids, ...rest } = t;
   return rest;
 }
 
-/** GET /driver/v1/collection/runs/{runId} */
 export async function collectionRun(runId: string, driverId: string): Promise<DriverCollectionRunDTO> {
-  // ⚠ Readable whether or not the round has opened (FR-020) — reading is the point of assigning early.
+  // Readable before the round opens: reading is the point of assigning early.
   const times = await roundTimes(runId, driverId);
   if (times === null) throw new NotFoundError();
 
   const [allStops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
-  // 096 — every package's live bags, so the app can count and match bags with no signal.
+  // Every package's live bags, so the app can match bags offline.
   const bags = await liveParcelsByPackage(db, packages.map((p) => p.package_id));
 
-  // ⚠ THE HUB STOP IS EXCLUDED HERE, DELIBERATELY (064, research R11).
-  //
-  // This projection maps every stop onto `CollectionStopSummary`, which requires a shop name, a shop
-  // code and an address. A `hub_checkin` stop carries NONE of them — `round_stop_target_ck` requires
-  // its `shop_id` and `order_id` to be NULL — so including it would emit a stop whose identity is
-  // three empty strings. That renders as a blank row a driver can tap, with no error in any log,
-  // test or screen: the same "valid, compiles, renders as nothing" shape `check-token-usage.mjs`
-  // exists to catch on the web.
-  //
-  // The hub is not hidden from the driver — it is surfaced by `todayView` below, as the round's
-  // outstanding work, which is the thing that was missing.
+  // The hub stop is excluded: it has no shop name, code or address and would render as a blank row.
+  // `todayView` surfaces it instead.
   const stops = allStops.filter((s) => s.stop_kind !== "hub_checkin");
 
   const stage = await readRoundStage(db, runId);
@@ -289,13 +249,12 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
     status: "assigned",
     stage: stage?.stage ?? null,
     stageLabel: stage?.label ?? null,
-    // 090 — where each package goes at the hub, for the hub scan with no signal. A package left at
-    // its shop is not coming to the hub, so it has no instruction.
+    // Where each package goes at the hub, for the offline hub scan. A package left at its shop has none.
     hubSort: packages
       .filter((p) => p.state !== "not_available")
       .map((p) => ({
         packageCode: p.package_code,
-        parcelCodes: (bags.get(p.package_id) ?? []).map((b) => b.code), // 096
+        parcelCodes: (bags.get(p.package_id) ?? []).map((b) => b.code),
         ...hubSortOf(
           { deliveredBy: p.delivered_by, windowStart: p.window_start, windowEnd: p.window_end, anyTime: p.any_time },
           new Date(),
@@ -308,21 +267,19 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
       const pkgs = byStop.get(s.stop_id) ?? [];
       return {
         stopId: s.stop_id,
-        // ⚠ The DISPLAY position, derived from the shared ordering — not `seq`, which is only set
-        // when a dispatcher has reordered. Two orderings, one answer (R5).
+        // The display position from the shared ordering, not `seq` (set only after a dispatcher reorder).
         sequence: i + 1,
         shopName: s.shop_name ?? "",
         shopCode: s.shop_code ?? "",
         address: addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode]),
         packageCount: pkgs.length,
-        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
+        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []),
         status: stopStatus(s.stop_status, pkgs.some((p) => p.state === "not_available")),
       } satisfies CollectionStopSummary;
     }),
   };
 }
 
-/** GET /driver/v1/collection/runs/{runId}/stops/{stopId} — the manifest for one shop. */
 export async function collectionStop(
   runId: string,
   stopId: string,
@@ -350,17 +307,15 @@ export async function collectionStop(
     status: stopStatus(stop.stop_status, pkgs.some((p) => p.state === "not_available")),
     opening: times.opening,
     packages: pkgs.map((p) => {
-      // ⚠ Each package's OWN lines (065). This used to hand every package every line at the stop,
-      // on the reasoning that "the manifest is per shop" — but the contract puts `items` on the
-      // package and the app counts them per package, so three packages each claimed the stop's total.
+      // Each package's own lines.
       const manifest = manifests.get(p.package_id);
       return {
         packageId: p.package_id,
-        packageCode: p.package_code, // 089
-        parcels: bags.get(p.package_id) ?? [], // 096 — this package's bags
+        packageCode: p.package_code,
+        parcels: bags.get(p.package_id) ?? [],
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
-        // 082 — what the app says: who takes it from the hub, and (Effy's) the day and window it is for.
+        // Who takes it from the hub, and for Effy the day and window.
         deliveredBy: p.delivered_by,
         windowLabel: p.delivered_by === "effy" && p.window_start && p.window_end
           ? p.any_time
@@ -374,15 +329,13 @@ export async function collectionStop(
   };
 }
 
-/** GET /driver/v1/delivery/runs/{runId} */
 export async function deliveryRun(runId: string, driverId: string): Promise<DeliveryRunDTO> {
   const times = await roundTimes(runId, driverId);
   if (times === null) throw new NotFoundError();
 
   const [stops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
-  // ⚠ ONE items read for the whole run, not one per drop (065) — a round is a dozen drops and this
-  // list is the screen a driver opens most.
+  // One items read for the whole run, not one per drop.
   const allIds = packages.map((p) => p.package_id);
   const [manifests, outcomes, bags] = await Promise.all([
     packageItems(allIds).then((items) => manifestsByPackage(allIds, items)),
@@ -398,7 +351,7 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
     status: "assigned",
     stage: stage?.stage ?? null,
     stageLabel: stage?.label ?? null,
-    // 088 — parcels from this run's failed drops, still to be returned to the hub.
+    // Parcels from failed drops, still to be returned.
     toReturn: forWire(await toReturnOnRound(db, runId)),
     opening: times.opening,
     deadlineAt: times.deadlineAt,
@@ -412,21 +365,13 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         orderRef: pkgs[0]?.order_number ?? "",
         customerSuburb: s.destination_suburb ?? "",
         packageCount: pkgs.length,
-        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
-        // 069 — the window the CUSTOMER WAS SOLD, read from the order, never derived. ⚠ This read
-        // `window: null` from 049 until 069, under a comment saying there was no window and that
-        // inventing one would put a promise on the one screen a driver reads as instructions. That
-        // was right, and still is: an order placed before 069 has none and still says nothing.
+        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []),
+        // The window the customer was sold, read from the order, never derived.
         ...windowOf(s),
-        // ⚠ The contract's vocabulary, not the model's. A drop that has not been started is
-        // `staged` here — there is no "assigned", because to a driver a package sitting at the hub
-        // is staged, not allocated. Mapping the model's word through would have typechecked only
-        // because I widened the contract to accept it.
-        // ⚠ Was `arrived → "en_route"`, everything else → "staged": the run list disagreed with the drop
-        // screen about the same drop. Both now read through one mapping.
+        // The contract's vocabulary: an unstarted drop is `staged`. One mapping for every drop read.
         status: dropStatusOf(s.stop_status),
         summary: addSummaries(pkgs.map((p) => manifests.get(p.package_id)?.summary ?? EMPTY_SUMMARY)),
-        // 092 rev 2 — the run list's street, and how a finished drop ended.
+        // The street, and how a finished drop ended.
         street: s.destination_line1?.trim() || null,
         completedAt: s.completed_at ? s.completed_at.toISOString() : null,
         proofMethod: s.stop_status === "done" ? ((outcome?.method as DeliveryDropSummary["proofMethod"]) ?? null) : null,
@@ -436,7 +381,6 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   };
 }
 
-/** Rounds finished today — read-only. */
 export async function history(driverId: string): Promise<Array<{ id: string; kind: string; status: string }>> {
   return (await completedToday(driverId)).map((r) => ({ id: r.id, kind: r.kind, status: r.status }));
 }

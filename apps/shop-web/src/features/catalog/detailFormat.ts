@@ -50,12 +50,8 @@ export function primaryMedia(detail: ProductDetail): ProductMedia | null {
 }
 
 /**
- * The pricing block's fourth figure (057 revision) — the saving a compare-at price advertises, e.g.
- * "20% off". It stands where the mockup puts Margin, which the platform cannot compute (no cost is
- * recorded anywhere); this one is derived purely from two prices the product already carries.
- *
- * "—" when there is no compare-at, or it is not above the price — a "was" price at or below "now" is
- * not a saving, and rendering "0% off" or "-5% off" would state one.
+ * The saving a compare-at price advertises ("20% off"); "—" when there is no compare-at or it is not
+ * above the price.
  */
 export function discountText(price: string | null, compareAt: string | null): string {
   const now = price == null ? NaN : Number(price);
@@ -66,7 +62,7 @@ export function discountText(price: string | null, compareAt: string | null): st
 
 /**
  * The storefront answer for a lifecycle status, in the operator's words — the Visibility tab's lead
- * field. Every status names what a SHOPPER sees, never the internal state name.
+ * field. Every status names what a shopper sees, never the internal state name.
  */
 export function storefrontText(status: ProductDetail["status"]): string {
   switch (status) {

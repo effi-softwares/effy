@@ -1,11 +1,4 @@
-/**
- * `@effy/email-kit/send` — the ONLY place an SES client exists.
- *
- * Contract: specs/038-email-template-system/contracts/email-catalog.contract.md §3
- *
- * ⚠ Everything reachable from `@effy/email-kit` (the `.` entrypoint) is pure. This module is the
- * adapter, and it is separate so that preview, lint and every unit test run with no cloud access.
- */
+/** `@effy/email-kit/send`: the only place an SES client exists. */
 
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 
@@ -14,16 +7,10 @@ import { CATALOG, messageTagFor, type MessageEntry, type TemplateId, type VarsFo
 import { identityFromEnv } from "./config.js";
 import { render } from "./render.js";
 
-// ⚠ Re-exported so existing importers of `@effy/email-kit/send` (the config-contract tests, edge
-// services) keep working after the pure config moved to config.ts. New render-only callers (the
-// Cognito interceptor) should import these from the pure `.` entrypoint instead.
+// Re-exported for existing importers; render-only callers import them from the pure `.` entrypoint.
 export { identityFromEnv, MailConfigError, MAIL_ENV_KEYS } from "./config.js";
 
-/**
- * ⚠ Module scope, not per-invocation. Cognito abandons a trigger at 5 seconds and a cold start
- * already costs ~1 s; constructing an SDK client per call spends part of a budget shared with a
- * DynamoDB write and an SES round trip.
- */
+/** Module scope: Cognito abandons a trigger at 5 seconds, and the budget is shared with a DynamoDB write and an SES call. */
 let client: SESv2Client | undefined;
 function ses(): SESv2Client {
   client ??= new SESv2Client({});
@@ -31,20 +18,15 @@ function ses(): SESv2Client {
 }
 
 /**
- * SES's documented mailbox simulator.
- *
- * ⚠ THIS IS A SECURITY CONTROL, NOT A TEST FIXTURE (035 FR-016 / spec FR-052). When an address has
- * no account we must not mail a stranger — but skipping the send makes the phantom path return
- * measurably faster than the real one, and account existence then leaks through LATENCY even though
- * every response body is identical. Sending to the simulator keeps the same call on the same path,
- * so the timing distribution matches by construction rather than by a sleep somebody guessed.
+ * Ses's mailbox simulator, a security control: with no account we must not mail a stranger, but
+ * skipping the send would leak account existence through latency. Sending here keeps the same path.
  */
 export const BLACKHOLE = "success@simulator.amazonses.com";
 
 export interface SendOptions {
   readonly to: string;
   readonly audience: Audience;
-  /** When true the message goes to the simulator instead of `to` — see BLACKHOLE. */
+  /** When true the message goes to the simulator instead of `to` (blackhole). */
   readonly phantom?: boolean;
 }
 
@@ -61,15 +43,8 @@ export interface SendLogger {
 }
 
 /**
- * Send one catalogued message.
- *
- * ⚠ The generic is the whole point: a call site cannot compile with the wrong variables, and
- * `TemplateId` being closed means "template not found" is not a runtime failure class.
- *
- * ⚠ THE CALLER DOES NOT CHOOSE WHAT HAPPENS ON FAILURE — the message does. `throw` for a sign-in
- * code (an unsent code is a lockout on three audiences with no password); `swallow` for a
- * password-change notice (the change already happened and cannot be unwound, so failing the request
- * would tell the customer a lie).
+ * Sends one catalogued message. The generic keeps call sites to the right variables, and the message,
+ * not the caller, decides what happens on failure (`throw` or `swallow`).
  */
 export async function sendEmail<T extends TemplateId>(
   id: T,
@@ -106,23 +81,16 @@ export async function sendEmail<T extends TemplateId>(
         FromEmailAddress: identity.sender,
         Destination: { ToAddresses: [destination] },
         ...(replyTo ? { ReplyToAddresses: [replyTo] } : {}),
-        // ⚠ Optional at runtime ON PURPOSE. The identity carries the same set as its DEFAULT, so a
-        // missing variable degrades to "still observed" rather than "sign-in broken" — throwing here
-        // would take down four audiences over a telemetry setting. Its ABSENCE is caught at build
-        // time instead, by the config-contract test.
+        // Optional at runtime: a missing value degrades to the default set; its absence is caught by the config-contract test.
         ...(configurationSet ? { ConfigurationSetName: configurationSet } : {}),
-        // ⚠ ATTRIBUTION. The tag surfaces in the SES event payload as `mail.tags`, which 037's
-        // consumer writes to email_delivery_event.template_id — so "which message is bouncing?" is
-        // answerable without a join through application state. The header is the human-readable
-        // twin, for reading a raw message.
+        // Attribution: the tag reaches the SES event as `mail.tags`, which the deliverability consumer
+        // writes to email_delivery_event.template_id. The header is the human-readable twin.
         EmailTags: [{ Name: "effy-template", Value: messageTagFor(id) }],
         Content: {
           Simple: {
             Subject: { Data: message.subject, Charset: "UTF-8" },
             Body: {
-              // ⚠ BOTH PARTS, ALWAYS. SES assembles the multipart/alternative for us. HTML-only mail
-              // trips SpamAssassin's MIME_HTML_ONLY, and several Android clients take the inbox
-              // preview line from the text part.
+              // Both parts, always: HTML-only mail trips SpamAssassin's MIME_HTML_ONLY.
               Html: { Data: message.html, Charset: "UTF-8" },
               Text: { Data: message.text, Charset: "UTF-8" },
             },
@@ -133,8 +101,7 @@ export async function sendEmail<T extends TemplateId>(
     );
 
     const result = finish("sent", response.MessageId);
-    // ⚠ Exactly five fields. NEVER the address, the code, or any rendered content — which is why the
-    // mailer this replaces had no logging at all.
+    // Exactly five fields: never the address, the code or rendered content.
     logger?.info(
       {
         template_id: id,
@@ -154,7 +121,7 @@ export async function sendEmail<T extends TemplateId>(
         audience: options.audience,
         outcome: "failed",
         duration_ms: result.durationMs,
-        // ⚠ The error NAME only. An SES error message can echo the destination address back.
+        // The error name only: an SES message can echo the destination address.
         err: err instanceof Error ? err.name : "unknown",
       },
       entry.onSendFailure === "throw"
@@ -166,7 +133,7 @@ export async function sendEmail<T extends TemplateId>(
   }
 }
 
-/** Test seam — the client is built once per container. */
+/** Test seam: the client is built once per container. */
 export function resetMailerForTests(): void {
   client = undefined;
 }

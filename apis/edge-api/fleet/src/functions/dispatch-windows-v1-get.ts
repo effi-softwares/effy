@@ -7,12 +7,7 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
 import { readWindows } from "../dispatch/windows";
 
-/**
- * GET /fleet/v1/dispatch/windows?date=YYYY-MM-DD — a day's delivery windows, their parcels and rounds (082).
- *
- * Read = any active back-office staff, including csa. The day is today or a later day with windows on
- * sale; a later day's windows have no round yet — a round is planned on its own day.
- */
+/** Any active staff. Today or a later day with windows on sale; a later day has no rounds yet. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "read");

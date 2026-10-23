@@ -1,14 +1,6 @@
 /**
- * Product review — 067-product-approval-margin.
- *
- * The back-office half: the queue of things waiting on Effy, one item with its before/after, and the
- * decisions. Served by `apis/edge-api/catalog` behind the back-office authorizer.
- *
- * ⚠ THESE TYPES CARRY THE MARGIN, AND THE SHOP'S DO NOT. Nothing in this file may be returned by a
- * shop route: a shop sees its own price and the customer price (see `ProductDetailDTO`), never the
- * margin's kind or value (FR-039).
- *
- * Contract: specs/067-product-approval-margin/contracts/review-admin.md
+ * Product review, the back-office half (catalog service): the queue, one item with its before and
+ * after, and the decisions. These types carry Effy's margin, so nothing here is returned by a shop route.
  */
 
 import type { WireInt } from "./cart";
@@ -26,7 +18,7 @@ export interface ReviewQueueItemDTO {
   kind: ReviewKind;
   shopId: string;
   shopName: string;
-  /** For a change this is the LIVE name — the one a reviewer would recognise. */
+  /** For a change, the live name the reviewer recognises. */
   productName: string;
   submittedAt: string;
   waitingHours: WireInt;
@@ -35,20 +27,17 @@ export interface ReviewQueueItemDTO {
 export interface ReviewQueueDTO {
   items: ReviewQueueItemDTO[];
   nextCursor: string | null;
-  /**
-   * How many items the filtered queue holds across every page — the back-office rail's count beside
-   * "Product review". Optional only so a client reading an older deploy shows no count, not a wrong one.
-   */
+  /** How many items the filtered queue holds across pages (the rail's count). Optional for an older deploy. */
   total?: number;
 }
 
-/** A live product with no margin set (FR-008). It sells at its shop price until one is. */
+/** A live product with no margin set. It sells at its shop price until one is. */
 export interface MarginNotSetItemDTO {
   productId: string;
   shopId: string;
   shopName: string;
   productName: string;
-  /** 098 — the lowest shop price among its active variants. */
+  /** The lowest shop price among its active variants. */
   shopPriceAmount: string;
   status: string;
 }
@@ -62,7 +51,7 @@ export interface ReviewImageDTO {
   url: string;
   isPrimary: boolean;
   altText: string | null;
-  /** True for an image this change ADDS; false for one the live product already has. */
+  /** True for an image this change adds; false for one the live product has. */
   isNew: boolean;
 }
 
@@ -76,15 +65,14 @@ export interface ReviewFieldChangeDTO {
 }
 
 /**
- * 098 — one variant as the decision would make it live: the shop's prices and, so the reviewer sees
- * what each will sell at BEFORE deciding (FR-011), its prices under the product's current margin.
- * The back-office recomputes the resulting prices as the reviewer types a margin (preview only — the
- * server's arithmetic is the one that sells).
+ * One variant as the decision would make it live: the shop's prices and its prices under the current
+ * margin, so the reviewer sees the selling price before deciding. The console's recomputation is a
+ * preview; the server's arithmetic sells.
  */
 export interface ReviewVariantDTO {
   id: string;
   label: string | null;
-  /** Effy's code; null for a variant a pending change ADDS (it gets one when approved). */
+  /** Effy's code; null for a variant a pending change adds (it gets one on approval). */
   code: string | null;
   sku: string | null;
   gtin: string | null;
@@ -109,30 +97,23 @@ export interface ReviewDetailRowDTO {
 export interface ReviewItemDetailDTO {
   productId: string;
   kind: ReviewKind;
-  /**
-   * ⚠ ECHO THIS ON A DECISION. It is the item as the reviewer saw it; a decision carrying a stale
-   * one is refused, so nothing is approved that nobody looked at. Opaque — never parse or reformat.
-   */
+  /** Echo this on a decision: a stale one is refused, so nothing is approved that nobody saw. Opaque. */
   version: string;
   shop: { id: string; name: string; status: string };
   submittedAt: string;
   productName: string;
-  /** Everything the shop entered: for a new product, the submission; for a change, the LIVE product. */
+  /** What the shop entered: for a new product the submission, for a change the live product. */
   details: ReviewDetailRowDTO[];
-  /** Empty for a new product. For a change, ONLY what differs. */
+  /** Empty for a new product; for a change, only what differs. */
   changes: ReviewFieldChangeDTO[];
   images: {
     current: ReviewImageDTO[];
     /** The proposed image set, or null when the change does not touch images. */
     proposed: ReviewImageDTO[] | null;
   };
-  /**
-   * 098 — every variant the decision would make live (for a change: the proposed set, with removed
-   * live variants listed as `removed`). Per-variant field changes are also in `changes`, keyed
-   * `variant:<id>:<field>`.
-   */
+  /** Every variant the decision would make live (removed live variants listed as `removed`); field changes are also in `changes` as `variant:<id>:<field>`. */
   variants: ReviewVariantDTO[];
-  /** The margin the product carries NOW, or null if none has ever been set. */
+  /** The margin the product carries now, or null if never set. */
   currentMargin: MarginDTO | null;
   /** True when approving requires a margin in the request (new product, a shop price changed, or none set). */
   marginRequired: boolean;
@@ -146,20 +127,20 @@ export interface ApproveReviewRequest {
 
 export interface SendBackReviewRequest {
   version: string;
-  /** 1 to 500 characters. Shown to the shop, attributed to Effy and never to a person. */
+  /** 1 to 500 characters, shown to the shop as from Effy, never a person. */
   reason: string;
 }
 
 export interface SetMarginRequest {
   margin: MarginDTO;
-  /** The margin the reviewer saw. A mismatch is refused: someone else changed it meanwhile. */
+  /** The margin the reviewer saw; a mismatch is refused (someone changed it meanwhile). */
   expectedCurrent: MarginDTO | null;
 }
 
 export interface ReviewDecisionDTO {
   productId: string;
   margin: MarginDTO | null;
-  /** 098 — every live variant's prices after the decision. */
+  /** Every live variant's prices after the decision. */
   variants: { id: string; label: string | null; shopPriceAmount: string; customerPriceAmount: string }[];
 }
 

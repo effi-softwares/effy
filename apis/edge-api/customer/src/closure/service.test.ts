@@ -4,9 +4,7 @@ vi.mock("../customer/repo", () => ({ findByCognitoSub: vi.fn() }))
 vi.mock("./repo", async () => {
   const actual = await vi.importActual<typeof import("./repo")>("./repo")
   return {
-    // ⚠ The two constants are the REAL ones, deliberately. Tests that stub the window would agree
-    // with themselves rather than with the code — which is the exact failure mode 027 R13 and 033
-    // both recorded (a fixture that agrees with the implementation instead of with the world).
+    // The real constants, so the tests cannot agree with a stubbed window.
     GRACE_PERIOD_DAYS: actual.GRACE_PERIOD_DAYS,
     IN_TRANSIT_BLOCK_DAYS: actual.IN_TRANSIT_BLOCK_DAYS,
     findBlockingOrders: vi.fn(),
@@ -75,9 +73,7 @@ const blockingOrder = (over: Partial<BlockingOrderRow> = {}): BlockingOrderRow =
 })
 
 beforeEach(() => {
-  // ⚠ `clearAllMocks` clears CALLS but not IMPLEMENTATIONS — a `mockRejectedValue` set by one test
-  // leaks into the next. The defaults below are re-stated every time so each test starts from the
-  // happy path and states its own deviation.
+  // `clearAllMocks` keeps implementations, so the defaults are re-stated for each test.
   vi.clearAllMocks()
   vi.mocked(findLiveRequest).mockResolvedValue(null)
   vi.mocked(findBlockingOrders).mockResolvedValue([])
@@ -86,25 +82,14 @@ beforeEach(() => {
   vi.mocked(cognito.sendEmailVerificationCode).mockResolvedValue("s•••@example.com")
 })
 
-// ── The two windows ───────────────────────────────────────────────────────────────────────────
-
 describe("the two windows are NOT the same number", () => {
-  /**
-   * ⚠ THIS IS THE MOST IMPORTANT ASSERTION IN THE FILE, and it looks trivial.
-   *
-   * FR-042 has been wrong twice, and the second time was precisely because these two numbers were
-   * unified. The grace period (30d) answers "how long may they change their mind?"; the order block
-   * (7d) answers "how long might goods still be in transit?". Making them equal is how the block
-   * became permanent for weekly shoppers.
-   */
+  /** The grace period (30d) and the order block (7d) answer different questions and must not be equal. */
   it("keeps the order block SHORTER than the grace period", () => {
     expect(IN_TRANSIT_BLOCK_DAYS).toBeLessThan(GRACE_PERIOD_DAYS)
     expect(IN_TRANSIT_BLOCK_DAYS).toBe(7)
     expect(GRACE_PERIOD_DAYS).toBe(30)
   })
 })
-
-// ── Blockers (FR-042) ─────────────────────────────────────────────────────────────────────────
 
 describe("previewClosure", () => {
   it("reports no blockers for a customer with nothing in flight", async () => {
@@ -117,8 +102,7 @@ describe("previewClosure", () => {
     expect(preview.retained.length).toBeGreaterThan(0)
   })
 
-  // 074 FR-024 — told BEFORE they confirm. Absent, not "0", when there is nothing to lose or the
-  // read failed: a failed points read must not block the preview.
+  // Told before they confirm. Absent, not "0", when nothing is at stake or the read failed.
   it("says how many points would be lost, and stays silent when there are none or the read fails", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
     expect(await previewClosure("sub-1")).not.toHaveProperty("pointsHeld")
@@ -132,7 +116,7 @@ describe("previewClosure", () => {
     expect(failed.blockers).toEqual([])
   })
 
-  /** ⚠ NEVER null. A blocker that cannot state when it ends is the dead end FR-042 forbids. */
+  /** Never null: a block must state its end. */
   it("gives every blocker a clearsAt and a route to act on", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
     vi.mocked(findBlockingOrders).mockResolvedValue([blockingOrder()])
@@ -161,10 +145,7 @@ describe("previewClosure", () => {
     expect(preview.blockers[1]!.resolvableByShopper).toBe(false)
   })
 
-  /**
-   * ⚠ FR-042a. The platform models no balance and no refund. Naming one as a blocker would be a
-   * refusal the customer could never act on — worse than no explanation at all.
-   */
+  /** No balance or refund is modelled, so neither may be named as a blocker. */
   it("never emits a blocker the platform does not actually model", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
     vi.mocked(findBlockingOrders).mockResolvedValue([blockingOrder()])
@@ -198,8 +179,6 @@ describe("previewClosure", () => {
   })
 })
 
-// ── The flow ──────────────────────────────────────────────────────────────────────────────────
-
 describe("requestClosure", () => {
   it("verifies the code BEFORE writing anything, then revokes every session", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
@@ -216,7 +195,7 @@ describe("requestClosure", () => {
     expect(result.allSessionsRevoked).toBe(true)
     expect(result.eraseAfter).toBe("2026-09-02T00:00:00.000Z")
 
-    // ⚠ Order matters: a session that cannot produce a valid code must NEVER reach the write.
+    // A session that cannot produce a valid code must never reach the write.
     const verifyOrder = vi.mocked(cognito.verifyEmailCode).mock.invocationCallOrder[0]!
     const writeOrder = vi.mocked(closeAccount).mock.invocationCallOrder[0]!
     expect(verifyOrder).toBeLessThan(writeOrder)
@@ -232,11 +211,7 @@ describe("requestClosure", () => {
     expect(closeAccount).not.toHaveBeenCalled()
   })
 
-  /**
-   * ⚠ RE-EVALUATED INSIDE THE CONFIRMATION, not trusted from the preview. An order can be placed
-   * between the customer reading the preview and confirming, and a closure that slipped through
-   * would strand a paid order against an account that no longer exists.
-   */
+  /** Re-evaluated at confirmation: an order can be placed after the preview. */
   it("re-checks blockers at confirmation time", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer())
     vi.mocked(findBlockingOrders).mockResolvedValue([blockingOrder()])
@@ -256,13 +231,7 @@ describe("requestClosure", () => {
     )
   })
 
-  /**
-   * ⚠ FR-049 — a BARRED customer may still delete their account.
-   *
-   * Barring protects the platform FROM the customer; it is not a mechanism for holding their data
-   * against their wishes. Refusing here would let a platform sanction silently override a data
-   * right, so this path deliberately does not consult `status`.
-   */
+  /** A barred customer may still delete their account: barring is not a hold on their data. */
   it("lets a BARRED customer close their account", async () => {
     vi.mocked(findByCognitoSub).mockResolvedValue(customer({ status: "barred" }))
     vi.mocked(closeAccount).mockResolvedValue({

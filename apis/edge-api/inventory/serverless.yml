@@ -1,23 +1,5 @@
-# edge-inventory — Effy inventory service (054-product-inventory).
-#
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
-# under /inventory/.
-#
-# ⚠ TWO AUDIENCES, ONE SERVICE, TWO STACKS (075). This file is the SHOP half: shops managing their
-# own stock, on the shared gateway, behind the shop authorizer. The assisted back-office routes are
-# the same service's `serverless.staff.yml`, on the staff gateway — one stock service and one
-# repository, deployed twice, never written twice. Until 075 both halves were in this file, told
-# apart per route; a stack attaches to exactly one gateway, so they are now told apart per stack.
-#
-# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R6): `effy-edge-admin`
-# declares 77 functions and packages to 434 of CloudFormation's 500 resources, and the cheap
-# mitigation is already spent — it carries `versionFunctions: false`, which 049 was forced to add
-# when the driver routes hit the ceiling. The six assisted routes here would spend most of what is
-# left, in the exact domain (refunds, cancellation, returns) the gap register queues next. 053 made
-# the same call for the same reason.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# The shop half of inventory, on the shared gateway behind the shop authorizer. The back-office
+# routes are `serverless.staff.yml`: the same handlers deployed as a second stack.
 service: effy-edge-inventory
 frameworkVersion: "3"
 
@@ -28,7 +10,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -42,9 +23,6 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # ⚠ Set from the START, not when it is needed — 053's lesson, learned from admin hitting the CFN
-  # limit under pressure. Nothing here publishes aliases or uses provisioned concurrency, and every
-  # httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy Versions are dead weight.
   versionFunctions: false
   tags:
     project: effy
@@ -55,8 +33,7 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
@@ -66,7 +43,6 @@ provider:
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
@@ -75,8 +51,7 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
-  # edge-shop/admin/driver/orders. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -110,8 +85,7 @@ functions:
           method: GET
           path: /inventory/readyz
 
-  # ── Shop routes — SHOP authorizer, scoped to the caller's own active shop ────────────────────
-  # ⚠ shopId is NEVER read from the client on these; it is resolved from the shop_staff record.
+  # Shop routes: shopId is resolved from the shop_staff record, never read from the client.
 
   stockGetV1:
     handler: src/functions/stock-v1-get.handler
@@ -201,6 +175,3 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ⚠ THE SIX BACK-OFFICE ROUTES ARE NOT HERE (075). They are in `serverless.staff.yml`, the same
-  # handlers from the same `src/`, deployed as a second stack on the STAFF gateway. A stack attaches
-  # to exactly one gateway, and since 075 back-office has its own.

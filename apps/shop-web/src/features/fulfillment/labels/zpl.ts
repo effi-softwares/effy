@@ -1,5 +1,5 @@
 /**
- * 096 — the direct-thermal path (research R9): the SAME label SVG, rasterised at the printer's dpi,
+ * The direct-thermal path: the same label SVG, rasterised at the printer's dpi,
  * thresholded to one bit and sent as one ZPL graphic field (`^GFA`, Z64-compressed). The preview and the
  * paper are the same pixels, and the bars — already on the dot grid — print at exact widths.
  */
@@ -27,7 +27,7 @@ export function toMonochrome(rgba: Uint8ClampedArray, w: number, h: number): Uin
   return out
 }
 
-/** CRC-16/XMODEM (poly 0x1021, init 0) over the Z64 text — what ZPL checks a compressed field against. */
+/** CRC-16/xmodem (poly 0x1021, init 0) over the Z64 text — what ZPL checks a compressed field against. */
 export function crc16(text: string): string {
   let crc = 0
   for (let i = 0; i < text.length; i++) {

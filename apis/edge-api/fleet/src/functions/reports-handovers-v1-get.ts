@@ -1,6 +1,4 @@
-// GET /fleet/v1/reports/handovers?from=yyyy-mm-dd&to=yyyy-mm-dd — how bags were handed over and what
-// went wrong in a period (096 US6, FR-063). Read = any active staff: it is how dispatch finds the
-// shops and steps to fix.
+// Any active staff: how dispatch finds the shops and steps to fix.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

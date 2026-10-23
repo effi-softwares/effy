@@ -1,9 +1,5 @@
-// Repository layer for back-office catalog schema authority (016): raw parameterized SQL + explicit
-// row → domain mapping (constitution Principle VI, no ORM). Writes the operational catalog schema
-// tables (public.product_type, attribute_definition, attribute_allowed_value, product_type_attribute,
-// category) and the back-office audit log (admin.audit_log, 009). Every mutation writes an audit row
-// inside the SAME transaction as the change it records (verified 009 pattern). In-use guards (FR-006)
-// refuse a retire/remove that would strand existing product data.
+// Every mutation writes its audit row in the same transaction. In-use guards refuse a retire or
+// remove that would strand product data.
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
@@ -21,8 +17,6 @@ import {
 } from "./types";
 
 type TargetType = "product_type" | "attribute_definition" | "category";
-
-// ── Row shapes (internal; never exported) ───────────────────────────────────────────────────────
 
 interface ProductTypeRow {
   id: string;
@@ -78,8 +72,6 @@ interface CategoryRow {
   status: SchemaStatus;
 }
 
-// ── Audit (written inside the mutation's transaction) ────────────────────────────────────────────
-
 async function insertAudit(
   client: PoolClient,
   actorSub: string,
@@ -95,15 +87,12 @@ async function insertAudit(
   );
 }
 
-// Map a Postgres unique_violation (23505) to a domain conflict, else rethrow.
 function asConflict(err: unknown, message: string): CatalogError {
   if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
     return new CatalogError("conflict", message);
   }
   throw err;
 }
-
-// ── Mappers ───────────────────────────────────────────────────────────────────────────────────
 
 function mapAllowed(row: AllowedValueRow): AllowedValue {
   return { id: row.id, value: row.value, label: row.label, displayOrder: row.display_order };
@@ -171,9 +160,7 @@ function mapCategory(row: CategoryRow): Category {
   };
 }
 
-// ── Shared read helpers ─────────────────────────────────────────────────────────────────────────
-
-/** All allowed-value rows for a set of attribute ids (or all, when ids is null). */
+/** For a set of attribute ids, or all when null. */
 async function loadAllowedValues(attributeIds: string[] | null): Promise<AllowedValueRow[]> {
   const res = await query<AllowedValueRow>(
     `SELECT id, attribute_definition_id, value, label, display_order
@@ -185,7 +172,7 @@ async function loadAllowedValues(attributeIds: string[] | null): Promise<Allowed
   return res.rows;
 }
 
-/** All assignment rows (joined to the definition) for a set of type ids (or all, when null). */
+/** Joined to the definition, for a set of type ids or all when null. */
 async function loadAssignments(typeIds: string[] | null): Promise<AssignmentRow[]> {
   const res = await query<AssignmentRow>(
     `SELECT pta.product_type_id, ad.id AS attribute_id, ad.key, ad.name, ad.data_type,
@@ -213,8 +200,6 @@ async function assemblyForTypes(typeRows: ProductTypeRow[]): Promise<ProductType
     ),
   );
 }
-
-// ── Product types ───────────────────────────────────────────────────────────────────────────────
 
 export async function listProductTypes(): Promise<ProductType[]> {
   const res = await query<ProductTypeRow>(
@@ -282,7 +267,7 @@ export async function setProductTypeStatus(
   status: SchemaStatus,
   actorSub: string,
 ): Promise<ProductType> {
-  // Retiring a product type never corrupts existing products (data-model §2.1) — no in-use guard.
+  // Retiring a type never corrupts its products, so there is no in-use guard.
   await withTransaction(async (client) => {
     const res = await client.query<{ id: string }>(
       `UPDATE public.product_type SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`,
@@ -366,8 +351,6 @@ export async function unassignAttribute(
   });
   return (await getProductType(typeId))!;
 }
-
-// ── Attribute definitions ─────────────────────────────────────────────────────────────────────
 
 export async function listAttributes(): Promise<AttributeDefinition[]> {
   const res = await query<AttributeRow>(
@@ -466,7 +449,7 @@ export async function updateAttribute(
       [id, values.name, values.unit, values.helpText, values.validation ? JSON.stringify(values.validation) : null],
     );
     if (!res.rows[0]) throw new CatalogError("not_found", "attribute not found");
-    // allowedValues (when supplied) upsert-only — deletion is the dedicated guarded endpoint.
+    // Upsert only; deletion is the dedicated guarded endpoint.
     if (values.allowedValues) await upsertAllowedValues(client, id, values.allowedValues);
     await insertAudit(client, actorSub, "attribute.update", "attribute_definition", id, {
       name: values.name,
@@ -475,7 +458,6 @@ export async function updateAttribute(
   return (await getAttribute(id))!;
 }
 
-/** True when any product carries a value for this attribute (retire/delete guard, FR-006). */
 async function attributeInUse(client: PoolClient, attributeId: string): Promise<boolean> {
   const res = await client.query<{ n: string }>(
     `SELECT count(*) AS n FROM public.product_attribute_value WHERE attribute_definition_id = $1`,
@@ -495,7 +477,7 @@ export async function setAttributeStatus(
       [id],
     );
     if (!cur.rows[0]) throw new CatalogError("not_found", "attribute not found");
-    // Retiring an in-use attribute is blocked (FR-006). Re-activating is always allowed.
+    // Retiring an in-use attribute is blocked; re-activating always allowed.
     if (status === "retired" && (await attributeInUse(client, id))) {
       throw new CatalogError("conflict", "attribute is in use by existing products; cannot retire");
     }
@@ -508,7 +490,7 @@ export async function setAttributeStatus(
   return (await getAttribute(id))!;
 }
 
-/** Remove an allowed value — blocked (409) if any product references it (FR-006). */
+/** If any product references it. */
 export async function deleteAllowedValue(
   attributeId: string,
   valueId: string,
@@ -538,8 +520,6 @@ export async function deleteAllowedValue(
   return (await getAttribute(attributeId))!;
 }
 
-// ── Categories ──────────────────────────────────────────────────────────────────────────────────
-
 export async function listCategories(): Promise<Category[]> {
   const res = await query<CategoryRow>(
     `SELECT id, parent_id, key, name, display_order, status
@@ -548,7 +528,7 @@ export async function listCategories(): Promise<Category[]> {
   return res.rows.map(mapCategory);
 }
 
-/** The id set reachable downward from `id` (inclusive) — for the no-cycle check (service). */
+/** Inclusive, for the no-cycle check. */
 export async function categorySubtree(id: string): Promise<string[]> {
   const res = await query<{ id: string }>(
     `WITH RECURSIVE sub AS (
@@ -625,7 +605,7 @@ export async function setCategoryStatus(
   await withTransaction(async (client) => {
     const cur = await client.query<{ id: string }>(`SELECT id FROM public.category WHERE id = $1`, [id]);
     if (!cur.rows[0]) throw new CatalogError("not_found", "category not found");
-    // Retiring a category still referenced by non-archived products is blocked (FR-006).
+    // Blocked while non-archived products reference it.
     if (status === "retired") {
       const used = await client.query<{ n: string }>(
         `SELECT count(*) AS n FROM public.product

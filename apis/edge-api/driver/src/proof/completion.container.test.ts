@@ -3,26 +3,9 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ THE TEST THIS WHOLE SLICE RESTS ON (064, US1 — research R2/R3).
- *
- * Until 064 a same-day order could not reach `delivered` by any driver action at all. The only writer
- * of that status anywhere on the platform was `edge-api/orders/src/arrival/repository.ts` — 053's
- * BACK-OFFICE manual arrival path, built for standard carrier packages. The driver who actually
- * handed the package over had no way to record it.
- *
- * So the proof route is not an annotation on a completion; it IS the completion, and these tests
- * assert every part of it against real PostgreSQL:
- *
- *   · the proof row                                    (the evidence)
- *   · `shop_fulfillment.status = 'delivered'`          (what a shop and a shopper read)
- *   · ⚠ `package_arrival`                              (WHAT ORDER COMPLETENESS ACTUALLY KEYS ON)
- *   · the `order_delivered` notification intent        (the shopper being told)
- *   · and — the case 053 had to fix — a MIXED order staying SILENT until all of it has arrived.
- *
- * ⚠ The `package_arrival` assertion is the one with no second chance. `enqueueOrderDeliveredIfComplete`
- * asks whether an unarrived package exists, against THAT table — not against the status. A proof that
- * sets the status and skips the arrival leaves the order permanently incomplete, the shopper never
- * told, and nothing failing anywhere.
+ * The proof route is the delivery completion. Against real Postgres: the proof row, the fulfilment
+ * status, `package_arrival` (what order completeness keys on), the `order_delivered` intent, and an
+ * order staying silent until every package has arrived.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -49,7 +32,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { history, historyDetail } from "../work/delivery";
 import { NotFoundError } from "../work/service";
@@ -69,7 +52,7 @@ let orderId: string;
 let dropId: string;
 let sameDayFulfillmentId: string;
 
-/** Build an order with `methods.length` packages, one per shop, and a drop for the same-day ones. */
+/** One package per shop, and a drop for the same-day ones. */
 async function seedOrder(methods: Array<"same_day" | "standard">) {
   const cust = await pool.query<{ id: string }>(
     `INSERT INTO public.customer (cognito_sub, email)
@@ -78,10 +61,10 @@ async function seedOrder(methods: Array<"same_day" | "standard">) {
   );
   const order = await pool.query<{ id: string }>(
     `INSERT INTO public."order"
-       (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
+       (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
      VALUES ($1, 'EFY-' || substr(gen_random_uuid()::text, 1, 6), 20.00, 25.00,
              '{"line1":"1 Test St","city":"Richmond","postalCode":"3121","region":"VIC"}'::jsonb,
-             'paid')
+             'paid', 'effy', 'in_coverage')
      RETURNING id`,
     [cust.rows[0]!.id],
   );
@@ -97,7 +80,7 @@ async function seedOrder(methods: Array<"same_day" | "standard">) {
     [wave.rows[0]!.id, driverId],
   );
   const stop = await pool.query<{ id: string }>(
-    // 093 — loaded: a drop is delivered from the van.
+    // Loaded: a drop is delivered from the van.
     `INSERT INTO public.round_stop (round_id, kind, order_id, status)
      VALUES ($1, 'customer_drop', $2, 'out_for_delivery') RETURNING id`,
     [round.rows[0]!.id, orderId],
@@ -118,12 +101,9 @@ async function seedOrder(methods: Array<"same_day" | "standard">) {
     );
     if (method === "same_day") {
       sameDayFulfillmentId = sf.rows[0]!.id;
-      // ⚠ Only the same-day package is on the drop. A standard package's driver-side work ended at
-      // the hub (063 FR-024) — it is in a carrier's hands and this driver cannot deliver it.
+      // Only the same-day package is on the drop.
       await pool.query(
-        // ⚠ 'assigned' — what the planner writes on a delivery round, and all it ever writes. This
-        // seeded 'picked_up', which no delivery package is ever in, and so proved a proof route that
-        // marked nothing delivered in production (EFY-GNYQ58).
+        // 'assigned' is all the planner ever writes on a delivery round.
         `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state)
          VALUES ($1, $2, 'assigned')`,
         [dropId, sf.rows[0]!.id],
@@ -205,7 +185,7 @@ d("064 — proof IS the delivery completion", () => {
       expect(sf.rows[0].status).toBe("delivered");
     });
 
-    /** ⚠ THE ASSERTION WITH NO SECOND CHANCE. See the file header. */
+    /** `enqueueOrderDeliveredIfComplete` reads `package_arrival`, not the status. */
     it("⚠ writes package_arrival — what order completeness actually keys on", async () => {
       await recordProof(proofArgs());
       const pa = await pool.query(
@@ -213,7 +193,6 @@ d("064 — proof IS the delivery completion", () => {
         [sameDayFulfillmentId],
       );
       expect(pa.rowCount).toBe(1);
-      // 053's CHECK already permitted this value — it anticipated this exact caller.
       expect(pa.rows[0].source).toBe("driver_proof");
       expect(pa.rows[0].recorded_by_sub).toBe(driverSub);
     });
@@ -234,12 +213,7 @@ d("064 — proof IS the delivery completion", () => {
     });
   });
 
-  /**
-   * ⚠ 053 FIXED EXACTLY THIS DEFECT AND IT MUST NOT COME BACK. The old driver path enqueued
-   * `order_delivered` deduped on the DROP id — and a drop covers only an order's SAME-DAY packages.
-   * A mixed order therefore announced "your order has been delivered" while the standard half was
-   * still in a carrier's van.
-   */
+  /** `order_delivered` is deduped per order, never per drop: a drop covers only some packages. */
   describe("⚠ a MIXED order stays silent until all of it has arrived", () => {
     beforeEach(() => seedOrder(["same_day", "standard"]));
 
@@ -281,7 +255,7 @@ d("064 — proof IS the delivery completion", () => {
       await recordProof(proofArgs());
       const other = await recordProof({ ...proofArgs(), method: "contactless", mediaKey: "proof/x/2.jpg" });
       expect(other.replayed).toBe(true);
-      expect(other.proof.method).toBe("photo"); // the original stands
+      expect(other.proof.method).toBe("photo");
     });
 
     it("two concurrent submissions yield ONE delivery, ONE arrival, ONE notification", async () => {
@@ -298,7 +272,7 @@ d("064 — proof IS the delivery completion", () => {
       );
       expect(proofs.rows[0].n).toBe(1);
       expect(arrivals.rows[0].n).toBe(1);
-      // One per channel at most — the dedupe key is order-scoped, never drop-scoped.
+      // One per channel at most.
       expect(notes.rows[0].n).toBeLessThanOrEqual(2);
     });
   });
@@ -320,14 +294,7 @@ d("064 — proof IS the delivery completion", () => {
     });
   });
 
-  /**
-   * US5 — proof is retrievable afterwards (FR-023, FR-024).
-   *
-   * ⚠ NO EXPIRY IS TESTED BECAUSE NONE EXISTS. Proof media is archived, never deleted (research R5):
-   * a lifecycle rule moves it to Glacier Instant Retrieval at 90 days, which serves through the
-   * ordinary S3 API in milliseconds. Age changes nothing about how it is read, so there is no
-   * age-dependent branch to cover — that is the point of the storage choice.
-   */
+  /** Proof is retrievable afterwards. Nothing expires: proof media is archived to Glacier IR, read the same way. */
   describe("US5 — reading proof back", () => {
     beforeEach(() => seedOrder(["same_day"]));
 
@@ -355,13 +322,7 @@ d("064 — proof IS the delivery completion", () => {
       expect(allDrops[0]!.orderRef).toMatch(/^EFY-/);
     });
 
-    /**
-     * ⚠ FR-024 — proof is not reachable by someone who is merely holding an identifier.
-     *
-     * The drop id is a uuid a driver's own app knows; the scoping is what stops it being a key to
-     * everyone else's evidence. "Not yours" and "does not exist" are the SAME answer, from one query
-     * returning no row, so this route can never be an oracle (052's rule).
-     */
+    /** Scoped to the driver: "not yours" and "does not exist" are the same answer from one query. */
     it("⚠ another driver cannot read this drop's proof, and cannot tell it exists", async () => {
       await recordProof(proofArgs());
       const other = await pool.query<{ id: string }>(
@@ -400,7 +361,7 @@ d("064 — proof IS the delivery completion", () => {
     const roundOf = async () =>
       (await pool.query("SELECT round_id FROM public.round_stop WHERE id = $1", [dropId])).rows[0].round_id as string;
 
-    /** The driver returns the round's failed parcels (088), in its own transaction. */
+    /** In its own transaction. */
     async function returnParcels(roundId: string) {
       const c = await pool.connect();
       try {
@@ -413,7 +374,6 @@ d("064 — proof IS the delivery completion", () => {
       }
     }
 
-    /** A second drop on the same round, still open. */
     async function addOpenDrop(): Promise<string> {
       const r = await pool.query<{ id: string }>(
         `INSERT INTO public.round_stop (round_id, kind, order_id, status)
@@ -429,7 +389,7 @@ d("064 — proof IS the delivery completion", () => {
       expect(await roundStatus()).toBe("completed");
     });
 
-    /** 088 — the parcel is still in the van: the round waits for its return to the hub (quickstart P1). */
+    /** The parcel is still in the van: the round waits for its return. */
     it("a failure on the last drop leaves the round open with one parcel to return; the return completes it", async () => {
       await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
       expect(await roundStatus()).toBe("in_progress");
@@ -447,7 +407,7 @@ d("064 — proof IS the delivery completion", () => {
       await recordProof(proofArgs());
       expect(await roundStatus()).toBe("in_progress");
 
-      // The last drop fails; it carries no parcel here, so nothing is to return and the round is done.
+      // The last drop fails with no parcel, so nothing is to return and the round is done.
       await recordFailure({ dropId: other, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
       expect(await roundStatus()).toBe("completed");
     });
@@ -476,7 +436,7 @@ d("064 — proof IS the delivery completion", () => {
         const sf = await pool.query("SELECT status FROM public.shop_fulfillment WHERE id = $1", [
           sameDayFulfillmentId,
         ]);
-        expect(sf.rows[0].status).toBe("collected"); // still the driver's
+        expect(sf.rows[0].status).toBe("collected");
 
         const pa = await pool.query("SELECT count(*)::int AS n FROM public.package_arrival");
         expect(pa.rows[0].n).toBe(0);
@@ -491,7 +451,7 @@ d("064 — proof IS the delivery completion", () => {
     it("⚠ the package stays in the driver's custody (FR-011)", async () => {
       await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
       const rp = await pool.query("SELECT state FROM public.round_package WHERE stop_id = $1", [dropId]);
-      // Unchanged — still on the driver's round, never delivered and never released.
+      // Still on the driver's round: never delivered, never released.
       expect(rp.rows[0].state).toBe("assigned");
     });
 

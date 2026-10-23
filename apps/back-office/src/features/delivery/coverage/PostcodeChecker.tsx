@@ -8,10 +8,10 @@ import { COVERAGE_REASON_COPY, coverageError } from "../errorText";
 import { checkCoverage } from "../repo";
 
 /**
- * "What about this postcode, and why?" (076 FR-025) — for anyone in back-office, including a
+ * "What about this postcode, and why?" — for anyone in back-office, including a
  * customer-service agent with a customer on the line.
  *
- * ⚠ The answer is the SAME function's that checkout asks; this only puts it in words a person can
+ * The answer is the same function's that checkout asks; this only puts it in words a person can
  * repeat. The reason, the group and the distance are for staff — a customer is told the answer only.
  */
 export function PostcodeChecker() {
@@ -69,7 +69,7 @@ function describe(m: CoverageCheckDTO): string {
   if (m.reason === "listed") {
     parts.push(m.groupName ? `Group: ${m.groupName}.` : "No group.");
     if (m.distanceKm) parts.push(`${m.distanceKm} km from the hub (${m.distanceSource === "manual" ? "entered by hand" : "worked out"}).`);
-    // 097 — whether a window today may be sold there.
+    // Whether a window today may be sold there.
     if (m.todayOffered !== null) parts.push(m.todayOffered ? "Delivery today offered." : "Delivery today not offered.");
   }
   if (m.exclusionReason) parts.push(`Reason: ${m.exclusionReason}.`);

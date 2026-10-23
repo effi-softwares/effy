@@ -1,10 +1,10 @@
 import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival, type OrderSummaryDTO } from "@effy/shared-types"
 
 /**
- * What one row of the order history SAYS (reference: Orders · Order history): the badge, the line
+ * What one row of the order history says (reference: Orders · Order history): the badge, the line
  * under it, and which filter it belongs to.
  *
- * ⚠ ONE PLACE, so the badge, the line and the filter cannot disagree about the same order. Everything
+ * One place, so the badge, the line and the filter cannot disagree about the same order. Everything
  * is read from what the server derived (`stage`, `fullyRefunded`, `arrivalEstimates`) — nothing here
  * works a stage out for itself.
  */
@@ -71,7 +71,7 @@ function promiseOf(o: OrderSummaryDTO, now: Date): string | null {
       ? `${DELIVERY_TYPE_WORDS.courierEstimatePrefix} ${o.delivery.courierEstimate} ${DELIVERY_TYPE_WORDS.courierEstimateSuffix}`
       : null
   }
-  // 085 — "as soon as possible" was sold an estimate, never a day.
+  // "as soon as possible" was sold an estimate, never a day.
   if (o.delivery.promise === "asap") return o.delivery.asapEstimate ? asapSentence(o.delivery.asapEstimate) : null
   const first = o.arrivalEstimates?.[0]
   if (!first) return null
@@ -96,7 +96,7 @@ export function matchesFilter(o: OrderSummaryDTO, filter: OrderFilter): boolean 
   }
 }
 
-/* ── The time period ─────────────────────────────────────────────────────────────────────────── */
+/* The time period */
 
 /** `recent` (the last three months), a year (`2026`), or `all`. */
 export function periodsFor(orders: readonly OrderSummaryDTO[]): Array<{ key: string; label: string }> {

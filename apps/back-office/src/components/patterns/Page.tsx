@@ -43,7 +43,7 @@ export function PageHeader({
 
 /**
  * Saved views of one list, as underlined tabs with counts (Patterns board). Views are links, so the
- * view is in the URL and its link opens the same list for anyone. For independent SECTIONS of one
+ * view is in the URL and its link opens the same list for anyone. For independent sections of one
  * record, use shadcn Tabs instead.
  */
 export interface ViewTab {

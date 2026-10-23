@@ -1,17 +1,10 @@
-// How long packages have been in drivers' hands (064). Derived from the round rows; nothing is stored.
+// Derived from the round rows; nothing is stored.
 
 import { query } from "@effy/edge-shared";
 
 /**
- * The longest unbroken custody right now, in hours — the `DriverPackagesHeldHours` alarm's input.
- *
- * ⚠ IT IS EMITTED FROM THE SCHEDULED PLANNER, NOT FROM THE CUSTODY READ. An on-demand read only
- * happens when a dispatcher opens a screen, so an alarm fed by it would be silent exactly when
- * nobody is looking — which is the situation it exists to catch. The planner already wakes every few
- * minutes and already emits EMF, so the measurement rides along with something that runs whether or
- * not anyone is watching.
- *
- * Returns 0 when no package is held, which is the healthy state and not an absence.
+ * The longest unbroken custody now, in hours, for the `DriverPackagesHeldHours` alarm. Emitted from the
+ * scheduled planner, so it is measured whether or not anyone opens a screen. 0 when nothing is held.
  */
 export async function maxCustodyHours(): Promise<number> {
   const res = await query<{ hours: string | null }>(

@@ -1,20 +1,20 @@
 /**
- * Installing the console onto a device (059, US2 / FR-001, FR-006, FR-007).
+ * Installing the console onto a device.
  *
  * Two mechanisms, because the two platforms that matter behave differently:
  *
- *   • Chromium (Android, desktop) fires `beforeinstallprompt`, which can be captured and replayed
- *     from a control of our own.
- *   • ⚠ iOS/iPadOS Safari fires NOTHING and exposes no install API at all. The only route is the
- *     operator finding Share → Add to Home Screen by themselves, so the console has to say so.
+ *  • Chromium (Android, desktop) fires `beforeinstallprompt`, which can be captured and replayed
+ *  from a control of our own.
+ *  • iOS/iPadOS Safari fires nothing and exposes no install API at all. The only route is the
+ *  operator finding Share → Add to Home Screen by themselves, so the console has to say so.
  *
- * ⚠ AND ON IPADOS THAT IS NOT A CONVENIENCE. The Push API is available ONLY to a home-screen web
- * app there. On this audience's primary device, an operator who never installs cannot even be ASKED
+ * And on ipados that is not a convenience. The Push API is available only to a home-screen web
+ * app there. On this audience's primary device, an operator who never installs cannot even be asked
  * for notification permission — the API is absent. So these instructions are the precondition for
  * the whole of US1 on the device it matters most on, which is why US2 is P1.
  */
-// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
-// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
+// `@tanstack/react-store`, not `@tanstack/store`. It re-exports `Store` (`export * from
+// "@tanstack/store"`), and react-store is what this app declares. Importing the core package
 // directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
 // into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
 // resolving the moment the hoisting layout changes. Every other store in this app imports it the
@@ -50,8 +50,8 @@ let deferred: BeforeInstallPromptEvent | null = null
 /** Running as an installed app rather than in a browser tab. */
 export function isStandalone(): boolean {
   if (typeof window === "undefined") return false
-  // ⚠ TWO CHECKS, NOT ONE. `display-mode: standalone` is the standard; `navigator.standalone` is
-  // Safari's own, non-standard and the ONLY reliable signal on older iOS. Checking just the first
+  // Two checks, not one. `display-mode: standalone` is the standard; `navigator.standalone` is
+  // Safari's own, non-standard and the only reliable signal on older iOS. Checking just the first
   // makes an installed iPad look uninstalled, so the console would keep telling an operator to
   // install something they are already using.
   const byMedia = window.matchMedia?.("(display-mode: standalone)").matches ?? false
@@ -63,7 +63,7 @@ export function isStandalone(): boolean {
 export function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false
   const ua = navigator.userAgent
-  // ⚠ An iPad running iPadOS 13+ reports itself as a Mac. The touch-point check is what separates
+  // An iPad running iPadOS 13+ reports itself as a Mac. The touch-point check is what separates
   // it from a desktop; without it every shop iPad falls through to "cannot install" and no
   // instructions are ever shown — on the exact device that needs them.
   const iOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1)
@@ -82,7 +82,7 @@ function dismissed(): boolean {
   }
 }
 
-/** Remember that the operator said no, so they are not asked again on every visit (FR-006). */
+/** Remember that the operator said no, so they are not asked again on every visit. */
 export function dismissInstall(): void {
   try {
     localStorage.setItem(DISMISSED_KEY, "1")
@@ -97,8 +97,8 @@ export async function promptInstall(): Promise<boolean> {
   if (!deferred) return false
   await deferred.prompt()
   const { outcome } = await deferred.userChoice
-  // ⚠ The event is single-use: a captured prompt cannot be replayed. Dropping the reference is what
-  // stops a second click calling `prompt()` on a spent event, which throws.
+  // The event is single-use: a captured prompt cannot be replayed. Dropping the reference is what
+  // stops a second click calling `prompt` on a spent event, which throws.
   deferred = null
   if (outcome === "accepted") {
     installStore.setState((s) => ({ ...s, method: "none" }))

@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Gives the shopper database role (070) a password and lets it log in.
+# Gives the shopper database role a password and lets it log in.
 #
-# Migration `shopper_role` creates `effy_shopper` WITHOUT a password and unable to log in — a
+# Migration `shopper_role` creates `effy_shopper` without a password and unable to log in — a
 # migration is committed to the repository and a secret must never be. This script does the part
 # that cannot be committed:
 #
-#   1. generates a password locally,
-#   2. stores it in Secrets Manager as /effy/<env>/db/shopper  ({"username":…,"password":…} — the
-#      same shape as the RDS-managed master secret, so the edge services' existing connection code
-#      reads it unchanged),
-#   3. sets it on the role and enables login.
+# 1. generates a password locally,
+# 2. stores it in Secrets Manager as /effy/<env>/db/shopper ({"username":…,"password":…} — the
+# same shape as the RDS-managed master secret, so the edge services' existing connection code
+# reads it unchanged),
+# 3. sets it on the role and enables login.
 #
-# Safe to re-run: a second run ROTATES the password. Warm functions holding the old one reconnect
-# on their own — the edge connection code drops its pool and refetches on SQLSTATE 28P01.
+# Safe to re-run: a second run rotates the password. Warm functions holding the old one reconnect
+# on their own — the edge connection code drops its pool and refetches on sqlstate 28P01.
 #
-# ⚠ THE PASSWORD IS NEVER PRINTED, never written to a file, never passed as a command-line argument
+# the password is never printed, never written to a file, never passed as a command-line argument
 # (arguments are visible in `ps`). It travels to Secrets Manager and to psql on stdin only.
 #
-# Usage:  make db-shopper-role ENV=dev     (OPERATOR — mutates the database and Secrets Manager)
+# Usage: make db-shopper-role ENV=dev (operator — mutates the database and Secrets Manager)
 set -euo pipefail
 
 ENV_NAME="${1:?usage: db-shopper-role.sh <dev|qa|staging|prod>}"
@@ -47,7 +47,7 @@ fi
 
 SECRET_JSON="$(printf '{"username":"%s","password":"%s"}' "$ROLE" "$PASSWORD")"
 
-# Store FIRST. If the database step then fails, the secret is ahead of the role and a re-run fixes
+# Store first. If the database step then fails, the secret is ahead of the role and a re-run fixes
 # it; the other order could leave a role whose password nobody recorded.
 if aws secretsmanager describe-secret --secret-id "$SECRET_NAME" --region "$REGION" >/dev/null 2>&1; then
   printf '%s' "$SECRET_JSON" | aws secretsmanager put-secret-value \

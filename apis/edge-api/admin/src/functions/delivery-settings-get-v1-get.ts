@@ -1,4 +1,3 @@
-// GET /admin/v1/delivery/settings — the operating hub + same-day prep buffer (047). Read.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -8,20 +8,9 @@ export const metadata: Metadata = {
 }
 
 /**
- * Where a customer lands when the platform will not serve them.
- *
- * ⚠ Two very different situations end up here, and the page DELIBERATELY DOES NOT DISTINGUISH THEM:
- *
- *   1. The customer's record is marked `barred` (FR-025).
- *   2. The account service is unreachable.
- *
- * Telling someone "your account has been barred" is an information leak they cannot act on, and it
- * hands an attacker a probe for account state. Telling a barred customer "we're having technical
- * difficulties" would be a lie. So the page says what is true of both: we can't get to your account
- * right now, here is how to reach a human.
- *
- * Note it does NOT sign them out. A barred customer still holds a valid credential — that is the
- * entire point of FR-025 — and pretending otherwise would just send them round the sign-in loop.
+ * Where a customer lands when the platform will not serve them: barred, or the account service is down.
+ * The page does not distinguish them (that would leak account state) and does not sign them out (a
+ * barred customer's credential is still valid).
  */
 export default function AccountUnavailablePage() {
   return (

@@ -16,33 +16,12 @@ import { variantStockQuery } from "./stockQueries";
 import { sizeLabelOf } from "./variants";
 
 /**
- * The Inventory section of the product detail screen, rebuilt to the imported mockup (057).
+ * The Inventory section of the product detail screen: the numbers as plain rows, every write behind a
+ * named verb. Stock is per variant, shown one size at a time (the Size picker; Today opens it with
+ * `?size=`), and every stock dialog names the size.
  *
- * ⚠ WHAT THIS REPLACES, AND WHY. Until now this section embedded the whole 054 Inventory TAB: a
- * tracking switch, a three-field "update the count" form, a two-field threshold form and a history
- * table, all permanently open. That was the right shape for a tab whose only job was stock; it is the
- * wrong shape for one section of a scrolling product page, where the operator's question is "how many
- * have we got" and four forms stand between them and the answer. The mockup states the numbers as
- * plain rows and puts every write behind a named verb — which is also what makes the count the thing
- * the eye lands on.
- *
- * ⚠ THREE OF THE MOCKUP'S INVENTORY FEATURES ARE REFUSED, and each is refused on a fact about this
- * platform rather than on effort. A source guard (`__tests__/inventory-guard.test.ts`) holds them out
- * of this directory and fails naming the file, because the next person to read the mockup will find
- * all three perfectly reasonable:
- *
- *   • (LIFTED BY 098) BY-VARIANT STOCK. Variants now exist and stock is counted per variant: this
- *     section shows ONE size at a time, chosen with the Size picker (and opened on a size by Today's
- *     `?size=`); every stock dialog names the size in its title.
- *   • RESERVED UNITS. Nothing reserves stock. 054's A6 recorded this in writing as an ACCEPTED
- *     residual: between creating a payment and it succeeding another shopper can take the last unit,
- *     and closing that window would need a reservation table plus an abandoned-checkout sweep the
- *     platform does not have. So "Reserved: 2 units" would be a number nothing computes — and worse
- *     than absent, because an operator would subtract it before deciding to reorder.
- *   • "DAYS COVER" BARS. They need a sales velocity, and the platform stores no per-product sales
- *     history — the same fact that already refuses the mockup's "Last 30 days" rail. A bar drawn from
- *     an invented velocity is the defect this feature deleted from the dashboard, where a fake chart
- *     shipped as if it were real.
+ * Refused, and held out by `__tests__/inventory-guard.test.ts`: reserved units (nothing reserves stock,
+ * so the number would be invented) and "DAYS COVER" bars (there is no per-product sales history).
  */
 export function InventorySection({
   detail,
@@ -50,7 +29,7 @@ export function InventorySection({
   onVariantChange,
 }: {
   detail: ProductDetail;
-  /** 098 — the size whose history (and rules dialog) is shown below the table. */
+  /** The size whose history (and rules dialog) is shown below the table. */
   variantId: string;
   onVariantChange: (variantId: string) => void;
 }) {
@@ -63,7 +42,7 @@ export function InventorySection({
 
   return (
     <>
-      {/* 098 — every size's stock in one table, one Save (add a delivery, or record a stocktake). */}
+      {/* Every size's stock in one table, one Save (add a delivery, or record a stocktake). */}
       <StockTable
         detail={detail}
         onRules={(id) => {
@@ -114,7 +93,7 @@ export function InventorySection({
       {stock ? (
         <InventoryRulesDialog detail={detail} variantId={variantId} stock={stock} open={rulesOpen} onOpenChange={setRulesOpen} />
       ) : null}
-      {/* ⚠ Only while tracking is on: a count does not exist for an uncounted size (the server 409s). */}
+      {/* Only while tracking is on: a count does not exist for an uncounted size (the server 409s). */}
       {stock?.tracked ? (
         <AdjustStockDialog variantId={variantId} stock={stock} open={adjustOpen} onOpenChange={setAdjustOpen} sizeLabel={size} />
       ) : null}
@@ -123,7 +102,7 @@ export function InventorySection({
 }
 
 /**
- * 098 — which size's stock the tab shows. Each size is its own shelf with its own count, rules and
+ * Which size's stock the tab shows. Each size is its own shelf with its own count, rules and
  * history; a product sold in one size shows no picker at all.
  */
 /**
@@ -163,27 +142,11 @@ export function SizePicker({
   );
 }
 
-
 /**
- * The header's stock affordance — `Receive stock` on a tracked product, `Add stock` on one that is
- * not counted yet. It needs the same stock read this section makes and so shares its cache entry
- * rather than issuing a second one.
- *
- * ⚠ IT USED TO BE DISABLED WHENEVER TRACKING WAS OFF, which before 098 was most products (tracking
- * defaulted to off; since 098 a new size is counted from the start), so the default put a dead control in the header
- * of nearly every product page, explaining itself only in a `title` attribute a touch device never
- * shows. The refusal was TRUE — there is no count to receive into — but it answered a question the
- * operator was not asking. "We just got 24 of these" is the same intent whether or not a count
- * exists; the only difference is that one of them has to start the count first, and the platform can
- * do that in the same request (see `StartTrackingDialog`).
- *
- * ⚠ THE LABEL IS WHAT CARRIES THE DIFFERENCE, and it changes for a reason rather than for variety:
- * receiving ADDS to a number that exists, adding stock ESTABLISHES one. An operator who reads
- * "Receive stock" on an uncounted product would reasonably expect a running total behind it.
- *
- * ⚠ WHILE THE READ IS IN FLIGHT THE BUTTON IS DISABLED AND KEEPS THE TRACKED LABEL. Defaulting to
- * `Add stock` would flip the wording under the operator's cursor a moment later — and on a tracked
- * product, offer the wrong dialog to a fast click.
+ * The header's stock action: `Receive stock` on a counted product, `Add stock` on one not counted yet
+ * (which starts the count in the same request: `StartTrackingDialog`). It shares this section's stock
+ * read. While the read is in flight it is disabled with the counted label, so the wording never flips
+ * under the cursor.
  */
 export function ReceiveStockButton({
   variantId,

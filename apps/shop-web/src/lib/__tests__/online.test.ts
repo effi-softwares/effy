@@ -29,7 +29,7 @@ describe("⚠ FR-036 — a write is refused offline, never faked", () => {
   })
 
   it("⚠ refuses a POST without touching the network at all", async () => {
-    // The thing that must never happen is a write that LOOKS like it worked. Refusing before the
+    // The thing that must never happen is a write that looks like it worked. Refusing before the
     // request is what makes "told it cannot be done" and "quietly did nothing" distinguishable.
     const fetchSpy = vi.spyOn(globalThis, "fetch")
     onlineStore.setState((s) => ({ ...s, online: false }))
@@ -67,7 +67,7 @@ describe("⚠ only a network failure means offline", () => {
   })
 
   it("⚠ an HTTP error does NOT mark the console offline", async () => {
-    // We REACHED the server. Treating a 500 as connectivity tells an operator to check their wifi
+    // We reached the server. Treating a 500 as connectivity tells an operator to check their wifi
     // over a backend defect — and hides the offline banner's meaning when it is genuinely needed.
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ title: "boom" }), {

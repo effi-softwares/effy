@@ -1,8 +1,5 @@
-// POST /commerce/v1/checkout/intent — compute the charge, write the pending order, hold the
-// delivery place and create the payment intent. Safe to repeat for the same basket.
-//
-// ⚠ There is no amount and no `billingDetails` on this request, by design: the amount is the
-// platform's, and billing details are derived from the order's own address snapshot.
+// Computes the charge, writes the pending order, holds the delivery place and creates the payment
+// intent. Safe to repeat. The request carries no amount or billing details: both come from the order.
 import { json, validationFailed } from "@effy/edge-shared";
 import { normaliseDeliveryInstructions } from "@effy/shared-types";
 
@@ -23,7 +20,6 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   const addressId = stringField(body?.addressId);
   const billingAddressId = stringField(body?.billingAddressId);
   const wantsList = body?.wantsProviderMethodList;
-  // 074 — absent or null means none. Anything else must be a whole number of points, 0 or more.
   const rawPoints = body?.pointsToUse;
   const pointsToUse = rawPoints === undefined || rawPoints === null ? 0 : rawPoints;
   if (
@@ -35,22 +31,18 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   if (typeof pointsToUse !== "number" || !Number.isSafeInteger(pointsToUse) || pointsToUse < 0) {
     return validationFailed(scope, "pointsToUse must be a whole number of points");
   }
-  // 077 — absent or null means the client is not saying what it shows (one built before 077).
   const rawShown: unknown = body.shownDeliveryAmount;
   if (rawShown !== undefined && rawShown !== null && (typeof rawShown !== "string" || !AMOUNT.test(rawShown))) {
     return validationFailed(scope, "shownDeliveryAmount must be an amount like 6.00");
   }
   const shownDeliveryAmount = typeof rawShown === "string" ? rawShown : "";
 
-  // 094 — the promotions total the client is showing. Absent from a client built before 094.
   const rawExpected: unknown = body.expectedDiscount;
   if (rawExpected !== undefined && rawExpected !== null && (typeof rawExpected !== "string" || !/^\d{1,7}\.\d{2}$/.test(rawExpected))) {
     return validationFailed(scope, "expectedDiscount must be an amount like 5.00");
   }
   const expectedDiscount = typeof rawExpected === "string" ? rawExpected : "";
 
-  // 078 — the one window chosen for the order. Absent or null means none was sent (a client built
-  // before 078, or the new delivery model is off and the three fields above apply).
   const rawWindow: unknown = body.deliveryWindow;
   let deliveryWindow: { slotId: string; date: string } | null = null;
   if (rawWindow !== undefined && rawWindow !== null) {
@@ -61,23 +53,20 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     deliveryWindow = { slotId: w.slotId, date: w.date };
   }
 
-  // 085 — "as soon as possible", sent instead of a window. A day with no time is a `deliveryWindow`.
+  // Sent instead of a window. A day with no time is a `deliveryWindow`.
   const rawPromise: unknown = body.deliveryPromise;
   if (rawPromise !== undefined && rawPromise !== null && rawPromise !== "asap") {
     return validationFailed(scope, "deliveryPromise must be asap");
   }
   const deliveryPromise = rawPromise === "asap" ? "asap" as const : null;
 
-  // 079 — the delivery type the client is showing. Absent means it said nothing (a client built
-  // before 079, which can then only buy an Effy delivery).
   const rawType: unknown = body.deliveryType;
   if (rawType !== undefined && rawType !== null && rawType !== "effy" && rawType !== "courier") {
     return validationFailed(scope, "deliveryType must be effy or courier");
   }
   const deliveryType = rawType === "effy" || rawType === "courier" ? rawType : null;
 
-  // 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
-  // the value: a note can hold a gate code, and a validation error is exactly what gets logged.
+  // The refusal never echoes the value: a note can hold a gate code, and validation errors are logged.
   const instructions = normaliseDeliveryInstructions(body.deliveryInstructions);
   if (!instructions.ok) {
     return validationFailed(scope, "check your delivery instructions", [
@@ -98,7 +87,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     return json(200, result, scope);
   } catch (err) {
     if (err instanceof PromotionsChangedRefusal) {
-      // The cart as it stands now, so the shopper sees the new total before paying (094 FR-037).
+      // The current cart, so the shopper sees the new total before paying.
       const cart = await cartService.get(customer.id).catch(() => null);
       return promotionsChanged(scope, cart);
     }

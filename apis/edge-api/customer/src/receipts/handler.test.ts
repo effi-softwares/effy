@@ -41,8 +41,7 @@ describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
     const res = await call()
 
     expect(res.status).toBe(429)
-    // ⚠ A refusal a shopper cannot understand is indistinguishable from a bug. It must tell them what
-    // to do next, not merely that they were refused.
+    // A refusal must say what to do next.
     expect(String(res.body.detail)).toMatch(/inbox|spam|later/i)
   })
 
@@ -51,14 +50,7 @@ describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
     expect((await call()).status).toBe(409)
   })
 
-  /**
-   * ⚠ SC-008 — THE HEADLINE SECURITY PROPERTY OF THIS ROUTE.
-   *
-   * "Someone else's order" and "no such order" must be BYTE-IDENTICAL. Any difference — a status code,
-   * a word, a field — turns this endpoint into an oracle: a caller could enumerate order ids and learn
-   * which ones are real. The repository produces one `not_found` for both cases precisely so this
-   * handler has no opportunity to distinguish them.
-   */
+  /** "Someone else's order" and "no such order" are byte-identical. */
   it("⚠ refuses another customer's order and a non-existent one IDENTICALLY", async () => {
     mockResend.mockResolvedValue({ status: "not_found" })
     const someoneElses = await handler(event("11111111-1111-4111-8111-111111111111"), context)
@@ -69,7 +61,7 @@ describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
     expect(someoneElses.statusCode).toBe(404)
     expect(doesNotExist.statusCode).toBe(404)
 
-    // Byte-identical bodies. The order id must not echo back — that alone would differ.
+    // The order id must not echo back.
     expect(someoneElses.body).toBe(doesNotExist.body)
   })
 
@@ -79,11 +71,7 @@ describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
     expect(mockResend).not.toHaveBeenCalled()
   })
 
-  /**
-   * ⚠ THE OPEN-RELAY GUARD. The receipt carries a person's name, delivery address and purchase
-   * history. If an `email` in the body could redirect it, any session holder could mail someone
-   * else's receipt anywhere. The body is ignored entirely — this asserts the handler never reads it.
-   */
+  /** The body is never read, or the route would be an open relay. */
   it("⚠ ignores any email supplied in the request body", async () => {
     mockResend.mockResolvedValue({ status: "queued" })
     const withBody = {
@@ -93,7 +81,7 @@ describe("POST /customer/v1/orders/{id}/receipt (052 US4)", () => {
 
     await handler(withBody, context)
 
-    // The service is called with the AUTHENTICATED subject and the order id — and nothing else.
+    // Only the authenticated subject and the order id.
     expect(mockResend).toHaveBeenCalledWith("order-1", "sub-abc")
     expect(mockResend).not.toHaveBeenCalledWith(
       expect.anything(),

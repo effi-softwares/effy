@@ -24,21 +24,7 @@ import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model";
 import { driversListQuery, readinessQuery, zonesQuery } from "./queries";
 
-
-/**
- * The driver register (056 US1) — the front door of the driver console.
- *
- * ⚠ A TABLE, AND NO METRIC CARDS ANYWHERE (Principle V, no exception claimed). This screen is where
- * the dashboard instinct fires hardest: "drivers on duty", "unresolved exceptions", "uncovered
- * zones" as four tiles across the top is the obvious design and the constitution forbids it. The
- * outstanding-exception count below is a LABELLED FIGURE IN A SECTION HEADER — a sentence with a
- * number in it and a link to the rows, which is more useful than a tile because it takes you
- * somewhere.
- *
- * ⚠ STATUS IS CARRIED BY WORDING AND WEIGHT, NEVER BY HUE. The ramp is monochrome and inverts
- * between appearances; 041 removed `amber` used as a "warning" colour across shop-web for exactly
- * this reason. An expired licence is an ordinary fact, not an error state.
- */
+/** The driver register: a table, no metric tiles. An expired licence is an ordinary fact, said in words, not an error state. */
 
 function blockedSummary(d: AdminDriverListItem): string | null {
   if (d.blockedReasons.length === 0) return null;
@@ -75,7 +61,7 @@ export function DriversListScreen() {
       q: search.trim() || undefined,
       status,
       zoneId: zoneId ?? undefined,
-      // FR-005 — offboarded drivers are hidden by default; the Offboarded view asks for them.
+      // Offboarded drivers are hidden by default; the Offboarded view asks for them.
       includeOffboarded: includeOffboarded || view === "offboarded",
       cursor: cursors[cursors.length - 1],
     }),
@@ -178,7 +164,7 @@ export function DriversListScreen() {
               </tbody>
             </table>
           </div>
-          {/* ⚠ nextCursor IS CONSUMED. 053 shipped a console that ignored its own, silently capping it
+          {/* nextCursor is consumed. 053 shipped a console that ignored its own, silently capping it
               at the newest 25 rows. Rendered only when there is somewhere to go. */}
           {cursors.length > 0 || data.nextCursor ? (
             <Pager
@@ -211,7 +197,7 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
             <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="bo-link">
               {d.name}
             </Link>
-            {/* ⚠ SC-009 — a driver who cannot receive work says so HERE, on the register, before an
+            {/* A driver who cannot receive work says so here, on the register, before an
                 order is affected. */}
             {blocked ? (
               <span className="bo-sub flex items-center gap-1 font-medium text-foreground">

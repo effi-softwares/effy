@@ -7,19 +7,19 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/session"
 
 /**
- * The signed-in customer's own reads, each made at most ONCE per request however many islands show
- * it (PERF-16).
+ * The signed-in customer's own reads, each made at most once per request however many islands show
+ * it.
  *
  * A signed-in page asks for the same things from several places at once — points from the header's
  * account menu, the home shortcuts and the product page's delivery note; addresses from the delivery
  * bar and that note. Next's fetch memoization would probably collapse them, but only while every call
- * site keeps a byte-identical request; React's `cache()` makes it one request by construction (the
+ * site keeps a byte-identical request; React's `cache` makes it one request by construction (the
  * same reasoning as `getHome`).
  *
- * ⚠ PER CUSTOMER, AND PER REQUEST ONLY. `cache()` lives for one server render, so nothing here is
+ * Per customer, and per request only. `cache` lives for one server render, so nothing here is
  * shared between requests or customers — never move these behind `"use cache"`.
  *
- * Each returns null for a guest (no request is made) and THROWS when the read fails, so every caller
+ * Each returns null for a guest (no request is made) and throws when the read fails, so every caller
  * keeps deciding what a failure looks like where it is shown.
  */
 function perRequest<T>(path: string): () => Promise<T | null> {

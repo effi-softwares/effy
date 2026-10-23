@@ -1,12 +1,12 @@
 package com.effyshopping.customer.mobile.core.observability
 
 /**
- * The typed product-analytics taxonomy for customer-mobile (050 US2). Mirrors the web
- * `StorefrontEvent` union and docs/telemetry/{commerce,platform}-events.md — the SAME names, so a
- * funnel spans customer-web + customer-mobile (FR-010). A `commonTest` drift check asserts every name
+ * The typed product-analytics taxonomy for customer-mobile. Mirrors the web
+ * `StorefrontEvent` union and docs/telemetry/{commerce,platform}-events.md — the same names, so a
+ * funnel spans customer-web + customer-mobile. A `commonTest` drift check asserts every name
  * here is in the documented set.
  *
- * ⚠ ADD AN EVENT HERE FIRST — never a free string at a call site (FR-007). ⚠ NO PII: props are ids +
+ * Add an event here first — never a free string at a call site. No PII: props are ids +
  * bounded enums only; never an email, name, address, postcode, order total, or search text.
  */
 sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = emptyMap()) {
@@ -21,18 +21,18 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     data object CartViewed : AnalyticsEvent("cart_viewed")
     data object CheckoutStarted : AnalyticsEvent("checkout_started")
     class OrderPlaced(orderId: String) : AnalyticsEvent("order_placed", mapOf("orderId" to orderId))
-    /** 098 — a size chosen on the product page (ids only). */
+    /** A size chosen on the product page (ids only). */
     class VariantSelected(productId: String, variantId: String) :
         AnalyticsEvent("variant_selected", mapOf("productId" to productId, "variantId" to variantId))
     data object SearchPerformed : AnalyticsEvent("search_performed")
 
     /**
-     * 066 — an order was placed with (or without) delivery instructions. `handover` is
+     * An order was placed with (or without) delivery instructions. `handover` is
      * `leave_at_door` | `meet_at_door` | `none`.
      *
-     * ⚠ NEVER THE NOTE, ITS LENGTH OR THE ADDRESS. The note is customer-authored and may hold a gate
+     * Never the note, its length or the address. The note is customer-authored and may hold a gate
      * code; the constructor takes a closed value and two booleans so a call site cannot pass text.
-     * ⚠ DECLARED, NOT EMITTED — like the rest of this app's commerce taxonomy, nothing fires it yet.
+     * Declared, not emitted — like the rest of this app's commerce taxonomy, nothing fires it yet.
      */
     class CheckoutDeliveryInstructionsSet(handover: String, hasNote: Boolean, fromSavedDefault: Boolean) :
         AnalyticsEvent(
@@ -41,13 +41,13 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
         )
 
     /**
-     * 069 — a same-day slot or a standard day was chosen, or the choice was refused at the payment
+     * A same-day slot or a standard day was chosen, or the choice was refused at the payment
      * step. The same three names and props as customer-web's.
      *
-     * ⚠ COUNTS AND OFFSETS, NEVER A TIME OR AN ADDRESS. "The third of four slots, six hours ahead"
+     * Counts and offsets, never a time or an address. "The third of four slots, six hours ahead"
      * says which slots people want; a slot's clock time joined to a session would say when a
      * household is home. `position` is 1-based among the options shown.
-     * ⚠ DECLARED, NOT EMITTED — like the rest of this app's commerce taxonomy, nothing fires them yet.
+     * Declared, not emitted — like the rest of this app's commerce taxonomy, nothing fires them yet.
      */
     class CheckoutDeliverySlotSelected(slotsOffered: Int, position: Int, hoursAhead: Int) :
         AnalyticsEvent(
@@ -65,7 +65,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutDeliveryChoiceRefused(reason: String) :
         AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
 
-    // 078 — delivery windows (the new delivery model). ⚠ WHICH SECTION AND HOW MANY DAYS AHEAD — never
+    // Delivery windows (the new delivery model). Which section and how many days ahead — never
     // the window's id or its clock time, for the same reason as the slot event above. The same names
     // and props as customer-web's. Declared, not emitted, like the rest of this app's commerce taxonomy.
     /** `section`: `same_day` | `standard`. `dayOffset`: 0 for today. */
@@ -76,7 +76,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutWindowsUnavailable(reason: String) :
         AnalyticsEvent("checkout_windows_unavailable", mapOf("reason" to reason))
 
-    // 079 — who delivers. ⚠ THE TYPE AND WHY, AND NOTHING ELSE — never a postcode, an address or the
+    // Who delivers. The type and why, and nothing else — never a postcode, an address or the
     // estimate. The same names and props as customer-web's. Declared, not emitted, like the rest of
     // this app's commerce taxonomy.
     /** `type`: `effy` | `courier`. `reason`: `in_coverage` | `out_of_coverage` | `no_window`. */
@@ -86,18 +86,18 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     /** The server refused a payment because who delivers was not what the screen showed. */
     data object CheckoutDeliveryTypeChanged : AnalyticsEvent("checkout_delivery_type_changed", emptyMap())
 
-    // 077 — the delivery fee. ⚠ THREE BOOLEANS, NEVER AN AMOUNT: a fee joined to a session says how
+    // The delivery fee. Three booleans, never an amount: a fee joined to a session says how
     // far from the hub someone lives. The same names and props as customer-web's. Declared, not
     // emitted, like the rest of this app's commerce taxonomy.
     class DeliveryFeeViewed(free: Boolean, smallOrder: Boolean, surcharge: Boolean) :
         AnalyticsEvent("delivery_fee_viewed", mapOf("free" to free.toString(), "small_order" to smallOrder.toString(), "surcharge" to surcharge.toString()))
     data object CheckoutDeliveryFeeChanged : AnalyticsEvent("checkout_delivery_fee_changed")
 
-    // 074 — points. ⚠ NO AMOUNTS, NO BALANCE: a balance is account data, not behaviour. The same names
+    // Points. No amounts, no balance: a balance is account data, not behaviour. The same names
     // and props as customer-web's.
     data object PointsViewed : AnalyticsEvent("points_viewed")
 
-    /** 096 — the order's documents. Which document, never its contents or number. */
+    /** The order's documents. Which document, never its contents or number. */
     data object DeliveryNoteViewed : AnalyticsEvent("delivery_note_viewed")
     data class TaxInvoiceDownloaded(val kind: String) : AnalyticsEvent("tax_invoice_downloaded", mapOf("kind" to kind))
     class CheckoutPointsToggled(on: Boolean) : AnalyticsEvent("checkout_points_toggled", mapOf("on" to on.toString()))

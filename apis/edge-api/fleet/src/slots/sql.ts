@@ -1,16 +1,7 @@
-// SQL for same-day delivery slots (069). Raw and parameterized; no ORM (Principle VI).
-
-/** Melbourne's calendar date right now. Slots are wall-clock facts about Effy's working day. */
+/** Melbourne's calendar date now. */
 export const MEL_TODAY = `(now() AT TIME ZONE 'Australia/Melbourne')::date`;
 
-/**
- * Every slot with today's load.
- *
- * ⚠ `booked` COMES FROM `public.delivery_slot_load` AND NOWHERE ELSE. That view is the one
- * definition of "a booking counts" — confirmed, or held and not lapsed — and checkout (Go) reads the
- * same view. A WHERE clause written here would be a second definition, and the console would then
- * show "2 of 3" for a slot checkout considers full.
- */
+/** `booked` comes only from `public.delivery_slot_load`, the one definition of "a booking counts" that checkout reads too. */
 export const LIST_SLOTS = `
   SELECT s.id,
          to_char(s.start_time,  'HH24:MI') AS start_time,
@@ -27,11 +18,7 @@ export const LIST_SLOTS = `
            ON l.slot_id = s.id AND l.delivery_date = ${MEL_TODAY}
 `;
 
-/**
- * 078 — how full every slot is on each of the given days (today and the Effy delivery days after it).
- *
- * ⚠ THE SAME VIEW, for the same reason as above: one definition of "a booking counts".
- */
+/** On each of the given days, from the same view. */
 export const SLOT_LOAD_ON_DAYS = `
   SELECT l.slot_id,
          l.delivery_date::text AS delivery_date,
@@ -41,13 +28,13 @@ export const SLOT_LOAD_ON_DAYS = `
    WHERE l.delivery_date = ANY($1::date[])
 `;
 
-/** 078 — what the Effy delivery calendar is drawn from: the look-ahead and the closed weekdays. */
+/** The look-ahead and closed weekdays. */
 export const CALENDAR_SETTINGS = `
   SELECT effy_lookahead_days, standard_no_delivery_weekdays::int[] AS no_weekdays
     FROM public.delivery_settings WHERE id = 1
 `;
 
-/** 078 — individually closed dates from today (Melbourne) on. */
+/** Closed dates from today (Melbourne) on. */
 export const CLOSED_DATES = `
   SELECT day::text AS day FROM public.delivery_non_delivery_date WHERE day >= ${MEL_TODAY}
 `;
@@ -70,7 +57,7 @@ export const SLOT_FOR_UPDATE = `
      FOR UPDATE
 `;
 
-/** ⚠ Touches `delivery_slot` ONLY. A placed order reads its window from its own snapshot (FR-026). */
+/** Touches `delivery_slot` only: a placed order reads its window from its own snapshot. */
 export const UPDATE_SLOT = `
   UPDATE public.delivery_slot
      SET start_time = $2::time, end_time = $3::time, cutoff_time = $4::time,

@@ -1,22 +1,9 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * 027 — the cart survives, re-prices, and refuses honestly.
- *
- * These are the promises unit tests cannot reach, because each one is a property of the BROWSER
- * rather than of a function:
- *
- *   • SC-001 — a cart built before a reload is still there after it. The mirror lives in
- *     `localStorage`; only a real reload proves it is read back rather than re-derived from a
- *     module-level variable that happens to survive a Vitest run.
- *   • FR-004 — the cart re-prices on open. A stale price is invisible in a unit test, because the
- *     fake repository always answers with today's data.
- *   • FR-026/FR-054 — checkout is offered only when the PLATFORM says so, and the reason is stated.
- *   • FR-041/FR-043 — a promotional code is judged server-side and its refusal is specific.
- *
- * ⚠ These run as a GUEST. The signed-in half (the sign-in merge, a real promo redemption) needs a
- * Cognito session and a seeded catalogue, and is walked by the operator per quickstart §3 — asserting
- * it here would mean faking the very boundary the slice exists to get right.
+ * The cart survives a reload, re-prices on open, offers checkout only when the platform says so (saying
+ * why), and judges a promotional code server-side with a specific refusal. As a guest; the signed-in half
+ * needs a Cognito session and is an operator walk.
  */
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -75,7 +62,7 @@ test.describe("the cart re-prices on open (FR-004)", () => {
   }) => {
     await addFirstProduct(page)
 
-    // The preview call is what makes a restored cart show TODAY's prices. Assert it HAPPENS —
+    // The preview call is what makes a restored cart show today's prices. Assert it happens
     // a cart that renders stored numbers looks identical and is wrong.
     const preview = page.waitForRequest((r) => r.url().includes("/api/cart/preview"), {
       timeout: 10_000,
@@ -110,7 +97,7 @@ test.describe("checkout is gated by the platform, not the client (FR-026/FR-054)
   }) => {
     await addFirstProduct(page)
 
-    // Force the platform's answer to "below minimum" and confirm the page renders ITS reason —
+    // Force the platform's answer to "below minimum" and confirm the page renders its reason
     // the client never invents this text, and never decides the gate.
     await page.route("**/api/cart/preview", async (route) => {
       const res = await route.fetch()

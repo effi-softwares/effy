@@ -33,8 +33,7 @@ describe("team activity attribution (FR-014)", () => {
   });
 
   it("⚠ says a former colleague acted, rather than leaving it blank", async () => {
-    // 020: a NULL actor means "the person is gone", never "nobody did it". An action with no author
-    // is the opposite of what an accountability log is for.
+    // A null actor means "the person is gone", never "nobody did it".
     vi.spyOn(repo, "readTeamActivity").mockResolvedValue([
       row({ actorName: null, actorWasStaff: true }),
     ]);
@@ -47,8 +46,7 @@ describe("team activity attribution (FR-014)", () => {
       row({ kind: "stock_changed", actorName: null, actorWasStaff: false, productName: "Milk", quantity: -3, reason: "order_paid" }),
     ]);
     const { entries } = await readActivity("shop-1");
-    // The shop learns that Effy did something, not which person at Effy — the same boundary
-    // 023 FR-018 draws for customer data, applied to Effy's own people.
+    // The shop learns that Effy did something, not which person at Effy.
     expect(entries[0]!.actor).toEqual({ kind: "effy" });
     expect(JSON.stringify(entries)).not.toContain("staff");
   });

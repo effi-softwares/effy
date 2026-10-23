@@ -26,7 +26,7 @@ import {
 } from "./repo";
 import type { ShopListParams } from "./model";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). The list query is keyed on
+// Server state lives only in the TanStack Query cache (Principle VI). The list query is keyed on
 // its params so each page/filter/search combination caches independently; mutations invalidate the
 // affected keys (copying the useSignOut pattern) rather than hand-patching cached data.
 

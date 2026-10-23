@@ -12,13 +12,8 @@ import { returnParcels } from "../work/return";
 import { ParcelsUnaccounted, parcelsUnaccountedProblem } from "@effy/edge-shared/labels";
 
 /**
- * POST /driver/v1/delivery/runs/{runId}/return (088) — the driver checks the parcels from failed drops
- * back in at the hub, all together (FR-004).
- *
- * ⚠ NOTHING LEFT TO RETURN IS A SUCCESS (`returned: 0`), never an error: a second tap after the first
- * landed must not be something a driver at a loading dock has to think about. Idempotent on changeId.
- *
- * ⚠ "Not yours" and "no such round" are the same 404, from one scoped query (052's rule).
+ * Checks failed drops' parcels back in at the hub together. Nothing left is a success (`returned: 0`).
+ * Idempotent on changeId. "Not yours" and "no such round" are one 404.
  */
 export const handler = async (
   event: AuthedEvent,

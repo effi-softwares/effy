@@ -9,9 +9,9 @@ import type {
 import type { DriverListParams } from "./model";
 import * as repo from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
+// Server state lives only in the TanStack Query cache (Principle VI) — never hand-cached in
 // component state. List queries are keyed on their params so each filter combination caches
-// independently; mutations INVALIDATE rather than patch.
+// independently; mutations invalidate rather than patch.
 
 export const driverKeys = {
   all: ["drivers"] as const,
@@ -36,7 +36,7 @@ export const dutyQuery = () =>
   queryOptions({
     queryKey: driverKeys.duty,
     queryFn: () => repo.getDuty(),
-    // "Who is working right now" is a live question — answered by a live `dispatch` update (071),
+    // "Who is working right now" is a live question — answered by a live `dispatch` update,
     // which re-reads this the moment a driver goes on or off duty. Not polled.
   });
 
@@ -51,7 +51,7 @@ export const zonesQuery = () =>
     staleTime: 5 * 60_000,
   });
 
-// ── Mutations ────────────────────────────────────────────────────────────────────────────────────
+// Mutations
 
 export function useCreateDriver() {
   const qc = useQueryClient();
@@ -68,8 +68,8 @@ export function useUpdateDriver(driverId: string) {
   return useMutation({
     mutationFn: (body: AdminDriverUpdateRequest) => repo.updateDriver(driverId, body),
     onSuccess: () => {
-      // ⚠ Invalidate the WHOLE driver namespace, not just the detail. A zone change moves the
-      // driver's blocked-reason flags, which appear on the register AND in readiness. Patching the
+      // Invalidate the whole driver namespace, not just the detail. A zone change moves the
+      // driver's blocked-reason flags, which appear on the register and in readiness. Patching the
       // one cache entry would leave a profile saying "ready" beside a readiness view still calling
       // them blocked — the silent-disagreement shape 029 and 033 both produced.
       void qc.invalidateQueries({ queryKey: driverKeys.all });

@@ -143,7 +143,7 @@ describe("reply — email FIRST, write ONLY on success (FR-029/030)", () => {
       { to: "sam@example.com", audience: "customer" },
       expect.anything(),
     )
-    // ⚠ Ordering: the write happens after the send.
+    // The write happens after the send.
     expect(sendEmail.mock.invocationCallOrder[0]!).toBeLessThan(
       repo.insertReplyAndMarkReplied.mock.invocationCallOrder[0]!,
     )

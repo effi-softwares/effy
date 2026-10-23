@@ -22,12 +22,12 @@ const EMPTY: Draft = {
 };
 
 /**
- * The courier services Effy uses (080 US6), on the Coverage tab's courier section.
+ * The courier services Effy uses, on the Coverage tab's courier section.
  *
- * ⚠ NOTHING IS SEEDED. A courier's name is a real-world identifier: the operator types it. Until one
+ * Nothing is seeded. A courier's name is a real-world identifier: the operator types it. Until one
  * service is active and the default, courier delivery cannot be switched on (`no_service`).
  *
- * ⚠ The DEFAULT's timeframe is what checkout tells a courier customer; an order keeps what it was told.
+ * The default's timeframe is what checkout tells a courier customer; an order keeps what it was told.
  * Its pickup days and cutoff decide when a parcel at the hub is due out — and when it is late.
  */
 export function CourierServicesPanel({ canManage }: { canManage: boolean }) {

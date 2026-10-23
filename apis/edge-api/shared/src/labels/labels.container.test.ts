@@ -2,17 +2,13 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { recordHandovers } from "./handovers";
 import { accountFor, countByPackage, createFirstParcels, expectedParcels, liveParcels, ParcelsUnaccounted, writeParcelHolds } from "./parcels";
 import { recordReads } from "./reads";
 import { resolveCode } from "./resolve";
 
-/**
- * 096 — bags against real PostgreSQL: every package has bag 1 carrying its 089 code (R1), what a step
- * expects (R6), holds for some or all of a package's bags, the per-parcel hand-over writer (R5), and the
- * read record (R7).
- */
+/** Bags against real Postgres: bag 1 carries the package code, step expectations, holds, the hand-over writer and the read record. */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -31,8 +27,8 @@ async function pkg(): Promise<{ id: string; code: string; orderId: string; order
   )).rows[0]!.id;
   const orderNumber = `EFY-T${String(n).padStart(5, "0")}`;
   const order = (await pool.query<{ id: string }>(
-    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-     VALUES ($1, $2, 10, 15, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid') RETURNING id`,
+    `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 10, 15, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
     [cust, orderNumber],
   )).rows[0]!.id;
   const shop = (await pool.query<{ id: string }>(
@@ -164,11 +160,10 @@ d("096 — bags (shared)", () => {
     expect(held.packagesHeld).toEqual([b.id]);
     const holds = (await pool.query(`SELECT shop_fulfillment_id, parcel_id FROM public.package_hold ORDER BY parcel_id NULLS LAST`)).rows;
     expect(holds).toEqual([{ shop_fulfillment_id: a.id, parcel_id: aBag2.parcelId }, { shop_fulfillment_id: b.id, parcel_id: null }]);
-    // A held bag is not expected again; resolved FOUND, it is.
+    // A held bag is not expected again; resolved found, it is.
     expect((await expectedParcels(pool, { step: "deliver", packageIds: [a.id], roundId })).map((x) => x.seq)).toEqual([1]);
     await pool.query(`UPDATE public.package_hold SET resolution = 'found', resolved_at = now(), resolved_by_sub = 'x' WHERE parcel_id = $1`, [aBag2.parcelId]);
     expect((await expectedParcels(pool, { step: "deliver", packageIds: [a.id], roundId })).map((x) => x.seq)).toEqual([1, 2]);
-    // A retry writes nothing new.
     await writeParcelHolds(pool, { step: "load", driverId, roundId, changeId, missing: acc.missing, expectedCount: countByPackage(expected) });
     expect(Number((await pool.query(`SELECT count(*) FROM public.package_hold`)).rows[0].count)).toBe(2);
   });
@@ -203,7 +198,7 @@ d("096 — bags (shared)", () => {
     const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
     const reads = [
       { clientReadId: ids[0], raw: `EFY1:${p.code}`, method: "scan" as const, outcome: "accepted" as const, deviceAt: "2026-10-21T08:00:00Z", deviceId: "dev-1" },
-      // Voided while the driver was offline: the client said accepted; the server says voided.
+      // Voided while offline: the client said accepted, the server says voided.
       { clientReadId: ids[1], raw: `EFY1:${bag2.code}`, method: "scan" as const, outcome: "accepted" as const, deviceAt: "2026-10-21T08:00:01Z" },
       { clientReadId: ids[2], raw: "EFY1:22222X", method: "scan" as const, outcome: "not_on_this_work" as const, deviceAt: "2026-10-21T08:00:02Z" },
       { clientReadId: ids[3], raw: "9300633603345", method: "scan" as const, outcome: "not_a_label" as const, deviceAt: "2026-10-21T08:00:03Z" },
@@ -211,7 +206,6 @@ d("096 — bags (shared)", () => {
     ];
     const out = await recordReads(pool, { actor: { kind: "driver", driverId }, surface: "driver_app", step: "load", roundId, reads });
     expect(out.map((r) => r.serverOutcome)).toEqual(["accepted", "voided", "not_found", "not_a_label", "not_a_label"]);
-    // An offline replay records nothing new.
     await recordReads(pool, { actor: { kind: "driver", driverId }, surface: "driver_app", step: "load", roundId, reads });
     const rows = (await pool.query(`SELECT client_outcome, server_outcome FROM public.label_read ORDER BY device_at`)).rows;
     expect(rows).toHaveLength(5);

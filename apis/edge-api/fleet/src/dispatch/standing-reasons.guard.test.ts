@@ -2,20 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { UNASSIGNED_WORK } from "./sql";
 
-/**
- * ⚠ A PACKAGE'S REASONS MUST BE JOINED BY `kind` (072).
- *
- * `assignment_exclusion` holds one standing set of reasons per package PER STAGE: why nobody can
- * collect it, and — hours later, once it is at the hub — why nobody can deliver it. A join on the
- * package alone would show a hub-side package the reasons it had at the shop, and nothing would
- * fail: the panel would render a plausible explanation that describes a different problem.
- *
- * This replaces `unassigned-wave-scope.guard.test.ts`, which held the same class of defect one
- * design earlier — reasons resolved against "the latest wave" without saying which kind of wave,
- * found live as 14 packages listed with no explanation.
- */
+/** A package's reasons must be joined by `kind`, or a hub package shows the reasons it had at the shop. */
 describe("UNASSIGNED_WORK joins standing reasons by stage", () => {
-  /** SQL with line comments stripped, so prose cannot satisfy an assertion. */
+  /** Line comments stripped, so prose cannot satisfy an assertion. */
   const sql = UNASSIGNED_WORK.split("\n")
     .map((l) => l.replace(/--.*$/, ""))
     .join("\n");
@@ -45,10 +34,9 @@ describe("UNASSIGNED_WORK joins standing reasons by stage", () => {
     expect(sql).not.toMatch(/wave_id/);
   });
 
-  // The hub-side half must list exactly what the delivery gather would plan.
   it("lists hub-side packages by the delivery gather's own conditions", () => {
     expect(hubSide).toMatch(/rp\.state\s*=\s*'picked_up'/);
-    // 082 — Effy delivers it (the order's type, never the method), and its day has come.
+    // Effy delivers it (the order's type, never the method), and its day has come.
     expect(hubSide).toMatch(/o\.delivery_type\s*=\s*'effy'/);
     expect(hubSide).toMatch(/opd\.window_start IS NULL OR opd\.window_start <= \$1::timestamptz/);
     expect(hubSide).not.toMatch(/delivery_method\s*=\s*'same_day'/);

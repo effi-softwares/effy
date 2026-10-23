@@ -9,8 +9,8 @@ import { Breadcrumb } from "@/components/ui/misc"
 
 /**
  * Renders a legal document from @effy/legal-content — the single source of truth shared with mobile.
- * A SERVER component over the constrained Markdown subset (headings/paragraphs/lists/tables/inline
- * links). It ships ZERO client JS, so every public /legal/* route stays inside the guest-bundle gate.
+ * A server component over the constrained Markdown subset (headings/paragraphs/lists/tables/inline
+ * links). It ships zero client JS, so every public /legal/* route stays inside the guest-bundle gate.
  */
 const textOf = (runs: InlineRun[]) => runs.map((r) => r.text).join("")
 const anchorOf = (index: number) => `section-${index + 1}`
@@ -21,10 +21,10 @@ const anchorOf = (index: number) => `section-${index + 1}`
  * The page's sections down a rail on the left ("On this page"), the document on the right; on a
  * phone the rail folds into a disclosure above the text.
  *
- * ⚠ THE TEXT IS THE AUTHORED DOCUMENT, RENDERED AS WRITTEN (045). Nothing here adds to, shortens or
+ * The text is the authored document, rendered as written. Nothing here adds to, shortens or
  * reorders it — the rail is built from the document's own section headings.
  *
- * ⚠ AN OLDER VERSION SAYS THAT IT IS ONE, at the top, with the way to the current text. Someone
+ * An older version says that it is one, at the top, with the way to the current text. Someone
  * reading superseded terms must never take them for the terms in force.
  */
 export function LegalDocumentView({ slug, version, home = "legal" }: { slug: string; version?: string; home?: "legal" | "about" }) {

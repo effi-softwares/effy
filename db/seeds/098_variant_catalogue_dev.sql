@@ -1,24 +1,20 @@
--- 098 product variants — dev catalogue seed: products WITH VARIANTS, on the aisles 084 created.
--- Dev only; never run in production.
+-- Dev catalogue seed: Products with variants, on the aisles 084_storefront_catalogue_dev.sql creates. Dev only.
 --
 --     psql "$DSN" -f db/seeds/084_storefront_catalogue_dev.sql     -- aisles first
 --     psql "$DSN" -f db/seeds/098_variant_catalogue_dev.sql
 --
--- What it does, in one transaction:
---   • Takes the OLDEST ACTIVE SHOP and seeds into it. A shop is never invented here: with none it
---     STOPS, having written nothing.
---   • Inserts products that are on sale at once — active, approved, margin not set (customer price =
---     shop price), the shape 067 gives an approved product with no margin yet. They have NO picture.
+-- In one transaction:
+--   • Seeds into the oldest active shop; with none it stops, having written nothing (a shop is never invented).
+--   • Products are on sale at once: Active, approved, no margin (customer price = shop price), no picture.
 --   • Three shapes, so every screen has something to show:
 --       – no options          (one variant, no selector)               e.g. Sourdough Loaf
 --       – one option, Size     (with a unit basis and pack sizes)      e.g. Basmati Rice 500 g / 1 kg / 5 kg
 --       – two options          (not every combination exists)          e.g. Greek Yoghurt Flavour × Size
---   • Every variant is stock-counted (sizes are tracked by default): some low, one at ZERO, so "Sold out"
---     and the restock list show.
---   • Sets each product's listing summary exactly as refreshListing (@effy/edge-shared/catalog) does.
+--   • Every variant is stock-counted: Some low and one at zero, so "Sold out" and the restock list show.
+--   • Each product's listing summary is set exactly as refreshListing (@effy/edge-shared/catalog) does.
 --
--- ⚠ No GST history row is written (product_gst_change needs a shop or Effy actor; a seed is neither).
--- Idempotent: refuses if a SEED098- stock code is already in the shop.
+-- No GST history row is written (product_gst_change needs a shop or Effy actor). Refuses if a SEED098-
+-- stock code is already in the shop.
 
 \set ON_ERROR_STOP on
 
@@ -39,7 +35,7 @@ END
 $$;
 
 -- ── The products ────────────────────────────────────────────────────────────────────────────────
--- opt1/opt2 are the option NAMES (NULL = no such option).
+-- Opt1/opt2 are the option NAMES (NULL = no such option).
 
 CREATE TEMP TABLE seed_p (
     pkey text PRIMARY KEY, category_key text, type_key text, name text, brand text, blurb text,
@@ -73,7 +69,7 @@ INSERT INTO seed_p VALUES
     ('nappies',  'nappies_nappies',          'household',        'Nappies',                 'Little Ones', 'Soft, absorbent nappies.',             'taxable',  'each',      'Size', NULL);
 
 -- ── The variants ────────────────────────────────────────────────────────────────────────────────
--- v1/v2 are option VALUES in the order given (that order is the selector's order). pos = display order.
+-- V1/v2 are option VALUES in the order given (that order is the selector's order). Pos = display order.
 
 CREATE TEMP TABLE seed_v (
     pkey text, pos int, v1 text, v2 text, sku text, price numeric, was numeric,
@@ -187,7 +183,7 @@ LEFT JOIN public.product_option_value v1 ON v1.option_id = o1.id AND v1.value = 
 LEFT JOIN public.product_option o2 ON o2.product_id = i.product_id AND o2.position = 2
 LEFT JOIN public.product_option_value v2 ON v2.option_id = o2.id AND v2.value = sv.v2;
 
--- A tracked variant's opening count is explained by a movement, as every count must be (054).
+-- A tracked variant's opening count is explained by a movement, as every count must be.
 INSERT INTO public.stock_movement (product_id, variant_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind)
 SELECT v.product_id, v.id, v.shop_id, v.stock_on_hand, 0, v.stock_on_hand, 'tracking_enabled', 'system'
 FROM public.product_variant v JOIN seed_pid i ON i.product_id = v.product_id

@@ -23,7 +23,6 @@ vi.mock("../repo", () => ({
   listFulfillments: vi.fn(),
   getFulfillment: vi.fn(),
   transitionFulfillment: vi.fn(),
-  updateItemProgress: vi.fn(),
 }))
 
 const sessionQuery = vi.hoisted(() => ({ queryKey: ["session"], queryFn: vi.fn() }))
@@ -61,14 +60,9 @@ function wrap(roles: string[]) {
 }
 
 /**
- * US5 / FR-014b (T044) — refunding is manager-only, and a non-manager is not shown a control they
- * cannot use.
- *
- * ⚠ THIS IS NOT THE SECURITY BOUNDARY AND THE TESTS SAY SO. The backend decides from the platform
- * record (role AND status AND whether the caller's shop is on THIS order), and refuses regardless of
- * what renders here. What these pin is the courtesy half — that a `shop_staff` operator, who
- * deliberately has full fulfilment access under 020's FR-019a, never meets a refusal they can do
- * nothing about.
+ * Refunding is manager-only, and a non-manager is not shown the control. Not the security boundary (the
+ * backend decides from the platform record): this is the courtesy that `shop_staff`, with full fulfilment
+ * access, never meets a refusal they can do nothing about.
  */
 describe("shop refund control", () => {
   const paymentCard = async () =>
@@ -127,8 +121,8 @@ describe("shop refund control", () => {
   })
 
   /**
-   * ⚠ 057 A3 put the order's money on this screen by operator decision. It did NOT make capture or a
-   * tax line real: Effy captures at payment (055 R3) and per-item GST is unmodelled (052 R13).
+   * 057 A3 put the order's money on this screen by operator decision. It did not make capture or a
+   * tax line real: Effy captures at payment and per-item GST is unmodelled.
    */
   it("shows the order's money, but no capture control and no tax line", async () => {
     wrap(["shop_manager"])

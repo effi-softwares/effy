@@ -1,5 +1,4 @@
-// POST /shop/v1/products/{id}/media — mint a presigned direct-to-S3 upload url + object key.
-// Validates content-type + size (FR-026). Product must belong to the caller's shop.
+// A presigned direct-to-S3 upload url and key; validates type and size.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

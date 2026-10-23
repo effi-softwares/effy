@@ -138,7 +138,7 @@ describe("LiveProvider", () => {
     expect(reads.other).toBe(before.other);
   });
 
-  // SC-003 — an hour open and idle: no repeated requests for the data on screen.
+  // An hour open and idle: no repeated requests for the data on screen.
   it("makes no reads while idle for an hour", async () => {
     mount();
     const socket = await goLive();
@@ -154,7 +154,6 @@ describe("LiveProvider", () => {
     expect(reads).toEqual(before);
   });
 
-  // SC-012
   it("reads no more than three times for a burst of ten updates in ten seconds", async () => {
     mount();
     const socket = await goLive();
@@ -173,7 +172,7 @@ describe("LiveProvider", () => {
     expect(burstReads).toBeLessThanOrEqual(3);
   });
 
-  // SC-004 — back after a lost connection: the current state without the person doing anything.
+  // Back after a lost connection: the current state, with nothing done by the person.
   it("reads once when the connection returns", async () => {
     mount();
     const first = await goLive();
@@ -233,7 +232,6 @@ describe("LiveProvider", () => {
     expect(socket.closed).toBe(true);
   });
 
-  // FR-016
   it("does not disturb what the person is typing", async () => {
     mount();
     const socket = await goLive();

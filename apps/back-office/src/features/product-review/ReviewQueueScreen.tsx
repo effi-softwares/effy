@@ -27,22 +27,16 @@ import { GstMissing } from "./GstMissing";
 import { gstMissingQuery, marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries";
 
 /**
- * Product review (067) — what is waiting on Effy.
- *
- * Shops no longer publish. A new product, and every change to one already on sale, waits here until
- * an admin approves it or sends it back. Nothing on this screen resolves itself: an item nobody
- * opens is a shop that cannot sell it.
- *
- * ⚠ ONE QUEUE, OLDEST FIRST (FR-006). New products and changes are stored differently and listed
- * together, because a reviewer working down the page should not have to know that.
- * ⚠ A TABLE, NOT CARDS (Principle V): these are things to work through, not figures to admire.
+ * Product review: a new product, and every change to one on sale, waits here until an admin approves it
+ * or sends it back. Nothing resolves itself. One queue, oldest first, new products and changes together
+ * (stored differently; the reviewer need not know). A table, not cards.
  */
 export function ReviewQueueScreen() {
   const [view, setView] = useState<"waiting" | "margin" | "gst">("waiting");
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<ReviewKind | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
-  // Keyset paging (FR-006): the cursors of the pages walked so far. Empty = the first page, which
+  // Keyset paging: the cursors of the pages walked so far. Empty = the first page, which
   // is where the longest-waiting items are.
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors[cursors.length - 1] ?? null;
@@ -50,7 +44,7 @@ export function ReviewQueueScreen() {
   const oldest = useQuery(reviewQueueQuery({ q: "", kind: null, shopId: null, cursor: null }));
   const marginFirst = useQuery(marginNotSetQuery(null));
   const gstMissing = useQuery(gstMissingQuery());
-  // The filter's options. ⚠ A failed or slow shop list must not take the queue down with it.
+  // The filter's options. A failed or slow shop list must not take the queue down with it.
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }));
 
   /** Any filter change starts again from the oldest item. */
@@ -141,7 +135,7 @@ export function ReviewQueueScreen() {
           <Skeleton className="h-10" />
         </div>
       ) : queue.data.items.length === 0 ? (
-        /* ⚠ A STATED FACT, not blank space: an empty region is indistinguishable from a screen that
+        /* A stated fact, not blank space: an empty region is indistinguishable from a screen that
            did not load. */
         <EmptyState icon={CircleCheck} title="Nothing is waiting" description="Every product and change a shop has submitted has been decided." />
       ) : (
@@ -204,7 +198,7 @@ export function ReviewQueueScreen() {
 }
 
 /**
- * Approved products with no margin (067 FR-008): they sell at the shop's own price until one is set.
+ * Approved products with no margin: they sell at the shop's own price until one is set.
  * Every product that was on sale before review existed starts here.
  */
 function MarginNotSet() {

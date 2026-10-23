@@ -39,7 +39,7 @@ describe("068 — the lists tab row", () => {
     expect(links[1]).toHaveAttribute("aria-current", "page")
   })
 
-  /** FR-003: "Saved" cannot be renamed or deleted, so neither is offered. */
+  /** "Saved" cannot be renamed or deleted, so neither is offered. */
   it("offers neither rename nor delete on Saved", () => {
     render(<ListTabs lists={[saved, weekly]} currentId="default" />)
     expect(screen.queryByRole("button", { name: "Rename list" })).toBeNull()
@@ -47,7 +47,7 @@ describe("068 — the lists tab row", () => {
     expect(screen.getByRole("button", { name: "New list" })).toBeInTheDocument()
   })
 
-  /** FR-006: both numbers, before anything is deleted. */
+  /** Both numbers, before anything is deleted. */
   it("states what a delete costs before doing it", async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)

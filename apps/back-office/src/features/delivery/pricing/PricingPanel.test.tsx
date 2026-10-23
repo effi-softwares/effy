@@ -36,7 +36,7 @@ const draft = plan({
   gaps: [{ code: "distance_open_band_missing", blocking: true, detail: { lastUpperKm: 30 } }],
 });
 
-/** A refusal as `@effy/api-client` throws it: a plain object, NOT an Error. */
+/** A refusal as `@effy/api-client` throws it: a plain object, not an Error. */
 const refusal = (status: number, code: string, fields?: { field: string; message: string }[]) => ({ kind: "unknown", status, title: "Refused", code, fields });
 
 function renderPanel(canManage = true) {

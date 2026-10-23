@@ -23,7 +23,7 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => () => {},
 }))
 
-// 057 A3 — the crumb reads the order CONSOLE's detail (the key the order screen itself uses).
+// 057 A3 — the crumb reads the order console's detail (the key the order screen itself uses).
 const getOrder = vi.hoisted(() => vi.fn())
 const listOrders = vi.hoisted(() => vi.fn())
 vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
@@ -99,7 +99,7 @@ describe("HeaderBreadcrumbs", () => {
 
     const heading = await screen.findByRole("heading", { level: 1, name: "EFY-10023" })
     expect(heading.querySelector(".font-mono")).not.toBeNull()
-    // ⚠ The final crumb is where you are — never a link to itself.
+    // The final crumb is where you are — never a link to itself.
     expect(screen.queryByRole("link", { name: "EFY-10023" })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Orders" })).toHaveAttribute("href", "/orders")
   })
@@ -127,7 +127,7 @@ describe("HeaderBreadcrumbs", () => {
 })
 
 describe("HeaderChrome", () => {
-  // ⚠ Revision 2: no search in the header, no primary action, no theme toggle.
+  // Revision 2: no search in the header, no primary action, no theme toggle.
   it("carries nothing on a screen that is not an order", () => {
     at("/orders")
     const { container } = wrap(<HeaderChrome />)

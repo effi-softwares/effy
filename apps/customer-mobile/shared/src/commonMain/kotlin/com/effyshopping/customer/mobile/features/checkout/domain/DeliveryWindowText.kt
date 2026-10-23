@@ -5,24 +5,18 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * How this app says when an order arrives (069).
+ * How this app says when an order arrives: the Kotlin twin of `formatArrival` in
+ * `packages/shared-types/src/delivery-window.ts`, which the web page and the emailed receipt call;
+ * `DeliveryWindowTextTest` runs it against the same fixture.
  *
- * ⚠ THE KOTLIN TWIN OF `formatArrival` IN `packages/shared-types/src/delivery-window.ts`. The web
- * page and the emailed receipt call that function; this file says the same sentences, and
- * `DeliveryWindowTextTest` runs it against the SAME fixture the TypeScript is tested with. A shopper
- * who is told "Today, 5 pm – 7 pm" on the web and "2026-10-08" in the app has been told two things.
+ *  window, today → "Today, 5 pm – 7 pm"
+ *  window, another day → "Thu 8 Oct, 5 pm – 7 pm"
+ *  no window, one day → "Today" / "Tomorrow" / "Thu 8 Oct"
+ *  no window, a range → "Thu 8 Oct – Sat 10 Oct"
+ *  no dates → "We'll confirm your delivery date"
  *
- *   window, today        → "Today, 5 pm – 7 pm"
- *   window, another day  → "Thu 8 Oct, 5 pm – 7 pm"
- *   no window, one day   → "Today" / "Tomorrow" / "Thu 8 Oct"
- *   no window, a range   → "Thu 8 Oct – Sat 10 Oct"
- *   no dates             → "We'll confirm your delivery date"
- *
- * ⚠ When there is no promise this SAYS SO rather than inventing one. Every order placed before 069
- * reads the last line.
- *
- * ⚠ ALWAYS MELBOURNE TIME, whatever the phone's zone (FR-029). `offsetAt` is how; it is a parameter so
- * the test can prove the arithmetic without depending on the host's timezone database.
+ * Always Melbourne time, whatever the phone's zone; `offsetAt` is a parameter so the test does not
+ * depend on the host's timezone database.
  */
 object DeliveryWindowText {
     const val UNCONFIRMED = "We'll confirm your delivery date"
@@ -108,7 +102,7 @@ object DeliveryWindowText {
     @OptIn(ExperimentalTime::class)
     fun epochMillisOrNull(iso: String): Long? = runCatching { Instant.parse(iso).toEpochMilliseconds() }.getOrNull()
 
-    // ── arithmetic ──────────────────────────────────────────────────────────────────────────────────
+    // arithmetic
 
     private data class Wall(val epochDay: Long, val hour: Int, val minute: Int)
 

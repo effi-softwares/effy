@@ -12,16 +12,9 @@ import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote
 import { addressLines, type Address } from "@/lib/addresses/model"
 
 /**
- * The checkout saved-address picker (023 US1–US3). Reused verbatim for BOTH shipping and billing.
- *
- * Shows the selected address as a summary row (a LIST/picker, never a card — FR-022); "Change" reveals
- * the saved list as radio options with the default badged; "Add a new address" reveals the shared 022
- * form INLINE on the page (no dialog) and, on save, hands the created address back to the parent to
- * select for this order.
- *
- * The component is deliberately telemetry-free and identity-free: the list is the customer's own
- * (FR-021, resolved server-side from the token), and selection here is per-order — it NEVER mutates the
- * saved default (FR-006). The parent owns the selection state and any analytics.
+ * The checkout address picker, for shipping and billing: the chosen address as a summary row, "Change"
+ * for the saved list as radio options, and "Add a new address" for the shared address form inline. A
+ * choice is for this order and never changes the saved default; the parent owns selection and analytics.
  */
 export function AddressPicker({
   addresses,
@@ -42,7 +35,7 @@ export function AddressPicker({
   idPrefix: string
   busy?: boolean
   /**
-   * 076 — show who delivers to each address. For the DELIVERY picker only: a billing address is
+   * Show who delivers to each address. For the delivery picker only: a billing address is
    * where the card statement goes, and "we can't deliver there" would be a wrong thing to say of it.
    */
   showCoverage?: boolean
@@ -60,7 +53,7 @@ export function AddressPicker({
     setExpanded(false)
   }
 
-  // Empty book → prompt to add one; there is no selection to summarise, and pay stays blocked (FR-007).
+  // Empty book → prompt to add one; there is no selection to summarise, and pay stays blocked.
   if (addresses.length === 0) {
     return (
       <div>
@@ -139,7 +132,7 @@ export function AddressPicker({
   )
 }
 
-/** The selected-address summary shown when the picker is collapsed. Not a card (FR-022). */
+/** The selected-address summary shown when the picker is collapsed. Not a card. */
 function AddressSummary({ address, showCoverage }: { address: AddressDTO | null; showCoverage: boolean }) {
   if (!address) {
     return <p className="text-sm text-muted-foreground">No address selected.</p>

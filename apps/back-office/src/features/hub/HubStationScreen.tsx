@@ -18,12 +18,12 @@ import { hubExpectedQuery, useHubCheckin } from "./queries";
 const TOKEN = /^EFY1:[2-9A-HJKMNP-TV-Z]{6}$/;
 
 /**
- * 096 US5 — the hub station (FR-042, FR-043). Hub staff scan each bag as it comes off a collection run;
- * the screen says, in large type, whether it counted and where it goes (LOAD NOW · SHELVE · COURIER
+ * The hub station. Hub staff scan each bag as it comes off a collection run;
+ * the screen says, in large type, whether it counted and where it goes (load now · shelve · courier
  * BAY). The scan of a run's last bag checks the run in, exactly as the driver's own check-in would.
  *
- * ⚠ SECTIONED, NO CARDS (Principle V): the result line, then a table per run.
- * ⚠ The header's global scan box is off on this page: every scan here is a check-in.
+ * Sectioned, no cards (Principle V): the result line, then a table per run.
+ * The header's global scan box is off on this page: every scan here is a check-in.
  */
 export function HubStationScreen() {
   const { data, error, isError, isPending, refetch } = useQuery(hubExpectedQuery());

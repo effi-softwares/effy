@@ -6,9 +6,9 @@ const path = (listId: string, productId: string) =>
   `/commerce/v1/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(productId)}`
 
 /**
- * Place a product in a list (068). Idempotent.
+ * Place a product in a list. Idempotent.
  *
- * ⚠ The body is FORWARDED. It carries `restoreAddedAt`, which is how undo puts a product back where
+ * The body is forwarded. It carries `restoreAddedAt`, which is how undo puts a product back where
  * it was in the list rather than at the top.
  */
 export async function PUT(req: Request, { params }: Ctx) {
@@ -17,7 +17,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   return proxyToEdge((c) => c.put(path(listId, productId), body))
 }
 
-/** Take a product out of THIS list only. Never refused: the shopper named the list. */
+/** Take a product out of this list only. Never refused: the shopper named the list. */
 export async function DELETE(_req: Request, { params }: Ctx) {
   const { listId, productId } = await params
   return proxyToEdge((c) => c.delete(path(listId, productId)))

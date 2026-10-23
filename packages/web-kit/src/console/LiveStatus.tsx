@@ -7,15 +7,8 @@ import { Button } from "@effy/design-system/ui";
 import { useLiveStatus } from "../live/LiveProvider";
 
 /**
- * 071 FR-015 — says so when the screen cannot receive live updates.
- *
- * Nothing at all while the channel is live: the normal state has no indicator, because an
- * always-on "Live" badge is one more thing that can be green while the screen is wrong. When the
- * channel is not live it states that, states how old what is on screen is, and offers a refresh —
- * stale information is never presented as current.
- *
- * ⚠ It waits a few seconds before appearing. Every page load and every brief network blip passes
- * through "reconnecting"; flashing a warning for each would teach people to ignore it.
+ * Says so when the screen cannot receive live updates: nothing while live, otherwise how old the screen
+ * is and a refresh. It waits a few seconds first, so page loads and brief blips do not flash it.
  */
 const APPEAR_AFTER_MS = 4_000;
 

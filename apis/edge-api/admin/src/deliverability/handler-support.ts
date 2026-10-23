@@ -1,5 +1,3 @@
-// Shared handler support for the deliverability slice: the back-office guard and the domain-error →
-// problem+json map. Mirrors src/shops/handler-support.ts (ARCHITECTURE: no middleware framework).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda"
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared"
@@ -10,10 +8,7 @@ import { DeliverabilityError } from "./types"
 
 const NOT_FOUND = "https://effyshopping.com/problems/not-found"
 
-/**
- * Authenticate (401 without a sub) + authorize from the platform record (403), fail-closed to 503.
- * `read` = any active staff including csa; `repair` = admin/manager only.
- */
+/** Without a sub, 403 from the staff record, 503 on infra error. `read`: any staff; `repair`: admin/manager. */
 export async function guard(
   event: AuthedEvent,
   scope: RequestScope,
@@ -44,13 +39,7 @@ export async function guard(
   return { sub }
 }
 
-/**
- * Map a domain error to problem+json.
- *
- * ⚠ NO REFUSAL ECHOES THE ADDRESS BACK. Problem responses are logged by intermediaries, and 035's
- * "never put a recipient in CloudWatch" rule does not stop at the service boundary. The messages
- * below are deliberately about the RECORD, never about the address.
- */
+/** No refusal echoes the address: problem responses are logged by intermediaries. */
 export function mapDeliverabilityError(
   err: unknown,
   scope: RequestScope,

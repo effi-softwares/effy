@@ -4,34 +4,13 @@ import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * FR-011 — THREE CONTROLS THE PLATFORM CANNOT HONOUR ARE NOT BUILT (058).
+ * Three Quick actions the design offers are not built, because each would have to be faked:
+ *  • New order: a shop cannot create an order; it fulfils portions of orders already paid.
+ *  • Discount code: codes are platform-wide and would discount other shops' items.
+ *  • Message a customer: a shop never has the customer's email, and the design's mailbox does not exist.
  *
- * The imported design's Quick actions sheet offers nine rows. Three of them describe capabilities
- * Effy does not have, and each would have to be faked to be shown:
- *
- *   • NEW ORDER — a shop cannot create an order. Customers buy from Effy; a shop is a hidden
- *     fulfilment node that receives portions of orders the platform has already been paid for
- *     (057 FR-013 refused the same control on the order console).
- *   • DISCOUNT CODE — promotion codes are platform-wide and apply to a whole basket (027). A code
- *     created by one shop would discount other shops' items, on orders this shop never sees.
- *   • MESSAGE A CUSTOMER — a shop is never given the customer's email address (023 FR-018), and the
- *     design's own copy names a mailbox (`orders@effy.shop`) that does not exist here. The
- *     constitution is explicit that an address is asked for, never inferred.
- *
- * ⚠ WHY A SOURCE GUARD AND NOT A RENDER ASSERTION. A render test proves that today's sheet happens
- * not to contain these rows; it proves nothing about the row someone adds next month from the same
- * mockup, which is still open in a tab somewhere. The guard reads the source and fails NAMING the
- * file — the shape 054's `guard_test.go`, 039's `storefront-locks` and 057's own refusals guard all
- * use.
- *
- * ⚠ COMMENTS ARE STRIPPED FIRST, so prose stays free to explain the refusal (including this file's
- * own docblock). A guard that fires on its own justification gets deleted by the next person, and
- * takes the requirement with it.
- *
- * ⚠ AND THE PATTERNS ARE WORD-BOUNDED PHRASES, NOT DELIMITER-ANCHORED ONES. 057's first draft of the
- * equivalent guard required a quote or `<` immediately after the phrase, and its negative proof
- * exposed the hole: `<RotateCcw />Capture payment` sailed straight through. 056 records the same
- * near-miss. The phrases here match wherever they appear in code.
+ * A source guard; comments are stripped first, and patterns are word-bounded phrases that match wherever
+ * they appear in code.
  */
 
 const TODAY_DIR = resolve(__dirname)
@@ -63,7 +42,7 @@ const BANNED: Array<{ phrase: RegExp; why: string }> = [
   },
 ]
 
-/** Every .ts/.tsx file in the Today slice, minus its tests (a test may quote a banned phrase). */
+/** Every.ts/.tsx file in the Today slice, minus its tests (a test may quote a banned phrase). */
 function sourceFiles(): string[] {
   return readdirSync(TODAY_DIR, { withFileTypes: true })
     .filter((e) => e.isFile())

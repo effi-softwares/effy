@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { NAV } from "./nav";
 
-// Role-aware nav (FR-007), asserted against THIS surface's config. The Management item must
+// Role-aware nav, asserted against this surface's config. The Management item must
 // reflect the authoritative backend gate: visible only to a shop_manager, hidden from shop_staff
 // and role-less operators. (The `visibleNav` filter itself is tested in @effy/web-kit.)
 describe("shop-web nav (role-aware)", () => {
@@ -18,8 +18,8 @@ describe("shop-web nav (role-aware)", () => {
     expect(visibleNav(NAV, ["shop_staff", "shop_manager"]).map((i) => i.to)).toContain("/manager");
   });
 
-  // FR-019a — fulfilment is role-agnostic: the staff standing at the shelves are its primary users,
-  // and the backend admits shop_manager AND shop_staff. Gating Orders would hide the work from the
+  // Fulfilment is role-agnostic: the staff standing at the shelves are its primary users,
+  // and the backend admits shop_manager and shop_staff. Gating Orders would hide the work from the
   // people who do it.
   it("shows Orders to every shop role, ungated", () => {
     for (const roles of [["shop_manager"], ["shop_staff"], []] as const) {

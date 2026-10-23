@@ -26,7 +26,7 @@ import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
-/** The Today repository over `edge-api/driver` (049). The DTO never escapes this layer (Principle VI). */
+/** The Today repository over `edge-api/driver`. The DTO never escapes this layer (Principle VI). */
 class HttpTodayRepository(
     private val driverApi: HttpClient,
     /** Today's last copy, kept so the app opens on it with no signal (backlog C3). */
@@ -102,10 +102,10 @@ private fun TodayDTO.toDomain(): Today = Today(
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(
-    // ⚠ EXHAUSTIVE ON PURPOSE — no `else`. Adding `HubCheckin` to the wire enum broke this `when` at
-    // COMPILE TIME, which is exactly what should happen: an `else` here would have mapped an unknown
+    // Exhaustive on purpose — no `else`. Adding `HubCheckin` to the wire enum broke this `when` at
+    // compile time, which is exactly what should happen: an `else` here would have mapped an unknown
     // kind onto some existing one and the hub would have silently rendered as a shop stop. 053, 056,
-    // 057 and 059 each shipped a defect through an enum widening that nothing forced anyone to read.
+    // And 059 each shipped a defect through an enum widening that nothing forced anyone to read.
     kind = when (kind) {
         TodayItemRefKind.CollectionStop -> TodayItem.Kind.COLLECTION_STOP
         TodayItemRefKind.DeliveryDrop -> TodayItem.Kind.DELIVERY_DROP

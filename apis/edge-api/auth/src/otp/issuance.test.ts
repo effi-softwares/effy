@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * The DynamoDB counter (FR-012).
- *
- * ⚠ The SDK is faked at the `send` boundary rather than by mocking our own module — this file is
- * testing `issuance.ts` itself, so mocking it would be the fixture agreeing with the code instead
- * of with the world (027 R13's lesson, and 033's).
- */
+/** Fakes the SDK at `send`, so `issuance.ts` itself is under test. */
 
 const send = vi.fn();
 
@@ -19,7 +13,7 @@ vi.mock("@aws-sdk/lib-dynamodb", async (orig) => {
 });
 
 const KEY = "test-key";
-const NOW = 1_800_003_600; // exactly on an hour boundary
+const NOW = 1_800_003_600;
 
 async function load() {
   const mod = await import("./issuance.js");
@@ -75,9 +69,7 @@ describe("reserve", () => {
   });
 
   it("⚠ a retried invocation counts ONCE (contract invariant 12)", async () => {
-    // Cognito "may retry" a trigger. With `ADD 1` a shopper would be charged twice for one email,
-    // and five genuine retries would lock them out of their own account. The set makes re-adding
-    // the same marker a no-op — this asserts we send a Set, not a number.
+    // Cognito may retry a trigger: a Set marker makes a re-add a no-op, where `ADD 1` would double-count.
     send.mockResolvedValue({ Attributes: { sends: new Set(["m1"]) } });
     const { reserve } = await load();
     await reserve(reserveArgs({ sendMarker: "m1" }));
@@ -86,7 +78,6 @@ describe("reserve", () => {
     const values = command.input.ExpressionAttributeValues;
     expect(values[":marker"]).toBeInstanceOf(Set);
     expect(command.input.UpdateExpression).toContain("ADD sends :marker");
-    // ⚠ Proves we are NOT incrementing a scalar, which is the shape that double-counts.
     expect(command.input.UpdateExpression).not.toMatch(/ADD\s+count/);
   });
 
@@ -121,8 +112,7 @@ describe("reserve", () => {
   });
 
   it("⚠ FAILS OPEN when the store is unreachable, and says so (research R3)", async () => {
-    // Deliberate exception to FR-017, which governs VERIFICATION. Failing this closed would make
-    // a DynamoDB blip a sign-in outage for all four audiences.
+    // Fails open: a DynamoDB blip must not become a sign-in outage.
     send.mockRejectedValue(new Error("ProvisionedThroughputExceededException"));
     const { reserve } = await load();
     const verdict = await reserve(reserveArgs());

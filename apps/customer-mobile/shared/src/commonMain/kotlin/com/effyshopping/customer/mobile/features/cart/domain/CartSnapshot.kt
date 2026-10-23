@@ -3,12 +3,12 @@ package com.effyshopping.customer.mobile.features.cart.domain
 import kotlinx.serialization.Serializable
 
 /**
- * The whole cart as the app holds it — the shape the mirror persists and the UI renders (027).
+ * The whole cart as the app holds it — the shape the mirror persists and the UI renders.
  *
- * ⚠ [revision] is the only reason this type carries a number nobody displays. The platform advances it on
- * every mutation, and the mirror adopts a response ONLY when its revision is greater than the one it
+ * [revision] is the only reason this type carries a number nobody displays. The platform advances it on
+ * every mutation, and the mirror adopts a response only when its revision is greater than the one it
  * holds. That single comparison is what stops an out-of-order reply — a slow response to an old tap
- * landing after a fast response to a new one — from resurrecting a stale cart (FR-009).
+ * landing after a fast response to a new one — from resurrecting a stale cart.
  *
  * A guest's snapshot has revision 0 and is reconciled against `POST /v1/cart/preview` instead of a server
  * cart, because a guest has none.
@@ -26,9 +26,9 @@ data class CartSnapshot(
     val currency: String = "AUD",
     val notices: List<CartNotice> = emptyList(),
     val discount: CartDiscount? = null,
-    /** 094 — every promotion applying, automatic and by code. */
+    /** Every promotion applying, automatic and by code. */
     val promotions: List<CartPromotionLine> = emptyList(),
-    /** 094 — offers the shopper might expect that do not apply yet, each with its sentence. */
+    /** Offers the shopper might expect that do not apply yet, each with its sentence. */
     val promotionsNotApplied: List<CartPromotionNotApplied> = emptyList(),
     val checkout: CartCheckout = CartCheckout(),
     val limits: CartLimits = CartLimits(),
@@ -41,8 +41,8 @@ data class CartSnapshot(
     val itemCount: Int get() = lines.sumOf { it.quantity }
 
     /**
-     * Changes the platform has not accepted yet (FR-017), and the message for any it definitively refused
-     * (FR-019). Held on the snapshot so the UI has ONE thing to read; the queue itself is the coordinator's.
+     * Changes the platform has not accepted yet, and the message for any it definitively refused.
+     * Held on the snapshot so the UI has one thing to read; the queue itself is the coordinator's.
      */
     val unsavedCount: Int get() = pending
     val failureMessage: String? get() = failure
@@ -54,10 +54,10 @@ data class CartSnapshot(
 data class CartNotice(
     /** Null for a cart-level notice (a promotional code that stopped applying). */
     val productId: String? = null,
-    /** 098 — the line (size) the notice is about; null for a cart-level notice. */
+    /** The line (size) the notice is about; null for a cart-level notice. */
     val variantId: String? = null,
     val kind: CartNoticeKind,
-    /** Specifics where the kind alone is not enough. NEVER names or implies a shop. */
+    /** Specifics where the kind alone is not enough. Never names or implies a shop. */
     val detail: String? = null,
 )
 
@@ -73,7 +73,7 @@ enum class CartNoticeKind {
     Unknown,
 }
 
-/** 094 — one promotion and what it takes off. */
+/** One promotion and what it takes off. */
 @Serializable
 data class CartPromotionLine(
     val promotionId: String,
@@ -82,7 +82,7 @@ data class CartPromotionLine(
     val goodsAmount: String,
 )
 
-/** 094 — an offer that does not apply yet, and the one thing to do about it (server-composed). */
+/** An offer that does not apply yet, and the one thing to do about it (server-composed). */
 @Serializable
 data class CartPromotionNotApplied(
     val promotionId: String,
@@ -100,13 +100,13 @@ data class CartDiscount(
 
 /**
  * Whether the shopper may proceed, and why not when they may not — so the cart says it up front instead
- * of letting them walk into a refusal at payment (FR-054).
+ * of letting them walk into a refusal at payment.
  */
 @Serializable
 data class CartCheckout(
     val allowed: Boolean = false,
     val blockedReason: CartBlockedReason? = null,
-    /** Null when no minimum is in force; the UI then shows nothing about one at all (FR-057). */
+    /** Null when no minimum is in force; the UI then shows nothing about one at all. */
     val minimumSubtotalAmount: String? = null,
     val remainingAmount: String? = null,
 )
@@ -114,7 +114,7 @@ data class CartCheckout(
 @Serializable
 enum class CartBlockedReason { Empty, NoPayableItems, BelowMinimum, Unknown }
 
-/** The platform's ceilings, carried so the app can EXPLAIN them rather than guess them (FR-037/038). */
+/** The platform's ceilings, carried so the app can explain them rather than guess them. */
 @Serializable
 data class CartLimits(
     val maxLineQuantity: Int = MAX_CART_QTY,
@@ -129,7 +129,7 @@ data class CartPolicy(
     val maxDistinctItems: Int,
 )
 
-/** The outcome of a reorder: the cart, plus exactly what could not come back (FR-035). */
+/** The outcome of a reorder: the cart, plus exactly what could not come back. */
 data class ReorderOutcome(
     val cart: CartSnapshot,
     val skipped: List<ReorderSkipped>,
@@ -137,7 +137,7 @@ data class ReorderOutcome(
 
 data class ReorderSkipped(
     val productId: String,
-    /** 098 — the size that could not come back, and its words. */
+    /** The size that could not come back, and its words. */
     val variantId: String,
     val variantLabel: String?,
     val name: String?,

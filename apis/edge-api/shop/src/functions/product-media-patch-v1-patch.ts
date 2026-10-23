@@ -1,4 +1,3 @@
-// PATCH /shop/v1/products/{id}/media/{mediaId} — reorder / set primary / alt text (US4).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -2,14 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 073 — WHERE A PACKAGE IS, on the order reads, against the REAL migrations.
- *
- * ⚠ THE DEFECT THIS PINS was found live: a package a driver had just collected read "At hub" (standard)
- * or "Out for delivery" (same-day) in back-office, and checking it in at the hub changed nothing,
- * because the screen guessed from the shop's status alone. The status is now derived from the
- * dispatch rows, and the only way to prove a join across six tables picks the right rows is to run it.
- */
+/** Where a package is, derived from the dispatch rows across six tables, against the real schema. */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
@@ -17,14 +10,12 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
-  // Reads through the library's own pool, which this test does not configure; not under test here.
   proposedRefunds: async () => [],
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { getOrder, listOrders } from "./service";
-
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -65,8 +56,8 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     );
     const order = await one<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, delivery_fee_amount,
-                                   grand_total_amount, delivery_address, placed_at)
-       VALUES ($1, $2, 'paid', 10, 0, 10, '{"city":"Richmond","postalCode":"3121"}'::jsonb, now()) RETURNING id`,
+                                   grand_total_amount, delivery_address, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1, $2, 'paid', 10, 0, 10, '{"city":"Richmond","postalCode":"3121"}'::jsonb, now(), 'effy', 'in_coverage') RETURNING id`,
       [cust.id, `EFY-ST${seq}`],
     );
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ($1, 'Shop') RETURNING id`, [`S${seq}`]);
@@ -104,13 +95,12 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
 
   const statusOf = async (orderId: string) => (await getOrder(orderId))!.packages[0]!.statusView!;
 
-  // ⚠ S2 — THE DEFECT. This read "At hub" / "Out for delivery" until 073.
+  // Read "At hub" / "Out for delivery" from the shop status alone before.
   it.each(["standard", "same_day"] as const)("S2 — a %s package just collected is With driver, naming them", async (method) => {
     const p = await aPackage(method, "collected");
     await onRound("collection", p, await aDriver("Ada"), "picked_up", "done");
 
     expect(await statusOf(p.orderId)).toEqual({ status: "with_driver", word: "With driver", detail: null, driverName: "Ada" });
-    // The list row says the same thing.
     const { items } = await listOrders({ limit: 10 });
     expect(items.find((i) => i.id === p.orderId)!.statusView!.status).toBe("with_driver");
   });
@@ -124,7 +114,6 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect((await statusOf(p.orderId)).status).toBe("at_hub");
   });
 
-  // S4 — same-day out, delivered, failed.
   it("S4 — same-day: on a round → At hub; drop started → Out for delivery; proof → Delivered", async () => {
     const p = await aPackage("same_day", "collected");
     const ada = await aDriver("Ada");
@@ -153,7 +142,6 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect(await statusOf(p.orderId)).toMatchObject({ status: "problem", detail: "Delivery attempt failed — nobody home" });
   });
 
-  // S5 — standard to the carrier.
   it("S5 — standard: handed over → With carrier; arrival → Delivered", async () => {
     const p = await aPackage("standard", "collected");
     await pool.query(`INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 'staff')`, [p.sfId]);
@@ -172,8 +160,6 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     const p = await aPackage("standard");
     expect((await statusOf(p.orderId)).status).toBe("ready");
   });
-
-  // ── 073 US2 — who has it ────────────────────────────────────────────────────────────────────────
 
   it("shows the collecting driver, how they were chosen, and whether it can still be moved", async () => {
     const p = await aPackage("standard");
@@ -222,12 +208,7 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect(pkg.deliver).toMatchObject({ assignmentId: null, unassignedReason: "Waiting for auto-assign (every 5 minutes)" });
     expect((await listOrders({ limit: 10, needsDriver: true })).items.map((i) => i.id)).toEqual([p.orderId]);
   });
-  /**
-   * ⚠ 082 P8 — "needs a driver" is any Effy parcel at the hub whose ROUND HAS OPENED, whatever it was
-   * sold as and whichever day it was sold for. A later-day window is stored `standard` with a window
-   * (078): the old test (`delivery_method = 'same_day'`) never listed it. And a parcel waiting at the
-   * hub for a later day is WAITING — its round is planned on its day — so it is not listed either.
-   */
+  /** "Needs a driver" lists an Effy parcel once its round opens; one waiting for a later day is not listed. */
   it("082 P8 — a later-day window at the hub needs a driver only once its round has opened", async () => {
     const hubbed = async (windowStart: string, windowEnd: string) => {
       const p = await aPackage("standard", "collected");

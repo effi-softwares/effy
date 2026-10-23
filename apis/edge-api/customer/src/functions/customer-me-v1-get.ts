@@ -10,24 +10,8 @@ import {
 } from "../customer/service"
 
 /**
- * GET /customer/v1/me — the record-backed identity read (FR-023, FR-025, FR-026).
- *
- * Creates the platform's customer record on first appearance, reuses it forever after, and
- * returns THE RECORD — not the claim set. `status` comes from the database.
- *
- * ⚠ ON EMAIL — this slice does NOT inherit 005's defect.
- *
- * `/admin/v1/me` (005) resolves the caller's email as `claim("username") ?? sub`, which can store
- * a raw UUID in the email column when the access token carries no `username`. CLAUDE.md records
- * that as "raised, not fixed"; 007 declined to copy it and so does this.
- *
- * For a CUSTOMER the stakes are higher: email is the IDENTITY KEY that converges the three
- * credential routes onto one person (FR-011). A UUID written into `customer.email` would not be a
- * cosmetic blemish — it would be a corrupt identity, and it would take a unique index with it.
- *
- * So we require a real `email` claim and FAIL CLOSED without one. The storefront sends the ID
- * token (which carries `email`); if this ever starts firing, something is sending the access
- * token instead, and the right fix is there — not a fallback that fabricates an address.
+ * Creates the customer record on first appearance and returns the record, not the claims. Requires a
+ * real `email` claim (the ID token) and fails closed without one: email is the identity key.
  */
 export const handler = async (
   event: AuthedEvent,
@@ -61,20 +45,11 @@ export const handler = async (
     )
   }
 
-  // Cognito STANDARD attributes, set at registration (FR-009a) and carried on the ID token.
-  // Nullable: a FEDERATED identity supplies whatever the provider asserts, and may assert neither —
-  // the platform must not invent a name it was never given.
+  // Cognito standard attributes; a federated identity may assert neither, so both are nullable.
   const givenName = claim(event, "given_name") ?? null
   const familyName = claim(event, "family_name") ?? null
 
-  // The registration-route hint (012 FR-013). Seeds `has_password` on the CREATING upsert only, and
-  // is ignored on every call thereafter.
-  //
-  // ⚠ Client-asserted, therefore untrusted — and safe. Cognito cannot be asked whether a user has a
-  // password, so the platform must seed the answer from what the sign-up form declares. Lying in
-  // either direction grants NO capability the inbox-holder did not already have (the full argument is
-  // on `upsertCustomer`). It is a UX hint, never an authorization input: the real gates are the
-  // emailed code and the current password, and Cognito enforces both regardless of this value.
+  // The registration route's hint: seeds `has_password` on create only (see `upsertCustomer`).
   const seedHasPassword = event.queryStringParameters?.route === "password"
 
   try {
@@ -88,9 +63,7 @@ export const handler = async (
     return json(200, customer, scope)
   } catch (err) {
     if (err instanceof CustomerBarredError || err instanceof CustomerClosingError) {
-      // Uniform refusal. It does NOT disclose that the account is barred or closing, or why — that
-      // is an information leak, and the customer cannot act on it anyway. The two remain distinct
-      // errors internally so the logs can tell them apart (034 FR-041).
+      // One uniform refusal: it does not disclose barred or closing.
       scope.log.warn(
         { sub, reason: err instanceof CustomerClosingError ? "closing" : "barred" },
         "me: refused — a valid token was presented for an unusable account",

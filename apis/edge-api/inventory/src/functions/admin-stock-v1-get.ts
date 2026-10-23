@@ -1,9 +1,4 @@
-// GET /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock — read any shop's stock and its
-// movement history on their behalf (054 US4, FR-025).
-//
-// ⚠ READ is open to ANY active back-office staff INCLUDING `csa`. Triage is CSA work, and a support
-// agent who cannot see the number a shop is ringing up about cannot help them. WRITING is the
-// narrower tier — see the sibling handlers.
+// Any active staff, csa included: support must see the number a shop is ringing about.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

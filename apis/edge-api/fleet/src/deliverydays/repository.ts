@@ -1,23 +1,16 @@
-// Repository for the delivery calendar (069 US6; Effy delivery days since 078). Raw parameterized SQL, no ORM.
-
 import { query, withTransaction } from "@effy/edge-shared";
 import { ASAP_ESTIMATE_DEFAULT } from "@effy/edge-shared/delivery";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO } from "@effy/shared-types";
 import type pg from "pg";
 
-/**
- * Paid orders still to arrive that were promised a given day.
- *
- * ⚠ COUNTED, NEVER CHANGED (FR-043). Closing a day does not move a placed order — the customer was
- * promised that day and paid for it. The count exists so the operator knows who to tell.
- */
+/** Counted, never changed: closing a day does not move a placed order; the operator knows who to tell. */
 const AFFECTED = `
   (SELECT count(DISTINCT o.id)::int
      FROM public.order_package_delivery opd
      JOIN public."order" o ON o.id = opd.order_id
      JOIN public.shop_fulfillment sf ON sf.order_id = opd.order_id AND sf.shop_id = opd.shop_id
     WHERE o.status = 'paid'
-      -- ⚠ 078 — WHATEVER ITS METHOD. A closed day now also stops Effy's own windows, so the people to
+      -- ⚠ WHATEVER ITS METHOD. A closed day now also stops Effy's own windows, so the people to
       -- tell include anyone promised a window that day, today's included.
       AND opd.promised_to = d.day
       AND sf.status NOT IN ('delivered', 'withdrawn', 'unfulfillable'))
@@ -34,7 +27,7 @@ interface SettingsRow {
   vehicle_check_required: boolean;
 }
 
-/** The migrations' own defaults, used only until the operator has saved the delivery settings. */
+/** The migrations' defaults, until the operator saves the settings. */
 const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   effyLookaheadDays: 3,
   noDeliveryWeekdays: [],
@@ -79,12 +72,7 @@ export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolea
   return { dto: { ...settings, dates: await dates() }, configured: Boolean(r) };
 }
 
-/**
- * Save the calendar settings. Returns false when the settings row does not exist.
- *
- * ⚠ AN UPDATE, NEVER AN UPSERT. `delivery_settings` is the 047 singleton and its hub coordinates are
- * NOT NULL with no default — inserting a row here would mean inventing where Effy's hub is.
- */
+/** false when the settings row does not exist. An UPDATE, never an upsert: inserting would invent the hub. */
 export async function save(
   v: DeliveryDaysInput,
   actorSub: string,
@@ -95,9 +83,9 @@ export async function save(
       `UPDATE public.delivery_settings
           SET effy_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
               slot_hold_min = $3, sameday_hub_turnaround_min = $4,
-              -- 085 — reworded when the request carries one; kept otherwise.
+              -- Reworded when the request carries one; kept otherwise.
               asap_estimate = COALESCE($6, asap_estimate),
-              -- 093 — kept when the request carries none.
+              -- Kept when the request carries none.
               load_overdue_min = COALESCE($7, load_overdue_min),
               checkin_overdue_min = COALESCE($8, checkin_overdue_min),
               vehicle_check_required = COALESCE($9, vehicle_check_required),
@@ -119,7 +107,7 @@ export async function addDate(
   audit: (tx: pg.PoolClient) => Promise<void>,
 ): Promise<NonDeliveryDateDTO> {
   return withTransaction(async (tx) => {
-    // Idempotent on the day: saving a date that is already closed updates its label.
+    // Idempotent on the day: re-saving a closed date updates its label.
     await tx.query(
       `INSERT INTO public.delivery_non_delivery_date (day, label, created_by) VALUES ($1::date, $2, $3)
        ON CONFLICT (day) DO UPDATE SET label = EXCLUDED.label`,

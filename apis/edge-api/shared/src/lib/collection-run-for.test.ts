@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { collectionRunFor, type CollectionRun } from "./collection-deadline";
 
-/** 082 P1 — which collection run a parcel sold a window travels on. */
 const RUNS: CollectionRun[] = [{ hour: 9, minute: 0 }, { hour: 14, minute: 0 }, { hour: 18, minute: 0 }];
 const TURNAROUND = 60;
 /** Melbourne wall-clock in October–March (AEDT, +11). */

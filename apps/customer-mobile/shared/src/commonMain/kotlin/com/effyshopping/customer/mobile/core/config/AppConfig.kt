@@ -5,12 +5,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * The app's build-time configuration (013 data-model § 7; FR-037/FR-042).
- *
- * Every value is baked in by BuildKonfig from a git-ignored `secrets.properties` (root build.gradle.kts,
- * which FAILS the build if any is missing — FR-041). NONE of it is a secret: a pool id / client id is a
- * NAME, not a key, and the app client has no client secret. Backend addresses are configuration, never
- * literals in code.
+ * The app's build-time configuration, baked in by BuildKonfig from a git-ignored `secrets.properties` (the
+ * root build fails if any is missing). None is a secret. Backend addresses are configuration, never
+ * literals.
  */
 object AppConfig {
     val cognitoUserPoolId: String get() = BuildKonfig.COGNITO_USER_POOL_ID
@@ -20,45 +17,31 @@ object AppConfig {
     /** The backend gateway. Every route this app calls is behind it (storefront, commerce, customer). */
     val edgeApiBaseUrl: String get() = BuildKonfig.EDGE_API_BASE_URL
 
-    /**
-     * The Stripe PUBLISHABLE key (`pk_…`, 019 US3/R3) — a NAME, not a secret: it only tokenizes cards and
-     * ships in the client by design (the `sk_…` secret never leaves the backend). The checkout flow presents
-     * the PaymentSheet with THIS key + the server's per-order `clientSecret`; the client carries its own
-     * rather than depending on the backend echo (which config.go marks a mere convenience).
-     */
+    /** The Stripe publishable key (`pk_…`): a name that only tokenizes cards; the secret never leaves the backend. */
     val stripePublishableKey: String get() = BuildKonfig.STRIPE_PUBLISHABLE_KEY
 
-    // ── 050 telemetry/push (OPTIONAL — empty ⇒ the capability is a no-op, FR-027) ────────────────────
-    /** PostHog PROJECT key (phc_…). Non-secret/client-embeddable. Empty ⇒ analytics off. */
+    // Telemetry/push (optional — empty ⇒ the capability is a no-op, FR-027)
+    /** PostHog project key (phc_…). Non-secret/client-embeddable. Empty ⇒ analytics off. */
     val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
     /** PostHog ingest host (us|eu). */
     val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
-    /** Analytics kill switch (FR-026). Anything but the literal "false" (incl. empty) ⇒ enabled. */
+    /** Analytics kill switch. Anything but the literal "false" (incl. empty) ⇒ enabled. */
     val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
-    /** 050 T015 — show the in-app observability test panel (Privacy screen). Debug builds only. */
+    /** Show the in-app observability test panel (Privacy screen). Debug builds only. */
     val debugTools: Boolean get() = BuildKonfig.DEBUG_TOOLS == "true"
 
     /**
-     * 087 FR-033 — "Continue with Google" is shown ONLY when this is true.
-     *
-     * ⚠ FALSE, and on purpose: Google federation is BUILT BUT PARKED platform-wide
-     * (`infra/envs/dev/auth-customer.tf`, `customer_google_enabled = false`, operator decision
-     * 2026-07-14). Until 087 the app drew the button anyway and answered a tap with "isn't available
-     * yet" — a control that does nothing. When the operator un-parks federation, wiring native
-     * sign-in (hosted UI + the app's callback scheme on the app client) and flipping this is one feature.
+     * "Continue with Google" is shown only when true. False: federation is parked
+     * (`customer_google_enabled = false`). Un-parking it means wiring native sign-in (hosted UI and the
+     * app's callback scheme) and flipping this.
      */
     const val googleSignInEnabled: Boolean = false
 }
 
 /**
- * Builds the Amplify configuration as a single JSON STRING from [AppConfig] (research D12).
- *
- * There is NO `amplifyconfiguration.json` file anywhere — not generated, not shipped, nothing to
- * git-ignore. Both SDKs accept this same raw `amplify_outputs` string in code: Android via
- * `AmplifyOutputs.fromString(...)`, iOS via `Amplify.configure(with: .data(...))`. commonMain builds
- * it once; each platform entry point hands it to its SDK.
- *
- * Auth-only minimal shape — user pool + public app client (no identity pool, no client secret).
+ * The Amplify configuration as one JSON string; there is no `amplifyconfiguration.json`. Both SDKs accept
+ * the raw `amplify_outputs` string (Android `AmplifyOutputs.fromString`, iOS `Amplify.configure(with:
+ * .data(...))`). Auth only: user pool and public app client.
  */
 fun buildAmplifyOutputsJson(): String =
     buildJsonObject {

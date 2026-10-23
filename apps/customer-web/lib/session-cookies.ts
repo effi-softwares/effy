@@ -1,7 +1,7 @@
 import { siteUrl } from "@/lib/config"
 
 /**
- * The three cookies that ARE a customer's session, and nothing else about it.
+ * The three cookies that are a customer's session, and nothing else about it.
  *
  * Written only by the server (`app/api/session`, `proxy.ts`), always `HttpOnly`: page JavaScript can
  * never read a token. Shared by the request proxy and the server modules, so it imports nothing that
@@ -31,12 +31,7 @@ export function sessionCookieOptions() {
   }
 }
 
-/**
- * When a token expires, in epoch seconds — read WITHOUT verifying it.
- *
- * ⚠ Only ever used to decide whether to ask Cognito for a fresh one. Nothing is trusted on the
- * strength of this; `getSession` verifies the signature.
- */
+/** A token's expiry in epoch seconds, read without verifying it: used only to decide whether to refresh (`getSession` verifies). */
 export function jwtExpiry(token: string | undefined): number | null {
   const payload = token?.split(".")[1]
   if (!payload) return null

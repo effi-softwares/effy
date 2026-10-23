@@ -1,7 +1,3 @@
-// GET /commerce/v1/orders/{id}/tax-documents[?doc={number}&format=pdf] — the order's tax invoice and
-// adjustment notes (096 US8). Owner only (404 for not-yours). 409 `invoices_unavailable` while Effy's
-// tax details are unset; 409 `buyer_identity_required` at $1,000 or more with no name; 409
-// `invoice_not_available_for_order` for an order from before GST status.
 import { ConnectionLimitError, internal, json, notFound } from "@effy/edge-shared";
 
 import { customerRoute, pathParam } from "../lib/route";

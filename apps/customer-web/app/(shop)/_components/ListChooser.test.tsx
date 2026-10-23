@@ -133,7 +133,7 @@ describe("068 — the list chooser", () => {
     expect(screen.getByRole("button", { name: "Create" })).toBeDisabled()
   })
 
-  /** FR-010: a name is the shopper's own text and is never interpreted. */
+  /** A name is the shopper's own text, never interpreted. */
   it("renders a name that looks like markup as the characters typed", async () => {
     const hostile = `<img src=x onerror="alert(1)"><a href="javascript:alert(1)">x</a>`
     platform({ [LISTS]: ok([saved, { ...weekly, name: hostile }]) })
@@ -144,7 +144,7 @@ describe("068 — the list chooser", () => {
     expect(container.querySelector("a[href^='javascript']")).toBeNull()
   })
 
-  /** FR-037: named lists need an account; the save the guest just made is not lost. */
+  /** Named lists need an account; the guest's save is not lost. */
   it("tells a guest that lists need an account and offers sign-in", async () => {
     platform({ [LISTS]: refused(401) })
     render(<ListChooser productId={PRODUCT} onClosed={() => {}} />)

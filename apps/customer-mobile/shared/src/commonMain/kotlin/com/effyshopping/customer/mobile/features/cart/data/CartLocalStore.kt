@@ -8,30 +8,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Where the cart survives a force-quit (027 US1, FR-001/FR-002).
+ * Where the cart survives a force-quit: the mirror ([CartSnapshot]) and the pending-change queue as one
+ * JSON blob, together (a mirror without its queue shows a change the app forgot to send; a queue without
+ * its mirror sends changes the shopper cannot see). A non-authoritative mirror under the rules in
+ * `DevicePreferences`' header.
  *
- * ── The defect this closes ──────────────────────────────────────────────────────────────────────
- *
- * Before this, `GuestCartStore` was a `MutableStateFlow` and nothing else. Every decision a shopper made
- * lived only for the lifetime of the process: switch apps for long enough, or close the app, and the whole
- * cart was gone with no warning and no way back. On the web storefront it at least survived in one
- * browser. On mobile it survived nothing.
- *
- * ── What is stored, and the rule it lives under ─────────────────────────────────────────────────
- *
- * The mirror ([CartSnapshot]) and the pending-change queue, together, as one JSON blob per key. Together
- * matters: a mirror without its queue would show a change the app has forgotten to send, and a queue
- * without its mirror would send changes the shopper can no longer see.
- *
- * This is a NON-AUTHORITATIVE mirror, permitted under the amendment in `DevicePreferences`' header on
- * three conditions — reconciled on read, never an input to pricing or authorization, and holding no more
- * than the shopper already sees in their own cart. All three hold here. It is not a substitute for the
- * platform; it is what makes a tap land in under 100 ms and a cold launch show something true.
- *
- * ⚠ EVERY read is defensive. A blob written by an older build, a truncated write, or hand-edited
- * preferences must produce an EMPTY cart, never a crash and never a half-parsed one — losing a cart is
- * bad, but a launch crash loop is worse, and a silently mangled cart is worst of all because the shopper
- * would trust it. [SCHEMA_VERSION] is bumped whenever the stored shape changes, and a mismatch discards.
+ * Every read is defensive: an old build's blob, a truncated write or edited preferences produce an empty
+ * cart, never a crash or a half-parsed one. [SCHEMA_VERSION] is bumped whenever the stored shape changes;
+ * a mismatch discards.
  */
 class CartLocalStore(private val prefs: DevicePreferences) {
 
@@ -83,17 +67,14 @@ class CartLocalStore(private val prefs: DevicePreferences) {
 
     companion object {
         /**
-         * Bump whenever the stored shape changes. A mismatch discards rather than migrates: a cart is
-         * cheap to rebuild compared with the cost of getting a migration subtly wrong, and the shopper
-         * sees an empty cart rather than a wrong one.
+         * Bump whenever the stored shape changes; a mismatch discards rather than migrates (an empty cart,
+         * never a wrong one). 2: a line is a variant (`variantId`).
          */
-        // 2 — 098: a line is a VARIANT (`variantId`), and a queued change names one. A version-1 blob
-        // names products, which can no longer be bought as such; it is discarded, never migrated.
         const val SCHEMA_VERSION = 2
 
         /**
-         * `ignoreUnknownKeys` is deliberate ON TOP of the version check. The version catches a shape we
-         * changed; this catches a field a NEWER build wrote that this one has never heard of — which
+         * `ignoreUnknownKeys` is deliberate on top of the version check. The version catches a shape we
+         * changed; this catches a field a newer build wrote that this one has never heard of — which
          * happens on a downgrade, and should cost a field, not the cart.
          */
         private val json = Json {

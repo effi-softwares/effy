@@ -2,7 +2,7 @@ import type { SchemaStatus } from "@effy/shared-types";
 
 import { cn } from "@effy/design-system";
 
-// Client-side status filter shared by all three schema tabs (redesign: a segmented control —
+// Client-side status filter shared by all three schema tabs (redesign: a segmented control
 // Active · Retired · All). The catalog list endpoints return unpaginated arrays, so the filter
 // narrows the already-loaded rows.
 export type StatusFilterValue = SchemaStatus | "all";

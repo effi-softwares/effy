@@ -1,4 +1,4 @@
-// 096 US6 — the hand-over report's reads. Every count is over Melbourne calendar days, inclusive.
+// Counts over Melbourne calendar days, inclusive.
 import { query } from "@effy/edge-shared";
 
 const IN_RANGE = (col: string) => `(${col} AT TIME ZONE 'Australia/Melbourne')::date BETWEEN $1::date AND $2::date`;

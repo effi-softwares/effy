@@ -2,14 +2,10 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { driverScope, opsScope, shopScope } from "./scope";
 
-/**
- * 071 — whose updates a person may hear, against the REAL schema. The statements name columns and
- * status values; this proves the migrations define those columns and allow those values, and that
- * every way access ends (FR-023) yields "no scope".
- */
+/** Whose updates a person may hear, against the real schema, including every way access ends. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 

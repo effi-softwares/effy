@@ -1,5 +1,5 @@
 # One PostgreSQL instance + its directly-attached plumbing (SG, subnet group, parameter
-# group) at the COST FLOOR: every separately-billed RDS option is off by default and only
+# group) at the cost floor: every separately-billed RDS option is off by default and only
 # loosened through explicit lever variables (specs/002-dev-database — research.md D2/D3).
 # The master password is RDS-managed in Secrets Manager and never enters Terraform.
 
@@ -84,15 +84,13 @@ resource "aws_db_parameter_group" "db" {
   tags = var.tags
 }
 
-# The cost-floor posture below (no backups, single-AZ, public-with-allowlist in dev) is a
-# DOCUMENTED, accepted dev-only decision with reversal levers — see
-# specs/002-dev-database/contracts/cost-posture.contract.md and research.md D3/D4.
-# Targeted scanner suppressions carry that rationale; they are not oversights.
-#trivy:ignore:avd-aws-0077 backups deliberately OFF in dev: disposable data, no RPO (spec edge case + FR-005); promotion lever db_backup_retention_days
-#trivy:ignore:avd-aws-0082 dev-only allowlisted-public posture (research.md D4): SG allowlist + forced TLS + managed secret; qa+ stays private
-#trivy:ignore:avd-aws-0180 dev-only allowlisted-public posture (research.md D4)
-#trivy:ignore:avd-aws-0133 Performance Insights is a paid lever, deliberately OFF at the dev cost floor (FR-005)
-#trivy:ignore:avd-aws-0176 IAM database auth deferred to the first consumer slice; master credential is Secrets-Manager-managed
+# The dev cost-floor posture (no backups, single-AZ, public with TLS and a managed secret) is accepted with
+# reversal levers; the scanner suppressions carry that rationale.
+# trivy:ignore:avd-aws-0077 backups deliberately off in dev: disposable data, no RPO (spec edge case + FR-005); promotion lever db_backup_retention_days
+# trivy:ignore:avd-aws-0082 dev-only allowlisted-public posture (research.md D4): SG allowlist + forced TLS + managed secret; qa+ stays private
+# trivy:ignore:avd-aws-0180 dev-only allowlisted-public posture (research.md D4)
+# trivy:ignore:avd-aws-0133 Performance Insights is a paid lever, deliberately off at the dev cost floor
+# trivy:ignore:avd-aws-0176 IAM database auth deferred to the first consumer slice; master credential is Secrets-Manager-managed
 resource "aws_db_instance" "db" {
   identifier = local.db_identifier
 
@@ -104,7 +102,7 @@ resource "aws_db_instance" "db" {
   allocated_storage = var.allocated_storage_gb
   storage_type      = var.storage_type
   storage_encrypted = true
-  # NO max_allocated_storage: storage autoscaling off — cost is a fixed number (D2).
+  # NO max_allocated_storage: storage autoscaling off — cost is a fixed number.
 
   db_name  = var.db_name
   username = var.master_username
@@ -124,7 +122,7 @@ resource "aws_db_instance" "db" {
   performance_insights_enabled = var.performance_insights_enabled
   database_insights_mode       = "standard"
   monitoring_interval          = var.monitoring_interval
-  # NO enabled_cloudwatch_logs_exports, NO RDS Proxy, NO snapshot exports.
+  # NO enabled_cloudwatch_logs_exports, no RDS Proxy, NO snapshot exports.
 
   apply_immediately = var.apply_immediately
 

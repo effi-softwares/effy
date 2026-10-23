@@ -6,23 +6,13 @@ import { describe, expect, it } from "vitest"
 import { CACHE_LIFE } from "./cache-life"
 
 /**
- * ⚠ THE GUARD FOR 054 FR-015a — WHAT A STOREFRONT READ MAY KEEP, AND FOR HOW LONG.
+ * What a storefront read may cache, and for how long. Availability must be current: listings within 60s,
+ * the product page immediately, cart and checkout authoritative. A stock-derived read may be kept 60
+ * seconds; a product's words and pictures (never price or availability) longer.
  *
- * Stock is the one thing on a product page that another shopper, or a paid order, can change from
- * under the person looking at it. Availability must therefore be current: listings within 60s, the
- * product page immediately, cart and checkout authoritative.
- *
- * Until PERF-05..07 every storefront read was live and this guard banned caching outright. FR-015a now
- * says what may be kept: a stock-derived read for FR-015a's 60 seconds, a product's words and
- * pictures (never its price or availability) for longer. So the guard is an ALLOW-LIST — each cached
- * read named with the one lifetime it may take. A new `"use cache"` anywhere in the app fails here
- * until someone writes down which tier it belongs to; that is the point, because a listing cached for
- * an hour shows sold-out products as buyable and nothing else fails when it does.
- *
- * ⚠ No cached read has an invalidating writer: each server instance keeps its own cache in memory, so
- * a revalidate reaches one instance. The lifetimes ARE the contract — which is why they are tested.
- *
- * ⚠ `customer-mobile` needs no equivalent: it calls the backend directly with no cache layer at all.
+ * An allow-list: each cached read is named with its one lifetime, and a new `"use cache"` fails here
+ * until someone says which tier it is, because a listing cached for an hour sells sold-out products and
+ * nothing else fails. No cached read has an invalidating writer (lib/cache-life.ts).
  */
 
 const root = resolve(import.meta.dirname, "..")
@@ -31,14 +21,14 @@ const root = resolve(import.meta.dirname, "..")
 const ALLOWED: Record<string, readonly (keyof typeof CACHE_LIFE)[]> = {
   "lib/categories.ts": ["listing"],
   "app/(shop)/home-data.ts": ["listing"],
-  // 094 — display groups for a signed-out shopper: the same listing tier as the banners they replaced.
+  // Display groups for a signed-out shopper: the same listing tier as the banners they replaced.
   "app/(shop)/promotion-groups-public.ts": ["listing"],
   // `listing` for a 404, and for content still carrying a presigned (15-minute) picture address.
   "app/(shop)/product/[id]/page.tsx": ["catalogue", "listing"],
 }
 
 /**
- * Every file that may use the fetch-level `cached()` option. The order rules are identical for every
+ * Every file that may use the fetch-level `cached` option. The order rules are identical for every
  * shopper and carry no stock — nothing a 5-minute-old copy can make untrue at the payment gate, which
  * re-reads them.
  */
@@ -94,7 +84,7 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
   })
 
   it("every cached read is reached only at request time, so a build never makes it", () => {
-    // Shared reads await connection() before the cached call. The product page's read needs no
+    // Shared reads await connection before the cached call. The product page's read needs no
     // marker: it is keyed by the product id, which only exists at request time (`await params`).
     // See lib/cache-life.ts for the build this broke.
     for (const file of Object.keys(ALLOWED)) {

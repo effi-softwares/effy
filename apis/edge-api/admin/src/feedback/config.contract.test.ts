@@ -5,13 +5,7 @@ import { describe, expect, it } from "vitest"
 
 import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the feedback console (046 US2/US3) — the 035/038 guard. The reply
- * emails the submitter through email-kit, which reads the MAIL_* keys; a missing one would silently
- * kill every reply while every unit test (which sets its own env) passed. So this reads the ACTUAL
- * `serverless.yml` and asserts it declares what a live reply needs, and that every route is behind the
- * back-office authorizer.
- */
+/** The real serverless.yml declares the MAIL_* keys a reply needs, and every route is behind the back-office authorizer. */
 
 const here = dirname(fileURLToPath(import.meta.url))
 const serviceRoot = resolve(here, "../..")

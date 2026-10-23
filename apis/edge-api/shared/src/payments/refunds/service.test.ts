@@ -51,7 +51,7 @@ describe("idempotency keys", () => {
     const k = (over: Partial<IssueInput>, cents = 500) => refundIdempotencyKey({ ...base, ...over }, cents);
     const keys = new Set([k({}), k({ orderId: "other" }), k({ kind: "goodwill" }), k({ reason: "item_unusable" }), k({}, 501), k({ lines: [{ orderItemId: "i", quantity: 2 }] })]);
     expect(keys.size).toBe(6);
-    expect(k({ actorSub: "someone-else" })).toBe(k({})); // who asked does not make it a different refund
+    expect(k({ actorSub: "someone-else" })).toBe(k({}));
   });
 
   it("a cancellation's key is the order alone", () => {
@@ -76,7 +76,7 @@ describe("where money metrics go", () => {
   it("one namespace for every service that moves money — the alarms watch exactly this one", async () => {
     const { MONEY_METRIC_NAMESPACE } = await import("../index");
     expect(MONEY_METRIC_NAMESPACE).toBe("Effy/Commerce");
-    // The service's own copy of the constant (it cannot import the index that imports it).
+    // The service's own copy (it cannot import the index that imports it).
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("./service.ts", import.meta.url), "utf8");
     expect(src).toContain(`const MONEY_METRIC_NAMESPACE = "${MONEY_METRIC_NAMESPACE}";`);

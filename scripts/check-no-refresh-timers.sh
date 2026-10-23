@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
-# 071 FR-009 / SC-010 — NO SCREEN REFRESHES ITS DATA ON A TIMER.
-#
-# Since 071 a screen reads when it opens, when it returns to the foreground, when its connection
-# returns, when it is told something changed, and when the person asks. A polling loop added later
-# would work — and quietly bill the platform for reads nobody is looking at, which is the very thing
-# this feature removed. This fails the build instead.
+# No screen refreshes its data on a timer. A screen reads when it opens, returns to the foreground,
+# reconnects, is told something changed, or is asked; a polling loop would bill reads nobody looks at.
 #
 # What it looks for:
-#   web     — a TanStack Query `refetchInterval` set to anything but `false`
-#   mobile  — a `while (…) { … delay(…) … }` loop whose body calls something named like a re-read
+# web — a TanStack Query `refetchInterval` set to anything but `false`
+# mobile — a `while (…) { … delay(…) … }` loop whose body calls something named like a re-read
 #
-# What is allowed, and why (FR-011 — a clock that re-words loaded data is not a refresh):
-#   apps/shop-web/src/features/today/useNow.ts      re-words "3 minutes ago"; reads nothing
-#   apps/shop-web/src/lib/pwa.ts                    checks for a new APP VERSION, not for data
-#   …/driver/…/delivery/presentation/WindowLine.kt  re-words a delivery window; reads nothing
-#   …/driver/…/core/presentation/OpensLine.kt       notices a round's opening time arrive (072); reads nothing
-#   packages/mobile-kit/common/live/                the live client itself (keep-alive, backoff, epoch)
-#   packages/web-kit/src/live/                      likewise
+# Allowed (a clock that re-words loaded data is not a refresh):
+# apps/shop-web/src/features/today/useNow.ts re-words "3 minutes ago"; reads nothing
+# apps/shop-web/src/lib/pwa.ts checks for a new app version, not for data
+# …/driver/…/delivery/presentation/WindowLine.kt re-words a delivery window; reads nothing
+# …/driver/…/core/presentation/OpensLine.kt notices a round's opening time arrive; reads nothing
+# packages/mobile-kit/common/live/ the live client itself (keep-alive, backoff, epoch)
+# packages/web-kit/src/live/ likewise
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -3,7 +3,7 @@ import type { BackOfficeRole } from "@effy/shared-types";
 /**
  * How the shell names the person signed in.
  *
- * ⚠ The session and the staff record carry an email, roles and a status — no display name. Until the
+ * The session and the staff record carry an email, roles and a status — no display name. Until the
  * record has one, the email's local part stands in ("alex.chen" → "Alex Chen"); it is never sent
  * anywhere, only shown back to the person it belongs to.
  */

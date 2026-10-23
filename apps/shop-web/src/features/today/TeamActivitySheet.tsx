@@ -14,14 +14,8 @@ import { relativeTime } from "./model"
 import { teamActivityQuery } from "./queries"
 
 /**
- * "Team activity" — the accountability the platform already records, in one place (058, US5).
- *
- * ⚠ IT READS EXISTING AUDIT TRAILS; IT WRITES NOTHING. Fulfilment events, stock movements and
- * shop-issued refunds are already recorded per order and per product — what was missing was a way to
- * see them as a shift rather than as scattered rows on individual screens.
- *
- * ⚠ THE TONE IS A DOT (Principle V). The imported design coloured the text; a problem shown only in
- * red is invisible to a colour-blind operator and to anyone printing this.
+ * "Team activity": the existing audit trails (fulfilment events, stock movements, shop-issued refunds) as a
+ * shift. It writes nothing. The tone is a dot, not coloured text.
  */
 export function TeamActivitySheet({
   open,
@@ -82,7 +76,7 @@ export function TeamActivitySheet({
   )
 }
 
-/** Who acted — never blank, and never an Effy employee's name (FR-014). */
+/** Who acted — never blank, and never an Effy employee's name. */
 function who(actor: TeamActivityEntryDTO["actor"]): string {
   if (actor.kind === "staff") return actor.name
   if (actor.kind === "former_staff") return "A former team member"

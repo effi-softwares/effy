@@ -1,14 +1,6 @@
-// GENERATOR — the ONE thing allowed to produce a brand asset (024 FR-003).
-//
-// Same shape as design-system's gen-compose-theme.mjs: an authored source, COMMITTED derived
-// artifacts, and a check that fails when they diverge. Assets are committed rather than built on
-// demand because Xcode asset catalogs, Gradle resource merging and Next's file-convention metadata
-// all read files from disk during their OWN build, and a mobile build cannot reach into the pnpm
-// workspace.
-//
-// Determinism is a hard requirement (SC-009): two runs on unchanged input MUST produce byte-identical
-// output, because the drift check compares hashes. Nothing here may embed a timestamp, an absolute
-// path, a machine name or an iteration order that is not explicitly sorted.
+// The one generator of brand assets. Assets are committed because Xcode, Gradle and Next.js read them
+// from disk during their own builds. Output must be byte-identical across runs (the drift check
+// compares hashes): no timestamps, absolute paths, machine names or unsorted iteration.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from "node:fs"
 import { createHash } from "node:crypto"
@@ -27,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const PKG = resolve(here, "..")
 const REPO = resolve(PKG, "../..")
 const MARK = resolve(PKG, "src/logo.svg")
-// 092 — the driver app's mark: the same "e.", its full stop a steering wheel.
+// The driver app's mark: the same "e.", its full stop a steering wheel.
 const DRIVER_MARK = resolve(PKG, "src/logo-driver.svg")
 const WORDMARK_SRC = resolve(PKG, "src/wordmark.svg")
 const MANIFEST = resolve(PKG, "assets.manifest.json")
@@ -75,11 +67,7 @@ async function buildTarget(target, mark, bbox) {
   }
 }
 
-/**
- * `#rrggbb` → the component form an Xcode `.colorset` wants. Xcode accepts several notations; the
- * uppercase `0xNN` byte form is the one Xcode itself writes, so a hand-edit in Xcode round-trips to
- * the same bytes the generator produces and `brand:check` stays quiet.
- */
+/** `#rrggbb` as an Xcode `.colorset` component: the uppercase `0xNN` form Xcode itself writes, so a hand-edit round-trips. */
 function xcodeComponents(hex) {
   const m = /^#([0-9a-fA-F]{6})$/.exec(hex)
   if (!m) throw new Error(`splash ground must be #rrggbb, got '${hex}'`)
@@ -87,11 +75,7 @@ function xcodeComponents(hex) {
   return { alpha: "1.000", blue: byte(2), green: byte(1), red: byte(0) }
 }
 
-/**
- * Asset-catalog sidecars. Xcode will not see an imageset without a Contents.json, so these are part
- * of the delivered asset, not incidental scaffolding — which means they belong in the manifest too
- * (rule M1), or the drift check would treat them as orphans.
- */
+/** Asset-catalog sidecars: Xcode needs a Contents.json per imageset, so they are in the manifest too. */
 function sidecars() {
   const out = []
   for (const app of ["customer-mobile", "driver-mobile"]) {
@@ -114,9 +98,7 @@ function sidecars() {
         "utf8",
       ),
     })
-    // ⚠ Both appearances carry the SAME value. The splash ground is a brand colour now (024
-    // amendment 2026-07-27), and a saturated ground has no light/dark variant — dropping the dark
-    // entry entirely would let iOS fall back to a system colour, so it is declared explicitly.
+    // Both appearances carry the same value: the splash ground has no dark variant, and an absent entry would fall back to a system colour.
     const ground = xcodeComponents(splashGroundFor(app))
     out.push({
       path: `${base}/LaunchBackground.colorset/Contents.json`,
@@ -146,10 +128,7 @@ function sidecars() {
   return out
 }
 
-/**
- * The standalone SVGs: the logo in its light and dark appearance (the word changes, the full stop
- * stays green) and the icon exactly as the favicons carry it.
- */
+/** The standalone SVGs: the logo light and dark (the word changes, the full stop stays green) and the icon as the favicons carry it. */
 function exportsOf(mark, bbox) {
   const wordmark = readFileSync(WORDMARK_SRC, "utf8")
   const svg = (s) => Buffer.from(s.trimEnd() + "\n", "utf8")
@@ -163,7 +142,7 @@ function exportsOf(mark, bbox) {
 /** Build the complete asset set in memory. Shared by the generator and the drift check. */
 export async function buildAll() {
   const mark = readFileSync(MARK, "utf8")
-  // ⚠ RULE V2 — measured, never hard-coded. A stale bbox mis-centres every asset silently.
+  // Measured, never hard-coded: a stale bbox mis-centres every asset.
   const bbox = await measureBBox(mark)
 
   const driverMark = readFileSync(DRIVER_MARK, "utf8")
@@ -184,12 +163,12 @@ export async function buildAll() {
     files.push({ ...e, surface: "brand", slot: "export", target: null })
   }
 
-  // Deterministic ordering — never rely on declaration order for the manifest (rule M4).
+  // Sorted: never rely on declaration order for the manifest.
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   return { mark, bbox, files }
 }
 
-/** Manifest content. Pure function of the built files — no timestamps, no absolute paths (M4). */
+/** Manifest content: a pure function of the built files. */
 export function buildManifest(mark, files) {
   const pkgJson = JSON.parse(readFileSync(resolve(PKG, "package.json"), "utf8"))
   return (
@@ -205,8 +184,7 @@ export function buildManifest(mark, files) {
           wordmark: "src/wordmark.svg",
           wordmarkSha256: sha256(readFileSync(WORDMARK_SRC)),
           generator: "scripts/gen-brand-assets.mjs",
-          // Exact versions: determinism is only guaranteed within a version pair (research R8).
-          // This is the first thing to compare when a check fails on someone else's machine.
+          // Exact versions: determinism holds only within a version pair. Compare these first when a check fails elsewhere.
           toolchain: {
             resvg: pkgJson.devDependencies["@resvg/resvg-js"],
             sharp: pkgJson.devDependencies["sharp"],
@@ -229,8 +207,7 @@ export function buildManifest(mark, files) {
 async function main() {
   const { mark, bbox, files } = await buildAll()
 
-  // Write to a staging directory first, then move into place — a failure part-way through must not
-  // leave the repository with a half-generated asset set.
+  // Staged then moved into place, so a failure cannot leave a half-generated set.
   const staging = resolve(PKG, ".brand-staging")
   rmSync(staging, { recursive: true, force: true })
   for (const f of files) {

@@ -20,18 +20,10 @@ import {
 import { capture } from "@/lib/telemetry"
 
 /**
- * The add / edit address form — the fields, validation and save, with NO container of its own.
- *
- * It is deliberately chrome-free so the same form serves two very different presentations from ONE
- * implementation: {@link AddressFormModal} mounts it inside a responsive Dialog/Drawer (the account
- * page), and the checkout `AddressPicker` renders it INLINE on the page. Extracting it is what keeps
- * those two from drifting — the validation rules, the label chips and the request shape live here once.
- *
- * `address` present → edit (pre-filled, PATCH); absent → add (POST). Required fields (recipient,
- * line 1, city, postcode) are validated inline and the customer's input is preserved on error. No
- * request is made until Save succeeds; `onCancel` discards everything (nothing is persisted as a draft).
- * The component is mounted fresh for each add and unmounted on close, so its initial state is the whole
- * of its "reset" behaviour — there is no open-based re-seed to get wrong.
+ * The add/edit address form with no container of its own, so the account dialog and checkout's
+ * `AddressPicker` share one implementation. `address` present edits (PATCH), absent adds (POST).
+ * Required fields are validated inline, input is kept on error, and nothing is sent until Save. It is
+ * mounted fresh for each add and unmounted on close.
  */
 
 interface FormState {
@@ -85,7 +77,7 @@ export function AddressForm({
   const [form, setForm] = useState<FormState>(address ? fromAddress(address) : EMPTY)
   const [chip, setChip] = useState<LabelChip | null>(address ? chipForLabel(address.label) : null)
   const [customLabel, setCustomLabel] = useState(address ? customLabelForLabel(address.label) : "")
-  // 066 — the instructions this address prefills at checkout.
+  // The instructions this address prefills at checkout.
   const [instructions, setInstructions] = useState<InstructionsDraft>(() =>
     draftFrom(address?.defaultDeliveryInstructions),
   )
@@ -128,7 +120,7 @@ export function AddressForm({
         city: form.city.trim(),
         region: form.region.trim() || null,
         postalCode: form.postalCode.trim(),
-        // 066 — always sent: `null` is how a shopper CLEARS what this address had saved.
+        // Always sent: `null` clears what this address had saved.
         defaultDeliveryInstructions: draftToRequest(instructions),
       }
       result = await updateAddress(address.id, body)
@@ -142,7 +134,7 @@ export function AddressForm({
         city: form.city.trim(),
         region: form.region.trim() || null,
         postalCode: form.postalCode.trim(),
-        // 066 — always sent: `null` is how a shopper CLEARS what this address had saved.
+        // Always sent: `null` clears what this address had saved.
         defaultDeliveryInstructions: draftToRequest(instructions),
       }
       result = await createAddress(body)

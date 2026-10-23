@@ -5,15 +5,10 @@ import { validateOrdersSearch } from "@/features/fulfillment/orderConsole";
 
 import { appRoute } from "./app";
 
-// Order detail (020 US2/US3, rebuilt by 057 A3). The `fulfillmentId` path param is read at the route
-// boundary and handed to the screen as a prop, so the screen stays router-agnostic and unit-testable.
-//
-// The search params are the LIST's — the one this order was opened from — carried so the header's
-// order pagination walks that list and its "Orders" crumb returns to it (both read them from the route).
-//
-// No client-side ownership check exists here, deliberately: the backend refuses another shop's
-// portion — and a non-existent one — with the SAME uniform 403 (FR-019/FR-020), so guessing an id
-// discloses nothing.
+// Order detail. The path param is read here and passed as a prop, keeping the screen router-agnostic.
+// The search params are the list the order was opened from, for the header's pagination and the "Orders"
+// crumb. No client ownership check: the backend refuses another shop's portion and a missing one with the
+// same 403.
 export const ordersDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/$fulfillmentId",

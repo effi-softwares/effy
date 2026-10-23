@@ -36,12 +36,7 @@ describe("grantCapability", () => {
     expect(err.fields?.[0]?.field).toBe("function");
   });
 
-  /**
-   * ⚠ A KEY ABSENT AND A KEY PRESENT-WITH-NULL MEAN DIFFERENT THINGS.
-   *
-   * `zoneId: null` is a deliberate "every zone". An ABSENT key is an operator who did not choose —
-   * and conflating them would silently grant the broadest clearance the platform has.
-   */
+  /** `zoneId: null` is every zone; an absent key is an operator who did not choose. */
   it("⚠ refuses an ABSENT zoneId, while accepting an explicit null", async () => {
     const err = (await grantCapability(
       "d-1",
@@ -52,7 +47,6 @@ describe("grantCapability", () => {
     expect(err.kind).toBe("validation");
     expect(err.fields?.[0]?.field).toBe("zoneId");
 
-    // The explicit null is fine, and reaches the repository AS null.
     await grantCapability("d-1", { function: "delivery", zoneId: null }, "a", scope);
     expect(repo.grant).toHaveBeenCalledWith("d-1", "delivery", null, "a");
   });
@@ -68,8 +62,7 @@ describe("grantCapability", () => {
     expect(err.fields?.[0]?.field).toBe("zoneId");
   });
 
-  /** ⚠ A disabled zone is refused at GRANT time and NAMED — clearing somebody for an area the
-   *  platform has stopped serving is almost always a mistake, and "invalid zone" would not say why. */
+  /** A disabled zone is refused and named. */
   it("⚠ refuses a DISABLED zone, and names it", async () => {
     vi.mocked(repo.findZone).mockResolvedValue({ id: "z-1", name: "Ballarat", status: "disabled" });
     const err = (await grantCapability(
@@ -81,7 +74,7 @@ describe("grantCapability", () => {
     expect(err.fields?.[0]?.message).toContain("Ballarat");
   });
 
-  /** ⚠ FR-005 — an operator repeating themselves is not an error, and two doing it at once both win. */
+  /** Repeating a grant is not an error, and two at once both win. */
   it("⚠ granting a clearance already held SUCCEEDS rather than conflicting", async () => {
     await expect(
       grantCapability("d-1", { function: "delivery", zoneId: null }, "a", scope),
@@ -100,12 +93,11 @@ describe("grantCapability", () => {
 });
 
 describe("revokeCapability", () => {
-  /** ⚠ FR-006 — the operator's intent is already true; erroring would make two people tidying the
-   *  same record fight each other. */
+  /** The intent is already true. */
   it("⚠ revoking a clearance the driver does not hold SUCCEEDS rather than 404ing", async () => {
     vi.mocked(repo.revoke).mockResolvedValue(false);
     await expect(revokeCapability("d-1", "c-missing", "a", scope)).resolves.toEqual([]);
-    // ⚠ And nothing is audited — nothing happened.
+    // Nothing happened, so nothing is audited.
     expect(recordAudit).not.toHaveBeenCalled();
   });
 

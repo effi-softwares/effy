@@ -15,7 +15,7 @@ import { handoverCounts } from "./RoundDetailScreen";
 
 describe("describeReasons", () => {
   it("has a sentence for every reason the contract can produce", () => {
-    // ⚠ EXHAUSTIVE OVER THE CONTRACT, not over a list somebody maintains. 053, 056 and 057 each
+    // Exhaustive over the contract, not over a list somebody maintains. 053, 056 and 057 each
     // shipped a defect through an enum widening; a new reason with no wording would render as
     // `undefined` on the one screen that exists to explain things.
     const all: ExclusionReasonDTO[] = [

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
  * The storefront's dialog (reference: `ui-dialog`): a title, an optional line under it, a body and a
  * row of actions.
  *
- * ⚠ A NATIVE `<dialog>`, opened with `ref.current.showModal()`. It gets focus trapping, Escape and an
+ * A native `<dialog>`, opened with `ref.current.showModal`. It gets focus trapping, Escape and an
  * inert page for nothing, and it is why this surface loads no overlay library. Centred from `md`;
  * below it the same element docks to the bottom edge with full-width actions (`fx-responsive`).
  *
@@ -56,7 +56,7 @@ export function Dialog({
         onDismiss()
       }}
       className={cn(
-        // Taller than the screen scrolls INSIDE the dialog; the page behind never moves.
+        // Taller than the screen scrolls inside the dialog; the page behind never moves.
         "fx-dialog fx-dialog-modal fx-responsive m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-lg border bg-background p-6 text-foreground shadow-lg",
         size === "lg" ? "max-w-[560px]" : "max-w-md",
       )}
@@ -95,7 +95,7 @@ export function Dialog({
 
 /**
  * For a dialog whose open state lives in its parent (`open` / `onOpenChange`): a ref that opens and
- * closes the native element to match. Pass `onClose={() => onOpenChange(false)}` to the dialog so a
+ * closes the native element to match. Pass `onClose={ => onOpenChange(false)}` to the dialog so a
  * dismissal the browser handles itself (Escape) is reported back.
  */
 export function useDialogOpen(open: boolean): React.RefObject<HTMLDialogElement | null> {

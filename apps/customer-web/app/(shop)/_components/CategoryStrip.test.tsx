@@ -48,11 +48,7 @@ describe("CategoryStrip — one shortcut per stocked category (FR-013)", () => {
     )
   })
 
-  /**
-   * ⚠ THE CAP IS NOT EXERCISED BY REAL DATA. The dev seed has 9 stocked categories against a cap of 12,
-   * so a broken cap would look perfectly fine in every manual check and every live walk. It has to be
-   * driven synthetically or it is not tested at all.
-   */
+  /** The cap is driven synthetically: real data has fewer stocked categories than the cap. */
   it(`shows at most ${CATEGORY_SHORTCUT_CAP} shortcuts even when more are stocked`, () => {
     render(<CategoryStrip categories={many(CATEGORY_SHORTCUT_CAP + 5)} />)
 
@@ -68,10 +64,7 @@ describe("CategoryStrip — one shortcut per stocked category (FR-013)", () => {
 })
 
 describe("CategoryStrip — a shortcut must lead somewhere with products in it", () => {
-  /**
-   * ⚠ NOT TIDINESS. Category filtering is exact-match everywhere on this platform, so a shortcut to an
-   * unstocked category opens a listing with nothing in it — worse than the shortcut being absent.
-   */
+  /** Category filtering is exact-match, so a shortcut to an unstocked category would open an empty listing. */
   it("omits categories with no stocked products", () => {
     render(
       <CategoryStrip
@@ -86,11 +79,7 @@ describe("CategoryStrip — a shortcut must lead somewhere with products in it",
     expect(screen.queryByRole("link", { name: /^food/i })).toBeNull()
   })
 
-  /**
-   * ⚠ THE REAL-DATA CASE, and it is not hypothetical: `productCount` does not roll up from child
-   * categories (028's open defect), so `food` / `grocery` / `household` all report 0 on the live seed
-   * while their leaves hold every product. The strip must render the leaves and omit the parents.
-   */
+  /** `productCount` does not roll up from children, so parents report 0 and the strip shows the leaves. */
   it("omits top-level parents that report zero because the count does not roll up (028)", () => {
     render(
       <CategoryStrip
@@ -105,7 +94,7 @@ describe("CategoryStrip — a shortcut must lead somewhere with products in it",
     expect(screen.getByRole("link", { name: /pantry/i })).toBeTruthy()
   })
 
-  /** FR-004: the section hides itself entirely rather than rendering a heading over empty space. */
+  /** The section hides itself rather than rendering a heading over nothing. */
   it("renders NOTHING when no category is stocked", () => {
     const { container } = render(
       <CategoryStrip categories={[category({ productCount: 0 }), category({ key: "b", productCount: 0 })]} />,
@@ -137,7 +126,7 @@ describe("CategoryStrip — imagery degrades, never breaks (FR-014)", () => {
     expect(container.querySelector("img")).not.toBeNull()
   })
 
-  /** The count is in the accessible name, so it is not conveyed by the image alone (SC-009). */
+  /** The count is in the accessible name, not conveyed by the image alone. */
   it("names each shortcut with its item count for assistive technology", () => {
     render(<CategoryStrip categories={[category({ name: "Pantry", productCount: 1 })]} />)
 

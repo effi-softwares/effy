@@ -7,12 +7,7 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
  import { readDay } from "../dispatch/service";
 
-/**
- * GET /fleet/v1/dispatch/day — the day's work (FR-027).
- *
- * Read = any active back-office staff, including csa: triage is CSA work, and seeing what is stuck is
- * not the same as changing it.
- */
+/** Any active staff, csa included. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "read");

@@ -1,16 +1,9 @@
 import type { SavedVerdict } from "@effy/shared-types"
 
 /**
- * How each purchasability outcome is said to a shopper, and what they may do about it (033).
- *
- * ⚠ EXTRACTED SO IT CAN BE TESTED. Inline in the list component this mapping was unreachable by
- * Vitest, which cannot render async Server Components — and this is precisely the logic that must not
- * drift, because the whole feature rests on the five outcomes staying distinguishable.
- *
- * ⚠ ONE SENTENCE PER OUTCOME, and they are deliberately DIFFERENT sentences. Each implies a different
- * next action — wait · change address · give up · tell us where you live · buy now — and a shopper who
- * cannot tell "out of stock" from "we don't deliver that to you" cannot act on either. Collapsing any
- * two of these reintroduces the defect this feature exists to remove (FR-036).
+ * How each purchasability outcome is said to a shopper, and what they may do about it. One distinct
+ * sentence per outcome, because each implies a different next action (wait · change address · give up ·
+ * tell us where you live · buy now). Kept out of the component so it can be tested.
  */
 export function verdictNote(verdict: SavedVerdict): string {
   switch (verdict) {

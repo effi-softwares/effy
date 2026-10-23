@@ -1,11 +1,5 @@
-// The facts `packageStatus` needs, for many packages in ONE round trip (073).
-//
-// ⚠ READ BY THREE SERVICES (orders, shop, driver). It lives here so they cannot each decide "is it at
-// the hub?" differently — the shape of the defect 073 exists to fix.
-//
-// ⚠ "LATEST" ROWS. A package can be on several collection rounds over its life (not available on
-// Monday, collected Tuesday) and, after a failed drop, more than one delivery round. The latest row
-// of each kind is the one that describes now.
+// The facts `packageStatus` needs, for many packages in one round trip, shared by orders, shop and
+// driver. A package can be on several rounds over its life; the latest row of each kind describes now.
 
 export const PACKAGE_STATUS_FACTS = `
   SELECT sf.id::text                                   AS package_id,
@@ -19,11 +13,11 @@ export const PACKAGE_STATUS_FACTS = `
          fail.reason                                   AS failed_reason,
          EXISTS (SELECT 1 FROM public.carrier_handoff ch WHERE ch.shop_fulfillment_id = sf.id) AS handed_to_carrier,
          EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id) AS arrived,
-         -- 080 — an OPEN courier problem on the live consignment: its latest step is failed, lost,
+         -- An OPEN courier problem on the live consignment: its latest step is failed, lost,
          -- damaged or returned (a later resolved or delivered closes it, and moves the state on).
          (SELECT c.state FROM public.courier_consignment c
            WHERE c.shop_fulfillment_id = sf.id AND c.state IN ('failed', 'lost', 'damaged', 'returned')) AS courier_problem,
-         -- 096 — bags of this package a driver declared missing that nobody has decided yet.
+         -- Bags of this package a driver declared missing that nobody has decided yet.
          (SELECT count(*) FROM public.package_hold ph
            WHERE ph.shop_fulfillment_id = sf.id AND ph.parcel_id IS NOT NULL AND ph.resolution IS NULL)::int AS bags_held
     FROM public.shop_fulfillment sf
@@ -76,8 +70,6 @@ export interface PackageStatusFactsRow {
   failed_reason: string | null;
   handed_to_carrier: boolean;
   arrived: boolean;
-  /** 080 */
   courier_problem: string | null;
-  /** 096 */
   bags_held?: number;
 }

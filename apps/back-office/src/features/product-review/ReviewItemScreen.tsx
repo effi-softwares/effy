@@ -42,13 +42,13 @@ import { KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model";
 import { reviewItemQuery, useApprove, useSendBack } from "./queries";
 
 /**
- * One review item (067): everything the shop entered, what it is asking to change, and the decision.
+ * One review item: everything the shop entered, what it is asking to change, and the decision.
  *
- * ⚠ A REVIEWER DECIDES ON WHAT THEY SEE. The item carries a version; the decision sends it back. If
+ * A reviewer decides on what they see. The item carries a version; the decision sends it back. If
  * the shop edits the item meanwhile, or a colleague decides it, the server refuses and this page
- * reloads — nothing is ever approved that nobody looked at (FR-014).
+ * reloads — nothing is ever approved that nobody looked at.
  *
- * ⚠ EVERYTHING HERE IS SHOP-AUTHORED TEXT shown inside an internal console. It is rendered as text
+ * Everything here is shop-authored text shown inside an internal console. It is rendered as text
  * nodes only; a product name containing markup is a product name containing markup.
  */
 export function ReviewItemScreen({ productId }: { productId: string }) {
@@ -90,7 +90,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
   const approve = useApprove(item.productId);
   const sendBack = useSendBack(item.productId);
 
-  // Start from the margin the product already carries, so confirming it is one click (FR-031).
+  // Start from the margin the product already carries, so confirming it is one click.
   const [entry, setEntry] = useState<MarginEntry>(
     item.currentMargin ?? { kind: "percent", value: "" },
   );
@@ -115,7 +115,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
       await navigate({ to: "/product-review" });
     } catch (err) {
       setMessage(reviewActionError(err));
-      onChanged(); // show the reviewer what it is NOW
+      onChanged(); // show the reviewer what it is now
     }
   }
 
@@ -243,7 +243,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </Panel>
             </TabsContent>
           </Tabs>
-          {/* 098 — every size the decision puts on sale, priced under the margin being typed. */}
+          {/* Every size the decision puts on sale, priced under the margin being typed. */}
           <ReviewVariants variants={item.variants} entry={entry} />
         </div>
 

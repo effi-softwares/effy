@@ -51,9 +51,9 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.live.LiveKind
 
 /**
- * Effy points (074 US1) — the balance and every change to it.
+ * Effy points — the balance and every change to it.
  *
- * 087 — the storefront identity permits cards (constitution v3.3.0): the balance is a card, the
+ * The storefront identity permits cards (constitution v3.3.0): the balance is a card, the
  * history stays a list of rows.
  */
 @Composable

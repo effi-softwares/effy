@@ -26,7 +26,7 @@ import { useNavCounts } from "./useNavCounts";
  * redesign's "Foundations and shell" boards. Wired by hand; no DI.
  *
  * Breakpoints: ≥1024 the full 256px sidebar (folds to the 48px rail with ⌘B, remembered per person);
- * 768–1023 always the rail, whatever was remembered; <768 the sidebar is a sheet behind the header's
+ * 1023 always the rail, whatever was remembered; <768 the sidebar is a sheet behind the header's
  * menu button.
  */
 export interface AppShellProps {
@@ -88,7 +88,7 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
   // "?" — matched by the character typed (Shift is how most layouts type it).
   useHotkey({ key: "?", shift: true }, () => setShortcutsOpen(true), { ignoreInputs: true });
   for (const chord of CHORDS) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- CHORDS is a module constant; the call order never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- chords is a module constant; the call order never changes
     useHotkeySequence(chord.keys, () => {
       const where = locate(groups, chord.navKey);
       if (where) void navigate(linkOf(where.leaf) as never);

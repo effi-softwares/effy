@@ -34,8 +34,8 @@ import org.jetbrains.compose.resources.painterResource
 /**
  * The primary action — full width, Effy blue, 52dp, 6dp corners (Foundations board).
  *
- * [destructive] draws it BLACK: the storefront has no red, so a destructive action is said with its
- * words and an icon, never a hue (constitution v3.3.0). [loading] puts the spinner INSIDE the button
+ * [destructive] draws it black: the storefront has no red, so a destructive action is said with its
+ * words and an icon, never a hue (constitution v3.3.0). [loading] puts the spinner inside the button
  * and keeps the label, so the shopper still reads what they are waiting for.
  */
 @Composable

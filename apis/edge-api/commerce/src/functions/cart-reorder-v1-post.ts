@@ -1,5 +1,4 @@
-// POST /commerce/v1/cart/reorder — put a past order's items back in the cart at CURRENT prices.
-// Anything that could not be added is named in `skipped`. Someone else's order is 404, never 403.
+// Re-adds a past order's items at current prices. Someone else's order is 404, never 403.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

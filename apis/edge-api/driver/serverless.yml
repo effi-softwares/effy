@@ -1,9 +1,4 @@
-# edge-driver — Effy driver service (049-driver-mobile-app).
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
-# under /driver/. Authenticated routes use the Terraform-owned DRIVER JWT authorizer (by id from
-# SSM). The driver mobile app client is registered in that authorizer's audience (edge-gateway.tf).
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# Driver routes on the shared gateway, under /driver/, behind the driver JWT authorizer.
 service: effy-edge-driver
 frameworkVersion: "3"
 
@@ -14,7 +9,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -32,14 +26,12 @@ provider:
     project: effy
     slice: 049-driver-mobile-app
     service: driver
-  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
@@ -47,22 +39,18 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # 064 — delivery proof media. The bucket is shared with product and promotion media; proof is
-    # written under the `proof/` prefix, which is what the Terraform lifecycle rule archives.
+    # Proof media under `proof/` in the shared media bucket, which the Terraform lifecycle rule archives.
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-        # 064 — presigned PUT for proof capture and presigned GET to read it back. ⚠ Scoped to the
-        # media bucket's objects, never the bucket itself: this service must not be able to list it,
-        # which would expose every product and promotion key to a driver-pool credential.
+        # Presigned PUT and GET for proof, on the bucket's objects only (no listing).
         - Effect: Allow
           Action:
             - s3:PutObject
@@ -70,9 +58,7 @@ provider:
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as edge-shop/admin:
-  # no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev DB is reachable on its
-  # public endpoint. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -210,7 +196,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
-  # ── 064 — proof of delivery ────────────────────────────────────────────────────────────────────
+  # Proof of delivery
   driverDropProofPresignV1:
     handler: src/functions/driver-drop-proof-presign-v1-post.handler
     description: 064 - mint a presigned PUT for proof media under the proof/ prefix.

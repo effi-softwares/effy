@@ -43,26 +43,9 @@ import {
 type Step = "identifier" | "password" | "code"
 
 /**
- * Sign-in as a STEP FORM (036 US1, US2).
- *
- * One decision per screen: the emailed code first, Google beside it, a password only if you ask for
- * one. The customer is not asked to understand any of it.
- *
- * ⚠ ALL THREE STEPS LIVE ON THIS ONE ROUTE, and that is a constraint rather than a shortcut. Amplify
- * keeps the in-flight challenge in per-tab `sessionStorage` with a three-minute expiry, `autoSignIn`
- * state is memory-only, and splitting the email from the password across URLs is what breaks password
- * managers. See `_lib/step-history.ts` for the full reasoning.
- */
-/**
- * ⚠ THE RULES ARE DECLARED HERE, BESIDE THE COPY THEY PRODUCE (044 US2).
- *
- * The email rule itself comes from `@effy/shared-types`; what is local is which fields exist on this
- * screen and what this screen says when they are wrong. The wording is bound by two constraints that
- * are easy to breach by accident:
- *
- *   • it must never say whether an address has an account (FR-044), so "we don't recognise that" is
- *     not available no matter how much friendlier it reads; and
- *   • the password message must not hint at what a correct password looks like.
+ * Sign-in as a step form: the emailed code first, Google beside it, a password only on request. All
+ * steps live on this route (see `_lib/step-history.ts`). The messages never say whether an address has
+ * an account, and the password message never hints at a correct password.
  */
 const FIELDS = {
   email: {
@@ -81,18 +64,10 @@ export function SignInForm() {
   const router = useRouter()
   const params = useSearchParams()
 
-  // The destination they were heading for before we interrupted them (FR-025). Validated: it arrives
-  // in a URL and is therefore attacker-controlled.
+  // Where they were heading (validated: it arrives in a URL).
   const next = safeNextTarget(params.get("next"))
 
-  /**
-   * ⚠ Why the shopper is here, when something sent them (044 FR-034, defect D-14).
-   *
-   * Two places in the product have produced this parameter since 012 and NOTHING has ever read it,
-   * so a successful password change presented as an unexplained logout. `ReasonNotice` maps it
-   * through a closed vocabulary and never echoes the value — it arrives in a URL, and this is the
-   * one screen where arbitrary attacker-supplied text would be worth the most.
-   */
+  /** Why the shopper is here, through `ReasonNotice`'s closed vocabulary; the value is never echoed. */
   const reason = params.get("reason")
 
   const [email, setEmail] = useState("")
@@ -101,18 +76,14 @@ export function SignInForm() {
   const [pending, start] = useTransition()
   const validation = useFieldValidation(FIELDS)
 
-  // ⚠ Whether a challenge is actually live. `popstate` can land on the code step after the session has
-  // been spent or replaced; without this the shopper would sit on a code form with nothing behind it,
-  // typing into a session no one can check (FR-022, R1).
+  // Whether a challenge is live, so a back/forward cannot land on a code form with nothing behind it.
   const challengeLive = useRef(false)
 
   const { step, go, back } = useStepHistory<Step>("identifier", {
     canEnter: (target) => (target === "code" ? challengeLive.current : true),
   })
 
-  // ⚠ Trimmed AND lowercased. The platform's per-address rate limit is keyed on `HMAC(email)`, so
-  // `A@x.com` and `a@x.com` would consume two separate hourly buckets and neither would match the
-  // other's send history.
+  // Trimmed and lowercased: the per-address rate limit keys on `HMAC(email)`.
   const address = email.trim().toLowerCase()
 
   const run = (fn: () => Promise<void>, context: "password" | "code" = "password") => {
@@ -127,12 +98,7 @@ export function SignInForm() {
     })
   }
 
-  /**
-   * Cognito said yes. Give the server the session, and only then leave this screen.
-   *
-   * ⚠ `false` MEANS STAY. Navigating before the server holds the session is how a customer used to
-   * be bounced straight back here with nothing said.
-   */
+  /** Cognito said yes: hand the server the session, and leave only on `true`. */
   const done = useCallback(
     async (route: "password" | "otp"): Promise<boolean> => {
       if (!(await handOverSession())) {
@@ -140,15 +106,12 @@ export function SignInForm() {
         return false
       }
       capture({ name: "sign_in_completed", props: { route } })
-      // 027 FR-011: fold this browser's cart into the account cart — union with MAXIMUM quantity, so
-      // nothing is lost from either side and a repeated sign-in changes nothing. Fired before
-      // navigating and NOT awaited; the cart page reconciles again on open either way.
+      // Fold this browser's cart into the account cart (union with maximum quantity). Not awaited; the cart page reconciles anyway.
       void mergeCartAfterSignIn()
-      // 033 FR-028: the saved list joins the account on sign-in.
+      // And the saved list.
       void mergeSavedAfterSignIn()
       if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
-      // `replace`, not `push`: the sign-in page must not sit in the back-button history where a
-      // signed-in customer can land on it again.
+      // `replace`: the sign-in page must not stay in the back history.
       router.replace(next)
       router.refresh()
       return true
@@ -156,14 +119,7 @@ export function SignInForm() {
     [next, router],
   )
 
-  /**
-   * ⚠ THE REPAIR (FR-012, SC-003, R9).
-   *
-   * `classifySignInStep` has existed since 035, is correct, and was called by NOTHING. The old code
-   * discarded `confirmSignIn`'s result and ran `done()` unconditionally — so a wrong code on attempt
-   * 1 or 2, which raises NO exception because Cognito simply re-issues the challenge, was treated as
-   * a successful sign-in. The shopper was navigated away, still signed out, with nothing on screen.
-   */
+  /** A wrong code on attempt 1 or 2 re-issues the challenge without an exception; the result is classified, never assumed. */
   const submitCode = useCallback(
     async (code: string): Promise<CodeOutcome> => {
       setError(null)
@@ -173,13 +129,12 @@ export function SignInForm() {
         if (result.isSignedIn || (nextStep && classifySignInStep(nextStep) === "done")) {
           return (await done("otp")) ? "accepted" : "failed"
         }
-        // Cognito asked for the code again → it was not accepted, and attempts remain.
+        // Asked for the code again: not accepted, attempts remain.
         return "rejected"
       } catch (err) {
         logAuthFailure("sign-in code", err)
         if (isStaleSignInSession(err)) {
-          // ⚠ The client gave up before the server did. Not a refusal — send them back to the email
-          // step, address intact, where one tap gets a fresh code.
+          // The client gave up before the server: back to the email step, address kept, for a fresh code.
           challengeLive.current = false
           setError(authErrorMessage(err, "code"))
           back()
@@ -208,12 +163,9 @@ export function SignInForm() {
     </AltJourney>
   )
 
-  // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
+  // Step 3: the code
   if (step === "code") {
-    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
-    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
-    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
-    // message is now handed to the step, which owns the single region (defect D-05).
+    // One error region: the journey's message is handed to the step.
     return (
       <CodeStep
         parentError={error}
@@ -229,17 +181,12 @@ export function SignInForm() {
     )
   }
 
-  // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
-  //
-  // ⚠ ONE `<form>`, WITH THE EMAIL INPUT ALWAYS MOUNTED. On the password step it is hidden but still
-  // present and still `autocomplete="username"`, because a password manager pairs a username field
-  // with a password field to fill and — much more fragilely — to SAVE. Unmounting it is exactly the
-  // breakage that identifier-first flows are known for.
+  // Steps 1 and 2: the credential. One `<form>` with the email input always mounted (hidden on the
+  // password step, still `autocomplete="username"`), so password managers can fill and save.
   const onPassword = step === "password"
   const changeAddress = () => {
     setError(null)
-    // A new step starts clean — carrying "enter your password" back onto the email step would shout
-    // about a field that is no longer the one being asked for.
+    // A new step starts clean.
     validation.reset()
     back()
   }
@@ -247,7 +194,7 @@ export function SignInForm() {
     <StepShell
       title={onPassword ? "Enter your password" : "Sign in to Effy"}
       subtitle={onPassword ? <>Signing in as {address}</> : "It's good to see you again."}
-      // FR-019 — say WHY we are asking now. The customer was browsing happily a moment ago.
+      // Say why we are asking now.
       notice={
         onPassword || next === "/" ? undefined : next.startsWith("/checkout") ? (
           <NoticeCard
@@ -268,8 +215,7 @@ export function SignInForm() {
           </NoticeCard>
         )
       }
-      // ⚠ The opposite journey is a FOOTER, not an action — it belongs at the foot of the screen,
-      // furthest from the thing the shopper came here to do.
+      // The opposite journey is a footer, furthest from the main action.
       footer={joinLink}
     >
         <ReasonNotice reason={reason} />
@@ -277,18 +223,11 @@ export function SignInForm() {
 
         <form
           className="space-y-4"
-          // ⚠ `noValidate` — the ATTRIBUTES stay (autofill, semantics, mobile keyboards); only the
-          // browser's own bubble is suppressed, and replaced by a message beside the field in the
-          // platform's treatment (V-06). Removing the attributes instead would break password-manager
-          // pairing, which FR-040 forbids.
+          // `noValidate`: the attributes stay (autofill, keyboards); only the browser bubble is replaced.
           noValidate
           onSubmit={(e) => {
             e.preventDefault()
-            // ⚠ NOTHING IS SENT UNTIL THIS PASSES (FR-009, V-14). Before 044 the browser blocked an
-            // empty address on THIS step — but not on the password step, where the email input is
-            // `readOnly` and therefore barred from constraint validation entirely, so an empty
-            // address reached `signInWithPassword("")` and came back as "Something went wrong."
-            // (BASELINE.md, D-11). And `person@example` was never refused anywhere.
+            // Nothing is sent until this passes (the read-only email on the password step is exempt from native validation).
             if (
               !validation.check(
                 onPassword
@@ -296,24 +235,14 @@ export function SignInForm() {
                   : [["email", address]],
               )
             ) {
-              // ⚠ THE MESSAGE HAS NOWHERE VISIBLE TO GO ON THE PASSWORD STEP. The email input is
-              // still mounted there (FR-040 — password managers pair it with the password to fill
-              // and to SAVE) but it is inside a hidden container, so its message renders hidden too.
-              // An invalid address at this point is a STEP-level problem, not a field-level one: go
-              // back to the step that asks for it, where the message is visible and actionable.
-              //
-              // ⚠ Found by the e2e, which reported "resolved to <p>Enter your email address.</p> —
-              // unexpected value hidden". Showing an invisible error is only marginally better than
-              // the "Something went wrong." this replaced.
+              // On the password step the email's message would render hidden, so an invalid address sends the shopper back to the email step.
               if (onPassword && messageFor(FIELDS.email, address)) back()
               return
             }
             run(
               async () => {
                 if (onPassword) {
-                  // ⚠ THE RESULT IS CHECKED. Cognito can answer a correct password with a further
-                  // step (an address never confirmed, a forced reset); treating that as signed in
-                  // sent the customer away still signed out.
+                  // The result is checked: a correct password can still need a further step.
                   const result = await signInWithPassword(address, password)
                   if (!result.isSignedIn) {
                     setError("We couldn't sign you in with a password. Email yourself a code instead.")
@@ -340,8 +269,7 @@ export function SignInForm() {
               onChange={setEmail}
               onBlur={() => validation.blur("email", email)}
               error={validation.show("email", address)}
-              // ⚠ `username`, not `email`. Managers key their stored credential on the field they
-              // recognise as the username; `type="email"` alone is not that signal.
+              // `username`, not `email`: password managers key stored credentials on it.
               autoComplete="username"
               required
               readOnly={onPassword}
@@ -353,8 +281,7 @@ export function SignInForm() {
           {onPassword && (
             <PasswordField
               label="Password"
-              // ⚠ FR-019 — reset lives on the password step, beside the field the person who needs
-              // it is looking at.
+              // Reset sits on the password step, beside the field.
               labelAction={
                 <Link href="/reset-password" className={quietActionClass}>
                   Forgot your password?
@@ -384,11 +311,7 @@ export function SignInForm() {
                 return
               }
               setError(null)
-              // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
-              // without a usable address produces a screen that can refuse but cannot explain — the
-              // email input there is deliberately hidden (FR-040), so its message renders hidden
-              // too. This is how the shopper ended up being told "Something went wrong." about an
-              // address they had never typed (BASELINE.md, D-11).
+              // The identifier comes first: no credential step without a usable address.
               if (!validation.check([["email", address]])) return
               validation.reset()
               go("password")
@@ -406,7 +329,7 @@ export function SignInForm() {
               testId="google-signin"
               disabled={pending}
               onUnavailable={(message) => {
-                // ⚠ Sizes the demand for the Google slice this feature deliberately did not build.
+                // Measures demand for Google sign-in.
                 capture({ name: "auth_google_unavailable", props: { flow: "sign_in" } })
                 setError(message)
               }}

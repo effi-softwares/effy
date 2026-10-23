@@ -1,9 +1,4 @@
-// Repository for shop team management (057, US7): raw SQL, shop-scoped.
-//
-// ⚠ IT WRITES THE SAME RECORDS BACK-OFFICE ALREADY OWNS (`public.shop_staff` /
-// `public.shop_staff_role`, 007/009). There is no shop-local roster and there must never be one —
-// FR-019 forbids a second system of record, and two rosters that can disagree is worse than one
-// nobody can edit.
+// Writes the same `shop_staff` records back-office owns; there is no shop-local roster.
 import { query, withTransaction } from "@effy/edge-shared";
 
 import type { ShopRole, ShopTeamMemberDTO } from "@effy/shared-types";
@@ -46,16 +41,8 @@ export async function listTeam(shopId: string, callerSub: string): Promise<ShopT
 }
 
 /**
- * What we already know about this email at this shop — the check the invite path must make BEFORE
- * provisioning anything.
- *
- * ⚠ THIS EXISTS BECAUSE 009's `ensureShopUser` SILENTLY RE-ENABLES A DISABLED ACCOUNT, and this
- * feature's own research (R5) claimed it was safe to reuse as-is. It is not, for THIS caller. That
- * behaviour was written for a back-office admin deliberately managing shops, where reviving an
- * account is a documented break-glass. A shop manager typing a departed colleague's work email has no
- * idea anyone was ever stood down — and would be told "invited" while that person's sign-in came back
- * to life. 056 records the identical defect on the driver path and fixed it by REFUSING and naming
- * the situation, which is what happens here.
+ * What is known about this email at this shop, checked before provisioning: `ensureShopUser` silently
+ * re-enables a disabled account, so a reused email is refused instead.
  */
 export async function findByEmail(
   shopId: string,
@@ -72,7 +59,7 @@ export async function findByEmail(
   return { staffId: row.staff_id, status: row.status, sameShop: row.shop_id === shopId };
 }
 
-/** Idempotent upsert keyed on the verified Cognito subject — the 007/009 join key. */
+/** Idempotent on the verified Cognito subject. */
 export async function upsertMember(
   shopId: string,
   sub: string,
@@ -102,7 +89,7 @@ export async function upsertMember(
   });
 }
 
-/** Roles are REPLACED, not added to — a "change role" that left the old one attached grants both. */
+/** Replaced, not added to, or a role change would grant both. */
 export async function setRole(shopId: string, staffId: string, role: ShopRole): Promise<string> {
   return withTransaction(async (tx) => {
     const member = await tx.query<{ email: string | null }>(
@@ -132,12 +119,8 @@ export async function deactivate(shopId: string, staffId: string): Promise<strin
 }
 
 /**
- * How many ACTIVE managers this shop would still have if `excludingStaffId` were removed.
- *
- * ⚠ THE LAST MANAGER MUST NOT BE REMOVABLE. A shop with no active manager cannot invite anyone, cannot
- * change a role, and cannot refund — it locks itself out permanently, and only back-office can undo
- * it. Counted inside the same transaction as the write it guards, because two managers standing each
- * other down simultaneously would each see one remaining.
+ * Active managers left if `excludingStaffId` went. The last manager is not removable. Counted in the
+ * same transaction as the write, so two managers standing each other down cannot both succeed.
  */
 export async function activeManagersExcluding(
   shopId: string,

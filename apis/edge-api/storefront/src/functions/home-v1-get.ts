@@ -1,4 +1,3 @@
-// GET /storefront/v1/home — the merchandised Home: banners + product rails. Public.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";

@@ -57,11 +57,11 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * THE PRODUCT TILE — one for every product listing in the app (Product card board).
+ * The product tile — one for every product listing in the app (Product card board).
  *
  * A grey image well (8dp corners, no border, no shadow — the well separates it from the page), the
  * Sale badge top-left, the save heart top-right ([imageOverlay]), and the ADD button bottom-right:
- * a white "+" that MORPHS into a blue quantity stepper once the product is in the cart (Motion board,
+ * a white "+" that morphs into a blue quantity stepper once the product is in the cart (Motion board,
  * 250ms). Below: brand, name (two lines), price in tabular bold with the struck price and the saving
  * in Effy green.
  *
@@ -102,7 +102,7 @@ fun EffyProductCard(
         ) {
             ProductImage(product.imageUrl, product.name, modifier = Modifier.fillMaxSize())
 
-            // 094 — an offer on the product leads: it is what the cart will apply.
+            // An offer on the product leads: it is what the cart will apply.
             if (product.offerLabel != null && product.available) {
                 EffySaleBadge(modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.s), text = product.offerLabel)
             } else if (product.badges.contains(ProductBadge.ON_SALE) || percentOff != null) {
@@ -128,7 +128,7 @@ fun EffyProductCard(
             imageOverlay?.invoke(this)
 
             if (onCartQuantityChange != null && product.available && product.variantCount > 1) {
-                // 098 — sold in several sizes: the shopper chooses on the product page; never a guessed size.
+                // Sold in several sizes: the shopper chooses on the product page; never a guessed size.
                 TileChooseControl(
                     name = product.name,
                     onClick = { onClick(product.id) },
@@ -169,7 +169,7 @@ fun EffyProductCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // 098 — sizes at different prices: the lowest, said as a lowest.
+            // Sizes at different prices: the lowest, said as a lowest.
             if (product.priceVaries) {
                 Text("From", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -190,7 +190,7 @@ fun EffyProductCard(
     }
 }
 
-/** 098 — the tile's control for a product sold in several sizes: "Choose" opens the product. */
+/** The tile's control for a product sold in several sizes: "Choose" opens the product. */
 @Composable
 private fun TileChooseControl(name: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
@@ -256,7 +256,7 @@ private fun TileCartControl(
     }
 }
 
-// ── Home rails ──────────────────────────────────────────────────────────────────────────────────
+// Home rails
 
 /** Vertical gap between Home's blocks. */
 val HomeSectionGap = EffySpacing.xl + EffySpacing.s
@@ -265,7 +265,7 @@ val HomeSectionGap = EffySpacing.xl + EffySpacing.s
 val RailItemGap = EffySpacing.md
 
 /**
- * How much of the window ONE rail tile occupies — 2.2 tiles on a phone (Foundations board), so the
+ * How much of the window one rail tile occupies — 2.2 tiles on a phone (Foundations board), so the
  * third peeks and the rail reads as scrollable. None of these divide 1.0 evenly (RailSizingTest).
  */
 fun railTileWidthFraction(width: WindowWidth): Float = when (width) {
@@ -295,19 +295,16 @@ fun EffyRailTile(
     )
 }
 
-// ── Banners ─────────────────────────────────────────────────────────────────────────────────────
+// Banners
 
 /** The width a banner renders at: the full width on a phone, capped (and centred) beyond that. */
 fun bannerRenderWidth(available: Dp): Dp =
     if (available <= EffyBanner.maxRenderWidth) available else EffyBanner.maxRenderWidth
 
 /**
- * A promotional banner (Main and Offer boards; 029 canvas).
- *
- * ⚠ NO GRADIENT (constitution: flat fills only; 087 removed the dark vertical scrim). Over artwork the
- * message sits on a FLAT black panel at the bottom-left — the storefront's "banner artwork, white
- * type" treatment — so its contrast is known whatever the photograph does. With no artwork the
- * banner is a flat Effy-green panel with white type (Foundations: "promo grounds").
+ * A promotional banner. Flat fills only: over artwork the message sits on a flat black panel at the
+ * bottom-left, so its contrast is known whatever the photograph does; with no artwork it is a flat
+ * Effy-green panel with white type.
  */
 @Composable
 fun EffyPromoBanner(
@@ -413,13 +410,13 @@ fun EffyCategoryShortcut(
 }
 
 /**
- * THE HOME HERO (Main board, "This week's offer") — a flat Effy-green panel, 232dp, with white type:
- * a small uppercase eyebrow, a 26sp bold headline, one sentence, a WHITE "View offer" button, the
+ * The home hero (Main board, "This week's offer") — a flat Effy-green panel, 232dp, with white type:
+ * a small uppercase eyebrow, a 26sp bold headline, one sentence, a white "View offer" button, the
  * pager's dots bottom-right and the offer's glyph in a translucent circle top-right. The board's
  * decorative arcs are drawn, not downloaded.
  *
- * ⚠ FLAT, NOT A PHOTOGRAPH. The design's banners are colour and type; an operator's artwork is not
- * drawn here (Foundations: "promo grounds — banner artwork only, white type"). ⚠ The ground is the
+ * Flat, not a photograph. The design's banners are colour and type; an operator's artwork is not
+ * drawn here (Foundations: "promo grounds — banner artwork only, white type"). The ground is the
  * storefront's own green (`--brand`), not a new colour: the constitution allows the storefront no
  * third hue, so the board's violet offer card is drawn in Effy blue instead.
  */
@@ -441,7 +438,7 @@ fun EffyHeroBanner(
             .height(232.dp)
             .then(if (onClick != null) Modifier.effyPress(interactions, 0.99f) else Modifier)
             .clip(EffyStorefrontShape.banner)
-            // A promo ground carries WHITE type, so it is the light palette's green in both appearances.
+            // A promo ground carries white type, so it is the light palette's green in both appearances.
             .background(EffyRoles.promoGround)
             .then(if (onClick != null) Modifier.clickable(interactionSource = interactions, indication = null, onClickLabel = title, onClick = onClick) else Modifier),
     ) {
@@ -472,7 +469,7 @@ fun EffyHeroBanner(
 }
 
 /**
- * An OFFER CARD in the Home "Offers" row (Main board): 300×150, a flat ground with white type, an
+ * An offer card in the Home "Offers" row (Main board): 300×150, a flat ground with white type, an
  * uppercase eyebrow ("Offer" or "Code"), a 20sp title, and either "View offer →" or the code in a
  * dashed box. [alternate] switches the ground from Effy blue to Effy green.
  */

@@ -155,3 +155,27 @@ Open findings for the operator:
 - Container-test fixtures still create orders with no `delivery_type`: fixed together with Phase 5's NOT NULL.
 - Effy planner/dispatch code still handles "a package with no window" (orders before 069); every Effy order
   now has one — verify and remove with Phase 5.
+
+## Phase 4 — comments (done 2026-10-23)
+
+Every surface's comments rewritten to say what the code does now: feature numbers, dates, defect stories and
+"used to" history removed, including SQL `--` comments inside TypeScript strings. Verified code-identical
+outside an explicit list of intentional edits.
+
+## Phase 5 — one baseline migration (done 2026-10-23)
+
+- `db/migrations/` is ONE file, `20261023000000_baseline.sql`: the schema (pg_dump of all 92 migrations
+  plus the cleanup below, applied by goose and diffed back to identical) and its reference data (roles,
+  attributes, categories, product types, promotion groups and skins, policies, the "Any time" window).
+- Dropped: `delivery_model_v2_at`, `package_delivered_by`, `delivery_plan_is_complete`, the
+  `delivery_settings` v2 columns, `event_outbox`, `order.delivery_quote(_expires_at)`,
+  `shop_fulfillment.promised_ready_at`, `cart.currency`, `assignment_exclusion.wave_id/updated_at`,
+  `label_read.corrects_read_id`, `package_parcel.voided_by_sub`, `media_rendition.format`,
+  `feedback_reply.delivery_ok`, and the three empty `shop_ops_*` trigger hooks (6 triggers remain).
+- Tightened: a paid order has a type (a CHECK; checkout types the order before payment, so the column stays
+  nullable); `order_item` storage class and shop prices NOT NULL (their
+  COALESCE fallbacks removed); `assignment_exclusion.kind` NOT NULL.
+- Tests: migration-transition tests retired; every container test now loads the real baseline through
+  `migrationSql()` (moved to `@effy/edge-shared/testing`, no ranges); hand-written schemas gone.
+
+Still open: Effy planner/dispatch SQL still tolerates a package with no window (`opd.window_start IS NULL`).

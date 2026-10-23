@@ -4,18 +4,8 @@ import { OTP_TTL_SECONDS, decideNextStep, envelopeFromSession, verifyAnswer } fr
 import { CUSTOM_CHALLENGE, type ChallengeResult } from "./types.js";
 
 /**
- * US3 — expiry, single-use and supersession (035 T088; FR-008, FR-009, FR-010, SC-006).
- *
- * ⚠ TWO OF THESE THREE ARE STRUCTURAL, NOT ENFORCED BY A FLAG, and the tests are written to say so.
- *
- *  • **Single-use** (FR-009) has no `used` boolean anywhere. A consumed code belongs to a completed
- *    authentication session, and there is no API by which a completed session can be answered
- *    again. That is stronger than a flag, which could be checked and then raced.
- *  • **Supersession** (FR-010) likewise: each `InitiateAuth` mints a new Cognito `Session` with its
- *    own `challengeMetadata`. An older code cannot be submitted against a newer session, and the
- *    older session cannot be resumed without its own `Session` string, which the client discarded.
- *  • **Expiry** (FR-008) is the one that IS enforced in code, because nothing else can enforce it —
- *    see below.
+ * Single use and supersession are structural (a completed session cannot be answered again; each
+ * InitiateAuth gets its own Session). Expiry is the one enforced in code.
  */
 
 const KEY = "test-key-not-a-real-secret";
@@ -34,14 +24,10 @@ describe("expiry (FR-008)", () => {
   });
 
   it("⚠ is enforced HERE and not by AuthSessionValidity", () => {
-    // AuthSessionValidity bounds the Session token BETWEEN round trips and is REFRESHED on each
-    // one, so a shopper answering slowly three times would keep a stale code alive well past five
-    // minutes if we relied on it. Its range is also 3-15 minutes, so it cannot express 5 exactly
-    // AND leave room for three attempts.
+    // AuthSessionValidity refreshes on every round trip, so it cannot bound the code's life.
     expect(OTP_TTL_SECONDS).toBe(300);
 
-    // Simulate three slow attempts, each inside a refreshed session window but drifting past the
-    // code's own life. The code must die on wall-clock, not on session activity.
+    // Three slow attempts drifting past the code's life: it must die on wall-clock time.
     const attempts = [NOW + 120, NOW + 240, NOW + 360];
     const verdicts = attempts.map(
       (t) => verifyAnswer({ answer: "123456", envelope, key: KEY, nowSeconds: t }).ok,
@@ -62,10 +48,7 @@ describe("expiry (FR-008)", () => {
 
 describe("single use (FR-009)", () => {
   it("⚠ is structural — a consumed session has no envelope to answer again", () => {
-    // After a successful answer the session ends. `envelopeFromSession` on a session whose last
-    // entry is a SUCCESS still returns the envelope (Cognito would not call Create again), but
-    // there is no path that submits against it: DefineAuthChallenge returns issue-tokens and the
-    // flow is over. This test pins the shape rather than a flag that does not exist.
+    // After success the flow is over; this pins the shape, as no `used` flag exists.
     const envelope = { issuedAt: NOW, digest: digestCode("123456", KEY) };
     const consumed: ChallengeResult[] = [
       {
@@ -74,7 +57,6 @@ describe("single use (FR-009)", () => {
         challengeMetadata: encodeEnvelope(envelope),
       },
     ];
-    // The verify trigger is never reached again for this session — proven by the state machine.
     expect(decideNextStep(consumed, false)).toEqual({ kind: "issue-tokens" });
   });
 });
@@ -84,7 +66,7 @@ describe("supersession (FR-010)", () => {
     const first = { issuedAt: NOW, digest: digestCode("111111", KEY) };
     const second = { issuedAt: NOW + 30, digest: digestCode("222222", KEY) };
 
-    // The shopper requested a second code. Submitting the FIRST one against the second session:
+    // A second code was requested; the first is submitted against the second session.
     expect(verifyAnswer({ answer: "111111", envelope: second, key: KEY, nowSeconds: NOW + 60 })).toEqual(
       { ok: false, reason: "mismatch" },
     );

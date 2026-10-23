@@ -18,7 +18,7 @@ export function PrintReceipt() {
 /**
  * Put one line of a past order back in the cart.
  *
- * ⚠ It goes in at TODAY'S price and only if it can still be bought — the cart decides both, exactly
+ * It goes in at today's price and only if it can still be bought — the cart decides both, exactly
  * as it does for any other add. The receipt's own figures are a record and are not reused.
  */
 export function BuyLineAgain({
@@ -30,7 +30,7 @@ export function BuyLineAgain({
   unitPriceAmount,
   currency,
 }: {
-  /** 098 — the size that was sold; the same size goes back in the cart. */
+  /** The size that was sold; the same size goes back in the cart. */
   variantId: string
   variantLabel: string | null
   productId: string

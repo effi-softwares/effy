@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql, transactorFor } from "@effy/edge-shared";
+import { transactorFor } from "@effy/edge-shared";
+import { insertTestProduct, insertTestVariant, migrationSql } from "@effy/edge-shared/testing";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
-import { insertTestProduct, insertTestVariant } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -10,12 +10,8 @@ import { promotionPort } from "../promotions/pricing";
 import { createCartService, type CartService } from "./service";
 
 /**
- * 070 — the cart's SQL against the REAL schema.
- *
- * The service tests use an in-memory repository, so they prove the rules and never run a statement.
- * This proves the statements — and the three properties that only a real database can show: the
- * change-id guard and the mutation commit or roll back together; merge takes the maximum; and two
- * deliveries of one add, racing on separate connections, add once.
+ * Against a real database: the change-id guard commits or rolls back with the mutation, merge takes
+ * the maximum, and two racing deliveries of one add add once.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -27,10 +23,8 @@ let svc: CartService;
 let customerId: string;
 let otherCustomerId: string;
 let cartId: string;
-/** 098 — the VARIANT each name buys (a cart line is a variant), and its product. */
 const p: Record<string, string> = {};
 const prod: Record<string, string> = {};
-/** A change id is a uuid on the wire and in the table. */
 const chg = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 d("070 — cart repository against the real schema", () => {
@@ -58,8 +52,7 @@ d("070 — cart repository against the real schema", () => {
       p[name] = t.variantId;
       prod[name] = t.productId;
     }
-    // 098 — a second size of Milk: the same product, its own line, price and count. A product with
-    // two variants has an option to tell them apart (no two variants may share a combination).
+    // A second size of Milk: same product, its own line.
     const size = await one(`INSERT INTO public.product_option (product_id, position, name) VALUES ('${prod.Milk}', 1, 'Size') RETURNING id::text`);
     const [oneL, twoL] = (await pool.query<{ id: string }>(
       `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '1 L', 0), ($1, '2 L', 1) RETURNING id::text`, [size],
@@ -169,14 +162,15 @@ d("070 — cart repository against the real schema", () => {
   it("reorder is scoped to the owner in the WHERE clause", async () => {
     const orderId = (
       await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, grand_total_amount, delivery_address)
-         VALUES ($1, 'CRT-0001', 'paid', 4.50, 4.50, '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, 'CRT-0001', 'paid', 4.50, 4.50, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [customerId],
       )
     ).rows[0]!.id;
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       SELECT $1, product_id, id, shop_id, 'Milk', 4.50, 2, 9.00 FROM public.product_variant WHERE id = $2`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
+                                     shop_unit_price_amount, shop_line_subtotal_amount)
+       SELECT $1, product_id, id, shop_id, 'Milk', 4.50, 2, 9.00, 4.50, 9.00 FROM public.product_variant WHERE id = $2`,
       [orderId, p.Milk],
     );
     expect(await repo.orderItemsForReorder(otherCustomerId, orderId)).toBeNull();

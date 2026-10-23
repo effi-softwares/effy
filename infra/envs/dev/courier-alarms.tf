@@ -1,13 +1,6 @@
-# ---------------------------------------------------------------------------------------------
-# Courier parcels — 080-courier-fulfilment (Principle VII).
-#
-# ⚠ THE BLIND SPOT COURIER DELIVERY ADDS. A parcel that misses its courier's pickup — at the hub,
-# or at a supplier the courier never reached — fails nothing: no error, no red test, no log line.
-# The Courier tab in back-office shows it to whoever looks; these alarms are for when nobody does.
-#
-# The metric is emitted as CloudWatch EMF by edge-orders' `courierLateSweep` (every 30 minutes),
-# one count per place, zero included — the 067 review-queue pattern.
-# ---------------------------------------------------------------------------------------------
+# Courier parcels. A parcel that misses its courier's pickup (at the hub, or at a supplier) fails nothing;
+# back-office's Courier tab shows it, and these alarms are for when nobody looks. EMF from orders'
+# `courierLateSweep` (every 30 minutes), one count per place, zero included.
 
 locals {
   # where → what the operator reads in the alarm.
@@ -17,7 +10,7 @@ locals {
   }
 }
 
-# ⚠ LATE FOR TWO HOURS, NOT ONE SWEEP. A parcel handed over minutes after its cutoff is a normal
+# late for two hours, not one sweep. A parcel handed over minutes after its cutoff is a normal
 # day; four consecutive half-hourly counts of at least one is a parcel nobody has noticed.
 resource "aws_cloudwatch_metric_alarm" "courier_parcels_late" {
   for_each = local.courier_late_alarms
@@ -33,22 +26,16 @@ resource "aws_cloudwatch_metric_alarm" "courier_parcels_late" {
   datapoints_to_alarm = 4
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
-  # ⚠ MISSING DATA IS BREACHING: the sweep emits 0 when nothing is late, so "no data" means it has
+  # missing data is breaching: the sweep emits 0 when nothing is late, so "no data" means it has
   # stopped — the alarm going blind.
   treat_missing_data = "breaching"
   alarm_actions      = [aws_sns_topic.alerts.arn]
   ok_actions         = [aws_sns_topic.alerts.arn]
 }
 
-# ---------------------------------------------------------------------------------------------
-# Orders moved to courier by back-office — 081-courier-override-compensation (Principle VII).
-#
-# ⚠ AN EMERGENCY TOOL USED AS A ROUTINE ONE IS THE SIGNAL. Moving a paid Effy order to courier
-# breaks a promise to a customer and costs Effy the compensation. A few a day is a bad day; more
-# than that means the operation has a problem nobody has named — or the tool is being used for
-# something it is not for. The metric is EMF from edge-orders' delivery-move route, one per move,
-# by direction; only moves TO courier are counted here.
-# ---------------------------------------------------------------------------------------------
+# Orders moved to courier by back-office: an emergency tool used routinely is the signal (each move breaks a
+# promise and costs compensation). EMF from orders' delivery-move route, one per move by direction; only
+# moves to courier count here.
 
 resource "aws_cloudwatch_metric_alarm" "delivery_overrides_daily" {
   alarm_name          = "${module.shared.name_prefix}-delivery-overrides-daily"

@@ -1,15 +1,15 @@
 package com.effyshopping.customer.mobile.features.account.domain
 
 /**
- * Account closure — the domain shapes behind in-app account deletion (034 US3).
+ * Account closure — the domain shapes behind in-app account deletion.
  *
- * ⚠ The word is DELETE, everywhere and always. Nothing here offers to deactivate, disable, freeze or
+ * The word is DELETE, everywhere and always. Nothing here offers to deactivate, disable, freeze or
  * pause an account, and no such state is reachable: both documented App Review rejections in this
  * area were deactivation flows with a support agent in the loop, and that is the specific shape that
  * fails. Erasure runs automatically once requested.
  */
 
-/** Why closure is blocked. Only conditions the platform ACTUALLY models may appear (FR-042a). */
+/** Why closure is blocked. Only conditions the platform actually models may appear. */
 enum class ClosureBlockerKind {
     /** Checkout started, money not taken. The shopper resolves this themselves, in-app. */
     ORDER_AWAITING_PAYMENT,
@@ -19,12 +19,8 @@ enum class ClosureBlockerKind {
 }
 
 /**
- * One obligation standing between the shopper and deletion.
- *
- * ⚠ [clearsAtIso] IS NON-NULL BY CONSTRUCTION. FR-042 forbids a block that cannot state when it
- * ends, and this requirement has been wrong twice — first blocking forever on any unfulfilled order,
- * then bounding it at 30 days, which on a weekly-re-buy grocery platform still meant the most active
- * shoppers could never delete. A blocker that cannot say when it ends is unrepresentable here.
+ * One obligation standing between the shopper and deletion. [clearsAtIso] is non-null by construction: a
+ * blocker that cannot say when it ends is unrepresentable.
  */
 data class ClosureBlocker(
     val kind: ClosureBlockerKind,
@@ -43,16 +39,16 @@ data class ClosureBlocker(
         }
 }
 
-/** A category of data kept after erasure, and the reason — carried as DATA so it cannot drift. */
+/** A category of data kept after erasure, and the reason — carried as data so it cannot drift. */
 data class RetainedCategory(val category: String, val reason: String)
 
-/** Everything the shopper must see BEFORE any irreversible step (FR-040). */
+/** Everything the shopper must see before any irreversible step. */
 data class ClosurePreview(
     val blockers: List<ClosureBlocker>,
     val retained: List<RetainedCategory>,
     val eraseAfterIfRequestedNowIso: String,
     val activeRequest: ActiveClosureRequest?,
-    /** 074 FR-024 — points the customer would lose, and their value. Null when there are none. */
+    /** Points the customer would lose, and their value. Null when there are none. */
     val pointsHeld: Long? = null,
     val pointsValueAmount: String? = null,
 ) {
@@ -66,17 +62,17 @@ interface ClosureRepository {
     /** Read-only and side-effect free — safe to call on entry and again before confirming. */
     suspend fun preview(): ClosurePreview
 
-    /** Email the step-up code closure costs (FR-043). Returns the masked destination. */
+    /** Email the step-up code closure costs. Returns the masked destination. */
     suspend fun requestCode(): String
 
     /** Verify the code and close. Every session ends. Returns the date erasure becomes irreversible. */
     suspend fun close(code: String): String
 
-    /** Cancel a pending deletion during the grace window (FR-041a). */
+    /** Cancel a pending deletion during the grace window. */
     suspend fun restore()
 }
 
-// ── Use cases ─────────────────────────────────────────────────────────────────────────────────
+// Use cases
 
 class PreviewAccountClosure(private val closures: ClosureRepository) {
     suspend operator fun invoke(): ClosurePreview = closures.preview()

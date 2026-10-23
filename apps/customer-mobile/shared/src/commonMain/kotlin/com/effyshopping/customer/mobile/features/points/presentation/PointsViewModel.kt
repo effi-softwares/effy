@@ -15,9 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Effy points (074 US1) — `ViewModel → UseCase → Repository` (Principle VI).
+ * Effy points — `ViewModel → UseCase → Repository` (Principle VI).
  *
- * ⚠ THREE STATES, NOT TWO, as the payment-methods screen draws them: loading, a balance (which may be
+ * Three states, not two, as the payment-methods screen draws them: loading, a balance (which may be
  * zero), and "we could not ask". A failed read rendered as "0 points" is a false statement about the
  * customer's own account.
  */
@@ -33,7 +33,7 @@ data class PointsUiState(
 class PointsViewModel(
     private val getPoints: GetPoints,
     private val getOlderPoints: GetOlderPoints,
-    /** 071 — "your points changed, or the channel just (re)connected: read now". */
+    /** "your points changed, or the channel just (re)connected: read now". */
     liveChanges: Flow<Unit>,
 ) : ViewModel() {
 

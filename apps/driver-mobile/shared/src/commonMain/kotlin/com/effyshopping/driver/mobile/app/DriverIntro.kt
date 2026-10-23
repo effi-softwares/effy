@@ -40,34 +40,17 @@ import com.effyshopping.driver.mobile.core.theme.EffyRoles
 import kotlinx.coroutines.flow.first
 
 /**
- * THE LAUNCH INTRO — the customer app's (087), copied for the driver app (092) so both open the same way.
- * ⚠ THE DRIVER'S SPLASH IS ITS OWN MARK (packages/brand `logo-driver.svg`): the "e." whose full stop is
- * a small BLUE STEERING WHEEL. The first frame draws exactly that (the wheel is wider than the square
- * dot, so the letters are a little smaller — [SPLASH_CANVAS_UNITS]); the wheel then leads "e. → effy."
- * as the dot does in the customer app, and turns to the app's own blue as the ground does. Once the word
- * is complete, "DRIVER" fades in beneath it (operator direction), and leaves with the rest.
- * Differences: the status bar is set through [onDarkGround] (the driver app's PlatformUiController), and
- * motion is the driver app's reduced-motion flag (reduced: the letters fade in place).
+ * The launch intro, the customer app's adapted. The first frame is the native splash pixel for pixel: the
+ * driver mark (packages/brand `logo-driver.svg`), an "e." whose full stop is a small blue steering wheel
+ * (wider than the dot, so the letters are a little smaller: [SPLASH_CANVAS_UNITS]), drawn from Geist Bold
+ * outlines at the splash's size and place (iOS `LaunchLogo` at 192pt, Android's splash icon at 288dp).
  *
- * THE LAUNCH INTRO (087) — the native splash's "e." becomes "effy." letter by letter, then hands over to
- * the app.
+ * The wheel then leads e. → ef. → eff. → effy., dragging each letter out from behind the previous one, on
+ * the iOS curve, the word staying centred. Once complete, "DRIVER" fades in beneath it. After a short hold,
+ * and only once the session is known, the ground turns to the app's colours and the intro fades away. The
+ * status bar is set through [onDarkGround]; under reduced motion the letters fade in place.
  *
- * ⚠ THE FIRST FRAME IS THE NATIVE SPLASH, PIXEL FOR PIXEL, so the swap is invisible. The splash is the
- * brand's "e." mark (packages/brand `logo.svg`) on #09090B: the wordmark's own "e" and full stop, ×5,
- * centred in an 836.67-unit canvas that the platform draws at 192pt (iOS `LaunchLogo`, centred in the
- * SAFE AREA) or 288dp (Android's splash icon, centred in the WINDOW). This draws the same letter shapes
- * — outlined from Geist Bold in `packages/brand/src/wordmark.svg`, copied below — at the same size, in
- * the same place, on the same ground (`--foreground`, which IS #09090B).
- *
- * Then the FULL STOP LEADS: e. → ef. → eff. → effy. — in three steps the dot slides right and drags the
- * next letter out from behind the previous one (clipped at that letter's right edge, so nothing shows
- * through the e's counter), each step on the iOS curve; the word drifts so it stays centred. After a short hold — and only once the
- * session is known, so the app never appears half-restored — the ground turns white and the word black
- * (the light app's colours), and the intro fades away.
- *
- * ⚠ LIGHTWEIGHT: five paths parsed once, ONE animated clock, drawn in a Canvas — the clock is read only
- * in the draw phase, so a frame redraws and nothing recomposes. Reduce motion: the letters fade in
- * where they belong (no sliding).
+ * Five paths parsed once and one clock read only in the draw phase, so frames redraw without recomposing.
  */
 @Composable
 internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Boolean, onDarkGround: (Boolean) -> Unit, onFinished: () -> Unit) {
@@ -93,7 +76,7 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
     LaunchedEffect(darkGround) { ground.value(darkGround) }
 
     val ios = remember { platformTag() == "ios" }
-    // From the splash's fixed colours to the APP's: white ground + black word on the light theme; on the
+    // From the splash's fixed colours to the app's: white ground + black word on the light theme; on the
     // dark theme the ground stays near-black and the word white.
     val dark = EffyRoles.splashGround // #09090B — the splash ground (packages/brand SPLASH_GROUND)
     val light = MaterialTheme.colorScheme.background
@@ -203,14 +186,9 @@ private class IntroLetters {
     private val trailing = listOf(f1, f2, y)
 
     /**
-     * THE DOT LEADS (operator direction): e. → ef. → eff. → effy. In each step the full stop slides
-     * right to where it will sit after the next letter, and that letter is DRAGGED along behind it —
-     * its right edge held a fixed gap before the dot — emerging from behind the previous letter (it is
-     * clipped at that letter's right edge, so nothing shows through the e's counter). A letter stops
-     * at its own place; the dot moves on.
-     *
-     * The splash's "e." spans 0 … 75.3 (dot 6 units after the e) and centres on 44.2 vertically; the
-     * word keeps that line and stays centred as it grows.
+     * The dot leads: each step it slides right to where it will sit after the next letter, which is dragged
+     * behind it a fixed gap before the dot, emerging from behind the previous letter (clipped at its right
+     * edge). The splash's "e." spans 0 … 75.3 and centres on 44.2 vertically; the word keeps that line.
      */
     fun draw(scope: DrawScope, p: FloatArray, reduced: Boolean, unit: Float, ink: Color, dotColour: Color) = with(scope) {
         // Where the dot rests after each step: 6 units after e, f, f — and tucked into the y's tail.
@@ -236,7 +214,7 @@ private class IntroLetters {
                 for (i in 1..3) {
                     val alpha = if (reduced) p[i - 1] else 1f
                     if (alpha <= 0f) continue
-                    // Clip at the previous letter's CURRENT right edge: the letter emerges from behind it.
+                    // Clip at the previous letter's current right edge: the letter emerges from behind it.
                     val clipLeft = if (reduced) -1000f else rights[i - 1] + offset[i - 1]
                     clipRect(left = clipLeft, top = -1000f, right = 1000f, bottom = 1000f) {
                         translate(offset[i], 0f) { drawPath(trailing[i - 1], ink.copy(alpha = ink.alpha * alpha)) }
@@ -257,16 +235,16 @@ private class IntroLetters {
     }
 }
 
-// ── The wordmark's outlines, from packages/brand/src/wordmark.svg (Geist Bold, outlined) ─────────────
-// ⚠ Copied, not loaded: five short path strings cost nothing at launch, and loading the SVG would need
+// The wordmark's outlines, from packages/brand/src/wordmark.svg (Geist Bold, outlined)
+// Copied, not loaded: five short path strings cost nothing at launch, and loading the SVG would need
 // a resource read before the very first frame. If the wordmark is ever redrawn, copy these again.
 private const val PATH_E = "M0 44.2Q0 35.8 3.3 29.45Q6.6 23.1 12.7 19.65Q18.8 16.2 26.9 16.2Q34.8 16.2 40.75 19.7Q46.7 23.2 49.9 29.75Q53.1 36.3 53.1 45.2V48.2H15.5Q15.7 54.4 18.8 57.6Q21.9 60.8 27.3 60.8Q31.1 60.8 33.65 59.2Q36.2 57.6 37.3 54.3L52.4 55.2Q50.2 63.2 43.45 67.7Q36.7 72.2 27 72.2Q18.9 72.2 12.75 68.75Q6.6 65.3 3.3 58.95Q0 52.6 0 44.2ZM26.9 27.3Q22.1 27.3 19.1 30.4Q16.1 33.5 15.5 39H37.8Q37.5 33.3 34.6 30.3Q31.7 27.3 26.9 27.3Z"
 private const val PATH_F1 = "M80.1 0H91.5V11.2H83.3Q80.2 11.2 78.8 12.7Q77.4 14.2 77.4 17.4V71H62.4V16.7Q62.4 8.6 66.8 4.3Q71.2 0 80.1 0ZM54.6 19.4H90.7V30.6H54.6Z"
 private const val PATH_F2 = "M119.9 0H131.3V11.2H123.1Q120 11.2 118.6 12.7Q117.2 14.2 117.2 17.4V71H102.2V16.7Q102.2 8.6 106.6 4.3Q111 0 119.9 0ZM94.4 19.4H130.5V30.6H94.4Z"
 private const val PATH_Y = "M140.7 74.8H147.8Q150.3 74.8 151.55 74.05Q152.8 73.3 153.5 71.4L154.7 68.3H150.6L131.7 17.4H147.1L159.3 54.3L170.9 17.4H186.2L165.6 76.1Q163.7 81.4 160.35 83.7Q157 86 150.9 86H140.7Z"
 /**
- * ⚠ 092 — THE DRIVER'S FULL STOP IS A STEERING WHEEL (packages/brand `logo-driver.svg`, scaled ÷5 into
- * wordmark units): a ring, a hub and three spokes, its left edge where the square dot's was (182) and its
+ * The driver's full stop is a steering wheel (packages/brand `logo-driver.svg`, scaled ÷5 into
+ * wordmark units): a ring, a hub and three spokes, its left edge where the square dot's was and its
  * foot on the baseline (71). The inner circle runs the other way, so it is a hole under non-zero filling.
  */
 private const val PATH_DOT =

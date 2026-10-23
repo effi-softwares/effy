@@ -72,7 +72,7 @@ private class FakePromoCatalog(private val result: () -> Promotion) : CatalogRep
 /**
  * What the promotion detail does with what it is handed.
  *
- * ⚠ The behaviour under test is mostly about REFUSALS, because that is where the value is. A shopper
+ * The behaviour under test is mostly about refusals, because that is where the value is. A shopper
  * who taps a banner for a promotion that was claimed out from under them while they scrolled must be
  * told it has ended — not shown terms that are void, and not invited to retry something that will
  * never succeed.
@@ -97,13 +97,13 @@ class PromotionViewModelTest {
         val state = vm.state.value
         assertTrue(state is PromotionUiState.Ready, "expected Ready, got $state")
         assertEquals("FIRST20", state.promotion.code)
-        // ⚠ It must actually go and read. Building the screen from the banner already on screen would
+        // It must actually go and read. Building the screen from the banner already on screen would
         // be cheaper and would happily show terms for a promotion that had since ended.
         assertEquals(1, repo.reads)
     }
 
     /**
-     * 404 is the answer for BOTH "never existed" and "no longer advertised" — deliberately, so nobody
+     * Is the answer for both "never existed" and "no longer advertised" — deliberately, so nobody
      * can enumerate the operator's private codes. The screen therefore treats it as "this offer has
      * ended", which is the only reading a shopper who arrived from a live banner can act on.
      */
@@ -146,7 +146,7 @@ class PromotionViewModelTest {
     }
 
     /**
-     * The one case where refresh DOES replace what is on screen. Keeping void terms visible because
+     * The one case where refresh does replace what is on screen. Keeping void terms visible because
      * "the shopper is looking at them" is the worse outcome — they would take a dead code to the cart.
      */
     @Test

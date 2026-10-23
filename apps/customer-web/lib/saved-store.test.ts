@@ -11,7 +11,7 @@ import {
 } from "./saved-store"
 
 /**
- * ⚠ These exist because the capability this replaces had ZERO tests on ANY surface — no Go test, no
+ * These exist because the capability this replaces had zero tests on any surface — no Go test, no
  * commonTest, no Vitest, no Playwright — despite 019's task list claiming "+ tests" for them. SC-014
  * is the requirement; this file is part of the evidence.
  */
@@ -39,7 +39,7 @@ describe("saved-store", () => {
   })
 
   /**
-   * ⚠ A version mismatch DISCARDS rather than migrates. A half-understood set is worse than an empty
+   * A version mismatch discards rather than migrates. A half-understood set is worse than an empty
    * one, because the shopper would trust it.
    */
   it("discards a payload from a different schema version", () => {
@@ -62,7 +62,7 @@ describe("saved-store", () => {
   })
 
   /**
-   * ⚠ REFERENCE STABILITY. useSyncExternalStore compares snapshots by reference; a fresh [] on every
+   * Reference stability. useSyncExternalStore compares snapshots by reference; a fresh [] on every
    * empty read looks like a changed snapshot and React trips an infinite render loop.
    */
   it("returns the identical empty reference on repeated reads", () => {
@@ -99,7 +99,7 @@ describe("saved-store", () => {
   it("adopt replaces the set wholesale", () => {
     adoptSaved(["a", "b"])
     adoptSaved(["b", "c"])
-    // ⚠ Replace, not merge — the platform is authoritative, and merging would resurrect items the
+    // Replace, not merge — the platform is authoritative, and merging would resurrect items the
     // shopper removed on another device.
     expect(readSavedIds()).toEqual(["b", "c"])
     expect(isSaved("a")).toBe(false)
@@ -118,7 +118,7 @@ describe("saved-store", () => {
   })
 
   /**
-   * ⚠ THE ASYMMETRY THAT MATTERS (FR-022). Unknown renders as UNSAVED, never as saved. A false
+   * The asymmetry that matters. Unknown renders as unsaved, never as saved. A false
    * "unsaved" costs one redundant, idempotent save; a false "saved" invites the destructive second
    * tap this whole feature exists to eliminate.
    */
@@ -128,10 +128,10 @@ describe("saved-store", () => {
     expect(isSaved("anything")).toBe(false)
   })
 
-  /* ── 068: named lists ───────────────────────────────────────────────────────────────────────── */
+  /* Named lists */
 
   /**
-   * ⚠ THE GUEST-SURVIVAL PROOF. This is byte-for-byte what a browser holds from before 068. For a
+   * The guest-survival proof. This is byte-for-byte what a browser holds from before 068. For a
    * guest it is the only copy of what they saved, and a version bump would discard it on deploy.
    */
   it("loads an envelope written before 068 with every id intact", () => {

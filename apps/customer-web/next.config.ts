@@ -1,15 +1,8 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  // Cache Components (research D3). This single flag replaces Next 15's experimental
-  // `dynamicIO` / `ppr` / `useCache` and INVERTS the default: everything is dynamic
-  // unless explicitly cached, and uncached data read outside a <Suspense> boundary is a
-  // BUILD ERROR, not a silent production regression.
-  //
-  // That build error is the point. It is what makes FR-005/FR-007 ("public pages MUST be
-  // cacheable") a compile-time gate rather than something we discover from a Lighthouse
-  // score three months from now. Do not disable it to make a page compile — the page is
-  // telling you it just went dynamic.
+  // Cache Components: everything is dynamic unless cached, and an uncached read outside <Suspense> is a
+  // build error. That error keeps public pages cacheable; do not disable it to make a page compile.
   cacheComponents: true,
 
   // The shared packages ship raw TypeScript (no build step), so Next compiles them itself.
@@ -17,7 +10,7 @@ const nextConfig: NextConfig = {
     "@effy/design-system",
     "@effy/shared-types",
     "@effy/api-client",
-    // 071 — ONLY its `/live` entry point is imported (the framework-free channel client). The package
+    // Only its `/live` entry point is imported (the framework-free channel client). The package
     // root pulls in the auth SDK and must never be imported here; `LiveRefresh.test.tsx` holds that.
     "@effy/web-kit",
     "@effy/legal-content",
@@ -35,7 +28,7 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-    // 086 — no page uses `next/image` any more: catalogue and promotion pictures come from the media
+    // No page uses `next/image` any more: catalogue and promotion pictures come from the media
     // CDN through `CatalogImage` (a plain <picture> offering the WebP copies the worker made at
     // upload), so nothing here is optimised and no remote host needs allowing. The S3 wildcard that
     // let presigned links through is gone with them. If `next/image` is ever reintroduced for a
@@ -47,18 +40,18 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   // `/browse` (the standalone category index) was retired by operator decision — the storefront
-  // now has ONE catalogue page, `/search` ("All products"), which category tiles already funnel
+  // now has one catalogue page, `/search` ("All products"), which category tiles already funnel
   // into via `?category=`. This permanent redirect keeps any indexed or externally-linked
   // `/browse` URL alive instead of 404-ing it, and tells search engines the page moved.
   async redirects() {
     return [
       { source: "/browse", destination: "/search", permanent: true },
-      // 084 — the message form moved under the help answers. The query (`?from=checkout`) rides along.
+      // The message form moved under the help answers. The query (`?from=checkout`) rides along.
       { source: "/feedback", destination: "/help", permanent: true },
     ]
   },
 
-  // 050 FR-028 — first-party reverse proxy for PostHog. Analytics + error tracking send to `/rc/*` on
+  // First-party reverse proxy for PostHog. Analytics + error tracking send to `/rc/*` on
   // our own origin (see lib/config.ts `ingestPath`), which Next rewrites to the PostHog host, so
   // tracking blockers can't drop the calls and no third-party host appears in the network tab. The
   // host is region config (us | eu), never a literal — matching NEXT_PUBLIC_POSTHOG_HOST.

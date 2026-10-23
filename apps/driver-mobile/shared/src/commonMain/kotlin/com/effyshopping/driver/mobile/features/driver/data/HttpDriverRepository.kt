@@ -27,7 +27,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * The driver repository over `edge-api/driver` (049). [driverApi] is the client built for
+ * The driver repository over `edge-api/driver`. [driverApi] is the client built for
  * `DRIVER_API_BASE_URL`, carrying the single access-token bearer. A transport failure becomes
  * `AppError.Network`. The DTO never escapes this layer (Principle VI).
  */

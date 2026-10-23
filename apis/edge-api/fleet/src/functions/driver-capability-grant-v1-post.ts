@@ -1,8 +1,4 @@
-// POST /fleet/v1/drivers/{driverId}/capabilities — grant one clearance (062 FR-003).
-// Mutate = admin/manager only.
-//
-// ⚠ Granting a clearance the driver already holds returns 200, NOT a conflict (FR-005). Two operators
-// doing it at once both succeed, and the outcome is correct either way.
+// Admin/manager. Already held returns 200, not a conflict.
 import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -23,7 +19,7 @@ export const handler = async (
   try {
     const body = parseBody<GrantCapabilityRequest>(event.body);
     const items = await grantCapability(event.pathParameters?.driverId ?? "", body, g.sub, scope);
-    await announceDispatch(); // 071 — committed; who can be given what work changed
+    await announceDispatch();
     return json(200, { items }, scope);
   } catch (err) {
     return mapFleetError(err, scope);

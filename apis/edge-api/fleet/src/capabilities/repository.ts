@@ -1,18 +1,6 @@
-// Repository for driver clearances (062): raw parameterized SQL, no ORM (Principle VI).
-//
-// ⚠ A CLEARANCE IS (function, area), ONE ROW EACH (082; 083 dropped the method column and the
-// duplicate rows it had allowed). `driver_zone_capability_uq` is on exactly that.
-//
-// ⚠ A GRANT IS IDEMPOTENT AND A REVOKE IS IDEMPOTENT, BY DESIGN (FR-005/FR-006). Two operators
-// granting the same clearance at the same moment must BOTH succeed — the outcome is correct either
-// way, and an error there would be a refusal with nothing to fix. `ON CONFLICT DO NOTHING` against
-// `driver_zone_capability_uq` is what makes that true, including for the NULL "every zone" row, which
-// a plain UNIQUE would NOT deduplicate.
-//
-// ⚠ THERE IS DELIBERATELY NO OPTIMISTIC-CONCURRENCY TOKEN HERE, unlike 061's vehicle edit. That
-// replaces scalar fields where last-writer-wins loses information; this adds and removes independent
-// rows, where there is nothing to overwrite. Same codebase, opposite answer, because the operations
-// are not the same shape.
+// A clearance is (function, area), one row each (`driver_zone_capability_uq`). Grant and revoke are
+// idempotent: two operators doing the same thing both succeed (`ON CONFLICT DO NOTHING`, which also
+// deduplicates the null every-zone row). No concurrency token: rows are added and removed, never overwritten.
 
 import {
   query,
@@ -32,20 +20,13 @@ function toCapability(r: CapabilityRow): DriverCapability {
     id: r.id,
     function: r.function as DriverCapability["function"],
     zoneId: r.zone_id,
-    // ⚠ NULL for an every-zone grant, never a server-supplied "All zones" string. The label is
-    // presentation; a second place naming the concept is a second place it can drift.
+    // Null for every zone; the label is presentation.
     zoneName: r.zone_name,
     grantedAt: r.created_at.toISOString(),
   };
 }
 
-/**
- * Every clearance a driver holds.
- *
- * ⚠ DISABLED ZONES ARE FILTERED HERE, NOT DELETED AT WRITE TIME. Disabling a zone is reversible; if
- * the grant were removed, re-enabling the zone would silently leave it uncovered until somebody
- * noticed and re-granted by hand. Every-zone grants are unaffected — they name no zone.
- */
+/** Disabled zones are filtered here, not deleted: re-enabling a zone restores its cover. */
 export async function listForDriver(driverId: string): Promise<DriverCapability[]> {
   const res = await query<CapabilityRow>(
     `SELECT c.id, c.function, c.zone_id, z.name AS zone_name, c.created_at
@@ -59,7 +40,7 @@ export async function listForDriver(driverId: string): Promise<DriverCapability[
   return res.rows.map(toCapability);
 }
 
-/** Grant. ⚠ Idempotent: returns the existing row's id when the clearance is already held (FR-005). */
+/** Returns the existing row's id when already held. */
 export async function grant(
   driverId: string,
   fn: string,
@@ -74,9 +55,7 @@ export async function grant(
     [driverId, fn, zoneId, grantedBySub],
   );
   if (res.rows[0]) return res.rows[0].id;
-  // Already held — or another operator's row landed at the same moment.
-  // ⚠ `IS NOT DISTINCT FROM`, not `=`: `NULL = NULL` is NULL in SQL and the every-zone row would
-  // never be found.
+  // Already held, or another operator's row landed at once. `IS NOT DISTINCT FROM`, so the null row is found.
   const held = await query<{ id: string }>(
     `SELECT id FROM public.driver_zone_capability
       WHERE driver_id = $1 AND function = $2 AND zone_id IS NOT DISTINCT FROM $3`,
@@ -85,7 +64,7 @@ export async function grant(
   return held.rows[0]!.id;
 }
 
-/** Revoke by id. ⚠ Returns false when it was not there — a no-op, not a failure (FR-006). */
+/** false when it was not there: a no-op. */
 export async function revoke(driverId: string, capabilityId: string): Promise<boolean> {
   const res = await query<{ id: string }>(
     `DELETE FROM public.driver_zone_capability WHERE id = $1 AND driver_id = $2 RETURNING id`,
@@ -94,7 +73,7 @@ export async function revoke(driverId: string, capabilityId: string): Promise<bo
   return (res.rowCount ?? 0) > 0;
 }
 
-/** Breadth of clearance for the register (FR-014). ⚠ A summary, never the full set. */
+/** A summary for the register, never the full set. */
 export async function summariseForDrivers(
   driverIds: string[],
 ): Promise<Map<string, DriverCapabilitySummary>> {
@@ -131,8 +110,7 @@ export async function summariseForDrivers(
   return out;
 }
 
-/** Look up a zone for validation. ⚠ Carries `status` so a DISABLED zone can be refused at grant time
- *  with a message naming it, rather than accepted and silently never matched. */
+/** Carries `status`, so a disabled zone is refused at grant time by name. */
 export async function findZone(zoneId: string): Promise<{ id: string; name: string; status: string } | null> {
   const res = await query<{ id: string; name: string; status: string }>(
     `SELECT id, name, status FROM public.delivery_zone WHERE id = $1`,

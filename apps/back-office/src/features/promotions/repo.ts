@@ -18,7 +18,7 @@ import { api } from "@/lib/api";
 
 import type { AuditEntry, OrderPolicy, PromotionListParams, UpdateOrderPolicyRequest } from "./model";
 
-// The data layer for back-office promotions (094) and the order rules. Screens never touch the api
+// The data layer for back-office promotions and the order rules. Screens never touch the api
 // client directly (Principle VI). All routes are the admin service's, on the staff gateway.
 
 function encode(p: PromotionListParams): string {
@@ -41,11 +41,11 @@ export const getPromotionHistory = (id: string) => api.get<AuditEntry[]>(`/admin
 export const getOrderPolicy = () => api.get<OrderPolicyDTO>("/admin/v1/order-policy");
 export const putOrderPolicy = (body: UpdateOrderPolicyRequest): Promise<OrderPolicy> => api.put<OrderPolicyDTO>("/admin/v1/order-policy", body);
 
-/** Products a promotion can target (094 US3), by name, SKU or brand. */
+/** Products a promotion can target, by name, SKU or brand. */
 export const searchPromotionProducts = (q: string) =>
   api.get<{ id: string; name: string; brand: string | null }[]>(`/admin/v1/promotions/products?q=${encodeURIComponent(q)}`);
 
-// ── chosen customers, single-use codes, performance (094 US6, US7, US9) ─────────────────────────
+// chosen customers, single-use codes, performance
 
 export const listChosenCustomers = (id: string, page = 1) => api.get<AdminPromotionCustomerListDTO>(`/admin/v1/promotions/${id}/customers?page=${page}`);
 export const addChosenCustomers = (id: string, body: { emails?: string[]; customerIds?: string[] }) =>
@@ -57,7 +57,7 @@ export const listCodes = (id: string, page = 1, state?: string) =>
 export const exportCodes = (id: string) => api.get<{ csv: string }>(`/admin/v1/promotions/${id}/codes/export`);
 export const getPerformance = (id: string) => api.get<AdminPromotionPerformanceDTO>(`/admin/v1/promotions/${id}/performance`);
 
-// ── 095 — pictures ──────────────────────────────────────────────────────────────────────────────
+// Pictures
 
 /** Upload a picture straight to storage (presigned), then record it with its description. */
 export async function addPromotionImage(promotionId: string, file: File, alt: string): Promise<AdminPromotionImageDTO> {

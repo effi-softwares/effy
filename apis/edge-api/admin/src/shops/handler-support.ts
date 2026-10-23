@@ -1,6 +1,3 @@
-// Shared handler support for the shops slice: the back-office auth guard, ShopError → problem+json
-// mapping, and domain → wire-DTO mappers. Keeps the 9 thin handlers free of repetition while each
-// still owns its own parse/authorize/map flow (ARCHITECTURE: no middleware framework).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -20,8 +17,7 @@ import type { AuditEntry, Paged, ShopDetail, ShopListItem, ShopUser } from "./ty
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
 
-/** Authenticate (401 if no sub) + authorize from the platform record (403), fail-closed to 503 on
- *  an infra error. `read` = any active staff; `mutate` = admin/manager (A1/FR-014). */
+/** 401, 403 from the staff record, 503 on infra error. `read`: any staff; `mutate`: admin/manager. */
 export async function guard(
   event: AuthedEvent,
   scope: RequestScope,
@@ -47,7 +43,7 @@ export async function guard(
   return { sub };
 }
 
-/** Map a domain error to problem+json. Unknown errors become 503 with the cause logged only. */
+/** Unknown errors become 503 with the cause logged only. */
 export function mapShopError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (isShopError(err)) {
     switch (err.kind) {
@@ -62,8 +58,6 @@ export function mapShopError(err: unknown, scope: RequestScope): APIGatewayProxy
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "shop op failed");
   return unavailable(scope);
 }
-
-// ── domain → wire DTO (never leak domain shapes past the handler) ──────────────────────────────
 
 export function toUserDTO(u: ShopUser): ShopUserDTO {
   return {

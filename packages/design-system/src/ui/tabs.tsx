@@ -24,9 +24,7 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        // ⚠ A 3px-padded `--muted` TROUGH at the container step. The padding is what makes the active
-        // segment read as sitting IN a track rather than as a button that happens to be adjacent —
-        // remove it and the control stops looking segmented at all.
+        // A 3px-padded `--muted` trough, so the active segment sits in a track.
         "inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground",
         className,
       )}
@@ -43,11 +41,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        // ⚠ THE ACTIVE SEGMENT IS A SOLID `--brand` FILL WITH WHITE TEXT AT 600 — not a raised white
-        // chip. shadcn's default lifts the active segment with `bg-background` + `shadow-sm`, which
-        // on a flat, shadowless design reads as a rendering artifact. The fill is also what ties the
-        // control to the one action colour: the selected tab and the primary button are the same
-        // statement.
+        // The active segment is a solid `--brand` fill with white text at 600, not a raised white chip.
         "inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-[color,background-color] outline-none focus-visible:ring-[3px] focus-visible:ring-muted disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-brand data-[state=active]:font-semibold data-[state=active]:text-primary-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4",
         className,
       )}
@@ -69,13 +63,7 @@ function TabsContent({
   )
 }
 
-/**
- * The optional count inside a segment: monospace at .65 opacity.
- *
- * ⚠ It dims rather than changing colour, so ONE rule works on both an active segment (white on
- * cobalt) and an inactive one (muted on the trough). A second colour would need a variant per state
- * and would be wrong the moment a third state exists.
- */
+/** The count inside a segment: monospace at.65 opacity, so one rule works on active and inactive segments. */
 function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span

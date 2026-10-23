@@ -24,10 +24,8 @@ const total = (m: HandoverMixDTO) => m.scan + m.typed + m.manual;
 const pct = (n: number, of: number) => (of === 0 ? "—" : `${Math.round((n / of) * 100)}%`);
 
 /**
- * 096 US6 — how bags were handed over, and what went wrong (FR-063). Shops and drivers whose bags are
- * most often NOT scanned come first: they are the labels, printers and habits to fix.
- *
- * ⚠ TABLES AND DETAIL ROWS, NO METRIC CARDS (Principle V) — the per-1,000 figure is a row, not a tile.
+ * How bags were handed over, and what went wrong. Shops and drivers whose bags are most often not scanned
+ * come first: those are the labels, printers and habits to fix. The per-1,000 figure is a row, not a tile.
  */
 export function HandoverReportScreen() {
   const today = melbourneDay(new Date());

@@ -8,10 +8,7 @@ import type { VehicleCheckRequest, VehicleCheckResponse } from "@effy/shared-typ
 import { authenticate } from "../driver/guard";
 import { VehicleCheckError, submitVehicleCheck, validateAnswers } from "../vehicle/service";
 
-/**
- * POST /driver/v1/vehicle-check (093) — the driver's check of the vehicle they hold, once a day. An
- * unsafe answer is told to dispatch at once; the driver is given no work until it is cleared.
- */
+/** Once a day. An unsafe answer reaches dispatch at once, and the driver gets no work until it is cleared. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await authenticate(event, context);
   if (!guard.ok) return guard.response;
@@ -29,7 +26,6 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     const r = await submitVehicleCheck(guard.driver.id, body.changeId, answers);
     if (r.recorded) {
       emitMetric(metricNamespace(), "VehicleChecks", 1, { result: r.state });
-      // Dispatch's Exceptions list, and the planner's next pass picks the driver up (or leaves them out).
       await announce([{ scope: "ops", kind: "dispatch" }]);
     }
     const response: VehicleCheckResponse = { state: r.state };

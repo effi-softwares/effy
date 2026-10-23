@@ -52,7 +52,7 @@ const timeFmt = new Intl.DateTimeFormat("en-AU", {
 });
 const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "—");
 
-/** What each lifecycle move does, said before it is done (FR-019). */
+/** What each lifecycle move does, said before it is done. */
 const CONFIRM: Record<PromotionAction, { title: string; body: string; verb: string } | null> = {
   publish: null,
   resume: null,
@@ -62,7 +62,7 @@ const CONFIRM: Record<PromotionAction, { title: string; body: string; verb: stri
 };
 
 /**
- * One promotion (094): its state and the moves it allows, what it gives in the words shoppers read,
+ * One promotion: its state and the moves it allows, what it gives in the words shoppers read,
  * where it is shown, and every change. Sectioned detail rows — no metric tiles.
  */
 export function PromotionDetailScreen({ promoId }: { promoId: string }) {

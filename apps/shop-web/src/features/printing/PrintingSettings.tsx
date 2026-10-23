@@ -18,14 +18,14 @@ import {
 } from "@/features/fulfillment/labels/printer"
 
 /**
- * 096 — Settings → Printing (spec US2, research R11): which printer THIS computer prints bag labels on,
+ * Settings → Printing: which printer this computer prints bag labels on,
  * its resolution, and the label size. Remembered on this computer only — each shop PC drives its own
  * printer.
  *
  * Direct printing (no print dialog) is for Zebra label printers through Zebra Browser Print, Zebra's free
  * helper installed on this computer. Without it, labels print through the browser at their exact size.
  *
- * ⚠ SECTIONED ROWS, NOT CARDS (Principle V).
+ * Sectioned rows, not cards (Principle V).
  */
 export function PrintingSettingsScreen() {
   const [choice, setChoice] = useState<PrinterChoice>(rememberedPrinter)

@@ -7,9 +7,9 @@ import { DetailSection, Page } from "@/components/console/primitives"
 import { useNotifications } from "./useNotifications"
 
 /**
- * Notifications — one screen, five states (059, US1/US4).
+ * Notifications — one screen, five states.
  *
- * ⚠ SECTIONED ROWS, NOT CARDS (Principle V). Each notification type is a labelled row with a switch,
+ * Sectioned rows, not cards (Principle V). Each notification type is a labelled row with a switch,
  * which is the console's language for "a list of settings"; a grid of cards would make five
  * equal-weight tiles out of one list.
  */
@@ -55,8 +55,8 @@ function StateBlock({ state }: { state: State }) {
       )
 
     case "needs-install":
-      // ⚠ NOT a fallback for a missing API — on iPadOS this IS the route. The Push API is available
-      // only to a home-screen web app there, so permission cannot even be REQUESTED in a tab. An
+      // Not a fallback for a missing API — on iPadOS this IS the route. The Push API is available
+      // only to a home-screen web app there, so permission cannot even be requested in a tab. An
       // operator who never installs cannot be notified at all, which is why US2 is P1.
       return (
         <div className="grid gap-2">
@@ -75,7 +75,7 @@ function StateBlock({ state }: { state: State }) {
       )
 
     case "blocked":
-      // ⚠ NO TOGGLE HERE, DELIBERATELY (FR-026). A denied permission is NOT recoverable in-app on
+      // No toggle here, deliberately. A denied permission is not recoverable in-app on
       // any browser. A switch that silently does nothing teaches the operator the console is
       // broken; naming the situation is the only honest option, and the only path back.
       return (
@@ -92,7 +92,7 @@ function StateBlock({ state }: { state: State }) {
       )
 
     case "off":
-      // ⚠ PRIMING: what will be sent, BEFORE the browser prompt (FR-023). There is exactly one
+      // Priming: what will be sent, before the browser prompt. There is exactly one
       // prompt per browser per lifetime, and spending it before the operator knows what they are
       // agreeing to is how a console loses the ability to notify permanently.
       return (
@@ -132,7 +132,7 @@ function TypeToggles({ state }: { state: State }) {
             className="border-border flex items-center justify-between gap-5 border-b py-[11px]"
           >
             <label htmlFor={`notif-${t.type}`} className="text-[13.5px]">
-              {/* ⚠ The label comes from the SERVER, not from a list in this file. It is notification
+              {/* The label comes from the server, not from a list in this file. It is notification
                   copy, and copy lives in one catalogue — a console-local list would be a second
                   source for the wording the operator sees in the banner itself. */}
               {t.label}

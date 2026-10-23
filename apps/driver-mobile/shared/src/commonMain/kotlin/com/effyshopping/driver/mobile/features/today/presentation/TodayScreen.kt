@@ -95,7 +95,7 @@ import org.jetbrains.compose.resources.DrawableResource
  * driver works, with the duty toggle; under it the connection banners ([banners]), then the current run:
  * its progress, one card with the run's map and the next thing to do, what follows, and the rounds later.
  *
- * ⚠ No currency, ever. Every number here is a count.
+ * No currency, ever. Every number here is a count.
  */
 @Composable
 fun TodayScreen(
@@ -108,7 +108,7 @@ fun TodayScreen(
     onOpenReturn: (runId: String, scan: Boolean) -> Unit,
     onNavigate: (String) -> Unit,
     banners: @Composable () -> Unit = {},
-    /** 093 — answer today's vehicle check. */
+    /** Answer today's vehicle check. */
     onSubmitVehicleCheck: (List<com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer>) -> Unit = {},
 ) {
     var confirmOffDuty by remember { mutableStateOf(false) }
@@ -138,7 +138,7 @@ fun TodayScreen(
             val today = state.today
             when {
                 !onDuty -> OffDuty(busy = state.isTogglingDuty, onGoOnDuty = onToggleDuty)
-                // 093 — before any work, the vehicle is checked; until it is, none is given.
+                // Before any work, the vehicle is checked; until it is, none is given.
                 state.vehicleCheck == com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus.DUE ->
                     VehicleCheckForm(state.vehicleLabel, state.isSubmittingCheck, onSubmitVehicleCheck)
                 today == null && state.loadFailed -> DriverState(
@@ -235,7 +235,7 @@ private fun OnDuty(
     val toReturn = today.toReturn
     when {
         runId != null && active != null -> CurrentRun(today, runId, active, hub, onOpenRun, onOpenItem, onNavigate)
-        // 093 — a delivery run not yet loaded has one next step, before any drop.
+        // A delivery run not yet loaded has one next step, before any drop.
         today.loadStep != null -> LoadStepCard(today, today.loadStep, onOpenRun)
         toReturn != null -> ReturnStep(today, onOpenReturn, onNavigate, returning)
         else -> {
@@ -402,8 +402,8 @@ private fun RunCard(
     val hubStop = active.kind == TodayItem.Kind.HUB_CHECKIN
     val position = (today.progress?.done ?: 0) + 1
     val total = today.progress?.total ?: 0
-    // ⚠ The whole card opens the stop; its buttons (Navigate, Scan) keep their own actions — a child's
-    // click is consumed before the card's. The run map is NOT in here: it opens the run, so it sits with
+    // The whole card opens the stop; its buttons (Navigate, Scan) keep their own actions — a child's
+    // click is consumed before the card's. The run map is not in here: it opens the run, so it sits with
     // the run's heading above, not inside the stop's card.
     Column(
         Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
@@ -504,9 +504,9 @@ private fun TextLink(label: String, onClick: () -> Unit) {
     )
 }
 
-/** 088 — only parcels from failed drops are left: take them back to the hub (redesign `07 Today — return parcels`). */
+/** Only parcels from failed drops are left: take them back to the hub (redesign `07 Today — return parcels`). */
 /**
- * 093 — "Load the van": the first step of a delivery run, and the only one until it is done. The drops
+ * "Load the van": the first step of a delivery run, and the only one until it is done. The drops
  * are listed after it; none of them can be started before the van is loaded.
  */
 @Composable

@@ -5,24 +5,18 @@ import com.effyshopping.driver.mobile.core.opening.Opening
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
 
-/** Same-day delivery domain (049 US2). DTOs are mapped to these and never leak past the data layer. */
+/** Same-day delivery domain. DTOs are mapped to these and never leak past the data layer. */
 
 enum class DropStatus { STAGED, OUT_FOR_DELIVERY, EN_ROUTE, ARRIVED, DELIVERED, FAILED }
 /**
- * ⚠ `CODE` REMOVED BY 064 (FR-003). No delivery code exists anywhere on the platform —
- * `delivery_code` appears in no service, migration, contract or app — so a code proof could only
- * compare a value to itself. The backend refuses the method by name and the database CHECK excludes
- * it; leaving the case here would be a value nothing can ever produce, which is 059's dormant
- * `device.ts` shape. The WIRE enum keeps it, because the method is coming.
- *
- * ⚠ `CONTACTLESS` NOW CARRIES MEDIA. An unattended drop is the case most likely to become a dispute,
- * so it is the one that must be photographed (FR-002) — it goes through [CompleteWithMedia] like a
- * photo or a signature, and the method is what distinguishes "handed over" from "left at the door".
+ * How a delivery was proven. No code method: no delivery code exists, and the backend refuses it.
+ * `CONTACTLESS` carries a photograph (an unattended drop is the likeliest dispute) through
+ * [CompleteWithMedia], and the method tells "handed over" from "left at the door".
  */
 enum class ProofMethod { PHOTO, SIGNATURE, CONTACTLESS }
 enum class FailureReason { NOBODY_HOME, WRONG_ADDRESS, CUSTOMER_REFUSED, ACCESS_BLOCKED, OTHER }
 
-/** 093 — why a package did not go in the van. [OTHER] needs a note. */
+/** Why a package did not go in the van. [other] needs a note. */
 enum class MissingReason(val label: String, val wire: String) {
     NOT_AT_HUB("Not at the hub", "not_at_hub"),
     DAMAGED("Damaged", "damaged"),
@@ -30,7 +24,7 @@ enum class MissingReason(val label: String, val wire: String) {
     OTHER("Other", "other"),
 }
 
-/** 093 — one package the driver could not load, by its label code. */
+/** One package the driver could not load, by its label code. */
 data class NotLoaded(val code: String, val reason: MissingReason, val note: String? = null)
 
 data class DropSummary(
@@ -40,13 +34,13 @@ data class DropSummary(
     val customerSuburb: String,
     val packageCount: Int,
     val status: DropStatus,
-    /** 065 — what the drop holds, shown in the list without opening it. */
+    /** What the drop holds, shown in the list without opening it. */
     val summary: ClassSummary = ClassSummary.Empty,
-    /** 069 — the window the customer was sold; null for an order placed before 069. */
+    /** The window the customer was sold; null for an order placed before 069. */
     val window: DeliveryWindow? = null,
-    /** 096 — every bag of this drop's packages. */
+    /** Every bag of this drop's packages. */
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
-    /** 092 rev 2 — the street line, and how a finished drop ended. */
+    /** Rev 2 — the street line, and how a finished drop ended. */
     val street: String? = null,
     val completedAtIso: String? = null,
     val proofMethod: ProofMethod? = null,
@@ -60,39 +54,39 @@ data class DeliveryRun(
     val status: String,
     val drops: List<DropSummary>,
     /**
-     * 072 — when the round opens; null = open. A 5–7 pm delivery is on this phone from the moment it
+     * When the round opens; null = open. A 5–7 pm delivery is on this phone from the moment it
      * reaches the hub, and cannot be started until shortly before the window.
      */
     val opening: Opening? = null,
-    /** 072 — the end of the delivery window (or of the day), in the server's words. */
+    /** The end of the delivery window (or of the day), in the server's words. */
     val dueLabel: String? = null,
-    /** 088 — parcels from this run's failed drops, still to go back to the hub; null when none. */
+    /** Parcels from this run's failed drops, still to go back to the hub; null when none. */
     val toReturn: ParcelsToReturn? = null,
-    /** 092 rev 2 — the run map. */
+    /** Rev 2 — the run map. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
-    /** 093 — where the run is, in the server's words ("Out 2 of 6"); null from an older server. */
+    /** Where the run is, in the server's words ("Out 2 of 6"); null from an older server. */
     val stageLabel: String? = null,
 ) {
-    /** 093 — the van is not loaded yet: loading is the next step, and nothing on a drop can be done. */
+    /** The van is not loaded yet: loading is the next step, and nothing on a drop can be done. */
     val toLoad: Boolean get() = drops.any { it.status == DropStatus.STAGED }
 }
 
 /**
- * 088 — what the driver must bring back to the hub from a run's failed drops: how many, and the order
+ * What the driver must bring back to the hub from a run's failed drops: how many, and the order
  * numbers (no address). Returned all together, in one action.
  */
 data class ParcelsToReturn(
     val runId: String,
     val count: Int,
     val orders: List<String>,
-    /** 092 rev 2 — each parcel, for the Return to hub screen. */
+    /** Rev 2 — each parcel, for the Return to hub screen. */
     val parcels: List<ReturnParcel> = emptyList(),
 ) {
-    /** 096 — the bags to bring back. */
+    /** The bags to bring back. */
     val bagCodes: List<String> get() = parcels.flatMap { it.bags }.map { it.code }
 }
 
-/** 092 rev 2 — one parcel coming back: its order ref, label code, where it was for, why. 096 — and its bags. */
+/** Rev 2 — one parcel coming back: its order ref, label code, where it was for, why. 096 — and its bags. */
 data class ReturnParcel(
     val ref: String,
     val packageCode: String,
@@ -102,9 +96,9 @@ data class ReturnParcel(
 )
 
 /**
- * One physical package at a drop (065).
+ * One physical package at a drop.
  *
- * ⚠ LABELLED BY POSITION AND NOTHING ELSE. A package is one shop's portion, so any other label would
+ * Labelled by position and nothing else. A package is one shop's portion, so any other label would
  * name the shop — and hidden fulfilment is a product rule, not a UI choice.
  */
 data class DropPackage(
@@ -112,16 +106,16 @@ data class DropPackage(
     val fromShopCount: Int,
     val items: List<ManifestLine> = emptyList(),
     val summary: ClassSummary = ClassSummary.Empty,
-    /** 089 — the code on this package's label: bag 1's. */
+    /** The code on this package's label: bag 1's. */
     val packageCode: String,
-    /** 096 — this package's bags. */
+    /** This package's bags. */
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
 )
 
 /**
- * How the customer asked for the order to be handed over (066).
+ * How the customer asked for the order to be handed over.
  *
- * ⚠ A REQUEST, NEVER A RULE. The driver is told it and the proof chooser leads with it, but no way
+ * A request, never a rule. The driver is told it and the proof chooser leads with it, but no way
  * of completing the drop is ever removed: a customer who asked for "leave at the door" and then
  * opens it is handed the package, and a "meet at the door" customer who is not home is recorded as
  * a failed delivery, exactly as before.
@@ -140,30 +134,30 @@ data class Drop(
     val packages: List<DropPackage>,
     val status: DropStatus,
     val summary: ClassSummary = ClassSummary.Empty,
-    /** 066 — the customer's handover preference; null for none, and for every older order. */
+    /** The customer's handover preference; null for none, and for every older order. */
     val handover: Handover? = null,
-    /** 069 — the window the customer was sold; null for an order placed before 069. */
+    /** The window the customer was sold; null for an order placed before 069. */
     val window: DeliveryWindow? = null,
-    /** 065 — the last loaded copy, served with no connection. See `ShopStop.stale`. */
-    /** 072 — when this drop's round opens; null = open. Every action on the drop waits for it. */
+    /** The last loaded copy, served with no connection. See `ShopStop.stale`. */
+    /** When this drop's round opens; null = open. Every action on the drop waits for it. */
     val opening: Opening? = null,
     val stale: Boolean = false,
-    /** 092 — the customer's phone, sent only while the drop is open; null when there is none to call. */
+    /** The customer's phone, sent only while the drop is open; null when there is none to call. */
     val customerPhone: String? = null,
 ) {
     /**
-     * 093 — the van has been loaded with this drop. Until it is, the platform refuses every action on
+     * The van has been loaded with this drop. Until it is, the platform refuses every action on
      * it ("Load the van first"), and the drop screen offers none.
      */
     val loaded: Boolean get() = status != DropStatus.STAGED
 }
 
 /**
- * Everything the customer told the driver, as ONE block the instruction callout shows: the handover
+ * Everything the customer told the driver, as one block the instruction callout shows: the handover
  * preference in words, then their note exactly as typed. Null when they said nothing — and the
- * screens then draw no instruction area at all (066 FR-021), never a placeholder.
+ * screens then draw no instruction area at all, never a placeholder.
  *
- * ⚠ The note is customer-authored free text. It is shown through a plain `Text` and never parsed.
+ * The note is customer-authored free text. It is shown through a plain `Text` and never parsed.
  */
 val Drop.driverInstructions: String?
     get() = listOfNotNull(handover?.driverSentence, instructions?.trim()?.takeIf { it.isNotEmpty() })
@@ -174,13 +168,13 @@ interface DeliveryRepository {
     suspend fun getRun(runId: String): DeliveryRun
     suspend fun getDrop(dropId: String): Drop
     suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome
-    /** Presign → upload the image bytes → complete. QUEUED when there was no signal (backlog B3). */
+    /** Presign → upload the image bytes → complete. Queued when there was no signal (backlog B3). */
     suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
     suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome
-    /** 088 — check every parcel from a run's failed drops back in at the hub. */
+    /** Check every parcel from a run's failed drops back in at the hub. */
     suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
     /**
-     * 090 — the van is loaded: every staged drop on the run goes out for delivery together. 093 — what
+     * The van is loaded: every staged drop on the run goes out for delivery together. 093 — what
      * could not be loaded is declared in [notLoaded]; it comes off the run and is held for dispatch.
      */
     suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()): WriteOutcome

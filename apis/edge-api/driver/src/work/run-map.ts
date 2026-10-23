@@ -1,11 +1,6 @@
-// THE RUN MAP (092 rev 2, decision D25) — where a run's stops roughly are, for a small schematic map on
-// the driver's screens.
-//
-// ⚠ DISPLAY ONLY. This is the ONE file in the driver service that reads a point (the no-location guard
-// names it). A stop's point is its POSTCODE'S PLACE — the locality the platform already holds for
-// delivery coverage — chosen by the stop's own suburb when the postcode spans several. Never a geocoded
-// address, never a device position (D22), and nothing that orders or assigns work reads it (D20).
-// Rough is the point: the map says "this side of town", not "this house".
+// Where a run's stops roughly are, for a schematic map. Display only, and the one file in this service
+// that reads a point (the no-location guard names it): a stop's point is its postcode's place, never a
+// geocoded address or a device position, and nothing that orders or assigns work reads it.
 
 import { query } from "@effy/edge-shared";
 import type { RunMapDTO, RunMapPoint, RunMapStop } from "@effy/shared-types";
@@ -26,17 +21,15 @@ const PLACES = `
 
 const HUB = `SELECT hub_latitude::float8 AS lat, hub_longitude::float8 AS lng FROM public.delivery_settings WHERE id = 1`;
 
-/** The hub's point; null when the hub is not set. */
+/** null when the hub is not set. */
 export async function hubPoint(): Promise<RunMapPoint | null> {
   const r = (await query<{ lat: number | null; lng: number | null }>(HUB)).rows[0];
   return r && r.lat !== null && r.lng !== null ? { lat: Number(r.lat), lng: Number(r.lng) } : null;
 }
 
 /**
- * The map of a round whose stops are [stops], ALREADY IN DISPLAY ORDER (the run list's order, so a
- * pin's number matches its row). A delivery run starts at the hub; a collection run ends there (its
- * hub check-in stop). [allDone] draws a finished run (History). Null when fewer than two points are
- * known — a map of one pin says nothing.
+ * [stops] already in display order, so a pin's number matches its row. A delivery run starts at the
+ * hub; a collection run ends there. Null with fewer than two known points.
  */
 export async function runMapOf(stops: StopRow[], kind: "collection" | "delivery", allDone = false): Promise<RunMapDTO | null> {
   const hub = await hubPoint();

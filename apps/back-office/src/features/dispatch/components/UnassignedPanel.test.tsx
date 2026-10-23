@@ -23,7 +23,7 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
   it("names the reason, not the enum", () => {
     render(<UnassignedPanel items={[item()]} />);
     expect(screen.getByText("Not cleared for this work")).toBeInTheDocument();
-    // ⚠ A raw enum explains nothing to the operator who has to decide whether to grant a clearance
+    // A raw enum explains nothing to the operator who has to decide whether to grant a clearance
     // or call somebody in.
     expect(screen.queryByText("not_cleared")).not.toBeInTheDocument();
   });
@@ -34,7 +34,7 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
     expect(screen.getByText(/Holding no vehicle/)).toBeInTheDocument();
   });
 
-  // ⚠ Two different problems. "Nobody is cleared" is a staffing decision; "everyone cleared failed a
+  // Two different problems. "Nobody is cleared" is a staffing decision; "everyone cleared failed a
   // condition" is a fixable list. Rendering both as "could not be assigned" hides which is happening.
   it("distinguishes no-candidate-at-all from a named failure", () => {
     render(<UnassignedPanel items={[item({ reasons: [] })]} />);
@@ -51,15 +51,15 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
     expect(screen.getByText(/2 packages with no driver/)).toBeInTheDocument();
   });
 
-  // ⚠ 062's lesson: a text query can match something incidental and pass vacuously. Anchoring on the
-  // heading ELEMENT proves the section rendered, not that the words appear somewhere.
+  // 062's lesson: a text query can match something incidental and pass vacuously. Anchoring on the
+  // heading element proves the section rendered, not that the words appear somewhere.
   it("renders as a labelled section, not loose text", () => {
     render(<UnassignedPanel items={[item()]} />);
     const heading = screen.getByRole("heading", { name: /Needs a driver/ });
     expect(heading).toBeInTheDocument();
   });
 
-  // 072 — a hub-side package nobody can deliver was not on this screen at all before.
+  // A hub-side package nobody can deliver was not on this screen at all before.
   it("says where the package is waiting, in words", () => {
     render(
       <UnassignedPanel

@@ -16,16 +16,9 @@ export interface EditorField {
 }
 
 /**
- * Edit one thing about the account in a dialog (reference: Account · Edit name, Change mobile
- * number): a centred dialog from `md`, a sheet from the bottom edge on a phone.
- *
- * ⚠ NOTHING IS AN ENTRY SURFACE UNTIL IT IS OPENED (034 FR-011). The fields exist only while the
- * dialog is open, so the page at rest holds no inputs — and a password manager has nothing to fill.
- *
- * ⚠ A CHANGED VALUE NEVER VANISHES SILENTLY (FR-018). Cancel, the close button and Escape all go
- * through the same question; an unchanged form just closes.
- *
- * ⚠ A FAILED SAVE KEEPS THE DIALOG OPEN WITH WHAT WAS TYPED, and says why, beside the fields.
+ * Edits one thing about the account in a dialog (centred from `md`, a bottom sheet on a phone). The
+ * fields exist only while it is open, so the page at rest has no inputs. A changed value never vanishes
+ * silently (cancel, close and Escape all ask), and a failed save keeps what was typed and says why.
  */
 export function FieldEditor({
   open,

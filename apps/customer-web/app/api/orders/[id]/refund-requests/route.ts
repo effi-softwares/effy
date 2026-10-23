@@ -1,9 +1,9 @@
 import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
- * Raise a refund request against an order (055 US3, FR-005r).
+ * Raise a refund request against an order.
  *
- * ⚠ IT MOVES NO MONEY. A form that withdrew money on submission would let anyone refund their own
+ * It moves no money. A form that withdrew money on submission would let anyone refund their own
  * order by describing a problem. This records an ASK; a person decides it.
  *
  * On the commerce service, beside the cancel route.

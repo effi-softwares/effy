@@ -30,7 +30,7 @@ describe("ErrorState", () => {
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
-  // The whole point of the contract: internal detail never reaches the DOM.
+  // Internal detail never reaches the DOM.
   it("never renders the problem detail, status code, or any internal string", () => {
     const { container } = render(<ErrorState error={domainError("unavailable", 503)} />);
     expect(container.textContent).not.toMatch(/SELECT|shop_staff|503/);

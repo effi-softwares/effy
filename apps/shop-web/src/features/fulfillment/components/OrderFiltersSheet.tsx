@@ -16,18 +16,10 @@ import {
 import { DELIVERED_BY_FILTER_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../orderConsole"
 
 /**
- * The Orders list's filters (057 A3 revision 3) — the design's `orderFilters` side sheet: right-hand,
- * full height, ~440px, a close button in its header, NO footer. Selections apply straight away (they
- * write the URL, which re-queries), so there is no Apply button. The result count and "Clear all" sit
- * under a rule at the end of the body.
- *
- * ⚠ THE DESIGN'S THREE SELECTS, IN EFFY'S TERMS:
- *   • Date — as designed.
- *   • Payment — the states a paid Effy order can be in. The design's "Authorized" does not exist:
- *     capture is automatic at checkout (055 R3).
- *   • Channel → Goes with (Effy driver / Courier — who takes the package away; 079). Effy sells through one channel, so the design's Online
- *     store / Instagram / Point of sale would be a select with one meaningful answer.
- * ⚠ No Fulfilment select — the status tabs on the page already do that job.
+ * The Orders list's filters: a right-hand sheet with no footer; selections apply at once (they write the
+ * URL), with the count and "Clear all" at the end. Date; Payment (the states a paid order can be in;
+ * capture is automatic, so no "Authorized"); Goes with (Effy driver / Courier). No Fulfilment select: the
+ * status tabs do that.
  */
 export function OrderFiltersSheet({
   open,

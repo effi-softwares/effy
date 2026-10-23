@@ -26,19 +26,15 @@ import com.effyshopping.customer.mobile.design.EffyStorefrontShape
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The customer app's visual vocabulary — the STOREFRONT identity on a phone (087; first built by 025).
+ * The customer app's visual vocabulary: the storefront identity on a phone. Shared parts live in this
+ * package by job: foundation (this file), motion, buttons, fields, selection, rows, indicators, states,
+ * product tiles, sheets, frame (headers, tab bar, pinned bars) and snackbars, each citing its board on the
+ * design canvas (`docs/reference-screens/Effy Customer Mobile/`). Customer-local, not
+ * `packages/mobile-kit` (the driver app compiles that).
  *
- * Everything a customer screen draws that is shared lives in this package, split by job:
- * foundation (this file), motion, buttons, fields, selection, rows, indicators, states, product
- * tiles, sheets, frame (headers, tab bar, pinned bars) and snackbars. Each component cites its board
- * on the design canvas (`docs/reference-screens/Effy Customer Mobile/`).
- *
- * ⚠ CUSTOMER-LOCAL, NOT `packages/mobile-kit`. The kit there is compiled into the shop and driver apps,
- * which keep the console identity; restyling it would restyle them.
- *
- * ⚠ The storefront rations colour: white ground, black text, zinc greys, Effy blue for EVERY action,
- * Effy green for Sale / savings / "Delivered by Effy" / paid ([com.effyshopping.customer.mobile.core.theme.EffyRoles]).
- * No red — an error is black with an icon. No colour literal belongs in a screen.
+ * Colour is rationed: white ground, black text, zinc greys, Effy blue for every action, Effy green for
+ * Sale / savings / "Delivered by Effy" / paid ([com.effyshopping.customer.mobile.core.theme.EffyRoles]).
+ * No red: an error is black with an icon. No colour literal in a screen.
  */
 
 /**
@@ -77,7 +73,7 @@ val EffyMinTouchTarget = EffySize.target
 val EffyButtonShape: RoundedCornerShape @Composable get() = EffyStorefrontShape.control
 
 /**
- * ── SURFACE ROLES ───────────────────────────────────────────────────────────────────────────────
+ * Surface roles
  *
  * The storefront is white with zinc wells. A product picture sits on [tint] (zinc-100); a loading
  * placeholder is one step stronger ([skeleton], the hairline grey) so it never reads as content.
@@ -144,7 +140,7 @@ fun EffyDisplay(
 /**
  * A merchandising section header: title on the left, "See all" in blue on the right (Main board).
  *
- * ⚠ The "See all" target is 48dp tall and carries the section name for a screen reader — three to six
+ * The "See all" target is 48dp tall and carries the section name for a screen reader — three to six
  * of these run down Home, and "See all" alone would be announced identically each time.
  */
 @Composable
@@ -181,7 +177,7 @@ fun EffyHairline(modifier: Modifier = Modifier, inset: Boolean = true) {
     )
 }
 
-// ── The product grid ────────────────────────────────────────────────────────────────────────────
+// The product grid
 
 /** Horizontal gutter between tiles. */
 val ProductGridGutter = EffySpacing.md

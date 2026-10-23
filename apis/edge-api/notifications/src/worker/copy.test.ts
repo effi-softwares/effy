@@ -10,13 +10,8 @@ import {
   type NotificationType,
 } from "./copy";
 
-// Wire contract (research R6, 028 precedent): the FCM `data` block the worker sends is what the mobile
-// deep-link handler parses. These pins fail loudly if a key or a deep-link shape drifts from what the
-// three apps route on. All values are NON-PII (FR-021).
-
-// ⚠ WRITTEN OUT, NOT IMPORTED FROM `NOTIFICATION_TYPES`. A list derived from the implementation
-// agrees with the implementation by construction and proves nothing — 027's R13 lesson. Adding a
-// type without adding it here is intended to fail the exhaustiveness check below.
+// The FCM `data` block is what the apps' deep-link handlers parse. The type list is written out, not
+// imported, so adding a type without adding it here fails the exhaustiveness check.
 const ALL: NotificationType[] = [
   "order_paid",
   "order_ready",
@@ -24,22 +19,16 @@ const ALL: NotificationType[] = [
   "order_delivered",
   "shop_new_order",
   "run_assigned",
-  // 059
   "shop_awaiting_pick",
   "shop_out_of_stock",
   "shop_low_stock",
   "shop_refund_proposed",
-  // 067
   "shop_product_approved",
   "shop_product_sent_back",
-  // 074
   "points_credited",
   "points_expiring",
-  // 080
   "order_with_courier",
-  // 081
   "order_delivery_changed",
-  // driver backlog D2
   "run_changed",
   "run_withdrawn",
   "run_opens_soon",
@@ -64,15 +53,8 @@ describe("notification copy + wire contract", () => {
   it("the data block carries exactly the keys both clients read", () => {
     const d = dataFor("order_paid", "order-123");
 
-    // ⚠ THIS KEY SET GREW IN 059, AND THE PIN IS THE POINT. It caught the growth the moment it
-    // happened, which is what a key-set assertion is for. Widening it is a deliberate act with a
-    // reason per key, not a repair:
-    //   • webPath  — a service worker cannot open `effy://`, and FCM's `fcmOptions.link` does not
-    //                work in an iOS home-screen PWA. The web destination has to travel here.
-    //   • title/body/tag/group — a WEB message is sent data-only (a `notification` block would make
-    //                the Firebase SDK render a second banner on top of ours), so the copy the
-    //                service worker displays has nowhere else to ride.
-    // Mobile ignores the four new keys and renders FCM's own `notification` block, unchanged.
+    // The key set is pinned. webPath: a service worker cannot open `effy://`. title/body/tag/group: web
+    // messages are data-only, so the copy rides here. Mobile ignores these four.
     expect(Object.keys(d).sort()).toEqual([
       "body",
       "deepLink",
@@ -86,8 +68,7 @@ describe("notification copy + wire contract", () => {
     expect(d.type).toBe("order_paid");
     expect(d.entityId).toBe("order-123");
 
-    // ⚠ FCM data values must ALL be strings; a number fails the send one field deep in a provider
-    // error. Checked for every type, not just this one.
+    // FCM data values must all be strings.
     for (const t of ALL) {
       for (const [k, v] of Object.entries(dataFor(t, "e1"))) {
         expect(typeof v, `${t}.${k}`).toBe("string");
@@ -96,8 +77,7 @@ describe("notification copy + wire contract", () => {
   });
 
   it("carries no PII in any type's copy (FR-013/FR-031)", () => {
-    // The specifics live on the screen the tap opens. Anything that looks like a person, a place or
-    // an amount in a push body is a leak onto a lock screen anyone nearby can read.
+    // No person, place or amount in a push body: lock screens are public.
     const forbidden = [/@/, /\$\d/, /\bstreet\b/i, /\bcustomer\b/i, /\bmr\b/i, /\bms\b/i];
     for (const t of ALL) {
       const c = copyFor(t);
@@ -109,25 +89,19 @@ describe("notification copy + wire contract", () => {
   });
 
   it("deep links route to the family each audience expects (FR-017)", () => {
-    // Customer order events → the order screen.
     expect(deepLinkFor("order_paid", "o1")).toBe("effy://order/o1");
     expect(deepLinkFor("order_ready", "o1")).toBe("effy://order/o1");
     expect(deepLinkFor("order_out_for_delivery", "o1")).toBe("effy://order/o1");
     expect(deepLinkFor("order_delivered", "o1")).toBe("effy://order/o1");
-    // Shop → the pick queue; driver → the assigned run.
     expect(deepLinkFor("shop_new_order", "f1")).toBe("effy://queue/f1");
     expect(deepLinkFor("run_assigned", "r1")).toBe("effy://run/r1");
-    // Driver backlog D2 — every driver push opens the run it is about.
     expect(deepLinkFor("run_changed", "r1")).toBe("effy://run/r1");
     expect(deepLinkFor("run_withdrawn", "r1")).toBe("effy://run/r1");
     expect(deepLinkFor("run_opens_soon", "r1")).toBe("effy://run/r1");
   });
 
-  // ── 059 ─────────────────────────────────────────────────────────────────────────────────────
   it("web paths and deep links agree about where a notification leads (P4)", () => {
-    // ⚠ 029's pinning, re-applied. That slice shipped a banner whose tap opened the unfiltered
-    // store because the web route and the mobile target were decided in two places. The server now
-    // derives both from one (type, entityId), and this is what stops them drifting apart again.
+    // Web route and mobile target are derived from one (type, entityId) and must agree.
     const familyOf = (s: string) => s.replace(/^effy:\/\//, "").split("/")[0] ?? "";
     const webFamilyOf = (s: string) => s.replace(/^\//, "").split("/")[0] ?? "";
 
@@ -136,7 +110,6 @@ describe("notification copy + wire contract", () => {
       queue: "orders",
       product: "catalog",
       run: "runs",
-      // 074 — the customer's points screen: a tab of the storefront's account page.
       points: "account?tab=points",
     };
 
@@ -153,8 +126,7 @@ describe("notification copy + wire contract", () => {
     expect(deepLinkFor("shop_awaiting_pick", "")).toBe("effy://queue");
   });
 
-  // 067 — a review decision is about ONE product, and the shop needs the reason that sits on it.
-  // The payload carries the product id, so the tap lands on the product, not on the catalogue list.
+  // The payload carries the product id, so the tap lands on the product.
   it("a review decision opens the product it is about, on both surfaces (067)", () => {
     for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
       expect(webPathFor(t, "p1")).toBe("/catalog/p1");
@@ -162,8 +134,7 @@ describe("notification copy + wire contract", () => {
     }
   });
 
-  // ⚠ A send-back reason is free text a reviewer wrote about a shop's product. It is read in the
-  // console, behind sign-in — never on a lock screen.
+  // A send-back reason is read in the console, never on a lock screen.
   it("never puts a product name, a price or the send-back reason in the push text (067)", () => {
     for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
       const c = copyFor(t);
@@ -172,7 +143,7 @@ describe("notification copy + wire contract", () => {
   });
 
   it("recognises only the types this build knows (the database-boundary guard)", () => {
-    // ⚠ The guard that stops one unknown row killing the whole drain. See `copy.ts`.
+    // One unknown row must not kill the whole drain.
     for (const t of ALL) expect(isKnownNotificationType(t)).toBe(true);
     expect(isKnownNotificationType("shop_something_a_later_slice_adds")).toBe(false);
     expect(isKnownNotificationType("")).toBe(false);
@@ -186,13 +157,12 @@ describe("notification copy + wire contract", () => {
       expect(deepLinkFor(t, "entry-1")).toBe("effy://points");
       expect(webPathFor(t, "entry-1")).toBe("/account?tab=points");
     }
-    // 080 — the entity is a consignment; the tap opens the orders, never a consignment id as an order.
+    // The entity is a consignment; the tap opens the orders.
     expect(deepLinkFor("order_with_courier", "consignment-1")).toBe("effy://order");
     expect(webPathFor("order_with_courier", "consignment-1")).toBe("/orders");
-    // 081 — the entity is a move; the tap opens the orders, never a move id as an order.
+    // The entity is a move; the tap opens the orders.
     expect(deepLinkFor("order_delivery_changed", "move-1")).toBe("effy://order");
     expect(webPathFor("order_delivery_changed", "move-1")).toBe("/orders");
-    // Every other type still carries its entity.
     expect(deepLinkFor("order_paid", "o-1")).toBe("effy://order/o-1");
   });
 });

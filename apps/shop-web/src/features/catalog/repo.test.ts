@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { encodeProductListQuery } from "./repo";
 import type { ProductListParams } from "./model";
 
-// The list query string is the client's half of the backend-owned pagination/filter/search contract
-// (FR-017). Empty filters must be omitted so the cache key and URL stay stable.
+// The list query string is the client's half of the backend-owned pagination/filter/search contract.
+// Empty filters must be omitted so the cache key and URL stay stable.
 describe("encodeProductListQuery", () => {
   it("always sends page + pageSize", () => {
     const qs = new URLSearchParams(encodeProductListQuery({ page: 2, pageSize: 20 }));

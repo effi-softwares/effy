@@ -1,16 +1,7 @@
 import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopParcelLabelDTO } from "@effy/shared-types";
-// Domain types for the shop ORDER CONSOLE (057 Amendment A3). Wire DTOs live in @effy/shared-types
-// (`shop-order-console`); nothing wire-shaped escapes the handler (Principle VI).
-//
-// ⚠ A SIBLING OF `fulfillments/`, NOT A REPLACEMENT. The pick routes (`/shop/v1/fulfillments…`) are
-// read by shop-mobile through a generated Kotlin contract and keep 020's rule that a shop sees no
-// order money. The console routes (`/shop/v1/orders…`) are shop-web's, and carry the order's money
-// by operator decision (A3). Keeping them in separate modules is what lets one rule relax without the
-// other noticing.
-//
-// Still structural here, as in `fulfillments/`: no request type carries a shop id (scope comes from
-// gate()), and nothing names the order's second address — the no-second-address guard reads this
-// directory too (023 FR-018).
+// The order console's routes (`/shop/v1/orders…`) carry the order's money by operator decision; the
+// pick routes (`fulfillments/`) do not, and the two modules stay separate so that rule cannot leak. No
+// request type carries a shop id, and nothing names the payer's address (the address guard reads this directory).
 
 import type { PackageStatusView } from "@effy/shared-types";
 import type { FulfillmentDelivery, FulfillmentStatus } from "../fulfillments/types";
@@ -47,8 +38,6 @@ export const PAYMENT_STATES: readonly PaymentState[] = [
 export type Attention = "any" | "at_risk" | "short" | "on_track";
 export const ATTENTIONS: readonly Attention[] = ["any", "at_risk", "short", "on_track"];
 
-
-/** 079 — who takes the package away from the shop. */
 export type DeliveredByFilter = "any" | "effy_driver" | "courier";
 export const DELIVERED_BY_FILTERS: readonly DeliveredByFilter[] = ["any", "effy_driver", "courier"];
 
@@ -58,7 +47,7 @@ export const RANGES: readonly Range[] = ["any", "today", "7d", "30d"];
 export type SortKey = "placed" | "number" | "customer" | "items" | "total";
 export const SORT_KEYS: readonly SortKey[] = ["placed", "number", "customer", "items", "total"];
 
-/** A fully-defaulted list query. The handler parses; nothing here is optional. */
+/** Fully defaulted; nothing here is optional. */
 export interface OrderListQuery {
   tab: OrderTab;
   q: string;
@@ -78,21 +67,21 @@ export interface OrderRow {
   customerName: string;
   placedAt: Date;
   status: FulfillmentStatus;
-  /** 073 — where the package really is; shop audience, so never a driver's name. */
+  /** Shop audience: never a driver's name. */
   statusView: PackageStatusView;
   itemCount: number;
   gatheredCount: number;
   unavailableCount: number;
-  /** 079 — who takes it away. The only thing a shop is told about delivery. */
+  /** The only thing a shop is told about delivery. */
   deliveredBy: "effy_driver" | "courier";
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
   atRisk: boolean;
   payment: PaymentState;
   total: string;
   currency: string;
   tags: string[];
-  /** "Eggs ×2, Oat milk ×1" — this shop's lines, for the list's Items column. */
+  /** "Eggs ×2, Oat milk ×1": this shop's lines. */
   itemsSummary: string;
 }
 
@@ -107,12 +96,12 @@ export interface OrderList {
 export interface OrderLine {
   orderItemId: string;
   name: string;
-  /** 098 — the variant's label as sold; null with no options. */
+  /** As sold; null with no options. */
   variantLabel: string | null;
-  /** 098 — Effy's code for the variant as sold. */
+  /** Effy's code as sold. */
   variantCode: string | null;
   sku: string | null;
-  /** 098 — the variant's barcode as sold. */
+  /** As sold. */
   gtin: string | null;
   imageUrl: string | null;
   orderedQuantity: number;
@@ -121,7 +110,6 @@ export interface OrderLine {
   refundedQuantity: number;
   unitPrice: string;
   lineTotal: string;
-  /** The picker's note from "Adjust this line", if any. */
   pickNote: string | null;
 }
 
@@ -148,23 +136,19 @@ export interface OrderDetail {
   orderNumber: string;
   placedAt: Date;
   status: FulfillmentStatus;
-  /** 073 — see `OrderRow.statusView`. */
   statusView: PackageStatusView;
   stateChangedAt: Date;
   readyBy: Date;
-  /** 079 — who takes it away. The only thing a shop is told about delivery. */
+  /** The only thing a shop is told about delivery. */
   deliveredBy: "effy_driver" | "courier";
-  /** 080 — present only when a courier collects this package from the shop. */
+  /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
   atRisk: boolean;
   delivery: FulfillmentDelivery;
-  /** 096 — this package's live bags. */
   parcels: ShopParcelLabelDTO[];
-  /** 096 — what every bag's label shares. */
   labelCommon: ShopLabelCommonDTO;
-  /** 096 — the cold zones this package's lines need a bag for. */
   zonesNeeded: ParcelZone[];
-  /** 096 — every bag must be scanned as packed before ready. */
+  /** Every bag must be scanned as packed before ready. */
   packScanRequired: boolean;
   lines: OrderLine[];
   money: {
@@ -187,7 +171,6 @@ export interface OrderDetail {
   };
   refunds: OrderRefund[];
   handoff: {
-    collectedAt: Date | null;
     deliveredAt: Date | null;
     unfulfillableReason: string | null;
   };
@@ -200,9 +183,9 @@ export interface ActivityEntry {
   at: Date;
   title: string;
   actorLabel: string | null;
-  /** `negative` — something the customer will not get (unavailable, can't supply, cancelled). */
+  /** Something the customer will not get. */
   tone: "strong" | "quiet" | "negative";
 }
 
-/** Limits, mirrored from `@effy/shared-types` so the console refuses exactly what this refuses. */
+/** Mirrored from `@effy/shared-types` so the console refuses exactly what this refuses. */
 export { SHOP_ORDER_NOTE_MAX_LENGTH, SHOP_ORDER_TAG_MAX, SHOP_ORDER_TAG_MAX_LENGTH } from "@effy/shared-types";

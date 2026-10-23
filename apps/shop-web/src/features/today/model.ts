@@ -3,15 +3,15 @@ import { DELIVERED_BY_WORDS, type CourierPickupDTO, type DeliveredBy, type ShopA
 import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 
 /**
- * Today's copy and time formatting (058).
+ * Today's copy and time formatting.
  *
- * ⚠ THE COPY LIVES HERE, NOT IN THE COMPONENTS. Every string on this screen is quoted verbatim from
+ * The copy lives here, not in the components. Every string on this screen is quoted verbatim from
  * the brief, and several are assembled from the same figures in more than one place ("{units} units
  * to pack" appears in the attention row and in the glance cell). One builder means one wording; two
  * components writing their own template strings is how a screen ends up saying "3 orders" in one
  * place and "3 order" in another.
  *
- * ⚠ AGES ARE COMPUTED FROM THE SERVER'S CLOCK, passed in as `now`. A shop tablet's clock can be
+ * Ages are computed from the server's clock, passed in as `now`. A shop tablet's clock can be
  * minutes out — or wrong by a day — and "oldest 3 h 12 m" derived from it would be confidently
  * incorrect about the one thing this card exists to convey: urgency.
  */
@@ -29,7 +29,7 @@ export function formatAge(fromIso: string, now: number): string {
 /**
  * "Just now" → "1 min ago" → "3 min ago" → "2 h ago".
  *
- * ⚠ These must AGE without new data (FR-009): a row that says "Just now" twenty minutes later is
+ * These must AGE without new data: a row that says "Just now" twenty minutes later is
  * worse than one with no timestamp at all, because it is read as new.
  */
 export function relativeTime(fromIso: string, now: number): string {
@@ -67,19 +67,13 @@ export function cityOf(timezone: string): string {
   return last.replace(/_/g, " ")
 }
 
-/**
- * "3 min ago · 4 items · Effy driver" — the meta line under a live order.
- *
- * ⚠ 079 — the last part is WHO TAKES THE PACKAGE AWAY, in `DELIVERED_BY_WORDS`' two words. It used to
- * be the customer's word for the delivery ("Same-day" / "Standard"), which stopped telling a shop
- * anything true once a "standard" order could be one an Effy driver delivers.
- */
+/** "3 min ago · 4 items · Effy driver": the meta line under a live order; the last part is who takes the package (`DELIVERED_BY_WORDS`). */
 export function liveMeta(
   o: { paidAt: string; itemCount: number; deliveredBy: DeliveredBy; courierPickup?: CourierPickupDTO },
   now: number,
 ): string {
   const items = `${o.itemCount} ${o.itemCount === 1 ? "item" : "items"}`
-  // 080 — a courier collecting from this shop says so, with when.
+  // A courier collecting from this shop says so, with when.
   const who = o.courierPickup ? courierPickupLine(o.courierPickup) : DELIVERED_BY_WORDS[o.deliveredBy]
   return `${relativeTime(o.paidAt, now)} · ${items} · ${who}`
 }
@@ -137,14 +131,14 @@ export function unitsToPack(units: number): string {
   return `${units} ${units === 1 ? "unit" : "units"} to pack`
 }
 
-/** Where a row's button goes. Every one resolves the thing it describes (FR-004). */
+/** Where a row's button goes. Every one resolves the thing it describes. */
 export function attentionHref(item: ShopAttentionItemDTO): string {
   switch (item.kind) {
     case "awaiting_pick":
       return "/orders?tab=new"
     case "out_of_stock":
     case "low_stock":
-      // 098 — open the product on the size that needs stock.
+      // Open the product on the size that needs stock.
       return `/catalog/${item.productId}?size=${item.variantId}`
     case "refund_proposed":
       return `/orders/${item.fulfillmentId}`

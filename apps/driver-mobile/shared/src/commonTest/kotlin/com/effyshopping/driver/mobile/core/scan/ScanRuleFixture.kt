@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.core.scan
 
 /**
- * 096 — an embedded copy of `packages/shared-types/scan-rule.fixtures.json` (commonTest cannot read
+ * An embedded copy of `packages/shared-types/scan-rule.fixtures.json` (commonTest cannot read
  * outside the app). `scan-rule.test.ts` fails if this copy and the JSON ever differ.
  */
 internal const val SCAN_RULE_FIXTURES = """

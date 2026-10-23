@@ -1,11 +1,7 @@
 /**
- * `@effy/web-kit` — the audience-neutral web runtime.
- *
- * Config, Amplify wiring, session/token access, the passwordless email one-time code flow, the route guard,
- * the server-state client, telemetry, and the client store. Every web surface consumes this; none
- * re-implements it (constitution Principle II).
- *
- * The SPA chrome lives at `@effy/web-kit/console`.
+ * `@effy/web-kit`: the web runtime every surface shares (config, Amplify wiring, session access, the
+ * email-code flow, the route guard, the server-state client, telemetry, the client store). The SPA
+ * chrome is `@effy/web-kit/console`.
  */
 export { createConfig, type Config, type EnvRecord } from "./runtime/config";
 export { configureAmplify, type AmplifyPoolConfig } from "./runtime/amplify";
@@ -41,5 +37,5 @@ export {
   type SessionQueryLike,
 } from "./auth/guards";
 export type { NavItem } from "./console/nav";
-// 071-live-updates — the live channel client (framework-free; the React provider is in ./console).
+// The live channel client (framework-free; the React provider is in./console).
 export * from "./live";

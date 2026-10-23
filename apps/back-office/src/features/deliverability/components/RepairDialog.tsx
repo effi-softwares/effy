@@ -19,16 +19,10 @@ import type { EmailDeliveryState } from "../model";
 import { useRepairDeliverability } from "../queries";
 
 /**
- * The audited repair (037 FR-034).
- *
- * ⚠ TWO HALVES, AND HALF A REPAIR IS A FAILED REPAIR. The backend clears the mail service's
- * suppression entry AND the platform's own record, in that order. Doing only one leaves the person
- * locked out — with the console cheerfully reporting them fixed if the halves were reversed.
- *
- * ⚠ THE NOTE IS REQUIRED. A repair with no stated reason is indistinguishable from a mistake six
- * months later, and this action re-enables mail to an address that previously hard-failed — a fresh
- * bounce spends the platform's shared sending reputation, and a paused sender is a total sign-in
- * outage for four audiences.
+ * The audited repair. The backend clears the mail service's suppression entry and then the platform's own
+ * record; half a repair leaves the person locked out. The note is required: this re-enables mail to an
+ * address that hard-failed, and a fresh bounce spends the shared sending reputation (a paused sender stops
+ * sign-in for four audiences).
  */
 export function RepairDialog({
   address,

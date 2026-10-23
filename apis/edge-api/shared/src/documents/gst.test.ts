@@ -15,7 +15,7 @@ describe("096 — GST arithmetic (R15)", () => {
   it("taxable and GST-free lines, after discounts, with fees per the treatment", () => {
     const lines = [
       { name: "Milk", quantity: 2, amountCents: 900, taxable: false },
-      { name: "Soap", quantity: 1, amountCents: 550 - 50, taxable: true }, // 50c promotion off
+      { name: "Soap", quantity: 1, amountCents: 550 - 50, taxable: true },
     ];
     const t = invoiceTotals(lines, [{ label: "Delivery", cents: 990 }, { label: "Small-order fee", cents: 0 }], "taxable");
     expect(t.fees).toEqual([{ label: "Delivery", cents: 990, taxable: true }]);
@@ -36,7 +36,7 @@ describe("096 — GST arithmetic (R15)", () => {
     const invoice = { gstCents: 135, totalCents: 2390 };
     expect(adjustmentGst({ amountCents: 500, lines: [{ amountCents: 500, taxable: true }] }, invoice, "taxable")).toBe(45);
     expect(adjustmentGst({ amountCents: 900, lines: [{ amountCents: 900, taxable: false }] }, invoice, "taxable")).toBe(0);
-    // Soap refunded with the delivery fee, fees taxable: (500 + 990) / 11.
+    // Soap refunded with the delivery fee, fees taxable: / 11.
     expect(adjustmentGst({ amountCents: 1490, lines: [{ amountCents: 500, taxable: true }] }, invoice, "taxable")).toBe(135);
     // Goodwill $10: 1000 × 135 / 2390 = 56.48 → 56.
     expect(adjustmentGst({ amountCents: 1000 }, invoice, "taxable")).toBe(56);
@@ -44,7 +44,7 @@ describe("096 — GST arithmetic (R15)", () => {
   });
 
   it("validates an ABN by its checksum", () => {
-    expect(isValidAbn("51 824 753 556")).toBe(true); // the ABR's published example
+    expect(isValidAbn("51 824 753 556")).toBe(true); // the abr's published example
     expect(isValidAbn("51824753557")).toBe(false);
     expect(isValidAbn("1234567890")).toBe(false);
     expect(isValidAbn("[ABN]")).toBe(false);

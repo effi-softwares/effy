@@ -18,7 +18,7 @@ sealed interface PromotionUiState {
     data class Ready(val promotion: Promotion) : PromotionUiState
 
     /**
-     * ⚠ TWO failures, kept apart on purpose, because they ask the shopper to do different things.
+     * Two failures, kept apart on purpose, because they ask the shopper to do different things.
      *
      * [Unavailable] means the promotion is genuinely gone — expired, fully claimed, withdrawn. Offering
      * "Try again" there is a lie: retrying will fail forever, and the shopper is owed the truth so they
@@ -29,14 +29,7 @@ sealed interface PromotionUiState {
     data object Failed : PromotionUiState
 }
 
-/**
- * The promotion detail ViewModel — what a banner tap opens.
- *
- * ⚠ It LOADS the promotion rather than receiving it from the banner already on screen. Home is a
- * snapshot: a promotion can expire, be exhausted by other shoppers, or be withdrawn while the shopper
- * scrolls. Re-reading is what lets this screen say "no longer available" instead of presenting terms
- * that stopped being true (028 FR-036).
- */
+/** The promotion detail ViewModel. It loads the promotion rather than taking the banner's, so an offer that ended says so. */
 class PromotionViewModel(
     private val promotionId: String,
     private val getPromotion: GetPromotion,
@@ -62,7 +55,7 @@ class PromotionViewModel(
     /** Reload without clearing the screen — pull-to-refresh. A failure keeps what is already shown. */
     suspend fun refresh() {
         val next = read()
-        // ⚠ A transport blip must not replace a promotion the shopper is reading with an error screen.
+        // A transport blip must not replace a promotion the shopper is reading with an error screen.
         // Unavailable is different: it is a real answer about this promotion, and showing stale terms
         // after learning they are void would be the worse outcome.
         if (next !is PromotionUiState.Failed) _state.value = next
@@ -74,7 +67,7 @@ class PromotionViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppException) {
-            // ⚠ A promotion that no longer qualifies for display is served as 404 — the SAME answer as
+            // A promotion that no longer qualifies for display is served as 404 — the same answer as
             // an id that never existed. That is deliberate server-side: a distinguishable refusal would
             // let anyone enumerate the operator's private, unadvertised codes by id.
             if (e.error == AppError.NotFound) PromotionUiState.Unavailable else PromotionUiState.Failed

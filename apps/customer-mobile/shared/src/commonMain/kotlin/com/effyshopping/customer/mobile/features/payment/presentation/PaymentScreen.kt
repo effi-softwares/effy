@@ -38,16 +38,16 @@ import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
- * THE PAYMENT SCREEN (051 US1) — the mobile counterpart of the web payment step.
+ * The payment screen — the mobile counterpart of the web payment step.
  *
- * ⚠ IT CARRIES NO ORDER CONTENT. No basket lines, no delivery address, no delivery-speed row (FR-003).
+ * It carries no order content. No basket lines, no delivery address, no delivery-speed row.
  * The shopper confirmed all of that on the checkout screen; repeating it here invites a second review
- * instead of a payment. The ONE order-derived thing on the screen is the amount, because you cannot ask
+ * instead of a payment. The one order-derived thing on the screen is the amount, because you cannot ask
  * someone to pay without saying how much.
  *
- * ⚠ WHAT THE PROVIDER DRAWS IS EXACTLY ONE THING: the method list, via [PaymentElementContent]. The
- * heading, the amount, the pay button, the mandate text, the trust line and every message are Effy's
- * (FR-028). That is the whole reason this screen embeds an element instead of presenting the provider's
+ * What the provider draws is exactly one thing: the method list, via [PaymentElementContent]. The
+ * heading, the amount, the pay button, the mandate text, the trust line and every message are Effy's.
+ * That is the whole reason this screen embeds an element instead of presenting the provider's
  * modal sheet, which owns all of those.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -65,21 +65,21 @@ fun PaymentScreen(
         state.paidOrderId?.let(onPaid)
     }
 
-    // 087 T046 — while a payment is being confirmed, Back (the button, Android's gesture and the iOS
+    // While a payment is being confirmed, Back (the button, Android's gesture and the iOS
     // edge swipe, which all route through the back handler) is swallowed: leaving mid-confirmation would
     // strand the shopper not knowing whether they paid.
     BackHandler(enabled = state.paying) { }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // ⚠ The back arrow is NOT passed: `EffyAppBar` reads it from the stack position (026), so this
+        // The back arrow is not passed: `EffyAppBar` reads it from the stack position, so this
         // screen gets one because it sits above checkout — and correctly loses it if it ever becomes a
-        // stack root. Backing out here abandons an UNPAID order, which is a supported outcome: nothing
+        // stack root. Backing out here abandons an unpaid order, which is a supported outcome: nothing
         // has been charged, and paying again creates a fresh intent for the same order.
         EffyAppBar(title = "Payment")
 
-        // ⚠ Branch OUTSIDE the composable body rather than returning early from the middle of it. An
+        // Branch outside the composable body rather than returning early from the middle of it. An
         // early `return` past a `collectAsState` call makes the slot table's shape depend on a nullable
-        // value, which is the kind of subtlety that produces a recomposition bug nobody can reproduce —
+        // value, which is the kind of subtlety that produces a recomposition bug nobody can reproduce
         // on a payment screen, of all places. Two explicit branches cost four lines and cannot do that.
         if (element == null) {
             PreparingPayment(Modifier)
@@ -99,7 +99,7 @@ private fun PaymentContent(
     val elementState by element.state.collectAsStateWithLifecycle()
 
     // 087 (Payment board): the total in a card, the provider's element, the mandate — and Effy's own
-    // pay control PINNED at the bottom above the home indicator.
+    // pay control pinned at the bottom above the home indicator.
     Column(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -111,7 +111,7 @@ private fun PaymentContent(
         ) {
             EffyCard {
                 Text("Total due", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // 087 — `displaySmall` is now a defined storefront slot (30 Bold); it fell back to the
+                // `displaySmall` is now a defined storefront slot (30 Bold); it fell back to the
                 // platform font before.
                 Text(formatAmount(state.amount, state.currency), style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"))
                 Text(
@@ -122,14 +122,14 @@ private fun PaymentContent(
                 )
             }
 
-            // ── The provider's method list — the only pixels it owns on this screen ───────────────
+            // The provider's method list — the only pixels it owns on this screen
             PaymentElementContent(element, Modifier.fillMaxWidth())
 
-            // ⚠ A shopper who cannot pay must be TOLD why (FR-036) — with an icon, never red.
+            // A shopper who cannot pay must be told why — with an icon, never red.
             elementState.error?.let { EffyInlineError(it) }
             state.error?.let { EffyInlineError(it) }
 
-            // ⚠ MANDATE TEXT IS A COMPLIANCE REQUIREMENT, near the pay control; the element draws none.
+            // Mandate text is a compliance requirement, near the pay control; the element draws none.
             elementState.mandateText?.let { mandate ->
                 Text(mandate, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -141,7 +141,7 @@ private fun PaymentContent(
                     ?.let { "Pay ${formatAmount(state.amount, state.currency)} with $it" }
                     ?: "Pay ${formatAmount(state.amount, state.currency)}",
                 onClick = { viewModel.pay(element) },
-                // ⚠ FR-041: a double press must not start a second payment.
+                // A double press must not start a second payment.
                 enabled = elementState.canConfirm && !state.paying,
                 loading = state.paying,
             )
@@ -160,7 +160,7 @@ private fun PreparingPayment(modifier: Modifier) {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 087 — the shape of what is coming, not a sentence on its own.
+        // The shape of what is coming, not a sentence on its own.
         EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
         EffySkeletonBlock(Modifier.padding(top = EffySpacing.lg).fillMaxWidth().height(180.dp), radius = EffyStorefrontShape.lg)
         Text("Preparing payment…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.md))

@@ -1,12 +1,4 @@
-// Shared mobile UI vocabulary (018, generalised by 025).
-//
-// These were built for shop-mobile and lived inside it, so customer-mobile inherited none of them —
-// which is why the customer app still had no safe-area page container, no consistent field, and no
-// standard loading/placeholder treatment. Moving them here rather than copying them is Principle II:
-// one implementation, both surfaces, and a fix lands everywhere at once.
-//
-// Nothing here is audience-specific. Anything that IS audience-specific (routes, session shape,
-// platform drivers) stays in its app.
+// Shared mobile UI vocabulary for both apps. Anything audience-specific (routes, session, platform drivers) stays in its app.
 package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.Arrangement

@@ -1,28 +1,12 @@
 /**
- * Back-office order contracts — 053-order-lifecycle-completion.
- *
- * ⚠ A DELIBERATELY SEPARATE TYPE FAMILY FROM `order.ts`, and the separation is a safety property,
- * not tidiness. These types CARRY SHOP IDENTITY — a back-office operator must see which shop holds
- * which package to do their job. The customer's order contract in `order.ts` must NEVER learn to,
- * because Effy's whole product model hides fulfilment: a customer never discovers which shop served
- * them, nor how many did (spec FR-021).
- *
- * The cheapest way to keep that true forever is that the two families never meet — no shared base
- * interface, no `extends`, no "just add the field to the common one". 033 recorded exactly this
- * failure: `SavedItemDTO extends StorefrontProductCardDTO` dragged in a field that was being
- * replaced, and the key-set test passed because it was written from the struct instead of from the
- * contract.
- *
- * Money crosses as a 2-dp decimal string (027 R13). Never a float, never cents-as-integer.
- *
- * See specs/053-order-lifecycle-completion/contracts/back-office-orders.contract.md
+ * Back-office order contracts. A separate family from `order.ts` on purpose: these carry shop identity
+ * (an operator must see which shop holds which package), and the customer's contract must never learn
+ * it. No shared base interface, no `extends`. Money is a 2-dp decimal string.
  */
 
 import type { OrderPaymentSplitDTO } from "./points";
 import type { OrderStage, OrderStatus } from "./order";
-// ⚠ 055 — the refund vocabulary is SHARED with the customer contract, deliberately. A refund's
-// states and reasons are one set of facts; what differs per audience is how much of it is shown,
-// which is `RefundDTO` vs `CustomerRefundDTO`, not a second set of names.
+// The refund vocabulary is shared with the customer contract; what differs is how much is shown (`RefundDTO` vs `CustomerRefundDTO`).
 import type {
   ProposedRefundDTO,
   RefundDTO,
@@ -37,66 +21,46 @@ import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delive
 import type { DeliveryWindow } from "./delivery-window";
 import type { PackageStatusView } from "./package-status";
 
-/** How an arrival came to be known (spec FR-008; `public.package_arrival.source`). */
+/** How an arrival came to be known (`public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
-export const ARRIVAL_SOURCES: readonly ArrivalSource[] = [
-  "driver_proof",
-  "staff_recorded",
-  "carrier_signal",
-];
-
-/**
- * What an order is waiting on, from the operator's point of view — the console's work queue.
- *
- * ⚠ DERIVED, never stored (research R3). It is a join over the absence of a `carrier_handoff` or a
- * `package_arrival` row, which is why it can never drift from the facts it summarises.
- */
+/** What an order waits on, for the console's work queue. Derived (from the absence of handover and arrival rows), never stored. */
 export type OrderAwaiting =
   | "handover"
   | "arrival"
-  /**
-   * 055 US6 — a shop said it cannot supply its portion and nobody has decided what to do about it.
-   *
-   * ⚠ IT RANKS ABOVE THE OTHER TWO because it is the only one where a CUSTOMER IS OUT OF POCKET while
-   * the queue waits. A package awaiting handover or arrival is late; a package nobody can supply is
-   * money the platform is holding for goods that will never be sent.
-   */
+  /** A shop cannot supply its portion and nobody has decided what to do. Ranks first: the customer is out of pocket. */
   | "refund_decision"
-  /**
-   * 080 — a courier parcel is failed, lost, damaged or returned, and nobody has resolved it. Ranked
-   * just after a refund decision: the customer has paid for something that is not coming.
-   */
+  /** A courier parcel is failed, lost, damaged or returned and unresolved: the customer paid for something not coming. */
   | "courier_problem";
 export const ORDER_AWAITING: readonly OrderAwaiting[] = ["refund_decision", "courier_problem", "handover", "arrival"];
 
-/** 080 — where a consignment is. */
+/** Where a consignment is. */
 export type ConsignmentState =
   | "booked" | "handed_over" | "in_transit" | "delivered"
   | "failed" | "lost" | "damaged" | "returned" | "cancelled";
 
-/** 080 — one step a person records. `resolved` closes an open problem; `cancelled` drops an unsent booking. */
+/** One step a person records. `resolved` closes an open problem; `cancelled` drops an unsent booking. */
 export type ConsignmentEventKind =
   | "booked" | "handed_over" | "in_transit" | "delivered"
   | "failed" | "lost" | "damaged" | "returned" | "resolved" | "cancelled";
 
-/** 080 — the problem steps: each puts the order on the needs-attention list until resolved. */
+/** The problem steps: each puts the order on the needs-attention list until resolved. */
 export const CONSIGNMENT_PROBLEMS = ["failed", "lost", "damaged", "returned"] as const;
 
-/** 080 — one parcel's journey with a courier, for staff. */
+/** One parcel's journey with a courier, for staff. */
 export interface ConsignmentDTO {
   id: string;
   service: { id: string; label: string };
   collection: "hub" | "supplier";
   reference: string | null;
   trackingUrl: string | null;
-  /** Short-lived presigned read; null when no label was attached. */
+  /** A short-lived presigned read; null when no label was attached. */
   labelUrl: string | null;
   pickup: { date: string; from: string | null; to: string | null } | null;
   state: ConsignmentState;
   events: { kind: ConsignmentEventKind; actor: { kind: "staff" | "shop"; sub: string }; note: string | null; at: string }[];
 }
 
-/** `PUT /orders/v1/fulfillments/{id}/consignment` — book, or edit a booking. */
+/** `PUT /orders/v1/fulfillments/{id}/consignment`: book, or edit a booking. */
 export interface ConsignmentInput {
   serviceId: string;
   reference?: string | null;
@@ -111,7 +75,7 @@ export interface ConsignmentEventInput {
   note?: string | null;
 }
 
-/** `POST /orders/v1/fulfillments/{id}/consignment/label` — where to upload a label file. */
+/** `POST /orders/v1/fulfillments/{id}/consignment/label`: where to upload a label file. */
 export interface ConsignmentLabelUploadDTO {
   labelKey: string;
   uploadUrl: string;
@@ -130,7 +94,7 @@ export interface AdminOrderSummaryDTO {
   id: string;
   orderNumber: string;
   status: OrderStatus;
-  /** The customer-facing progress word, server-derived by `orders/stage.go`. */
+  /** The customer-facing progress word, server-derived. */
   stage: OrderStage;
   placedAt: string | null;
   customerEmail: string;
@@ -138,66 +102,60 @@ export interface AdminOrderSummaryDTO {
   packageCount: number;
   grandTotalAmount: string;
   currency: string;
-  /** Null when nothing is outstanding — i.e. the order is finished. */
+  /** Null when nothing is outstanding (the order is finished). */
   awaiting: OrderAwaiting | null;
-  /**
-   * 073 — where the order is, in staff words: its least advanced package (a Problem anywhere wins).
-   * Null for an order with no packages yet.
-   */
+  /** Where the order is, in staff words: its least advanced package (a Problem anywhere wins). Null with no packages yet. */
   statusView: PackageStatusView | null;
-  /** 073 — the drivers collecting and delivering this order's packages, by name, without repeats. */
+  /** The drivers collecting and delivering this order's packages, by name, without repeats. */
   drivers: { collect: string[]; deliver: string[] };
-  /** 073 — some package is waiting for a driver and nobody has it. */
+  /** Some package is waiting for a driver and nobody has it. */
   needsDriver: boolean;
-  /** 079 — who delivers the order. */
+  /** Who delivers the order. */
   deliveryType: DeliveryType;
-  /** 085 — what an Effy order was sold. Null for a courier order. */
+  /** What an Effy order was sold; null for a courier order. */
   promise: DeliveryPromise | null;
 }
 
-/** 085 — the order list's promise filter (Effy orders only). */
+/** The order list's promise filter (Effy orders only). */
 export const ADMIN_ORDER_PROMISE_FILTERS = ["window", "day", "asap"] as const satisfies readonly DeliveryPromise[];
 
-/** 079 — the order list's delivery filter. */
+/** The order list's delivery filter. */
 export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier"] as const;
 export type AdminOrderDeliveryFilter = (typeof ADMIN_ORDER_DELIVERY_FILTERS)[number];
 
-/** 079 — one entry in an order's delivery-type history: the checkout's decision, then any change. */
+/** One entry in an order's delivery-type history: the checkout's decision, then any change. */
 export interface DeliveryTypeChangeDTO {
   /** Null on the first entry. */
   from: DeliveryType | null;
   to: DeliveryType;
   reason: DeliveryTypeReason;
-  /** The checkout decided, or a staff member changed it (their auth subject, as other audit lists carry it). */
+  /** The checkout decided, or a staff member changed it (their auth subject). */
   actor: { kind: "checkout" } | { kind: "staff"; sub: string };
   note: string | null;
   at: string;
 }
 
 /** One shop's portion of an order, as an operator sees it. */
-/**
- * 096 — every step a hand-over can be recorded at: the driver's five, plus the shop's (pack, hand to a
- * courier, a collection from the shop). Kept apart from `HandoverStep`, which is the driver wire's.
- */
+/** Every step a hand-over can be recorded at: the driver's five, plus the shop's (pack, hand to a courier, a collection from the shop). */
 export type RecordedHandoverStep = HandoverStep | "pack" | "courier_handover" | "shop_pickup";
 
-/** 096 — who made a hand-over. A driver is named; shop and hub staff are said by role. */
+/** Who made a hand-over: a driver is named; shop and hub staff are said by role. */
 export type HandoverActorKind = "driver" | "shop_staff" | "admin_staff";
 
-/** 091 — one recorded hand-over of a package (090's `package_handover`). Staff only. */
+/** One recorded hand-over of a package. Staff only. */
 export interface AdminPackageHandoverDTO {
   step: RecordedHandoverStep;
   method: HandoverMethod;
   at: string;
-  /** The driver's name; null when shop or hub staff made it (096 — see `actor`). */
+  /** The driver's name; null when shop or hub staff made it (see `actor`). */
   driverName: string | null;
-  /** 096 — optional so an older deploy still reads; absent means a driver. */
+  /** Optional for an older deploy; absent means a driver. */
   actor?: HandoverActorKind;
-  /** 096 — the bag it was; absent on a hand-over recorded before bags (one per package). */
+  /** The bag it was; absent on a hand-over recorded before bags. */
   parcelCode?: string;
 }
 
-/** 096 — one bag of a package as back-office sees it, voided ones included (struck through). */
+/** One bag of a package as back-office sees it, voided ones included (struck through). */
 export interface AdminParcelDTO {
   parcelId: string;
   code: string;
@@ -213,100 +171,78 @@ export interface AdminParcelDTO {
 }
 
 export interface AdminOrderPackageDTO {
-  /**
-   * 073 — where this package really is: derived from collection, hub check-in, delivery and
-   * carrier records, not from `status` (the shop's own status, which stops at `collected`).
-   */
+  /** Where this package really is, derived from the dispatch and carrier records, not from `status` (which stops at `collected`). */
   statusView: PackageStatusView | null;
-  /** 073 — who is collecting it; null when it is not yet (or no longer) a collection matter. */
+  /** Who is collecting it; null when it is not a collection matter (yet, or any more). */
   collect: OrderAssignment | null;
-  /** 073 — who is delivering it (same-day only); null for standard, or before it reaches the hub. */
+  /** Who is delivering it; null before it reaches a delivery round. */
   deliver: OrderAssignment | null;
   fulfillmentId: string;
-  /** 089 — the package's permanent code, as printed on its label. */
+  /** The package's permanent code, as printed on its label. */
   packageCode: string;
-  /**
-   * 091 — every recorded hand-over of this package, oldest first: how it was done and by whom. Empty
-   * when none was recorded — never "by hand" by assumption.
-   */
+  /** Every recorded hand-over, oldest first; empty when none was recorded (never "by hand" by assumption). */
   handovers?: AdminPackageHandoverDTO[];
-  /** 096 — the package's bags, each with its own label and hand-overs. Optional for older deploys. */
+  /** The package's bags, each with its own label and hand-overs. Optional for older deploys. */
   parcels?: AdminParcelDTO[];
-  /** ⚠ Present here and ONLY here. Never on a customer-facing contract (FR-021). */
+  /** Present here only, never on a customer-facing contract. */
   shopId: string;
   shopName: string;
   status: string;
   itemCount: number;
   subtotalAmount: string;
-  /**
-   * 079 — who takes this package to the customer, for EVERY order old or new
-   * (`public.package_delivered_by`). ⚠ This — not `deliveryMethod`, not `window` — decides whether a
-   * carrier handover applies: a "standard" package sold a window is Effy's.
-   */
+  /** Who takes this package to the customer. This, not `deliveryMethod` or `window`, decides whether a carrier handover applies. */
   deliveredBy: DeliveryType;
-  /** 080 — the parcel's live consignment, when a courier takes it and one is booked or handed over. */
+  /** The parcel's live consignment, when a courier takes it and one is booked or handed over. */
   consignment: ConsignmentDTO | null;
-  /**
-   * 080 — when a courier parcel is due out: the courier service's next pickup (ISO instant). Null for
-   * a parcel Effy delivers, or one already handed over.
-   */
+  /** When a courier parcel is due out (the service's next pickup); null for an Effy parcel or one already handed over. */
   dueOut: string | null;
-  /** 080 — past `dueOut` (or a booked supplier pickup's window) and not handed over. */
+  /** Past `dueOut` (or a booked supplier pickup's window) and not handed over. */
   late: boolean;
-  /** "same_day" | "standard" | null for a pre-047 order. The CUSTOMER'S word; see `deliveredBy`. */
+  /** "same_day" | "standard" | null: the customer's word (see `deliveredBy`). */
   deliveryMethod: string | null;
   handoff: CarrierHandoffDTO | null;
   arrival: PackageArrivalDTO | null;
-  /** 069 — the delivery day the customer was promised (yyyy-mm-dd), or null for an earlier order. */
+  /** The delivery day promised (yyyy-mm-dd), or null. */
   promisedDate: string | null;
-  /** 069 — the same-day window the customer was sold, or null. */
+  /** The window the customer was sold, or null. */
   window: DeliveryWindow | null;
-  /** 069 — a late payer took this order's slot over its capacity (FR-009b). Staff-only. */
+  /** A late payer took this order's slot over its capacity. Staff only. */
   overCapacity: boolean;
-  /**
-   * 069 — the day a STANDARD package must be handed to the carrier to arrive on `promisedDate`
-   * (that day minus the carrier lead time). Null for same-day and for earlier orders.
-   */
+  /** The day a standard package must reach the carrier to arrive on `promisedDate`; null otherwise. */
   handoverDueOn: string | null;
-  /** 069 — past `handoverDueOn` with no handover, or handed over after it. Derived on read. */
+  /** Past `handoverDueOn` with no handover, or handed over after it. Derived on read. */
   atRisk: boolean;
-  /**
-   * 069 — whether it arrived inside its window (same-day) or on its day (standard). Null until it
-   * has arrived, and for an order with no promise to judge against.
-   */
+  /** Whether it arrived inside its window (or on its day); null until it arrives, or with no promise. */
   onTime: boolean | null;
 }
 
-/** One standard package on the carrier handover list (069 US7). */
+/** One package on the carrier handover list. */
 export interface HandoverRowDTO {
   fulfillmentId: string;
   orderId: string;
   orderNumber: string;
-  /** Null for an order sold as a courier delivery (079): the customer was told an estimate, not a day. */
+  /** Null for a courier order: the customer was told an estimate, not a day. */
   promisedDate: string | null;
   handoverDueOn: string;
   atRisk: boolean;
-  /** Checked in at the hub. False means it has not arrived there yet and cannot be handed over. */
+  /** Checked in at the hub; until then it cannot be handed over. */
   atHub: boolean;
-  /** 080 — the courier service it goes with ("Courier · Service"), when known. */
+  /** The courier service it goes with ("Courier · Service"), when known. */
   service: string | null;
-  /** 080 — the next pickup of that service (ISO instant), for a hub parcel. */
+  /** That service's next pickup (ISO instant), for a hub parcel. */
   dueOut: string | null;
-  /** 080 */
   collection: "hub" | "supplier";
   consignmentState: ConsignmentState | null;
-  /** 080 — a booked supplier pickup. */
+  /** A booked supplier pickup. */
   pickup: { date: string; from: string | null; to: string | null } | null;
-  /** 080 — the latest problem step, for the `problems` view. */
+  /** The latest problem step, for the `problems` view. */
   problem: string | null;
 }
 
-export type HandoverDueFilter = "today" | "overdue" | "upcoming";
-
 /**
- * 080 — the Courier tab's views. `hub_due` / `hub_late`: at (or due at) the hub, not handed over;
- * `supplier`: supplier pickups not handed over; `with_courier`: handed over, not delivered (overdue
- * first); `problems`: an open problem.
+ * The Courier tab's views: `hub_due` / `hub_late` (at or due at the hub, not handed over), `supplier`
+ * (supplier pickups not handed over), `with_courier` (handed over, not delivered; overdue first),
+ * `problems` (an open problem).
  */
 export type CourierView = "hub_due" | "hub_late" | "supplier" | "with_courier" | "problems";
 export const COURIER_VIEWS: readonly CourierView[] = ["hub_due", "hub_late", "supplier", "with_courier", "problems"];
@@ -317,11 +253,7 @@ export interface HandoverListResponse {
 
 /** A package's handover to an outside carrier. */
 export interface CarrierHandoffDTO {
-  /**
-   * ⚠ NULL IS AN ORDINARY, COMPLETE STATE (FR-003) — Effy has no carrier contract, so most
-   * handovers genuinely have no reference. A client MUST NOT render this as missing data, a warning,
-   * or an unfinished step, and MUST NOT withhold the handover because of it.
-   */
+  /** Null is an ordinary state (most handovers have no reference): never render it as missing or withhold the handover. */
   reference: string | null;
   carrierName: string | null;
   handedOverAt: string;
@@ -333,31 +265,20 @@ export interface CarrierHandoffDTO {
 export interface PackageArrivalDTO {
   arrivedAt: string;
   source: ArrivalSource;
-  /** Null for `driver_proof`, where the driver is attributable through the delivery task. */
+  /** Null for `driver_proof`, where the driver is attributable through the delivery. */
   recordedBySub: string | null;
   note: string | null;
 }
 
 /**
- * One thing that happened to an order, for the operator to scan.
- *
- * ⚠ A READ-SIDE PROJECTION over `fulfillment_event` (020), `carrier_handoff` and `package_arrival`
- * — never a stored timeline. A stored one would be a fourth place every state change has to be
- * written, and the first place it gets forgotten.
- *
- * ⚠ `kind: "driver"` IS KEPT THOUGH NOTHING EMITS IT, and that is a considered exception to this
- * repo's rule against dormant vocabulary. Its source was `driver_task_event`, dropped with the 049
- * work model. The rule exists because a type nothing can populate quietly contradicts the live
- * contract (059's fourth `device_token.platform` reader); here the opposite risk is larger — this
- * union is the projection's source list, the projection is DESIGNED to gain and lose sources, and
- * narrowing it now would force a change to the console's label map for no gain and a second change
- * back when dispatch lands.
+ * One thing that happened to an order: a read-side projection over `fulfillment_event`,
+ * `carrier_handoff` and `package_arrival`, never a stored timeline.
  */
 export interface AdminOrderHistoryEntryDTO {
   at: string;
-  /** Where this entry came from, so the console can group and label without guessing. */
+  /** Where this entry came from, so the console can group and label it. */
   kind: "fulfillment" | "driver" | "handoff" | "arrival";
-  /** Human-readable summary, e.g. "Packed and ready for collection". */
+  /** A human-readable summary, e.g. "Packed and ready for collection". */
   summary: string;
   /** The acting subject where one is known; null for system transitions. */
   actorSub: string | null;
@@ -373,31 +294,28 @@ export interface AdminOrderDetailDTO {
   stage: OrderStage;
   placedAt: string | null;
   createdAt: string;
-  /** 079 — who delivers the order. */
+  /** Who delivers the order. */
   deliveryType: DeliveryType;
   deliveryTypeReason: DeliveryTypeReason;
-  /** 079 — the courier timeframe as it was SOLD; null unless a courier delivers. */
+  /** The courier timeframe as sold; null unless a courier delivers. */
   courierEstimate: string | null;
-  /** 085 — what an Effy order was sold. Null for a courier order. */
+  /** What an Effy order was sold; null for a courier order. */
   promise: DeliveryPromise | null;
-  /** 085 — the estimate an "as soon as possible" customer was told. */
+  /** The estimate an "as soon as possible" customer was told. */
   asapEstimate?: string | null;
-  /** 079 — oldest first. */
+  /** Oldest first. */
   deliveryTypeHistory: DeliveryTypeChangeDTO[];
-  /** 080 — how this courier order's parcels reach the courier; null unless a courier delivers. */
+  /** How this courier order's parcels reach the courier; null unless a courier delivers. */
   courierCollection: "hub" | "supplier" | null;
-  /** 080 — oldest first. */
+  /** Oldest first. */
   courierCollectionHistory: { from: "hub" | "supplier"; to: "hub" | "supplier"; actorSub: string; note: string | null; at: string }[];
-  /** 081 — every move of the delivery type by back-office, with its compensation; oldest first. */
+  /** Every back-office move of the delivery type, with its compensation; oldest first. */
   deliveryMoves: AdminDeliveryMoveDTO[];
 
   customerId: string;
   customerEmail: string;
   customerName: string | null;
-  /**
-   * 074 — how the order was paid when points were part of it, and what has come back of each. Absent
-   * on an order that used no points.
-   */
+  /** How the order was paid when points were part of it, and what has come back of each. Absent with no points. */
   paymentSplit?: OrderPaymentSplitDTO;
 
   items: AdminOrderItemDTO[];
@@ -406,13 +324,13 @@ export interface AdminOrderDetailDTO {
 
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;
-  /** 077 — how `deliveryFeeAmount` was built, exactly as stored when the order was placed (FR-037). */
+  /** How `deliveryFeeAmount` was built, exactly as stored at placement. */
   deliveryFeeBreakdown: DeliveryFeeBreakdownDTO;
   discountAmount: string;
   promoCode: string | null;
-  /** 094 — each promotion applied, as sold; staff also see its internal name. */
+  /** Each promotion applied, as sold; staff also see its internal name. */
   promotions?: { name: string; headline: string; code: string | null; goodsAmount: string; deliveryAmount: string }[];
-  /** 094 — what delivery promotions took off the fee. */
+  /** What delivery promotions took off the fee. */
   deliveryDiscountAmount?: string;
   grandTotalAmount: string;
   currency: string;
@@ -422,58 +340,36 @@ export interface AdminOrderDetailDTO {
 
   /** The delivery destination, as snapshotted onto the order at checkout. */
   deliveryAddress: Record<string, unknown>;
-  /** Null means "same as delivery" — the console says so rather than repeating the address. */
+  /** Null means "same as delivery"; the console says so. */
   billingAddress: Record<string, unknown> | null;
-  /**
-   * 066 — the customer's instructions to the driver, as given at placement; null/absent when none.
-   * ⚠ Customer-authored free text: render as a text node, never as markup.
-   */
+  /** The customer's instructions to the driver, as given; null when none. Free text: render as a text node. */
   deliveryInstructions?: DeliveryInstructionsDTO | null;
 
-  /** True when every package has arrived (FR-007 — a rollup, never a max). */
+  /** True when every package has arrived (a rollup, never a max). */
   finished: boolean;
   awaiting: OrderAwaiting | null;
 
   /**
-   * 055 — the refund picture, for staff (FR-020).
-   *
-   * ⚠ THE OPERATOR VIEW, NOT THE CUSTOMER'S. It carries all five states including `failed` and
-   * `refused`, and their `failureReason`. `CustomerRefundDTO` collapses to three and carries no
-   * reason at all: a shopper told "your bank refused it" can do nothing with that, and it reads as
-   * an accusation. Staff need the distinction precisely because it decides whether retrying helps.
+   * The refund picture for staff: all five states and their `failureReason` (the customer's view
+   * collapses to three with no reason), since the distinction decides whether retrying helps.
    */
   refunds: RefundDTO[];
-  /** Sum of every refund not in a terminal failure. */
+  /** The sum of every refund not in a terminal failure. */
   refundedAmount: string;
-  /**
-   * What could still be refunded — the ceiling, computed once by the server.
-   *
-   * ⚠ ADVISORY, NEVER THE GATE. The server recomputes it inside the row lock at issue time (FR-008);
-   * this figure was true when the page loaded and another operator may have spent it since. It exists
-   * so the console can show a number, not so it can decide.
-   */
+  /** What could still be refunded, computed by the server. Advisory: the issue recomputes it under the row lock. */
   refundableAmount: string;
-  /** Per-line remaining units, so the console never offers a unit that is already refunded. */
+  /** Per-line remaining units, so the console never offers a refunded unit. */
   refundableLines: RefundableLineDTO[];
-  /**
-   * Refunds the platform believes are owed but nobody has issued (FR-004a).
-   *
-   * ⚠ DERIVED ON EVERY READ, never stored (data-model §4). A stored proposal goes stale the moment a
-   * picker corrects a shortfall, and then the console asks staff to refund something already right.
-   * Only the DISMISSAL — the exception — is a row.
-   */
+  /** Refunds the platform believes are owed but nobody has issued: derived on every read; only a dismissal is stored. */
   proposedRefunds: ProposedRefundDTO[];
-  /** An open customer request, if there is one (FR-004c). */
+  /** An open customer request, if there is one. */
   refundRequest: RefundRequestDTO | null;
 }
 
 /**
- * 077 — the whole of a placed order's delivery charge: which plan priced it, from what, and every
- * step. Written once at the intent call and never recomputed (FR-034/FR-036).
- *
- * ⚠ STAFF ONLY. `plan`, `inputs` and `parts` carry a distance, a weight and the business's pricing —
- * none of which a customer or a shop may see (FR-032/FR-038). A customer contract carries `lines`
- * alone (`DeliveryFeeDTO`). `*Cents` are integer minor units, as the engine computes them.
+ * The whole of a placed order's delivery charge: which plan priced it, from what, and every step,
+ * written once at the intent. Staff only: `plan`, `inputs` and `parts` carry distance, weight and
+ * pricing; a customer contract carries `lines` alone. `*Cents` are integer minor units.
  */
 export interface DeliveryFeeBreakdownDTO {
   v: 1;
@@ -489,7 +385,7 @@ export interface DeliveryFeeBreakdownDTO {
   parts: {
     baseCents: WireInt;
     distanceCents: WireInt;
-    /** The band the distance fell in; null = the open-ended "and beyond" band (or a courier order). */
+    /** The band the distance fell in; null = the open-ended band (or a courier order). */
     distanceBandUpperKm: number | null;
     weightCents: WireInt;
     weightBandUpperGrams: WireInt | null;
@@ -510,68 +406,57 @@ export interface DeliveryFeeBreakdownDTO {
 export interface RefundableLineDTO {
   orderItemId: string;
   productName: string;
-  /** 098 */
   variantLabel: string | null;
   unitPriceAmount: string;
-  /** ⚠ REMAINING units, not ordered units — ordered minus already refunded. */
+  /** Remaining units: ordered minus already refunded. */
   quantity: WireInt;
 }
-
 
 /** A line on the order, for the operator. */
 export interface AdminOrderItemDTO {
   orderItemId: string;
   productId: string;
-  /** 098 */
   variantId: string;
   productName: string;
-  /** 098 — the variant's label as sold; null for a product with no options. */
+  /** The variant's label as sold; null for a product with no options. */
   variantLabel: string | null;
-  /** 098 — Effy's code for the variant as sold (V + 6). */
+  /** Effy's code for the variant as sold (V + 6). */
   variantCode: string | null;
-  /** 098 — the shop's own stock code as sold. */
+  /** The shop's own stock code as sold. */
   sku: string | null;
   unitPriceAmount: string;
   quantity: number;
   lineSubtotalAmount: string;
-  /** ⚠ Operator-only, like `AdminOrderPackageDTO.shopId`. */
+  /** Operator only, like `AdminOrderPackageDTO.shopId`. */
   shopId: string;
 }
 
-/**
- * How an order was paid.
- *
- * ⚠ NO CARD DATA BEYOND `last4`, ever — 051's rule, restated where the next person will read it.
- * There is no field here for a card number, an expiry or a cardholder name, and none may be added.
- */
+/** How an order was paid. No card data beyond `last4`, ever. */
 export interface AdminPaymentMethodDTO {
   type: string;
   brand: string | null;
   last4: string | null;
 }
 
-/** `POST /orders/v1/fulfillments/{id}/handoff` */
+/** `POST /orders/v1/fulfillments/{id}/handoff`. */
 export interface RecordHandoffRequest {
   reference?: string;
   carrierName?: string;
   note?: string;
-  /** Per-action idempotency key, supplied by the client (027's `changeId` rule). */
+  /** A per-action idempotency key from the client. */
   changeId: string;
 }
 
-/** `POST /orders/v1/fulfillments/{id}/arrival` */
+/** `POST /orders/v1/fulfillments/{id}/arrival`. */
 export interface RecordArrivalRequest {
-  /** ISO-8601. Omitted means "now". */
+  /** ISO 8601; omitted means now. */
   arrivedAt?: string;
   note?: string;
   changeId: string;
 }
 
 /** The list response. */
-/**
- * GET /orders/v1/summary/today — the back-office Overview's "Orders today": what was placed since
- * midnight Melbourne time, by who delivers it, and what was refunded today.
- */
+/** GET /orders/v1/summary/today: orders placed since Melbourne midnight, by who delivers them, and today's refunds. */
 export interface AdminOrdersTodayDTO {
   /** The Melbourne date the figures are for, `YYYY-MM-DD`. */
   date: string;
@@ -580,10 +465,7 @@ export interface AdminOrdersTodayDTO {
   refunded: { orders: WireInt; amount: string; currency: string };
 }
 
-/**
- * GET /orders/v1/summary/views — how many orders each saved view of the list holds, under the same
- * search and delivery filters (`q`, `deliveryType`, `open`, `promise`) the list takes.
- */
+/** GET /orders/v1/summary/views: how many orders each saved view holds, under the list's `q`, `deliveryType`, `open` and `promise` filters. */
 export interface AdminOrderViewCountsDTO {
   all: WireInt;
   needsDriver: WireInt;
@@ -599,10 +481,9 @@ export interface AdminOrderListResponse {
 }
 
 /**
- * 073 — who has one package for one stage (collection or delivery), and how it got there.
- *
- * `assignmentId` is the concurrency token the manual actions send back: the current assignment, or
- * null when nobody has it. `movable` is false once the goods are in a van.
+ * Who has one package for one stage (collection or delivery), and how. `assignmentId` is the
+ * concurrency token the manual actions send back (null when nobody has it); `movable` is false once the
+ * goods are in a van.
  */
 export interface OrderAssignment {
   assignmentId: string | null;
@@ -611,31 +492,29 @@ export interface OrderAssignment {
   opensAt: string | null;
   dueAt: string | null;
   roundId: string | null;
-  /** One line: "Auto-assigned — fewest packages today (2)" or "Assigned by Ann". */
+  /** One line: "Auto-assigned: fewest packages today (2)" or "Assigned by Ann". */
   how: string | null;
   /** One line, only when nobody has it: "No driver is on duty". */
   unassignedReason: string | null;
   movable: boolean;
 }
 
-
-// ── 081 — moving an order between Effy and courier delivery, and compensating the customer ────────
-// Contract: `specs/081-courier-override-compensation/contracts/routes.md`.
+// Moving an order between Effy and courier delivery, and compensating the customer
 
 /**
  * How a customer is made whole for a move to courier. Staff choose one; nothing is chosen for them.
- *   points_difference     points worth what they paid for Effy delivery less the courier fee (the default)
- *   free_delivery_points  points worth the whole delivery charge they paid
- *   free_delivery_refund  the whole delivery charge back to the card
- *   refund_difference     the difference back to the card — the last resort
- *   none                  nothing, with a note saying why (always, on a move back to Effy)
+ *  points_difference points worth what they paid for Effy delivery less the courier fee (the default)
+ *  free_delivery_points points worth the whole delivery charge they paid
+ *  free_delivery_refund the whole delivery charge back to the card
+ *  refund_difference the difference back to the card — the last resort
+ *  none nothing, with a note saying why (always, on a move back to Effy)
  */
 export const DELIVERY_COMPENSATION_KINDS = [
   "points_difference", "free_delivery_points", "free_delivery_refund", "refund_difference", "none",
 ] as const;
 export type DeliveryCompensationKind = (typeof DELIVERY_COMPENSATION_KINDS)[number];
 
-/** Why a move is refused. Each is said to staff in one line (back-office `errorText.ts`). */
+/** Why a move is refused, each said to staff in one line (back-office `errorText.ts`). */
 export type DeliveryMoveRefusal =
   | "not_found" | "not_paid" | "already_courier" | "already_effy"
   | "handed_over" | "delivered" | "out_for_delivery" | "with_driver_after_failure" | "courier_not_ready"
@@ -646,10 +525,10 @@ export interface AdminDeliveryMoveDTO {
   id: string;
   at: string;
   to: DeliveryType;
-  /** What staff wrote. ⚠ Staff only — never on a customer or shop contract. */
+  /** What staff wrote. Staff only, never on a customer or shop contract. */
   reason: string;
   actor: { sub: string; name: string };
-  /** The window released (to courier) or taken (back to Effy); null when there was none. */
+  /** The window released (to courier) or taken (back to Effy); null when none. */
   window: { date: string; start: string; end: string } | null;
   courier: { courierName: string; serviceName: string; collection: "hub" | "supplier" } | null;
   paidDeliveryAmount: string;
@@ -659,7 +538,7 @@ export interface AdminDeliveryMoveDTO {
   /** What was given ("0.00" for none). */
   amount: string;
   points: number | null;
-  /** The refund's state when the compensation went to the card (055's words: submitting, submitted, succeeded, failed, refused). */
+  /** The refund's state when the compensation went to the card (submitting, submitted, succeeded, failed, refused). */
   refundStatus: string | null;
   compensationNote: string | null;
 }
@@ -669,7 +548,7 @@ export interface DeliveryMoveChoiceDTO {
   kind: DeliveryCompensationKind;
   amount: string;
   points?: number;
-  /** Card refunds: the part returned to the card, and the points returned (an order paid partly in points). */
+  /** Card refunds: the part to the card, and the points returned (an order paid partly in points). */
   cardAmount?: string;
   pointsReturned?: number;
   default?: true;
@@ -684,11 +563,11 @@ export interface DeliveryMoveWindowDTO {
   start: string;
   end: string;
   label: string;
-  /** 085 — the day's Any time window: the order is then promised the day, not these hours. */
+  /** The day's Any time window: the order is then promised the day, not these hours. */
   anyTime?: true;
 }
 
-/** `GET /orders/v1/orders/{orderId}/delivery-move?to=` */
+/** `GET /orders/v1/orders/{orderId}/delivery-move?to=`. */
 export interface DeliveryMovePreviewDTO {
   to: DeliveryType;
   allowed: boolean;
@@ -707,7 +586,7 @@ export interface DeliveryMovePreviewDTO {
   windows: DeliveryMoveWindowDTO[] | null;
 }
 
-/** `POST /orders/v1/orders/{orderId}/delivery-move` */
+/** `POST /orders/v1/orders/{orderId}/delivery-move`. */
 export type DeliveryMoveRequest =
   | {
       to: "courier";

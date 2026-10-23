@@ -1,14 +1,14 @@
 package com.effyshopping.driver.mobile.core.observability
 
 /**
- * The typed product-analytics taxonomy for driver-mobile (050 US2). There is no driver web surface;
+ * The typed product-analytics taxonomy for driver-mobile. There is no driver web surface;
  * docs/telemetry/{driver,platform}-events.md is the single source. A `commonTest` drift check asserts
  * every name here is documented.
  *
- * ⚠ ADD AN EVENT HERE FIRST — never a free string at a call site (FR-007). ⚠ NO PII: run ids + bounded
+ * Add an event here first — never a free string at a call site. No PII: run ids + bounded
  * enums only — never a customer name, address, order total, or proof-image field (Principle VII).
  *
- * ⚠ EVERY EVENT HERE HAS A CALL SITE NOW, except the three push-permission events (the prompt is
+ * Every event here has a call site now, except the three push-permission events (the prompt is
  * the OS's, raised by the Android activity). For years only `ScreenViewed` was declared with a
  * helper and nothing at all was emitted; the drift test asserts each name is documented and cannot
  * assert that anything fires one, so check `DriverShell` and `AppContainer` before trusting a dashboard.
@@ -26,9 +26,9 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class DropCompleted(proof: String) : AnalyticsEvent("drop_completed", mapOf("proof" to proof))
 
     /**
-     * 065 — a driver opened a package's item list. `surface` is `pickup` | `drop`.
+     * A driver opened a package's item list. `surface` is `pickup` | `drop`.
      *
-     * ⚠ NO ITEM NAMES AND NO ORDER REFERENCE: what a customer bought is theirs, and three bounded
+     * No item names and no order reference: what a customer bought is theirs, and three bounded
      * values answer the only questions this event exists for — do drivers open the list, and how
      * often are cold goods involved.
      */
@@ -38,16 +38,9 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     )
 
     /**
-     * ⚠ 064 — THE FR-006 CASE, AND IT CAN ONLY BE OBSERVED HERE.
-     *
-     * A proof image is PUT straight to S3 against a presigned url; the bytes never pass through
-     * Lambda, so when that upload fails the backend sees nothing at all — no request, no error, no
-     * log line. The drop correctly stays incomplete and the driver is told to retake the photo, but
-     * a SYSTEMATIC failure (a bad network on one device, a broken camera encode, an expired presign)
-     * would otherwise be invisible to everyone except the driver standing at the door.
-     *
-     * ⚠ NO PII, and none is available to leak: the reason is a bounded enum and the drop id is a
-     * uuid. Never the image, never the address, never the recipient.
+     * A failed proof upload, observable only here: the image goes straight to S3 on a presigned URL, so the
+     * backend never sees the failure. A bounded reason and the drop id; never the image, address or
+     * recipient.
      */
     class ProofUploadFailed(reason: String) :
         AnalyticsEvent("proof_upload_failed", mapOf("reason" to reason))

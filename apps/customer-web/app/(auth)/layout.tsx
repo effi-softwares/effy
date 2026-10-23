@@ -8,15 +8,9 @@ import { AuthAside } from "./_components/AuthAside"
 import { ConfigureAmplify } from "./ConfigureAmplify"
 
 /**
- * The sign-in / join / reset frame (reference: Shared components · Auth card template).
- *
- * TWO HALVES from `lg`: the art panel on the left, and on the right the wordmark, a way back to the
- * store and ONE 400px column, centred, that every step of every flow renders into. Below `lg` the
- * art panel is gone and the column has the screen. Which step is the page's business — the frame
- * never changes.
- *
- * ⚠ `ConfigureAmplify` is mounted HERE and nowhere else — the auth SDK must not reach the guest
- * bundle (see app/layout.tsx, rule 2).
+ * The sign-in, join and reset frame: from `lg` the art panel beside the wordmark, a way back to the store
+ * and one centred 400px column every step renders into; below `lg`, the column alone. `ConfigureAmplify`
+ * is mounted here only, so the auth SDK never reaches the guest bundle.
  */
 export default function AuthLayout({
   children,

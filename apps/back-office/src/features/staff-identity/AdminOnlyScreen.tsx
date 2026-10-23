@@ -11,11 +11,11 @@ import { track } from "@/lib/telemetry";
 
 import { adminPingQuery } from "./queries";
 
-// US3 / FR-006a — the authoritative layer. The screen is reachable by URL; the BACKEND decides.
+// The authoritative layer. The screen is reachable by URL; the backend decides.
 // Admin → served; manager/csa (or a disabled admin) → 403, surfaced as access-denied. The proof is
 // the backend's 403, not the hidden nav link.
 //
-// Failure rendering comes from the SHARED ErrorState (Principle II): a denial offers no retry,
+// Failure rendering comes from the shared ErrorState (Principle II): a denial offers no retry,
 // a degraded backend does, and neither ever shows internal detail.
 export function AdminOnlyScreen() {
   const { data, error, isPending, isError, refetch } = useQuery(adminPingQuery);

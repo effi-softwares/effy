@@ -1,13 +1,8 @@
 /**
- * 096 — handheld scanners that type like a keyboard ("keyboard wedge", research R13).
- *
- * A page cannot tell a scan from typing, so a scan is recognised by its SHAPE: a burst of printable keys,
- * each within `interKeyMs` of the last, ending in Enter or Tab or a short idle, whose text the screen
- * accepts (a label token, an order number). Slow typing never forms a burst. A stray key before the scan
- * is dropped (the gap resets the buffer), Caps Lock is forgiven (`EFY1:` tokens are upper-cased), and the
- * characters a burst typed into a focused text field are taken back out of it (FR-051).
- *
- * Pure, with the clock and the timer injected, so the rule is tested without a browser.
+ * Handheld scanners that type like a keyboard. A scan is recognised by its shape: a burst of printable
+ * keys each within `interKeyMs`, ending in Enter, Tab or a short idle, whose text the screen accepts.
+ * A stray key before it is dropped, Caps Lock is forgiven (`EFY1:` tokens), and the burst's characters
+ * are taken back out of a focused field. Pure, with the clock and timer injected.
  */
 
 export interface WedgeOptions {

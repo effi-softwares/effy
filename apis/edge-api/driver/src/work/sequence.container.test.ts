@@ -3,12 +3,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The order of a driver's work, against real PostgreSQL (093).
- *
- * Each gate is driven through the real functions, as a stale screen or a second phone would call them,
- * and each refusal is checked to have written nothing. Then the two halves of "never assumed": a
- * package the driver was not shown is not collected (US2), and a package declared missing at loading
- * or check-in is held out of planning (US4).
+ * Each sequence gate driven through the real functions, each refusal writing nothing; a package not
+ * shown is not collected, and a package declared missing is held out of planning.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -35,7 +31,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { createFirstParcels, expectedParcels, ParcelsUnaccounted } from "@effy/edge-shared/labels";
 
 import { gatherDeliveryWork } from "../../../fleet/src/planner/repository";
@@ -55,7 +51,7 @@ let n = 0;
 const change = () => crypto.randomUUID();
 const one = async <T,>(sql: string, params: unknown[] = []) => (await pool.query(sql, params as never[])).rows[0] as T;
 
-/** 096 — give these packages their bag 1 (as payment does) and answer each one's bag code. */
+/** Bag 1 for each package, as payment creates it, with each one's code. */
 async function bagsOf(packageIds: string[]): Promise<Map<string, string>> {
   await createFirstParcels(pool, { packageIds });
   const rows = (await pool.query(`SELECT shop_fulfillment_id, parcel_code FROM public.package_parcel WHERE shop_fulfillment_id = ANY($1::uuid[])`, [packageIds])).rows;
@@ -70,8 +66,8 @@ async function anOrder(shopId: string, status: "ready_for_pickup" | "collected")
   );
   const order = await one<{ id: string }>(
     `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, delivery_fee_amount,
-                                 grand_total_amount, delivery_address)
-     VALUES ($1, $2, 'paid', 10, 0, 10, '{"line1":"1 Seq St","city":"Fitzroy","postalCode":"3065"}'::jsonb) RETURNING id`,
+                                 grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
+     VALUES ($1, $2, 'paid', 10, 0, 10, '{"line1":"1 Seq St","city":"Fitzroy","postalCode":"3065"}'::jsonb, 'effy', 'in_coverage') RETURNING id`,
     [cust.id, `EFY-SEQ${String(n).padStart(3, "0")}`],
   );
   const sf = await one<{ id: string }>(
@@ -87,7 +83,6 @@ async function aShop(): Promise<string> {
   return (await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ($1, $2) RETURNING id`, [`SQ${n}`, `Shop ${n}`])).id;
 }
 
-/** A collection run, open now, with one stop per entry in `packagesPerShop`. */
 async function aCollectionRun(packagesPerShop: number[]) {
   const wave = await one<{ id: string }>(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
   const round = await one<{ id: string }>(
@@ -110,7 +105,7 @@ async function aCollectionRun(packagesPerShop: number[]) {
   return { roundId: round.id, stops };
 }
 
-/** A delivery run with no window (open now), one drop per entry, each with that many packages. */
+/** One drop per entry, each with that many packages, on a run with no window. */
 async function aDeliveryRun(packagesPerDrop: number[]) {
   const shopId = await aShop();
   const wave = await one<{ id: string }>(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('delivery', now(), 'schedule') RETURNING id`);
@@ -148,7 +143,6 @@ async function refusal(p: Promise<unknown>): Promise<SequenceError> {
   return err as SequenceError;
 }
 
-/** Everything a refused step could have written. */
 async function snapshot() {
   return pool.query(`SELECT
     (SELECT json_agg(json_build_object('id', id, 'status', status) ORDER BY id) FROM public.round_stop) AS stops,
@@ -183,8 +177,6 @@ d("093 — the order of a driver's work", () => {
     )).id;
     await pool.query(`INSERT INTO public.driver_duty_session (driver_id) VALUES ($1)`, [driverId]);
   });
-
-  // ── US1 ─────────────────────────────────────────────────────────────────────────────────────────
 
   it("check-in is refused while a shop is outstanding, naming it; once every shop is settled it succeeds", async () => {
     const { roundId, stops } = await aCollectionRun([1, 1]);
@@ -275,8 +267,6 @@ d("093 — the order of a driver's work", () => {
     expect(collection.roundId).toBeTruthy();
   });
 
-  // ── US2 ─────────────────────────────────────────────────────────────────────────────────────────
-
   it("a package the driver was not shown stays waiting, and the stop stays open", async () => {
     const { roundId, stops } = await aCollectionRun([2]);
     const stop = stops[0]!;
@@ -292,8 +282,6 @@ d("093 — the order of a driver's work", () => {
     expect(r2).toEqual({ collected: 1, notAvailable: 0, remaining: 0 });
     expect((await one<{ status: string }>(`SELECT status FROM public.round_stop WHERE id = $1`, [stop.stopId])).status).toBe("done");
   });
-
-  // ── US4 ─────────────────────────────────────────────────────────────────────────────────────────
 
   it("a package not loaded comes off the run and is held; a drop left empty comes off too; a retry holds nothing twice", async () => {
     // Three packages collected and checked in at the hub — what the delivery gather plans from.
@@ -323,7 +311,7 @@ d("093 — the order of a driver's work", () => {
     expect(await gathered(), "on a run: not gathered again").toEqual([]);
 
     const changeId = change();
-    // 096 — each package is one bag here, so a bag declared missing is its whole package (093's shape).
+    // One bag per package here, so a missing bag is its whole package.
     const bag = await bagsOf([lone!, kept!, torn!]);
     const notLoaded = [
       { parcelCode: bag.get(lone!)!, reason: "damaged" as const },
@@ -341,7 +329,7 @@ d("093 — the order of a driver's work", () => {
       { shop_fulfillment_id: torn, step: "load", reason: "other" },
     ]);
 
-    // Off the run, but held: the planner does not put them on a van again by itself.
+    // Held: the planner does not put them on a van again by itself.
     expect(await gathered()).toEqual([]);
 
     // A dispatcher finds one: it is planned again. The other stays held.
@@ -379,9 +367,7 @@ d("093 — the order of a driver's work", () => {
     expect(gathered).not.toContain(gone);
   });
 
-  // ── 096 — every BAG accounted for (spec US3, SC-003) ──────────────────────────────────────────────
-
-  /** A package with `n` bags: bag 1 as payment creates it, the rest as a shop declares them. */
+  /** Bag 1 as payment creates it, the rest as a shop declares them. */
   async function bags(packageId: string, n: number): Promise<string[]> {
     await createFirstParcels(pool, { packageIds: [packageId] });
     for (let seq = 2; seq <= n; seq++) {

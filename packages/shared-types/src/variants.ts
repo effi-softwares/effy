@@ -1,17 +1,10 @@
 /**
- * Product variants — 098-product-variants.
- *
- * A PRODUCT is what a shopper recognises as one thing ("Basmati Rice"); its VARIANTS — one per
- * combination of up to two OPTIONS such as Size and Flavour — are what is bought, priced and counted.
- * A product with no options has exactly one variant and shows no selector.
- *
- * This file holds the wire shapes AND the pure rules both ends need:
- *   • `variantLabel` — "Spiced / 500 g", the one way a variant is named anywhere (order lines snapshot it);
- *   • `validateVariantSet` — every rule a shop's option/variant set must meet. The shop console runs it
- *     before saving so the operator sees refusals in place; the server runs the SAME function inside
- *     the one writer (`applyVariantSet`, @effy/edge-shared/catalog) so the rules cannot drift.
- *
- * Contract: specs/098-product-variants/contracts/api.md. Data: ../data-model.md.
+ * Product variants. A product is what a shopper recognises as one thing ("Basmati Rice"); its variants,
+ * one per combination of up to two options (Size, Flavour), are what is bought, priced and counted. A
+ * product with no options has one variant and no selector. The pure rules both ends need:
+ *  • `variantLabel`: "Spiced / 500 g", the one way a variant is named (order lines snapshot it);
+ *  • `validateVariantSet`: the shop console runs it before saving, and the one writer
+ *  (`applyVariantSet`, @effy/edge-shared/catalog) runs the same function.
  */
 
 import type { WireInt } from "./cart"
@@ -20,7 +13,6 @@ import { PACK_UNITS, UNIT_BASES, packQuantityThousandths, packUnitCompatible, ty
 
 export type VariantState = "active" | "inactive" | "removed"
 
-/** FR-006. */
 export const VARIANT_LIMITS = {
   options: 2,
   valuesPerOption: 20,
@@ -54,11 +46,11 @@ export interface StorefrontVariantDTO {
   priceAmount: string
   compareAtAmount: string | null
   unitPrice: UnitPriceDTO | null
-  /** Purchasable now (the one availability rule, R5). */
+  /** Purchasable now (the one availability rule). */
   available: boolean
   /** The variant's own picture, or null — show the product's gallery. */
   imageUrl: string | null
-  /** 086 — widths (px) of this picture's smaller copies, ascending. */
+  /** Widths (px) of this picture's smaller copies, ascending. */
   imageWidths?: number[]
 }
 
@@ -68,9 +60,9 @@ export interface ShopVariantDTO {
   position: WireInt
   optionValueIds: OptionValueIds
   label: string | null
-  /** Effy's permanent code for this variant (`V` + 6, e.g. V7K3Q9M) — generated, never edited. */
+  /** Effy's permanent code for this variant (`V` + 6, e.g. V7K3Q9M), generated, never edited. */
   code: string
-  /** The shop's OWN stock code — optional, unique within the shop. */
+  /** The shop's own stock code: optional, unique within the shop. */
   sku: string | null
   /** The manufacturer's barcode printed on the pack (GTIN/EAN), when it has one. */
   gtin: string | null
@@ -81,7 +73,7 @@ export interface ShopVariantDTO {
   customerPriceAmount: string | null
   customerCompareAtAmount: string | null
   weightGrams: WireInt
-  /** True while nobody has recorded a real weight (032). */
+  /** True while nobody has recorded a real weight. */
   weightIsAssumed: boolean
   /** Decimal string, up to 3 places ("1.25"), with `packUnit`; both null when no pack size. */
   packQuantity: string | null
@@ -92,7 +84,7 @@ export interface ShopVariantDTO {
   stock: ProductStockDTO
 }
 
-/** One option as a shop sends it. Ids are CLIENT-GENERATED (UUIDs) for new options and values (R6). */
+/** One option as a shop sends it. Ids are client-generated UUIDs for new options and values. */
 export interface OptionInputDTO {
   id: string
   position: WireInt
@@ -100,7 +92,7 @@ export interface OptionInputDTO {
   values: { id: string; value: string; position: WireInt }[]
 }
 
-/** One variant as a shop sends it. `id` is client-generated for a new variant (R6). */
+/** One variant as a shop sends it; `id` is client-generated for a new one. */
 export interface VariantInputDTO {
   id: string
   position: WireInt
@@ -109,7 +101,7 @@ export interface VariantInputDTO {
   gtin?: string | null
   shopPriceAmount: string
   shopCompareAtAmount?: string | null
-  /** Recording a weight marks it measured (032). Omit or null to keep the assumed default. */
+  /** Recording a weight marks it measured; omit or null to keep the assumed default. */
   weightGrams?: WireInt | null
   packQuantity?: string | null
   packUnit?: PackUnit | null
@@ -117,12 +109,12 @@ export interface VariantInputDTO {
   mediaStorageKey?: string | null
 }
 
-/** POST /shop/v1/products/{id}/variants/{variantId}/state — immediate (FR-009). */
+/** POST /shop/v1/products/{id}/variants/{variantId}/state: immediate. */
 export interface SetVariantStateRequest {
   state: VariantState
 }
 
-// ── The label ───────────────────────────────────────────────────────────────────────────────────
+// The label
 
 interface LabelOption {
   position: number
@@ -145,16 +137,12 @@ export function variantLabel(options: readonly LabelOption[], optionValueIds: re
   return parts.length > 0 ? parts.join(" / ") : null
 }
 
-/**
- * How an order line is named where one string is all there is (a manifest, a PDF line, an email):
- * "Basmati Rice — 1 kg", or the product name alone. The SQL twin is `lineNameSql` in
- * @effy/edge-shared/catalog.
- */
+/** An order line's name where one string is all there is (a manifest, a PDF line, an email): "Basmati Rice — 1 kg". The SQL twin is `lineNameSql`. */
 export function lineName(productName: string, label: string | null | undefined): string {
   return label ? `${productName} — ${label}` : productName
 }
 
-// ── Combinations (the shop console's "generate rows") ───────────────────────────────────────────
+// Combinations (the shop console's "generate rows")
 
 /** Every combination of the options' values, in option-then-value order. */
 export function optionCombinations(options: readonly OptionInputDTO[]): OptionValueIds[] {
@@ -168,7 +156,7 @@ export function optionCombinations(options: readonly OptionInputDTO[]): OptionVa
   return firstIds.flatMap((a) => secondIds.map((b) => [a, b] as OptionValueIds))
 }
 
-// ── Validation (both ends) ──────────────────────────────────────────────────────────────────────
+// Validation (both ends)
 
 /** A refusal pointing at one input: `options[0].name`, `variants[2].shopPriceAmount`, `variants`. */
 export interface VariantSetError {
@@ -182,11 +170,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const lowerTrim = (s: string) => s.trim().toLowerCase()
 
 /**
- * Every rule a product's option/variant set must meet (data-model.md §7). Returns ALL refusals, not
- * the first, so a console can mark every bad cell at once. An empty array means valid.
- *
- * ⚠ It checks the SET's shape, not the database: stock-code uniqueness across the shop and "this
- * picture is in the gallery" need the database and are the writer's job.
+ * Every rule a product's option/variant set must meet, all refusals at once (empty means valid). The
+ * set's shape only: stock-code uniqueness and gallery membership are the writer's job.
  */
 export function validateVariantSet(
   options: readonly OptionInputDTO[],
@@ -200,7 +185,7 @@ export function validateVariantSet(
     add("unitBasis", `must be one of: ${UNIT_BASES.join(", ")}`)
   }
 
-  // ── Options ──
+  // Options
   if (options.length > VARIANT_LIMITS.options) add("options", `a product can have at most ${VARIANT_LIMITS.options} options`)
   const positions = new Set<number>()
   const optionNames = new Set<string>()
@@ -238,7 +223,7 @@ export function validateVariantSet(
   })
   if (positions.has(2) && !positions.has(1)) add("options", "the first option must come before the second")
 
-  // ── Variants ──
+  // Variants
   if (variants.length === 0) add("variants", "a product needs at least one variant")
   if (variants.length > VARIANT_LIMITS.variants) add("variants", `a product can have at most ${VARIANT_LIMITS.variants} variants`)
 

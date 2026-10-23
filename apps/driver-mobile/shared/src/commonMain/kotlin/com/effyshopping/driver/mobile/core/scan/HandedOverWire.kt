@@ -12,14 +12,14 @@ internal fun HandMethod.toWire(): HandoverMethod = when (this) {
     HandMethod.MANUAL -> HandoverMethod.Manual
 }
 
-/** 096 — bags named by their label code, each with how it was handed over; null when there are none. */
+/** Bags named by their label code, each with how it was handed over; null when there are none. */
 internal fun List<HandedOver>.toWire(): List<ParcelHandover>? =
     takeIf { it.isNotEmpty() }?.map { ParcelHandover(method = it.method.toWire(), parcelCode = it.code) }
 
-/** 096 — one bag declared missing at a step: its code, the step's reason key, and a note for "Other". */
+/** One bag declared missing at a step: its code, the step's reason key, and a note for "Other". */
 data class MissingBag(val code: String, val reason: String, val note: String? = null)
 
-/** 096 — bags declared missing; null when there are none. */
+/** Bags declared missing; null when there are none. */
 internal fun List<MissingBag>.toWireMissing(): List<ParcelMissing>? =
     takeIf { it.isNotEmpty() }?.map { m ->
         ParcelMissing(

@@ -7,14 +7,14 @@ import { animateMenuOpen, warmSlideMotion } from "@/lib/slide-motion"
 import { clsx } from "clsx"
 
 /**
- * The All aisles menu's behaviour (reference: Home · All aisles mega menu). Everything it SHOWS is
+ * The All aisles menu's behaviour (reference: Home · All aisles mega menu). Everything it shows is
  * rendered on the server and handed in — this file is only when it is open and which aisle is showing,
  * so it adds a few hundred bytes to the guest bundle and no icon set.
  *
- * ⚠ IT OPENS ON HOVER, AND NEVER ONLY ON HOVER. A mouse resting on the button opens it; so does a
+ * It opens on hover, and never only on hover. A mouse resting on the button opens it; so does a
  * press, a tap, or Enter — touch screens and keyboards have no hover.
  *
- * ⚠ THE DELAYS ARE THE FEATURE. Without the short wait before opening, the menu flashes every time
+ * The delays are the feature. Without the short wait before opening, the menu flashes every time
  * the pointer crosses the header; without the wait before closing, it vanishes when the pointer
  * cuts a corner on its way from the button to the panel; without the wait on an aisle row, sweeping
  * diagonally towards the groups switches aisle on the way there.
@@ -93,7 +93,7 @@ export function AisleMenu({
     [],
   )
 
-  // Hover is a MOUSE idea. A finger "enters" an element at the moment it presses it, and that press
+  // Hover is a mouse idea. A finger "enters" an element at the moment it presses it, and that press
   // is already handled as a press.
   const hover = (fn: () => void) => (event: React.PointerEvent) => {
     if (event.pointerType === "mouse") fn()

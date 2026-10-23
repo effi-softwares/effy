@@ -1,12 +1,6 @@
-// Dispatch across the days on sale (082) — each window of a chosen day, with its parcels and rounds.
-//
-// ⚠ A LATER DAY'S PARCELS HAVE NO ROUND, AND THAT IS NOT A GAP. A delivery round is planned on its own
-// day (the planner's gather takes only windows whose day has come), so before that the dispatcher
-// sees the load by window and nobody's name on it. `rounds: []` means "planned on the day".
-//
-// ⚠ NOTHING HERE DECIDES ANYTHING THE PLANNER DECIDES. "Late for its run" is the planner's own
-// `dueRun`; "Effy delivers it" is 079's one definition; where a parcel is, is 073's `packageStatuses`;
-// the days on sale are 078's `effyDays`. This file only puts them on one screen.
+// Dispatch across the days on sale: each window of a chosen day with its parcels and rounds. A later
+// day's parcels have no round yet (`rounds: []` means planned on the day). Every judgement here is the
+// planner's (`dueRun`), the delivery type, `packageStatuses` or `effyDays`; this only puts them together.
 
 import { nextRunInstant, packageStatuses, query, type Queryable } from "@effy/edge-shared";
 import { effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
@@ -19,7 +13,7 @@ import { DispatchError } from "./service";
 const pooled: Queryable = { query: (text, values) => query(text, values) };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Effy parcels sold a window on one local day. ⚠ No customer name or address: the day view is a load, not a manifest. */
+/** No customer name or address: the day view is a load, not a manifest. */
 const WINDOW_PARCELS = `
   SELECT sf.id::text            AS package_id,
          o.id::text             AS order_id,
@@ -53,7 +47,6 @@ const WINDOW_PARCELS = `
    ORDER BY opd.window_start, o.order_number, sf.id
 `;
 
-/** The delivery rounds that exist for windows starting on one local day. */
 const WINDOW_ROUNDS = `
   SELECT dr.id::text AS round_id, dr.window_start_at, d.id::text AS driver_id, d.name AS driver_name,
          public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
@@ -77,13 +70,12 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
   const today = isoDateOf(now);
   const slotSettings = await loadSlotSettings(db);
   const noDates = await nonDeliveryDates(db, isoDateOf(now, -8));
-  // 097 — a staff calendar, not an address: today is always shown.
+  // A staff calendar: today is always shown.
   const calendar = effyDays(now, slotSettings.effyLookaheadDays, slotSettings.noWeekdays, noDates, true);
   const days = calendar.map((d) => ({ date: d.date, label: d.isToday ? "Today" : formatDeliveryDay(d.date), isToday: d.isToday }));
 
   const date = dateParam ?? today;
-  // ⚠ A day that is not on sale is refused, not answered with an empty list: an empty day and a day
-  // nobody may look at must not read the same.
+  // A day not on sale is refused, not answered empty.
   if (!ISO_DATE.test(date) || !days.some((d) => d.date === date)) {
     throw new DispatchError("invalid", "Choose today or one of the days with delivery windows on sale.");
   }
@@ -92,7 +84,6 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
   const rounds = (await db.query<{ round_id: string; window_start_at: Date; driver_id: string; driver_name: string; opens_at: Date | null; parcels: number }>(WINDOW_ROUNDS, [date])).rows;
   const statuses = await packageStatuses(db, parcels.map((p) => p.package_id));
 
-  // "Late for its run" by the planner's own rule.
   const schedule = await loadSchedule(db);
   const nextRun = nextRunInstant(schedule.runs, now);
   const runCalendar = { noWeekdays: schedule.settings.noDeliveryWeekdays, noDates };
@@ -112,7 +103,7 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
       w = {
         windowStart, windowEnd,
         label: p.any_time
-          // 085 — the day's untimed parcels, with the hours they go out in.
+          // The day's untimed parcels, with the hours they go out in.
           ? `${anyTimeDayLabel(date, now)} (${formatDeliveryWindow({ startAt: windowStart, endAt: windowEnd })})`
           : formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, now),
         ...(p.any_time ? { anyTime: true as const } : {}),
@@ -131,7 +122,7 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
       orderNumber: p.order_number,
       status,
       collectLate: collectLate(p),
-      // Cold goods that reached the hub on a day before the one they go out on: they need cold storage.
+      // Cold goods at the hub before their day need cold storage.
       coldOvernight: p.cold && p.hub_date !== null && p.hub_date < date,
       group: p.group_name,
     });

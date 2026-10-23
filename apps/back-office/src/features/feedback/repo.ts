@@ -1,4 +1,4 @@
-// Data layer for the feedback console slice (046). Screens never touch the api client directly
+// Data layer for the feedback console slice. Screens never touch the api client directly
 // (Principle VI). Every endpoint lives under the admin cold-path service behind the shared gateway.
 import { api } from "@/lib/api"
 

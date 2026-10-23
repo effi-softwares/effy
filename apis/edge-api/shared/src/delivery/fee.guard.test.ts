@@ -5,14 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 077 — three things about the fee that are true only while nobody adds a second copy, and that
- * every behavioural test would go on passing without.
- *
- *   P20  a customer contract carries lines and a total — never a distance, band, weight or plan —
- *        and a shop contract carries no delivery money at all (FR-032, FR-038, SC-012);
- *   P21  nothing reads a distance tier or a method multiplier any more (FR-040) — and this is what
- *        gates the migration that drops them;
- *   P22  fee parts are added up in ONE place, the engine (research R3).
+ * A customer contract carries fee lines and a total only, a shop contract no delivery money; nothing
+ * reads a distance tier or method multiplier; fee parts are added up only in the engine.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../../../..");
@@ -32,7 +26,6 @@ function files(dir: string, exts: string[], out: string[] = []): string[] {
 const isTest = (f: string) => /\.(test|spec)\.tsx?$/.test(f) || f.includes("/commonTest/") || f.includes("__tests__");
 const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-/** The interfaces a file declares, with their bodies. */
 function interfaces(src: string): { name: string; body: string }[] {
   return [...stripComments(src).matchAll(/export interface (\w+)[^{]*\{([\s\S]*?)\n\}/g)].map((m) => ({ name: m[1]!, body: m[2]! }));
 }
@@ -41,7 +34,7 @@ const fieldNames = (body: string) => [...body.matchAll(/^\s*(\w+)\??:/gm)].map((
 const types = resolve(repo, "packages/shared-types/src");
 
 describe("P20 — what a customer and a shop are told about delivery", () => {
-  /** Customer contracts that may carry a fee — as lines and a total, and nothing more. */
+  /** Customer contracts that may carry a fee, as lines and a total. */
   const CUSTOMER = ["delivery.ts", "delivery-fee.ts", "checkout.ts", "order.ts"];
   const LEAKS = /(^|[a-z])(km|distance|band|grams|weight|plan|breakdown|basketCents|premium|hub)/i;
 
@@ -71,7 +64,7 @@ describe("P20 — what a customer and a shop are told about delivery", () => {
   });
 
   it("a customer route reads only the LINES of what an order stored", () => {
-    // The column holds the plan, the distance and the weight. Only `->'lines'` may leave for a customer.
+    // The column holds plan, distance and weight; only `->'lines'` may leave for a customer.
     for (const dir of ["commerce", "storefront", "customer", "notifications"]) {
       for (const file of files(resolve(repo, `apis/edge-api/${dir}/src`), [".ts"]).filter((f) => !isTest(f))) {
         const src = stripComments(readFileSync(file, "utf8"));
@@ -90,7 +83,7 @@ describe("P21 — nothing reads a distance tier or a method multiplier", () => {
   const roots = ["apis", "apps", "packages"].map((d) => resolve(repo, d));
   const sources = roots
     .flatMap((r) => files(r, [".ts", ".tsx", ".kt"]))
-    .filter((f) => !isTest(f) && !f.includes("/load-migrations"));
+    .filter((f) => !isTest(f) && !f.includes("/testing/migrations"));
 
   it("scanned real source", () => {
     expect(sources.length).toBeGreaterThan(500);

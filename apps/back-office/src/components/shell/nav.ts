@@ -27,7 +27,7 @@ import type { BackOfficeRole } from "@effy/shared-types";
  * the job — Operations · People · Catalogue · Settings — with live counts on the ones that need a
  * person. Every page is still the route it was; only where it sits in the menu moved.
  *
- * ⚠ A HIDDEN ITEM IS A COURTESY, NEVER THE GUARD. `requiredRole` mirrors the gate the backend checks
+ * A hidden item is a courtesy, never the guard. `requiredRole` mirrors the gate the backend checks
  * (Admin and access → admin); the backend refuses the request whatever the menu shows. Every other
  * page is open to every role, csa included — a csa is who answers "where is my order".
  */
@@ -43,7 +43,7 @@ export interface NavLeaf {
   tab?: string;
   count?: NavCountKey;
   requiredRole?: BackOfficeRole;
-  /** 096 — shown to any one of these roles (the hub station: admin or manager). */
+  /** Shown to any one of these roles (the hub station: admin or manager). */
   requiredAnyRole?: readonly BackOfficeRole[];
 }
 
@@ -77,15 +77,15 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         icon: Package,
         subs: [
           { key: "orders", label: "All orders", to: "/orders" },
-          // 073 — the dispatcher's day lives under Orders; it was a tab nobody could find.
+          // The dispatcher's day lives under Orders; it was a tab nobody could find.
           { key: "dispatch", label: "Dispatch", to: "/orders/assignments", count: "dispatch" },
-          // 096 — how bags changed hands, and what went wrong.
+          // How bags changed hands, and what went wrong.
           { key: "handover-report", label: "Hand-over report", to: "/reports/handovers" },
           { key: "courier", label: "Courier parcels", to: "/orders/handover" },
         ],
       },
       { key: "exceptions", label: "Exceptions", to: "/exceptions", icon: PackageX, count: "exceptions", countTone: "strong" },
-      // 096 — hub staff check bags in by scanning.
+      // Hub staff check bags in by scanning.
       { key: "hub-station", label: "Hub station", to: "/hub", icon: Warehouse, requiredAnyRole: ["admin", "manager"] },
     ],
   },
@@ -152,7 +152,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       },
       { key: "deliverability", label: "Email deliverability", to: "/deliverability", icon: MailWarning, count: "deliverability" },
       { key: "points", label: "Points settings", to: "/customers", tab: "settings", icon: Coins },
-      // 096 — Effy's tax identity and the tax-invoice switch.
+      // Effy's tax identity and the tax-invoice switch.
       { key: "tax", label: "Tax", to: "/settings/tax", icon: ReceiptText, requiredRole: "admin" },
       { key: "admin", label: "Admin and access", to: "/admin", icon: Shield, requiredRole: "admin" },
     ],
@@ -233,7 +233,7 @@ export function locate(
 /**
  * The link for a leaf: its route, plus its tab when it names one.
  *
- * ⚠ The nav holds paths as strings (it is data, matched against `location.pathname`), so the router's
+ * The nav holds paths as strings (it is data, matched against `location.pathname`), so the router's
  * typed `to` is asserted here, once. nav.test.ts holds every `to` to a route the router declares.
  */
 export function linkOf(leaf: NavLeaf): LinkProps {

@@ -1,6 +1,3 @@
-// The planner's data layer (063). Raw parameterised SQL; rows are mapped to domain here and the row
-// shapes never escape (Principle VI).
-
 import { query, withTransaction, type CollectionRun, type Queryable } from "@effy/edge-shared";
 
 import { enqueueRoundChanged, enqueueRunAssigned } from "../shared/driver-push";
@@ -25,11 +22,8 @@ import type {
   WavePlan,
 } from "./types";
 
-// ⚠ EVERY READ AND WRITE HERE TAKES THE CONNECTION IT RUNS ON (072). A pass is ONE transaction under
-// an advisory lock — release, assign, record reasons — so a function that quietly used the module
-// pool would read a world the pass has not committed yet, or write outside the lock. `pooled` is the
-// default only so a caller that genuinely wants a standalone read (the reassign route's candidate
-// load) does not have to open a transaction to get one.
+// Every read and write takes the connection it runs on: a pass is one transaction under an advisory
+// lock. `pooled` is the default only for standalone reads (the reassign route's candidate load).
 const pooled: Queryable = { query: (text, values) => query(text, values) };
 
 interface GatherRow {
@@ -55,11 +49,11 @@ interface GatherRow {
   requires_frozen: boolean | null;
   window_start?: Date | null;
   window_end?: Date | null;
-  /** 093 — the delivery gather: the driver whose collection run brought it to the hub. */
+  /** The driver whose collection run brought it to the hub. */
   collected_by?: string | null;
 }
 
-/** ⚠ One line a driver can read and hand to their maps app (D7). Never a coordinate. */
+/** One line for the driver's maps app. Never a coordinate. */
 function addressLine(r: GatherRow): string {
   return [r.address_line1, r.address_line2, r.suburb, r.state, r.postcode]
     .filter((p): p is string => typeof p === "string" && p.trim() !== "")
@@ -79,8 +73,7 @@ function mapPackage(r: GatherRow): PlannablePackage {
     zoneId: r.zone_id,
     zoneName: r.zone_name,
     readySince: r.ready_since.toISOString(),
-    // ⚠ bigint arrives as a string from `pg`. Number() here, at the boundary, so nothing downstream
-    // does string arithmetic on a weight and silently concatenates (027's R13 shape, one layer up).
+    // `pg` returns bigint as a string: converted here so nothing concatenates a weight.
     weightGrams: Number(r.weight_grams),
     itemCount: Number(r.item_count),
     requiresChilled: r.requires_chilled === true,
@@ -96,11 +89,7 @@ export async function gatherCollectionWork(db: Queryable = pooled, onlyPackageId
   return res.rows.map(mapPackage);
 }
 
-/**
- * ⚠ `throughEndOf` IS THE LOCAL DAY BEING PLANNED (082): a parcel whose window starts after it is not
- * gathered — it is waiting at the hub for its own day. Required, never defaulted: a caller that forgot
- * it would put Thursday's parcel on today's round.
- */
+/** `throughEndOf` is the local day being planned; a later window waits at the hub. Required, never defaulted. */
 export async function gatherDeliveryWork(db: Queryable, onlyPackageId: string | null, throughEndOf: Date): Promise<PlannablePackage[]> {
   const res = await db.query<GatherRow>(GATHER_DELIVERY, [onlyPackageId, throughEndOf]);
   return res.rows.map(mapPackage);
@@ -141,7 +130,7 @@ export async function loadCandidates(db: Queryable = pooled): Promise<PlannerCan
       : null,
     clearances: r.clearances ?? [],
     packagesAssignedToday: Number(r.packages_assigned_today),
-    // 093 — `none` is already `no_vehicle`; only a held vehicle's check is a reason of its own.
+    // `none` is already `no_vehicle`; only a held vehicle's check is its own reason.
     ...(r.vehicle_check === "due" || r.vehicle_check === "unsafe" ? { vehicleCheck: r.vehicle_check } : {}),
   }));
 }
@@ -149,7 +138,7 @@ export async function loadCandidates(db: Queryable = pooled): Promise<PlannerCan
 export async function loadSchedule(
   db: Queryable = pooled,
 ): Promise<{ runs: CollectionRun[]; settings: PlannerSettings }> {
-  // ⚠ Sequential, not Promise.all: on a transaction's single connection two queries cannot overlap.
+  // Sequential: on a transaction's single connection two queries cannot overlap.
   const runsRes = await db.query<{ hour: number; minute: number }>(COLLECTION_SCHEDULE);
   const setRes = await db.query<{
     sameday_prep_buffer_min: number;
@@ -162,29 +151,24 @@ export async function loadSchedule(
   return {
     runs: runsRes.rows.map((r) => ({ hour: r.hour, minute: r.minute })),
     settings: {
-      // No settings row yet means no schedule configured — the caller plans nothing rather than
-      // inventing a buffer (047's SameDaySchedule takes the same position).
+      // No settings row means no schedule: plan nothing rather than invent a buffer.
       prepBufferMin: s?.sameday_prep_buffer_min ?? 0,
       planningLeadMin: s?.planning_lead_min ?? 45,
       perStopAllowanceMin: s?.per_stop_allowance_min ?? 12,
-      // 082 — what `collectionRunFor` needs: how long the hub takes, and the weekdays with no deliveries.
+      // What `collectionRunFor` needs: the hub's handling time and the weekdays with no deliveries.
       hubTurnaroundMin: s?.sameday_hub_turnaround_min ?? 60,
       noDeliveryWeekdays: s?.standard_no_delivery_weekdays ?? [],
     },
   };
 }
 
-/** Take the pass lock for this transaction. False means another pass holds it — do nothing. */
+/** False means another pass holds it: do nothing. */
 export async function tryPassLock(tx: Queryable): Promise<boolean> {
   const res = await tx.query<{ locked: boolean }>(TRY_PASS_LOCK);
   return res.rows[0]?.locked === true;
 }
 
-/**
- * When a round for this run or window opens. ⚠ ASKED OF THE DATABASE, not computed here: the
- * driver's action gate and the dispatch view call the same function, and a TypeScript copy of
- * "deadline minus the lead" would be the second definition research R3 exists to prevent.
- */
+/** Asked of the database (`public.round_opens_at`), the definition the driver gate and dispatch also use. */
 export async function roundOpensAt(
   db: Queryable,
   kind: "collection" | "delivery",
@@ -195,7 +179,7 @@ export async function roundOpensAt(
   return res.rows[0]?.opens_at ?? null;
 }
 
-/** The rounds that already exist for one run or window, oldest first (072, research R4). */
+/** Oldest first. */
 export async function loadBucketRounds(
   db: Queryable,
   kind: "collection" | "delivery",
@@ -222,8 +206,7 @@ export async function loadBucketRounds(
       rounds.set(r.round_id, round);
     }
     round.weightGrams += Number(r.stop_weight_grams);
-    // ⚠ The hub is where a collection round ENDS, not a stop work can be added to, and it is not
-    // counted against the time a round takes — it never was (063 counted shops only).
+    // The hub ends a collection round; work is never added to it and it does not count against time.
     const key = r.stop_kind === "shop_pickup" ? r.shop_id : r.stop_kind === "customer_drop" ? r.order_id : null;
     if (key) round.stops.push({ key, outstanding: r.outstanding === true });
   }
@@ -231,18 +214,10 @@ export async function loadBucketRounds(
 }
 
 /**
- * Write everything a pass decided for one run or window.
- *
- * ⚠ THE PARTIAL UNIQUE INDEX IS WHAT MAKES A PACKAGE EXCLUSIVE, NOT THIS FUNCTION (FR-005, research
- * R6). A conflict is an ORDINARY OUTCOME meaning "somebody else already assigned it" — not an error —
- * and is swallowed per row with `ON CONFLICT DO NOTHING` rather than failing the pass.
- *
- * ⚠ 072 — NO WAVE ROW UNLESS SOMETHING IS ASSIGNED. The planner runs every few minutes all day; a
- * `dispatch_wave` row per pass per window would be a log of nothing happening. The row is created
- * lazily, by the first insert that needs a round to belong to it, and deleted again if every insert
- * turned out to be a conflict.
- *
- * Called with the pass's own transaction. With none, it opens one (the container tests' callers).
+ * Writes what a pass decided for one run or window. The partial unique index makes a package
+ * exclusive: a conflict ("someone else assigned it") is swallowed per row. A `dispatch_wave` row is
+ * created only when something is assigned, and deleted if every insert conflicted. Opens a
+ * transaction when given none.
  */
 export async function commitWave(
   plan: WavePlan,
@@ -297,7 +272,7 @@ export async function commitWave(
     return (ins.rowCount ?? 0) > 0;
   };
 
-  /** One stop per shop (collection) or per order (delivery) — adjacency by construction (FR-019). */
+  /** One stop per shop (collection) or per order (delivery). */
   const groupByStop = (packages: PlannablePackage[]) => {
     const groups = new Map<string, PlannablePackage[]>();
     for (const p of packages) {
@@ -308,7 +283,6 @@ export async function commitWave(
     return groups;
   };
 
-  // ── New rounds ───────────────────────────────────────────────────────────────────────────────
   for (const [driverId, packages] of plan.assignments) {
     const round = await tx.query<{ id: string }>(
       `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, window_start_at)
@@ -324,32 +298,22 @@ export async function commitWave(
     }
 
     if (placed === 0) {
-      // Every package was taken by somebody else first. A round of empty stops is not a round.
+      // Every package was taken first by someone else: no round.
       await tx.query(`DELETE FROM public.driver_round WHERE id = $1`, [roundId]);
       continue;
     }
     assigned += placed;
     driverIds.add(driverId);
-    await enqueueRunAssigned(tx, roundId); // backlog D1 — the driver is told, app open or not
+    await enqueueRunAssigned(tx, roundId);
 
-    // ⚠ 064 — A COLLECTION ROUND ENDS AT THE HUB, AND THAT ENDING IS A STOP.
-    //
-    // `round_stop_kind_check` has permitted `'hub_checkin'` since 063 and nothing created one. Found
-    // live on 2026-09-21: `todayView`'s outstanding filter keeps only unfinished stops, so the moment
-    // the last shop stop went `done` the driver's home screen had nothing left — and BOTH routes
-    // into the round disappeared together, with thirteen packages in the van.
-    //
-    // ⚠ It carries NEITHER a shop nor an order — the same CHECK requires both to be NULL for this
-    // kind. A delivery round has no equivalent: it ends at the last customer, not back at the hub.
+    // A collection round ends with a `hub_checkin` stop (no shop, no order), so it stays open until the load is in.
     if (plan.kind === "collection") {
       await tx.query(`INSERT INTO public.round_stop (round_id, kind) VALUES ($1, 'hub_checkin')`, [roundId]);
     }
   }
 
-  // ── Rounds that already exist (072) ──────────────────────────────────────────────────────────
   for (const [roundId, packages] of plan.additions) {
-    // ⚠ Re-read under the pass's transaction and REFUSED IF FINISHED. The plan was made from a read a
-    // moment ago; the round may have been completed or cancelled since.
+    // Re-read under the pass's transaction and refused if finished since the plan was made.
     const cur = await tx.query<{ driver_id: string; status: string }>(
       `SELECT driver_id, status FROM public.driver_round
         WHERE id = $1 AND status IN ('planned', 'in_progress')
@@ -357,7 +321,7 @@ export async function commitWave(
       [roundId],
     );
     const round = cur.rows[0];
-    if (!round) continue; // left for the next pass, which will see the round as it now is
+    if (!round) continue;
 
     const added: PlannablePackage[] = [];
     for (const [key, group] of groupByStop(packages)) {
@@ -369,9 +333,7 @@ export async function commitWave(
           ORDER BY id LIMIT 1`,
         [roundId, stopKind, key],
       );
-      // ⚠ A stop is CREATED only on a round not yet begun. Under way, work joins a stop the driver
-      // still has to make or it does not join at all (FR-004a) — a new stop on a round in progress
-      // would send somebody back to a shop they have already left.
+      // A stop is created only on an unstarted round; under way, work joins a stop still to make or not at all.
       let stopId = found.rows[0]?.id ?? null;
       if (!stopId && round.status === "planned") stopId = await insertStop(roundId, group[0]!);
       if (!stopId) continue;
@@ -381,19 +343,15 @@ export async function commitWave(
 
     assigned += added.length;
     driverIds.add(round.driver_id);
-    // A no-op for a round the driver was already told about; a round from before D1 is told now.
+    // A no-op for a round the driver was already told about.
     await enqueueRunAssigned(tx, roundId);
 
-    // ⚠ FR-004b — a driver WORKING a round must be TOLD it changed. A round that grows silently
-    // underneath somebody working it is worse than one that never grows.
-    // ⚠ 072 FR-018 — and ONLY then. A round not yet begun fills up over hours; a note per package
-    // would be noise about something nobody has started. It simply shows what it now contains.
+    // A driver working a round is told it changed; an unstarted round just shows what it now holds.
     const note =
       round.status === "in_progress"
         ? added.map((p) => `Added ${p.orderNumber}${plan.kind === "collection" ? ` at ${p.shopName}` : ""}.`).join(" ")
         : null;
-    // `updated_at` moves either way: it is the dispatcher's concurrency token, and it is how the
-    // pass knows whose app to tell.
+    // `updated_at` moves either way: the dispatcher's concurrency token, and how the pass knows whom to tell.
     await tx.query(
       `UPDATE public.driver_round
           SET changed_note = CASE WHEN $2::text IS NULL THEN changed_note
@@ -402,7 +360,7 @@ export async function commitWave(
         WHERE id = $1`,
       [roundId, note],
     );
-    // Backlog D2 — a round under way grew: "Run updated" (a round not begun says nothing).
+    // A round under way grew: "Run updated".
     await enqueueRoundChanged(tx, roundId, round.driver_id);
   }
 
@@ -420,13 +378,7 @@ export async function commitWave(
   return { waveId, assigned, driverIds: [...driverIds] };
 }
 
-/**
- * Make the standing "nobody can take this" rows for one kind say what is true now (072, R9).
- *
- * ⚠ WRITTEN ONLY WHEN THEY CHANGE. The planner runs every few minutes; a package nobody is cleared
- * for would otherwise be rewritten 288 times a day, and back-office would be told its screen had
- * changed 288 times when nothing on it had. Returns whether anything was written.
- */
+/** Written only when they change, so a stuck package is not rewritten 288 times a day. Returns whether anything was written. */
 export async function replaceExclusions(
   tx: Queryable,
   kind: "collection" | "delivery",
@@ -435,8 +387,7 @@ export async function replaceExclusions(
   const keyOf = (packageId: string, driverId: string | null, reason: string) =>
     `${packageId}|${driverId ?? ""}|${reason}`;
 
-  // De-duplicated: one driver can fail the same condition for one package twice in a pass — once
-  // against the round already visiting that shop, once against a fresh round.
+  // De-duplicated: a driver can fail one condition twice in a pass (visiting round and fresh round).
   const wanted = new Map<string, PlannedExclusion>();
   for (const e of exclusions) wanted.set(keyOf(e.packageId, e.driverId, e.reason), e);
 

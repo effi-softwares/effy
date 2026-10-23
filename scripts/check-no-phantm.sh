@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
-# ⚠ NO phantm.com ANYWHERE IN THIS PROJECT — not the domain, not a subdomain, not an address.
-#
-# WHY THIS SCRIPT EXISTS. On 2026-08-06 `techsupport+claudeone@phantm.com` — an address belonging to
-# an assistant session, not to this platform — was read out of context and written into
-# infra/envs/dev/dev.tfvars as the CloudWatch alarm endpoint. The apply created a live SNS email
-# subscription and AWS mailed a subscription request to a person who had never asked for one.
-#
-# EVERY AUTOMATED GATE PASSED: typecheck, 1,077 tests, terraform validate, fmt, shellcheck. Nothing
-# was incorrect. The defect was one of AUTHORITY — a value nobody had chosen was made outward-facing
-# — and no existing check was looking for that class of mistake. This one is.
-#
-# Constitution v1.12.0 § Real-World Identifiers. Exit non-zero and NAME the file on any hit.
+# No phantm.com anywhere in this project: not the domain, a subdomain or an address. An address belonging to
+# an assistant session was once written into dev.tfvars as the alarm endpoint, and the apply mailed a
+# subscription request to someone who never asked; every other gate passed. Real-World Identifiers: exit
+# non-zero and name the file on any hit.
 #
 # Usage: bash scripts/check-no-phantm.sh
 set -euo pipefail
@@ -20,8 +12,8 @@ cd "$(dirname "$0")/.."
 # The banned pattern: the domain and any subdomain of it, in any position.
 PATTERN='phantm\.com'
 
-# ⚠ THE ONLY PERMITTED OCCURRENCES are the places that name it in order to FORBID it. Anything else
-# — config, fixtures, seeds, specs, docs, comments — is a failure. Keep this list SHORT; every entry
+# the only permitted occurrences are the places that name it in order to forbid it. Anything else
+# — config, fixtures, seeds, specs, docs, comments — is a failure. Keep this list short; every entry
 # is a place someone could hide a real value behind a plausible-looking exemption.
 ALLOWED=(
   "CLAUDE.md"                          # the prohibition, stated for contributors
@@ -41,7 +33,7 @@ is_allowed() {
 fail=0
 found=""
 
-# --hidden --no-ignore so a value cannot hide in a dotfile or a gitignored one. .git is excluded
+# --hidden --no-ignore so a value cannot hide in a dotfile or a gitignored one..git is excluded
 # because history is a separate concern (see the note at the bottom).
 while IFS= read -r line; do
   file="${line%%:*}"

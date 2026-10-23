@@ -21,12 +21,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.delay
 
 /**
- * Holds the live connection exactly while the app is in the foreground and signed in (071).
- *
- * Mount once, at the app root. Coming to the foreground connects — and connecting reads everything
- * once, which is how a phone that was in a pocket for an hour is current the moment it is looked
- * at (FR-013). Going to the background, or signing out, closes the connection: a backgrounded app
- * holds nothing open and costs nothing (FR-031).
+ * Holds the live connection while the app is foregrounded and signed in. Mount once at the root.
+ * Foregrounding connects, which reads everything once; backgrounding or signing out closes it.
  */
 @Composable
 fun LiveLifecycle(client: LiveClient, signedIn: Boolean) {
@@ -42,18 +38,15 @@ fun LiveLifecycle(client: LiveClient, signedIn: Boolean) {
 }
 
 /**
- * Says so when the screen cannot receive live updates (FR-015) — and nothing at all while it can.
- *
- * It waits a few seconds before appearing: every launch and every brief network blip passes
- * through "reconnecting", and a warning that flashes for each is a warning people learn to ignore.
- * `OFF` is shown too: on a staff app, a screen that has stopped updating must not look current.
+ * Says so when the screen cannot receive live updates, after a few seconds (so launches and blips do
+ * not flash it); nothing while live. `OFF` is shown too: a staff screen that stopped updating must not
+ * look current.
  */
 @Composable
 fun LiveStatusLine(client: LiveClient, onRefresh: () -> Unit, modifier: Modifier = Modifier) {
     val state by client.state.collectAsState()
     var shown by remember { mutableStateOf(false) }
-    // How long ago the screen was last known current — the moment the channel stopped being live.
-    // ⚠ A CLOCK, NOT A REFRESH (FR-011): it re-words a time already held and reads nothing.
+    // How long ago the screen was last known current: a clock re-wording a held time, reading nothing.
     var minutesStale by remember { mutableStateOf(0L) }
 
     LaunchedEffect(state) {

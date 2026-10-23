@@ -4,41 +4,19 @@ import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * US2 / FR-012 + FR-013 (T023) — the shop console must offer NO action the platform cannot perform.
- *
- * ⚠ WHY THIS IS A SOURCE GUARD AND NOT ONLY A RENDER TEST. A render assertion proves that today's
- * fixture happens not to show a "Capture payment" button; it proves nothing about the button someone
- * adds next month. The imported mockup this redesign is built from is a GENERIC e-commerce console —
- * it ships `isCapture`, `isFulfil`, `hasShipments`/`shipRows`, `isEditLines` and `isReturn` screens,
- * all of which look perfectly reasonable to port and none of which Effy can honour:
- *
- *   • PAYMENT CAPTURE — Effy captures at payment (`CaptureMethod: automatic`, 055 R3). There is no
- *     later capture step to expose, and a button implying one would suggest money is being held.
- *   • CARRIER / TRACKING — a shop hands its portion to an Effy driver at collection (049's
- *     hub-and-spoke). The shop never books a carrier and never sees a tracking number; 053 settled
- *     that references are per-package and are deliberately staff-only (FR-022).
- *   • ORDER-LINE EDITING / DUPLICATION — an order is a paid financial record. 055 is explicit that
- *     `order_item` and `payment` are untouched by a refund: "the receipt is a historical record of
- *     what was charged; a refund is a later row, never an edit."
- *
- * Each of those is a control that would either lie to the operator or corrupt a paid record. So the
- * guard reads the source and fails NAMING the file, the way `guard_test.go` (054) and
- * `storefront-locks` (039) do.
+ * The shop console offers no action the platform cannot perform. A source guard, because the design
+ * reference (a generic e-commerce console) has screens that look reasonable to port:
+ *  • Payment capture: Effy captures at payment; a capture button would suggest money is being held.
+ *  • Carrier / tracking: a shop hands its package to an Effy driver or a courier; it never books a carrier.
+ *  • Order-line editing / duplication: an order is a paid record; a refund is a later row, never an edit.
  */
 
 const FULFILLMENT_DIR = resolve(__dirname, "..")
 
 /**
- * ⚠ COMMENTS ARE STRIPPED BEFORE SCANNING. Prose must stay free to explain WHY these controls are
- * banned — including this file's own docblock and OrderDetailScreen's — while the code itself is held
- * strictly. A guard that fires on its own justification gets deleted by the next person, and takes the
- * requirement with it. (theme-tokens.test.ts strips comments for the same reason.)
- *
- * ⚠ AND THE PATTERNS ARE WORD-BOUNDED PHRASES, NOT DELIMITER-ANCHORED ONES. The first draft of this
- * guard required a quote or `<` immediately after the phrase, and the negative proof exposed it: a
- * button reading `<RotateCcw />Capture payment` — the exact shape a real regression takes — was
- * followed by a newline and sailed straight through. 056 records the identical near-miss ("the break
- * was NOT caught and the guard had to be fixed"). Every pattern below was re-verified by breaking it.
+ * Comments are stripped before scanning, so prose may explain the bans. Patterns are word-bounded phrases:
+ * one anchored on a following quote or `<` let `<RotateCcw />Capture payment` and a newline through. Every
+ * pattern was verified by breaking it.
  */
 const FORBIDDEN: { label: string; pattern: RegExp }[] = [
   { label: "payment capture", pattern: /\bcapture\s+(payment|funds)\b|\bpayment\s+capture\b/i },
@@ -74,7 +52,7 @@ describe("the shop console offers no action the platform cannot perform", () => 
   const files = sourceFiles(FULFILLMENT_DIR)
 
   it("finds the fulfillment sources to scan (a guard over nothing proves nothing)", () => {
-    // ⚠ 054's `TestRailsCarryOnlyAvailableProducts` passed VACUOUSLY once its rails emptied. If this
+    // 054's `TestRailsCarryOnlyAvailableProducts` passed vacuously once its rails emptied. If this
     // directory is ever moved, the loop below would silently assert nothing — so assert the corpus.
     expect(files.length).toBeGreaterThan(5)
   })
@@ -89,13 +67,7 @@ describe("the shop console offers no action the platform cannot perform", () => 
     })
   }
 
-  /**
-   * ⚠ REWRITTEN BY 057 A3. This used to assert that `repo.ts` never asked for order-level money. A3
-   * put the order's money on the console by operator decision, through NEW routes (`/shop/v1/orders…`)
-   * — so the rule that survives is the one shop-mobile depends on: the PICK contract, which the Kotlin
-   * mirror is generated from, still carries no money and no shop identity. Checked on the contract
-   * itself, where a regression would actually reach the device.
-   */
+  /** The pick contract carries no money and no shop identity (the console's order money comes from `/shop/v1/orders…`). */
   it("keeps the pick contract free of money and shop identity (shop-mobile reads it)", () => {
     const contract = code(resolve(FULFILLMENT_DIR, "../../../../../packages/shared-types/src/shop-order.ts"))
     for (const banned of [
@@ -108,7 +80,7 @@ describe("the shop console offers no action the platform cannot perform", () => 
     }
   })
 
-  /** ⚠ 057 A3 — no tax figure may be drawn: per-item GST is unmodelled (052 R13). */
+  /** 057 A3 — no tax figure may be drawn: per-item GST is unmodelled. */
   it("draws no tax line", () => {
     const offenders = files.filter((f) => /\b(VAT|GST)\b/.test(code(f)))
     expect(offenders).toEqual([])

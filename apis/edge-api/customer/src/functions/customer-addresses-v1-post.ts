@@ -6,12 +6,7 @@ import { json, parseJsonBody, preamble, problem, ProblemType, subject } from "@e
 import { addressErrorResponse, toAddressInput } from "../addresses/http";
 import { createAddress } from "../addresses/service";
 
-/**
- * POST /customer/v1/addresses — add a delivery address (022 US2).
- *
- * The customer's first address becomes the default; `makeDefault: true` atomically clears the prior
- * one (the CTE, in the repository). Required: recipientName, line1, city, postalCode.
- */
+/** The first address becomes the default. Required: recipientName, line1, city, postalCode. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,

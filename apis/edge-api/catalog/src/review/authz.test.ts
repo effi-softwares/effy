@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 067 — who may read the review queue, and who may decide (FR-011, SC-010).
- *
- * Read = any active back-office staff, including csa. Decide = admin or manager. Both come from the
- * PLATFORM RECORD (`admin.staff`), never from the token's group claim.
- */
+/** Read: any active staff, csa included. Decide: admin or manager. From `admin.staff`, never the token claim. */
 
 const shared = vi.hoisted(() => ({
   isActiveStaff: vi.fn(),
@@ -70,7 +65,6 @@ describe("067 — review authorization", () => {
     for (const h of READ) expect((await h(event("csa-sub"), ctx)).statusCode).toBe(200);
   });
 
-  /** ⚠ SC-010. */
   it("⚠ a csa cannot approve, send back or set a margin", async () => {
     shared.isActiveStaff.mockResolvedValue(true);
     shared.hasStaffRole.mockResolvedValue(false);
@@ -86,7 +80,7 @@ describe("067 — review authorization", () => {
     for (const call of shared.hasStaffRole.mock.calls) expect(call[1]).toEqual(["admin", "manager"]);
   });
 
-  /** ⚠ The token above CLAIMS the admin group. The record says otherwise, and the record wins. */
+  /** The token claims admin; the record says otherwise and wins. */
   it("⚠ decides from the staff record, not the token's group claim", async () => {
     shared.isActiveStaff.mockResolvedValue(false);
     shared.hasStaffRole.mockResolvedValue(false);

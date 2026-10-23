@@ -6,17 +6,9 @@ import { Label, Switch } from "@/components/ui/form"
 import { AddressPicker } from "./AddressPicker"
 
 /**
- * The billing-address section of checkout (023 US4).
- *
- * A "Billing address same as shipping" toggle, ON by default (FR-009). While ON the order's billing
- * mirrors the shipping address — the client sends no `billingAddressId`, so the server stores NULL and
- * the receipt reads "same as shipping". OFF reveals the same saved-address picker + add-new as shipping
- * (FR-011) for choosing a divergent billing address; leaving it unset blocks pay (FR-012, enforced by
- * the parent's continue gate). Toggling back ON discards any divergent choice (FR-013, handled by the
- * parent).
- *
- * A controlled section: the toggle and the chosen billing id live in {@link CheckoutFlow} so the later
- * placement step can send `billingAddressId` only when billing actually diverges.
+ * The billing section: "Billing address same as shipping", on by default (no `billingAddressId` is sent;
+ * the order stores null). Off reveals the same picker for a different address, required before paying;
+ * switching back on discards it. The toggle and the chosen id live in {@link CheckoutFlow}.
  */
 export function BillingSection({
   sameAsShipping,

@@ -6,14 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { CACHE_SECONDS, cacheControl, type CachePolicy } from "./lib/cache";
 
-/**
- * ⚠ WHAT A BROWSER MAY KEEP, ROUTE BY ROUTE — the whole list, so a new route has to be put on it.
- *
- * `null` is a decision too: the product page must be current (054 FR-015a), and a promotion is the
- * page a shopper copies its code from, kept live.
- * A route missing from this table fails, which is the point — "nobody thought about it" is how a
- * live claim ends up cached.
- */
+/** Every route's browser caching, so a new route must be decided. `null` means never cached. */
 const POLICY: Record<string, CachePolicy | null> = {
   "products-v1-get.ts": "listing",
   "facets-v1-get.ts": "listing",

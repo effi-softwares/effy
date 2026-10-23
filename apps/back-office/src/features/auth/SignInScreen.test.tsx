@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 // The card and the OTP flow live in @effy/web-kit; here we mock the SDK boundary so this test
-// exercises the REAL card wired to THIS surface's telemetry and branding. (The card's own
+// exercises the real card wired to this surface's telemetry and branding. (The card's own
 // two-step/error behavior is tested in @effy/web-kit.)
 const { signIn, confirmSignIn } = vi.hoisted(() => ({
   signIn: vi.fn(),
@@ -31,7 +31,7 @@ function renderScreen() {
 
 describe("SignInScreen", () => {
   it("advances from the email step to the OTP step after a code is sent", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     const user = userEvent.setup();
     renderScreen();
 

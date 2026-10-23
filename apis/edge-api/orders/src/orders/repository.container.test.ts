@@ -3,46 +3,24 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The order READS, against real PostgreSQL 16 (053 US1).
- *
- * ⚠ THE HISTORY IS A UNION ACROSS TABLES TWO DIFFERENT SLICES OWN — `fulfillment_event` (020),
- * `carrier_handoff` and `package_arrival` (053). It was four-way until the 049 work model was
- * dropped and the `driver_task_event` branch went with it. A mock cannot
- * catch a wrong column, a join that quietly excludes a row, or an ordering that only looks right on
- * one source's data. The closure repo's own container test exists for exactly this reason and this
- * query is larger.
- *
- * ⚠ IT ALSO PROVES SC-010 (attribution). A same-day arrival and a back-office arrival must BOTH
- * produce a `package_arrival` row, with DIFFERENT `source` values. If the driver-path extension in
- * research R6 is ever reverted, the same-day half of that vanishes and this fails.
+ * The order reads against real Postgres. The history is a union over tables different features own,
+ * and every arrival must be attributable by `package_arrival.source`.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
-// ⚠ The REAL library, with only its two database entry points pointed at the test pool. The service
-// under test takes `stageFor` from it (070), and a mock that replaced the whole module would leave
-// that undefined — the test would fail on the mock, not on the code.
+// The real library with only its database entry points redirected; `stageFor` comes from it.
 vi.mock("@effy/edge-shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
 }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { history, list, packages, viewCounts } from "./repository";
 import { listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
-
-/** One `CREATE FUNCTION … $$;` statement, as the platform's migrations define it today. */
-function functionFromMigrations(name: string): string {
-  const all = migrationSql();
-  const start = all.lastIndexOf(`CREATE FUNCTION ${name}(`);
-  if (start < 0) throw new Error(`no migration creates ${name}`);
-  const body = all.indexOf("$$", start);
-  const end = all.indexOf("$$;", body + 2);
-  return all.slice(start, end + 3);
-}
 
 describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
@@ -52,98 +30,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-
-    await pool.query(`
-      CREATE TABLE public.customer (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        email text NOT NULL, given_name text, family_name text
-      );
-      CREATE TABLE public."order" (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        customer_id uuid NOT NULL REFERENCES public.customer (id),
-        order_number text NOT NULL, status text NOT NULL,
-        item_subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
-        delivery_fee_amount numeric(12,2) NOT NULL DEFAULT 0,
-        discount_amount numeric(12,2) NOT NULL DEFAULT 0,
-        grand_total_amount numeric(12,2) NOT NULL DEFAULT 0,
-        currency char(3) NOT NULL DEFAULT 'AUD',
-        delivery_address jsonb NOT NULL DEFAULT '{}'::jsonb,
-        delivery_handover text,
-        delivery_note text,
-        delivery_promise text,
-        billing_address jsonb,
-        promo_code text,
-        delivery_type text, delivery_type_reason text, courier_estimate text,
-        courier_service_id uuid, courier_collection text,
-        placed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.payment (
-        order_id uuid PRIMARY KEY, status text NOT NULL DEFAULT 'succeeded',
-        method_type text, method_brand text, method_last4 text
-      );
-      CREATE TABLE public.shop (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL);
-      CREATE TABLE public.shop_fulfillment (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        order_id uuid NOT NULL REFERENCES public."order" (id) ON DELETE CASCADE,
-        shop_id uuid NOT NULL REFERENCES public.shop (id),
-        status text NOT NULL, item_count int NOT NULL DEFAULT 1,
-        subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
-        delivery_method text,
-        -- 089 — every package's label code (the real column has a generated default).
-        package_code text NOT NULL DEFAULT upper(substr(md5(gen_random_uuid()::text), 1, 6))
-      );
-      CREATE TABLE public.order_item (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        order_id uuid NOT NULL, product_id uuid NOT NULL DEFAULT gen_random_uuid(),
-        shop_id uuid NOT NULL, product_name text NOT NULL,
-        unit_price_amount numeric(12,2) NOT NULL DEFAULT 0, quantity int NOT NULL DEFAULT 1,
-        line_subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
-        -- 098: a line is a variant, with its label and codes as sold.
-        variant_id uuid NOT NULL DEFAULT gen_random_uuid(), variant_label text, sku text, gtin text
-      );
-      CREATE TABLE public.order_package_delivery (
-        order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL,
-        -- 069: the package read now selects the promise. Transcribed like the rest of this schema;
-        -- handovers.container.test.ts beside this file proves the same query against the REAL one.
-        promised_to date, slot_id uuid, window_start timestamptz, window_end timestamptz
-      );
-      CREATE TABLE public.delivery_slot_booking (order_id uuid NOT NULL, over_capacity boolean NOT NULL DEFAULT false);
-      CREATE TABLE public.delivery_settings (id int PRIMARY KEY);
-      CREATE TABLE public.fulfillment_event (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id) ON DELETE CASCADE,
-        event_type text NOT NULL, from_status text, to_status text,
-        occurred_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE TABLE public.carrier_handoff (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL UNIQUE,
-        reference text, carrier_name text,
-        handed_over_at timestamptz NOT NULL DEFAULT now(),
-        recorded_by_sub text NOT NULL, note text
-      );
-      CREATE TABLE public.package_arrival (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        shop_fulfillment_id uuid NOT NULL UNIQUE,
-        arrived_at timestamptz NOT NULL DEFAULT now(),
-        source text NOT NULL, recorded_by_sub text, note text
-      );
-    `);
-    // ⚠ 079 — WHO DELIVERS A PACKAGE IS THE DATABASE'S ANSWER, and this file's schema is a
-    // transcription. The function is therefore taken from the real migration, not copied here: a
-    // copy would go on passing after the rule changed, which is the one thing these tests are for.
-    await pool.query(functionFromMigrations("public.package_delivered_by"));
-    await pool.query(functionFromMigrations("public.courier_parcel_collection"));
-    // 080 — the courier tables the package read joins, as far as it reads them.
-    await pool.query(`
-      CREATE TABLE public.courier_service (id uuid PRIMARY KEY, courier_name text, service_name text,
-        pickup_weekdays int[], pickup_cutoff time, max_business_days int);
-      CREATE TABLE public.courier_consignment (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), shop_fulfillment_id uuid,
-        courier_service_id uuid, state text, pickup_date date, pickup_from time, pickup_to time);
-      CREATE TABLE public.driver_round (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), kind text);
-      CREATE TABLE public.round_stop (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), round_id uuid);
-      CREATE TABLE public.round_package (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), stop_id uuid, shop_fulfillment_id uuid, state text);
-      CREATE TABLE public.hub_checkin (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), round_id uuid, checked_in_at timestamptz);`);
+    await pool.query(migrationSql());
   }, 180_000);
 
   afterAll(async () => {
@@ -159,29 +46,32 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
                public.shop RESTART IDENTITY CASCADE`);
   });
 
-  async function seed(method: "standard" | "same_day" = "standard") {
+  async function seed(type: "effy" | "courier" = "courier") {
     const c = await pool.query<{ id: string }>(
-      `INSERT INTO public.customer (email, given_name, family_name)
-       VALUES ('shopper@example.com', 'Ada', 'Lovelace') RETURNING id`,
+      `INSERT INTO public.customer (cognito_sub, email, given_name, family_name)
+       VALUES (gen_random_uuid()::text, substr(md5(random()::text), 1, 8) || '@example.com', 'Ada', 'Lovelace') RETURNING id`,
     );
     const o = await pool.query<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, placed_at)
-       VALUES ($1, 'EFY-TEST01', 'paid', now()) RETURNING id`,
-      [c.rows[0]!.id],
+      `INSERT INTO public."order" (customer_id, order_number, status, placed_at, delivery_address, item_subtotal_amount,
+                                   grand_total_amount, delivery_type, delivery_type_reason, delivery_promise, courier_estimate)
+       VALUES ($1, 'EFY-' || substr(md5(random()::text), 1, 6), 'paid', now(), '{}', 10, 10, $2::text,
+               CASE WHEN $2::text = 'effy' THEN 'in_coverage' ELSE 'out_of_coverage' END,
+               CASE WHEN $2::text = 'effy' THEN 'day' END,
+               CASE WHEN $2::text = 'courier' THEN '2–4 business days' END) RETURNING id`,
+      [c.rows[0]!.id, type],
     );
     const s = await pool.query<{ id: string }>(
-      `INSERT INTO public.shop (name) VALUES ('Shop One') RETURNING id`,
+      `INSERT INTO public.shop (code, name) VALUES (substr(md5(random()::text), 1, 6), 'Shop One') RETURNING id`,
     );
     const f = await pool.query<{ id: string }>(
-      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status)
-       VALUES ($1, $2, 'collected') RETURNING id`,
+      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount)
+       VALUES ($1, $2, 'collected', 1, 10) RETURNING id`,
       [o.rows[0]!.id, s.rows[0]!.id],
     );
     await pool.query(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method) VALUES ($1, $2, $3)`,
-      [o.rows[0]!.id, s.rows[0]!.id, method],
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method) VALUES ($1, $2, 'standard')`,
+      [o.rows[0]!.id, s.rows[0]!.id],
     );
-    await pool.query(`INSERT INTO public.payment (order_id) VALUES ($1)`, [o.rows[0]!.id]);
     return { orderId: o.rows[0]!.id, fulfillmentId: f.rows[0]!.id };
   }
 
@@ -193,9 +83,6 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
        VALUES ($1, 'state_changed', 'picking', now() - interval '4 hours')`,
       [fulfillmentId],
     );
-    // ⚠ A `driver` entry stood between the shop's event and the handover, sourced from
-    // `driver_task_event`. It went with the work model; the union is three-way now and the order
-    // assertion below is what proves nothing else shifted.
     await pool.query(
       `INSERT INTO public.carrier_handoff (shop_fulfillment_id, carrier_name, recorded_by_sub, handed_over_at)
        VALUES ($1, 'Australia Post', 'staff-1', now() - interval '2 hours')`,
@@ -215,7 +102,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     expect(rows[2]!.actor_sub).toBe("staff-1");
   });
 
-  /** ⚠ FR-003. The history entry must read the same with or without a consignment number. */
+  /** The history entry reads the same with or without a consignment number. */
   it("summarises a handover with no carrier the same way, with no hint of missing data", async () => {
     const { orderId, fulfillmentId } = await seed();
     await pool.query(
@@ -231,20 +118,16 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     }
   });
 
-  /**
-   * ⚠ SC-010 — every arrival attributable, whichever route it came by. `package_arrival.source`
-   * survives the work-model teardown and still distinguishes the two; what it lost is
-   * `delivery_task_id`, the pointer at WHICH drop delivered it, because there are no drops.
-   */
+  /** Every arrival is attributable, whichever route it came by. */
   it("distinguishes a driver arrival from a back-office one", async () => {
-    const a = await seed("same_day");
+    const a = await seed("effy");
     await pool.query(
       `INSERT INTO public.package_arrival (shop_fulfillment_id, source)
        VALUES ($1, 'driver_proof')`,
       [a.fulfillmentId],
     );
 
-    const b = await seed("standard");
+    const b = await seed("courier");
     await pool.query(
       `INSERT INTO public.package_arrival (shop_fulfillment_id, source, recorded_by_sub)
        VALUES ($1, 'staff_recorded', 'staff-9')`,
@@ -260,36 +143,22 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   });
 
   describe("the list's `awaiting` filter", () => {
-    it("finds a collected standard package with no handover", async () => {
-      await seed("standard");
+    it("finds a collected courier package with no handover", async () => {
+      await seed("courier");
       const rows = await list({ awaiting: "handover", limit: 10 });
       expect(rows).toHaveLength(1);
       expect(rows[0]!.awaiting_handover).toBe(1);
     });
 
-    it("does NOT list a same-day package as awaiting handover", async () => {
-      // A same-day package is delivered by an Effy driver and never passes to a carrier — listing it
-      // in the handover queue would send an operator looking for a carrier that was never involved.
-      await seed("same_day");
-      expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
-    });
-
-    it("078 — does NOT list a standard package that was sold a window: Effy delivers it", async () => {
-      const { orderId } = await seed("standard");
-      // This file's schema is transcribed and has no slot table; the id only has to be present.
-      await pool.query(
-        `UPDATE public.order_package_delivery
-            SET slot_id = gen_random_uuid(), window_start = now() + interval '1 day', window_end = now() + interval '26 hours'
-          WHERE order_id = $1`,
-        [orderId],
-      );
+    it("does NOT list an Effy package as awaiting handover: Effy delivers it", async () => {
+      await seed("effy");
       expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
       const [row] = await list({ limit: 10 });
       expect(row!.awaiting_handover).toBe(0);
     });
 
     it("moves an order from `handover` to `arrival` once handed over", async () => {
-      const { fulfillmentId } = await seed("standard");
+      const { fulfillmentId } = await seed("courier");
       await pool.query(
         `INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 's')`,
         [fulfillmentId],
@@ -300,7 +169,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     });
 
     it("drops a fully arrived order out of both queues", async () => {
-      const { fulfillmentId } = await seed("standard");
+      const { fulfillmentId } = await seed("courier");
       await pool.query(
         `INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 's')`,
         [fulfillmentId],
@@ -317,10 +186,10 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(all[0]!.awaiting_arrival).toBe(0);
     });
 
-    // The back-office view tabs (redesign): each count is exactly the rows its view lists.
+    // Each view's count is exactly the rows its view lists.
     it("counts every view with the list's own filters", async () => {
-      const { fulfillmentId } = await seed("standard");
-      await seed("standard");
+      const { fulfillmentId } = await seed("courier");
+      await seed("courier");
       await pool.query(
         `INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 's')`,
         [fulfillmentId],
@@ -337,43 +206,28 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   });
 
   /**
-   * ⚠ THE DEFECT THIS CATCHES, found by reading the code back rather than by any gate.
-   *
-   * The list ORDERS and FILTERS on `created_at`, but an earlier draft minted the cursor from
-   * `placed_at`. Those are different instants — `created_at` is when the pending order row was
-   * written, `placed_at` is when the payment webhook confirmed it — and `placed_at` is ALWAYS the
-   * later one. So `created_at < <a placed_at>` still matched rows that had already been shown, and
-   * page 2 repeated part of page 1.
-   *
-   * ⚠ It is invisible to a single-page test, and to any test where the two timestamps are seeded
-   * equal. This one seeds them deliberately APART — which is what production does, by however long
-   * the payment took.
+   * The cursor must come from `created_at`, the column the list orders by: `placed_at` is always later,
+   * so page 2 repeated rows. The two are seeded apart, as in production.
    */
   describe("keyset pagination", () => {
     async function seedAged(n: number) {
       const c = await pool.query<{ id: string }>(
-        `INSERT INTO public.customer (email) VALUES ('pager@example.com') RETURNING id`,
+        `INSERT INTO public.customer (cognito_sub, email) VALUES ('pager', 'pager@example.com') RETURNING id`,
       );
       for (let i = 0; i < n; i++) {
         await pool.query(
-          `INSERT INTO public."order" (customer_id, order_number, status, created_at, placed_at)
+          `INSERT INTO public."order" (customer_id, order_number, status, created_at, placed_at, delivery_address,
+                                       item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, delivery_promise)
            VALUES ($1, $2, 'paid',
                    now() - ($3 || ' hours')::interval,
                    -- ⚠ placed_at is LATER than created_at, as it always is in production.
-                   now() - ($3 || ' hours')::interval + interval '20 minutes')`,
+                   now() - ($3 || ' hours')::interval + interval '20 minutes', '{}', 10, 10, 'effy', 'in_coverage', 'day')`,
           [c.rows[0]!.id, `EFY-P${i}`, String(n - i)],
         );
       }
     }
 
-    /**
-     * ⚠ GOES THROUGH `listOrders`, NOT `list`, AND THAT IS THE WHOLE POINT.
-     *
-     * A first version of this test called the repository directly and computed the cursor itself —
-     * so it passed with the defect still in place, because the broken line lives in the SERVICE,
-     * where the cursor is MINTED. A test that supplies its own correct cursor can never catch a
-     * wrong one. Proven by reverting: restore `placed_at` in `listOrders` and this fails.
-     */
+    /** Through `listOrders`, where the cursor is minted; a test that builds its own cursor cannot catch this. */
     it("pages without repeating or skipping an order", async () => {
       await seedAged(6);
 
@@ -405,20 +259,19 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   describe("search", () => {
     it("finds an order by its reference and by customer email", async () => {
       await seed();
-      expect(await list({ q: "EFY-TEST", limit: 10 })).toHaveLength(1);
-      expect(await list({ q: "shopper@", limit: 10 })).toHaveLength(1);
+      expect(await list({ q: (await pool.query(`SELECT order_number FROM public."order"`)).rows[0].order_number, limit: 10 })).toHaveLength(1);
+      expect(await list({ q: (await pool.query(`SELECT email FROM public.customer`)).rows[0].email, limit: 10 })).toHaveLength(1);
       expect(await list({ q: "nothing-like-this", limit: 10 })).toHaveLength(0);
     });
 
     it("never lists an order that was never paid for", async () => {
-      // A checkout abandoned before payment is not an order awaiting anything, and must not appear
-      // in an operator's queue as though it were.
+      // A checkout abandoned before payment is not an order.
       const c = await pool.query<{ id: string }>(
-        `INSERT INTO public.customer (email) VALUES ('x@example.com') RETURNING id`,
+        `INSERT INTO public.customer (cognito_sub, email) VALUES ('x', 'x@example.com') RETURNING id`,
       );
       await pool.query(
-        `INSERT INTO public."order" (customer_id, order_number, status)
-         VALUES ($1, 'EFY-PEND', 'pending_payment')`,
+        `INSERT INTO public."order" (customer_id, order_number, status, delivery_address, item_subtotal_amount, grand_total_amount)
+         VALUES ($1, 'EFY-PEND', 'pending_payment', '{}', 10, 10)`,
         [c.rows[0]!.id],
       );
       expect(await list({ limit: 10 })).toHaveLength(0);

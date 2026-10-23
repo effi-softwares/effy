@@ -18,20 +18,20 @@ import { STATE_LABEL, type EmailDeliveryState } from "./model";
 import { deliverabilityListQuery } from "./queries";
 
 /**
- * Addresses the platform cannot reach (037 FR-033).
+ * Addresses the platform cannot reach.
  *
- * ⚠ WHY THIS SCREEN EXISTS. A send to a blocked address returns SUCCESS and delivers nothing. Before
+ * Why this screen exists. A send to a blocked address returns success and delivers nothing. Before
  * it, a customer whose address hard-bounced was permanently locked out of an account that — for
  * driver, shop and back-office — has no other credential, and nobody at Effy could find out.
  *
- * ⚠ NO CARDS, NO METRIC TILES (Principle V). A table and detail rows. A "3 undeliverable" tile at the
- * top would answer a question nobody asks; the list of WHO is the whole product.
+ * No cards, no metric tiles (Principle V). A table and detail rows. A "3 undeliverable" tile at the
+ * top would answer a question nobody asks; the list of who is the whole product.
  */
 const PAGE_SIZE = 25;
 const PROBLEMS = "problems";
 
 const VIEWS: readonly { key: string; label: string }[] = [
-  // ⚠ Defaults to problems only. A list of every address ever delivered to answers no question
+  // Defaults to problems only. A list of every address ever delivered to answers no question
   // anyone has, and would bury the handful that matter.
   { key: PROBLEMS, label: "Needs attention" },
   { key: "undeliverable", label: STATE_LABEL.undeliverable },
@@ -126,13 +126,13 @@ export function DeliverabilityListScreen() {
                         {r.address}
                       </Link>
                     </td>
-                    {/* ⚠ A TEXT LABEL, never colour alone (Principle V). */}
+                    {/* A text label, never colour alone (Principle V). */}
                     <td data-m="badge">
                       <StateLabel state={r.state} />
                     </td>
                     <td data-m="meta">
-                      {/* ⚠ "—" IS THE HONEST ANSWER: an address can fail before its account exists,
-                          after it is deleted, or for the DRIVER audience, which has no platform table. */}
+                      {/* "—" is the honest answer: an address can fail before its account exists,
+                          after it is deleted, or for the driver audience, which has no platform table. */}
                       {r.subject ? (
                         <>
                           {r.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}

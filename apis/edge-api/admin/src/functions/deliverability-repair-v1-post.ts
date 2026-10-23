@@ -1,11 +1,4 @@
-// POST /admin/v1/deliverability/{address}/repair — restore someone's ability to receive mail
-// (037 FR-034). Requires admin/manager: this re-enables mail to an address that previously HARD
-// failed, and a fresh bounce spends the platform's shared sending reputation, which on this
-// platform is the availability of sign-in for four audiences.
-//
-// ⚠ TWO HALVES, AND HALF A REPAIR IS A FAILED REPAIR. The service clears the mail service's
-// suppression entry FIRST and the platform's own record SECOND — see its header for why that order
-// is the safe one.
+// Admin/manager: re-enabling a hard-failed address risks the shared sending reputation.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

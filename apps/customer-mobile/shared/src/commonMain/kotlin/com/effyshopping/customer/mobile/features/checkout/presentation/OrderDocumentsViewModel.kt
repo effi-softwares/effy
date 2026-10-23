@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 096 US7 — the order's Documents section: the delivery note, and its PDF to share or save.
+ * The order's Documents section: the delivery note, and its PDF to share or save.
  *
  * Every outcome is said out loud: a note not ready yet says when it will be, and a download that fails
  * says so rather than doing nothing.
@@ -37,7 +37,7 @@ class OrderDocumentsViewModel(
     private val _state = MutableStateFlow<State>(State.Loading)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    /** 096 US8 — the tax invoice, on request: nothing is issued until the customer asks. */
+    /** The tax invoice, on request: nothing is issued until the customer asks. */
     sealed interface Tax {
         data object Idle : Tax
         data object Loading : Tax
@@ -48,7 +48,7 @@ class OrderDocumentsViewModel(
     private val _tax = MutableStateFlow<Tax>(Tax.Idle)
     val tax: StateFlow<Tax> = _tax.asStateFlow()
 
-    /** Ask for the tax invoice — this ISSUES it on the server, once. */
+    /** Ask for the tax invoice — this issues it on the server, once. */
     fun getTaxInvoice() {
         if (_tax.value is Tax.Loading || _tax.value is Tax.Ready) return
         _tax.value = Tax.Loading
@@ -74,7 +74,7 @@ class OrderDocumentsViewModel(
         }
     }
 
-    /** The customer's business name and ABN, before the invoice is issued (FR-085). */
+    /** The customer's business name and ABN, before the invoice is issued. */
     suspend fun saveBusinessIdentity(businessName: String, abn: String): String? =
         when (repo.setBusinessIdentity(orderId, businessName.trim().ifEmpty { null }, abn.filterNot(Char::isWhitespace).ifEmpty { null })) {
             BusinessIdentityResult.SAVED -> null

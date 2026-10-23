@@ -14,19 +14,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.io.IOException
 
 /**
- * Drains the [OfflineQueue] against the platform (049 US6, FR-039/040).
+ * Drains the [OfflineQueue] against the platform.
  *
  * Replays each queued action in FIFO order, one at a time (a [Mutex] stops two drains interleaving).
  * Because the backend is idempotent by `changeId`, a replay of an already-applied action is a safe
- * no-op — so the ONLY failure this must handle carefully is the network being down again, in which case
+ * no-op — so the only failure this must handle carefully is the network being down again, in which case
  * it stops and leaves the rest queued for the next trigger.
  *
  * Outcomes per action:
  *  - **2xx** (applied, or a benign idempotent no-op) → remove from the queue.
  *  - **Network down again** → stop the drain; keep this and the rest for the next trigger.
  *  - **Definitive refusal** (a 4xx that is not network — e.g. the run ended, a validation error) →
- *    stop sending it and keep it as **refused** ([OfflineQueue.refused]) so the driver is told:
- *    retrying forever cannot help, and the backend has already decided.
+ *  stop sending it and keep it as **refused** ([OfflineQueue.refused]) so the driver is told:
+ *  retrying forever cannot help, and the backend has already decided.
  *
  * Triggered on app launch and on the home refresh (the driver coming back online refreshes there). No
  * connectivity API is assumed; a trigger that runs while still offline simply fails fast and re-queues.
@@ -34,11 +34,11 @@ import kotlinx.io.IOException
 class SyncCoordinator(
     private val client: HttpClient,
     private val queue: OfflineQueue,
-    /** Proofs saved with no signal (backlog B3). Sent AFTER the queue, so a drop's "arrived" lands first. */
+    /** Proofs saved with no signal (backlog B3). Sent after the queue, so a drop's "arrived" lands first. */
     private val proofs: ProofOutbox? = null,
     private val sendProofs: suspend () -> Unit = {},
     /**
-     * 092 rev 2 — something saved with no signal has now reached the platform: the screens showing work
+     * Rev 2 — something saved with no signal has now reached the platform: the screens showing work
      * re-read (`WorkChanges.changed`). Called once per flush, however many landed.
      */
     private val onDelivered: () -> Unit = {},
@@ -58,7 +58,7 @@ class SyncCoordinator(
     }
 
     /**
-     * Replays the queue in order; answers how many actions the platform SETTLED — applied, or refused
+     * Replays the queue in order; answers how many actions the platform settled — applied, or refused
      * (a refused one was shown as done on the phone, so the screens must re-read to un-show it).
      */
     private suspend fun drainQueue(): Int {
@@ -93,9 +93,9 @@ class SyncCoordinator(
                 AppError.Conflict -> Result.Applied
                 // Auth loss: stop trying (the session gate will handle re-auth); keep queued.
                 AppError.Unauthenticated -> Result.Offline
-                // 072 — refused because its round has not opened: EARLY, not wrong. It can only be
+                // Refused because its round has not opened: Early, not wrong. It can only be
                 // here if the phone's clock ran ahead of the server's when the driver acted offline.
-                // Kept, in order, and tried again on the next flush. ⚠ Before 072 named this case it
+                // Kept, in order, and tried again on the next flush. Before 072 named this case it
                 // would have arrived as Conflict and been dropped as "already applied".
                 is AppError.NotOpenYet -> Result.Offline
                 else -> Result.Dead // NotFound / Validation / Forbidden — a definitive refusal.

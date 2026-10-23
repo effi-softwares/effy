@@ -1,9 +1,5 @@
-# edge-notifications — Effy NOTIFICATIONS worker (050-observability-push-foundation).
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md) only for healthz; the
-# real work is a SCHEDULED worker (EventBridge rate) that drains public.notification_request and sends
-# push via FCM HTTP v1 (firebase-admin). Scheduled, not event-driven — the SNS/SQS event backbone does
-# not exist yet (research R6; the 049 assignmentSweep sets the precedent). Idempotent: dedupe_key +
-# status make a re-run a no-op. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# Scheduled workers that drain public.notification_request (push via FCM, plus email) and
+# public.receipt_dispatch. Attaches to the shared HTTP API for healthz only.
 service: effy-edge-notifications
 frameworkVersion: "3"
 
@@ -14,10 +10,8 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
-    # How often the worker drains the outbox. rate(1 minute) is EventBridge's floor; SC-003's <=90s p95
-    # reflects it. Tightens (or becomes event-driven) when the SNS/SQS backbone lands.
+    # rate(1 minute) is EventBridge's floor.
     drainSchedule: rate(1 minute)
     notifMaxAttempts: "5"
     notifBatchSize: "100"
@@ -49,26 +43,17 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # 050 — FCM sender config. The service-account JSON is fetched at runtime from Secrets Manager via
-    # the extension (never in the template/env); only its ARN is here. Empty/absent → the worker
-    # no-ops (fail-open, FR-027) and leaves rows pending until the operator seeds the secret.
+    # Only the service-account secret's ARN; unset, the worker fails open and leaves rows pending.
     FCM_SERVICE_ACCOUNT_ARN: ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
     FCM_PROJECT_ID: ${ssm:/effy/${sls:stage}/notifications/fcm_project_id}
-    # 052 — the receipt-email drain. ⚠ EVERY KEY IN email-kit's MAIL_ENV_KEYS MUST BE DECLARED HERE,
-    # and src/receipts/config.contract.test.ts reads THIS FILE to prove it. That guard exists because
-    # 035 shipped four env vars the template never declared: every pool resolved "unknown", no email
-    # was ever sent, and 100 passing tests missed it because they set the variables themselves.
+    # Every key in email-kit's MAIL_ENV_KEYS must be declared (config.contract.test.ts checks).
     MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
     MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
-    # The storefront origin for the receipt's "View your order" link (published by 042).
     WEB_SITE_URL: ${ssm:/effy/${sls:stage}/web/site_url, ''}
-    # Drain tuning. ⚠ These carry code-side defaults, so an undeclared value is not fatal the way 035's
-    # four were — but declaring them is the point of the config-contract guard: the deployment states
-    # what it runs with, rather than leaving it to a literal buried in a handler.
-    # ⚠ NOTIF_* were UNDECLARED until 052 added this block; 050's worker read them all along.
+    # Drain tuning. The code has defaults, but the deployment states what it runs with.
     NOTIF_MAX_ATTEMPTS: ${param:notifMaxAttempts}
     NOTIF_BATCH_SIZE: ${param:notifBatchSize}
     RECEIPT_MAX_ATTEMPTS: ${param:receiptMaxAttempts}
@@ -81,10 +66,7 @@ provider:
           Resource:
             - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
             - ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
-        # 052 — the receipt email. ⚠ BOTH the identity AND the configuration set, or the send is
-        # DENIED: ses:SendEmail authorizes against every resource the request touches, and 037 made
-        # every send name a configuration set. Granting the identity alone does not tighten this —
-        # it breaks it. (The same defect edge-auth and edge-customer each hit.)
+        # Both the identity and the configuration set: every send names one, so the identity alone is denied.
         - Effect: Allow
           Action: ses:SendEmail
           Resource:
@@ -92,8 +74,7 @@ provider:
             - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — same dev posture as the other edge services (no NAT; the dev DB is reachable on
-  # its public endpoint, and the worker must reach public AWS + FCM). DEV ONLY — infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs or FCM (dev only).
 
 custom:
   esbuild:
@@ -119,9 +100,7 @@ functions:
           method: GET
           path: /notifications/healthz
 
-  # 052 — the RECEIPT-EMAIL drain. Its own outbox (public.receipt_dispatch), its own schedule, its own
-  # idempotency (status + FOR UPDATE SKIP LOCKED). A sibling of `drain`, deliberately not a reuse of
-  # it: push is exactly-once forever, while a receipt can be RE-SENT on purpose (research R2).
+  # The receipt drain: its own outbox and schedule; receipts can be re-sent, pushes cannot.
   receiptDrain:
     handler: src/receipts/handler.handler
     description: Drain public.receipt_dispatch → render the order receipt → send via SES; mark sent/skipped/failed (052).
@@ -129,7 +108,6 @@ functions:
     events:
       - schedule: ${param:drainSchedule}
 
-  # The outbox drain worker (research R6). Scheduled, idempotent; off every user path.
   drain:
     handler: src/worker/handler.handler
     description: Drain public.notification_request → resolve device tokens → send via FCM → mark sent/skipped/failed; prune dead tokens (050).

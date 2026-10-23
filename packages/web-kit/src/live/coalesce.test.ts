@@ -23,7 +23,7 @@ describe("createCoalescer", () => {
     expect(run).toHaveBeenCalledTimes(2);
   });
 
-  // SC-012: ten changes within ten seconds → no more than three reads, and one after the last.
+  // Ten changes within ten seconds: at most three reads, and one after the last.
   it("reads no more than three times for ten updates in ten seconds, the last after the last update", () => {
     let lastRunAt = 0;
     const run = vi.fn(() => {

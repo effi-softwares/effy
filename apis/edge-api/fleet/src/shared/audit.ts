@@ -1,16 +1,5 @@
-// The fleet service's writer for admin.audit_log (056, FR-024).
-//
-// ⚠ THIS CLOSES A DEFECT RATHER THAN ADDING A FEATURE. Driver management is currently the ONLY
-// privileged back-office domain that writes no audit row: `grep -rn "audit_log"
-// apis/edge-api/admin/src/drivers/` returns nothing, while shops (009), promotions (027) and
-// catalog schema (016) all write one. The table was built general for exactly this
-// ("General by design (ARCHITECTURE: admin schema = accounts + audit)").
-//
-// ⚠ NO PII IN `detail`. The column's own comment says so ("detail carries before/after with NO PII
-// beyond governance"), and FR-050 makes it binding here. A changed phone, emergency contact or
-// licence reference is recorded as CHANGED — the field name and nothing else. Recording the old and
-// new value would put a person's phone number in a governance table that is read by everyone who
-// can read any driver, and would put it in a place no deletion request knows to look.
+// The fleet service's writer for admin.audit_log. No PII in `detail`: a changed phone, emergency
+// contact or licence reference is recorded by field name only.
 import { query } from "@effy/edge-shared";
 import type pg from "pg";
 
@@ -22,49 +11,35 @@ export type DriverAuditAction =
   | "driver.work_released"
   | "driver.exception_resolved"
   | "driver.proof.viewed"
-  /** 062 — clearances. A clearance is a fact about a PERSON, so the target stays `driver`. */
+  /** A clearance is a fact about a person, so the target is `driver`. */
   | "driver.capability_granted"
   | "driver.capability_revoked";
 
-/** Vehicle-register actions (061). ⚠ A vehicle is a different TARGET, not a different audit trail —
- *  `admin.audit_log` stays the platform's one privileged-change record (Principle II). */
+/** A vehicle is a different target, not a different audit trail. */
 export type VehicleAuditAction =
   | "vehicle.created"
   | "vehicle.updated"
   | "vehicle.status_changed"
   | "vehicle.holding_issued"
   | "vehicle.holding_returned"
-  // 093 — a dispatcher cleared a vehicle check that found something unsafe.
   | "vehicle.check_cleared";
 
-/**
- * ⚠ 063 — what a DISPATCHER did by hand (FR-033). These are the actions that override the wave
- * planner, and they are the ones most worth being able to ask "who decided this?" about later: the
- * engine's own choices are reconstructable from `dispatch_wave`, a person's are not.
- */
+/** A dispatcher's manual overrides: the engine's choices are reconstructable from `dispatch_wave`, a person's are not. */
 export type DispatchAuditAction =
   | "dispatch.reassign"
   | "dispatch.unassign"
   | "dispatch.reorder"
   | "dispatch.lock"
-  | "dispatch.unlock" // 073 — no longer written; kept so earlier audit rows still type
+  | "dispatch.unlock" // No longer written; kept so earlier audit rows still type
   | "dispatch.manual_assign"
   | "dispatch.manual_unassign"
-  // ⚠ 064 — closing a delivery exception. It is an assertion about the physical world (the package
-  // came back, or was re-delivered, or was written off) that no query can verify, so who said it and
-  // when is the only record there will ever be.
+  // Closing a delivery exception asserts something no query can verify.
   | "dispatch.exception_resolve"
-  // 088 — a staff member recorded that a driver's failed parcels were handed in at the hub.
   | "dispatch.parcels_returned"
-  // 093 — a dispatcher let a run skip the cross-run gate, or decided a package a driver declared missing.
   | "dispatch.sequence_waived"
   | "dispatch.hold_resolved";
 
-/**
- * 069 — delivery capacity and calendar. Each of these changes what a CUSTOMER is offered at checkout
- * the moment it is saved, with no release in between, so who changed it and when is the only way to
- * answer "why was same-day not offered on Tuesday?" afterwards.
- */
+/** Delivery capacity and calendar: each change alters what checkout offers the moment it is saved. */
 export type DeliveryConfigAuditAction =
   | "delivery_slot.created"
   | "delivery_slot.updated"
@@ -74,7 +49,7 @@ export type DeliveryConfigAuditAction =
   | "delivery_days.date_added"
   | "delivery_days.date_removed";
 
-/** 096 — a shop's hand-over rules that dispatch owns: whether every bag must be scanned as packed. */
+/** Whether every bag must be scanned as packed. */
 export type ShopOpsAuditAction = "shop.pack_scanning_changed";
 
 export type FleetAuditAction =
@@ -84,11 +59,7 @@ export type FleetAuditAction =
   | DispatchAuditAction
   | DeliveryConfigAuditAction;
 
-/** What the audited row IS. ⚠ 061 generalised this: it was hard-coded to 'driver' because a driver
- *  was the only thing this service could change. Widening the column value is the whole change — the
- *  table, the helper and the redaction rules are shared, as Principle II requires.
- *  ⚠ 063 added 'driver_round' the same way, and deliberately did NOT add a second audit writer
- *  alongside: a private INSERT would have skipped the PII redaction above without anyone noticing. */
+/** What the audited row is. One writer for every target, so the PII redaction always applies. */
 export type AuditTargetType =
   | "driver"
   | "vehicle"
@@ -96,16 +67,11 @@ export type AuditTargetType =
   | "delivery_exception"
   | "delivery_slot"
   | "delivery_settings"
-  // 093
   | "package_hold"
   | "vehicle_check"
-  // 096
   | "shop";
 
-/**
- * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.
- * ⚠ Keep this list in step with the PII columns in data-model §1b.
- */
+/** Field names whose values never reach admin.audit_log; keep in step with the PII columns. */
 export const REDACTED_FIELDS = new Set([
   "contactPhone",
   "emergencyContactName",
@@ -114,13 +80,7 @@ export const REDACTED_FIELDS = new Set([
   "workEmail",
 ]);
 
-/**
- * Reduce a change set to an audit-safe detail payload.
- *
- * A redacted field contributes only its NAME to `changed`; a safe field contributes its name and
- * its new value. Nothing here ever carries an OLD value — a before/after pair doubles the exposure
- * for no governance gain, since the audit trail is a sequence and the previous row holds the before.
- */
+/** A redacted field contributes only its name to `changed`; nothing carries an old value. */
 export function auditDetail(changes: Record<string, unknown>): Record<string, unknown> {
   const changed: string[] = [];
   const values: Record<string, unknown> = {};
@@ -134,9 +94,8 @@ export function auditDetail(changes: Record<string, unknown>): Record<string, un
 export interface AuditInput {
   actorSub: string;
   action: FleetAuditAction;
-  /** ⚠ Retained name for the driver call sites; carries the target id whatever the target is. */
+  /** The target id, whatever the target. */
   driverId: string | null;
-  /** Defaults to 'driver' so every existing call site keeps its exact behaviour. */
   targetType?: AuditTargetType;
   detail?: Record<string, unknown>;
 }
@@ -144,7 +103,7 @@ export interface AuditInput {
 const INSERT = `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
                 VALUES ($1, $2, $3, $4, $5::jsonb)`;
 
-/** Write one audit row. Call inside the same transaction as the change wherever one exists. */
+/** Call inside the change's transaction wherever one exists. */
 export async function recordAudit(input: AuditInput, tx?: pg.PoolClient): Promise<void> {
   const args = [
     input.actorSub,
@@ -168,7 +127,7 @@ export interface DriverAuditRow {
   at: string;
 }
 
-/** The profile's change history, newest first (FR-025). */
+/** Newest first. */
 export async function listDriverAudit(driverId: string, limit = 100): Promise<DriverAuditRow[]> {
   const res = await query<{
     id: string;

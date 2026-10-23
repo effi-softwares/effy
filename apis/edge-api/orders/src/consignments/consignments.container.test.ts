@@ -2,11 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 080 — back-office's courier work against the REAL schema: booking, recording progress, the Courier
- * tab's views, when a hub parcel is due out, and the order page's consignment block.
- * ⚠ The courier service is fictional; real ones are the operator's to enter.
- */
+/** Back-office courier work against the real schema. The courier service is fictional. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null, announced: [] as string[] }));
 
 vi.mock("@effy/edge-shared", async () => {
@@ -16,16 +12,15 @@ vi.mock("@effy/edge-shared", async () => {
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
     withTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
       (actual.transactorFor as (p: Pool) => (f: typeof fn) => Promise<unknown>)(holder.pool!)(fn),
-    // The order page's refund proposals read through the shared module's own pool; none exist here.
     proposedRefunds: async () => [],
   };
 });
 vi.mock("@effy/edge-shared/live", () => ({ announceOrder: async (id: string) => void holder.announced.push(id) }));
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { packages } from "../orders/repository";
-import { getOrder, listCourierParcels, listHandovers, listOrders, toPackage } from "../orders/service";
+import { getOrder, listCourierParcels, listOrders, toPackage } from "../orders/service";
 import { recordHandoff } from "../handoff/repository";
 import { changeCollection, recordStep, saveConsignment } from "./service";
 
@@ -99,8 +94,7 @@ d("080 — courier work in back-office", () => {
       orderNumber: o.number, service: "Test Courier · Parcel", dueOut: "2026-10-09T14:00:00+11:00", atRisk: false, collection: "hub",
     })]);
     expect(toPackage((await packages(o.order))[0]!, null, undefined, null, morning)).toMatchObject({ dueOut: "2026-10-09T14:00:00+11:00", late: false });
-    // Not yet at the hub at 3 pm: from now, the next pickup is Monday's. (A parcel already checked in
-    // keeps the pickup it missed — the next test.)
+    // Not at the hub by 3 pm: the next pickup is Monday's. (A checked-in parcel keeps the one it missed.)
     rows = await listCourierParcels("hub_due", mel("2026-10-09T15:00:00+11:00"));
     expect(rows[0]).toMatchObject({ dueOut: "2026-10-12T14:00:00+11:00" });
   });
@@ -119,15 +113,13 @@ d("080 — courier work in back-office", () => {
     expect(await listCourierParcels("hub_due", at3pm)).toEqual([]);
     expect(await listCourierParcels("hub_late", at3pm)).toEqual([expect.objectContaining({ orderNumber: o.number, dueOut: "2026-10-09T14:00:00+11:00", atRisk: true })]);
     expect(toPackage((await packages(o.order))[0]!, null, undefined, null, at3pm)).toMatchObject({ late: true, handoverDueOn: "2026-10-09" });
-    // The 069 list still finds it, by its day.
-    expect((await listHandovers("overdue", mel("2026-10-10T09:00:00+11:00"))).map((r) => r.orderNumber)).toEqual([o.number]);
   });
 
   it("P3/P5 — book, hand over from the hub list, in transit, delivered: the Courier tab follows it and the order completes", async () => {
     const o = await courierOrder("hub");
     expect(await saveConsignment(o.pkg, { serviceId: SERVICE, reference: "  ABC123 ", trackingUrl: "https://track.example.test/ABC123" }, STAFF))
       .toMatchObject({ created: true });
-    // The hub screen's handover completes the booked consignment — one record of "handed over".
+    // The hub handover completes the booked consignment.
     expect(await recordHandoff({ fulfillmentId: o.pkg, actorSub: STAFF, changeId: "c1" })).toMatchObject({ created: true, reference: "ABC123", carrierName: "Test Courier" });
     expect(await listCourierParcels("with_courier")).toEqual([expect.objectContaining({ orderNumber: o.number, consignmentState: "handed_over" })]);
     await recordStep(o.pkg, { kind: "in_transit" }, STAFF);

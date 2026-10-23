@@ -6,8 +6,7 @@ import type { AddressDTO } from "@effy/shared-types"
 
 import { AddressList } from "./_components/AddressList"
 
-// Dialog mode (desktop) so the form/confirm render synchronously; drawer switching is covered by
-// responsive-modal.test.tsx and AddressFormModal.test.tsx.
+// Dialog mode (desktop) so the form and confirm render synchronously.
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => false }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 

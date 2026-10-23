@@ -11,16 +11,16 @@ import { ActionLink } from "@/components/storefront/kit"
 import { edgeApiPublic, perCustomer } from "@/lib/api/edge"
 
 /**
- * `/newsletter/confirm` — the destination of the double opt-in link (039 US6).
+ * `/newsletter/confirm` — the destination of the double opt-in link.
  *
- * ⚠ ZERO CLIENT JS. Nothing here is interactive: it reads a token, calls the confirm endpoint
+ * Zero client js. Nothing here is interactive: it reads a token, calls the confirm endpoint
  * server-side, and renders one of two outcomes with a link back to the store.
  *
- * ⚠ NOINDEX. Every URL of this page carries a live single-use token. A crawler that indexed one would
+ * Noindex. Every URL of this page carries a live single-use token. A crawler that indexed one would
  * publish a working confirmation link, and following it would burn a real subscriber's token before
  * they ever saw the email.
  *
- * ⚠ The token is read inside a `<Suspense>` boundary so the page keeps a STATIC SHELL under PPR —
+ * The token is read inside a `<Suspense>` boundary so the page keeps a static shell under PPR
  * touching `searchParams` at the top level would make the whole route dynamic.
  */
 export const metadata: Metadata = {
@@ -45,11 +45,11 @@ export default function NewsletterConfirmPage({
 }
 
 /**
- * What following the link in the confirmation email did (reference: Help & info · Newsletter —
+ * What following the link in the confirmation email did (reference: Help & info · Newsletter
  * confirmed / expired).
  *
- * ⚠ AN EXPIRED LINK IS NOT A DEAD END: the same subscribe form is right there, and it sends a fresh
- * link. ⚠ The address is never shown back — this page is reached from a link that can be forwarded.
+ * An expired link is not a dead end: the same subscribe form is right there, and it sends a fresh
+ * link. The address is never shown back — this page is reached from a link that can be forwarded.
  */
 async function ConfirmOutcome({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams
@@ -82,7 +82,7 @@ async function confirmToken(token: string): Promise<NewsletterConfirmResult["sta
     )
     return result.status
   } catch {
-    // ⚠ A backend failure renders "expired" rather than an error page. The subscriber can only retry
+    // A backend failure renders "expired" rather than an error page. The subscriber can only retry
     // the same link either way, and "this link has expired, subscribe again" is a usable instruction
     // where a 500 is a dead end. The real failure is logged on the backend, where it can be acted on.
     return "expired"

@@ -1,11 +1,5 @@
-// Fail if the committed banner template has drifted from src/banner-canvas.json.
-//
-// ⚠ The template's ENTIRE value is that it agrees with the renderer. An operator designs onto it and
-// trusts the result will fit; a stale template is worse than none, because it converts a guess into a
-// confident mistake.
-//
-// Same shape as check-compose-theme.mjs: regenerate in memory, compare against what is committed, and
-// say plainly what is stale.
+// Fails if the committed banner template has drifted from src/banner-canvas.json: a stale template turns
+// an operator's guess into a confident mistake. Regenerates in memory and compares.
 import { existsSync, readFileSync } from "node:fs";
 
 import { CANVAS, OUT, renderTemplate } from "./gen-banner-template.mjs";

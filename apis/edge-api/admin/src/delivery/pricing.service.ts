@@ -1,9 +1,4 @@
-// Service for delivery fee plans v2 (077): value validation, the role rules, and the simulator.
-// No SQL, no HTTP (Principle VI).
-//
-// ⚠ THIS SURFACE NEVER ADDS UP A FEE. The simulator asks the same engine checkout asks
-// (`priceEffyOrder` / `courierFee` in @effy/edge-shared/delivery), fed a plan loaded by id instead of
-// "the active one" — which is the whole reason the simulator's answer equals the charge (FR-026).
+// Never adds up a fee itself: the simulator calls checkout's engine with a plan loaded by id, so its answer equals the charge.
 import { formatCents, parseCents, pooled } from "@effy/edge-shared";
 import {
   courierFee, courierValues, coverageForPostcode, feeDTO, feeLines, loadActivePlan, loadPlan, normalizePostcode,
@@ -21,10 +16,9 @@ export { PricingError };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const AMOUNT = /^\d{1,7}(\.\d{1,2})?$/;
-/** Wider than the country, as for a listed postcode's distance (076). */
 const MAX_KM = 5000;
 
-/** A plan was saved or made active: an open Pricing screen re-reads. After commit; never throws. */
+/** After commit; never throws. */
 const changed = (): Promise<void> => announce([{ scope: "ops", kind: "pricing" }]);
 
 interface FieldError {
@@ -32,13 +26,13 @@ interface FieldError {
   message: string;
 }
 
-/** Every value error at once, so a manager fixes the form in one pass rather than one refusal at a time. */
+/** Every value error at once, so the form is fixed in one pass. */
 class Fields {
   readonly errors: FieldError[] = [];
   add(field: string, message: string): void {
     this.errors.push({ field, message });
   }
-  /** A non-negative 2-dp amount as cents, or null (and an error) when it is not one. */
+  /** Cents, or null (with an error). */
   cents(field: string, v: unknown, { positive = false } = {}): number | null {
     if (typeof v !== "string" || !AMOUNT.test(v.trim())) {
       this.add(field, "must be an amount like 6.00");
@@ -56,11 +50,7 @@ class Fields {
   }
 }
 
-/**
- * Value errors are refused at SAVE, as named fields (077 research R12). Gaps — missing or
- * out-of-order bands — are not refused: a half-built draft may be saved, and the gaps come back on
- * it. Every rule a table CHECK holds is refused here first, so a CHECK never surfaces as a 500.
- */
+/** Value errors are refused at save, before any check could surface as a 500. Gaps are allowed in a draft. */
 export function normalise(body: unknown): FeePlanInput {
   const b = (body ?? {}) as Record<string, unknown>;
   const f = new Fields();
@@ -162,20 +152,16 @@ async function checkSlots(input: FeePlanInput): Promise<void> {
   const fields = input.slotPremiums.flatMap((p, i) => {
     const message = !known.has(p.slotId)
       ? "that delivery window no longer exists"
-      // 085 — an order with no time pays the plain fee.
+      // An order with no time pays the plain fee.
       : anyTime.has(p.slotId) ? "the Any time window takes no surcharge" : null;
     return message ? [{ field: `slotPremiums.${i}.slotId`, message }] : [];
   });
   if (fields.length > 0) throw new PricingError(422, "invalid_plan", "check the highlighted values", { fields });
 }
 
-// ── reads ───────────────────────────────────────────────────────────────────────────────────────
-
 export async function listPlans(kind: unknown): Promise<{ items: FeePlanDTO[] }> {
   return { items: await repo.listPlans(kindOf(kind)) };
 }
-
-// ── writes ──────────────────────────────────────────────────────────────────────────────────────
 
 export async function createPlan(body: unknown, sub: string): Promise<FeePlanDTO> {
   const input = normalise(body);
@@ -202,12 +188,9 @@ export async function activatePlan(planId: unknown, body: unknown, sub: string):
   return (await repo.readPlan(id))!;
 }
 
-// ── the simulator ───────────────────────────────────────────────────────────────────────────────
-
 const km = (n: number) => `${Number(n.toFixed(2))} km`;
 const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`;
 
-/** The steps that built a fee, in the words staff read them in (FR-025). */
 export function stepsOf(b: FeeBreakdown, plan: Plan): FeeSimulationStepDTO[] {
   const steps: FeeSimulationStepDTO[] = [];
   const amount = (c: number) => formatCents(c);
@@ -246,10 +229,7 @@ function stateOf(plan: Plan): "draft" | "active" | "retired" {
   return plan.isActive ? "active" : plan.activatedAt ? "retired" : "draft";
 }
 
-/**
- * What would this delivery cost under this plan, and why? READ-ONLY (FR-027): it loads, it prices,
- * it writes nothing and announces nothing.
- */
+/** Read-only: loads, prices, writes and announces nothing. */
 export async function simulate(body: unknown): Promise<FeeSimulationDTO> {
   const r = (body ?? {}) as Partial<FeeSimulationRequest>;
   const postcode = typeof r.postcode === "string" ? normalizePostcode(r.postcode) : null;
@@ -263,7 +243,6 @@ export async function simulate(body: unknown): Promise<FeeSimulationDTO> {
 
   const coverage = await coverageForPostcode(pooled, postcode);
   if (coverage.reason === "unknown_postcode") throw new PricingError(422, "unknown_postcode", "not a known postcode");
-  // Courier delivery cannot be switched on yet, so a courier table can only be tried on purpose.
   const kind: FeePlanKind | null = r.forceKind === "courier" ? "courier" : coverage.kind === "effy" ? "effy" : coverage.kind === "courier" ? "courier" : null;
 
   if (kind === null) {

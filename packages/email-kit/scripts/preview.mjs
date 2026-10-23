@@ -1,14 +1,7 @@
 #!/usr/bin/env node
-// PREVIEW — `make email-preview`. Renders every catalogued message against its committed fixture
-// into dist/preview/, plus an index. No cloud access, no send, no secrets (spec FR-040 / SC-013).
-//
-// ⚠ IT USES THE SAME SUBSTITUTION AS PRODUCTION. A preview produced by a different code path can
-// show something a recipient will never receive — which is this repository's single most-repeated
-// documented failure mode (a fixture agreeing with the code instead of with the world). The one
-// thing it cannot share is the CATALOGUE's subject/preheader functions, which are TypeScript; those
-// are exercised by test/catalog.test.ts instead.
-//
-// ⚠ dist/preview/ is a BUILD OUTPUT and is gitignored, unlike the rest of dist/.
+// `make email-preview`: renders every catalogued message against its committed fixture into
+// dist/preview/ (gitignored), with an index. Uses the production substitution; the catalogue's
+// subject/preheader functions are covered by test/catalog.test.ts. No cloud access, no send.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -21,8 +14,7 @@ const DIST = resolve(PKG, "dist");
 const SRC = resolve(PKG, "src");
 const OUT = resolve(DIST, "preview");
 
-// The values the layout injects at runtime. ⚠ Placeholders, not invented real-world identifiers:
-// the postal address is operator-supplied and must never be guessed, not even for a preview.
+// Values the layout injects at runtime, as placeholders: the postal address is operator-supplied.
 const PLATFORM = {
   effyProductName: "Effy",
   effySupportEmail: "hello@effyshopping.com",

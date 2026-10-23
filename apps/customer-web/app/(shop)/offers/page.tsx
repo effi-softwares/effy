@@ -22,16 +22,8 @@ export const metadata: Metadata = {
 }
 
 /**
- * Offers (reference: Product & offers · Offers index; FR-026).
- *
- * ⚠ NO NEW ROUTE WAS NEEDED. The home payload already carries every advertised promotion — the same
- * visibility rule the single-offer page re-checks — so this page reads `getHome()` and lists them.
- * (084's plan proposed `GET /storefront/v1/promotions`; reading the code showed it would have returned
- * what Home already returns, and it would have cost the shared gateway a route.)
- *
- * ⚠ No filter chips. A promotion today is a whole-cart code with no aisle or product scope, and every
- * one of them carries a code — so the reference's "With a code / Fruit & veg / Dairy" chips would
- * filter on facts that do not exist (084 research D7).
+ * Offers: every advertised promotion, from the home payload (`getHome`, the same visibility rule as the
+ * single-offer page). No filter chips: promotions carry no aisle or product scope to filter on.
  */
 export default function OffersPage() {
   return (
@@ -61,7 +53,7 @@ export default function OffersPage() {
 async function OfferList() {
   let offers: PlacedBanner[]
   try {
-    // 094 — the Offers page is its own display group.
+    // The Offers page is its own display group.
     offers = (await getPromotionGroups(PROMOTION_GROUP_KEYS.offers))[PROMOTION_GROUP_KEYS.offers] ?? []
   } catch {
     return (

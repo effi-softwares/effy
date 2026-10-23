@@ -5,18 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAIL_ENV_KEYS } from "@effy/email-kit/send";
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the receipt drain (052 US3) — the same guard the feedback and
- * newsletter services carry, and it exists because of a specific, expensive defect.
- *
- * 035 read four environment variables that its `serverless.yml` never declared. Every pool resolved
- * "unknown", NO EMAIL WAS EVER SENT, and **100 passing tests missed it** — because the tests set those
- * variables themselves. A unit test that supplies its own configuration can never notice that the
- * configuration does not exist.
- *
- * So this test mocks nothing. It reads the ACTUAL `serverless.yml` and the ACTUAL service source and
- * asserts they agree. A missing MAIL_* key here means the receipt silently never sends.
- */
+/** Reads the real serverless.yml and source: a missing MAIL_* key means receipts silently never send. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceRoot = resolve(here, "../..");
@@ -41,7 +30,6 @@ function readServerlessEnvKeys(): Set<string> {
   return keys;
 }
 
-/** Every `process.env.SOMETHING` the receipt slice reads. */
 function readEnvKeysUsedBySource(): Set<string> {
   const keys = new Set<string>();
   for (const file of ["handler.ts", "sender.ts", "drain.ts", "repository.ts"]) {
@@ -54,11 +42,7 @@ function readEnvKeysUsedBySource(): Set<string> {
 describe("receipt drain deployment contract — serverless.yml declares what the code reads", () => {
   const declared = readServerlessEnvKeys();
 
-  /**
-   * ⚠ The list comes from email-kit's OWN export, self-checked there against the real source of
-   * `config.ts` and `send.ts`. So it cannot silently drift from what the mail path actually reads —
-   * which is the failure mode a hand-copied list would reintroduce.
-   */
+  /** From email-kit's own export, self-checked against the mail path's source. */
   it("declares every MAIL_* key the mail path reads", () => {
     for (const key of MAIL_ENV_KEYS) {
       expect(declared, `serverless.yml must declare ${key}`).toContain(key);
@@ -71,7 +55,7 @@ describe("receipt drain deployment contract — serverless.yml declares what the
     }
   });
 
-  /** The receipt link would be broken without it — a receipt that cannot reach the order. */
+  /** Without it the receipt's order link would be broken. */
   it("declares the storefront origin", () => {
     expect(declared).toContain("WEB_SITE_URL");
   });
@@ -83,17 +67,12 @@ describe("receipt drain deployment contract — the function and its permissions
   it("registers the scheduled receipt drain", () => {
     expect(yaml).toContain("receiptDrain:");
     expect(yaml).toContain("src/receipts/handler.handler");
-    // A drain with no schedule never runs, and nothing else in the system would notice.
+    // A drain with no schedule never runs.
     const fn = yaml.slice(yaml.indexOf("receiptDrain:"));
     expect(fn.slice(0, fn.indexOf("\n  drain:") + 1 || undefined)).toContain("schedule:");
   });
 
-  /**
-   * ⚠ BOTH RESOURCES, OR THE SEND IS DENIED. `ses:SendEmail` authorizes against every resource the
-   * request touches, and 037 made every send name a configuration set. Granting the identity alone
-   * does not tighten the policy — it BREAKS it, silently, at send time. edge-auth and edge-customer
-   * each shipped that defect; this asserts it cannot recur here.
-   */
+  /** Both resources: every send names a configuration set, so granting the identity alone denies it. */
   it("grants ses:SendEmail on the identity AND the configuration set", () => {
     expect(yaml).toContain("ses:SendEmail");
     expect(yaml).toContain("/ses/identity_arn");

@@ -5,15 +5,9 @@ import type { FeeLine } from "./engine";
 import type { PricedFee } from "./quote";
 
 /**
- * A priced fee in its two wire forms (077) — written ONCE so checkout, the order page, the receipt
- * and the back-office simulator cannot each grow their own.
- *
- *   `feeDTO`           what a CUSTOMER is given: lines and a total. Nothing else.
- *   `storedBreakdown`  what the ORDER keeps: the plan, the inputs and every step, for staff.
- *
- * ⚠ The second holds a distance, a weight and the business's prices. It goes into
- * `"order".delivery_fee_breakdown` and out through the staff gateway only; a customer or shop route
- * that needs the lines reads `delivery_fee_breakdown->'lines'` and never the column whole.
+ * A priced fee's two wire forms. `feeDTO`: lines and a total for a customer. `storedBreakdown`: the plan,
+ * inputs and every step, kept in `"order".delivery_fee_breakdown` for staff only (customers and shops
+ * read `->'lines'`).
  */
 
 export function lineDTOs(lines: readonly FeeLine[]): DeliveryFeeLineDTO[] {

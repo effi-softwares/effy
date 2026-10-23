@@ -12,11 +12,11 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
 /**
- * FCM service (050 US3). The framework instantiates it; it forwards a rotated token to the app's
- * listener ([TokenRefreshHolder]) so the device re-registers (FR-012). Registered in
+ * FCM service. The framework instantiates it; it forwards a rotated token to the app's
+ * listener ([TokenRefreshHolder]) so the device re-registers. Registered in
  * androidApp/AndroidManifest.xml.
  *
- * ⚠ A message that arrives WHILE THE APP IS OPEN is handed here and the system shows nothing — so a
+ * A message that arrives while the app is open is handed here and the system shows nothing — so a
  * driver looking at a stop was never told a new round had been assigned. It is shown from here now.
  * A message that arrives while the app is closed is still shown by the system tray, as before.
  */
@@ -28,7 +28,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val shown = message.notification ?: return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (!manager.areNotificationsEnabled()) return // the driver said no (FR-019)
+        if (!manager.areNotificationsEnabled()) return // the driver said no
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Work updates", NotificationManager.IMPORTANCE_HIGH),
@@ -68,7 +68,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
 }
 
 /**
- * What a tapped notification carries into the app: the KIND of thing it was about and, for a round,
+ * What a tapped notification carries into the app: the kind of thing it was about and, for a round,
  * which one (backlog D4) — an id, never an address or an order.
  */
 object PushOpen {
@@ -76,7 +76,7 @@ object PushOpen {
     const val EXTRA_TYPE = "type"
     const val EXTRA_ENTITY = "entityId"
 
-    /** The tapped notification, taken OUT of [intent] so a rotation does not act on it twice. */
+    /** The tapped notification, taken out of [intent] so a rotation does not act on it twice. */
     fun consume(intent: Intent?): OpenedNotification? {
         val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
         val entity = intent.getStringExtra(EXTRA_ENTITY)

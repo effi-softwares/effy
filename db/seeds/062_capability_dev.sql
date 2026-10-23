@@ -1,26 +1,16 @@
--- 062 driver zone capability — dev seed. Idempotent: clears 062's OWN data and re-inserts.
--- ⚠ Touches ONLY driver clearances. Never drivers themselves, never zones, never vehicles.
+-- Driver clearance dev seed. Idempotent: Clears and re-inserts driver clearances only (never drivers, zones
+-- or vehicles). It needs drivers to exist, and sets up at once:
+--   · a driver cleared for everything, everywhere (so "every zone" shows as a fact, and a new zone is covered);
+--   · a driver cleared narrowly (one function, one zone);
+--   · a driver cleared for nothing (a new starter's ordinary state);
+--   · a zone nobody can serve, so the coverage view has a real gap.
 --
--- ═══ WHAT A WALKER MUST BE ABLE TO SEE ═══════════════════════════════════════════════════════════
--- The quickstart's §5 walk needs all of these to exist at once, and none of them can be reasoned
--- about from an empty table:
---
---   · a driver cleared for EVERYTHING, EVERYWHERE — so "every zone" is visible as a fact rather than
---     as an enumeration, and so W6 (create a zone, watch them cover it) has a subject;
---   · a driver cleared NARROWLY — one function, one method, one zone — so the register can be seen
---     to distinguish breadth;
---   · a driver cleared for NOTHING — an ordinary state for a new starter, and the one FR-015 says
---     must read as a stated fact rather than as blank space;
---   · at least one ZONE NOBODY CAN SERVE, so the coverage view has a real gap to report (FR-030).
---
--- ⚠ NO REAL-WORLD IDENTIFIERS ARE INTRODUCED. Clearances name no person, business or address — they
--- reference drivers and zones that already exist. Drivers are matched by NAME ORDER rather than by a
--- hard-coded id or email, because dev drivers were provisioned by hand and this file does not know
--- their ids. Guessing one would make the insert match nothing and SILENTLY DO NOTHING.
+-- Drivers are matched by name order, not by id or email: They are provisioned by hand, and a guessed
+-- identifier would match nothing and silently do nothing.
 
 BEGIN;
 
--- ── 1. Clear 062's own data ──────────────────────────────────────────────────────────────────────
+-- ── 1. Clear its own data ──────────────────────────────────────────────────────────────────────
 DELETE FROM public.driver_zone_capability;
 
 -- ── 2. Three clearance profiles, assigned by position ────────────────────────────────────────────
@@ -31,10 +21,10 @@ WITH ranked AS (
     FROM public.driver
    WHERE status = 'active'
 ),
--- Driver 1: DELIVERY, EVERYWHERE. ⚠ One row with zone_id NULL — the "every zone" fact. (A clearance
+-- Driver 1: Delivery, everywhere. One row with zone_id NULL — the "every zone" fact. (A clearance
 -- is a function and an area; the method column went with 083.)
 --
--- ⚠ DELIVERY ONLY, AND THAT IS WHAT MAKES FR-030 TRUE BY CONSTRUCTION. If this driver were cleared
+-- Delivery only, and that is what makes the spec true by construction. If this driver were cleared
 -- for everything, an every-zone grant would cover every zone for every kind of work and the coverage
 -- view could NEVER report `no_driver_cleared` — the walker would have to stand somebody down to see
 -- the state the screen exists for. Clearing them for delivery only leaves COLLECTION uncovered
@@ -62,19 +52,19 @@ narrow AS (
   ON CONFLICT DO NOTHING
   RETURNING 1
 )
--- Driver 3 and beyond: cleared for NOTHING. ⚠ Deliberately no rows — a walker needs to see that an
+-- Driver 3 and beyond: Cleared for NOTHING. Deliberately no rows — a walker needs to see that an
 -- uncleared driver reads as "Nothing yet" and is blocked with `no_capabilities`, not as blank space.
 SELECT 1;
 
--- ── 3. Both coverage reasons are visible on load (FR-030) ────────────────────────────────────────
--- ⚠ GUARANTEED BY CONSTRUCTION, not by hoping:
+-- ── 3. Both coverage reasons are visible on load ────────────────────────────────────────
+-- Guaranteed by construction, not by hoping:
 --
 --   · COLLECTION is uncovered in every zone, because nobody above is cleared to collect. The
 --     coverage view reports `no_driver_cleared` — an administrative gap, fixed by granting somebody
---     a clearance. This is W10.
---   · DELIVERY is covered on paper by driver 1, but 061's seed hands nobody a vehicle, so that
+--     a clearance.
+--   · DELIVERY is covered on paper by driver 1, but the fleet seed hands nobody a vehicle, so that
 --     driver is blocked (`no_vehicle`) and the view reports `all_cleared_unavailable` — a rostering
---     problem, fixed elsewhere. This is W11.
+--     problem, fixed elsewhere.
 --
 -- Two reasons, two remedies, both on screen without the walker having to arrange anything.
 

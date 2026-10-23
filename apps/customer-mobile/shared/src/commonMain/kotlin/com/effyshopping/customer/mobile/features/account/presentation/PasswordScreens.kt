@@ -68,43 +68,19 @@ import com.effyshopping.customer.mobile.resources.ic_visibility_off
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * The password journeys (034 — redesign of 026's single screen).
+ * The password journeys, chosen only by the platform-owned `hasPassword` (never by how the shopper signed in):
+ *  1. Change: Current · New · Confirm on one screen, with a route out for "I've forgotten it".
+ *  2. Set: three steps: explain, verify, choose.
+ * No stepper: each step asks for one thing and its heading says what.
  *
- * There are two, and which one a shopper gets is decided ONLY by the platform-owned `hasPassword`,
- * never by how they signed in — a Google-linked customer is an ordinary native user and can hold a
- * password.
- *
- *   1. **Change** — they have one. Current · New · Confirm on a single screen, with a route out for
- *      "I've forgotten it".
- *   2. **Set** — they have none (they sign in with an emailed code). Three steps: explain, verify,
- *      choose.
- *
- * ⚠ NO STEPPER, NO PROGRESS DOTS. Each step asks for exactly one thing and its own heading says what
- * that thing is. A three-dot indicator on a three-screen flow is chrome describing chrome.
- *
- * ⚠⚠ THE WRITE STILL REVOKES EVERY SESSION — AND THIS DEVICE THEN SIGNS ITSELF BACK IN. ⚠⚠
- *
- * Read this before "simplifying" it, because the obvious simplification is a security regression.
- *
- * Cognito's revocation is ALL-OR-NOTHING: there is no "revoke every session except this one". The
- * backend therefore calls `globalSignOut` after the write (012 FR-024), and it must keep doing so —
- * that revocation IS the security control. The canonical reason a person changes their password is
- * "I think someone else has access", and a change that leaves the attacker's session alive does not
- * answer that at all.
- *
- * But the shopper on THIS device has just proven who they are twice over (a current password, or a
- * freshly emailed code) and has literally just typed the new password. So instead of stranding them
- * at a sign-in screen, this flow signs them straight back in with the credential they just chose.
- *
- * Net effect: every OTHER session dies, this one continues, and the shopper lands back on their
- * account. Both properties, no trade.
- *
- * ⚠ If the silent re-sign-in fails for any reason, the flow FAILS CLOSED — it signs out locally and
- * sends the shopper to sign in. It must never leave the app rendering an account behind a credential
- * the platform has already revoked.
+ * The write revokes every session, and this device then signs itself back in. Do not simplify that away:
+ * Cognito's revocation is all-or-nothing, and the backend's `globalSignOut` after the write is the security
+ * control ("I think someone else has access"). The shopper here has just proven who they are and typed the
+ * new password, so the flow signs straight back in with it. If that fails, it fails closed: signs out
+ * locally and sends the shopper to sign in.
  */
 
-// ── The steps ─────────────────────────────────────────────────────────────────────────────────
+// The steps
 
 private enum class CodeStep { INTRO, CODE, PASSWORD, DONE }
 
@@ -134,14 +110,14 @@ class PasswordFlowViewModel(
         _state.value = _state.value.copy(error = null)
     }
 
-    /** Step-up code for SETTING a first password. */
+    /** Step-up code for setting a first password. */
     fun sendSetCode(onSent: () -> Unit) = launch {
         val masked = requestChallenge()
         _state.value = _state.value.copy(maskedDestination = masked)
         onSent()
     }
 
-    /** Recovery code for RESETTING a forgotten one. The address is the account's — never typed. */
+    /** Recovery code for resetting a forgotten one. The address is the account's — never typed. */
     fun sendResetCode(email: String, onSent: () -> Unit) = launch {
         when (val step = startResetUseCase(email)) {
             is AuthStep.NeedsOtp -> {
@@ -171,7 +147,7 @@ class PasswordFlowViewModel(
     /** Leave the success screen — back to the account the shopper came from. */
     fun leave() {
         if (_state.value.staySignedIn) navigator.pop() else {
-            // ⚠ Sign-in is pushed onto HOME. The session is gone, so backing out of it must land on a
+            // Sign-in is pushed onto home. The session is gone, so backing out of it must land on a
             // screen a guest can see — the Account tab's guest page no longer exists.
             navigator.resetToRoot()
             navigator.selectTab(CustomerNavKey.Home)
@@ -183,10 +159,10 @@ class PasswordFlowViewModel(
     /**
      * The write succeeded, so every session — including this one — has just been revoked.
      *
-     * ⚠ Re-authenticate with the credential the shopper just chose, so THIS device continues while
+     * Re-authenticate with the credential the shopper just chose, so this device continues while
      * every other one stays evicted. See the file header for why both halves matter.
      *
-     * ⚠ FAILS CLOSED. If the re-sign-in does not come back `Done`, we sign out locally rather than
+     * Fails closed. If the re-sign-in does not come back `Done`, we sign out locally rather than
      * leave the app rendering an account behind a revoked credential.
      */
     private suspend fun finish(email: String, newPassword: String) {
@@ -222,7 +198,7 @@ class PasswordFlowViewModel(
     private fun authMessage(e: AuthError): String = when (e) {
         AuthError.InvalidCredentials -> "That email or password isn't right."
         AuthError.CodeIncorrect -> "That code isn't right."
-        // ⚠ 036 — names the control that actually exists. This flow's resend lives one step BACK, on
+        // Names the control that actually exists. This flow's resend lives one step back, on
         // the "Email me a code" intro; "ask for a new one" pointed at nothing on this screen.
         AuthError.CodeExpired -> "That code has expired. Go back and ask for a new one."
         is AuthError.RateLimited -> "Too many attempts. Please wait a little and try again."
@@ -243,12 +219,12 @@ class PasswordFlowViewModel(
     }
 }
 
-// ── One layout for every password screen ──────────────────────────────────────────────────────
+// One layout for every password screen
 
 /**
- * Title, supporting line, fields — and the action pinned to the BOTTOM of the screen.
+ * Title, supporting line, fields — and the action pinned to the bottom of the screen.
  *
- * ⚠ Bottom-anchored, not inline after the last field. These screens are short, so an inline button
+ * Bottom-anchored, not inline after the last field. These screens are short, so an inline button
  * floats in the middle of an otherwise empty page and its position shifts between steps as the field
  * count changes. A fixed bottom action sits in the thumb's reach and stays in the same place through
  * all three steps.
@@ -357,7 +333,7 @@ private fun PasswordDoneScreen(staySignedIn: Boolean, onContinue: () -> Unit) {
     }
 }
 
-// ── 1. Change an existing password ────────────────────────────────────────────────────────────
+// 1. Change an existing password
 
 @Composable
 fun ChangePasswordScreen(container: AppContainer, email: String) {
@@ -389,7 +365,7 @@ fun ChangePasswordScreen(container: AppContainer, email: String) {
     ) {
         PasswordField("Current password", current, { current = it; vm.clearError() })
 
-        // ⚠ An inline link, not a button. It is a way OUT of this screen for someone who cannot
+        // An inline link, not a button. It is a way out of this screen for someone who cannot
         // complete it — putting it on equal footing with the action would invite the wrong one.
         EffyInlineLink(
             prompt = "",
@@ -413,7 +389,7 @@ fun ChangePasswordScreen(container: AppContainer, email: String) {
     }
 }
 
-// ── 2. Set a first password (no password today) ───────────────────────────────────────────────
+// 2. Set a first password (no password today)
 
 @Composable
 fun SetPasswordScreen(container: AppContainer, email: String) {
@@ -447,7 +423,7 @@ fun SetPasswordScreen(container: AppContainer, email: String) {
     )
 }
 
-// ── 3. Reset a FORGOTTEN password, from inside the account ────────────────────────────────────
+// 3. Reset a forgotten password, from inside the account
 
 @Composable
 fun ResetPasswordScreen(container: AppContainer, email: String) {
@@ -472,7 +448,7 @@ fun ResetPasswordScreen(container: AppContainer, email: String) {
         confirm = confirm,
         onConfirm = { confirm = it },
         title = "Reset password",
-        // ⚠ The address is NOT asked for. The platform knows it, and asking a signed-in shopper a
+        // The address is not asked for. The platform knows it, and asking a signed-in shopper a
         // question it already has the answer to only creates a way to get it wrong.
         introSupporting = "We'll email a code to $email so you can choose a new password.",
         finalActionLabel = "Reset password",
@@ -537,17 +513,17 @@ private fun CodeDrivenPasswordFlow(
             title = title,
             supporting = "Enter the $OTP_LENGTH-digit code we sent to ${state.maskedDestination ?: "your email"}.",
             actionLabel = "Continue",
-            // The code is not spent here — it travels with the new password in ONE request, so a
+            // The code is not spent here — it travels with the new password in one request, so a
             // session that cannot produce it never reaches the write.
-            // ⚠ `isCompleteOtp`, not `isNotBlank`: exactly six digits, so a longer paste leaves the
-            // action inactive and VISIBLE rather than advancing with a reshaped value (FR-004/FR-005).
+            // `isCompleteOtp`, not `isNotBlank`: exactly six digits, so a longer paste leaves the
+            // action inactive and visible rather than advancing with a reshaped value.
             actionEnabled = isCompleteOtp(code),
             onAction = { onStep(CodeStep.PASSWORD) },
             onBack = back,
             loading = state.loading,
             error = state.error,
         ) {
-            // ⚠ 036 FR-001 — the SHARED code field, at last. This was a generic `EffyField`: no digit
+            // The shared code field, at last. This was a generic `EffyField`: no digit
             // filter, no length gate, and — the one that actually costs the customer something — no
             // `UITextContentTypeOneTimeCode`, so iOS never offered the code from Mail on a screen
             // reached precisely when someone is already locked out of their password.

@@ -6,21 +6,9 @@ import { describe, expect, it } from "vitest"
 import { NAV } from "./nav"
 
 /**
- * ⚠ EVERY SCREEN IS REACHABLE WITHOUT TYPING A URL.
- *
- * THIS GUARD EXISTS BECAUSE 059 SHIPPED A SCREEN THAT WAS NOT. The notification settings route, its
- * screen, its hook, both backend routes and the entire web-push chain were built, typechecked and
- * tested — and the screen was linked from nowhere. An operator could not reach it, so no device
- * could register, so every `shop_new_order` intent the platform produced was recorded `skipped`
- * with `no_token`. The feature was complete and invisible.
- *
- * ⚠ THE EXISTING NAV TESTS PASSED THROUGHOUT, both before and after the fix — they assert how the
- * role filter behaves, not that the menu covers the app. Nothing in this repository would have
- * caught it. 039 found four defects of this shape "only by looking"; this is the one that can be
- * checked mechanically, so it is.
- *
- * ⚠ An exemption states its reason HERE, beside the rule, rather than in an allow-list nobody reads
- * while editing (054's `availability-exempt` pattern).
+ * Every screen is reachable without typing a URL. A screen linked from nowhere (the notification
+ * settings once were) means no device can register and every push is skipped, with all its tests green.
+ * An exemption states its reason here, beside the rule.
  */
 const ROUTES_DIR = join(__dirname, "..", "..", "routes")
 

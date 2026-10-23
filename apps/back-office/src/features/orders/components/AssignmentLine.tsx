@@ -5,14 +5,12 @@ import { formatMoment, type OrderAssignment } from "@effy/shared-types";
 import { initialsOf } from "@/components/shell/identity";
 
 /**
- * One row: who has this package for one stage, when, and how they got it (073; redesign, board
- * "Order — Delivered by Effy").
+ * One row: who has this package for one stage, when, and how they got it.
  *
- *   [SR]  Collect · Sam Rivers                         [Change driver] [Unassign]
- *         Collected 11:42 am · auto-assigned — fewest packages today (2)
+ *  [SR] Collect · Sam Rivers [Change driver] [Unassign]
+ *  Collected 11:42 am · auto-assigned — fewest packages today (2)
  *
- * ⚠ PLAIN WORDS ONLY. The operator's direction was to keep this simple: who, when, and one line on
- * how. Anything the person can do about it sits in `actions` beside it.
+ * Plain words; what the person can do sits in `actions`.
  */
 export function AssignmentLine({
   label,

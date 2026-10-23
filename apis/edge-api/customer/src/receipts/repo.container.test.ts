@@ -1,19 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql"
+import { migrationSql } from "@effy/edge-shared/testing"
 import { Pool } from "pg"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * ⚠ Real PostgreSQL 16 — the load-bearing behaviour of this repo lives in the DATABASE, not the code:
- *
- *   • The rate limit is a `SELECT count(*) … WHERE (…) < $max` INSIDE the INSERT. "Did the cap
- *     refuse?" is answered by whether Postgres returned a row; a mock returns whatever it is told.
- *   • ⚠ The RACE is the whole point. A check-then-write passes a serial test and fails under two
- *     concurrent taps — which is exactly what 039 recorded after the newsletter shipped one. Only a
- *     real engine can run the two statements genuinely at once.
- *   • The ownership JOIN is what makes another customer's order unenqueueable.
- *
- * Gated behind CONTAINER_TESTS=1 so ordinary unit runs stay Docker-free (the feedback precedent).
- */
+/** The rate limit inside the INSERT (under a real race) and the ownership join, against real Postgres. */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }))
 
 vi.mock("@effy/edge-shared", () => ({
@@ -39,32 +29,7 @@ describe.runIf(RUN)("enqueueResend against real PostgreSQL (052 US4)", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() })
     holder.pool = pool
 
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS citext`)
-    await pool.query(`
-      CREATE TABLE public.customer (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        cognito_sub text NOT NULL UNIQUE,
-        email citext NOT NULL
-      )`)
-    await pool.query(`
-      CREATE TABLE public."order" (
-        id uuid PRIMARY KEY,
-        customer_id uuid NOT NULL REFERENCES public.customer (id),
-        status text NOT NULL
-      )`)
-    await pool.query(`
-      CREATE TABLE public.receipt_dispatch (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        order_id uuid NOT NULL REFERENCES public."order" (id) ON DELETE CASCADE,
-        reason text NOT NULL CHECK (reason IN ('order_paid','customer_request')),
-        recipient citext NOT NULL,
-        status text NOT NULL DEFAULT 'pending',
-        attempts int NOT NULL DEFAULT 0,
-        created_at timestamptz NOT NULL DEFAULT now()
-      )`)
-    await pool.query(`
-      CREATE UNIQUE INDEX receipt_dispatch_auto_uq
-        ON public.receipt_dispatch (order_id) WHERE reason = 'order_paid'`)
+    await pool.query(migrationSql())
   }, 120_000)
 
   afterAll(async () => {
@@ -82,11 +47,13 @@ describe.runIf(RUN)("enqueueResend against real PostgreSQL (052 US4)", () => {
       `INSERT INTO public.customer (cognito_sub, email) VALUES ($1, $2) RETURNING id`,
       [OTHER_SUB, "stranger@example.com"],
     )
-    await pool.query(`INSERT INTO public."order" (id, customer_id, status) VALUES ($1, $2, 'paid')`, [
+    await pool.query(`INSERT INTO public."order" (id, customer_id, status, order_number, delivery_address, item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, courier_estimate)
+       VALUES ($1, $2, 'paid', 'EFY-' || substr(md5(random()::text), 1, 8), '{}', 10, 10, 'courier', 'out_of_coverage', '2–4 business days')`, [
       ORDER,
       owner.rows[0].id,
     ])
-    await pool.query(`INSERT INTO public."order" (id, customer_id, status) VALUES ($1, $2, 'paid')`, [
+    await pool.query(`INSERT INTO public."order" (id, customer_id, status, order_number, delivery_address, item_subtotal_amount, grand_total_amount, delivery_type, delivery_type_reason, courier_estimate)
+       VALUES ($1, $2, 'paid', 'EFY-' || substr(md5(random()::text), 1, 8), '{}', 10, 10, 'courier', 'out_of_coverage', '2–4 business days')`, [
       OTHER_ORDER,
       stranger.rows[0].id,
     ])
@@ -115,14 +82,7 @@ describe.runIf(RUN)("enqueueResend against real PostgreSQL (052 US4)", () => {
     expect(rows.rows[0].n).toBe(2)
   })
 
-  /**
-   * ⚠ THE TEST THAT ONLY A REAL ENGINE CAN RUN, and the reason this file exists.
-   *
-   * Two resends fired AT ONCE at the boundary. A check-then-write lets both pass — each sees a count
-   * below the cap — and the shopper gets two emails from one cap of one. The conditional INSERT
-   * decides atomically, so exactly one lands. Reverting `repo.ts` to a separate COUNT then INSERT
-   * makes this test, and only this test, fail.
-   */
+  /** Two resends at once at the boundary: exactly one lands. */
   it("⚠ two CONCURRENT requests at the boundary enqueue exactly one", async () => {
     const results = await Promise.all([call(ORDER, SUB, 1), call(ORDER, SUB, 1)])
 
@@ -135,11 +95,7 @@ describe.runIf(RUN)("enqueueResend against real PostgreSQL (052 US4)", () => {
     expect(rows.rows[0].n).toBe(1)
   })
 
-  /**
-   * ⚠ SC-008. Another customer's order and a non-existent one BOTH answer `not_found`, from the same
-   * branch — so no caller can tell them apart, and the route cannot be used to discover which order
-   * ids are real.
-   */
+  /** Another customer's order and a missing one both answer `not_found`, from one branch. */
   it("⚠ refuses another customer's order exactly as it refuses a missing one", async () => {
     expect(await call(OTHER_ORDER, SUB)).toEqual({ status: "not_found" })
     expect(await call("33333333-3333-4333-8333-333333333333", SUB)).toEqual({ status: "not_found" })
@@ -156,11 +112,7 @@ describe.runIf(RUN)("enqueueResend against real PostgreSQL (052 US4)", () => {
     expect(rows.rows[0].n).toBe(0)
   })
 
-  /**
-   * ⚠ The automatic send and a resend must coexist. `receipt_dispatch_auto_uq` constrains only the
-   * `order_paid` arm — an unconditional UNIQUE(order_id) would have made this feature unbuildable,
-   * which is exactly why `notification_request` could not carry it (research R2).
-   */
+  /** The automatic send and a resend coexist: `receipt_dispatch_auto_uq` constrains only `order_paid`. */
   it("enqueues a resend alongside the order's automatic dispatch", async () => {
     await pool.query(
       `INSERT INTO public.receipt_dispatch (order_id, reason, recipient)

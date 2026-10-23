@@ -1,24 +1,8 @@
-// Delivery exceptions — the reader that went missing twice (064, US3).
-//
-// ⚠ 056 EXISTED BECAUSE THE DRIVER APP WAS RECORDING EXCEPTIONS NOBODY READ. Its own words: the app
-// "has been recording exceptions for a reader that does not exist" — `public.delivery_failure` and
-// `public.collection_task_issue` were both annotated "recorded for back-office follow-up", and a
-// repo-wide search for a reader returned nothing. 056 built the reader; 063's teardown then dropped
-// the tables from under it, leaving NEITHER a writer nor a reader. This is the third attempt and the
-// first with both ends.
-
 import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /**
- * Open and recently-resolved delivery exceptions.
- *
- * ⚠ `package_location` IS WHAT MAKES THE LIST TRIAGEABLE (FR-020). "Nobody was home" and "the goods
- * are still in a van" are different problems with different urgency, and a list that cannot tell
- * them apart is a list nobody can act on. It is DERIVED from the same custody facts as
- * `CUSTODY_BY_DRIVER` — a package is with the driver until a hub check-in or an arrival releases it.
- *
- * ⚠ The destination is a SUBURB, never a street address. A list screen does not need to name where a
- * customer lives, and 049 FR-013 keeps the driver domain free of detail it has no use for.
+ * Open and recently resolved. `package_location` (with the driver until a hub check-in or arrival,
+ * as `CUSTODY_BY_DRIVER`) makes the list triageable. The destination is a suburb, never a street.
  */
 export const LIST_EXCEPTIONS = `
   SELECT f.id                    AS exception_id,
@@ -33,7 +17,7 @@ export const LIST_EXCEPTIONS = `
          d.name                  AS driver_name,
          o.order_number          AS order_number,
          o.delivery_address ->> 'city' AS destination_suburb,
-         -- ⚠ 088 — FROM THE ONE CUSTODY DEFINITION. This read rp.state = 'picked_up', a state no
+         -- ⚠ FROM THE ONE CUSTODY DEFINITION. This read rp.state = 'picked_up', a state no
          -- delivery package is ever in, so every failed parcel said "at hub" while it was in a van.
          CASE
            WHEN EXISTS (
@@ -60,13 +44,7 @@ export const LIST_EXCEPTIONS = `
    LIMIT 200
 `;
 
-/**
- * Close one exception.
- *
- * ⚠ GUARDED ON `resolved_at IS NULL`, so resolving twice is a no-op rather than a silent re-stamp
- * with a later time and a different person's name. The record of WHO closed it and WHEN is the whole
- * value of the row after the fact.
- */
+/** Guarded on `resolved_at IS NULL`, so resolving twice never re-stamps who and when. */
 export const RESOLVE_EXCEPTION = `
   UPDATE public.delivery_attempt_failure
      SET resolved_at = now(),
@@ -77,7 +55,6 @@ export const RESOLVE_EXCEPTION = `
   RETURNING id, resolved_at
 `;
 
-/** Read one back — for the audit detail and the response after a resolve. */
 export const EXCEPTION_BY_ID = `
   SELECT id, stop_id, reason, resolved_at FROM public.delivery_attempt_failure WHERE id = $1
 `;

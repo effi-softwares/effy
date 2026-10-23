@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ Since 038 `mailer.ts` is a THIN ADAPTER over `@effy/email-kit/send` — the content, design and SES
- * call all live in the email system. These tests therefore assert the DELEGATION CONTRACT through the
- * SES mock: given a `sendCode(...)`, the SendEmailCommand that reaches SES carries the right sender,
- * reply address, configuration set, recipient, template tag and both body parts — and the security
- * invariants 035/037 established still hold (throw on failure, phantom → simulator, code confined to
- * the message). `@effy/email-kit` has its own render/send tests; this file proves the wire
- * between the trigger and the system.
+ * `mailer.ts` delegates to `@effy/email-kit/send`; these assert, through the SES mock, what reaches
+ * SES and that the security rules hold (throw on failure, unknown user → simulator, code only in the message).
  */
 
 const send = vi.fn();
@@ -100,7 +95,7 @@ describe("sendCode", () => {
     expect(body.Html?.Data).toContain("<!doctype html>");
     expect(body.Html?.Data).toContain("123456");
     expect(body.Text?.Data).toContain("123456");
-    // ⚠ Purpose-written text part, not a stripped transcript of the HTML.
+    // A purpose-written text part, not stripped HTML.
     expect(body.Text?.Data).not.toContain("<");
   });
 
@@ -115,8 +110,7 @@ describe("sendCode", () => {
   });
 
   it("⚠ routes a phantom send to the simulator — 035's timing-parity defence, unbroken", async () => {
-    // If this regresses, "account exists" leaks through response latency even though every response
-    // body is identical. It is a REAL send on the SAME path — not a skip, not a sleep.
+    // A real send on the same path, so latency does not reveal whether the account exists.
     const { sendCode } = await loadMailer();
     await sendCode({ to: "stranger@nowhere.test", code: "123456", profile: PROFILE, phantom: true });
 
@@ -131,8 +125,7 @@ describe("sendCode", () => {
 
     const input = lastInput();
     expect(input.Content.Simple.Subject.Data).toContain("424242");
-    // Strip the parts that legitimately hold the code (subject/body) and the recipient; the code must
-    // appear in neither the tags, the headers, the sender, nor the reply address.
+    // The code appears in no tag, header, sender or reply address.
     expect(
       JSON.stringify({ ...input, Content: undefined, Destination: undefined }),
     ).not.toContain("424242");

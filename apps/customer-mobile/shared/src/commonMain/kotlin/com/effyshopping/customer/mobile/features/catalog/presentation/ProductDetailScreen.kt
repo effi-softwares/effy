@@ -139,8 +139,8 @@ import com.effyshopping.customer.mobile.features.catalog.domain.AttributeGroup
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 
 /**
- * Product detail (019 US2). Gallery placeholder, price + sale, description, and attributes as SECTIONED
- * DETAIL ROWS (never cards — DOCTRINE-2). Add-to-cart writes to the device-local guest cart; Save gates
+ * Product detail. Gallery placeholder, price + sale, description, and attributes as sectioned
+ * detail rows (never cards — doctrine-2). Add-to-cart writes to the device-local guest cart; Save gates
  * a guest through deferred sign-in ([onRequireSignIn]) then favorites via the commerce service.
  */
 @Composable
@@ -162,24 +162,24 @@ fun ProductDetailScreen(
     }
     val state by vm.state.collectAsState()
     val justAdded by vm.justAdded.collectAsState()
-    // ⚠ THE FIX THIS WHOLE SLICE EXISTS FOR. The predecessor initialised a local
+    // The fix this whole slice exists for. The predecessor initialised a local
     // MutableStateFlow(false) here and nothing ever seeded it, so an already-saved product showed
-    // an empty heart: the first tap was a no-op PUT and the SECOND silently un-saved it. Reading
-    // the shared mirror means the control tells the truth on first render (FR-019).
+    // an empty heart: the first tap was a no-op PUT and the second silently un-saved it. Reading
+    // the shared mirror means the control tells the truth on first render.
     val savedIds by container.savedStore.saved.collectAsState()
     val scope = rememberCoroutineScope()
-    // 068: the list chooser for this product, opened from "Add to list" or from a filled heart on a
+    // The list chooser for this product, opened from "Add to list" or from a filled heart on a
     // product that is in a named list.
     var choosingLists by remember { mutableStateOf(false) }
     val signedIn = session is SessionState.Authenticated
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 025 FR-030: a standard header, not a floating text link.
+        // A standard header, not a floating text link.
         // 087 (Product board): the bar names the product once it is known.
         EffyAppBar(title = (state as? ProductDetailUiState.Ready)?.product?.card?.name ?: "", onBack = onBack)
 
         when (val s = state) {
-            // 087 — a skeleton in the page's shape (it was a bare spinner), and the kit's error state.
+            // A skeleton in the page's shape (it was a bare spinner), and the kit's error state.
             ProductDetailUiState.Loading -> Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
                 EffySkeletonBlock(Modifier.fillMaxWidth().aspectRatio(1f).effySharedElement("product-image-$productId"), radius = EffyStorefrontShape.lg)
                 EffySkeletonBlock(Modifier.fillMaxWidth(0.4f).height(14.dp), radius = EffyStorefrontShape.sm)
@@ -202,7 +202,7 @@ fun ProductDetailScreen(
                 justAdded = justAdded,
                 saved = s.product.card.id in savedIds,
                 onToggleSaved = { wanted ->
-                    // ⚠ The price travels with the tap so a GUEST's device records the baseline they
+                    // The price travels with the tap so a guest's device records the baseline they
                     // actually saw. Without it the merge would fall back to the price at sign-in time
                     // and the shopper would silently lose whatever drop they had been watching for.
                     scope.launch {
@@ -210,11 +210,11 @@ fun ProductDetailScreen(
                             container.toggleSaved(
                                 s.product.card.id, wanted,
                                 s.selected?.priceAmount ?: s.product.card.priceAmount, s.product.card.currency,
-                                // 098 — the size on screen is remembered with the save.
+                                // The size on screen is remembered with the save.
                                 s.selected?.id,
                             )
                         }.getOrNull()
-                        // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
+                        // In a list the shopper named, so the tap removed nothing.
                         if (outcome == ToggleOutcome.OPEN_CHOOSER) choosingLists = true
                     }
                 },
@@ -241,15 +241,15 @@ fun ProductDetailScreen(
 private data class ProductContext(val address: SavedAddress?, val points: PointsBalance?)
 
 /**
- * THE PRODUCT PAGE (Product board): gallery, the path and brand, name, price with the saving in Effy
+ * The product page (Product board): gallery, the path and brand, name, price with the saving in Effy
  * green, availability, Save and Add to list side by side, a delivery & points card, the description,
- * an item-specifics table, the allergen card, and "More like this". The add action is PINNED (FR-022).
+ * an item-specifics table, the allergen card, and "More like this". The add action is pinned.
  */
 @Composable
 private fun ProductBody(
     container: AppContainer,
     product: ProductDetail,
-    /** 098 — the ONE size the price, availability and add follow; null only for a product with none. */
+    /** The one size the price, availability and add follow; null only for a product with none. */
     selected: Variant?,
     onPickValue: (slot: Int, valueId: String) -> Unit,
     justAdded: Boolean,
@@ -261,7 +261,7 @@ private fun ProductBody(
     onRefresh: suspend () -> Unit,
 ) {
     var qty by remember { mutableStateOf(1) }
-    // 098 — the card as the chosen size: its price, "was" price, availability and comparison price.
+    // The card as the chosen size: its price, "was" price, availability and comparison price.
     val card = selected?.let {
         product.card.copy(priceAmount = it.priceAmount, compareAtAmount = it.compareAtAmount, available = it.available, unitPrice = it.unitPrice)
     } ?: product.card
@@ -306,7 +306,7 @@ private fun ProductBody(
                 )
                 EffySaleBadge(text = "−$percentOff%")
             }
-            // 094 — the offer the cart will apply to this product.
+            // The offer the cart will apply to this product.
             if (card.offerLabel != null && card.available) EffySaleBadge(text = card.offerLabel)
         }
         UnitPriceText(card.unitPrice, modifier = Modifier.padding(top = 2.dp))
@@ -338,7 +338,7 @@ private fun ProductBody(
             EffyNotice("Currently unavailable. Browse the rest of the store while we restock.", icon = Res.drawable.lucide_info)
         }
 
-        // 098 — the size selector, only for a product sold in more than one way.
+        // The size selector, only for a product sold in more than one way.
         if (selected != null) {
             VariantChips(
                 rows = VariantSelection.rows(product.options, product.variants, selected),
@@ -362,7 +362,7 @@ private fun ProductBody(
                     )
                 },
             )
-            // 068 FR-014: the labelled way into the list chooser.
+            // The labelled way into the list chooser.
             EffySecondaryButton(
                 "Add to list",
                 onClick = onAddToList,
@@ -371,7 +371,7 @@ private fun ProductBody(
             )
         }
 
-        // Delivery & points (Product board) — only what is TRUE for this shopper: who delivers to their
+        // Delivery & points (Product board) — only what is true for this shopper: who delivers to their
         // address in the pinned coverage words, and the points they hold. A guest sees neither.
         val address = context.address
         val coverageWords = address?.coverage?.let { CoverageWords.describe(it) }
@@ -431,7 +431,7 @@ private fun ProductBody(
             }
         }
 
-        // 045 — allergens: the physical label is the authority; this points there (Product board card).
+        // Allergens: the physical label is the authority; this points there (Product board card).
         Text("Allergens & safety", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl, bottom = EffySpacing.md))
         EffyGroup {
             Row(modifier = Modifier.padding(EffySpacing.md), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
@@ -448,14 +448,14 @@ private fun ProductBody(
             }
         }
 
-        // FR-026: more like this, from the product's own category; nothing at all when there is none.
+        // More like this, from the product's own category; nothing at all when there is none.
         Spacer(Modifier.height(EffySpacing.xl))
         RelatedProductsRail(container, product.categoryKey, card.id, onProductClick)
         Spacer(Modifier.height(EffySpacing.lg))
     }
     }
 
-    // ⚠ FR-025: the add action stays reachable however far the shopper scrolls.
+    // The add action stays reachable however far the shopper scrolls.
     if (card.available) {
         BuyBar(
             unitPrice = card.priceAmount,
@@ -490,7 +490,7 @@ private fun ProductGallery(product: ProductDetail, name: String) {
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
         Box {
             HorizontalPager(state = pagerState, userScrollEnabled = urls.size > 1) { page ->
-                // 087 — the FIRST picture is the shared element the tile's picture grows into.
+                // The first picture is the shared element the tile's picture grows into.
                 Box(
                     modifier = Modifier.fillMaxWidth().aspectRatio(1f)
                         .then(if (page == 0) Modifier.effySharedElement("product-image-${product.card.id}") else Modifier)
@@ -576,7 +576,7 @@ private fun multiplyAmount(unit: String, qty: Int): String {
 }
 
 /**
- * "More like this" (025 FR-026).
+ * "More like this".
  *
  * Reuses the existing product search filtered by the product's own category — no recommendation
  * engine and no new relationship, because a category is the only relatedness the catalogue models.
@@ -605,7 +605,7 @@ private fun RelatedProductsRail(
 
     if (related.isEmpty()) return
 
-    // 087 — the one product tile (the ad-hoc 140dp tile is gone), with its "+" so a shopper can add
+    // The one product tile (the ad-hoc 140dp tile is gone), with its "+" so a shopper can add
     // a related product without leaving this page.
     val tileCart = rememberTileCart(container)
     Text("More like this", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.lg))

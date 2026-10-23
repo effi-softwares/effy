@@ -24,29 +24,16 @@ import {
   transitionFulfillment,
 } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Every mutation here returns
-// the updated portion, and every one of them INVALIDATES rather than patching the cache — this
-// repo's rule, and doubly right here: a fulfillment portion is shared work. Two operators can act on
-// the same order at once (FR-014), so a hand-patched cache would be a second, immediately-wrong
-// source of truth. Re-reading is the only honest answer.
-//
-// ⚠ 057 A3 — EVERY MUTATION ALSO SAYS SO. Each one appends to the order's activity log on the server
-// and raises a confirmation toast here, so an operator never has to wonder whether a tap landed. The
-// toast lives in the hook rather than the screen so that no call site can forget it.
+// Every mutation invalidates rather than patching the cache: a portion is shared work, and two
+// operators can act on one order at once. Each also appends to the order's activity log on the server
+// and raises a toast here, in the hook so no call site can forget it.
 
 const FULFILLMENT_ROOT = ["shop", "fulfillment"] as const;
 
 /**
- * The queue (US1/US4).
- *
- * ⚠ NOT POLLED (071). 020 made this the monorepo's first polling query; it is now re-read when the
- * platform says this shop's orders changed (`features/live/routes.ts` maps `orders` to this root),
- * when the operator returns to the tab, and when they act. Nothing here runs on a timer.
- *
- * The `state` is part of the key, so active and completed cache independently.
- *
- * ⚠ 057 A3 — still read by the dashboard and the nav badge. The Orders screen now reads
- * `orderListQuery` instead.
+ * The queue (read by the dashboard and the nav badge; Orders reads `orderListQuery`). Re-read when the
+ * platform says this shop's orders changed (`features/live/routes.ts`), on returning to the tab, and on
+ * action. The `state` is part of the key.
  */
 export const fulfillmentQueueQuery = (state: FulfillmentQueueState) =>
   queryOptions({
@@ -54,17 +41,17 @@ export const fulfillmentQueueQuery = (state: FulfillmentQueueState) =>
     queryFn: () => listFulfillments(state),
   });
 
-/** One portion's pick read (US2). Re-read on a live `orders` update — a colleague's pick shows. */
+/** One portion's pick read. Re-read on a live `orders` update — a colleague's pick shows. */
 export const fulfillmentDetailQuery = (id: string) =>
   queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "detail", id] as const,
     queryFn: () => getFulfillment(id),
   });
 
-// ── 057 A3 — the order console ──────────────────────────────────────────────────────────────────
+// 057 A3 — the order console
 
 /**
- * The Orders list — re-read on a live `orders` update (071), so a new order appears without the
+ * The Orders list — re-read on a live `orders` update, so a new order appears without the
  * operator navigating; keyed on the normalised search so two URLs for one list share an entry.
  *
  * `placeholderData: keepPreviousData` keeps the current page on screen while the next one loads, so a
@@ -94,8 +81,8 @@ export const orderActivityQuery = (id: string) =>
   });
 
 /**
- * ⚠ ONE INVALIDATION FOR EVERY WRITE: the whole fulfilment root. A transition changes the pick read,
- * the queue, the list's counts, the order detail AND its log; invalidating a hand-picked subset is how
+ * One invalidation for every write: the whole fulfilment root. A transition changes the pick read,
+ * the queue, the list's counts, the order detail and its log; invalidating a hand-picked subset is how
  * one of those stays stale. Only mounted queries refetch, so the breadth costs nothing off-screen.
  */
 export function invalidateOrders(queryClient: ReturnType<typeof useQueryClient>) {
@@ -108,18 +95,11 @@ const TRANSITION_TOAST: Record<TransitionRequest["to"], string> = {
   unfulfillable: "Marked can't supply — Effy will refund the customer",
 };
 
-/**
- * Advance or reverse the portion (US3).
- *
- * A 409 means the requested transition is not legal from the state the server actually holds — the
- * portion moved under us. The failure is invalidated straight away so the screen re-reads the truth
- * and re-derives its actions; it is never retried, which would re-submit a decision made against a
- * state that no longer exists.
- */
+/** Advance or reverse the portion. A 409 is invalidated at once so the screen re-derives from the truth; never retried. */
 export function useTransitionFulfillment(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    // ⚠ `from` is the state the operator ACTED ON, sent nowhere — it is what tells a reversal apart
+    // `from` is the state the operator acted on, sent nowhere — it is what tells a reversal apart
     // from a first start. The previous version inferred it from the result and tracked every
     // "Start picking" as a reversal, because both land in `picking`.
     mutationFn: ({ from: _from, ...body }: TransitionRequest & { from: FulfillmentStatus }) =>
@@ -127,7 +107,7 @@ export function useTransitionFulfillment(id: string) {
     onSuccess: (detail, { from, to }) => {
       const reversed = from === "ready_for_pickup" && to === "picking";
       // A reversal is tracked distinctly: it is the only backward edge in the machine, so it is the
-      // signal that an order was completed prematurely (FR-011e).
+      // signal that an order was completed prematurely.
       if (reversed) track({ name: "shop_order_reversed", fulfillmentId: id });
       track({ name: "shop_order_state_changed", fulfillmentId: id, from, to: detail.status });
       toast.success(reversed ? "Picking reopened" : TRANSITION_TOAST[to], {
@@ -171,7 +151,7 @@ export function useSetPicks(id: string) {
   });
 }
 
-/** Replace the order's tag set (A3). */
+/** Replace the order's tag set. */
 export function useSetOrderTags(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -183,7 +163,7 @@ export function useSetOrderTags(id: string) {
   });
 }
 
-/** Add an internal note (A3). */
+/** Add an internal note. */
 export function useAddOrderNote(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -195,7 +175,7 @@ export function useAddOrderNote(id: string) {
   });
 }
 
-/** 080 — "Handed over to courier". */
+/** "Handed over to courier". */
 export function useCourierHandover(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -211,7 +191,7 @@ export function useCourierHandover(id: string) {
   });
 }
 
-// ── 096 — bags ───────────────────────────────────────────────────────────────────────────────────────
+// Bags
 
 /** Set the bag counts per zone. A refusal (a cold zone with no bag) is shown inline by the caller. */
 export function useDeclareParcels(id: string) {

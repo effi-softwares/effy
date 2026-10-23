@@ -1,4 +1,3 @@
-// PATCH /commerce/v1/lists/{listId} — rename a named list. The default list cannot be renamed.
 import { json } from "@effy/edge-shared";
 
 import { customerRoute, jsonBody, pathParam } from "../lib/route";

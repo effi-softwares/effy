@@ -5,19 +5,9 @@ import type { DriverBlockedReason } from "@effy/shared-types";
 import { BLOCKED_LABEL, formatTime } from "./model";
 
 /**
- * ⚠ NP12 — THE GUARD THAT STOPS A BLOCKED DRIVER RENDERING AS "NOT BLOCKED".
- *
- * `BLOCKED_LABEL` is read as `d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ")`. A key that
- * is missing at runtime yields `undefined`, and a joined `undefined` renders as an empty string — so
- * a driver who CANNOT WORK appears with no reason beside them, which reads as "this driver is fine".
- *
- * The `Record<DriverBlockedReason, string>` type already catches a widening at compile time, and 061
- * confirmed that by widening the enum and watching tsc name both missing keys. This test exists for
- * the case the type does NOT catch: somebody loosening it to `Record<string, string>` or `Partial<>`
- * during a refactor, which compiles perfectly and fails silently on screen.
- *
- * 053, 056 and 057 each shipped a defect through an enum widening. This is the cheap way to not be
- * the fourth.
+ * A blocked driver never renders with no reason (which reads as "fine"). The
+ * `Record<DriverBlockedReason, string>` type catches a widened enum; this catches the type being loosened
+ * to `Record<string, string>` or `Partial<>`.
  */
 describe("BLOCKED_LABEL — every blocking reason has words a person can act on", () => {
   const ALL_REASONS: DriverBlockedReason[] = [

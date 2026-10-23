@@ -24,27 +24,13 @@ import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
 import kotlinx.coroutines.launch
 
 /**
- * The save control's SCREEN-LEVEL wiring, for any surface that shows product tiles (033 FR-007).
+ * The save control's screen-level wiring, for any surface with product tiles:
+ *  1. One membership read per screen (`GET /v1/saved/ids`), never one per tile.
+ *  2. Every control reads the same mirror, so two hearts for one product agree.
+ *  3. A refusal is said (the mirror reverts on failure; the guest cap refuses deliberately).
  *
- * ── Why this exists rather than four copies ──────────────────────────────────────────────────────
- *
- * Three things have to happen together for a heart on a tile to be honest, and each of them is a
- * documented defect if it is done differently on one screen than another:
- *
- *  1. **ONE membership read per screen** (FR-020), never one per tile. A per-tile read would make a
- *     grid of 40 products cost 40 requests and would slow first paint in proportion to how much the
- *     shopper is looking at — which is the reason the platform has a bulk `GET /v1/saved/ids` at all.
- *  2. **Every control reads the SAME mirror** (FR-013). Two controls for one product on one screen —
- *     a rail tile and a grid tile — must never disagree, and they cannot if neither owns a boolean.
- *  3. **A refusal is SAID.** The optimistic mirror reverts itself on failure, so without this the
- *     heart silently flips back and the shopper is left to guess whether it saved. The guest cap
- *     (FR-047) is the case that matters most: it refuses deliberately, and a refusal a shopper cannot
- *     see is indistinguishable from a bug.
- *
- * ⚠ THE MEMBERSHIP READ IS SIGNED-IN ONLY. A guest has no account list; their mirror is hydrated from
- * the device at construction (`SavedStore.init`) and asking the platform would answer `401`. Worse,
- * the read `adopt()`s its answer, and adopting an empty set from a guest's failed read would **clear
- * the device list** — the exact way a guest's saves get lost.
+ * The membership read is signed-in only: a guest's mirror comes from the device, and adopting a guest's
+ * failed (401) read as an empty set would clear the device list.
  */
 @Composable
 fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? = null): SavedTiles {
@@ -53,7 +39,7 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
     val savedIds by container.savedStore.saved.collectAsState()
     val messages = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // 068: the product whose list chooser is open, or null. Rendered by [SavedTileMessages].
+    // The product whose list chooser is open, or null. Rendered by [SavedTileMessages].
     val chooser = remember { mutableStateOf<String?>(null) }
 
     // One read on arrival, and one more if the shopper signs in while the screen is open — which is
@@ -77,10 +63,10 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
                         "You've saved $GUEST_CAP items on this device, which is the most we can keep " +
                             "before you sign in. Sign in to save more, or remove one first.",
                     )
-                    // ⚠ 068 FR-020: the product is in a list the shopper named. Nothing was removed;
+                    // The product is in a list the shopper named. Nothing was removed;
                     // the chooser shows where it is and lets them decide.
                     ToggleOutcome.OPEN_CHOOSER -> chooser.value = product.id
-                    // FR-013: the save has ALREADY happened, in one tap. The other lists are an offer
+                    // The save has already happened, in one tap. The other lists are an offer
                     // after it — one action on the snackbar, never a question before the save.
                     ToggleOutcome.DONE -> if (wanted) {
                         val result = messages.showSnackbar(
@@ -100,7 +86,7 @@ fun rememberSavedTiles(container: AppContainer, onRequireSignIn: (() -> Unit)? =
  * What a tile-bearing screen needs to render save controls: the membership answer, one toggle, and
  * somewhere to say a refusal.
  *
- * ⚠ Deliberately NOT a ViewModel. It holds no state of its own — the mirror is
+ * Deliberately not a ViewModel. It holds no state of its own — the mirror is
  * [com.effyshopping.customer.mobile.features.saved.domain.SavedStore], which is app-scoped precisely
  * so that a screen cannot own a second copy of the answer.
  */
@@ -135,8 +121,8 @@ fun BoxScope.TileSaveControl(product: ProductCard, tiles: SavedTiles) {
 }
 
 /**
- * Renders [SavedTiles.messages] and, when one is open, the list chooser (068). A screen that wires
- * save controls MUST render this, or a refusal is silent and a tap on a named-list heart does nothing.
+ * Renders [SavedTiles.messages] and, when one is open, the list chooser. A screen that wires
+ * save controls must render this, or a refusal is silent and a tap on a named-list heart does nothing.
  */
 @Composable
 fun SavedTileMessages(tiles: SavedTiles, modifier: Modifier = Modifier) {

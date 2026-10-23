@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils"
 /**
  * The storefront's form controls (reference: shadcn · Forms).
  *
- * ⚠ Field borders are a hairline BY DESIGN (the identity's one recorded contrast deviation), so two
- * things are binding on every use: the field has a VISIBLE `<Label>`, and focus shows the blue ring
+ * Field borders are a hairline by design (the identity's one recorded contrast deviation), so two
+ * things are binding on every use: the field has a visible `<Label>`, and focus shows the blue ring
  * plus its halo. An error is a black border with a soft halo — there is no red — and must come with
  * words beside it.
  *

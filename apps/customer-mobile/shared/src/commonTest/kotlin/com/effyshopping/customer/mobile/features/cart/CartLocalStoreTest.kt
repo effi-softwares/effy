@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 /**
  * The store that closes the defect this slice was opened for: before it, a force-quit lost the entire
  * cart. These tests care about two things — that a cart round-trips, and that a blob we cannot trust
- * produces an EMPTY cart rather than a crash or a half-parsed one.
+ * produces an empty cart rather than a crash or a half-parsed one.
  */
 class CartLocalStoreTest {
 
@@ -107,7 +107,7 @@ class CartLocalStoreTest {
         assertNull(CartLocalStore(prefs).load(), "a shape we no longer understand must be discarded")
     }
 
-    // A corrupt QUEUE must not take the mirror down with it: the cart is worth more than the un-sent
+    // A corrupt queue must not take the mirror down with it: the cart is worth more than the un-sent
     // changes, and dropping the queue costs at most a re-send.
     @Test
     fun a_corrupt_queue_keeps_the_cart_and_drops_only_the_queue() {

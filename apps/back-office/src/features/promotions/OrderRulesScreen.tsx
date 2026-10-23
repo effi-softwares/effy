@@ -16,13 +16,13 @@ import { promotionMutationError } from "./errorText";
 import { orderPolicyQuery, useUpdateOrderPolicy } from "./queries";
 
 /**
- * The order rules (027 FR-053) — the minimum spend, and the two ceilings every cart is checked against.
+ * The order rules — the minimum spend, and the two ceilings every cart is checked against.
  *
- * ⚠ There is exactly ONE of these, enforced by the schema. So this is a form over a singleton, not a
+ * There is exactly one of these, enforced by the schema. So this is a form over a singleton, not a
  * register: a PUT that means the same thing however many times it is sent.
  *
- * ⚠ The ceilings are bounded to what the SCHEMA allows (a line quantity must stay inside `cart_item`'s
- * own CHECK). Setting a rule the tables would reject is not a policy an operator can express — it is a
+ * The ceilings are bounded to what the schema allows (a line quantity must stay inside `cart_item`'s
+ * own check). Setting a rule the tables would reject is not a policy an operator can express — it is a
  * cart that starts failing for shoppers at a number nobody chose.
  */
 export function OrderRulesScreen() {

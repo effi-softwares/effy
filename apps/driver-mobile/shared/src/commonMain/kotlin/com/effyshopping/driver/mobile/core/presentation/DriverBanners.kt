@@ -104,7 +104,7 @@ fun DriverBanners(
 
 /**
  * Whether the live channel has been down long enough to say so — a few seconds, because every launch
- * and every brief blip passes through "reconnecting" (071).
+ * and every brief blip passes through "reconnecting".
  */
 @Composable
 fun rememberLivePaused(live: Boolean): Boolean {

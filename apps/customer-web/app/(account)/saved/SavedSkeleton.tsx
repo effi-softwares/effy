@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/misc"
 
-/** The saved page's shape while its list is read (reference: the page's own header, tabs and rows). */
+/** The saved page's shape while its list is read. */
 export function SavedSkeleton() {
   return (
     <div className="space-y-6" aria-hidden="true">

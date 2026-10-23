@@ -121,25 +121,10 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 
 /**
- * Search (019 US4, extended by 025 US1).
- *
- * Query input, refinement chips, a SORT control and a RESULT COUNT; results in a grid with keyset
- * infinite scroll. Only available products (server-enforced).
- *
- * ── Entry refinement: removed by 026, RESTORED by 028 ───────────────────────────────────────────
- *
- * 025 gave this screen `categoryKey` and `saleOnly` entry parameters, fed by the Browse tab. 026
- * removed Browse, which left them with no caller, so they were deleted — and the comment here
- * predicted the way back: "the natural entry is the Discover chips handing off here".
- *
- * 028 took that way back, by a better door. The chips are gone with the grid; Home's SECTIONS hand
- * off instead, via `CustomerNavKey.Results`. `SearchViewModel` kept `applyCategory`/`applySaleOnly`
- * throughout — the seam was never removed, only orphaned.
- *
- * ⚠ This screen is now reached two ways, and the difference matters: as the **Search tab** (no
- * refinement, `autoFocus` when the shopper tapped Home's search entry) and as a **scoped result
- * set** pushed from Home (an entry refinement and its own title). One screen, one search field
- * (FR-009) — never two half-searches.
+ * Search: query input, refinement chips, a sort control and a result count; results in a grid with keyset
+ * infinite scroll (available products only, server-enforced). Reached as the Search tab (no refinement,
+ * `autoFocus` from Home's search entry) and as a scoped result set pushed from Home
+ * (`CustomerNavKey.Results`, with an entry refinement and its own title). One screen, one search field.
  */
 @Composable
 fun SearchScreen(
@@ -147,15 +132,15 @@ fun SearchScreen(
     onProductClick: (String) -> Unit,
     onCart: () -> Unit = {},
     /**
-     * Open with the field focused and the keyboard up (028 FR-008).
+     * Open with the field focused and the keyboard up.
      *
-     * ⚠ Passed by the caller, never assumed. Always focusing would throw the keyboard over the
+     * Passed by the caller, never assumed. Always focusing would throw the keyboard over the
      * results every time a shopper returned to the Search tab from the bottom bar to *read* them.
      * Focus is requested by whoever meant it — Home's search entry.
      */
     autoFocus: Boolean = false,
     /**
-     * An entry refinement, applied ONCE on arrival (028 US2/US3).
+     * An entry refinement, applied once on arrival.
      *
      * Set when the shopper arrives from Home's "see all" or a category shortcut — they already know
      * what they want, so the screen opens already showing it.
@@ -163,13 +148,13 @@ fun SearchScreen(
     entryCategoryKey: String? = null,
     entrySaleOnly: Boolean = false,
     /**
-     * What the shopper is looking at (FR-018/FR-027).
+     * What the shopper is looking at.
      *
-     * ⚠ A scoped list that does not say what it is scoped TO looks like a broken search. Arriving
+     * A scoped list that does not say what it is scoped TO looks like a broken search. Arriving
      * from "On sale" must say "On sale", not "Search".
      */
     title: String = "Search",
-    /** 068: where the list chooser sends a guest who wants a named list. */
+    /** Where the list chooser sends a guest who wants a named list. */
     onRequireSignIn: (() -> Unit)? = null,
     /** 087 (Search board): the start page's aisle tiles, "All products" and "On sale". */
     onAisle: (Category) -> Unit = {},
@@ -178,30 +163,22 @@ fun SearchScreen(
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts, container.getFacets) }
     val state by vm.state.collectAsState()
-    // 033 FR-007/FR-020: ONE membership read for the whole grid, and one mirror every tile's heart
+    // 033 FR-007/FR-020: One membership read for the whole grid, and one mirror every tile's heart
     // reads — never a boolean per tile, and never a request per product.
     val savedTiles = rememberSavedTiles(container, onRequireSignIn)
     val gridState = rememberLazyGridState()
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // ⚠ The field's TEXT belongs to the ViewModel; its CARET and SELECTION belong here. Selection is
+    // The field's text belongs to the ViewModel; its caret and selection belong here. Selection is
     // genuine UI state — it has no meaning to the search — so hoisting it into the ViewModel would
     // put a presentation concern in the domain-facing layer for nothing.
     var field by remember { mutableStateOf(TextFieldValue(state.query, TextRange(state.query.length))) }
-    // 043 US1: the advanced filter bottom sheet.
+    // The advanced filter bottom sheet.
     var showFilters by remember { mutableStateOf(false) }
 
-    // ── FR-008 + FR-012a ────────────────────────────────────────────────────────────────────────
-    //
-    // One tap on Home must land here with a live caret. An EXISTING query is KEPT, not cleared
-    // (FR-012a) — a shopper who searched "oat milk", opened a product and came back should find
-    // their results, not an empty screen.
-    //
-    // But a kept query the shopper has to delete character by character is worse than a cleared one,
-    // so the text arrives SELECTED: typing replaces it in one action.
-    //
-    // Keyed on `autoFocus` so it fires on arrival rather than once per composition.
+    // Arriving from Home lands with a live caret. An existing query is kept but arrives selected, so typing
+    // replaces it in one action. Keyed on `autoFocus` so it fires on arrival only.
     LaunchedEffect(autoFocus) {
         if (autoFocus) {
             field = field.copy(selection = TextRange(0, field.text.length))
@@ -209,9 +186,9 @@ fun SearchScreen(
         }
     }
 
-    // ── Entry refinement (028 T023) ─────────────────────────────────────────────────────────────
+    // Entry refinement
     //
-    // ⚠ `applySaleOnly`, NEVER `toggleSale`. Its own doc comment spells out why: the caller here is
+    // `applySaleOnly`, never `toggleSale`. Its own doc comment spells out why: the caller here is
     // entry navigation, not a tap. Toggling would clear the filter whenever the shopper arrived at a
     // screen that already had it on — the classic bug where a link means the opposite of itself on
     // second use.
@@ -233,12 +210,12 @@ fun SearchScreen(
 
     val tileCart = rememberTileCart(container)
     val collapse = rememberEffyCollapse()
-    // 087 FR-036 — this device's recent searches (never sent anywhere).
+    // This device's recent searches (never sent anywhere).
     val recents by container.recentSearches.searches.collectAsState()
     fun record(text: String) {
         if (text.isNotBlank()) container.recordSearch(text, kotlin.time.Clock.System.now().toEpochMilliseconds())
     }
-    // 087 FR-035 — the aisle's sub-aisles, from the categories the platform already serves.
+    // The aisle's sub-aisles, from the categories the platform already serves.
     val categories by produceState(emptyList<Category>()) { value = runCatching { container.getCategories() }.getOrDefault(emptyList()) }
     val aisleKey = entryCategoryKey?.let { aisleOf(it, categories) }
     val subAisles = aisleKey?.let { subAislesOf(it, categories) }.orEmpty()
@@ -248,11 +225,11 @@ fun SearchScreen(
         onProductClick(id)
     }
 
-    // 087 (Search board): the Search tab with nothing typed and nothing applied is a START page —
+    // 087 (Search board): the Search tab with nothing typed and nothing applied is a start page
     // recent searches and the aisles — not an empty results screen.
     val browsing = entryCategoryKey == null && !entrySaleOnly && state.query.isBlank() &&
         state.activeFilterCount == 0 && state.items.isEmpty()
-    // Filters the shopper applied, as removable pills (Results board). The aisle itself is not one —
+    // Filters the shopper applied, as removable pills (Results board). The aisle itself is not one
     // the title and the sub-aisle chips already say it — unless it was chosen in the filter sheet.
     val pills = appliedFilterPills(state, aisleScoped = entryCategoryKey != null)
     val saleCount by produceState<Int?>(null, browsing) {
@@ -260,7 +237,7 @@ fun SearchScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 087: the large title at the tab root, "‹ Back" + title when pushed as Results.
+        // The large title at the tab root, "‹ Back" + title when pushed as Results.
         EffyScreenHeader(
             title = title,
             collapse = collapse,
@@ -272,8 +249,8 @@ fun SearchScreen(
                         vm.onQueryChange(it.text)
                     },
                     placeholder = if (entryCategoryKey != null || entrySaleOnly) "Search in $title" else "Search groceries and essentials…",
-                    // FR-010: the keyboard's action key gets out of the way so the results show. A
-                    // blank query keeps focus (FR-011) — the search has already run reactively.
+                    // The keyboard's action key gets out of the way so the results show. A
+                    // blank query keeps focus — the search has already run reactively.
                     onSearch = {
                         if (field.text.isNotBlank()) {
                             record(field.text)
@@ -288,12 +265,9 @@ fun SearchScreen(
         SavedTileMessages(savedTiles)
 
         if (!browsing) {
-            // 087 (operator, 2026-10-15) — the results header was three stacked rows of 52dp boxes.
-            // It is now two light rows with clear jobs:
-            //   1. sub-aisles as TABS (navigation — where am I in this aisle), underlined, on a hairline;
-            //   2. ONE scrolling row of 36dp pill chips (refinement — Filters, Sort, On sale, and each
-            //      applied filter with its ×),
-            // then a slim count line with "Clear all". Every chip keeps a 48dp touch target.
+            // The results header, two light rows: sub-aisles as underlined tabs on a hairline (navigation),
+            // then one scrolling row of 36dp pill chips (Filters, Sort, On sale, each applied filter with
+            // its ×), then a slim count line with "Clear all". Every chip keeps a 48dp target.
             if (aisleKey != null && subAisles.isNotEmpty()) {
                 SubAisleTabs(
                     tabs = listOf(SubAisleTab(aisleKey, "All", null)) + subAisles.map { SubAisleTab(it.key, it.name, it.productCount) },
@@ -320,7 +294,7 @@ fun SearchScreen(
                     )
                 }
                 item(key = "sort") {
-                    // The ordering the SERVER applied — the requested one could misdescribe the list.
+                    // The ordering the server applied — the requested one could misdescribe the list.
                     ToolbarChip(
                         "Sort: ${state.sort.label}",
                         trailing = Res.drawable.lucide_chevron_down,
@@ -365,7 +339,7 @@ fun SearchScreen(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // Announced, so a screen-reader user learns the set changed size (FR-045).
+                    // Announced, so a screen-reader user learns the set changed size.
                     modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 if (pills.isNotEmpty()) EffyTextLink("Clear all", onClick = vm::clearRefinements)
@@ -391,7 +365,7 @@ fun SearchScreen(
 
             state.items.isEmpty() && state.loading -> SearchSkeleton()
 
-            // 087 — a failure always offers a retry (it had none).
+            // A failure always offers a retry (it had none).
             state.failed ->
                 EffyErrorState(
                     title = "We couldn’t load results",
@@ -421,16 +395,16 @@ fun SearchScreen(
                 modifier = Modifier.fillMaxSize().nestedScroll(collapse.connection),
             ) {
                 items(state.items, key = { it.id }) { product ->
-                    // `fillHeight` pins every price row in a row of results to the same baseline —
+                    // `fillHeight` pins every price row in a row of results to the same baseline
                     // the tallest name in the row sets the height and the prices stay level.
                     EffyProductCard(
                         product,
                         openProduct,
                         modifier = Modifier.fillMaxHeight(),
                         fillHeight = true,
-                        // 033 FR-007: save from the tile, without opening the product first. ⚠ Unlike
+                        // Save from the tile, without opening the product first. Unlike
                         // web — which omits the control on `/search` alone, and only because the route
-                        // had 0.1 KB of a 174 KB budget left — mobile carries it on EVERY tile
+                        // had 0.1 KB of a 174 KB budget left — mobile carries it on every tile
                         // surface. There is no bundle to spend here, and this one screen IS search,
                         // browse, category and "see all", so omitting it would take the control off
                         // four surfaces at once.
@@ -455,7 +429,7 @@ fun SearchScreen(
             }
         }
 
-        // 043 US1: the advanced filter bottom sheet.
+        // The advanced filter bottom sheet.
         if (showFilters) {
             FilterSheet(
                 state = state,
@@ -472,7 +446,7 @@ fun SearchScreen(
 }
 
 /**
- * The Search tab's START page (Search board): recent searches (newest first, "Clear" removes them all),
+ * The Search tab's start page (Search board): recent searches (newest first, "Clear" removes them all),
  * then "Browse the aisles" — an "On sale" row in Effy green and the top-level aisles as two-up tiles
  * with their product counts.
  */
@@ -577,8 +551,8 @@ private fun SearchStart(
 private data class SubAisleTab(val key: String, val label: String, val count: Int?)
 
 /**
- * Sub-aisles as scrolling TABS (087): the label, its count in grey, and a 2dp underline under the
- * chosen one, on a hairline. Tabs, not chips — this row says WHERE you are; the chips below refine.
+ * Sub-aisles as scrolling tabs: the label, its count in grey, and a 2dp underline under the
+ * chosen one, on a hairline. Tabs, not chips — this row says where you are; the chips below refine.
  */
 @Composable
 private fun SubAisleTabs(tabs: List<SubAisleTab>, selectedKey: String?, onSelect: (String) -> Unit) {
@@ -628,7 +602,7 @@ private fun SubAisleTabs(tabs: List<SubAisleTab>, selectedKey: String?, onSelect
 }
 
 /**
- * One refinement chip (087): a 36dp pill inside a 48dp touch target. Outlined at rest; solid black
+ * One refinement chip: a 36dp pill inside a 48dp touch target. Outlined at rest; solid black
  * when it is ON (a filter applied, sale on). An optional leading glyph, a count badge, and a trailing
  * chevron (opens a sheet) or × (removes it).
  */
@@ -720,7 +694,7 @@ private fun SortSheet(
     }
 }
 
-/** A content-shaped first-load placeholder (FR-032) — the grid that is coming, not a bare spinner. */
+/** A content-shaped first-load placeholder — the grid that is coming, not a bare spinner. */
 @Composable
 private fun SearchSkeleton() {
     LazyVerticalGrid(

@@ -3,7 +3,7 @@
 # user in the four pools deleted, the media bucket emptied (all versions).
 #
 # Kept: the database roles (effy_shopper keeps its password), every AWS resource, Stripe test data.
-# Afterwards: `make load-localities ENV=dev` and `make create-first-admin ...` (printed at the end).
+# Afterwards: `make load-localities ENV=dev` and `make create-first-admin...` (printed at the end).
 set -euo pipefail
 
 ENV="${ENV:-dev}"

@@ -8,7 +8,7 @@ import { assignErrorLine, useUnassign } from "./queries";
 import type { Stage } from "./repo";
 
 /**
- * The two buttons beside an assignment line (073): "Assign to…" (also how a package is moved) and
+ * The two buttons beside an assignment line: "Assign to…" (also how a package is moved) and
  * "Unassign". Nothing is offered once the goods are in a van — the line already says so.
  */
 export function AssignmentActions({

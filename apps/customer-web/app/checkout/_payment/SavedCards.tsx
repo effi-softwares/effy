@@ -13,15 +13,9 @@ import { NetworkMark, brandLabel } from "./BrandMarks"
 export const NEW_CARD = "new" as const
 
 /**
- * The shopper's kept cards (051 US3).
- *
- * ⚠ EFFY RENDERS THIS LIST, not the provider. Spike S2 established that `confirmCardPayment` accepts a
- * payment-method id directly, so the web route needs no customer session and no provider-owned list —
- * which means this is ordinary Effy markup and serves FR-028 better than the alternative, not worse.
- * (Mobile is different: its embedded element draws its own list, so it does need the session.)
- *
- * ⚠ NOT A CARD LAYOUT. Rows in a list, selected by a doubled border rather than a filled box — the
- * "no card layouts" rule applies here as everywhere (FR-035).
+ * The shopper's kept cards, drawn by Effy (`confirmCardPayment` takes a payment-method id, so the web
+ * needs no provider customer session; mobile's embedded element draws its own). Rows selected by a
+ * doubled border, not cards.
  */
 export function SavedCards({
   cards,
@@ -55,8 +49,8 @@ export function SavedCards({
               className={cn(
                 "flex h-14 items-center gap-3 rounded-[10px] border px-3.5 transition-shadow",
                 selected ? "border-foreground shadow-[0_0_0_1px_var(--foreground)]" : "border-input",
-                // ⚠ An unusable card is dimmed AND not selectable. Dimming alone would still let a
-                // shopper choose a card that cannot work and find out from the bank (FR-023).
+                // An unusable card is dimmed and not selectable. Dimming alone would still let a
+                // shopper choose a card that cannot work and find out from the bank.
                 !card.usable && "opacity-60",
               )}
             >
@@ -78,7 +72,7 @@ export function SavedCards({
                     Expires {String(card.expMonth).padStart(2, "0")} / {String(card.expYear).slice(-2)}
                   </span>
                 ) : (
-                  // ⚠ The reason is STATED, never left for the shopper to work out. A card that is
+                  // The reason is stated, never left for the shopper to work out. A card that is
                   // simply greyed out with no explanation reads as a bug in the page.
                   <span id={`${card.id}-reason`} className="text-xs font-medium text-foreground">
                     {card.unusableReason ?? "This card can't be used."}
@@ -103,7 +97,7 @@ export function SavedCards({
                   }
                 }}
                 disabled={busy || removing === card.id}
-                // 44px minimum touch target (FR-033) — the icon is 16px, the hit area is not.
+                // 44px minimum touch target — the icon is 16px, the hit area is not.
                 className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                 aria-label={`Remove card ending ${card.last4}`}
               >
@@ -141,11 +135,11 @@ export function SavedCards({
 }
 
 /**
- * The save-this-card consent control (051 FR-020).
+ * The save-this-card consent control.
  *
- * ⚠ THIS CHECKBOX IS THE ONLY THING THAT DECIDES WHETHER A CARD IS KEPT. The server deliberately does
+ * This checkbox is the only thing that decides whether a card is kept. The server deliberately does
  * not set `setup_future_usage` on the intent — doing so would keep a card the shopper declined, and it
- * is a documented integration error besides (research R5). Spike S2 moved enforcement from the
+ * is a documented integration error besides. Spike S2 moved enforcement from the
  * provider's own checkbox to this one, which is exactly why the "declined card is absent later" test
  * exists rather than being assumed.
  */

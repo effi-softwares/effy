@@ -15,15 +15,15 @@ import { SaveControl } from "./SaveControl"
 import { UnitPrice } from "./UnitPrice"
 
 /**
- * The product page's buy box (098): price, the size selector, availability and the add / save / list
- * controls — all following the ONE selected variant.
+ * The product page's buy box: price, the size selector, availability and the add / save / list
+ * controls — all following the one selected variant.
  *
- * ⚠ THE SELECTION IS ALWAYS ONE VARIANT. Picking a value moves to a variant that has it
+ * The selection is always one variant. Picking a value moves to a variant that has it
  * (`lib/variant-selection.ts`), so price, "Available now" and the add button never describe a size
- * that does not exist. A sold-out size stays in the selector, marked in WORDS and struck through
- * (FR-015) — never by colour alone.
+ * that does not exist. A sold-out size stays in the selector, marked in words and struck through
+ *  — never by colour alone.
  *
- * ⚠ The URL follows the choice (`?variant=`) with `replaceState`, not a navigation: a shared link
+ * The URL follows the choice (`?variant=`) with `replaceState`, not a navigation: a shared link
  * opens on the same size, and choosing a size costs no request. The gallery is zero-JS (scroll-snap
  * anchors), so a size with its own picture scrolls the gallery to it.
  */
@@ -75,7 +75,7 @@ export function VariantBuyBox({
     <>
       <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="text-3xl font-bold tabular-nums">{formatMoney(selected.priceAmount, currency)}</span>
-        {/* 094 — the offer the cart will apply to this product (every size of it). */}
+        {/* The offer the cart will apply to this product (every size of it). */}
         {offer && selected.available ? <Badge variant="brand">{offer.label}</Badge> : null}
         {discounted && selected.compareAtAmount && (
           <>
@@ -97,7 +97,7 @@ export function VariantBuyBox({
           Save {formatMoney(saving.toFixed(2), currency)} ({percentOff}% off)
         </p>
       )}
-      {/* ⚠ "Available" is all that is said — never a count. */}
+      {/* "Available" is all that is said — never a count. */}
       <p role="status" className={`mt-4 flex items-center gap-2 text-sm font-medium ${selected.available ? "text-brand" : ""}`}>
         {selected.available ? <CircleCheck aria-hidden="true" className="size-4" /> : <CircleX aria-hidden="true" className="size-4" />}
         {selected.available ? "Available now" : options.length > 0 ? "This size is sold out" : "Currently unavailable"}

@@ -25,8 +25,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// ── Hand-written fake (no mocking lib) — emulates the 019 backend semantics (auto-default first,
-//    exactly-one-default set, delete-default guard). ──────────────────────────────────────────────────
+// Hand-written fake (no mocking lib) — emulates the 019 backend semantics (auto-default first,
+//  exactly-one-default set, delete-default guard). ──────────────────────────────────────────────────
 
 private class FakeAddressRepository(seed: List<SavedAddress> = emptyList()) : AddressRepository {
     val store = seed.toMutableList()
@@ -44,7 +44,7 @@ private class FakeAddressRepository(seed: List<SavedAddress> = emptyList()) : Ad
 
     override suspend fun create(draft: AddressDraft): SavedAddress {
         createCalls++
-        val first = store.isEmpty() // the backend auto-defaults the customer's first address (FR-010)
+        val first = store.isEmpty() // the backend auto-defaults the customer's first address
         val created = draft.toSaved("addr-${++seq}", isDefault = first)
         store.add(created)
         return created
@@ -97,7 +97,7 @@ class AddressBookViewModelTest {
             SetDefault(repo), DeleteAddress(repo), testScope = this,
         )
 
-    // ── US1: list & empty ────────────────────────────────────────────────────────────────────────────
+    // List & empty
 
     @Test
     fun listsAddressesWithTheDefaultMarked() = runTest {
@@ -120,7 +120,7 @@ class AddressBookViewModelTest {
         assertFalse(vm.state.value.loading)
     }
 
-    // ── US2: add ─────────────────────────────────────────────────────────────────────────────────────
+    // Add
 
     @Test
     fun addingAnAddressAppearsInTheList() = runTest {
@@ -168,7 +168,7 @@ class AddressBookViewModelTest {
         val sheet = assertNotNull(vm.state.value.sheet) // still open
         assertTrue(sheet.fieldErrors.containsKey("recipientName"))
         assertTrue(sheet.fieldErrors.containsKey("postalCode"))
-        assertEquals("Unit 5", sheet.form.line2) // input preserved (FR-009)
+        assertEquals("Unit 5", sheet.form.line2) // input preserved
         assertEquals(0, repo.createCalls) // nothing saved
         assertEquals(0, repo.store.size)
     }
@@ -185,11 +185,11 @@ class AddressBookViewModelTest {
         advanceUntilIdle()
 
         assertNull(vm.state.value.sheet)
-        assertEquals(0, repo.createCalls) // SC-009: nothing persisted
+        assertEquals(0, repo.createCalls) // Nothing persisted
         assertTrue(vm.state.value.addresses.isEmpty())
     }
 
-    // ── US3: set-default ─────────────────────────────────────────────────────────────────────────────
+    // Set-default
 
     @Test
     fun settingDefaultLeavesExactlyOneDefault() = runTest {
@@ -212,7 +212,7 @@ class AddressBookViewModelTest {
         val vm = vmFor(repo)
         advanceUntilIdle()
 
-        vm.makeDefault("a") // already default (FR-014)
+        vm.makeDefault("a") // already default
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -221,7 +221,7 @@ class AddressBookViewModelTest {
         assertNull(s.error)
     }
 
-    // ── US4: delete ──────────────────────────────────────────────────────────────────────────────────
+    // Delete
 
     @Test
     fun confirmingDeleteRemovesTheRow() = runTest {
@@ -245,7 +245,7 @@ class AddressBookViewModelTest {
         val vm = vmFor(repo)
         advanceUntilIdle()
 
-        vm.askDelete("a") // the default, with others → 409 (FR-016a)
+        vm.askDelete("a") // the default, with others → 409
         vm.confirmDelete()
         advanceUntilIdle()
 
@@ -268,7 +268,7 @@ class AddressBookViewModelTest {
         assertFalse(vm.state.value.reassignPrompt)
     }
 
-    // ── US5: edit ────────────────────────────────────────────────────────────────────────────────────
+    // Edit
 
     @Test
     fun rowBodyOpensEditButPerRowControlsDoNot() = runTest {
@@ -276,7 +276,7 @@ class AddressBookViewModelTest {
         val vm = vmFor(repo)
         advanceUntilIdle()
 
-        // The set-default / delete controls must NOT open the editor (FR-017a).
+        // The set-default / delete controls must not open the editor.
         vm.makeDefault("b"); advanceUntilIdle()
         assertNull(vm.state.value.sheet)
         vm.askDelete("b")

@@ -1,5 +1,4 @@
-// PUT /inventory/v1/admin/shops/{shopId}/settings — set a shop's default low-stock threshold on
-// their behalf (054 US4, FR-026). Write tier: admin/manager only.
+// Admin/manager only.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -38,27 +38,27 @@ kotlin {
     }
 
     sourceSets {
-        // 013 D15/D16 — the GENERATED, committed, drift-guarded contract + theme live in the shared
-        // packages (single source of truth: TS / CSS). Include them as extra source roots rather than
+        // 013 D15/D16 — the generated, committed, drift-guarded contract + theme live in the shared
+        // packages (single source of truth: Ts / CSS). Include them as extra source roots rather than
         // copying, so there is exactly one copy and `contract:check` / `tokens:check` guard it.
         // Block form: inside `commonMain { }` the receiver is the KotlinSourceSet, so `kotlin.srcDir`
         // resolves (the `commonMain` provider has no `.kotlin` accessor).
         commonMain {
             kotlin.srcDir(rootProject.file("../../packages/shared-types/contract"))
             kotlin.srcDir(rootProject.file("../../packages/design-system/compose"))
-            // 015 — the shared, audience-neutral mobile navigation shell (Principle II). Also gives the
-            // customer app its FIRST adaptive layer (WindowSize/AdaptiveContent were shop-only before).
+            // The shared, audience-neutral mobile navigation shell (Principle II). Also gives the
+            // customer app its first adaptive layer (WindowSize/AdaptiveContent were shop-only before).
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/common"))
         }
 
-        // 035 — mobile-kit gained its FIRST platform-specific component (the one-time-code
+        // Mobile-kit gained its first platform-specific component (the one-time-code
         // field, whose iOS actual is a native UITextField so that
         // `UITextContentTypeOneTimeCode` autofill works at all). The package is therefore
         // split common/android/ios; each half is srcDir'd into the matching source set.
         androidMain {
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/android"))
-            // 051 — the GENERATED payment-provider Appearance, derived from tokens.css (Principle II).
-            // ⚠ Android-only: it imports com.stripe.android, so it must NOT go in the commonMain
+            // The generated payment-provider Appearance, derived from tokens.css (Principle II).
+            // Android-only: it imports com.stripe.android, so it must not go in the commonMain
             // `compose/` directory, which has to compile for iOS.
             kotlin.srcDir(rootProject.file("../../packages/design-system/compose-payment-android"))
         }
@@ -69,20 +69,16 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
-            // 051 — the in-app payment element. ⚠ This is a DEPARTURE from 019's "Stripe lives in the
-            // app module, not shared", and the reason 019 gave no longer applies: `PaymentSheet` had to
-            // be registered against MainActivity's ActivityResultRegistry in onCreate, which shared
-            // could not do. The EMBEDDED element is Compose-scoped and has no such requirement — and it
-            // has to live here, because this is where the payment screen is. Same shape as Amplify and
-            // Firebase below: a platform-only SDK in the Android half of the shared module.
+            // The in-app payment element. Compose-scoped, so it lives here beside the payment screen: a
+            // platform-only SDK in the Android half of the shared module, like Amplify and Firebase.
             implementation(libs.stripe.android)
-            // CIO engine — Coil's image loader ONLY (not the data client). Avoids the platform-okhttp
+            // CIO engine — Coil's image loader only (not the data client). Avoids the platform-okhttp
             // "Unbalanced enter/exit" crash when Coil cancels an image job on LazyGrid scroll reuse.
             implementation(libs.ktor.client.cio)
-            // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
+            // Amplify android (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify swift.
             implementation(libs.amplify.auth.cognito)
             implementation(libs.amplify.core.kotlin)
-            // 050 — Firebase (FCM + Crashlytics) + PostHog: the Android `actual`s for CrashReporter /
+            // Firebase (FCM + Crashlytics) + PostHog: the Android `actual`s for CrashReporter /
             // AnalyticsDriver / PushTokenProvider. iOS keeps the NoOp defaults until its Swift bridges
             // land (Firebase has no Kotlin/Native support — same split as Amplify).
             implementation(project.dependencies.platform(libs.firebase.bom))
@@ -102,20 +98,14 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-            // 026 — Jetpack Navigation 3 (stable since Nov 2025; Compose Multiplatform 1.10+ ships it
-            // for iOS/desktop/web, and this app is on 1.11.1). This supersedes 015's hand-rolled back
-            // stack, whose stated reason for existing — "Nav3 is alpha with an unverified iOS runtime"
-            // — has expired.
-            //
-            // ⚠ `material3-adaptive-navigation3` (the Scenes / multi-pane artifact) is deliberately NOT
-            // added: it is beta-only (1.3.0-beta02), and 013 D19 forbids a beta under a stable Compose
-            // runtime. The adaptive requirement is already met by mobile-kit's ResponsiveNavigation
-            // (bottom bar ↔ navigation rail), so nothing is lost by waiting for a stable release.
+            // Jetpack Navigation 3 (stable; Compose Multiplatform ships it for iOS). Not
+            // `material3-adaptive-navigation3`: beta only, and mobile-kit's ResponsiveNavigation already gives the
+            // bar/rail switch.
             implementation(libs.navigation3.ui)
             implementation(libs.lifecycle.viewmodel.navigation3)
-            // 013 — networking (one client per base URL), serialization, async, nav, prefs
+            // Networking (one client per base URL), serialization, async, nav, prefs
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.websockets) // 071 — the live-update channel
+            implementation(libs.ktor.client.websockets) // The live-update channel
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)
@@ -135,20 +125,16 @@ kotlin {
     }
 }
 
-// Compose resources package (025). Pinned explicitly rather than left to the default so the
-// GENERATED typography (packages/design-system/compose/EffyTypography.kt) can import the font
+// Compose resources package. Pinned explicitly rather than left to the default so the
+// generated typography (packages/design-system/compose/EffyTypography.kt) can import the font
 // accessors by a stable name. shop-mobile has had this since 018; customer-mobile did not, which is
 // part of why it never rendered the platform typeface.
 compose.resources {
     packageOfResClass = "com.effyshopping.customer.mobile.resources"
 }
 
-// ── BuildKonfig — compile-time config from the root project's resolved contract (013 D12/D13/D14) ───
-//
-// The root build.gradle.kts already FAILED THE BUILD if any key was missing (FR-041) and exposed the
-// resolved values as `rootProject.extra["effyConfig"]`. Here we only bake them in. `defaultConfigs`
-// ONLY — no `targetConfigs` — so BuildKonfig emits plain `const val` in commonMain and avoids the K2
-// `expect const val` limitation (D13). NONE of these is a secret (FR-042): pool/client ids are names.
+// BuildKonfig: bakes in the values the root build already checked (`rootProject.extra["effyConfig"]`).
+// `defaultConfigs` only, so it emits plain `const val` in commonMain (K2 cannot `expect const val`).
 @Suppress("UNCHECKED_CAST")
 val effyConfig = rootProject.extra["effyConfig"] as Map<String, String>
 

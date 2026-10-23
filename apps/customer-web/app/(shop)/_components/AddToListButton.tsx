@@ -2,17 +2,14 @@
 
 import { ListPlus } from "lucide-react"
 
-/**
- * "Add to list" on the product page. ⚠ The chooser is imported on the press, not with the page: it is
- * a dialog most visitors never open, and it must not ride the product page's guest bundle.
- */
+/** "Add to list" on the product page; the chooser is imported on press, off the guest bundle. */
 export function AddToListButton({
   productId,
   variantId,
   className = "",
 }: {
   productId: string
-  /** 098 — the size on screen, remembered with the product. */
+  /** The size on screen, remembered with the product. */
   variantId?: string | null
   className?: string
 }) {

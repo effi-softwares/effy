@@ -8,8 +8,8 @@ import type {
   OrderAwaiting,
 } from "@effy/shared-types";
 
-// Domain shapes for the back-office order console (053). The contracts double as the domain shapes
-// here (identity map in repo.ts), which keeps ONE definition of an order across the wire and the
+// Domain shapes for the back-office order console. The contracts double as the domain shapes
+// here (identity map in repo.ts), which keeps one definition of an order across the wire and the
 // screen — the same choice `features/shops` made.
 
 export type OrderSummary = AdminOrderSummaryDTO;
@@ -21,25 +21,25 @@ export interface OrderListParams {
   q?: string;
   status?: string;
   awaiting?: OrderAwaiting;
-  /** 073 — only orders with a package nobody is collecting or delivering. */
+  /** Only orders with a package nobody is collecting or delivering. */
   needsDriver?: boolean;
-  /** 079 — who delivers the order. */
+  /** Who delivers the order. */
   deliveryType?: AdminOrderDeliveryFilter;
-  /** 085 — what an Effy order was sold. */
+  /** What an Effy order was sold. */
   promise?: DeliveryPromise;
   cursor?: string;
   /** Rows per page; the service's default when omitted. */
   limit?: number;
 }
 
-/** 085 — what an Effy order was sold, in staff words. */
+/** What an Effy order was sold, in staff words. */
 export const PROMISE_LABEL: Record<DeliveryPromise, string> = {
   window: "A time",
   day: "Day only (any time)",
   asap: "As soon as possible",
 };
 
-// ── 079: who delivers an order ───────────────────────────────────────────────────────────────────
+// Who delivers an order
 
 /**
  * "Delivered by Effy" / "Courier delivery" — the same two names the customer reads (`DELIVERY_TYPE_WORDS`).
@@ -70,7 +70,7 @@ export function deliveryChangeText(c: DeliveryTypeChangeDTO): string {
 /**
  * What a package row says about its delivery: who takes it to the customer and, for one Effy
  * delivers, the customer's own word for it ("Same-day" / "Standard") — the word an operator hears on
- * the phone. ⚠ A courier's package has no such word: it is "standard" only in how it is routed.
+ * the phone. A courier's package has no such word: it is "standard" only in how it is routed.
  */
 export function packageDeliveryText(pkg: Pick<OrderPackage, "deliveredBy" | "deliveryMethod">): string {
   if (pkg.deliveredBy === "courier") return DELIVERY_TYPE_WORDS.courier;
@@ -78,7 +78,7 @@ export function packageDeliveryText(pkg: Pick<OrderPackage, "deliveredBy" | "del
   return word ? `${DELIVERY_TYPE_WORDS.effy} · ${word}` : DELIVERY_TYPE_WORDS.effy;
 }
 
-/** The progress word, as the CUSTOMER currently sees it. Server-derived; never recomputed here. */
+/** The progress word, as the customer currently sees it. Server-derived; never recomputed here. */
 export const STAGE_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
   packing: "Packing",
@@ -89,7 +89,7 @@ export const STAGE_LABEL: Record<string, string> = {
 /**
  * What the operator can do next with a package.
  *
- * ⚠ THIS IS A UX AFFORDANCE, NOT AN AUTHORISATION. The backend independently refuses a handover on a
+ * This is A UX affordance, not an authorisation. The backend independently refuses a handover on a
  * same-day or uncollected package, and an arrival with no handover — this only decides which button
  * is shown so an operator is not invited to press something that will be refused.
  */
@@ -99,7 +99,7 @@ export type PackageAction = "handoff" | "arrival" | "none";
 export { formatDeliveryDay, formatDeliveryWindow, windowStateAt } from "@effy/shared-types";
 
 /**
- * What a package was promised, in words (069). Null when it was promised nothing — every order
+ * What a package was promised, in words. Null when it was promised nothing — every order
  * placed before 069 — and the row then says nothing rather than "—", which would read as missing data.
  */
 export function promiseTextFor(pkg: OrderPackage): string | null {
@@ -130,7 +130,7 @@ export const PROMISE_FLAG_LABEL: Record<PromiseFlag, string> = {
 export function nextActionFor(pkg: OrderPackage): PackageAction {
   if (pkg.arrival) return "none";
   if (pkg.status !== "collected") return "none";
-  // ⚠ 079 — WHO DELIVERS IS THE SERVER'S ANSWER (`deliveredBy`), for old orders and new. A package
+  // Who delivers is the server's answer (`deliveredBy`), for old orders and new. A package
   // Effy delivers itself — today, or in a window on a later day — never passes to a carrier. This
   // used to be worked out here from the method and the window; the server now says it once.
   if (pkg.deliveredBy === "effy") return "none";
@@ -139,11 +139,11 @@ export function nextActionFor(pkg: OrderPackage): PackageAction {
 
 
 export const AWAITING_LABEL: Record<OrderAwaiting, string> = {
-  // ⚠ 055 US6 — a shop said it cannot supply its portion and nobody has decided what to do. It is
-  // named for the ACTION SOMEONE MUST TAKE, not for the shop's state: the other two are late
+  // A shop said it cannot supply its portion and nobody has decided what to do. It is
+  // named for the action someone must take, not for the shop's state: the other two are late
   // packages, this one is money the platform is holding for goods that will never be sent.
   refund_decision: "Needs a refund decision",
-  // ⚠ 080 US5 — a courier lost, damaged or returned a parcel, or could not deliver it.
+  // A courier lost, damaged or returned a parcel, or could not deliver it.
   courier_problem: "Courier problem",
   handover: "Needs handover",
   arrival: "Awaiting arrival",

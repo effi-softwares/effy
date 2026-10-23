@@ -1,5 +1,4 @@
-// POST /fleet/v1/vehicles/{vehicleId}/holdings — hand a vehicle to a driver (061 US2, FR-010).
-// Mutate = admin/manager only.
+// Admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

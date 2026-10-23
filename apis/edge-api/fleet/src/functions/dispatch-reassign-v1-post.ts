@@ -8,12 +8,7 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
  import { reassign } from "../dispatch/service";
 
-/**
- * POST /fleet/v1/dispatch/rounds/{id}/reassign (FR-029, FR-034).
- *
- * ⚠ Mutate = admin/manager. Moving physical work is an assertion about the world, not a lookup —
- * the same reasoning 053 used for recording an order as arrived.
- */
+/** Admin/manager: moving physical work is an assertion about the world. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -27,7 +22,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     const previousDriver = await driverOfRound(id);
     await reassign(id, body.driverId, body.expectedUpdatedAt, g.sub);
-    // 071 — committed. BOTH drivers: the one who lost the round and the one who gained it.
+    // Both drivers: the one who lost the round and the one who gained it.
     await announceDispatch([previousDriver, body.driverId]);
     return json(200, { ok: true }, scope);
   } catch (err) {

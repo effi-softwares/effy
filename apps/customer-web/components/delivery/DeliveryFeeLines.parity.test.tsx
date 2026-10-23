@@ -11,12 +11,9 @@ import { chosenFee } from "@/lib/delivery-choice"
 import { DeliveryFeeLines } from "./DeliveryFeeLines"
 
 /**
- * 077 P25 — the website and the app show the SAME delivery lines for the same quote.
- *
- * ⚠ ONE FIXTURE: the quote literal in the app's `DeliveryWireContractTest.kt`, which the backend's
- * wire test proves the real mapper PRODUCES and the app's test proves it DECODES. This renders it on
- * the web and compares with the exact strings the app's `DeliveryFeeParityTest` asserts — so a label,
- * a sign or a rounding that differs between the two surfaces turns one of them red.
+ * The website and the app show the same delivery lines for one quote: the quote literal from the app's
+ * `DeliveryWireContractTest.kt`, rendered here and compared with the strings the app's
+ * `DeliveryFeeParityTest` asserts.
  */
 const kotlin = readFileSync(
   resolve(__dirname, "../../../customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/checkout/DeliveryWireContractTest.kt"),

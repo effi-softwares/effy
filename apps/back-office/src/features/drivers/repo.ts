@@ -13,15 +13,8 @@ import { api } from "@/lib/api";
 
 import type { DriverListParams } from "./model";
 
-// The data layer for the back-office driver console (056). Screens never touch the api client
-// directly (Principle VI). Every endpoint lives on the `fleet` cold-path service behind the shared
-// gateway — see specs/056-driver-management/contracts/fleet-api.contract.md.
-//
-// ⚠ WORK HISTORY, PROOF, STRANDED WORK AND EXCEPTIONS LEFT THIS LAYER with the routes they called.
-// They projected the 049 work model, dropped whole by
-// db/migrations/20260920101500_remove_driver_work_model.sql. What is left is the EMPLOYMENT console —
-// the register, a profile, status transitions, the change log, duty and readiness — which never
-// depended on the shape of a run.
+// The data layer for the driver console (the `fleet` service): the register, a profile, status
+// transitions, the change log, duty and readiness.
 
 function qs(params: Record<string, string | undefined>): string {
   const sp = new URLSearchParams();
@@ -51,8 +44,8 @@ export async function createDriver(body: AdminDriverCreateRequest): Promise<Admi
 }
 
 /**
- * ⚠ The body is sent EXACTLY as the form built it. A key present with `null` clears the field; a key
- * absent leaves it alone (FR-010). Do not "clean" this object — dropping nulls here would silently
+ * The body is sent exactly as the form built it. A key present with `null` clears the field; a key
+ * absent leaves it alone. Do not "clean" this object — dropping nulls here would silently
  * restore the defect the whole requirement exists to fix.
  */
 export async function updateDriver(
@@ -85,7 +78,7 @@ export async function getReadiness(): Promise<FleetReadinessResponse> {
   return api.get<FleetReadinessResponse>("/fleet/v1/readiness");
 }
 
-/** ⚠ The zone picker reuses the EXISTING delivery route (047). This feature creates no zone
+/** The zone picker reuses the existing delivery route. This feature creates no zone
  *  endpoint of its own — zones are the delivery engine's, not the fleet service's. */
 export async function listZones(): Promise<{ id: string; name: string }[]> {
   const res = await api.get<{ items?: { id: string; name: string }[] } | { id: string; name: string }[]>(

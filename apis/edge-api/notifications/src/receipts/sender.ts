@@ -1,8 +1,4 @@
-// Turn one order into the `order-confirmation` variables and send it. 052 US3.
-//
-// ⚠ EVERY MONEY VALUE, QUANTITY AND DATE IS FORMATTED HERE, not in the template (email-kit FR-048).
-// SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
-// declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
+// Every money value, quantity and date is formatted here: SES templates cannot format.
 import {
   ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, distinctArrivals, formatArrival,
   type DeliveryFeeLineKind,
@@ -14,7 +10,7 @@ import { sendEmail } from "@effy/email-kit/send";
 import type { PendingReceipt, ReceiptSendResult } from "./drain";
 import { loadReceipt, type ReceiptArrivalRow, type ReceiptItemRow } from "./repository";
 
-/** The trading timezone. "Today" is a claim about the SHOPPER'S day, not the server's. */
+/** "Today" is the shopper's day, not the server's. */
 const TZ = "Australia/Melbourne";
 
 function money(amount: string | null, currency: string): string {
@@ -27,10 +23,7 @@ function money(amount: string | null, currency: string): string {
   }).format(n);
 }
 
-/**
- * 077 — the delivery lines as the template takes them. Labels come from the one file that writes
- * them; an unknown kind (a newer backend) is dropped rather than printed as a code.
- */
+/** An unknown kind is dropped rather than printed as a code. */
 export function deliveryLinesVars(
   lines: { kind: string; amount: string }[],
   currency: string,
@@ -47,7 +40,7 @@ function isPositive(amount: string | null): boolean {
   return Number.isFinite(n) && n > 0;
 }
 
-/** An address snapshot rendered as the lines a person reads. Unknown shapes degrade to nothing. */
+/** Unknown shapes degrade to nothing. */
 function addressLines(a: Record<string, unknown> | null): string {
   if (!a) return "";
   const s = (k: string) => (typeof a[k] === "string" ? (a[k] as string) : "");
@@ -79,18 +72,8 @@ function methodLabel(method: string): string {
 }
 
 /**
- * The arrival estimate, in the plainest words the DATA supports.
- *
- * ⚠ THE WORDING IS `formatArrival`'S, NOT THIS FILE'S (069). The confirmation page and the order
- * page call the same function, so the email cannot say "Thursday" while the page says "today, 5 pm –
- * 7 pm". This file used to carry its own date formatting beside customer-web's; 052 deleted a second
- * implementation of one rule for exactly this reason.
- *
- * An order can arrive in more than one delivery — a same-day window for one package and a chosen day
- * for another — so each DISTINCT promise is said once, joined with "and". When there is no promise at
- * all it SAYS SO: inventing a date on a receipt would be a false fact on a financial record.
- *
- * `now` is a parameter so "today" is testable; the drain passes the moment it sends.
+ * Worded by `formatArrival`, as the confirmation and order pages are. Each distinct promise is said
+ * once, joined with "and"; with none it says so rather than inventing a date.
  */
 export function arrivalText(
   arrivals: ReceiptArrivalRow[],
@@ -98,9 +81,7 @@ export function arrivalText(
 ): { estimate: string; method: string } {
   if (arrivals.length === 0) return { estimate: UNCONFIRMED, method: "Delivery" };
 
-  // ⚠ 078 — counted as PROMISES, not packages. Every package of an order sold one window carries
-  // the same promise: that is one delivery, and calling it "Multiple deliveries" told the customer
-  // how many suppliers filled it.
+  // Counted as promises, not packages.
   const promises = distinctArrivals(arrivals.map((a) => ({
     method: a.method,
     promisedFrom: a.promised_from,
@@ -117,19 +98,13 @@ export function arrivalText(
   }
   if (said.length === 0) return { estimate: UNCONFIRMED, method };
 
-  // The estimate sits mid-sentence in the template ("Arriving …"), so "Today" reads as "today".
+  // Mid-sentence ("Arriving …"), so "Today" reads as "today".
   return { estimate: said.map(midSentence).join(" and "), method };
 }
 
 /**
- * The receipt's delivery block: the label, the line under it, and the inbox preview (079).
- *
- * ⚠ A COURIER ORDER NEVER READS ITS PACKAGES. It was sold no window and no day, and a package's own
- * word for the delivery ("standard") is how it is routed, not what the customer bought: read here,
- * the receipt would say "Arriving on a date we'll confirm · Standard" for a parcel a courier is
- * carrying. It says who delivers and the ESTIMATE THE ORDER WAS SOLD (the order's own copy, never
- * today's setting), in the same two sentences the checkout and the order page print (`courierLines`).
- *
+ * A courier order never reads its packages ("standard" is routing): it says who delivers and the
+ * estimate sold, in the checkout's own sentences (`courierLines`).
  */
 export function deliveryVars(
   order: { delivery_type?: string | null; courier_estimate?: string | null; delivery_promise?: string | null; asap_estimate?: string | null },
@@ -140,17 +115,17 @@ export function deliveryVars(
     return {
       deliveryLabel: DELIVERY_TYPE_WORDS.courier,
       deliveryEstimate: courierLines(order.courier_estimate).join(" "),
-      // ⚠ Empty, and the template then prints no "· method": a courier order is neither word.
+      // Empty, so the template prints no "· method".
       deliveryMethod: "",
       deliveryPreheader: courierEstimateSentence(order.courier_estimate),
     };
   }
-  // 085 — "as soon as possible" was told an estimate: never the day it was planned for.
+  // Asap was told an estimate, never the planned day.
   if (order.delivery_promise === "asap" && order.asap_estimate) {
     const sentence = asapSentence(order.asap_estimate);
     return { deliveryLabel: DELIVERY_TYPE_WORDS.effy, deliveryEstimate: sentence, deliveryMethod: "", deliveryPreheader: `${sentence}.` };
   }
-  // 085 — a day with no time: the day, and never the hours of the window it rides.
+  // A day with no time: never the hours of the window it rides.
   if (order.delivery_promise === "day") {
     const arrival = arrivalText(arrivals.map((a) => ({ ...a, window_start: null, window_end: null })), now);
     const estimate = `${arrival.estimate}, ${DELIVERY_WINDOW_WORDS.anyTimeDay.toLowerCase()}`;
@@ -160,7 +135,6 @@ export function deliveryVars(
   return { deliveryLabel: "Arriving", deliveryEstimate: arrival.estimate, deliveryMethod: arrival.method, deliveryPreheader: `Arriving ${arrival.estimate}.` };
 }
 
-/** What the receipt says when the platform has promised no day. */
 const UNCONFIRMED = "a date we'll confirm";
 
 function midSentence(text: string): string {
@@ -169,7 +143,7 @@ function midSentence(text: string): string {
     : text;
 }
 
-/** "Visa ending 4242" / "Klarna" / "" — never any card field beyond last4 (051). */
+/** Never any card field beyond last4. */
 export function paymentText(
   type: string | null,
   brand: string | null,
@@ -182,17 +156,10 @@ export function paymentText(
 }
 
 export interface ReceiptSenderOptions {
-  /** The storefront origin, for the "View your order" link. */
   siteUrl: string;
 }
 
-/**
- * Build the sender half of the drain deps.
- *
- * ⚠ `mailerConfigured` is resolved ONCE here, not per row. An unset `MAIL_SENDER` means this
- * deployment cannot send at all, and the drain then leaves every row pending rather than burning the
- * attempt budget on a misconfiguration (fail-open, 050 FR-027).
- */
+/** `mailerConfigured` is resolved once: unconfigured, the drain leaves every row pending. */
 export function createReceiptSender(opts: ReceiptSenderOptions) {
   let identity: ReturnType<typeof identityFromEnv> | null = null;
   try {
@@ -209,8 +176,7 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
       if (!identity) return { ok: false, error: "mail_not_configured" };
 
       const loaded = await loadReceipt(req.orderId);
-      // ⚠ null means the order can no longer be read. The drain marks this `skipped`, because there is
-      // nothing to retry — an order that vanished will not reappear.
+      // null: the order can no longer be read; skipped.
       if (!loaded) return null;
 
       const { order, items, arrivals } = loaded;
@@ -227,10 +193,7 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
           lineTotal: money(i.line_subtotal_amount, currency),
         })),
         subtotal: money(order.item_subtotal_amount, currency),
-        // ⚠ A zero component is OMITTED, never printed as "$0.00" or a dash: on a financial record
-        // "nothing" and "unknown" are different claims (FR-004).
-        // 094 — one line for every promotion (goods and delivery), named by what the shopper read, so the
-        // receipt's lines still add up to its total.
+        // A zero component is omitted, never "$0.00". One line per promotion, so the lines add up.
         hasDiscount: isPositive(discountTotal(order)),
         discountLabel: order.promotion_names?.length
           ? `Discount · ${order.promotion_names.join(", ")}`
@@ -238,12 +201,11 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         discountAmount: money(discountTotal(order), currency),
         hasDeliveryFee: isPositive(order.delivery_fee_amount),
         deliveryFee: money(order.delivery_fee_amount, currency),
-        // 077 — the lines the customer was sold, in the words the checkout used. Printed in place of
-        // the single row; a free delivery IS printed, because it is something they were sold.
+        // The fee lines as sold; a free delivery is printed.
         ...deliveryLinesVars(order.delivery_fee_lines, currency),
         total: money(order.grand_total_amount, currency),
         hasPaymentMethod: Boolean(order.method_type),
-        // 074 — with points in the mix, each way of paying states its own amount so the two add up.
+        // With points, each way of paying states its own amount.
         paymentMethod: order.points_used
           ? `${paymentText(order.method_type, order.method_brand, order.method_last4)} (${money(order.card_paid_amount ?? "0", currency)})`
           : paymentText(order.method_type, order.method_brand, order.method_last4),
@@ -271,7 +233,6 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
   };
 }
 
-/** 094 — goods and delivery promotions together, as one amount (2 dp). */
 function discountTotal(order: { discount_amount: string | null; delivery_discount_amount?: string | null }): string {
   const cents = (v: string | null | undefined) => Math.round(Number(v ?? "0") * 100);
   return ((cents(order.discount_amount) + cents(order.delivery_discount_amount)) / 100).toFixed(2);

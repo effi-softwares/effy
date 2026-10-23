@@ -34,14 +34,14 @@ import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.features.checkout.domain.words
 
 /**
- * 096 US7 — Documents: the delivery note, what was supplied line by line, once the order has arrived,
+ * Documents: the delivery note, what was supplied line by line, once the order has arrived,
  * and its PDF to save or share. Digital only — there is no paper note in the bag.
  *
- * ⚠ No prices, and nothing about how the order was filled (the server merges the lines).
+ * No prices, and nothing about how the order was filled (the server merges the lines).
  */
 @Composable
 internal fun OrderDocumentsSection(container: AppContainer, orderId: String) {
-    // ⚠ Keyed by ORDER, like the payment screen: one ViewModel per order, never a previous order's note.
+    // Keyed by order, like the payment screen: one ViewModel per order, never a previous order's note.
     val vm = viewModel(key = "documents:$orderId") { OrderDocumentsViewModel(orderId, container.orderDocuments) }
     val state by vm.state.collectAsState()
     val share = rememberShareFile()
@@ -52,7 +52,7 @@ internal fun OrderDocumentsSection(container: AppContainer, orderId: String) {
             Text("Documents", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             val ready = state as? OrderDocumentsViewModel.State.Ready
             if (ready != null) {
-                // ⚠ 48dp tall — the minimum target.
+                // 48dp tall — the minimum target.
                 EffyTextLink(
                     if (ready.downloading) "Getting PDF…" else "Delivery note PDF",
                     enabled = !ready.downloading,
@@ -98,8 +98,8 @@ internal fun OrderDocumentsSection(container: AppContainer, orderId: String) {
 }
 
 /**
- * 096 US8 — the tax invoice, on request. ⚠ "Get tax invoice" ISSUES it, and an issued invoice never
- * changes, so the optional business details (FR-085) are offered before, never after.
+ * The tax invoice, on request. "Get tax invoice" issues it, and an issued invoice never
+ * changes, so the optional business details are offered before, never after.
  */
 @Composable
 private fun TaxInvoiceBlock(vm: OrderDocumentsViewModel, onShare: (ByteArray, String) -> Unit) {
@@ -147,7 +147,7 @@ private fun TaxInvoiceBlock(vm: OrderDocumentsViewModel, onShare: (ByteArray, St
     if (sheet) BusinessIdentitySheet(vm, onDone = { message -> sheet = false; saved = message })
 }
 
-/** The customer's own business name and ABN, for this order's invoice (FR-085). A sheet, never a dialog. */
+/** The customer's own business name and ABN, for this order's invoice. A sheet, never a dialog. */
 @Composable
 private fun BusinessIdentitySheet(vm: OrderDocumentsViewModel, onDone: (String) -> Unit) {
     var name by remember { mutableStateOf("") }

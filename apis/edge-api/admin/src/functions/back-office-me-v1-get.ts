@@ -1,12 +1,5 @@
-// GET /v1/back-office/me — the staff-identity read (spec US2 graduated / US4). RECORDS the staff
-// member on first authenticated contact (JIT upsert + role reconcile) and returns the platform's
-// own record. Admits ANY authenticated back-office caller incl. group-less — its job is to record
-// them (contracts/back-office-me).
-//
-// NOTE on email: API Gateway's JWT authorizer exposes ACCESS-token claims, which carry `username`
-// but not `email` (email lives on the ID token, never sent to the backend). We store the
-// `username` claim as the identifier; authoritative email enrichment (a Cognito lookup) is a later
-// slice — it would need a cognito-idp VPC endpoint the in-VPC Lambda doesn't have today.
+// Records the staff member on first contact (upsert + role reconcile) and returns the record; admits
+// any authenticated caller. The access token carries `username`, not `email`, so that is stored.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

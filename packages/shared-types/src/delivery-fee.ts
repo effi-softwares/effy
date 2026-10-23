@@ -1,26 +1,15 @@
-/**
- * Delivery fee — the customer-facing words and shapes (077-delivery-fee-engine-v2).
- *
- * Contract: `specs/077-delivery-fee-engine-v2/contracts/routes.md`.
- *
- * Its own file because both the quote (`delivery.ts`) and the intent (`checkout.ts`) carry a fee, and
- * those two already depend on each other one way. ⚠ Money is a 2-dp decimal string, as everywhere.
- */
+/** Delivery fee: the customer-facing words and shapes, used by the quote and the intent. Money is a 2-dp decimal string. */
 
 /**
- * 077 — one line of what a customer is charged for delivery.
- *   delivery          the fee for the distance and weight, before any window surcharge
- *   window_surcharge  what the chosen window adds
- *   small_order       the extra fee on a basket under the business's small-order amount
- *   free_delivery     the saving when the basket reaches the free-delivery amount (NEGATIVE)
+ * One line of what a customer is charged for delivery:
+ *  delivery the fee for distance and weight, before any window surcharge
+ *  window_surcharge what the chosen window adds
+ *  small_order the extra fee under the small-order amount
+ *  free_delivery the saving at the free-delivery amount (negative)
  */
 export type DeliveryFeeLineKind = "delivery" | "window_surcharge" | "small_order" | "free_delivery";
 
-/**
- * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (077 FR-028/FR-033). Checkout, the order page, the
- * receipt and the confirmation email — web and mobile — render these constants; the mobile app
- * mirrors them in `DeliveryFeeWords.kt`, held to this file by a test.
- */
+/** The only place these words are written: every customer surface renders them; the app mirrors them in `DeliveryFeeWords.kt` (tested). */
 export const DELIVERY_FEE_LINE_LABEL = {
   delivery: "Delivery",
   window_surcharge: "Window surcharge",
@@ -43,20 +32,13 @@ export interface DeliveryFeeLineDTO {
 }
 
 /**
- * What a customer is charged for delivery, in lines that sum EXACTLY to `totalAmount` (FR-028). A
- * zero line is omitted.
- *
- * ⚠ Lines and a total — nothing else. No distance, band, weight or plan may be added: a customer
- * must not be able to work out where the hub is or how the business prices (FR-032).
+ * What a customer is charged, in lines summing exactly to `totalAmount`; zero lines are omitted. Nothing
+ * else: no distance, band, weight or plan, so nobody can work out where the hub is or how pricing works.
  */
 export interface DeliveryFeeDTO {
   lines: DeliveryFeeLineDTO[];
   totalAmount: string;
-  /**
-   * 094 — what this shopper's delivery promotions take off THIS option's fee, when any do. The fee
-   * itself (`totalAmount`) is unchanged, so `shownDeliveryAmount` still compares the fee; the
-   * promotions total is compared separately (`expectedDiscount`).
-   */
+  /** What this shopper's delivery promotions take off this option's fee. `totalAmount` is unchanged; the promotions total is compared separately. */
   promotionAmount?: string;
 }
 

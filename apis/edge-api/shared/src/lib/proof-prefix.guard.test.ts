@@ -6,19 +6,8 @@ import { describe, expect, it } from "vitest";
 import { PROOF_MEDIA_PREFIX } from "./proof-prefix";
 
 /**
- * ⚠ THE CONSTANT AND THE TERRAFORM RULE MUST AGREE, AND NOTHING ELSE CHECKS THAT (064).
- *
- * `PROOF_MEDIA_PREFIX` decides where `edge-api/driver` writes proof. A lifecycle rule in
- * `infra/envs/dev/media.tf` decides what gets archived. They are in different languages, in different
- * directories, deployed by different commands — and if they disagree the platform either:
- *
- *   · archives NOTHING, so proof sits in STANDARD storage for ever and the cost claim in the plan is
- *     simply false; or
- *   · archives the PRODUCT CATALOGUE, where every storefront image still renders perfectly and
- *     silently bills a retrieval fee on every page view.
- *
- * Neither raises an error anywhere. Both are invisible until a bill or a legal request arrives. This
- * test is the only thing standing between the two files.
+ * `PROOF_MEDIA_PREFIX` and the media.tf lifecycle rule must agree, or the platform archives nothing, or
+ * archives the product catalogue (and pays a retrieval fee on every page view). Nothing else checks.
  */
 describe("proof prefix ↔ the S3 lifecycle rule", () => {
   const mediaTf = (() => {
@@ -33,7 +22,7 @@ describe("proof prefix ↔ the S3 lifecycle rule", () => {
     throw new Error("could not locate infra/envs/dev/media.tf");
   })();
 
-  /** The lifecycle block only, so prose elsewhere in the file cannot satisfy an assertion. */
+  /** The lifecycle block only, so prose cannot satisfy an assertion. */
   const lifecycle = (() => {
     const start = mediaTf.indexOf('resource "aws_s3_bucket_lifecycle_configuration"');
     expect(start, "no lifecycle configuration in media.tf — proof would never be archived").toBeGreaterThan(-1);
@@ -44,32 +33,20 @@ describe("proof prefix ↔ the S3 lifecycle rule", () => {
     expect(lifecycle).toContain(`prefix = "${PROOF_MEDIA_PREFIX}/"`);
   });
 
-  /**
-   * ⚠ THE CATASTROPHIC CASE. An empty or absent prefix filter applies the transition to the WHOLE
-   * bucket — `products/` and `promotions/` included.
-   */
+  /** An empty prefix filter would apply the transition to the whole bucket. */
   it("is never unscoped", () => {
     expect(lifecycle).toMatch(/filter\s*\{[^}]*prefix\s*=\s*"[^"]+"/);
     expect(lifecycle).not.toMatch(/prefix\s*=\s*""/);
   });
 
-  /**
-   * ⚠ GLACIER_IR ONLY. A colder tier needs an asynchronous RestoreObject, which would fork every read
-   * path into "recent" and "archived" behaviour — for about $0.11/month (research R5). If someone
-   * "optimises" this later, the cost lands in code nobody budgeted for.
-   */
+  /** GLACIER_IR only: a colder tier needs RestoreObject, forking every read path. */
   it("archives to Glacier Instant Retrieval, not to a tier that needs restoring", () => {
     expect(lifecycle).toContain('storage_class = "GLACIER_IR"');
     expect(lifecycle).not.toMatch(/storage_class\s*=\s*"GLACIER"/);
     expect(lifecycle).not.toMatch(/storage_class\s*=\s*"DEEP_ARCHIVE"/);
   });
 
-  /**
-   * ⚠ NO EXPIRATION, EVER. Proof is evidence and the operator's direction is that it is kept. An
-   * `expiration` block here would also be silently useless on this versioned bucket — it writes a
-   * delete marker and the object persists — so its presence would mean someone believed something
-   * untrue about both the policy AND the mechanism.
-   */
+  /** No expiration: proof is kept (and on a versioned bucket an expiration would only write a delete marker). */
   it("never expires proof", () => {
     expect(lifecycle).not.toMatch(/^\s*expiration\s*\{/m);
     expect(lifecycle).not.toMatch(/noncurrent_version_expiration/);

@@ -322,7 +322,7 @@ describe("moving to the next epoch", () => {
     const s = await h.goLive();
     const firstId = s.ofType("subscribe")[0]!.id;
 
-    // 300 s into the epoch → the boundary is 300 s away; the next subscription goes out at 240 s.
+    // S into the epoch → the boundary is 300 s away; the next subscription goes out at 240 s.
     await vi.advanceTimersByTimeAsync(239_000);
     s.receive({ type: "ka" });
     expect(s.ofType("subscribe")).toHaveLength(1);
@@ -364,7 +364,7 @@ describe("moving to the next epoch", () => {
     expect((s.ofType("subscribe")[1]!.authorization as { Authorization: string }).Authorization).toBe("token-2");
   });
 
-  // FR-023 / SC-009 — this is the mechanism by which a person whose access has ended stops hearing.
+  // How a person whose access has ended stops hearing.
   it("goes off when the next epoch's subscription is refused — access has ended", async () => {
     const h = harness();
     const client = createLiveClient(h.options);
@@ -399,8 +399,7 @@ describe("moving to the next epoch", () => {
 });
 
 describe("idle", () => {
-  // SC-003 — an hour connected and idle: keep-alives and epoch subscriptions only. The descriptor
-  // (the one thing here that is a request to the gateway) is read once.
+  // An hour connected and idle: keep-alives and epoch subscriptions only; the descriptor is read once.
   it("reads the descriptor once in an hour of idle connection", async () => {
     const h = harness();
     const client = createLiveClient(h.options);

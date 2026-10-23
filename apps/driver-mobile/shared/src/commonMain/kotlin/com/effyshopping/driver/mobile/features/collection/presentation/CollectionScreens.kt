@@ -119,7 +119,7 @@ private val StopStatus.done: Boolean get() = this == StopStatus.COLLECTED || thi
 /** "410 Sydney Rd" from "410 Sydney Rd, Brunswick VIC 3056". */
 private fun street(address: String?): String? = address?.split(", ")?.firstOrNull()?.takeIf { it.isNotBlank() }
 
-// ── Collection run ────────────────────────────────────────────────────────────────────────────────
+// Collection run
 
 /** A collection run (redesign `05 Collection run / 01`): its time, progress, map, stops and the next stop. */
 @Composable
@@ -249,7 +249,7 @@ private fun StopRow(s: CollectionStop, isNext: Boolean, onClick: () -> Unit) {
     )
 }
 
-// ── Shop stop ─────────────────────────────────────────────────────────────────────────────────────
+// Shop stop
 
 /** The three things that can be wrong with a package at a shop (redesign `03 Report a problem`). */
 private enum class Problem(val label: String, val hint: String) {
@@ -258,13 +258,13 @@ private enum class Problem(val label: String, val hint: String) {
     NotReady("Not ready", "Still being packed"),
 }
 
-/** Who takes the package from the hub, in the driver's words (082): "Effy · window" or "Courier". */
+/** Who takes the package from the hub, in the driver's words: "Effy · window" or "Courier". */
 private fun coverage(p: CollectionPackage): String =
     if (p.goesToCourier) "Courier" else listOfNotNull("Effy", p.windowLabel).joinToString(" · ")
 
 /**
  * One shop (redesign `05 Collection run / 02 Shop stop`): scan the packages, or tick each as it goes in
- * the van, report any that are not, and swipe to collect. ⚠ Nothing is sent until the swipe (or the last
+ * the van, report any that are not, and swipe to collect. Nothing is sent until the swipe (or the last
  * scan) — ticks and reports are kept on the phone.
  */
 @Composable
@@ -274,7 +274,7 @@ fun ShopStopScreen(
     stopCount: Int,
     onBack: () -> Unit,
     onCollect: () -> Unit,
-    /** 096 — how each bag was handed over, and the bags declared not at the shop. */
+    /** How each bag was handed over, and the bags declared not at the shop. */
     onScanCollect: (Map<String, HandMethod>, List<MissingBag>) -> Unit,
     onTogglePackage: (String) -> Unit,
     onReport: (key: String, kind: String, note: String?) -> Unit,
@@ -305,7 +305,7 @@ fun ShopStopScreen(
     var scanning by rememberSaveable(stop.stopId) { mutableStateOf(startScanning && canScan) }
     var reporting by rememberSaveable(stop.stopId) { mutableStateOf<String?>(null) }
     val run = state.run
-    // 096 — a bag not scanned is asked about: it's here (ticked by hand), or it wasn't at the shop.
+    // A bag not scanned is asked about: it's here (ticked by hand), or it wasn't at the shop.
     var accounting by remember(stop.stopId) { mutableStateOf<List<HandedOver>?>(null) }
     if (scanning) {
         val live = stop.packages.filter { it.key !in state.reportedPackages && it.bags.isNotEmpty() }
@@ -598,7 +598,7 @@ private fun ReportSheet(p: CollectionPackage, onDismiss: () -> Unit, onLeave: (k
     }
 }
 
-// ── Hub check-in ──────────────────────────────────────────────────────────────────────────────────
+// Hub check-in
 
 /** "LOAD NOW · Today, 4 pm – 6 pm" → ("LOAD NOW", "Today, 4 pm – 6 pm"). */
 private fun splitSort(label: String): Pair<String, String?> {
@@ -621,19 +621,19 @@ fun HubCheckinScreen(
     state: CollectionUiState,
     hubName: String?,
     onBack: () -> Unit,
-    /** What was handed over, and (093) the label codes of collected packages that are not in the van. */
+    /** What was handed over, and the label codes of collected packages that are not in the van. */
     onCheckIn: (List<HandedOver>, List<MissingBag>) -> Unit,
     onDone: () -> Unit,
     onNavigate: (String) -> Unit,
-    /** 092 — the driver's next delivery run, as Today holds it: (title, detail); null when there is none. */
+    /** The driver's next delivery run, as Today holds it: (title, detail); null when there is none. */
     nextRun: Pair<String, String>? = null,
 ) {
     val split = state.hubSplit
     var scanning by rememberSaveable { mutableStateOf(false) }
     val run = state.run
-    // 093 — checking in without scanning asks about every BAG not scanned; this is what WAS scanned.
+    // Checking in without scanning asks about every BAG not scanned; this is what was scanned.
     var accounting by remember { mutableStateOf<List<HandedOver>?>(null) }
-    // 096 — each bag's hub instruction (its package's), and the bags that came off the shelves: a
+    // Each bag's hub instruction (its package's), and the bags that came off the shelves: a
     // package left at its shop has no instruction and is not coming.
     val sortByBag = run?.hubSort.orEmpty().flatMap { hs -> hs.bagCodes.ifEmpty { listOf(hs.packageCode) }.map { it to hs } }.toMap()
     fun comingBags(s: com.effyshopping.driver.mobile.features.collection.domain.CollectionStop) =

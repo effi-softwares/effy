@@ -5,32 +5,19 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 071 FR-024 / FR-025 — A CUSTOMER'S UPDATE IS BUILT IN THREE PLACES AND NOWHERE ELSE.
- *
- * What a customer is told, and when, must not reveal which shop is handling their order, how many
- * shops there are, or what a shop is doing. That holds because every update to a customer comes
- * from one of three functions, each of which decides it from the ORDER, never from a shop:
- *
- *   · `announcePaid`    (payments/finalize.ts) — the order was paid: one update.
- *   · `changesForMoves` (live/order-moves.ts)  — packages moved: only if the customer's stage changed.
- *   · `announceOrder`   (live/order-moves.ts)  — a refund, a cancellation, a request: one update.
- *
- * A service that built its own `{ scope: "customer", … }` would bypass the stage rule — telling the
- * customer each time ANY shop moved, which on a split order reveals the split by count alone. So
- * no other file may construct one.
- *
- * ⚠ 074 ADDED A FOURTH, for a different kind: `announcePoints` (points/announce.ts) tells a customer
- * their POINTS changed. It decides from the customer's own ledger, in which no shop appears, and
- * carries only the word `points` — so the reason this guard exists cannot arise there (074 research R7).
+ * A customer's update is built in three places and nowhere else, each deciding from the order, never
+ * from a shop, so updates never reveal how many shops fill an order: `announcePaid`
+ * (payments/finalize.ts), `changesForMoves` and `announceOrder` (live/order-moves.ts).
+ * `announcePoints` (points/announce.ts) is a fourth for points only: its ledger names no shop.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
 
 const ALLOWED = new Set([
-  "shared/src/live/announce.ts", // the type's own declaration
+  "shared/src/live/announce.ts",
   "shared/src/live/order-moves.ts",
   "shared/src/payments/finalize.ts",
-  "shared/src/points/announce.ts", // 074 — points only; no shop is involved in any points rule
+  "shared/src/points/announce.ts",
 ]);
 
 function sources(dir: string): string[] {

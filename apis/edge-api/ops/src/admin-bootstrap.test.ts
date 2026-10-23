@@ -34,8 +34,7 @@ describe("the identity provider half", () => {
 
     const create = c.calls[0]!.input;
     expect(create).toMatchObject({ UserPoolId: "pool-1", Username: "jane@effy.test", MessageAction: "SUPPRESS" });
-    // ⚠ No temporary password: with one, the user lands in FORCE_CHANGE_PASSWORD and cannot sign in
-    // with a one-time code on a pool that has no passwords.
+    // No temporary password: it would land the user in FORCE_CHANGE_PASSWORD on a passwordless pool.
     expect(create).not.toHaveProperty("TemporaryPassword");
     expect(create.UserAttributes).toEqual([
       { Name: "email", Value: "jane@effy.test" }, { Name: "email_verified", Value: "true" }, { Name: "name", Value: "Jane Doe" },

@@ -26,7 +26,7 @@ import { orderViewCountsQuery, ordersListQuery } from "./queries";
  * anyone. Search and two facets (who delivers, what an Effy order was sold) narrow every view. A
  * table on a desktop, two-line rows on a phone; J / K move through the rows and Enter opens one.
  *
- * ⚠ A TABLE, NOT CARDS, AND NO METRIC ROW (Principle V). The counts on the tabs take you to the rows
+ * A table, not cards, and no metric row (Principle V). The counts on the tabs take you to the rows
  * rather than telling you how many there are.
  */
 export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "courier"] as const;
@@ -70,7 +70,7 @@ export function OrdersListScreen() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState(25);
   /**
-   * Keyset paging, so a stack rather than a page number. ⚠ A cursor list cannot jump to "page 5" —
+   * Keyset paging, so a stack rather than a page number. A cursor list cannot jump to "page 5"
    * the trade for never showing the same order twice while new ones arrive. Changing a filter resets
    * it: a cursor minted under one filter means nothing under another.
    */
@@ -292,7 +292,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
       </td>
       <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
       <td data-m="meta">
-        {/* 079 — who delivers it; a dash for an order from before delivery types — nothing is guessed. */}
+        {/* Who delivers it; a dash for an order from before delivery types — nothing is guessed. */}
         <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
         {o.promise && o.promise !== "window" ? <span className="bo-sub">{PROMISE_LABEL[o.promise]}</span> : null}
       </td>
@@ -301,7 +301,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
       </td>
       <td data-m="meta" data-label="Next step">
         {o.awaiting ? <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span> : <span className="text-muted-foreground">Complete</span>}
-        {/* ⚠ What the CUSTOMER is being told — staff always see the shopper's words. */}
+        {/* What the customer is being told — staff always see the shopper's words. */}
         <span className="bo-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
       </td>
       <td data-m="trail" className="is-num font-medium">
@@ -311,7 +311,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
   );
 }
 
-/** "Ada → Ben" (collect → deliver), and a tag when a package has nobody (073). */
+/** "Ada → Ben" (collect → deliver), and a tag when a package has nobody. */
 function DriverCell({ order }: { order: OrderSummary }) {
   const { collect, deliver } = order.drivers;
   const names = [collect.join(", "), deliver.join(", ")].filter((s) => s !== "");

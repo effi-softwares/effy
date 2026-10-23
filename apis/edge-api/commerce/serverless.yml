@@ -1,31 +1,7 @@
-# edge-commerce — everything a signed-in shopper does with a basket or with money (070-retire-core-api).
-#
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/CORS/
-# authorizers created here. Routes live under /commerce/. Authenticated routes use the
-# Terraform-owned CUSTOMER JWT authorizer (by id from SSM) — a new ATTACHMENT to an existing
-# authorizer, not a new pool (Principle IV).
-#
-# ⚠ THREE ROUTES HERE TAKE NO CUSTOMER CREDENTIAL, each for a stated reason (constitution Principle
-# III requires it recorded; plan.md Complexity Tracking):
-#   · POST /commerce/v1/cart/preview  — prices a GUEST's cart; writes nothing.
-#   · GET  /commerce/v1/cart/policy   — the minimum spend and ceilings, the same for everyone.
-#   · POST /commerce/v1/stripe/webhook — authenticated by the PROVIDER's signature over the raw body.
-# They live here because they share the cart and payment code with the routes beside them.
-# `config.contract.test.ts` names all three; a fourth unauthenticated route fails the build.
-#
-# ⚠ EVERY AUTHENTICATED FUNCTION CALLS `resolveCustomer` — the gateway proves the token, the
-# platform's own record decides access (a barred or closing customer is refused). And EVERY function
-# exports through `shopperHandler`. `functions.guard.test.ts` enforces both.
-#
-# ⚠ IT CONNECTS AS THE SHOPPER DATABASE ROLE, not the master user (research R4): a shopper burst is
-# refused at the database and answered as a retryable 503, and staff services are untouched.
-#
-# ⚠ MONEY LOGIC IS NOT WRITTEN HERE. Payment finalisation, refunds and cancellation live in
-# `@effy/edge-shared/payments`, which `orders` and `shop` call too. This service wires routes to it.
-#
-# Until 070 these routes were served by a second, always-on Go backend, since retired.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# edge-commerce: the signed-in shopper's cart, saved items, checkout, payment and orders.
+# Attaches to the shared HTTP API and its customer JWT authorizer. Three routes take no customer
+# credential (cart preview, cart policy, the Stripe webhook); `config.contract.test.ts` holds that list.
+# Connects as the shopper database role, so a shopper burst is refused at the database.
 service: effy-edge-commerce
 frameworkVersion: "3"
 
@@ -36,7 +12,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -48,9 +23,7 @@ provider:
   runtime: nodejs22.x
   architecture: arm64
   memorySize: 512
-  # The default. Functions that call the payment provider override it to 25 (research R8): below
-  # the gateway's 30 s ceiling, above the client's 12 s patience, so a slow provider call finishes
-  # its work and the client's retry finds it done instead of racing it.
+  # Payment-provider functions override this to 25: under the gateway's 30 s, over the client's 12 s.
   timeout: 10
   logRetentionInDays: 30
   versionFunctions: false
@@ -58,35 +31,28 @@ provider:
     project: effy
     slice: 070-retire-core-api
     service: commerce
-  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     METRIC_NAMESPACE: Effy/Commerce
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
-    # ⚠ The SHOPPER role and its own secret — never the master user (see the header).
     DB_USER: ${ssm:/effy/${sls:stage}/db/shopper_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
-    # 086 — cart, saved and order pictures are addressed on the media CDN; no bucket access.
     MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
-    # ⚠ ARNs, never the secrets. The values are fetched at runtime through the secrets extension and
-    # held in module memory only.
+    # ARNs only; the secrets are fetched at runtime through the extension.
     STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
     STRIPE_WEBHOOK_SECRET_ARN: ${ssm:/effy/${sls:stage}/stripe/webhook_secret_arn}
-    # Publishable by definition — it ships in every client. Echoed in the intent response so a
-    # client need not be rebuilt to change accounts. Empty until the operator publishes it.
+    # Publishable by design; echoed in the intent response. Empty until the operator sets it.
     STRIPE_PUBLISHABLE_KEY: ${ssm:/effy/${sls:stage}/stripe/publishable_key, ''}
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
@@ -98,8 +64,7 @@ provider:
             - ${ssm:/effy/${sls:stage}/stripe/webhook_secret_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture): no NAT means an in-VPC Lambda
-  # cannot reach public AWS APIs or the payment provider. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs or Stripe (dev only).
 
 custom:
   esbuild:
@@ -133,7 +98,7 @@ functions:
           method: GET
           path: /commerce/readyz
 
-  # ── Cart and promotional codes (070 US2) ─────────────────────────────────────────────────────────
+  # Cart and promotional codes
 
   cartV1:
     handler: src/functions/cart-v1-get.handler
@@ -294,7 +259,7 @@ functions:
           method: GET
           path: /commerce/v1/cart/policy
 
-  # ── Saved items and named lists (070 US2) ────────────────────────────────────────────────────────
+  # Saved items and named lists
 
   savedIdsV1:
     handler: src/functions/saved-ids-v1-get.handler
@@ -450,9 +415,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── Checkout, payment and the provider webhook (070 US3) ─────────────────────────────────────────
-  #
-  # timeout 25 on every function that calls the payment provider (research R8).
+  # Checkout, payment and the provider webhook
 
   checkoutQuoteV1:
     handler: src/functions/checkout-quote-v1-post.handler
@@ -522,7 +485,7 @@ functions:
           method: POST
           path: /commerce/v1/stripe/webhook
 
-  # ── The shopper's order history and receipt (070 US3) ────────────────────────────────────────────
+  # Order history and receipts
 
   ordersV1:
     handler: src/functions/orders-v1-get.handler
@@ -546,7 +509,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── Order documents (096) ─────────────────────────────────────────────────────────────────────────
+  # Order documents
   orderDeliveryNoteV1:
     handler: src/functions/order-delivery-note-v1-get.handler
     description: The delivery note as data or PDF (096 US7). Owner only; 404 for not-yours; 409 until delivered.
@@ -580,7 +543,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── Cancellation, refund requests and the refund reconciler (070 US4) ────────────────────────────
+  # Cancellation, refund requests and the refund reconciler
 
   orderCancelV1:
     handler: src/functions/order-cancel-v1-post.handler
@@ -605,8 +568,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ⚠ NOT A ROUTE. Resolves refunds whose submission to the provider never got an answer: asks the
-  # provider whether each exists, records it if so, and otherwise submits it under its stored key.
+  # Resolves refunds whose submission to the provider never got an answer.
   refundReconcile:
     handler: src/functions/refund-reconcile-scheduled.handler
     description: Every 5 minutes — resolve refunds left uncertain by an unanswered provider call.

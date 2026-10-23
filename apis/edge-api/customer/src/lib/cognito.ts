@@ -7,14 +7,7 @@ import {
 
 import type { CognitoAdmin } from "./account-linking"
 
-/**
- * The AWS side of account linking. Deliberately thin: every decision — above all the refusal to
- * link an unverified identity — lives in `account-linking.ts`, where it is unit-tested.
- *
- * This is an authorized ADMINISTRATIVE write against the customer pool, in the same shape as
- * 006's first-admin bootstrap and 009's shop-user provisioning. It is not cross-pool auth, and
- * Principle IV is intact: the IAM policy is scoped to the customer pool ARN alone.
- */
+/** The AWS side of account linking; every decision is in `account-linking.ts`. IAM is scoped to the customer pool. */
 let client: CognitoIdentityProviderClient | undefined
 
 export function cognitoAdmin(): CognitoAdmin {
@@ -31,8 +24,7 @@ export function cognitoAdmin(): CognitoAdmin {
         }),
       )
 
-      // A federated profile carries an `identities` attribute. We want the NATIVE one — it must
-      // be the link destination, or `sub` does not survive (see account-linking.ts).
+      // The native profile (federated ones carry `identities`): it must be the link destination.
       const native = (res.Users ?? []).find(
         (u) => !u.Attributes?.some((a) => a.Name === "identities"),
       )
@@ -44,13 +36,11 @@ export function cognitoAdmin(): CognitoAdmin {
         new AdminCreateUserCommand({
           UserPoolId: userPoolId,
           Username: email,
-          // No TemporaryPassword: the customer never had a password and must stay
-          // passwordless-capable. Setting one here would quietly make them a password user.
-          MessageAction: "SUPPRESS", // they are mid-sign-in with Google; do not email them a code
+          // No TemporaryPassword: setting one would make them a password user.
+          MessageAction: "SUPPRESS",
           UserAttributes: [
             { Name: "email", Value: email },
-            // They proved control of this address at Google — Gate 2 in account-linking.ts
-            // already refused anything the IdP had not verified.
+            // Proven at Google; unverified identities were refused in account-linking.ts.
             { Name: "email_verified", Value: "true" },
           ],
         }),
@@ -64,14 +54,13 @@ export function cognitoAdmin(): CognitoAdmin {
       await c.send(
         new AdminLinkProviderForUserCommand({
           UserPoolId: userPoolId,
-          // The NATIVE profile. Always. This is what preserves `sub`.
           DestinationUser: {
             ProviderName: "Cognito",
             ProviderAttributeValue: destinationUsername,
           },
           SourceUser: {
             ProviderName: providerName,
-            // For social IdPs this MUST be the literal string "Cognito_Subject".
+            // For social IdPs this must be the literal "Cognito_Subject".
             ProviderAttributeName: "Cognito_Subject",
             ProviderAttributeValue: providerSub,
           },

@@ -11,7 +11,7 @@ import { groupNav, type NavItem } from "./nav";
 const location = vi.hoisted(() => ({ pathname: "/orders/abc" }));
 
 vi.mock("@tanstack/react-router", () => ({
-  // Spreads the rest so the Slot-merged `data-active` from SidebarMenuButton reaches the anchor.
+  // Spreads the rest so the Slot-merged `data-active` reaches the anchor.
   Link: ({ children, to, ...rest }: { children: ReactNode; to: string }) => (
     <a href={to} {...rest}>
       {children}
@@ -55,7 +55,7 @@ describe("NavList", () => {
     const { container } = wrap();
     expect(screen.getByText("Platform")).toBeInTheDocument();
     expect(screen.getByText("Workspace")).toBeInTheDocument();
-    // One rule for two groups — never above the first.
+    // One rule between two groups, never above the first.
     expect(container.querySelectorAll('[aria-hidden="true"].h-px')).toHaveLength(1);
   });
 
@@ -66,7 +66,7 @@ describe("NavList", () => {
     expect(screen.getByText("Today").closest("a")).toHaveAttribute("data-active", "false");
   });
 
-  // ⚠ SidebarMenuBadge is display:none in icon mode, so the count needs a second carrier there.
+  // SidebarMenuBadge is hidden in icon mode, so the count needs a second carrier there.
   it("carries a count as both the badge and the collapsed-mode dot — brand when active", () => {
     const { container } = wrap({ "/orders": 4 });
     expect(screen.getByText("4")).toBeInTheDocument();

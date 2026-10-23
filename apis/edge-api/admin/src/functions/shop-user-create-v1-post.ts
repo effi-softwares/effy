@@ -1,5 +1,4 @@
-// POST /admin/v1/shops/{shopId}/users — add a user to a shop (US4/FR-007). Mutate access.
-// Provisions a shop-pool account + platform record (Cognito-first, R4); enforces one-user-one-shop.
+// Cognito first, then the platform record; one user, one shop.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -72,18 +72,17 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * THE RUN MAP (092 rev 2, redesign `08 Run map` / `09 Run map states`) — a decorative mini map of a run's
- * stops. ⚠ NOT A MAP: no tiles, no SDK, no key, no pan or zoom. Everything is drawn here, from the
- * stops' rough points (their postcodes' places), so it works offline and follows the theme.
+ * The run map: a decorative mini map of a run's stops. Not a map: no tiles, SDK, key, pan or zoom; drawn
+ * from the stops' rough points (their postcodes' places), so it works offline and follows the theme.
  *
- * - The ground is a made-up street grid, seeded by [seed] (the run id): one run always looks the same.
- * - The route is straight lines between stops (across then up, alternating), solid where driven, dashed
- *   ahead; the van sits 45% along the current leg.
- * - Shops are blue rounded squares, customers green circles, the hub a dark square — shape AND colour.
- * - Motion (route draws once, dashes drift, pins pop in, the next stop pulses) only when [animate] and
- *   the phone does not ask for reduced motion.
+ * - The ground is a made-up street grid seeded by [seed] (the run id), so a run always looks the same.
+ * - The route is straight lines between stops (across then up), solid where driven, dashed ahead; the van
+ *  sits 45% along the current leg.
+ * - Shops are blue rounded squares, customers green circles, the hub a dark square.
+ * - Motion (the route draws, dashes drift, pins pop in, the next stop pulses) only when [animate] and
+ *  reduced motion is off.
  *
- * [flush] draws it edge to edge inside a card (no border or corners of its own).
+ * [flush] draws it edge to edge inside a card.
  */
 @Composable
 fun RunMapView(
@@ -100,7 +99,7 @@ fun RunMapView(
     val moving = animate && !LocalReducedMotion.current
     val shape = if (flush) RoundedCornerShape(0.dp) else RoundedCornerShape(12.dp)
 
-    // ── motion clocks ──────────────────────────────────────────────────────────────────────────────
+    // motion clocks
     val draw = remember(seed) { Animatable(if (moving) 0f else 1f) }
     val pins = remember(seed) { Animatable(if (moving) 0f else 10_000f) }
     // The dashed route ahead fades in after half a second.
@@ -174,7 +173,7 @@ fun RunMapView(
     }
 }
 
-// ── layout ──────────────────────────────────────────────────────────────────────────────────────────
+// layout
 
 /** The made-up ground: grid spacings, the main roads, a park and a water edge — fixed per seed. */
 private class GroundLayout(

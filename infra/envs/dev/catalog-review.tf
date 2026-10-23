@@ -1,14 +1,6 @@
-# ---------------------------------------------------------------------------------------------
-# Product review — 067-product-approval-margin (Principle VII).
-#
-# ⚠ THE ONE BLIND SPOT THE FEATURE INTRODUCES. Before 067 a shop published and sold. Now a product —
-# and every change to one already on sale — waits until a person at Effy decides it. If nobody
-# looks, NOTHING FAILS: no error, no red test, no log line. A shop simply cannot sell, and learns to
-# stop adding products. This is the only signal that the queue is being left.
-#
-# The metric is emitted as CloudWatch EMF by edge-catalog's `reviewQueueAge` schedule (every 15
-# minutes), so this is a plain alarm on an emitted metric — the 035/050/058 pattern.
-# ---------------------------------------------------------------------------------------------
+# Product review. A product, and every change to one on sale, waits for a person at Effy; if nobody looks,
+# nothing fails and the shop cannot sell. The metric is EMF from catalog's `reviewQueueAge` schedule (every
+# 15 minutes).
 
 variable "product_review_max_waiting_hours" {
   description = "067 — alarm when the oldest product or change waiting for Effy's review has waited longer than this many hours."
@@ -21,7 +13,7 @@ variable "product_review_max_waiting_hours" {
   }
 }
 
-# ⚠ THE AGE OF THE OLDEST ITEM, NOT THE SIZE OF THE QUEUE. Forty items decided within the hour is a
+# the age of the oldest item, not the size of the queue. Forty items decided within the hour is a
 # healthy day; one item that has sat for two is a shop that cannot sell.
 resource "aws_cloudwatch_metric_alarm" "product_review_stale" {
   alarm_name          = "${module.shared.name_prefix}-product-review-stale"
@@ -33,7 +25,7 @@ resource "aws_cloudwatch_metric_alarm" "product_review_stale" {
   evaluation_periods  = 1
   threshold           = var.product_review_max_waiting_hours
   comparison_operator = "GreaterThanThreshold"
-  # ⚠ MISSING DATA IS BREACHING. An empty queue emits 0, so "no data" never means "nothing waiting" —
+  # missing data is breaching. An empty queue emits 0, so "no data" never means "nothing waiting"
   # it means the emitter has stopped, which is the alarm going blind. The opposite of the other
   # alarms in this root, on purpose.
   treat_missing_data = "breaching"

@@ -1,9 +1,4 @@
-// GET /admin/v1/deliverability/{address} — one address's history and current state (037 FR-033).
-// Read access: any active back-office staff.
-//
-// The path parameter is matched case-INSENSITIVELY (the column is citext), so an operator need not
-// reproduce the exact case. ⚠ Which is precisely why the REPAIR uses the stored raw_address instead
-// of this parameter — see the repair handler.
+// Matched case-insensitively (citext); the repair therefore uses the stored raw_address.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

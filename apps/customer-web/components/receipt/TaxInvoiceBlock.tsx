@@ -24,8 +24,8 @@ type State =
   | { kind: "refused"; text: string }
 
 /**
- * 096 US8 — the tax invoice, on request (FR-080). ⚠ "Get tax invoice" ISSUES it: an issued invoice
- * never changes, so the optional business details (FR-085) are offered BEFORE, never after.
+ * The tax invoice, on request. "Get tax invoice" issues it: an issued invoice
+ * never changes, so the optional business details are offered before, never after.
  */
 export function TaxInvoiceBlock({ orderId }: { orderId: string }) {
   const [state, setState] = useState<State>({ kind: "idle" })

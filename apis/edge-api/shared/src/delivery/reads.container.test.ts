@@ -3,21 +3,14 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { instantAtLocalTime } from "../lib/collection-deadline";
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { loadActivePlan, loadPlan, NoActivePlanError } from "./plan";
 import { quote } from "./quote";
 import { loadSlots, loadSlotSettings, lockSlot, slotLoad } from "./slots";
 import { coverageForPostcode } from "./coverage";
 import { windowKey } from "./windows";
 
-/**
- * 070 — the delivery reads against the REAL schema.
- *
- * With raw SQL and no ORM, only a real database catches a wrong column, a missing cast or a value
- * that arrives as text when the code expects a number (`count(*)` is a bigint, which this driver
- * returns as a STRING — every count here is cast for that reason). The pure rules are covered by
- * the table tests beside this file; this proves the statements.
- */
+/** The delivery reads against the real schema; `count(*)` is a bigint the driver returns as a string, hence every cast. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -75,9 +68,9 @@ d("070 — delivery reads against the real schema", () => {
     expect(plan.floorCents).toBe(400);
     expect(plan.capCents).toBe(4000);
     expect(plan.distanceBands).toEqual([{ upperKm: 10, addCents: 500 }, { upperKm: null, addCents: 1100 }]);
-    expect(plan.weightBands.map((b) => b.upperGrams)).toEqual([2000, 5000, 10000]); // ascending
+    expect(plan.weightBands.map((b) => b.upperGrams)).toEqual([2000, 5000, 10000]);
     expect(plan.weightBands[0]?.addCents).toBe(0);
-    // Unset rules arrive as "not set", never as zero.
+    // Unset rules arrive as "not set", never zero.
     expect(plan.freeOverCents).toBeNull();
     expect(plan.smallOrderUnderCents).toBeNull();
     expect(plan.slotPremiumCents.size).toBe(0);
@@ -94,7 +87,7 @@ d("070 — delivery reads against the real schema", () => {
 
   it("coverage: on the list yes — whatever its group's status — not on the list no; names the group", async () => {
     expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", groupId: ZONE, distanceKm: 3.4 });
-    // In a removed group: listed, and treated as ungrouped.
+    // In a removed group: listed, and ungrouped.
     expect(await coverageForPostcode(pool, "3550")).toMatchObject({ kind: "effy", groupId: null });
     expect((await coverageForPostcode(pool, "3999")).kind).toBe("none");
   });
@@ -110,7 +103,7 @@ d("070 — delivery reads against the real schema", () => {
   it("no window switched on: still priced ONCE for the order, and says there is nothing to choose", async () => {
     const res = await quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }, { shopId: shopB, grams: 7000 }], new Date(), 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
-    // 3.4 km → the first band; 8.5 kg in all → the top weight band: 1.00 + 5.00 + 5.50.
+    // 3.4 km → the first band; 8.5 kg → the top weight band: 1.00 + 5.00 + 5.50.
     expect(res.baseFee.totalCents).toBe(1150);
     expect(res.baseFee.breakdown).toMatchObject({ km: 3.4, grams: 8500, distanceBandUpperKm: 10, weightBandUpperGrams: 10000 });
     expect(res.zoneId).toBe(ZONE);
@@ -142,7 +135,7 @@ d("070 — delivery reads against the real schema", () => {
     expect(today).toMatchObject({ date: "2026-08-24", isToday: true, closedReason: null });
     expect(today!.windows).toHaveLength(1);
     const slotId = today!.windows[0]!.id;
-    // The plain fee, then the same window today (plus the today premium) and tomorrow (nothing added).
+    // The plain fee, then today's window (plus the premium) and tomorrow's (nothing added).
     expect(res.baseFee.totalCents).toBe(800); // 1.00 + 5.00 + 2.00 (3 kg)
     expect(res.effyWindows.fees.get(windowKey(slotId, today!.date))).toMatchObject({ totalCents: 1100, windowIsToday: true, slotId });
     expect(res.effyWindows.fees.get(windowKey(slotId, tomorrow!.date))).toMatchObject({ totalCents: 800, windowIsToday: false, slotId });

@@ -62,7 +62,7 @@ beforeEach(() => {
   quoteCalls = 0
   intentBodies = []
   intentReplies = [ACCEPTED]
-  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  // A cart line is a size (variant); seeded through the store, never its storage key.
   resetCart()
   addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal(
@@ -151,7 +151,7 @@ describe("renewing the hold at the payment step (069)", () => {
   })
 })
 
-// ── 078 — the new delivery model: ONE window for the order ────────────────────────────────────────
+// The new delivery model: One window for the order
 
 const FEE = (surcharge: number) => ({
   lines: [{ kind: "delivery" as const, amount: "6.00" }, ...(surcharge ? [{ kind: "window_surcharge" as const, amount: `${surcharge}.00` }] : [])],
@@ -175,7 +175,7 @@ function windowsQuote(over: Partial<NonNullable<DeliveryQuoteDTO["effyWindows"]>
 }
 /** Every window radio on the page (its value is `date|slotId`) — not the days, not "as soon as possible". */
 const windowRadios = () => screen.getAllByRole("radio").filter((r) => (r as HTMLInputElement).value.includes("|"))
-/** 085 — the later days, as radios (their value is the date). */
+/** The later days, as radios (their value is the date). */
 const tabs = () => screen.getAllByRole("radio").filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
 
 describe("078 — choosing one window for the order", () => {
@@ -288,9 +288,9 @@ describe("078 — choosing one window for the order", () => {
   })
 })
 
-// ── 085 — a day with no time, and as soon as possible ─────────────────────────────────────────────
+// A day with no time, and as soon as possible
 
-/** The same quote, with every later day sellable with no time (12 pm – 9 pm) and ASAP offered. */
+/** The same quote, with every later day sellable with no time (12 pm – 9 pm) and asap offered. */
 function flexQuote(): DeliveryQuoteDTO {
   const q = windowsQuote()
   const anyTime = (n: number) => ({

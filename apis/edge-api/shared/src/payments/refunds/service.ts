@@ -1,9 +1,6 @@
 /**
- * What a valid refund is (055; moved from the retired Go backend by 070). No HTTP, no SQL.
- *
- * ⚠ ONE SERVICE, EVERY AUDIENCE. Back-office, a shop manager and a customer's own cancellation
- * differ only in how the actor is resolved and what they may ask for; once an intent exists the
- * rules are identical. Two copies of "what a valid refund is" would drift, and the drift is money.
+ * What a valid refund is. No HTTP, no SQL. One service for every audience (back-office, shop manager,
+ * customer cancellation): they differ only in how the actor is resolved and what they may ask for.
  */
 import { announceOrder } from "../../live";
 import { announcePointsForOrder } from "../../points/announce";
@@ -33,35 +30,25 @@ export interface IssueInput {
   reason: string;
   note: string;
   lines: readonly LineInput[];
-  /** Goodwill only. Supplied beside lines it is REJECTED, never ignored. */
+  /** Goodwill only. Supplied beside lines it is rejected. */
   amount: string;
   actorSub: string;
-  /**
-   * ⚠ WHICH ORGANISATION IS SPENDING THE MONEY — REQUIRED, never defaulted. A call site that forgot
-   * it would record a shop's refund as back-office work, and the audit trail would name the wrong
-   * organisation with nothing failing.
-   */
+  /** Which organisation is spending the money. Required, never defaulted, so the audit trail names the right one. */
   actorKind: string;
-  /**
-   * A shop is the one issuer that knows whether the goods are fit to sell, so for a shop stock goes
-   * back ONLY when they asked. Back-office keeps the automatic behaviour (false).
-   */
+  /** For a shop, stock goes back only when they ask (they know whether goods are fit to sell). */
   skipStockReturn?: boolean;
 }
 
 export interface IssueResult {
   refundId: string;
   amount: string;
-  /** 074 — how it was made up: the part returned to the card, and the points returned. */
+  /** The part returned to the card, and the points returned. */
   cardAmount?: string;
   pointsReturned?: number;
-  /** ⚠ NEVER "refunded". The provider has it; the bank has not moved anything and may refuse. */
+  /** Never "refunded": the provider has it, and the bank may refuse. */
   status: string;
   remainingAmount?: string;
-  /**
-   * ⚠ TRUE WHEN THE PROVIDER NEVER ANSWERED — the refund may or may not exist. Not a failure, not
-   * a success. An operator told nothing would assume it worked or issue it again.
-   */
+  /** True when the provider never answered: the refund may or may not exist. */
   stalled?: true;
 }
 
@@ -74,28 +61,17 @@ export interface CancelResult {
   stalled?: true;
 }
 
-/**
- * ⚠ The kinds a HUMAN request may claim. `system` means the provider acted with nobody behind it;
- * a customer never issues a refund, they request one. Anything else is a programming error.
- */
+/** The kinds a human request may claim. `system` is the provider acting alone; customers request, never issue. */
 const ISSUER_KINDS: ReadonlySet<string> = new Set(["back_office", "shop"]);
 
-/**
- * Derived from the ACTION, never random — and it is BOTH our uniqueness constraint and the key sent
- * to the provider, so an ambiguous retry is recognised as the same request instead of creating a
- * second refund. ⚠ Byte-identical to the key the retired backend derived, so an action retried
- * across the cut-over still resolves to one refund.
- */
+/** Derived from the action, never random: both our uniqueness constraint and the provider's key, so an ambiguous retry is the same request. */
 export function refundIdempotencyKey(input: Pick<IssueInput, "orderId" | "kind" | "reason" | "lines">, amountCents: number): string {
   const h = createHash("sha256").update(`refund:${input.orderId}:${input.kind}:${input.reason}:${amountCents}`);
   for (const l of input.lines) h.update(`:${l.orderItemId} x${l.quantity}`);
   return h.digest("hex");
 }
 
-/**
- * Stable per order, so two simultaneous cancels refund once. ⚠ No actor and no amount: a customer
- * tapping cancel while staff cancel the same order on the phone must produce ONE refund.
- */
+/** Stable per order, with no actor or amount, so a customer and staff cancelling together refund once. */
 export const cancelIdempotencyKey = (orderId: string) => `cancel:${orderId}`;
 
 export function validateIssue(input: IssueInput): void {
@@ -103,25 +79,18 @@ export function validateIssue(input: IssueInput): void {
   if (!OPERATOR_REASONS.has(input.reason)) throw new InvalidReasonError();
   if (input.kind === "goodwill") {
     if (input.reason !== REASON_GOODWILL) throw new InvalidReasonError();
-    // An amount with no line and no explanation is unaccountable.
     if (input.note === "") throw new NoteRequiredError();
   } else if (input.kind === "item") {
     if (input.reason === REASON_GOODWILL) throw new InvalidReasonError();
     if (input.lines.length === 0) throw new NoLinesError();
-    // ⚠ REJECTED rather than ignored: beside a line selection the two could disagree, and the
-    // record would claim a refund covered items it did not.
+    // Rejected rather than ignored: beside lines the two could disagree.
     if (input.amount !== "") throw new AmountRejectedError();
   } else {
     throw new InvalidReasonError();
   }
 }
 
-/**
- * A free amount typed by an operator.
- *
- * ⚠ MORE THAN TWO DECIMAL PLACES IS REFUSED, not truncated: "12.345" must not silently refund
- * $12.34. ⚠ More than $100,000 is a typo, not an intent.
- */
+/** A free amount typed by an operator. More than two decimals is refused, not truncated; over $100,000 is a typo. */
 export function goodwillCents(amount: string): number {
   const trimmed = amount.trim();
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) throw new AmountInvalidError();
@@ -135,33 +104,23 @@ export function goodwillCents(amount: string): number {
   return cents;
 }
 
-/**
- * ⚠ SMALL ON PURPOSE. This runs inside a person's request over a control that moves money. Two
- * attempts covers a dropped connection; anything beyond that is not a blip, and the reconciler
- * (070) picks it up within minutes rather than leaving someone watching a spinner.
- */
+/** Small on purpose: a person is waiting. Two attempts cover a dropped connection; the reconciler handles the rest. */
 const MAX_SUBMIT_ATTEMPTS = 2;
 
 const MAX_REQUEST_MESSAGE = 2000;
 
 export function createRefundService(deps: { repo: RefundRepository; gateway: PaymentGateway; namespace?: () => string }) {
   const { repo, gateway } = deps;
-  // ⚠ Not the calling service's namespace — see MONEY_METRIC_NAMESPACE.
   const ns = deps.namespace ?? (() => MONEY_METRIC_NAMESPACE);
 
-  /**
-   * Send the refund, retrying an AMBIGUOUS failure under the SAME key — which is what makes the
-   * retry safe: one that did reach the provider returns the original refund. ⚠ A definite refusal
-   * is never retried.
-   */
+  /** Sends the refund, retrying an ambiguous failure under the same key. A refusal is never retried. */
   async function submit(refundId: string, paymentIntentId: string, amountCents: number, key: string): Promise<Refund> {
     let last: unknown;
     for (let attempt = 1; attempt <= MAX_SUBMIT_ATTEMPTS; attempt++) {
       try {
         return await gateway.createRefund({
           paymentIntentId, amountCents, idempotencyKey: key,
-          // ⚠ The only reason ever sent. `fraudulent` blocklists the payer; `duplicate` is a claim
-          // the platform cannot substantiate.
+          // The only reason ever sent.
           reason: "requested_by_customer",
           metadata: { effy_refund_id: refundId },
         });
@@ -173,19 +132,15 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
     throw last;
   }
 
-  /** Best-effort follow-up: the money is already on its way and nothing here may un-say that. */
+  /** Best-effort follow-up: the money is already on its way. */
   const quietly = (work: Promise<unknown>) => work.catch(() => undefined);
 
   return {
     repo,
 
     /**
-     * Record a refund, then submit it.
-     *
-     * ⚠ RECORD FIRST, THEN SUBMIT. The reverse loses money on any crash between the two: the
-     * customer is refunded, the platform has no record, the ceiling is wrong, and it can happen
-     * again. Recording first makes the worst case a row left `submitting` — visible, bounded, and
-     * resolved by the reconciler.
+     * Records a refund, then submits it. The reverse would lose money on a crash between the two;
+     * this way the worst case is a `submitting` row the reconciler resolves.
      */
     async issue(input: IssueInput): Promise<IssueResult> {
       validateIssue(input);
@@ -197,7 +152,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         amountCents = goodwillCents(input.amount);
       } else {
         if (input.lines.some((l) => !UUID.test(l.orderItemId))) throw new RefundOrderNotFoundError();
-        // ⚠ COMPUTED from the receipt's lines, never from the request.
+        // Computed from the receipt's lines, never from the request.
         ({ totalCents: amountCents, lines } = await repo.priceLines(input.orderId, input.lines));
       }
 
@@ -210,8 +165,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       const remaining = rec.paid.paidCents - rec.paid.refundedCents;
 
       if (!rec.issued) {
-        // ⚠ A SUCCESS THAT CHANGED NOTHING — a double-click must not look like a failure — reporting
-        // the row's REAL state.
+        // A success that changed nothing (a double-click), reporting the row's real state.
         return {
           refundId: rec.refundId, status: rec.existingStatus, amount: formatCents(amountCents), remainingAmount: formatCents(remaining),
           ...(rec.existingStatus === REFUND_SUBMITTING ? { stalled: true as const } : {}),
@@ -221,8 +175,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       const split = rec.split;
       const splitFields = split.points > 0 ? { cardAmount: formatCents(split.cardCents), pointsReturned: split.points } : {};
 
-      // 074 — NO CARD PART: nothing goes to the provider. The repository recorded it `succeeded` and
-      // returned the points in the same transaction.
+      // No card part: already recorded `succeeded` with the points returned.
       if (split.cardCents === 0) {
         emitMetric(ns(), "RefundsIssued", 1, { kind: input.kind });
         emitMetric(ns(), "PointsReturned", 1);
@@ -238,22 +191,20 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
 
       let provider: Refund;
       try {
-        // ⚠ ONLY THE CARD PART reaches the provider (074): the points part is not its money.
+        // Only the card part reaches the provider.
         provider = await submit(rec.refundId, rec.paid.paymentIntentId, split.cardCents, key);
       } catch (err) {
         if (err instanceof RefusedError) {
-          // A DECISION. Terminal.
           await quietly(repo.markRefused(rec.refundId, err.reason));
           emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "refused" });
           throw new ProviderRefusedError(err.reason, rec.refundId);
         }
-        // ⚠ AMBIGUOUS. The row stays `submitting`: not refused (nobody decided) and not counted (it
-        // may never have landed). And it is said out loud.
+        // Ambiguous: the row stays `submitting` (not refused, not counted), and it is said out loud.
         emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "ambiguous" });
         return { refundId: rec.refundId, status: REFUND_SUBMITTING, stalled: true, amount: formatCents(amountCents), ...splitFields };
       }
 
-      // 074 — the points part comes back in the same transaction that records the submission.
+      // The points part comes back with the submission.
       await quietly(repo.markSubmitted(rec.refundId, provider.id));
       emitMetric(ns(), "RefundsIssued", 1, { kind: input.kind });
       if (split.points > 0) {
@@ -261,11 +212,9 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         await announcePointsForOrder(input.orderId, repo.db);
       }
 
-      // Put the units back — item-derived only, and only if the issuer did not decline it.
+      // Units back: item-derived only, unless the issuer declined.
       if (input.kind === "item" && !input.skipStockReturn) await quietly(repo.returnStock(rec.refundId, input.orderId));
-      // A shopper who asked has now been answered.
       await quietly(repo.closeOpenRequestForOrder(input.orderId, input.actorSub));
-      // 071 — the customer's order page, the shops' and back-office's now show a refund.
       await announceOrder(input.orderId, { db: repo.db });
 
       return {
@@ -275,13 +224,9 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
     },
 
     /**
-     * 081 — send a refund that was RECORDED inside another flow's transaction (`recordRefundIn`) —
-     * after that transaction has committed. The same submission as `issue`: the card part only, under
-     * the row's own key, retried once on an ambiguous failure, then the points part comes back.
-     *
-     * Already sent, or never needing the provider (no card part): reports the row's real state and
-     * sends nothing. ⚠ A definite refusal is recorded `refused` and RETURNED, not thrown — the flow
-     * that recorded it has already happened and must say so, not fail.
+     * Sends a refund recorded inside another flow's transaction, after it committed: the card part
+     * under the row's key, retried once, then the points part back. Already sent or card-free: reports
+     * the real state. A refusal is recorded and returned, not thrown.
      */
     async submitRecorded(refundId: string): Promise<{ status: string; stalled?: true }> {
       const r = await repo.recordedForSubmit(refundId);
@@ -313,12 +258,8 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
     },
 
     /**
-     * Call off an order and return everything paid — INCLUDING delivery: nothing was delivered.
-     *
-     * ⚠ CANCELLATION *IS* A FULL REFUND. Payment is captured the moment an order exists, so there
-     * is no free cancellation; there is only returning money already taken.
-     * ⚠ Already cancelled is a success (`AlreadyCancelledError` is absorbed): a double-tap must not
-     * look like a failure, and the order genuinely is cancelled.
+     * Calls off an order and returns everything paid, delivery included. Payment is captured when the
+     * order exists, so cancellation is a full refund. Already cancelled is a success.
      */
     async cancel(input: CancelInput): Promise<CancelResult> {
       if (!UUID.test(input.orderId)) throw new RefundOrderNotFoundError();
@@ -330,25 +271,22 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         throw err;
       }
 
-      // 071 — THE ORDER IS CANCELLED FROM HERE, whatever becomes of the refund below (it may be
-      // refused, or stall). So this is announced now, once, before any of those outcomes: the shops
-      // stop packing, a driver holding it sees it go, a same-day place is freed, and the customer's
-      // page says cancelled. The refund's own later fate is announced when it is known.
+      // The order is cancelled from here whatever becomes of the refund, so it is announced now; the
+      // refund's own fate is announced when known.
       await announceOrder(input.orderId, { slots: true, drivers: true, db: repo.db });
 
-      // ⚠ WHAT REMAINS, NOT WHAT WAS PAID: an order already partly refunded must not be refunded
-      // its full total.
+      // What remains, not what was paid: the order may be partly refunded.
       const amountCents = locked.paidCents - locked.refundedCents;
       if (amountCents <= 0) return { amount: formatCents(0), status: REFUND_SUCCEEDED };
 
       const key = cancelIdempotencyKey(input.orderId);
-      // 074 — what remains, split between card and points in proportion.
+      // Split between card and points in proportion.
       const split = splitFor(locked, amountCents);
       const splitFields = split.points > 0 ? { cardAmount: formatCents(split.cardCents), pointsReturned: split.points } : {};
       const refundId = await repo.recordCancellationRefund(input, amountCents, key, split);
       if (!refundId) return { amount: formatCents(amountCents), status: REFUND_SUBMITTING, stalled: true };
 
-      // 074 — a points-only order: everything came back as points already; nothing for the provider.
+      // Points-only: everything came back as points already.
       if (split.cardCents === 0) {
         emitMetric(ns(), "RefundsIssued", 1, { kind: "cancellation" });
         emitMetric(ns(), "OrdersCancelled", 1, { actor: input.actorKind });
@@ -364,8 +302,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         if (err instanceof RefusedError) {
           await quietly(repo.markRefused(refundId, err.reason));
           emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "refused" });
-          // ⚠ THE ORDER STAYS CANCELLED: the shops have been told to stop. The refund is now a
-          // separate, visible problem staff must resolve.
+          // The order stays cancelled; the refund is a separate problem for staff.
           throw new ProviderRefusedError(err.reason, refundId);
         }
         emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "ambiguous" });
@@ -383,66 +320,48 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       return { refundId, amount: formatCents(amountCents), status: REFUND_SUBMITTED, ...splitFields };
     },
 
-    /**
-     * A customer's ASK against their own order. ⚠ It moves no money: a form that withdrew money on
-     * submission would let anyone refund their own order by describing a problem.
-     */
+    /** A customer's ask against their own order. It moves no money. */
     async raiseRequest(input: { orderId: string; customerId: string; message: string; items: readonly LineInput[] }): Promise<string> {
       const message = input.message.trim().slice(0, MAX_REQUEST_MESSAGE);
       if (message === "") throw new MessageRequiredError();
       if (!UUID.test(input.orderId)) throw new RefundOrderNotFoundError();
-      // A named line that is not an id cannot be one of this order's lines; it is dropped, as an
-      // id that matches nothing always was.
+      // A named line that is not an id cannot be one of this order's: dropped.
       const requestId = await repo.insertRequest(input.orderId, input.customerId, message, input.items.filter((i) => UUID.test(i.orderItemId)));
-      // 071 — back-office's order console gains a request to decide; the customer's own page shows
-      // it was received. No shop screen shows a request, so no shop is told.
+      // Back-office and the customer's page change; no shop screen shows a request.
       await announceOrder(input.orderId, { shops: false, db: repo.db });
       return requestId;
     },
 
-    /** Close a request without money moving. ⚠ Not emailed: the order screen is where the shopper looks. */
+    /** Closes a request without money moving. Not emailed. */
     async declineRequest(requestId: string, note: string, decidedBy: string): Promise<void> {
       if (!UUID.test(requestId)) throw new RequestNotFoundError();
       const orderId = await repo.decideRequest(requestId, "declined", note, decidedBy);
       await announceOrder(orderId, { shops: false, db: repo.db });
     },
 
-    /**
-     * The provider's side of a refund's life, applied INSIDE the webhook's transaction.
-     *
-     * ⚠ A REFUND IS A STATE MACHINE, NOT A CALL. `issue` records `submitted`; the bank can still
-     * reject it thirty days later, and this is how the platform finds out.
-     */
+    /** The provider's side of a refund's life, applied inside the webhook's transaction. */
     async handleRefundEvent(tx: Queryable, evt: WebhookEvent): Promise<{ recognised: boolean; changed: boolean }> {
       if (!evt.refundId) return { recognised: false, changed: false };
       const status = settledStatus(evt.refundStatus);
-      if (!status) return { recognised: true, changed: false }; // the provider is still working
+      if (!status) return { recognised: true, changed: false };
 
       if (await repo.settleByProviderId(tx, evt.refundId, status, evt.failureReason ?? "")) {
-        // The counter that tells the truth: issued fires at submission, this when the outcome lands.
+        // Issued fires at submission; this when the outcome lands.
         emitMetric(ns(), "RefundOutcomes", 1, { outcome: status });
         return { recognised: true, changed: true };
       }
-      // ⚠ NOT CHANGED means one of two very different things: already terminal (ordinary), or THE
-      // PLATFORM HAS NO ROW FOR IT AT ALL.
+      // Not changed: already terminal, or the platform has no row for it.
       if (await repo.knowsProviderRefund(tx, evt.refundId)) return { recognised: true, changed: false };
 
-      // ⚠ RECORDED, NEVER DISCARDED. A refund made by hand in the provider's dashboard is real;
-      // dropping it leaves the order claiming money it no longer holds, refundable a second time.
+      // Recorded, never discarded: a refund made in the dashboard is real money.
       await repo.recordUnattributedRefund(tx, evt);
       emitMetric(ns(), "RefundsIssued", 1, { kind: "external" });
       return { recognised: false, changed: true };
     },
 
     /**
-     * RESOLVE REFUNDS LEFT UNCERTAIN (070 FR-024). A refund whose submission got no answer used to
-     * stay `submitting` indefinitely, with nothing looking at it again.
-     *
-     * For each one: ASK THE PROVIDER whether it exists. If it does, record that. If it does not,
-     * submit it under the key stored on the row — never a new one.
-     *
-     * ⚠ Stock is NOT returned here. Whether the issuer wanted it returned is not recorded on the
-     * row, and inventing stock is worse than not returning it.
+     * Resolves refunds left uncertain: asks the provider whether each exists and records it, or submits
+     * it under its stored key. Stock is not returned here (the issuer's choice is not on the row).
      */
     async reconcile(opts: { olderThanSeconds?: number; stuckAfterSeconds?: number; limit?: number } = {}) {
       const stuck = await repo.stuckSubmitting(opts.olderThanSeconds ?? 120, opts.limit ?? 25);
@@ -453,9 +372,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
           const existing = (await gateway.listRefunds(r.paymentIntentId)).find((p) => p.metadata.effy_refund_id === r.id);
           let provider = existing;
           if (!provider) {
-            // ⚠ A stalled refund does not hold the ceiling, so staff may since have refunded the
-            // order another way. Sending this one now would return more than was paid. It is
-            // closed as refused — by the platform, and the reason says so.
+            // A stalled refund holds no ceiling, so the order may since be refunded: closed as refused.
             if (r.amountCents > (await repo.remainingCents(r.orderId, r.id))) {
               await repo.markRefused(r.id, "not submitted: the order no longer has this much left to refund");
               outcomes.refused++;
@@ -463,32 +380,31 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
               continue;
             }
             provider = await gateway.createRefund({
-              // ⚠ 074 — the CARD part, never the total: the points part is not the provider's money.
+              // The card part, never the total.
               paymentIntentId: r.paymentIntentId, amountCents: r.cardCents, idempotencyKey: r.idempotencyKey,
               reason: "requested_by_customer", metadata: { effy_refund_id: r.id },
             });
           }
           await repo.markSubmitted(r.id, provider.id);
-          // The provider may already know how it ended.
           const settled = settledStatus(provider.status);
           if (settled) await repo.settleByProviderId(repo.db, provider.id, settled, provider.failureReason);
           await quietly(repo.closeOpenRequestForOrder(r.orderId, r.actorSub ?? "system"));
           outcomes[existing ? "found" : "resubmitted"]++;
-          await announceOrder(r.orderId, { db: repo.db }); // 071 — a refund that was uncertain now has an answer
+          await announceOrder(r.orderId, { db: repo.db });
         } catch (err) {
           if (err instanceof RefusedError) {
             await quietly(repo.markRefused(r.id, err.reason));
             outcomes.refused++;
             await announceOrder(r.orderId, { db: repo.db });
           } else {
-            outcomes.unresolved++; // still unknown; the next run asks again
+            outcomes.unresolved++;
           }
         }
       }
 
       for (const [outcome, n] of Object.entries(outcomes)) if (n > 0) emitMetric(ns(), "RefundsReconciled", n, { outcome });
       const stuckCount = await repo.countSubmittingOlderThan(opts.stuckAfterSeconds ?? 900);
-      // Emitted every run, zero included, so an alarm on it has data when all is well.
+      // Emitted every run, zero included, so its alarm has data.
       emitMetric(ns(), "RefundsStuck", stuckCount, {});
       return { ...outcomes, stuck: stuckCount };
     },

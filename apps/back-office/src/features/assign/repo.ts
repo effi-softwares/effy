@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 
-// "Assign to…" and "Unassign" (073) — the two things a person can do to one package's driver.
+// "Assign to…" and "Unassign" — the two things a person can do to one package's driver.
 // Every endpoint is on the fleet service, which owns auto-assign and takes its lock.
 
 export type Stage = "collection" | "delivery";

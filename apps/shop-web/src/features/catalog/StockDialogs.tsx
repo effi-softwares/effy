@@ -24,20 +24,8 @@ import { stockErrorText } from "./stockErrorText";
 import { useAdjustStock, useSetStockCount, useSetStockTracking } from "./stockQueries";
 
 /**
- * The two stock WRITES the redesigned product page offers (057) — the mockup's `receive` and
- * `variant` sheets, each landed on the model this platform actually has.
- *
- * ⚠ WHY THEY ARE DIALOGS AND NOT THE INLINE FORMS THEY REPLACE. The pre-redesign Inventory tab put a
- * switch, a two-field count form, a threshold form and a history table permanently on the page. That
- * is four write affordances an operator must read past to answer "how many have we got" — the
- * question the section exists for. The mockup states the numbers and puts every change behind a named
- * verb, which is also what makes the count the thing the eye lands on.
- *
- * ⚠ AND WHY "RECEIVE" IS ITS OWN DIALOG RATHER THAN "ADJUST WITH REASON = RECEIVED". Receiving is the
- * single most frequent stock event in a grocery shop and it is always ADDITIVE — a delivery arrives,
- * the shelf gains units. Making it a mode of a general adjust form asks the operator to choose
- * "add or remove" and then a reason, twice a day, for an action that can only ever be one of each.
- * It is the same reasoning 020 used for the pick screen: the frequent action gets the short path.
+ * The product page's stock writes, as dialogs behind named verbs. "RECEIVE" is its own dialog rather than
+ * an adjust mode: it is the most frequent stock event and always additive, so it gets the short path.
  */
 
 const REASON_LABELS: Record<OperatorStockReason, string> = {
@@ -79,26 +67,20 @@ interface DialogProps {
   stock: ProductStockDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 098 — the size this count belongs to ("1 kg"), named in the title; null for a product sold one way. */
+  /** The size this count belongs to ("1 kg"), named in the title; null for a product sold one way. */
   sizeLabel?: string | null;
-  /** 098 — a size chooser, shown first, when the dialog was opened without one (the page header). */
+  /** A size chooser, shown first, when the dialog was opened without one (the page header). */
   sizeControl?: ReactNode;
 }
 
 /** "Receive stock — 1 kg": stock is counted per size, so every stock dialog says which. */
 const titled = (title: string, sizeLabel: string | null | undefined) => (sizeLabel ? `${title} — ${sizeLabel}` : title);
 
-// ── Receive stock ────────────────────────────────────────────────────────────────────────────────
+// Receive stock
 
 /**
- * The mockup's primary header action, landed on `POST .../adjustments` with reason `received`.
- *
- * ⚠ THE MOCKUP'S SUPPLIER AND REFERENCE FIELDS ARE NOT HERE, and that is deliberate rather than an
- * omission. Where stock came from belongs to purchasing — suppliers and orders a receipt can cite —
- * which is deferred to its own future feature (design revision 2026-09-10). Two free-text boxes here
- * would record that intent as unjoinable prose, and an operator who filled them in would reasonably
- * believe the delivery had been reconciled against something when nothing had. The note is the honest
- * place for context until purchasing exists.
+ * Receive stock: `POST …/adjustments` with reason `received`. No supplier or reference fields: those
+ * belong to purchasing, which does not exist yet; the note carries the context.
  */
 export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeLabel, sizeControl }: DialogProps) {
   const adjust = useAdjustStock(variantId);
@@ -111,7 +93,7 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeL
       setNote("");
       adjust.reset();
     }
-    // Reset on open only — reset() is a new identity every render.
+    // Reset on open only — reset is a new identity every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -163,7 +145,7 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeL
             />
           </div>
 
-          {/* ⚠ The arithmetic is shown BEFORE the write, not after. The mockup does the same, and it
+          {/* The arithmetic is shown before the write, not after. The mockup does the same, and it
               is the only thing standing between a mistyped 240 and a shelf count nobody questions. */}
           <div className="border-border flex items-baseline justify-between border-t pt-3.5">
             <span className="text-muted-foreground text-[13px]">On hand after this</span>
@@ -188,27 +170,13 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeL
   );
 }
 
-// ── Add stock (start counting) ───────────────────────────────────────────────────────────────────
+// Add stock (start counting)
 
 /**
- * The untracked product's version of the header action, and the reason it exists.
- *
- * ⚠ TRACKING IS OFF BY DEFAULT (054), SO THIS IS THE STATE MOST PRODUCTS ARE IN. Until now the header
- * button was disabled for every one of them and the only way forward was: open the Inventory tab,
- * find `Edit rules`, discover a switch, flip it, and only then type the number the operator came here
- * to type. Four steps to answer "we just got 24 of these". The refusal was honest — the count write
- * genuinely does not apply to an untracked product — but a dead control is a poor teacher, and the
- * operator's intent ("start counting this, here is how many") is a thing the platform can act on
- * directly.
- *
- * ⚠ IT IS ONE REQUEST, NOT TWO. `PUT .../stock/tracking` takes the opening count in the same body
- * that turns tracking on, and the server writes a single `tracking_enabled` movement from it. A
- * turn-on-then-adjust pair would leave a product tracked-at-zero — briefly unbuyable — if the second
- * call failed, which is exactly the state FR-003 refuses to create by accident.
- *
- * ⚠ AND IT SAYS WHAT ELSE CHANGES. Turning tracking on is not just bookkeeping: from that moment
- * paid orders deduct units and the product stops selling at zero. An operator who typed a number into
- * something called "Add stock" has not consented to that unless it is written next to the field.
+ * Add stock on an uncounted product: one request (`PUT …/stock/tracking` with the opening count), so the
+ * server writes one `tracking_enabled` movement and a failure cannot leave the product counted at zero
+ * (unbuyable). It says what changes: from then on paid orders deduct units and the product stops selling
+ * at zero.
  */
 export function StartTrackingDialog({
   variantId,
@@ -225,7 +193,7 @@ export function StartTrackingDialog({
       setUnits("");
       setTracking.reset();
     }
-    // Reset on open only — reset() is a new identity every render.
+    // Reset on open only — reset is a new identity every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -269,7 +237,7 @@ export function StartTrackingDialog({
             </p>
           </div>
 
-          {/* ⚠ The consequence, stated before the write and not after it. This one action changes how
+          {/* The consequence, stated before the write and not after it. This one action changes how
               the product behaves for shoppers, and the operator only sees the words "Add stock". */}
           <div className="border-border border-t pt-3.5">
             <p className="text-muted-foreground text-[12.5px]">
@@ -299,12 +267,12 @@ export function StartTrackingDialog({
   );
 }
 
-// ── Adjust stock ─────────────────────────────────────────────────────────────────────────────────
+// Adjust stock
 
 /**
  * The correcting write: set the count to what was actually counted, or move it by a known amount.
  *
- * ⚠ BOTH MODES ARE KEPT, because they answer different questions and one cannot do the other's job
+ * Both modes are kept, because they answer different questions and one cannot do the other's job
  * honestly. "We counted 9" is an absolute fact about the shelf and must not require the operator to
  * do subtraction against a number they already believe is wrong. "Three were dropped" is a delta and
  * must not require them to know the current count at all — which they may not, if a sale landed while

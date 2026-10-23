@@ -18,9 +18,9 @@ export function marginLabel(m: MarginDTO | null): string {
 }
 
 /**
- * What the product would sell for, shown to the reviewer BEFORE they confirm (067 FR-030).
+ * What the product would sell for, shown to the reviewer before they confirm.
  *
- * ⚠ A PREVIEW ONLY. The price that is stored is computed by the server, in whole cents, by the one
+ * A preview only. The price that is stored is computed by the server, in whole cents, by the one
  * margin rule in `@effy/edge-shared`. This mirrors it closely enough to show a reviewer the figure
  * they are about to set; if the two ever disagree, the server's is the one that sells.
  */
@@ -36,7 +36,7 @@ export function previewCustomerPrice(shopPrice: string, kind: "percent" | "amoun
   return (cents / 100).toFixed(2);
 }
 
-/** "3.00" for one price or several equal ones, "3.00–5.50" when they differ (098). */
+/** "3.00" for one price or several equal ones, "3.00–5.50" when they differ. */
 export function priceRange(prices: readonly string[]): string {
   if (prices.length === 0) return "—";
   const sorted = [...prices].sort((a, b) => Number(a) - Number(b));

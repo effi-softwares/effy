@@ -1,5 +1,4 @@
-// Service for shop-local sections (016, US5): validation + orchestration. No HTTP/SQL. Reuses the
-// products ProductError so the shop handler maps errors uniformly.
+// Reuses ProductError so the shop handlers map errors uniformly.
 import { ProductError } from "../products/types";
 import * as repo from "./repository";
 import type { ShopSection } from "./types";

@@ -1,8 +1,3 @@
-// GET /inventory/v1/low-stock — everything the caller's own shop needs to restock (054 US5, FR-029).
-//
-// ⚠ The eighth shop route. It is wired in Phase 7 with the feature it serves rather than alongside
-// the per-product routes, because the analysis pass found it had a repository query and two screens
-// and NO ENDPOINT BETWEEN THEM.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

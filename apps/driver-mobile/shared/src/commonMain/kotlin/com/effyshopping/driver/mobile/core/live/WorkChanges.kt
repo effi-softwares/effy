@@ -16,17 +16,17 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.merge
 
 /**
- * 092 rev 2 — "THE DRIVER'S WORK CHANGED: READ NOW", FROM ONE PLACE.
+ * Rev 2 — "THE DRIVER'S WORK CHANGED: READ NOW", from one place.
  *
  * Every screen that shows work (Today, a run, a stop, a drop, History) re-reads when this speaks. It
  * speaks for two reasons:
- *  • **the server said so** — the live channel (071): dispatch assigned, moved, re-ordered or withdrew
- *    work, or the channel (re)connected;
- *  • **the driver did something** — a write of theirs reached the platform. ⚠ The server never announces
- *    a driver's own change back to them (it tells the shops, the customer and dispatch), so until this
- *    existed Today kept saying "Next · stop 1" after stop 1 was collected.
+ *  • **the server said so** — the live channel: dispatch assigned, moved, re-ordered or withdrew
+ *  work, or the channel (re)connected;
+ *  • **the driver did something** — a write of theirs reached the platform. The server never announces
+ *  a driver's own change back to them (it tells the shops, the customer and dispatch), so until this
+ *  existed Today kept saying "Next · stop 1" after stop 1 was collected.
  *
- * ⚠ It speaks only once the platform HAS the change: a write that was sent, or a queued one the sync
+ * It speaks only once the platform has the change: a write that was sent, or a queued one the sync
  * coordinator has just delivered ([changed] is called from there too). A write saved with no signal is
  * not announced — re-reading then would fetch the copy without it.
  *
@@ -47,7 +47,7 @@ class WorkChanges(private val server: Flow<Unit>) {
 private fun WriteOutcome.reached() = this == WriteOutcome.SENT
 
 /**
- * The collection writes, saying so when they land. ⚠ The ONE place a collection write announces itself —
+ * The collection writes, saying so when they land. The one place a collection write announces itself
  * a ViewModel never calls [WorkChanges.changed] (a screen that forgets is how this bug happened).
  */
 class SignallingCollectionRepository(
@@ -100,7 +100,7 @@ class SignallingDriverRepository(
     override suspend fun setDuty(onDuty: Boolean, changeId: String): Driver =
         inner.setDuty(onDuty, changeId).also { work.changed() }
 
-    // 093 — a check answered changes whether work can come.
+    // A check answered changes whether work can come.
     override suspend fun submitVehicleCheck(
         changeId: String, answers: List<com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer>,
     ): com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus =

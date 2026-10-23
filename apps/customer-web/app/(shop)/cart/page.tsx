@@ -31,11 +31,11 @@ import { UnitPrice } from "../_components/UnitPrice"
 import { PromoField } from "./PromoField"
 
 /**
- * The cart. ONE unified Effy order that pays once — but now shown PACKAGE-AWARE (021 FR-005a): items are
+ * The cart. One unified Effy order that pays once — but now shown package-aware: items are
  * grouped into anonymous packages (one per fulfilling shop), so the customer sees the multi-delivery
- * split early. NEVER a shop name, code, or location (SC-006) — only a positional "Package N". Prices
+ * split early. Never a shop name, code, or location — only a positional "Package N". Prices
  * and windows are absent here (delivery is geographic and needs an address — it is quoted at checkout).
- * A single-package cart shows no artificial "Package 1 of 1" framing (FR-007/SC-011).
+ * A single-package cart shows no artificial "Package 1 of 1" framing.
  */
 export default function CartPage() {
   const cart = useCartMirror()
@@ -59,7 +59,7 @@ export default function CartPage() {
   const count = lines.reduce((n, l) => n + l.quantity, 0)
   const confirmRef = useRef<HTMLDialogElement>(null)
 
-  /** Empty the cart, and hand back a way to undo it (FR-025). The emptied lines live only as long as
+  /** Empty the cart, and hand back a way to undo it. The emptied lines live only as long as
    *  the toast: nothing is stored anywhere to make this possible. */
   function emptyCart() {
     const before = lines.map((l) => ({ ...l }))
@@ -115,7 +115,7 @@ export default function CartPage() {
                   <dt>Items ({count})</dt>
                   <dd className="tabular-nums">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
                 </div>
-                {/* 094 — one line per promotion that applies, automatic or by code. */}
+                {/* One line per promotion that applies, automatic or by code. */}
                 {(cart.promotions ?? []).filter((p) => Number(p.goodsAmount) > 0).map((p) => (
                   <div key={p.promotionId} className="flex items-center justify-between text-brand">
                     <dt>
@@ -138,7 +138,7 @@ export default function CartPage() {
                 </div>
               </dl>
 
-              {/* 094 — offers that do not apply yet, each with the one thing to do about it. */}
+              {/* Offers that do not apply yet, each with the one thing to do about it. */}
               {(cart.promotionsNotApplied ?? []).length > 0 ? (
                 <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
                   {cart.promotionsNotApplied!.map((n) => (
@@ -235,7 +235,7 @@ function Thumb({ line }: { line: GuestCartLine }) {
 
 const textAction = "text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
 
-/** The product page, opened on the line's size when it is one of several (098). */
+/** The product page, opened on the line's size when it is one of several. */
 const lineHref = (line: GuestCartLine) =>
   line.variantLabel ? `/product/${line.productId}?variant=${line.variantId}` : `/product/${line.productId}`
 
@@ -270,7 +270,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
         <div className="flex items-start justify-between gap-4">
           <Link href={lineHref(line)} className="text-sm font-medium hover:underline">
             {line.name}
-            {/* 098 — the size chosen, said beside the name. */}
+            {/* The size chosen, said beside the name. */}
             {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
           </Link>
           <span className="text-sm font-semibold tabular-nums">
@@ -364,7 +364,7 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
   )
 }
 
-// ⚠ The rail's CODE is fetched with its products, not with the page (PERF-01): it sits under the cart
+// The rail's code is fetched with its products, not with the page: it sits under the cart
 // and shows nothing until its request answers, and the product card, the save control and the kit
 // behind it are what put `/cart` over the guest bundle gate.
 const loadProductRail = () => import("../_components/ProductRail").then((m) => m.ProductRail)

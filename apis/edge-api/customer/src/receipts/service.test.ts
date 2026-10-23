@@ -39,11 +39,7 @@ describe("resendReceipt (052 US4)", () => {
     )
   })
 
-  /**
-   * ⚠ A GARBAGE LIMIT MUST NOT DISABLE THE LIMIT. `Number("")` is 0 and `Number("abc")` is NaN; either
-   * one reaching the SQL as the cap would refuse every request (0) or compare against NaN. Falling back
-   * to the default keeps a misconfigured deployment working AND rate-limited.
-   */
+  /** A garbage limit falls back to the default rather than refusing everything or comparing NaN. */
   it("⚠ falls back to the default when the configured limit is unusable", async () => {
     mockEnqueue.mockResolvedValue({ status: "queued" })
 

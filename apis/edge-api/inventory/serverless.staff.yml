@@ -1,22 +1,6 @@
-# edge-inventory-staff — the BACK-OFFICE half of the inventory service (075-staff-gateway).
-#
-# ⚠ THE SAME SERVICE AS `serverless.yml`, DEPLOYED AS A SECOND STACK. Same directory, same `src/`,
-# same handlers and repository — nothing is copied (constitution v3.2.0, Principle III: a service
-# whose routes belong on both gateways is two stacks from one source).
-#
-# WHY. A stack attaches to exactly one HTTP API. Inventory serves two audiences: shops manage their
-# own stock (the shared gateway) and back-office staff manage it on a shop's behalf (the staff
-# gateway, since 075). The alternatives were worse: a second directory whose handlers import another
-# service's source, or the six routes moved into `admin` and stock rules living in two services
-# (075 research R4).
-#
-# ⚠ ONLY THE SIX `/inventory/v1/admin/…` ROUTES LIVE HERE, plus this stack's own health routes.
-# Scheduled and queue-driven functions stay in `serverless.yml`. `gateway-placement.contract.test.ts`
-# fails if a handler is declared by both stacks or by neither.
-#
-# Deploy: `make edge-deploy SERVICE=inventory-staff ENV=dev`.
-#
-# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+# The back-office half of inventory: the same src/ deployed as a second stack on the staff gateway.
+# Only the /inventory/v1/admin/… routes and this stack's health routes live here;
+# `gateway-placement.contract.test.ts` fails a handler declared by both stacks or by neither.
 service: effy-edge-inventory-staff
 frameworkVersion: "3"
 
@@ -27,7 +11,6 @@ plugins:
 params:
   default:
     logLevel: info
-    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
   dev:
     logLevel: debug
@@ -41,9 +24,6 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
-  # ⚠ Set from the START, not when it is needed — 053's lesson, learned from admin hitting the CFN
-  # limit under pressure. Nothing here publishes aliases or uses provisioned concurrency, and every
-  # httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy Versions are dead weight.
   versionFunctions: false
   tags:
     project: effy
@@ -54,8 +34,7 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
-    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
-    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    # No default: a deploy before the live channel exists must fail, not go quiet.
     LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
@@ -65,7 +44,6 @@ provider:
   iam:
     role:
       statements:
-        # 071 — publish live updates, to this environment's channel only.
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
@@ -74,8 +52,7 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
   layers:
     - ${param:secretsExtensionArn}
-  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
-  # edge-shop/admin/driver/orders. DEV ONLY — see infra/envs/README.md.
+  # No provider.vpc: without NAT an in-VPC Lambda cannot reach AWS APIs (dev only).
 
 custom:
   esbuild:
@@ -92,10 +69,8 @@ custom:
 package:
   individually: true
 
-
 functions:
-  # Its own health routes, under its own name: `/inventory/healthz` is the shop stack's, on the
-  # other gateway. Same handlers.
+  # Its own health routes: `/inventory/healthz` belongs to the shop stack.
   healthz:
     handler: src/functions/healthz-get.handler
     description: Liveness — is the inventory-staff stack deployed and executing? Touches nothing. Public.
@@ -112,10 +87,7 @@ functions:
           method: GET
           path: /inventory-staff/readyz
 
-  # ── Back-office routes — BACK-OFFICE authorizer, acting on a shop's behalf (054 US4) ──────────
-  # ⚠ The shop comes from the PATH here, and the tier decides what may be done: reading is open to any
-  # active staff incl. `csa` (triage is CSA work); writing is admin/manager, because it changes another
-  # organisation's records for them. Both are decided from the `admin.staff` RECORD, never the claim.
+  # Back-office authorizer; the shop comes from the path. Reads: any staff; writes: admin/manager.
 
   adminStockGetV1:
     handler: src/functions/admin-stock-v1-get.handler

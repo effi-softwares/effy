@@ -25,8 +25,8 @@ import { ProvingScreen } from "./ProvingScreen";
 type Rule = (roles: readonly BackOfficeRole[]) => boolean;
 
 /**
- * What each role can do, read from the SAME functions the screens use to show a control — so the
- * table cannot drift from the console. ⚠ It is still only the interface's courtesy: the backend
+ * What each role can do, read from the same functions the screens use to show a control — so the
+ * table cannot drift from the console. It is still only the interface's courtesy: the backend
  * decides every request.
  */
 const PERMISSIONS: readonly { what: string; rule: Rule }[] = [

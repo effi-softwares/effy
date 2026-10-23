@@ -3,35 +3,15 @@ import { createHash, randomBytes } from "node:crypto"
 import { logger } from "@effy/edge-shared"
 import { sendEmail } from "@effy/email-kit/send"
 import type { NewsletterConfirmResult, NewsletterSubscribeResult } from "@effy/shared-types"
-// 044 — the email shape rule moved to the shared package so the storefront refuses EXACTLY what this
-// service refuses. Same values, same behaviour; this file's tests are the proof of that (044 V-03).
 import { EMAIL_MAX_LENGTH, EMAIL_SHAPE } from "@effy/shared-types"
 
 import { confirmSubscriber, upsertSubscriber } from "./repo"
 
-/**
- * Newsletter subscribe / confirm (039 US6). Cold path, public, no authorizer.
- *
- * ⚠ WHY A MARKETING ROUTE LIVES IN THE CUSTOMER PROFILE SERVICE (research R1): subscribe is
- * low-frequency, its work is asynchronous email, and `edge-customer` already carries everything it
- * needs — DB access, `ses:SendEmail` scoped to this environment's identity AND configuration set, the
- * full `MAIL_*` environment email-kit reads, and a public-route precedent in `healthz`/`readyz`.
- * Standing up a whole deployable for one endpoint would duplicate all of it. It is NOT commerce, so
- * 011's routing rule (FR-028) is not engaged.
- */
+/** Public. Lives here because this service already has DB access, scoped SES and the mail environment. */
 
-/** Defaults; overridable by env so neither number is a literal buried in a query. */
+/** Overridable by env. */
 const DEFAULT_TTL_HOURS = 24
 const DEFAULT_COOLDOWN_MINUTES = 60
-
-/**
- * ⚠ THE LENGTH BOUND AND THE SHAPE NOW LIVE IN `@effy/shared-types` (044).
- *
- * They were declared here, privately, which meant the storefront could not reach them — so the
- * sign-in screen fell back to the browser's own rule, which accepts `person@example` and therefore
- * emailed codes to addresses that cannot exist. Constitution Principle II: a cross-cutting rule has
- * one definition. The values are unchanged; this file's existing tests are the proof of that.
- */
 
 export interface NewsletterConfig {
   confirmBaseUrl: string
@@ -47,24 +27,17 @@ export function newsletterConfig(env: NodeJS.ProcessEnv = process.env): Newslett
   }
 }
 
-/** Normalised for storage. `citext` handles case; this handles the whitespace people paste in. */
+/** `citext` handles case; this handles pasted whitespace. */
 export function normaliseEmail(raw: string): string {
   return raw.trim().toLowerCase()
 }
 
-/** ⚠ The token is stored ONLY as this hash. A database leak must not confer the ability to confirm. */
+/** Stored only as this hash, so a database leak cannot confirm anything. */
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex")
 }
 
-/**
- * Subscribe.
- *
- * ⚠ THE RESULT IS UNIFORM FOR NEW, PENDING AND CONFIRMED ADDRESSES (FR-032). A distinct
- * "already subscribed" answer is a subscriber-enumeration oracle — anyone could probe an address and
- * learn whether it is on the list — and double opt-in exists precisely to stop this form being used
- * against third parties. There is no code path here that can tell the caller which case occurred.
- */
+/** Uniform for new, pending and confirmed addresses, or the form enumerates subscribers. */
 export async function subscribe(
   rawEmail: unknown,
   config: NewsletterConfig = newsletterConfig(),
@@ -73,8 +46,7 @@ export async function subscribe(
 
   const email = normaliseEmail(rawEmail)
   if (email.length === 0 || email.length > EMAIL_MAX_LENGTH || !EMAIL_SHAPE.test(email)) {
-    // ⚠ No DB call and no email for an invalid address — the one case that IS distinguishable, and
-    // safely so: it says nothing about who is subscribed, only that what was typed is not an address.
+    // An invalid address is the one distinguishable case: it reveals nothing about subscribers.
     return { status: "invalid" }
   }
 
@@ -99,27 +71,18 @@ export async function subscribe(
       )
     }
 
-    // ⚠ Logged WITHOUT the address. The outcome is the operational fact; the subscriber's email is PII
-    // and a marketing subscriber is not even an account holder (Principle VII).
+    // Without the address.
     logger.info({ msg: "newsletter.subscribe", sendDue }, "newsletter subscribe handled")
 
     return { status: "ok" }
   } catch (err) {
-    // ⚠ `newsletter-confirmation` declares `onSendFailure: "throw"`, so a failed send lands here. The
-    // row may exist while the email did not, which is exactly why the visitor is told to retry rather
-    // than told it worked: a retry after the cooldown rotates the token and sends again.
+    // The send failed (`throw`): tell the visitor to retry; after the cooldown the token rotates and resends.
     logger.error({ msg: "newsletter.subscribe_failed", err }, "newsletter subscribe failed")
     return { status: "error" }
   }
 }
 
-/**
- * Confirm.
- *
- * ⚠ INVALID, EXPIRED AND ALREADY-USED TOKENS ALL RETURN `expired`. Distinguishing them would confirm
- * that a token existed, which is a small oracle of its own — and there is nothing a holder of a dead
- * token can do differently in any of the three cases anyway.
- */
+/** Invalid, expired and used tokens all return `expired`. */
 export async function confirm(
   rawToken: unknown,
   config: NewsletterConfig = newsletterConfig(),
@@ -137,15 +100,13 @@ export async function confirm(
     logger.info({ msg: "newsletter.confirm", confirmed }, "newsletter confirm handled")
     return { status: confirmed ? "confirmed" : "expired" }
   } catch (err) {
-    // ⚠ A failure here reports `expired` rather than throwing: the subscriber can only retry the same
-    // dead-looking link either way, and a 500 on a link in an email is a worse experience than a clear
-    // "this link has expired" with a way back to the store. The failure is logged loudly.
+    // Reports `expired` rather than throwing, and logs loudly.
     logger.error({ msg: "newsletter.confirm_failed", err }, "newsletter confirm failed")
     return { status: "expired" }
   }
 }
 
-/** "24 hours" / "2 days" — the words the email uses. Pre-formatted, per email-kit's var rules. */
+/** "24 hours" / "2 days", pre-formatted for the email. */
 export function expiresInWords(hours: number): string {
   if (hours % 24 === 0 && hours >= 24) {
     const days = hours / 24

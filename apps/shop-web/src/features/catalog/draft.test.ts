@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { clearDraft, draftKey, emptyDraft, loadDraft, saveDraft } from "./draft";
 
-// FR-012: the device-local create draft survives a closed dialog / refresh, is keyed per shop+subject,
+// The device-local create draft survives a closed dialog / refresh, is keyed per shop+subject,
 // and never throws on a malformed or missing blob.
 describe("catalog draft store", () => {
   beforeEach(() => window.localStorage.clear());
@@ -39,7 +39,7 @@ describe("catalog draft store", () => {
     const loaded = loadDraft("shop-1", "sub-a");
     expect(loaded?.name).toBe("Old");
     expect(loaded?.attributes).toEqual({});
-    // 098 — a pre-variants draft starts with one empty variant.
+    // A pre-variants draft starts with one empty variant.
     expect(loaded?.variantSet.variants).toHaveLength(1);
   });
 

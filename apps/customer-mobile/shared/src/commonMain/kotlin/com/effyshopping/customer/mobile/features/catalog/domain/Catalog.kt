@@ -1,9 +1,9 @@
 package com.effyshopping.customer.mobile.features.catalog.domain
 
 /**
- * The catalog domain (019 US1). Clean-Architecture domain models — the app's OWN types, mapped from the
+ * The catalog domain. Clean-Architecture domain models — the app's own types, mapped from the
  * generated wire DTOs in the data layer (Principle VI: wire shapes never leak past `data`). The customer
- * projection carries NO shop identity (FR-038). Money is a decimal string + currency (R9).
+ * projection carries NO shop identity. Money is a decimal string + currency.
  */
 
 enum class ProductBadge { ON_SALE, NEW }
@@ -18,25 +18,25 @@ data class ProductCard(
     val compareAtAmount: String?,
     val badges: List<ProductBadge>,
     val available: Boolean,
-    /** 094 — an offer covering the product ("15% off", "Buy 2 get 1 free"), or null. */
+    /** An offer covering the product ("15% off", "Buy 2 get 1 free"), or null. */
     val offerLabel: String? = null,
     /**
-     * OPAQUE package grouping token (021 FR-005a), carried onto a guest-cart line at add-time so the cart
-     * can show the anonymous per-package split. NOT a shop id/name/location (SC-006). Blank until the
+     * Opaque package grouping token, carried onto a guest-cart line at add-time so the cart
+     * can show the anonymous per-package split. Not a shop id/name/location. Blank until the
      * storefront read threads a token through — the customer projection carries no shop, so grouping is
      * authoritatively resolved server-side at quote time; a blank key degrades to one package.
      */
     val packageKey: String = "",
     /**
-     * 098 — the size this tile stands for: the one a search matched by stock code or barcode, else the
-     * product's default. Quick-add adds THIS size, and only when [variantCount] is 1.
+     * The size this tile stands for: the one a search matched by stock code or barcode, else the
+     * product's default. Quick-add adds this size, and only when [variantCount] is 1.
      */
     val variantId: String = "",
-    /** 098 — sizes on sale. Above 1 the tile offers "Choose" (open the product) instead of quick-add. */
+    /** Sizes on sale. Above 1 the tile offers "Choose" (open the product) instead of quick-add. */
     val variantCount: Int = 1,
-    /** 098 — sizes at different prices: the price shown is the lowest, said "From". */
+    /** Sizes at different prices: the price shown is the lowest, said "From". */
     val priceVaries: Boolean = false,
-    /** 098 — the comparison price of [priceAmount], when the platform gave one. */
+    /** The comparison price of [priceAmount], when the platform gave one. */
     val unitPrice: UnitPrice? = null,
 )
 
@@ -44,52 +44,33 @@ data class Banner(
     val key: String,
     val title: String,
     val subtitle: String?,
-    /**
-     * Promotional artwork.
-     *
-     * ⚠ `BannerDTO` has carried this since 019 and the mobile domain simply dropped it on the floor —
-     * so the app rendered a flat brand-coloured block where a photograph belonged. Nothing about the
-     * contract needed to change for 025's carousel; the field needed mapping (FR-019).
-     */
+    /** Promotional artwork. */
     val imageUrl: String?,
     val href: String?,
     /**
-     * Where this banner sits in Home's section sequence (028 FR-030): `0` = above the first section,
-     * `n` = after the nth section.
-     *
-     * ⚠ Defaulted, because the wire does not carry it yet — 028 US4 adds `position` to `BannerDTO`.
-     * It lives here from the foundational phase because `composeHome` has nothing to interleave
-     * without it, and an interleaving rule with no positions is a rule that cannot be tested.
-     * Out-of-range values are CLAMPED, never dropped: a mistyped position must not make a live
-     * promotion invisible.
+     * Where this banner sits in Home's sequence: `0` above the first section, `n` after the nth. Out-of-range
+     * values are clamped, never dropped, so a mistyped position cannot hide a live promotion.
      */
     val position: Int = 0,
     /** The code a shopper types in the cart. Shown so the banner is actionable, not decorative. */
     val code: String? = null,
     /**
-     * The condition sentence ("On orders over $30"), composed SERVER-SIDE so both customer surfaces
-     * phrase one promotion identically. Null when the promotion has no conditions (028 FR-037d).
+     * The condition sentence ("On orders over $30"), composed server-side so both customer surfaces
+     * phrase one promotion identically. Null when the promotion has no conditions.
      */
     val terms: String? = null,
-    /** Where the banner leads. Null — including for an unrecognised wire value — means NOT TAPPABLE. */
+    /** Where the banner leads. Null — including for an unrecognised wire value — means not tappable. */
     val target: BannerTarget? = null,
-    /** Which of Home's two banner placements this promotion occupies (029 FR-027). Exclusive. */
+    /** Which of Home's two banner placements this promotion occupies. Exclusive. */
     val placement: BannerPlacement = BannerPlacement.CAROUSEL,
-    /** 095 — the skin staff chose for this place. Null or CLASSIC: drawn as before 095. */
+    /** The skin staff chose for this place. Null or classic: drawn as before 095. */
     val look: PromoLook? = null,
 )
 
 /**
- * Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.
- *
- * ⚠ Defaults to [CAROUSEL] everywhere, and that is a safety choice rather than a coin toss. An
- * operator who marks a promotion advertisable without thinking about placement gets it in the offers
- * section, which is where a shopper looks for offers; defaulting to [INLINE] would scatter
- * unconsidered promotions through the merchandising, where they interrupt rather than answer.
- *
- * ⚠ The same default absorbs an **unknown wire value** (tolerant reader). A promotion must never
- * vanish from the storefront because a new placement was added server-side before the app knew about
- * it — a shopper losing a live offer is a worse failure than a banner sitting in the wrong section.
+ * Where an advertised promotion appears on Home, exclusively. Defaults to [carousel] (where shoppers look
+ * for offers), and so does an unknown wire value: a promotion must never vanish because the server learned
+ * a placement first.
  */
 enum class BannerPlacement {
     /** The dedicated offers section — one bounded, swipeable block. */
@@ -100,12 +81,12 @@ enum class BannerPlacement {
 }
 
 /**
- * Where a promotional banner leads (028, research R7).
+ * Where a promotional banner leads.
  *
  * A **sealed** interface, so the render site's `when` is exhaustive and a new destination is a
  * compile error rather than a silent no-op.
  *
- * ⚠ The wire's `href` is a WEB PATH and mobile has no URL router. An unrecognised wire `kind` maps to
+ * The wire's `href` is a web path and mobile has no URL router. An unrecognised wire `kind` maps to
  * `null` here rather than to some "unknown" case — the wire shape never leaks past `data`
  * (Principle VI), and a banner with no target renders non-tappable. A tap that does nothing is worse
  * than no tap.
@@ -124,7 +105,7 @@ sealed interface BannerTarget {
     /**
      * The promotion itself, in full.
      *
-     * ⚠ THIS IS WHAT EVERY BANNER NOW CARRIES, and it replaces a server that sent [Search] for all of
+     * This is what every banner now carries, and it replaces a server that sent [Search] for all of
      * them — so a tap landed on the unfiltered store, indistinguishable from tapping the Search tab
      * and carrying none of the promotion's own facts. The reason no better destination existed is in
      * the data model: a promotion has no product or category scoping, so there is no filtered list to
@@ -133,13 +114,7 @@ sealed interface BannerTarget {
     data class Promotion(val promotionId: String) : BannerTarget
 }
 
-/**
- * One advertised promotion in full — what a banner tap opens.
- *
- * Deliberately NOT built from the [Banner] already in hand. The promotion is re-read at tap time so a
- * promotion that expired, was exhausted by other shoppers, or was withdrawn while Home sat on screen
- * is met with "no longer available" rather than with terms that are no longer true.
- */
+/** One promotion in full, re-read at tap time (not built from the [Banner] in hand), so one that ended says so. */
 data class Promotion(
     val id: String,
     val title: String,
@@ -168,7 +143,7 @@ data class Category(
     val key: String,
     val name: String,
     val parentKey: String?,
-    /** Active products in this category (025). Drives "N items" and the empty-category case. */
+    /** Active products in this category. Drives "N items" and the empty-category case. */
     val productCount: Int,
     /** Derived from a product in the category — categories store no imagery. Null → a brand tile. */
     val imageUrl: String?,
@@ -180,29 +155,29 @@ data class AttributeItem(val label: String, val value: String)
 
 data class AttributeGroup(val groupLabel: String, val items: List<AttributeItem>)
 
-/** The full product page (019 US2). Reuses [ProductCard] for the summary fields. */
+/** The full product page. Reuses [ProductCard] for the summary fields. */
 data class ProductDetail(
     val card: ProductCard,
     val longDescription: String?,
     val gallery: List<Media>,
     val attributes: List<AttributeGroup>,
     val categoryPath: List<String>,
-    /** The primary category's key — drives the related-products rail (025 FR-026). */
+    /** The primary category's key — drives the related-products rail. */
     val categoryKey: String,
-    /** 098 — the product's options in order; empty when it is sold one way (no selector). */
+    /** The product's options in order; empty when it is sold one way (no selector). */
     val options: List<VariantOption> = emptyList(),
-    /** 098 — the sizes on sale, in display order (never an inactive or removed one). */
+    /** The sizes on sale, in display order (never an inactive or removed one). */
     val variants: List<Variant> = emptyList(),
-    /** 098 — the size to open on (the platform's choice: the first that can be bought). */
+    /** The size to open on (the platform's choice: the first that can be bought). */
     val defaultVariantId: String = "",
 )
 
-/** 098 — an option ("Size") and its values in the shop's order. */
+/** An option ("Size") and its values in the shop's order. */
 data class VariantOption(val id: String, val position: Int, val name: String, val values: List<VariantOptionValue>)
 
 data class VariantOptionValue(val id: String, val value: String, val position: Int)
 
-/** 098 — one size of a product, as a shopper may buy it. */
+/** One size of a product, as a shopper may buy it. */
 data class Variant(
     val id: String,
     /** The value of the first option, then of the second; null where the product has no such option. */
@@ -218,7 +193,7 @@ data class Variant(
     val imageUrl: String?,
 )
 
-/** The orderings a result set can be presented in (025 FR-016). */
+/** The orderings a result set can be presented in. */
 enum class ProductSortOption(val wire: String, val label: String) {
     RELEVANCE("relevance", "Best match"),
     NEWEST("newest", "Newest"),
@@ -232,11 +207,11 @@ enum class ProductSortOption(val wire: String, val label: String) {
 }
 
 /**
- * A page of search results with a keyset cursor for infinite scroll (019 US4), plus the total and the
- * ordering ACTUALLY applied (025 FR-016/FR-016a).
+ * A page of search results with a keyset cursor for infinite scroll, plus the total and the
+ * ordering actually applied.
  *
- * ⚠ [sort] may differ from what was requested: `relevance` without a query has nothing to rank by, so
- * the server falls back to `newest` and says so. Render the control from THIS, never from the request,
+ * [sort] may differ from what was requested: `relevance` without a query has nothing to rank by, so
+ * the server falls back to `newest` and says so. Render the control from this, never from the request,
  * or it will misdescribe the list beneath it.
  */
 data class ProductPage(
@@ -246,12 +221,12 @@ data class ProductPage(
     val sort: ProductSortOption,
 )
 
-/** Whether Effy delivers to a postcode, answered before a cart exists (025 FR-014). */
+/** Whether Effy delivers to a postcode, answered before a cart exists. */
 
-// ── Advanced filter facets (043) ─────────────────────────────────────────────────────────────────
+// Advanced filter facets
 
 /**
- * The control a facet drives (043) — maps the wire `FacetType`. Tolerant reader: an unknown wire value
+ * The control a facet drives — maps the wire `FacetType`. Tolerant reader: an unknown wire value
  * degrades to [MULTI_SELECT] rather than throwing, so a facet type added server-side never blanks the
  * sheet.
  */
@@ -284,7 +259,7 @@ data class Facet(
 /** Min/max price of the current set, driving the price control's range. */
 data class PriceBounds(val min: String, val max: String)
 
-/** The facets available for a query + applied filters, with per-option counts (043 US2). */
+/** The facets available for a query + applied filters, with per-option counts. */
 data class FacetSet(val priceBounds: PriceBounds?, val facets: List<Facet>)
 
 /** The catalog read port. Implemented by HttpCatalogRepository over the core client. */
@@ -298,7 +273,7 @@ interface CatalogRepository {
         categoryKey: String?,
         sort: ProductSortOption,
         cursor: String?,
-        // 043: multi-value facets (OR within, AND across) + price band. Trailing + defaulted so the
+        // Multi-value facets (OR within, and across) + price band. Trailing + defaulted so the
         // existing positional call sites are unaffected.
         brands: List<String> = emptyList(),
         attributes: Map<String, List<String>> = emptyMap(),
@@ -306,7 +281,7 @@ interface CatalogRepository {
         maxPrice: String? = null,
     ): ProductPage
 
-    /** The available facets + per-option counts for a query + applied filters (043 US2). */
+    /** The available facets + per-option counts for a query + applied filters. */
     suspend fun facets(
         query: String,
         saleOnly: Boolean,

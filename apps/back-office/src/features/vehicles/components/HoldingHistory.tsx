@@ -3,14 +3,9 @@ import type { VehicleHolding } from "@effy/shared-types";
 import { formatDateTime, formatOdometer } from "../model";
 
 /**
- * Every period this vehicle has been out, newest first (061 FR-016).
- *
- * ⚠ THIS IS A HANDOVER LOG, NOT A JOURNEY LOG. It records who had the vehicle, when, and the two
- * odometer readings — nothing about where it went. Effy does not track position (decision D20), and
- * "see a vehicle's whole life" was narrowed to exactly this during spec validation so it could not
- * be read as telemetry.
- *
- * ⚠ Periods whose driver has since been offboarded still appear. History is what this list is for.
+ * Every period this vehicle has been out, newest first: who had it, when, and the two odometer readings.
+ * A hand-over log, never a journey log (Effy does not track position). Offboarded drivers' periods still
+ * appear.
  */
 export function HoldingHistory({ holdings }: { holdings: VehicleHolding[] }) {
   if (holdings.length === 0) {

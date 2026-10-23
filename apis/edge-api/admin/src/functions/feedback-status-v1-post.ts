@@ -1,4 +1,3 @@
-// POST /admin/v1/feedback/{referenceCode}/status — change triage status (046 US2). Any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

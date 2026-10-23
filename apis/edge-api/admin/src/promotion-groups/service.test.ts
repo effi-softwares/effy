@@ -46,9 +46,8 @@ describe("095 — groups carry a size and skins", () => {
     expect(repo.putMembers).toHaveBeenCalledWith(G, [{ promotionId: P1, skinId: S, imageId: null }, { promotionId: P2, skinId: null, imageId: null }], "s");
   });
 
-  it("094's promotionIds keep each member's choices (undefined = keep)", async () => {
-    await putMembers(G, { promotionIds: [P2, P1] }, "s");
-    expect(repo.putMembers).toHaveBeenCalledWith(G, [{ promotionId: P2, skinId: undefined, imageId: undefined }, { promotionId: P1, skinId: undefined, imageId: undefined }], "s");
+  it("refuses a body without members", async () => {
+    await expect(putMembers(G, { promotionIds: [P2, P1] }, "s")).rejects.toMatchObject({ status: 422 });
   });
 
   it("refuses a promotion twice or a malformed skin id", async () => {

@@ -5,17 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ ONE MAP FROM WHERE A PACKAGE IS TO WORDS (073, S7).
- *
- * Until 073 four files — back-office `packagePositionFor`, shop-web `STATUS_LABEL`,
- * `ORDER_STATUS_LABEL` and the unused `FulfillmentStatusBadge` — each turned the SHOP's status into a
- * word. The shop's status stops at `collected` by design, so back-office said "At hub" the moment a
- * driver picked a package up and the shop console never moved past "Collected". Every one of them was
- * reasonable on its own.
- *
- * This fails if a staff console maps a shop status to display words again. A map keyed by
- * `collected:` with a string value is the shape; tab and filter labels (`TAB_LABEL`) are workflow
- * filters, not positions, and are allowed by name.
+ * One map from where a package is to words. The shop's status stops at `collected`, so a console that
+ * maps it to words shows the wrong place; this fails if one does (a record keyed by `collected:` with a
+ * string value). Tab and filter labels (`TAB_LABEL`) are allowed by name.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

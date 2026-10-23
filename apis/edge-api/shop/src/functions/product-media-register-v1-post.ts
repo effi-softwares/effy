@@ -1,5 +1,4 @@
-// POST /shop/v1/products/{id}/media/register — record an uploaded object. Product must belong to
-// the caller's shop. Returns the media DTO (with a presigned GET url).
+// Records an uploaded object; returns the media DTO with a presigned GET url.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

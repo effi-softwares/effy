@@ -1,4 +1,4 @@
-// PUT /shop/v1/fulfillments/{id}/parcels — set how many bags of each zone the shop packed (096).
+// How many bags of each zone the shop packed.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

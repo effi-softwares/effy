@@ -1,11 +1,11 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
 /**
- * Client-side cart totals for DISPLAY, integer-cents math mirroring the server's money rules.
+ * Client-side cart totals for display, integer-cents math mirroring the server's money rules.
  *
- * 021: the flat $5 delivery fee is GONE (FR-024). Delivery is now geographic + per-package and is only
+ * The flat $5 delivery fee is gone. Delivery is now geographic + per-package and is only
  * known once an address is chosen at the delivery step, from the server quote — so the cart shows the
- * ITEM SUBTOTAL ONLY. The server recomputes the authoritative grand total (items + summed per-package
+ * item subtotal only. The server recomputes the authoritative grand total (items + summed per-package
  * fees) at checkout; this is only the guest-cart item estimate.
  */
 

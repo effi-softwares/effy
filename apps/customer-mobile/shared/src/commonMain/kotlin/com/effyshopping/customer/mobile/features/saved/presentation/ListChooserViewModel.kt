@@ -20,7 +20,7 @@ sealed interface ListChooserState {
     data object Loading : ListChooserState
 
     /**
-     * ⚠ A guest. Named lists need an account (068 FR-037). The save that brought them here already
+     * A guest. Named lists need an account. The save that brought them here already
      * happened, on this device, and is not lost.
      */
     data object SignedOut : ListChooserState
@@ -43,9 +43,9 @@ sealed interface ListChooserState {
 }
 
 /**
- * The list chooser (068): which of the shopper's lists a product is in.
+ * The list chooser: which of the shopper's lists a product is in.
  *
- * ⚠ AFTER EVERY CHANGE THE LISTS ARE RE-READ rather than flipped locally. A list deleted on another
+ * After every change the lists are re-read rather than flipped locally. A list deleted on another
  * device must disappear, and the counts are the platform's.
  */
 class ListChooserViewModel(
@@ -55,7 +55,7 @@ class ListChooserViewModel(
     private val addToList: AddToList,
     private val removeFromList: RemoveFromList,
     private val createList: CreateList,
-    /** 098 — the size on screen, remembered when the product is placed in a list. */
+    /** The size on screen, remembered when the product is placed in a list. */
     private val variantId: String? = null,
 ) : ViewModel() {
 
@@ -98,7 +98,7 @@ class ListChooserViewModel(
         _state.value = current.copy(pending = ListChooserState.NEW_LIST, nameError = null)
 
         viewModelScope.launch {
-            // ⚠ ONE call makes the list AND places the product in it (FR-015). A refusal makes neither.
+            // One call makes the list and places the product in it. A refusal makes neither.
             val error = attempt { createList(name, productId, variantId) }
             if (error == null) onCreated()
             reload(nameError = error)

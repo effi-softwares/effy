@@ -24,18 +24,14 @@ import { Decorations, rgba } from "./decorations";
 import { PROMO_SKIN_CSS } from "./styles";
 
 /**
- * THE PROMOTION SKIN (095) — one promotion drawn in a staff-designed skin. The customer website draws
- * every placement with it, and back-office's skin editor and group previews render THIS component, so
- * what staff see is what shoppers see (research R5). The customer app's `PromoSkin.kt` draws the same
- * layouts from the same numbers (`promotion-skins.fixtures.json`).
- *
- * ⚠ `classic` is not drawn here: a client keeps its own pre-095 drawing for it.
- *
- *   · the box never shrinks below the layout's height, and the background colour is under the picture —
- *     a late picture moves nothing and the words are readable before it arrives (FR-021, SC-006);
- *   · reading order is label, headline, supporting line, the picture's description, the action;
- *     decorations are hidden from assistive tech (FR-022);
- *   · with a code, the button copies it; without one, the skin is one link to where the offer leads.
+ * One promotion drawn in a staff-designed skin, used by the customer website and back-office's editor
+ * and previews alike; the customer app's `PromoSkin.kt` draws the same layouts from
+ * `promotion-skins.fixtures.json`. `classic` is not drawn here (each client keeps its own).
+ *  · the box never shrinks below the layout's height and the colour is under the picture, so a late
+ *  picture moves nothing;
+ *  · reading order is label, headline, supporting line, picture description, action; decorations are
+ *  hidden from assistive tech;
+ *  · with a code the button copies it; without one the skin is a single link.
  */
 
 export interface PromoSkinPromotion {

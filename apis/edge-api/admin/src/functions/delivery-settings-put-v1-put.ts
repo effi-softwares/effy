@@ -1,4 +1,3 @@
-// PUT /admin/v1/delivery/settings — set the operating hub + same-day prep buffer (047). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// ⚠ TYPED PARAMETERS, NOT `vi.fn(async () => …)`. An untyped mock gives `mock.calls` the type
-// `[][]`, so reading `calls.at(-1)![0]` is a compile error — which `vitest run` does not surface
-// because vitest does not run `tsc`. 029 recorded exactly that: a green test run over a failing
-// typecheck.
+// Typed mock parameters: an untyped `vi.fn` makes `mock.calls` `[][]`, which only tsc catches.
 const send = vi.fn(async (_message: Record<string, unknown>) => "projects/x/messages/1");
 
 vi.mock("firebase-admin/app", () => ({
@@ -34,7 +31,6 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
-/** The message object the sender handed to firebase-admin. */
 async function sentFor(platform: "android" | "ios" | "web", type = "shop_new_order" as const) {
   const sender = await createSender();
   await sender.send("tok", type, "f-1", platform);
@@ -45,10 +41,7 @@ describe("⚠ P1 — the sender branches on platform", () => {
   it("sends a WEB token data-only, with NO notification block", async () => {
     const msg = await sentFor("web");
 
-    // ⚠ THE DEFECT THIS PREVENTS, and it does not look like a defect from the server side. With a
-    // `notification` block present the Firebase JS SDK displays the message ITSELF — and our service
-    // worker displays it too. The operator gets two identical banners for one order, the send
-    // reports success, and nothing anywhere logs a problem.
+    // With a `notification` block the Firebase js SDK shows the message too: two banners per event.
     expect(msg).not.toHaveProperty("notification");
     expect(msg).toHaveProperty("data");
     expect(msg).toHaveProperty("webpush");
@@ -60,15 +53,13 @@ describe("⚠ P1 — the sender branches on platform", () => {
       expect(msg).toHaveProperty("notification");
       expect(msg).toHaveProperty("android");
       expect(msg).toHaveProperty("apns");
-      // ⚠ A web-only key reaching a mobile message would be harmless today and confusing forever.
       expect(msg).not.toHaveProperty("webpush");
     }
   });
 
   it("gives a web push a TTL, so a stale one expires rather than arriving late", async () => {
     const msg = (await sentFor("web")) as { webpush: { headers: Record<string, string> } };
-    // A new-order notification eleven minutes late is worse than none: it tells an operator to
-    // hurry for something already picked.
+    // A new-order push eleven minutes late is worse than none.
     expect(Number(msg.webpush.headers.TTL)).toBeLessThanOrEqual(900);
     expect(msg.webpush.headers.Urgency).toBe("high");
   });
@@ -84,8 +75,7 @@ describe("⚠ P1 — the sender branches on platform", () => {
 
 describe("⚠ P2 — every data value is a string, for every type and platform", () => {
   it("never hands FCM a non-string data value", async () => {
-    // FCM rejects a non-string `data` value, and it does so one field deep in a provider error —
-    // the send fails, the row retries, and the cause is nowhere near the symptom.
+    // FCM rejects a non-string `data` value deep inside a provider error.
     for (const type of NOTIFICATION_TYPES) {
       for (const platform of ["android", "ios", "web"] as const) {
         const sender = await createSender();
@@ -103,11 +93,7 @@ describe("dead-token pruning survives the branch (FR-028)", () => {
   it.each([
     ["messaging/registration-token-not-registered", true],
     ["messaging/invalid-registration-token", true],
-    // ⚠ `invalid-argument` USED TO PRUNE, AND THAT WAS WRONG. It means the MESSAGE was malformed —
-    // the sender's fault, not the recipient's. Pruning on it deletes a working registration because
-    // of a bug in our own payload, and the failure hides itself: the operator re-enables
-    // notifications, the next send deletes the row again, and the drain reports a healthy
-    // `skipped: no_token` forever. Changed in 059 after a live registration was destroyed this way.
+    // `invalid-argument` means our payload was malformed, not that the token is dead: never prune on it.
     ["messaging/invalid-argument", false],
     ["messaging/internal-error", false],
   ])("%s → prune=%s", async (code, prune) => {
@@ -122,16 +108,8 @@ describe("dead-token pruning survives the branch (FR-028)", () => {
 
 describe("⚠ fail-open when unconfigured (FR-027)", () => {
   it("reports configured=false and no-ops rather than throwing", async () => {
-    // ⚠ The operator has not seeded the service account yet. Rows stay pending for the deploy that
-    // can send them. A throw here would take down the whole drain — and with it every other
-    // audience's notifications — over a value nobody has supplied yet.
-    //
-    // ⚠ `resetModules` IS REQUIRED, and what it works around is deliberate production behaviour
-    // rather than a defect: `sender.ts` caches the initialised Firebase app at module scope, so a
-    // warm Lambda does not re-read the secret on every invocation. Within one test file that cache
-    // outlives `delete process.env…`, and a test that skipped this would report "configured" for a
-    // sender that genuinely has no credentials — agreeing with the earlier tests instead of with
-    // the requirement.
+    // Not configured yet: rows stay pending rather than crashing the drain. `resetModules` is needed
+    // because the sender caches the Firebase app at module scope.
     vi.resetModules();
     delete process.env.FCM_SERVICE_ACCOUNT_ARN;
     const { createSender: freshSender } = await import("./sender");

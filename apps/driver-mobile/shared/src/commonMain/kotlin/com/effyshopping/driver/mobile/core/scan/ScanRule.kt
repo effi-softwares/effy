@@ -1,13 +1,13 @@
 package com.effyshopping.driver.mobile.core.scan
 
 /**
- * 090 — what one read means at one step. ONE RULE for every scanning step (shop, hub, load, door,
+ * What one read means at one step. One rule for every scanning step (shop, hub, load, door,
  * return): each screen is a view of these outcomes, never its own judgement. Pure, and decided from what
  * the phone already holds — so it works with no signal.
  *
- * ⚠ 096 — THE KOTLIN TWIN of `packages/shared-types/src/scan-rule.ts`. Both are held to the same rows,
+ * The kotlin twin of `packages/shared-types/src/scan-rule.ts`. Both are held to the same rows,
  * `scan-rule.fixtures.json` (embedded as `ScanRuleFixture.kt`): the same outcomes and the same words on
- * every surface (FR-052). What a step counts is BAGS — each with its own code.
+ * every surface. What a step counts is bags — each with its own code.
  */
 sealed interface ScanOutcome {
     /** A bag expected here, not yet scanned. It counts. */
@@ -17,7 +17,7 @@ sealed interface ScanOutcome {
     data class AlreadyScanned(val code: String) : ScanOutcome
 
     /**
-     * ⚠ A HARD STOP. The bag belongs to another stop or drop on the driver's work — handing it over
+     * A hard stop. The bag belongs to another stop or drop on the driver's work — handing it over
      * here is the wrong-bag mistake scanning exists to prevent. [where] names where it belongs.
      */
     data class BelongsElsewhere(val code: String, val where: String) : ScanOutcome
@@ -25,21 +25,21 @@ sealed interface ScanOutcome {
     /** An Effy label, but for nothing on this driver's work. */
     data class NotOnYourWork(val code: String) : ScanOutcome
 
-    /** 096 — a label the shop removed (the bag was voided). Never counted. */
+    /** A label the shop removed (the bag was voided). Never counted. */
     data class Voided(val code: String) : ScanOutcome
 
-    /** 096 — a bag whose order was cancelled. Never counted. */
+    /** A bag whose order was cancelled. Never counted. */
     data class Cancelled(val code: String) : ScanOutcome
 
     /** Not an Effy label — a product's own barcode. Ignored silently. */
     data object NotALabel : ScanOutcome
 }
 
-/** 096 — a bag's place in its package, for "Bag 2 of 3". */
+/** A bag's place in its package, for "Bag 2 of 3". */
 data class BagNumber(val seq: Int, val of: Int)
 
 /**
- * What a step expects: the codes that belong HERE, and the codes elsewhere on the driver's work with
+ * What a step expects: the codes that belong here, and the codes elsewhere on the driver's work with
  * where they belong (the words the hard stop says). 096 — [bags] numbers each expected bag; [voided] and
  * [cancelled] are bags that must never count.
  */

@@ -1,5 +1,4 @@
-// PATCH /shop/v1/products/{id} — focused edit with optimistic concurrency (FR-023/FR-023a).
-// Updates only the supplied subset; a stale expectedUpdatedAt → 409.
+// Only the supplied fields; a stale expectedUpdatedAt is 409.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

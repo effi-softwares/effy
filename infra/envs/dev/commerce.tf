@@ -1,30 +1,19 @@
-# Shopper-facing backend services — 070-retire-core-api.
+# Wiring for the shopper-facing services (`storefront`, `commerce`): where the shopper database role's
+# credentials are, and where the payment-provider secrets are. No secret value enters Terraform state: the
+# three secrets are operator-created and looked up by name for their ARNs:
 #
-# `storefront` and `commerce` are Serverless services (apis/edge-api/{storefront,commerce}); like
-# every edge service they attach to the shared HTTP API and read their wiring from the parameter
-# store at deploy time. This file publishes the two things they need that nothing else did:
+# /effy/<env>/db/shopper — created by `make db-shopper-role ENV=<env>`
+# /effy/<env>/stripe/secret_key — operator-created
+# /effy/<env>/stripe/webhook_secret — operator-created
 #
-#   1. where the SHOPPER database role's credentials are, and
-#   2. where the payment-provider secrets are.
-#
-# ⚠ IT CREATES NO SECRET AND HOLDS NO SECRET VALUE. All three secrets are operator-created and are
-# looked up here by NAME for their ARNs, so no password or key ever enters Terraform state:
-#
-#   /effy/<env>/db/shopper              — created by `make db-shopper-role ENV=<env>`
-#   /effy/<env>/stripe/secret_key       — operator-created (019)
-#   /effy/<env>/stripe/webhook_secret   — operator-created (019)
-#
-# A missing one fails this root's plan loudly, which is correct: a service deployed against a
-# parameter that points nowhere fails at its first request instead.
-#
-# ── ORDER (quickstart Stage 1) ──
-#   make db-up            → the migration creates role effy_shopper, with no password
-#   make db-shopper-role  → sets a password, creates /effy/<env>/db/shopper
-#   make apply            → THIS file can now resolve that secret and publish its ARN
+# A missing one fails this root's plan. Order:
+# make db-up → the migration creates role effy_shopper, with no password
+# make db-shopper-role → sets a password, creates /effy/<env>/db/shopper
+# make apply → this file can now resolve that secret and publish its ARN
 
 # ── 1. The shopper database role ──────────────────────────────────────────────────────────────────
 #
-# Shopper services connect as a role with a CONNECTION LIMIT rather than as the master user, so a
+# Shopper services connect as a role with a connection limit rather than as the master user, so a
 # burst of shopper traffic is refused at the database instead of taking the connections the shop
 # console, the driver app and the back office share (specs/070-retire-core-api/research.md R4).
 
@@ -52,7 +41,7 @@ resource "aws_ssm_parameter" "db_shopper_secret_arn" {
 #
 # Looked up by name for their ARNs. They must exist before apply; a missing one fails loudly here.
 #
-# ⚠ Three services move money (commerce, orders, shop) and each is granted read on the secret key
+# Three services move money (commerce, orders, shop) and each is granted read on the secret key
 # by its own serverless.yml. These lookups are the one place their ARNs are published.
 
 data "aws_secretsmanager_secret" "stripe_secret_key" {

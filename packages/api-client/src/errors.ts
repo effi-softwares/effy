@@ -8,33 +8,18 @@ export type DomainErrorKind =
   | "unavailable"
   | "unknown";
 
-/** The console's single error abstraction. The UI keys human-readable states off `kind` and
- *  NEVER shows raw `detail`/stack/token to the user (FR-008). */
+/** The single client error. The UI keys its states off `kind` and never shows raw `detail`,
+ *  stack or token. */
 export interface DomainError {
   kind: DomainErrorKind;
   status: number;
   title: string;
   detail?: string;
-  /**
-   * Field issues, or (032) stable refusal codes, carried through from the problem document.
-   *
-   * ⚠ Surfacing these is NOT the same as showing raw `detail`, which FR-008 forbids. `detail` is
-   * free-form server prose that can leak internals; a `field` is a value the API contract defines on
-   * purpose, and the console maps it to its OWN copy. Never render `message` verbatim.
-   */
+  /** Field issues or refusal codes: contract values the UI maps to its own copy, never rendered verbatim. */
   fields?: ProblemFieldIssue[];
-  /**
-   * The problem document's `type` URI, when the service sent one.
-   *
-   * ⚠ Like `fields`, this is a value the API contract defines on purpose: the backend names a
-   * refusal by its `type` (`…/problems/name-taken`), and without it two different 400s are one
-   * indistinguishable status. A caller maps it to its OWN copy; it is never shown.
-   */
+  /** The problem's `type` URI (e.g. `…/problems/name-taken`): tells two 400s apart. Never shown. */
   type?: string;
-  /**
-   * The problem document's `code`, when the route defines one (069's delivery-choice refusals).
-   * A contract value to switch on, like `type`; never shown.
-   */
+  /** The problem's `code`, when the route defines one. Never shown. */
   code?: string;
 }
 
@@ -47,7 +32,7 @@ export function toDomainError(status: number, problem?: Partial<ProblemJSON>): D
     detail: problem?.detail,
     type: typeof problem?.type === "string" ? problem.type : undefined,
     code: typeof problem?.code === "string" ? problem.code : undefined,
-    // ⚠ The wire key is `errors`; the domain names them `fields`.
+    // The wire key is `errors`; the domain calls them `fields`.
     fields: Array.isArray(problem?.errors) ? problem.errors : undefined,
   };
 }

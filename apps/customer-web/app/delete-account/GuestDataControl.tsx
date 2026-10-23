@@ -8,18 +8,9 @@ import { resetCart } from "@/lib/cart-store"
 import { resetSaved } from "@/lib/saved-store"
 
 /**
- * The GUEST's route to deleting their own data (034 FR-046).
- *
- * ⚠ THIS LIVES ON THE PUBLIC PAGE ON PURPOSE. Everything else in the account area sits behind a
- * session, so a control built anywhere else would be unreachable by exactly the people who need it —
- * which is how this requirement nearly shipped as decorative. Apple's FAQ names guest accounts
- * explicitly: *"Users should have the option to delete automatically generated accounts (sometimes
- * called 'guest' accounts) and the data associated with those accounts."*
- *
- * ⚠ THERE IS NOTHING SERVER-SIDE TO ERASE, and the copy says so rather than implying otherwise. An
- * Effy guest has no platform record: the saved list and cart mirror live in `localStorage` and only
- * become platform data on sign-in. Claiming a server-side deletion here would be the inverse of the
- * problem the deletion disclosure exists to avoid — describing work that does not happen.
+ * The guest's way to delete their data, on the public page (everything else in the account area needs a
+ * session). A guest has no platform record: their saved list and cart live in `localStorage`, so the copy
+ * says nothing is erased on a server.
  */
 export function GuestDataControl() {
   const [cleared, setCleared] = useState(false)

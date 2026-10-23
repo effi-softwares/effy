@@ -5,7 +5,7 @@ import { Panel } from "@/components/patterns/Panel";
 import { performanceQuery } from "../queries";
 
 /**
- * How a promotion is doing (094 US9): uses, customers, discount given, orders and sales, over its
+ * How a promotion is doing: uses, customers, discount given, orders and sales, over its
  * lifetime and the last 7 and 30 days — rows in a table, not metric tiles (Principle V).
  */
 export function PerformancePanel({ promotionId }: { promotionId: string }) {

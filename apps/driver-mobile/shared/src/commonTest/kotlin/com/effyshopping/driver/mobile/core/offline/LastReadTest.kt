@@ -25,7 +25,7 @@ class LastReadTest {
         assertEquals(Thing("a", stale = true), r.fetch("k") { throw AppException(AppError.Network) })
     }
 
-    /** FR-025 — nothing retained means an ERROR, never an empty list presented as the truth. */
+    /** Nothing retained means an error, never an empty list presented as the truth. */
     @Test
     fun `a first read that fails is an error - not an empty answer`() = runTest {
         val e = assertFailsWith<AppException> { reads().fetch("k") { throw AppException(AppError.Network) } }

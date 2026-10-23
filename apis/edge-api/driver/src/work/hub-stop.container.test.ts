@@ -3,19 +3,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ THE LIVE DEFECT THIS SLICE FIXES AT THE MODEL (064, US4 — research R11).
- *
- * Found on 2026-09-21 with a real driver: they collected every shop on their round, left the run
- * screen, came back, and the app had nothing. `todayView` keeps only `pending`/`arrived` stops in
- * `outstanding`, so once the last shop went `done` the round emptied — and BOTH routes into it
- * disappeared together, because the hero card is drawn from `active` and the "Whole run" link only
- * renders when the queue is non-empty. Thirteen packages in a van, no way back into the round.
- *
- * A `hub_checkin` stop is what closes it: the round keeps outstanding work until the load is actually
- * checked in. `round_stop_kind_check` has permitted the kind since 063 and nothing ever created one.
- *
- * These tests assert the whole lifecycle against real PostgreSQL, because every part of it is a
- * relationship between rows rather than a value a unit test could stub.
+ * A `hub_checkin` stop keeps a collection round's work outstanding until the load is checked in, so a
+ * driver whose shops are all collected can still get back into the round.
  */
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -42,7 +31,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { hubCheckin } from "./complete";
 import { collectionRun, today } from "./service";
@@ -104,8 +93,8 @@ d("064 — the hub check-in is real work", () => {
     ).rows[0]!.id;
     const orderId = (
       await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status)
-         VALUES ($1, 'EFY-HUB01', 10, 12, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid') RETURNING id`,
+        `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, delivery_type, delivery_type_reason)
+         VALUES ($1, 'EFY-HUB01', 10, 12, '{"city":"Richmond","postalCode":"3121"}'::jsonb, 'paid', 'effy', 'in_coverage') RETURNING id`,
         [cust],
       )
     ).rows[0]!.id;
@@ -141,7 +130,7 @@ d("064 — the hub check-in is real work", () => {
         [roundId, shopId],
       )
     ).rows[0]!.id;
-    // What `commitWave` now appends to every collection round.
+    // What `commitWave` appends to every collection round.
     hubStopId = (
       await pool.query<{ id: string }>(
         `INSERT INTO public.round_stop (round_id, kind) VALUES ($1, 'hub_checkin') RETURNING id`,
@@ -155,7 +144,7 @@ d("064 — the hub check-in is real work", () => {
     );
   });
 
-  /** Collect the shop: its stop done, its package picked up — the state the defect appeared in. */
+  /** The shop collected: its stop done, its package picked up. */
   async function collectTheShop() {
     await pool.query(`UPDATE public.round_package SET state = 'picked_up', settled_at = now() WHERE stop_id = $1`, [shopStopId]);
     await pool.query(`UPDATE public.shop_fulfillment SET status = 'collected'`);
@@ -167,10 +156,9 @@ d("064 — the hub check-in is real work", () => {
     const t = await today(driverId);
     expect(t.phase).toBe("collection");
     expect(t.active?.kind).toBe("collection_stop");
-    expect(t.remainingCount).toBe(2); // the shop and the hub
+    expect(t.remainingCount).toBe(2);
   });
 
-  /** ⚠ THE REGRESSION TEST FOR 2026-09-21. */
   it("⚠ after the last shop is collected, the HUB is the outstanding work", async () => {
     await collectTheShop();
 
@@ -189,14 +177,7 @@ d("064 — the hub check-in is real work", () => {
     expect(t.active?.subtitle).toMatch(/1 package/);
   });
 
-  /**
-   * ⚠ T041 — the hub stop must NOT appear in the run detail.
-   *
-   * `collectionRun` maps stops onto `CollectionStopSummary`, which requires a shop name, code and
-   * address. The hub has none — `round_stop_target_ck` forces its `shop_id` and `order_id` to NULL —
-   * so an unfiltered projection emits a stop whose identity is three empty strings: a blank, tappable
-   * row with no error in any log, test or screen.
-   */
+  /** The hub stop has no shop name, code or address, so it must not appear in the run detail. */
   it("⚠ the run detail lists shops ONLY — never an identity-less hub row", async () => {
     const run = await collectionRun(roundId, driverId);
     expect(run.stops).toHaveLength(1);
@@ -211,7 +192,7 @@ d("064 — the hub check-in is real work", () => {
     const stop = await pool.query(`SELECT status FROM public.round_stop WHERE id = $1`, [hubStopId]);
     expect(stop.rows[0].status).toBe("done");
 
-    // ⚠ The mirror of the original defect: work that outlives the round it belongs to.
+    // Work must not outlive the round it belongs to.
     const t = await today(driverId);
     expect(t.phase).toBe("idle");
   });

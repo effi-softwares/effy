@@ -5,25 +5,25 @@
 
 locals {
   # AMPLIFY_MONOREPO_APP_ROOT is not an operator choice — it is derived from app_root so it can never
-  # drift from the amplify.yml appRoot (research D2). Merged over the caller's env_vars.
+  # drift from the amplify.yml appRoot. Merged over the caller's env_vars.
   environment_variables = merge(var.env_vars, {
     AMPLIFY_MONOREPO_APP_ROOT = var.app_root
   })
 }
 
-# ── Amplify service role (required for WEB_COMPUTE / SSR ONLY) ──────────────────────────────────
+# ── Amplify service role (required for WEB_COMPUTE / SSR only) ──────────────────────────────────
 #
 # Amplify assumes this role to run the SSR build/compute and write its logs. The only permission it
 # needs for a hosting-only SSR app is CloudWatch Logs under /aws/amplify/*. (No Gen2 backend here, so
 # no broad AmplifyBackendDeployFullAccess.)
 #
-# ⚠ STATIC (WEB) APPS NEED NO ROLE AT ALL (048, research D2). A Vite SPA has no server runtime, so
+# static (WEB) apps need no role at all. A Vite SPA has no server runtime, so
 # `needs_managed_role` is false for platform == "WEB" and this whole block is inert — the app sets
 # iam_service_role_arn = null. The "Unable to assume specified IAM Role" failure is a WEB_COMPUTE-only
 # concern.
 #
-# ⚠ TRUST MUST INCLUDE BOTH `amplify.amazonaws.com` AND `lambda.amazonaws.com` (SSR runtime is
-# Lambda-backed). Created ONLY when WEB_COMPUTE and var.service_role_arn is empty. See that variable's
+# trust must include both `amplify.amazonaws.com` and `lambda.amazonaws.com` (SSR runtime is
+# Lambda-backed). Created only when WEB_COMPUTE and var.service_role_arn is empty. See that variable's
 # warning: an Amplify-created role is the reliable path, so the recommended SSR flow passes an external
 # ARN and this block is inert.
 locals {
@@ -86,9 +86,9 @@ resource "aws_amplify_app" "this" {
   # webhook + read-only deploy key.
   access_token = var.access_token
 
-  # WEB_COMPUTE for Next.js 14+ SSR (storefront, 042); WEB for the static Vite SPA consoles (048).
+  # WEB_COMPUTE for Next.js 14+ SSR (storefront, 042); WEB for the static Vite SPA consoles.
   # "WEB" cannot detect or run an SSR app, and WEB_COMPUTE would demand a service role a static app
-  # does not need — so this is a per-caller choice (research D2/D3).
+  # does not need — so this is a per-caller choice.
   platform = var.platform
 
   # WEB_COMPUTE: the SSR compute needs a role Amplify can assume to write its logs, else the build
@@ -97,13 +97,13 @@ resource "aws_amplify_app" "this" {
   iam_service_role_arn = local.service_role_arn
 
   # The repo-root amplify.yml is the source of truth for the build; it overrides anything set here.
-  # Each Amplify app builds ONLY the applications[] entry matching its AMPLIFY_MONOREPO_APP_ROOT.
+  # Each Amplify app builds only the applications[] entry matching its AMPLIFY_MONOREPO_APP_ROOT.
 
   environment_variables = local.environment_variables
 
   # ── SPA rewrite (custom rules) — 048 consoles pass the single-page-app rule; default [] (storefront)
   # A client-router SPA on static hosting must serve /index.html (status 200, a rewrite not a redirect)
-  # for any non-asset path, or a deep-link refresh 404s (FR-011, research D3).
+  # for any non-asset path, or a deep-link refresh 404s.
   dynamic "custom_rule" {
     for_each = var.custom_rules
     content {
@@ -113,20 +113,11 @@ resource "aws_amplify_app" "this" {
     }
   }
 
-  # ── Response headers (059) ──────────────────────────────────────────────────────────────────────
-  # Amplify takes customHeaders as a YAML document, not as typed blocks, so it is rendered here.
-  # Empty list → the attribute is omitted entirely, which keeps every app that passes none unchanged.
+  # Response headers: Amplify takes customHeaders as a YAML document, rendered here; an empty list omits the
+  # attribute. The `applications` wrapper is mandatory for these monorepo apps (AMPLIFY_MONOREPO_APP_ROOT is
+  # set from `app_root`); a flat `customHeaders:` document fails after "Build completed successfully" with:
   #
-  # ⚠ THE `applications` WRAPPER IS MANDATORY, AND OMITTING IT FAILS THE BUILD — AFTER IT SUCCEEDS.
-  # Every app built from this module is an Amplify MONOREPO app (they all set
-  # AMPLIFY_MONOREPO_APP_ROOT from `app_root`), and a monorepo app rejects the flat single-app
-  # `customHeaders:` document with:
-  #
-  #     !!!Unable to save headers: CustomerError: Monorepo spec provided without "applications" key
-  #
-  # ⚠ It is raised in POST-PROCESSING, after `## Build completed successfully` — so typecheck, tests
-  # and the bundle all pass, the log reads like a healthy build to the last ten lines, and the job
-  # still goes red. Found exactly that way on 059's first deploy.
+  # !!!Unable to save headers: CustomerError: Monorepo spec provided without "applications" key
   custom_headers = length(var.custom_headers) == 0 ? null : yamlencode({
     applications = [
       {
@@ -158,23 +149,14 @@ resource "aws_amplify_branch" "this" {
   tags = var.tags
 }
 
-# ── Custom domain (optional; enabled once domain_name is set — the cutover apply) ───────────────
+# Custom domain (enabled once domain_name is set). Amplify manages the Route 53 records (the apex cannot be
+# a CNAME, and the association does not expose the CloudFront target cleanly); it maintains them because the
+# zone is in this account. The env root removes the old apex aliases (edge-domain.tf) so Amplify can claim
+# the apex.
 #
-# ⚠ ROUTE53 RECORDS ARE MANAGED BY AMPLIFY, NOT BY THIS MODULE — a decision recorded during
-# implementation (research D6, amended). Reasons: (1) the apex cannot be a CNAME and the association
-# resource does not expose the CloudFront target cleanly, so a reliable Route53 ALIAS cannot be
-# built in Terraform across provider versions; (2) Amplify natively creates + maintains the apex and
-# subdomain records for a domain whose hosted zone lives in the SAME AWS account, which this one does
-# (module.dns's zone). The env root REMOVES the old apex alias records (037's edge-domain.tf) so
-# Amplify can claim the apex — see FR-012.
-#
-# ⚠ wait_for_verification = true blocks the apply until the association is verified. Because Amplify
-# owns the records, there is no chicken-and-egg deadlock (that only arises when Terraform must create
-# the validation record itself). If the apply hangs on "Creating records…", check the zone for a
-# leftover apex A/AAAA or a stale _acm-validation CNAME and reconcile (quickstart §3).
-#
-# The ACM certificate is provisioned by Amplify in us-east-1 automatically (decision-locked: a
-# CloudFront-fronted cert must live there). This module does not create a certificate.
+# wait_for_verification = true blocks the apply until verified (no deadlock, since Amplify writes the
+# validation record). If it hangs on "Creating records…", look for a leftover apex A/AAAA or a stale
+# _acm-validation CNAME. Amplify provisions the certificate in us-east-1 itself.
 resource "aws_amplify_domain_association" "this" {
   count = var.domain_name == "" ? 0 : 1
 
@@ -184,13 +166,13 @@ resource "aws_amplify_domain_association" "this" {
   enable_auto_sub_domain = false
 
   # subdomain_prefix → the deploy branch. "" = the zone apex (storefront, 042); "shop" /
-  # "back-office" for the consoles (048, FR-010/FR-012).
+  # "back-office" for the consoles.
   sub_domain {
     branch_name = aws_amplify_branch.this.branch_name
     prefix      = var.subdomain_prefix
   }
 
-  # www → the deploy branch; Amplify serves it and redirects to the canonical apex (FR-010).
+  # www → the deploy branch; Amplify serves it and redirects to the canonical apex.
   # Apex-only concept — the consoles pass enable_www = false.
   dynamic "sub_domain" {
     for_each = var.enable_www ? [1] : []

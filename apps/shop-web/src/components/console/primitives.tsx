@@ -6,24 +6,24 @@ import { cn } from "@/lib/utils"
  * The shop console's layout vocabulary, transcribed from the imported Claude Design mockup
  * ("Effy Shop Console.dc.html", project 951bb710).
  *
- * ⚠ WHY THESE EXIST RATHER THAN INLINE CLASSES PER SCREEN. The mockup expresses its design as exact
+ * Why these exist rather than inline classes per screen. The mockup expresses its design as exact
  * pixel values repeated on every screen — `padding:9px 14px` on a `th`, `font-size:13.5px` on a `td`,
  * `padding:11px 0;border-bottom` on a detail row. Copied by hand into six screens those numbers drift
  * within a week, and the drift is invisible in review because every individual value looks plausible.
  * Named once, a change is one edit and a divergence is a diff.
  *
- * ⚠ AND THEY ARE THE PLACE THE COLOUR LAW IS ENFORCED. Under the monochrome constitution that meant
- * REFUSING the design's `TONES` map: its amber was a third UI hue, and its `--success` under text
- * measured 4.00:1. Both objections were real, and both are now GONE — the platform-wide theme
+ * And they are the place the colour law is enforced. Under the monochrome constitution that meant
+ * refusing the design's `TONES` map: its amber was a third UI hue, and its `--success` under text
+ * measured 4.00:1. Both objections were real, and both are now gone — the platform-wide theme
  * adoption brings a `--warning` token and re-tunes `--success` to #0d8043, which clears 4.5:1 on
- * white AND on its own tint. So the design's five tones are adopted as authored.
+ * white and on its own tint. So the design's five tones are adopted as authored.
  *
- * ⚠ WHAT DID NOT CHANGE: a tone never carries meaning ALONE. Every pill still keeps its words, so the
+ * What did not change: a tone never carries meaning alone. Every pill still keeps its words, so the
  * console survives greyscale, a colour-blind operator, and a shop floor in bright light. The hue is
  * how you find the row at a glance; the word is how you know what it says.
  */
 
-// ── Page scaffolding ────────────────────────────────────────────────────────────────────────────
+// Page scaffolding
 
 /** The mockup's `main`: one grid, `gap: var(--pad)`, content aligned to the top. */
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
@@ -33,7 +33,7 @@ export function Page({ children, className }: { children: ReactNode; className?:
 /**
  * A section: a hairline-underlined header with an optional right-aligned action, then rows.
  *
- * ⚠ The action is a TEXT button, never a bordered one. The mockup uses a bare muted-foreground link
+ * The action is a text button, never a bordered one. The mockup uses a bare muted-foreground link
  * that darkens on hover, so a page of six sections does not read as a page of twelve buttons.
  */
 export function Section({
@@ -59,14 +59,9 @@ export function Section({
 }
 
 /**
- * An open, card-free page section (057 product-detail revision): a bold title, a one-line muted
- * subtitle saying what the section IS, its action right-aligned on the same row — then ONE hairline,
- * then the content.
- *
- * ⚠ DISTINCT FROM `Section`, NOT A REPLACEMENT. `Section` draws a row-list whose every row carries its
- * own bottom border; the product screen dropped those per-row rules because a divider under every
- * field reads as noise once fields sit in a grid. Order detail still wants the row-list, so the two
- * shapes live side by side rather than one prop flipping the other's semantics.
+ * An open page section: a bold title, a one-line muted subtitle, its action right-aligned on the same
+ * row, one hairline, then the content. Unlike `Section` (a row-list with a rule under every row), for
+ * fields laid out in a grid.
  */
 export function DetailSection({
   title,
@@ -157,15 +152,7 @@ export function Field({
   )
 }
 
-/**
- * The section-header action: `Edit`, `Manage`, `See all`.
- *
- * ⚠ `onClick` IS REQUIRED, AND THAT IS A FIX. The product screen shipped
- * `<SectionAction>Manage</SectionAction>` on its Media section with no handler at all — a control
- * that looks live, takes keyboard focus, and does nothing when clicked. Nothing failed: a missing
- * optional prop is not a type error and no DOM assertion looks for a handler. Making it required
- * turns the next one into a build error instead of something an operator discovers by clicking.
- */
+/** The section-header action (`Edit`, `Manage`, `See all`). `onClick` is required so a control that does nothing is a build error. */
 export function SectionAction({
   children,
   onClick,
@@ -187,7 +174,7 @@ export function SectionAction({
   )
 }
 
-/** An uppercase micro-label — the mockup's `11.5px / 500 / .04em` rail and column heading. */
+/** An uppercase micro-label — the mockup's `11.5px / 500 /.04em` rail and column heading. */
 export function MicroLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
@@ -201,12 +188,12 @@ export function MicroLabel({ children, className }: { children: ReactNode; class
   )
 }
 
-// ── Detail rows ─────────────────────────────────────────────────────────────────────────────────
+// Detail rows
 
 /**
  * One label/value row: label left and muted, value right-aligned.
  *
- * ⚠ `mono` exists because SKUs, references and ids are compared character by character. The mockup
+ * `mono` exists because SKUs, references and ids are compared character by character. The mockup
  * sets Geist Mono on exactly those values and nothing else.
  */
 export function DetailRow({
@@ -249,7 +236,7 @@ export function RailRow({ label, value }: { label: ReactNode; value: ReactNode }
 /**
  * The mockup's stat cell — a micro-label over a 16px semibold figure.
  *
- * ⚠ NOT A CARD. Principle V / DOCTRINE-2 bans metric cards on operational screens, and the mockup
+ * Not a card. Principle V / doctrine-2 bans metric cards on operational screens, and the mockup
  * agrees: its pricing block is a bare grid of these, separated by one hairline underneath.
  */
 export function StatCell({ label, value }: { label: ReactNode; value: ReactNode }) {
@@ -261,16 +248,9 @@ export function StatCell({ label, value }: { label: ReactNode; value: ReactNode 
   )
 }
 
-// ── Pills ───────────────────────────────────────────────────────────────────────────────────────
+// Pills
 
-/**
- * A status pill — the design's five tones, in the platform's tokens.
- *
- * ⚠ THE OLD `quiet | strong | outline` VARIANTS ARE KEPT AS ALIASES rather than removed. They were
- * the monochrome era's weight-based vocabulary; every call site that still asks for `strong` means
- * "this needs a human", which is now `warning`. Deleting the names would have been a rename across
- * screens for no visual gain, and would have lost the mapping that says what they used to mean.
- */
+/** A status pill in the design's five tones. `quiet | strong | outline` are aliases; `strong` means "needs a human", i.e. `warning`. */
 export function Pill({
   children,
   variant = "quiet",
@@ -308,7 +288,7 @@ const PILL_ALIAS: Record<string, PillTone | undefined> = {
   outline: "muted",
 }
 
-// ── Tables ──────────────────────────────────────────────────────────────────────────────────────
+// Tables
 
 /** The mockup's table shell: one hairline border, rounded, horizontally scrollable. */
 export function TableFrame({ children }: { children: ReactNode }) {
@@ -319,7 +299,7 @@ export function TableFrame({ children }: { children: ReactNode }) {
   )
 }
 
-/** ⚠ The header row sits on `--muted`, which is what separates it from the body without a border. */
+/** The header row sits on `--muted`, which is what separates it from the body without a border. */
 export function Th({
   children,
   align = "left",
@@ -387,18 +367,12 @@ export function Tr({
   )
 }
 
-// ── Stock meter ─────────────────────────────────────────────────────────────────────────────────
+// Stock meter
 
 /**
- * The design's inventory bar — red at zero, amber when low, muted otherwise. The platform can now
- * express all three, so it does.
- *
- * ⚠ THE LABEL BESIDE IT STILL CARRIES THE MEANING IN WORDS. The colour is the glance; the words are
- * the statement. That was 041's remedy for a monochrome platform and it remains correct for a
- * coloured one, because a bar is a non-text indicator and cannot be read by a screen reader.
- *
- * ⚠ `max` guards a division by zero: a product with no threshold has no scale to draw against, so the
- * bar renders empty rather than full.
+ * The inventory bar: destructive at zero, warning when low, muted otherwise. The label beside it carries
+ * the meaning in words (a bar is not readable by a screen reader). With no `max` (no threshold) the bar
+ * renders empty.
  */
 export function StockMeter({
   onHand,
@@ -412,7 +386,7 @@ export function StockMeter({
   urgent?: boolean
 }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (onHand / max) * 100)) : 0
-  // ⚠ EMPTY IS A DIFFERENT STATEMENT FROM LOW, and the design separates them: an empty shelf cannot
+  // Empty is a different statement from low, and the design separates them: an empty shelf cannot
   // be sold from at all (destructive), a low one still can (warning). Collapsing both into "urgent"
   // is what the monochrome version had to do, and it cost the operator the one distinction that
   // decides whether to reorder today or this week.
@@ -444,14 +418,14 @@ export function StockMeter({
   )
 }
 
-// ── Segmented control ───────────────────────────────────────────────────────────────────────────
+// Segmented control
 
 /**
- * The design's segmented control: a 3px-padded `--muted` trough with a SOLID `--brand` active segment.
+ * The design's segmented control: a 3px-padded `--muted` trough with a solid `--brand` active segment.
  *
- * ⚠ It matches `Tabs` in the design system exactly, on purpose. This one exists because the catalog's
+ * It matches `Tabs` in the design system exactly, on purpose. This one exists because the catalog's
  * filter strip is a plain controlled value rather than a Radix tab set with panels; if the two ever
- * LOOK different, the console has two segmented controls and the operator has to learn both.
+ * look different, the console has two segmented controls and the operator has to learn both.
  */
 export function Segmented<T extends string>({
   value,

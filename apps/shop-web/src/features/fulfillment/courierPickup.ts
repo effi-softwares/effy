@@ -1,9 +1,9 @@
 import type { CourierPickupDTO } from "@effy/shared-types"
 
 /**
- * 080 US2 — the words a shop reads about a courier collecting a parcel from it.
+ * The words a shop reads about a courier collecting a parcel from it.
  *
- * ⚠ The shop's own parcel only: who comes, when, and the label. Never the customer's estimate, a
+ * The shop's own parcel only: who comes, when, and the label. Never the customer's estimate, a
  * tracking link, a fee, or anything about another supplier's parcel on the same order.
  */
 

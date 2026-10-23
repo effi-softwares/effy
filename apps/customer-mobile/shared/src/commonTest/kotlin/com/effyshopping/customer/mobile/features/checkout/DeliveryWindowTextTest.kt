@@ -13,13 +13,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * 069 — this app says when an order arrives in the SAME WORDS as the web page and the emailed receipt.
- *
- * ⚠ The fixture is the one `packages/shared-types` tests `formatArrival` against (see
- * [DELIVERY_WINDOW_FIXTURE] for why it is a copy, and what keeps the copy honest). A case that passes
- * there and fails here is the defect this exists to catch.
- */
+/** This app says when an order arrives in the web page's and the receipt's words, against their fixture ([DELIVERY_WINDOW_FIXTURE]). */
 class DeliveryWindowTextTest {
 
     private val fixture = Json.parseToJsonElement(DELIVERY_WINDOW_FIXTURE).jsonObject
@@ -48,7 +42,7 @@ class DeliveryWindowTextTest {
         }
     }
 
-    // ⚠ The arithmetic, proven with a FIXED offset so it does not lean on the host's timezone database.
+    // The arithmetic, proven with a fixed offset so it does not lean on the host's timezone database.
 
     private val aedt: (Long) -> Int = { 11 * 3600 }
 

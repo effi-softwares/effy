@@ -1,5 +1,3 @@
-// GET /commerce/v1/orders/{id}/delivery-note[?format=pdf] — what the customer was supplied (096 US7).
-// 404 for no-such-order and not-yours alike; 409 `not_delivered` until the order has arrived.
 import { ConnectionLimitError, internal, json, notFound } from "@effy/edge-shared";
 
 import { customerRoute, pathParam } from "../lib/route";

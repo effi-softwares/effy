@@ -1,7 +1,7 @@
 package com.effyshopping.driver.mobile.features.driver.domain
 
 /**
- * The driver's record and duty control (049). Both go to `edge-api/driver` with the access-token
+ * The driver's record and duty control. Both go to `edge-api/driver` with the access-token
  * bearer. Implementations map wire DTOs to domain and never let a DTO escape; transport failures
  * surface as `AppError` (an `AppException`).
  */
@@ -15,7 +15,7 @@ interface DriverRepository {
     /** `POST /driver/v1/duty` — go on/off duty. Returns the resulting driver record (fresh duty state). */
     suspend fun setDuty(onDuty: Boolean, changeId: String): Driver
 
-    /** 093 — `POST /driver/v1/vehicle-check`: today's check of the vehicle held. Answers OK or UNSAFE. */
+    /** `POST /driver/v1/vehicle-check`: today's check of the vehicle held. Answers OK or unsafe. */
     suspend fun submitVehicleCheck(changeId: String, answers: List<VehicleCheckAnswer>): VehicleCheckStatus =
         throw UnsupportedOperationException("vehicle check not supported by this repository")
 }

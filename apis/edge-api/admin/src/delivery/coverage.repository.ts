@@ -1,24 +1,12 @@
-// Repository for Effy's delivery coverage (076). SQL only — no HTTP, no validation (Principle VI).
-//
-// ⚠ THE LIST IS `public.delivery_zone_postcode` AND A GROUP IS `public.delivery_zone`. The names are
-// historical (047 "zones") and change at the delivery-model cutover; since 076 the first is the one
-// flat list of postcodes Effy delivers to and the second is an optional label. The migration's
-// header says why they were evolved in place rather than copied.
-//
-// ⚠ THIS FILE MAINTAINS THE LIST. IT DOES NOT DECIDE COVERAGE. "Does Effy deliver to X?" is
-// `public.coverage_for_postcode`, read through `coverageForPostcode` — here, in checkout and in the
-// address book alike. `coverage.guard.test.ts` lists this file among the few allowed to touch the
-// table at all.
-//
-// ⚠ Every mutation writes an `admin.audit_log` row inside the SAME transaction as the change (009
-// pattern), with what it was and what it became (FR-027).
+// Maintains the list (`delivery_zone_postcode`) and its optional groups (`delivery_zone`); it does not
+// decide coverage, which is `coverageForPostcode`. Every mutation writes its audit row in the same
+// transaction, with before and after.
 import type pg from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
 
 type Client = pg.PoolClient;
 
-/** Target type of every coverage audit row. */
 const AUDIT_TARGET = "coverage";
 
 async function audit(client: Client, actorSub: string, action: string, detail: Record<string, unknown>, targetId: string | null = null): Promise<void> {
@@ -29,13 +17,8 @@ async function audit(client: Client, actorSub: string, action: string, detail: R
 }
 
 /**
- * How many drivers could be given a delivery to a group — or, for `groupId` null, to a postcode in
- * no group.
- *
- * ⚠ THE SAME RULE THE PLANNER APPLIES (`shared/src/lib/driver-eligibility.ts`): a clearance covers a
- * group it names, or every group when it names none. An ungrouped postcode matches only the second.
- * Until the driver-operations feature (E8) this is the one way a group is more than a label, which
- * is why the console shows the number and asks before leaving postcodes with zero.
+ * Drivers who could take a delivery to a group (`groupId` null: ungrouped postcodes), by the planner's
+ * rule: a clearance covers the group it names, or every group when it names none.
  */
 const DRIVERS_FOR = (groupExpr: string): string => `
   (SELECT count(DISTINCT d.id)
@@ -43,8 +26,6 @@ const DRIVERS_FOR = (groupExpr: string): string => `
      JOIN public.driver d ON d.id = c.driver_id
     WHERE c.function = 'delivery' AND d.status = 'active'
       AND (c.zone_id IS NULL OR c.zone_id = ${groupExpr}))`;
-
-// ── reads ───────────────────────────────────────────────────────────────────────────────────────
 
 export interface PostcodeRow {
   postcode: string;
@@ -54,27 +35,25 @@ export interface PostcodeRow {
   distanceKm: string;
   distanceSource: "computed" | "manual";
   needsReview: boolean;
-  /** 097 */
   todayOffered: boolean;
 }
 
 export interface ListFilters {
-  /** A group id, `"none"` for postcodes in no group, or undefined for all. */
+  /** A group id, `"none"` for ungrouped, or undefined for all. */
   group?: string;
-  /** A postcode prefix (digits) or a place-name prefix. */
+  /** A postcode or place-name prefix. */
   q?: string;
   source?: "computed" | "manual";
   review?: boolean;
-  /** 097 — only postcodes where delivery today is (not) offered. */
   today?: "offered" | "not_offered";
-  /** 097 — only postcodes at least this far from the hub (a validated decimal string). */
+  /** A validated decimal string. */
   minKm?: string;
   /** Keyset: the last postcode of the previous page. */
   after?: string;
   limit: number;
 }
 
-/** Places of a postcode, most addresses first — the first is the one that stands for it. */
+/** Most addresses first; the first stands for the postcode. */
 const PLACES = `
   (SELECT array_agg(l.name ORDER BY l.address_count DESC, l.name) FROM public.locality l WHERE l.postcode = zp.postcode)`;
 const STATE = `
@@ -143,7 +122,6 @@ export async function listGroups(): Promise<GroupRow[]> {
 export interface Totals {
   listed: number; manualDistance: number; needsReview: number;
   ungrouped: number; ungroupedDrivers: number;
-  /** 097 */
   todayNotOffered: number;
 }
 
@@ -167,24 +145,18 @@ export async function totals(): Promise<Totals> {
   };
 }
 
-/** Drivers who can deliver to a group, or (`null`) to ungrouped postcodes. */
 export async function driversFor(groupId: string | null): Promise<number> {
   const res = await query<{ n: string }>(`SELECT ${DRIVERS_FOR("$1::uuid")}::text AS n`, [groupId]);
   return Number(res.rows[0]?.n ?? 0);
 }
 
-/** What staff have set for courier delivery, and where that leaves it right now. */
 export interface CourierSettings {
   offered: boolean;
   whenNoWindows: boolean;
-  /** 080 */
   collectionDefault: "hub" | "supplier";
   defaultService: { id: string; label: string; estimateText: string } | null;
-  /**
-   * `public.courier_delivery_state` — the one definition of whether a courier order can be placed.
-   * ⚠ Asked, never rebuilt here: "pending" depends on the delivery-model switch, which has one reader.
-   */
-  state: "courier_off" | "courier_not_ready" | "courier_pending" | "courier_offered";
+  /** `public.courier_delivery_state`, asked, never rebuilt. */
+  state: "courier_off" | "courier_not_ready" | "courier_offered";
 }
 
 export async function courierSettings(): Promise<CourierSettings> {
@@ -194,7 +166,7 @@ export async function courierSettings(): Promise<CourierSettings> {
       courier_collection_default: "hub" | "supplier"; default_id: string | null; default_label: string | null; default_estimate: string | null;
     }>(
       `SELECT s.courier_offered, s.courier_when_no_windows, s.courier_collection_default,
-              public.courier_delivery_state(now()) AS state,
+              public.courier_delivery_state() AS state,
               d.id::text AS default_id, d.courier_name || ' · ' || d.service_name AS default_label, d.estimate_text AS default_estimate
          FROM public.delivery_settings s
     LEFT JOIN public.courier_service d ON d.is_default AND d.status = 'active'
@@ -227,13 +199,7 @@ export interface PlaceResult {
   listed: boolean; computedDistanceKm: string | null;
 }
 
-/**
- * The add dialog's search: places (or postcodes) → one result PER POSTCODE, because the postcode is
- * what gets listed. Two places of one name in two states are two results; two places in one
- * postcode are one.
- *
- * ⚠ `lower(name) LIKE … || '%'` is served by `locality_name_prefix_idx` (text_pattern_ops, 030).
- */
+/** One result per postcode. `lower(name) LIKE … || '%'` uses `locality_name_prefix_idx`. */
 export async function searchPlaces(q: string, limit: number): Promise<PlaceResult[]> {
   const byPostcode = /^[0-9]+$/.test(q);
   const res = await query<{
@@ -260,7 +226,6 @@ export async function searchPlaces(q: string, limit: number): Promise<PlaceResul
   }));
 }
 
-/** What the platform knows about some postcodes before they are added. */
 export async function postcodeFacts(postcodes: string[]): Promise<Map<string, { known: boolean; listed: boolean; computedKm: string | null }>> {
   const res = await query<{ postcode: string; known: boolean; listed: boolean; km: string | null }>(
     `SELECT p.postcode,
@@ -281,7 +246,6 @@ export async function placesOf(postcode: string): Promise<{ places: string[]; st
   return { places: res.rows.map((r) => r.name), state: res.rows[0]?.state ?? null };
 }
 
-/** Postcodes a place name resolves to (the checker accepts a name as well as a postcode). */
 export async function postcodesForPlace(name: string, limit: number): Promise<string[]> {
   const res = await query<{ postcode: string }>(
     `SELECT DISTINCT postcode FROM public.locality WHERE lower(name) LIKE lower($1) || '%' ORDER BY postcode LIMIT $2`,
@@ -320,11 +284,9 @@ export async function groupNameTaken(name: string, exceptId: string | null): Pro
   return (res.rowCount ?? 0) > 0;
 }
 
-// ── writes ──────────────────────────────────────────────────────────────────────────────────────
-
 export interface NewPostcode { postcode: string; distanceKm: string; source: "computed" | "manual" }
 
-/** Adds what is not already listed (one row per postcode, by the UNIQUE constraint) and says which. */
+/** One row per postcode (unique); says which were added. */
 export async function addPostcodes(items: NewPostcode[], groupId: string | null, todayOffered: boolean, actorSub: string): Promise<string[]> {
   return withTransaction(async (client) => {
     const added: string[] = [];
@@ -348,7 +310,7 @@ export async function addPostcodes(items: NewPostcode[], groupId: string | null,
   });
 }
 
-/** `false` when it was not listed. ⚠ Touches nothing but the list: an order already placed never reads it. */
+/** `false` when not listed. Orders already placed never read the list. */
 export async function removePostcode(postcode: string, actorSub: string): Promise<boolean> {
   return withTransaction(async (client) => {
     const res = await client.query<{ zone_id: string | null; distance_km: string; distance_source: string }>(
@@ -367,7 +329,7 @@ export async function removePostcode(postcode: string, actorSub: string): Promis
   });
 }
 
-/** Moves listed postcodes to a group, or to none. Returns how many moved. */
+/** Returns how many moved. */
 export async function assignGroup(postcodes: string[], groupId: string | null, actorSub: string): Promise<number> {
   return withTransaction(async (client) => {
     const before = await client.query<{ postcode: string; zone_id: string | null }>(
@@ -390,11 +352,8 @@ export async function assignGroup(postcodes: string[], groupId: string | null, a
 }
 
 /**
- * 097 — offer, or stop offering, delivery today at listed postcodes. All or nothing: a postcode not on
- * the list writes nothing (`"not_listed"`). Postcodes already at `offered` are left alone and not
- * audited; ONE audit row records the rest (the same shape a bulk group move uses). Returns how many changed.
- *
- * ⚠ Touches only the list: a place already held, and an order already placed, keep what they bought.
+ * All or nothing (`"not_listed"`). Unchanged postcodes are not audited; one audit row records the rest.
+ * Places already held and orders already placed keep what they bought.
  */
 export async function setTodayOffered(postcodes: string[], offered: boolean, actorSub: string): Promise<"not_listed" | number> {
   return withTransaction(async (client) => {
@@ -419,7 +378,7 @@ export async function setTodayOffered(postcodes: string[], offered: boolean, act
 
 export type DistanceChange = { source: "manual"; km: string } | { source: "computed" };
 
-/** `"not_listed"`, `"not_computable"`, or the saved distance. Saving clears the review flag. */
+/** Saving clears the review flag. */
 export async function setDistance(postcode: string, change: DistanceChange, actorSub: string): Promise<"not_listed" | "not_computable" | { km: string }> {
   return withTransaction(async (client) => {
     const cur = (
@@ -456,7 +415,7 @@ export async function setDistance(postcode: string, change: DistanceChange, acto
   });
 }
 
-/** `code` is unique and never shown; it is derived from the name with a suffix that makes it so. */
+/** `code` is unique and never shown, derived from the name with a suffix. */
 export async function createGroup(name: string, actorSub: string): Promise<string> {
   return withTransaction(async (client) => {
     const res = await client.query<{ id: string }>(
@@ -480,14 +439,7 @@ export async function renameGroup(id: string, name: string, actorSub: string): P
   });
 }
 
-/**
- * Removes a group: its postcodes stay LISTED, in no group; the row is retired, not deleted.
- *
- * ⚠ RETIRED, NOT DELETED. Past delivery rounds name the group they were ordered by
- * (`round_stop.zone_id`) and drivers hold clearances for it; deleting the row would blank the first
- * and silently drop the second. `status = 'disabled'` is what "a removed group" has meant to every
- * reader since 062, and none of them reads it to decide coverage any more.
- */
+/** Postcodes stay listed, ungrouped. Retired, not deleted: past rounds and clearances name the group. */
 export async function removeGroup(id: string, actorSub: string): Promise<number> {
   return withTransaction(async (client) => {
     const was = (await client.query<{ name: string }>(`SELECT name FROM public.delivery_zone WHERE id = $1::uuid FOR UPDATE`, [id])).rows[0];
@@ -504,27 +456,19 @@ export async function removeGroup(id: string, actorSub: string): Promise<number>
   });
 }
 
-/** The three courier settings a person can change. `undefined` = leave as it is. */
-/** The courier settings a person can change. `undefined` = leave as it is. */
+/** `undefined` leaves a setting as it is. */
 export interface CourierChange {
   offered?: boolean;
   whenNoWindows?: boolean;
-  /** 080 */
   collectionDefault?: "hub" | "supplier";
 }
 
-/** Why a courier change was refused — decided under the settings row's lock. */
+/** Decided under the settings row's lock. */
 export type CourierRefusal = "courier_plan_missing" | "courier_service_missing";
 
 type CourierRow = { courier_offered: boolean; courier_when_no_windows: boolean; courier_collection_default: "hub" | "supplier" };
 
-/**
- * Change the courier settings, each change audited on its own.
- *
- * ⚠ THE RULES ARE CHECKED HERE, UNDER THE ROW LOCK: "on only with a fee table and a default courier
- * service" is about the row as it will be (080 — the default service's timeframe replaced 079's one
- * estimate text).
- */
+/** Each change audited on its own; "on" needs a fee table and a default courier service, checked under the lock. */
 export async function changeCourier(change: CourierChange, actorSub: string): Promise<{ refused: CourierRefusal } | { settings: Pick<CourierSettings, "offered" | "whenNoWindows" | "collectionDefault"> }> {
   return withTransaction(async (client) => {
     const was = (
@@ -544,10 +488,10 @@ export async function changeCourier(change: CourierChange, actorSub: string): Pr
     };
 
     if (after.offered && !before.offered) {
-      // 077 FR-013 — never on without a price: every courier order would fail to price.
+      // Never on without a price.
       const plan = await client.query(`SELECT 1 FROM public.delivery_fee_plan WHERE is_active AND kind = 'courier'`);
       if ((plan.rowCount ?? 0) === 0) return { refused: "courier_plan_missing" as const };
-      // 080 — and never without a courier service whose timeframe the customer is told.
+      // Nor without a courier service whose timeframe the customer is told.
       const service = await client.query(`SELECT 1 FROM public.courier_service WHERE is_default AND status = 'active'`);
       if ((service.rowCount ?? 0) === 0) return { refused: "courier_service_missing" as const };
     }
@@ -566,7 +510,7 @@ export async function changeCourier(change: CourierChange, actorSub: string): Pr
   });
 }
 
-/** `false` when it was already excluded. */
+/** `false` when already excluded. */
 export async function addExclusion(postcode: string, reason: string, actorSub: string): Promise<boolean> {
   return withTransaction(async (client) => {
     const res = await client.query(

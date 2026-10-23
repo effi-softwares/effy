@@ -8,21 +8,10 @@ import { createLiveClient, type LiveClient, type LiveState } from "./client";
 import { createCoalescer, type Coalescer } from "./coalesce";
 
 /**
- * 071 — keeps the server-state cache current without a timer.
- *
- * When the platform says a kind of thing changed, the queries that show that kind are invalidated
- * and the ones on screen re-read. That is the whole mechanism: the cache stays the source of truth
- * (constitution Principle VI), and this never holds, patches or guesses at server data.
- *
- * A screen reads when it opens, when it comes back to the foreground, when its connection returns,
- * when it is told something changed, and when the person asks (FR-010) — and at no other time.
- *
- * ⚠ ONLY WHAT IS ON SCREEN RE-READS. `invalidateQueries` re-fetches active queries and marks the
- * rest stale, so a console with a dozen cached screens makes one request, not a dozen, and a screen
- * visited later reads then.
- *
- * ⚠ NOTHING HERE NAVIGATES OR RESETS A FORM (FR-016). A re-read replaces a list's data in place;
- * a form holds its own state and a pick in progress is its own mutation.
+ * Keeps the server-state cache current without a timer: when a kind of thing changes, the queries
+ * showing it are invalidated, so only what is on screen re-reads (the rest goes stale). A screen reads
+ * on open, on return to the foreground, on reconnect, when told something changed and when asked,
+ * never otherwise. Nothing here navigates or resets a form.
  */
 
 export interface LiveProviderProps {
@@ -30,7 +19,7 @@ export interface LiveProviderProps {
   enabled: boolean;
   /** This audience's `GET /…/v1/live`. Resolve `null` when it answers 204 (no channel here). */
   loadDescriptor: () => Promise<LiveDescriptor | null>;
-  /** Which queries show which kind of thing — query-key PREFIXES. A kind left out is ignored. */
+  /** Which queries show which kind of thing, as query-key prefixes. A kind left out is ignored. */
   routes: Partial<Record<LiveKind, readonly QueryKey[]>>;
   getToken?: () => Promise<string | null>;
   children: ReactNode;
@@ -38,10 +27,7 @@ export interface LiveProviderProps {
 
 export interface LiveStatusValue {
   state: LiveState;
-  /**
-   * When what is on screen was last known to be current: the moment the channel was last live, or
-   * when this mounted if it never has been. Shown to the person whenever the state is not `live`.
-   */
+  /** When what is on screen was last known current (the last live moment, or mount). Shown whenever not `live`. */
   currentAsOf: number;
   /** Read everything on screen now, and try the channel again. */
   refresh(): void;
@@ -130,8 +116,7 @@ export function LiveProvider({ enabled, loadDescriptor, routes, getToken, childr
         // Closed while hidden (or refused earlier): connecting again reads everything once.
         client.start();
       } else if (away > 10_000) {
-        // Still connected as far as the socket knows — but a hidden tab is throttled and a sleeping
-        // laptop keeps a dead socket looking open. One read on return costs less than being wrong.
+        // Still connected as far as the socket knows, but a hidden tab is throttled and a sleeping laptop keeps a dead socket open: read once.
         client.retryNow();
         readEverything();
       }

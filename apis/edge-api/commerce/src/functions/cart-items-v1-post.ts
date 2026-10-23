@@ -1,7 +1,5 @@
-// POST /commerce/v1/cart/items — add to the cart (increment).
-//
-// ⚠ changeId is REQUIRED here and only here: add is the one cart operation that is not idempotent,
-// so without it a retry after an ambiguous failure would add the item twice (027 FR-018).
+// changeId is required here only: add is the one cart operation that is not idempotent, so a
+// retry without it would add the item twice.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

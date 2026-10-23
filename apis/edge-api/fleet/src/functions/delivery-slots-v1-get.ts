@@ -1,5 +1,4 @@
-// GET /fleet/v1/delivery-slots — every delivery window with its load today (069 US5) and on each
-// Effy delivery day after it (078 US8). Read = any active staff.
+// Every window with its load on each Effy delivery day. Any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

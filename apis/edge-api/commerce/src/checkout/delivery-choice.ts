@@ -1,7 +1,4 @@
-/**
- * Turning what a shopper chose into what each package of the order will get (078, 079).
- * Pure: every input is passed in, including the clock.
- */
+/** Turns the shopper's choice into what each package gets. Pure; the clock is an input. */
 import {
   METHOD_SAME_DAY, METHOD_STANDARD, windowKey, type CourierQuote, type PackageInput, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
@@ -9,49 +6,33 @@ import type { DeliveryChoiceRefusalCode, DeliveryPromise } from "@effy/shared-ty
 
 import type { PackageDelivery, SlotHold } from "./store";
 
-/**
- * The chosen window is no longer on offer, or none was chosen.
- *
- * ⚠ Never SUBSTITUTED. The platform never moves an order to a time the shopper did not pick: the
- * intent is refused and they choose again (069 FR-010).
- */
+/** The chosen window is gone or none was chosen. Never substituted: the shopper chooses again. */
 export class DeliveryChoiceError extends Error {
   constructor(readonly code: DeliveryChoiceRefusalCode) {
     super(`checkout: delivery choice refused: ${code}`);
   }
 }
 
-/** A quote Effy itself delivers — the only kind that has windows to choose. */
 type EffyQuote = Extract<QuoteResult, { coverage: "effy" }>;
 
-/** The window a shopper chose: a slot ON A DAY. */
 export interface ChosenWindow {
   slotId: string;
   /** yyyy-mm-dd, Melbourne. */
   date: string;
 }
 
-/** What a resolved Effy choice gives the checkout to write. */
 export interface EffyChoice {
   packages: PackageDelivery[];
   hold: SlotHold;
   fee: PricedFee;
   promise: DeliveryPromise;
-  /** The estimate the customer was told; set exactly when `promise` is `asap`. */
+  /** Set exactly when `promise` is `asap`. */
   asapEstimate: string | null;
 }
 
 /**
- * 078 — bind the ONE window the shopper chose to every package of the order.
- *
- * 085 — the window may be the day's "Any time" window: the order is then promised the DAY, and is
- * bound, held and stored like any window. ⚠ Not today's: a customer cannot choose "today, any time".
- *
- * The package's method is the customer's word for it: `same_day` when the window is today,
- * `standard` when it is a later day. Either way Effy delivers, in that window.
- *
- * ⚠ NEVER SUBSTITUTED: no window, a day that is no longer offered, or a window that has closed or
- * filled is a refusal, and the shopper chooses again.
+ * Binds the chosen window to every package. An "Any time" window promises the day (never today's).
+ * The method is the customer's word: `same_day` for today, `standard` for a later day.
  */
 export function resolveEffyWindow(q: EffyQuote, chosen: ChosenWindow | null, now: Date): EffyChoice {
   if (q.effyWindows.unavailable) throw new DeliveryChoiceError("no_windows_available");
@@ -69,12 +50,8 @@ export function resolveEffyWindow(q: EffyQuote, chosen: ChosenWindow | null, now
 }
 
 /**
- * 085 — "as soon as possible": the FIRST day of the calendar (today first) that can take an order
- * with no time. From here it is a day-only order for that day; the customer is told the estimate,
- * never the day.
- *
- * ⚠ THIS IS THE WHOLE OF "AS SOON AS POSSIBLE": nothing re-plans it later except a person in back-office.
- * ⚠ The fee is the quote's one ASAP fee whatever day it lands on — never today's premium.
+ * The first day (today first) that can take an untimed order. The customer is told the estimate,
+ * never the day, and pays the one asap fee whatever day it lands on.
  */
 export function resolveAsap(q: EffyQuote, now: Date): EffyChoice {
   const asap = q.effyWindows.asap;
@@ -83,7 +60,6 @@ export function resolveAsap(q: EffyQuote, now: Date): EffyChoice {
   return { ...bind(q, day, day.anyTime, now), fee: asap.fee, promise: "asap", asapEstimate: asap.estimate };
 }
 
-/** One window on one day, bound to every package of the order — and the place to hold in it. */
 function bind(
   q: EffyQuote,
   day: EffyQuote["effyWindows"]["days"][number],
@@ -97,19 +73,15 @@ function bind(
   return { packages, hold: { slotId: slot.id, date: day.date, now } };
 }
 
-/** 085 — a window OR "as soon as possible"; both, or neither, is no choice at all. */
+/** Exactly one of a window or asap. */
 export function resolveEffyChoice(q: EffyQuote, chosen: ChosenWindow | null, asap: boolean, now: Date): EffyChoice {
   if (asap && chosen) throw new DeliveryChoiceError("slot_required");
   return asap ? resolveAsap(q, now) : resolveEffyWindow(q, chosen, now);
 }
 
 /**
- * 079 — a courier order: nothing was chosen, so there is nothing to bind or to hold.
- *
- * Every package is recorded `standard` with no window and no day — the shape the platform already
- * collects to the hub and hands to a carrier. ⚠ That word is ROUTING, not what the customer was
- * sold: who delivers is the order's delivery type, and the customer reads "Courier delivery".
- * ⚠ `hold` is null BY TYPE: a courier order never takes a place in an Effy window (FR-012).
+ * A courier order binds and holds nothing. Packages are stored `standard` with no window: routing,
+ * not what the customer was sold.
  */
 export function resolveCourier(
   q: CourierQuote,

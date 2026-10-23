@@ -4,9 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { DELIVERY_FEE_LINE_LABEL, DELIVERY_FEE_WORDS } from "./delivery-fee";
 
-// 077 — the mobile app cannot import this package, so its copy of the delivery-fee words lives once,
-// in `DeliveryFeeWords.kt`. This is what keeps that copy from drifting: a word changed here and not
-// there turns this red. (The 071 LiveKind and 076 CoverageWords pattern.)
+// The mobile app keeps the delivery-fee words in `DeliveryFeeWords.kt`; a word changed here and not there fails this.
 const kotlin = resolve(
   __dirname,
   "../../../apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/checkout/presentation/DeliveryFeeWords.kt",

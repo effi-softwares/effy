@@ -17,21 +17,10 @@ const drawerLink =
   "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent aria-[current=page]:bg-accent"
 
 /**
- * The drawer, with its account level filled in — A DYNAMIC HOLE (research D4, same shape as
- * `UserIsland`).
- *
- * ⚠ WHY THE SESSION READ HAPPENS HERE AND NOT INSIDE `MobileNav`. `MobileNav` is a client component,
- * so it cannot read cookies; and the drawer must look genuinely different for the two audiences —
- * a guest gets a one-tap "Sign in" at the foot, a signed-in customer gets an avatar that drills into
- * their account. Handing the client component a `null` panel is how that decision crosses the
- * boundary: the SERVER decides, and there is no way for the client to guess wrong.
- *
- * ⚠ It must stay inside the `<Suspense>` the layout wraps it in, and the layout itself must never
- * read cookies — either change converts every public page from a cached static shell to
- * request-time rendering. The fallback renders the hamburger, so the shell still ships instantly.
- *
- * ⚠ ZERO ADDED CLIENT JS. The account level is plain links and a `<form>`, server-rendered and
- * passed in as children — the same trick `AccountMenu` uses. A guest downloads none of it.
+ * The drawer with its account level filled in: a dynamic hole, like `UserIsland`. The session is read
+ * here, on the server, because `MobileNav` is a client component (a guest gets "Sign in", a customer an
+ * avatar that drills into their account). It must stay inside the layout's `<Suspense>`, and the layout
+ * must never read cookies, or every public page loses its cached shell. No added client JS.
  */
 export async function MobileNavIsland() {
   const [session, categories] = await Promise.all([getSession(), getCategoriesSafe()])
@@ -91,7 +80,7 @@ export async function MobileNavIsland() {
       }
       accountPanel={
         <>
-          {/* ⚠ EVERY section of the account area, not the header dropdown's short list: below `lg`
+          {/* Every section of the account area, not the header dropdown's short list: below `lg`
               the account sidebar is not rendered, so this level IS the account navigation. The
               entries and their glyphs come from the one shared list the sidebar reads. */}
           <ul className="flex flex-col gap-1">
@@ -116,7 +105,7 @@ export async function MobileNavIsland() {
             ))}
           </ul>
 
-          {/* ⚠ POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
+          {/* POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
               the internet — a CSRF logout. A form also means sign-out works with JavaScript
               disabled, which is a nice thing to be able to say about the control that ends a
               session. Separated by a rule because it is the one destructive entry in the list. */}

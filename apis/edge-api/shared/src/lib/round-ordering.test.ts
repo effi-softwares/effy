@@ -45,7 +45,7 @@ describe("orderRoundStops — the sort key (FR-018)", () => {
     expect(ids(out)).toEqual(["z1s1", "z1s2", "z2s1", "z2s2"]);
   });
 
-  // FR-031 — a dispatcher is asserting something the sort key cannot know.
+  // A dispatcher asserts something the sort key cannot know.
   it("lets a dispatcher's seq beat the derived order among actionable stops", () => {
     const out = orderRoundStops([
       stop({ id: "first-by-zone", zoneId: "zone-1", seq: 2 }),
@@ -54,7 +54,7 @@ describe("orderRoundStops — the sort key (FR-018)", () => {
     expect(ids(out)).toEqual(["second-by-zone", "first-by-zone"]);
   });
 
-  // ⚠ Otherwise completing a stop could reshuffle the list under the driver's thumb.
+  // Otherwise completing a stop could reshuffle the list.
   it("does not let seq reorder stops that are already finished with", () => {
     const out = orderRoundStops([
       stop({ id: "done-a", status: "done", seq: 9, zoneId: "zone-1" }),
@@ -71,7 +71,7 @@ describe("orderRoundStops — the sort key (FR-018)", () => {
     expect(ids(out)).toEqual(["a", "b"]);
   });
 
-  // SC-007 / FR-020 — the whole rule is worthless if it is not reproducible.
+  // The rule is worthless if it is not reproducible.
   it("is total and deterministic — equal inputs always give equal order", () => {
     const input = [
       stop({ id: "c" }),

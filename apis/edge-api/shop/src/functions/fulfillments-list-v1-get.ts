@@ -1,7 +1,4 @@
-// GET /shop/v1/fulfillments — the shop's order queue (020, US1).
-//
-// Scoped to the caller's own shop by gate(); there is no shop parameter to supply. Ordered by
-// delivery promise, which today IS strict FIFO (FR-001b, SC-020).
+// Scoped to the caller's own shop by gate. Ordered by the ready-by promise, which is FIFO.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -19,8 +16,7 @@ export const handler = async (
   const g = await gate(event, scope);
   if ("deny" in g) return g.deny;
 
-  // Anything other than an explicit `completed` reads the active queue — an unrecognised value must
-  // never silently widen the result set.
+  // Anything but `completed` reads the active queue, so an unknown value never widens the result.
   const state: QueueState = event.queryStringParameters?.state === "completed" ? "completed" : "active";
 
   try {

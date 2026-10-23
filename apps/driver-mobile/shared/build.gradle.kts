@@ -39,8 +39,8 @@ kotlin {
     }
 
     sourceSets {
-        // 049 — the GENERATED, drift-guarded driver contract (from driver.ts) lives in shared-types;
-        // the design theme is derived from the SAME tokens.css as every surface (one brand source,
+        // The generated, drift-guarded driver contract (from driver.ts) lives in shared-types;
+        // the design theme is derived from the same tokens.css as every surface (one brand source,
         // Principle II/V) into a per-app package (`compose-driver`). The shared, audience-neutral mobile
         // navigation shell (mobile-kit) is consumed by all three mobile apps.
         commonMain {
@@ -56,26 +56,26 @@ kotlin {
         }
 
         androidMain.dependencies {
-            // 060 — in-app camera viewfinder for photo proof (design screen `proof-photo`).
+            // In-app camera viewfinder for photo proof (design screen `proof-photo`).
             // Android only: iOS gets the same designed chrome with a system-camera handoff until a
-            // Swift AVFoundation bridge is written (research R8, plan Complexity Tracking).
+            // swift AVFoundation bridge is written (research R8, plan Complexity Tracking).
             implementation(libs.androidx.camera.core)
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.view)
-            // 090 — reading package labels (QR + Code 128) from the CameraX stream.
+            // Reading package labels (QR + Code 128) from the CameraX stream.
             implementation(libs.mlkit.barcode.scanning)
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
-            // 049 photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).
+            // Photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.android)
-            // 071 — CIO holds the live channel's WebSocket. NOT the data client's engine, and NOT OkHttp.
+            // CIO holds the live channel's WebSocket. Not the data client's engine, and not OkHttp.
             implementation(libs.ktor.client.cio)
-            // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
+            // Amplify android (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify swift.
             implementation(libs.amplify.auth.cognito)
             implementation(libs.amplify.core.kotlin)
-            // 050 — Firebase (FCM + Crashlytics) + PostHog: the Android actuals for the observability/push drivers.
+            // Firebase (FCM + Crashlytics) + PostHog: the Android actuals for the observability/push drivers.
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.messaging)
             implementation(libs.firebase.crashlytics)
@@ -86,15 +86,9 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.animation)
             implementation(libs.compose.material3)
-            // ⚠ 060 REMOVED MapLibre. It rendered real OpenStreetMap cartography and worked at
-            // runtime, but aborted the app under Xcode's debug build (SIGABRT on its own render
-            // thread, pre-1.0 threading between native callbacks and the Kotlin/Native runtime) —
-            // not fixable here, and an app that cannot be Run from Xcode is not a workable basis
-            // for developing this surface. The map is now the stylised route FR-023e always
-            // recorded as the fallback. MapLibreAbsentGuardTest keeps it out.
-            // 060 \u2014 the history record renders the ACTUAL captured proof photo. Before this it
-            // printed "Photo/signature captured" and showed nothing, which is useless in the one
-            // situation the record exists for: a customer disputing a delivery.
+            // No MapLibre: it aborted the app under Xcode's debug build (SIGABRT on its render thread). The map is a
+            // drawn schematic; MapLibreAbsentGuardTest keeps it out. Coil renders the captured proof photo in a
+            // delivery's record.
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
             implementation(libs.compose.material3.adaptive.navigation.suite)
@@ -106,7 +100,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.websockets) // 071 — the live-update channel
+            implementation(libs.ktor.client.websockets) // The live-update channel
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)
@@ -126,7 +120,7 @@ kotlin {
     }
 }
 
-// ── BuildKonfig — compile-time config from the root project's resolved contract (049, per 013/014) ─
+// BuildKonfig — compile-time config from the root project's resolved contract
 @Suppress("UNCHECKED_CAST")
 val effyConfig = rootProject.extra["effyConfig"] as Map<String, String>
 
@@ -145,17 +139,9 @@ compose.resources {
     packageOfResClass = "com.effyshopping.driver.mobile.resources"
 }
 
-// ── 060: source guards read files Gradle does not otherwise track ──────────────────────────────
-//
-// ⚠ FOUND BY THE NEGATIVE PROOF, not by reasoning. `PlaceholderRegisterGuardTest` reads
-// `specs/060-driver-mobile-ui/provenance-register.md`, which lives OUTSIDE this Gradle project. It
-// is therefore invisible to the up-to-date check: editing the register left the test task
-// UP-TO-DATE and the guard simply did not run. The guard would have been silent in exactly the
-// situation it exists for — someone changing the register and not the code.
-//
-// Declaring it as an input fixes that. `optional` so a checkout without the spec directory (or a
-// future move of the file) degrades to "guard does not run" rather than "the build cannot
-// configure".
+// Source guards read files Gradle does not otherwise track: `PlaceholderRegisterGuardTest` reads
+// `specs/060-driver-mobile-ui/provenance-register.md`, declared as an input so editing it re-runs the
+// test. `optional`, so a checkout without it skips the guard rather than failing to configure.
 tasks.withType<Test>().configureEach {
     inputs.file(rootProject.file("../../specs/060-driver-mobile-ui/provenance-register.md"))
         .withPropertyName("provenanceRegister")

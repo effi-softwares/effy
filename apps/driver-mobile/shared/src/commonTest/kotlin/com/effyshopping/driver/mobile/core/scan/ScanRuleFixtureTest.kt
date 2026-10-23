@@ -10,9 +10,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * 096 — the app's scan rule agrees with every row of `packages/shared-types/scan-rule.fixtures.json`
+ * The app's scan rule agrees with every row of `packages/shared-types/scan-rule.fixtures.json`
  * (embedded as [SCAN_RULE_FIXTURES]; `scan-rule.test.ts` checks the copy is that file). Outcome, code and
- * words — the same on every surface (FR-052).
+ * words — the same on every surface.
  */
 class ScanRuleFixtureTest {
     @Test fun agrees_with_every_row_of_the_shared_fixture() {

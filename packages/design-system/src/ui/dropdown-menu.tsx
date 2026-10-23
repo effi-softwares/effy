@@ -1,6 +1,4 @@
-// ⚠ 057: menu SURFACES take the container radius (8px) and menu ROWS the control radius (6px) —
-// the same split the whole system now runs on. shadcn ships 6px/4px, which reads as a rounder box
-// full of sharper rows, the inversion this pass exists to remove.
+// Menu surfaces take the container radius and rows the control radius, so the box is never sharper than its rows.
 import * as React from "react"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"

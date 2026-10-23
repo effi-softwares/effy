@@ -4,17 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the storefront service — 035's guard.
- *
- * 035's fourth defect: code read four env vars `serverless.yml` never declared, every lookup
- * resolved "unknown", and a hundred passing tests missed it because the tests set those vars
- * themselves. A unit test that provides its own environment cannot catch an environment that is not
- * provisioned — so this reads the ACTUAL `serverless.yml`.
- *
- * It also pins the two things that DEFINE this service: no route takes a credential, and it
- * connects as the connection-limited shopper role rather than the master user (070 research R4).
- */
+/** Reads the real serverless.yml: no route takes a credential, and it connects as the shopper role. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceRoot = resolve(here, "..");
@@ -41,7 +31,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Set by the Lambda runtime itself, never by `serverless.yml`. */
+/** Set by the Lambda runtime, never by `serverless.yml`. */
 const RUNTIME_PROVIDED = new Set(["AWS_LAMBDA_FUNCTION_NAME", "AWS_SESSION_TOKEN", "AWS_REGION"]);
 
 describe("storefront service deployment contract", () => {
@@ -49,10 +39,10 @@ describe("storefront service deployment contract", () => {
 
   it("declares every key the shared library reads on this service's behalf", () => {
     const required = [
-      "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN", // db
-      "MEDIA_PUBLIC_BASE_URL", // 086 — publicImageUrl
-      "METRIC_NAMESPACE", // emitMetric
-      "EFFY_ENV", "LOG_LEVEL", // logger
+      "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN",
+      "MEDIA_PUBLIC_BASE_URL",
+      "METRIC_NAMESPACE",
+      "EFFY_ENV", "LOG_LEVEL",
     ];
     expect(required.filter((k) => !declared.has(k))).toEqual([]);
   });
@@ -77,7 +67,7 @@ describe("storefront service deployment contract", () => {
     expect(yaml).not.toMatch(/^\s+authorizer:/m);
   });
 
-  // 086 — pictures are addressed on the media CDN; this service never touches the bucket.
+  // Pictures are addressed on the media CDN; this service never touches the bucket.
   it("has no access to the media bucket at all", () => {
     expect(yaml).not.toMatch(/s3:(GetObject|PutObject|DeleteObject)/);
     expect(yaml).not.toContain("S3_MEDIA_BUCKET");

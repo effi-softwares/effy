@@ -18,7 +18,7 @@ export interface Targets {
 }
 
 /**
- * What an item or buy-X-get-Y promotion covers (094 US3): chosen products (searched by name, SKU or
+ * What an item or buy-X-get-Y promotion covers: chosen products (searched by name, SKU or
  * brand), whole categories (their sub-categories too), or brands. One kind of target at a time.
  */
 export function TargetPicker({

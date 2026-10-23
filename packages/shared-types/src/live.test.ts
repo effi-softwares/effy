@@ -16,8 +16,7 @@ describe("parseLiveUpdate", () => {
   );
 });
 
-// The mobile apps cannot import this file. Their copy of the list lives once, in mobile-kit, and
-// this is what keeps it from drifting: a kind added here and not there turns this red.
+// The mobile apps keep their copy of the list in mobile-kit; a kind added here and not there fails this.
 describe("the Kotlin kind list", () => {
   const kotlin = resolve(__dirname, "../../mobile-kit/common/live/LiveKind.kt");
 

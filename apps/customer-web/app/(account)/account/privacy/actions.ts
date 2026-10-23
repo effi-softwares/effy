@@ -12,21 +12,13 @@ import { getSession } from "@/lib/dal"
 import { clearSessionCookies } from "@/lib/session"
 
 /**
- * Account closure (034 US3).
- *
- * ⚠ A SERVER ACTION IS A PUBLIC ENDPOINT — it compiles to a POST route anyone can craft a request
- * against, so every action re-verifies the session and identity always comes from the token. The
- * backend re-checks everything regardless; this is defence in depth.
- *
- * ⚠ Nothing here offers to deactivate, disable, freeze or pause an account (FR-037/SC-009). The
- * difference between shipping and being rejected is that erasure runs automatically once requested,
- * with no human step — both documented App Review rejections in this area were deactivation flows
- * with a support agent in the loop.
+ * Account closure. Server Actions are public endpoints: each re-verifies the session. Nothing offers to
+ * deactivate, freeze or pause; erasure runs automatically once requested.
  */
 
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string }
 
-/** Everything the customer must see before any irreversible step (FR-040). Side-effect free. */
+/** Everything the customer sees before any irreversible step. Side-effect free. */
 export async function loadClosurePreview(): Promise<Result<{ preview: ClosurePreviewDTO }>> {
   const session = await getSession()
   if (!session) return { ok: false, error: "Please sign in again." }
@@ -42,13 +34,7 @@ export async function loadClosurePreview(): Promise<Result<{ preview: ClosurePre
   }
 }
 
-/**
- * Email the step-up code (FR-043).
- *
- * ⚠ Keyed on the account's verified email, never a password — which is exactly why it works for a
- * customer whose only credential is Google. A password prompt here would be an unresolvable dead end
- * for that whole cohort, and therefore "unnecessarily difficult" in Apple's terms.
- */
+/** Emails the step-up code, keyed on the verified email (so it works for a Google-only customer). */
 export async function requestClosureCode(): Promise<Result<{ maskedDestination: string }>> {
   const session = await getSession()
   if (!session) return { ok: false, error: "Please sign in again." }
@@ -65,13 +51,7 @@ export async function requestClosureCode(): Promise<Result<{ maskedDestination: 
   }
 }
 
-/**
- * Verify the code and close the account.
- *
- * ⚠ REDIRECTS on success, and therefore does not return. Past the point where this succeeds, every
- * session is dead — including this one — so the cookies must be cleared on the server, in the same
- * request that succeeded, or the browser keeps holding a session the platform has already killed.
- */
+/** Verifies the code and closes the account. Redirects; every session is dead, so cookies are cleared here. */
 export async function closeAccount(code: string): Promise<Result> {
   const session = await getSession()
   if (!session) return { ok: false, error: "Please sign in again." }
@@ -90,7 +70,7 @@ export async function closeAccount(code: string): Promise<Result> {
   redirect("/?reason=account-deleted")
 }
 
-/** The backend's problem-detail message, when it gave one worth showing the customer. */
+/** The backend's problem-detail message, when it is worth showing. */
 function messageFor(err: unknown, fallback: string): string {
   const detail = (err as { detail?: unknown })?.detail
   return typeof detail === "string" && detail.length > 0 ? detail : fallback

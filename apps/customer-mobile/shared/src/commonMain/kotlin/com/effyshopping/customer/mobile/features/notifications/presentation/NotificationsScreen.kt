@@ -19,13 +19,8 @@ import com.effyshopping.customer.mobile.resources.lucide_settings
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * Notifications (Notifications board; 087 FR-037).
- *
- * ⚠ AN HONEST EMPTY STATE, NOT A LIST. The platform does not keep a customer's sent notifications, so
- * there is nothing to show; the list is DEFERRED to a later feature (087 spec, Q1). Until then this
- * page says so plainly and offers the one useful thing it can: the system's notification settings,
- * where a shopper who missed an order update turns them on. (087 deleted `NotificationFixtures`, which
- * always returned an empty list behind a list layout nothing could fill.)
+ * Notifications: an honest empty state. The platform keeps no customer notification history, so this says
+ * so and offers the system's notification settings.
  */
 @Composable
 fun NotificationsScreen() {

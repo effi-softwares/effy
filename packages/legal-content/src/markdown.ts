@@ -1,12 +1,9 @@
 import type { Block, InlineRun } from "./types"
 
 /**
- * The ONE definition of the constrained Markdown subset (Principle II). Both the web renderer and the
- * `legal:check` guard use this, so a document cannot parse on one surface and break on another.
- *
- * Supported: `#`/`##`/`###` headings, paragraphs, `-`/`*` unordered lists, `1.` ordered lists,
- * pipe tables (`| a | b |` with a `---` separator row), and inline `**bold**`, `*italic*`,
- * `[label](href)`. Anything the parser cannot classify raises — that is the subset guard.
+ * The constrained Markdown subset, shared by the web renderer and `legal:check`: headings (#–###),
+ * paragraphs, unordered and ordered lists, pipe tables with a `---` row, and inline bold, italic and
+ * links. Anything else raises.
  */
 
 export class MarkdownSubsetError extends Error {}

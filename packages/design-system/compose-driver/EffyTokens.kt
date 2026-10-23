@@ -1,6 +1,5 @@
 // GENERATED FROM packages/design-system/src/storefront/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
-// The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).
 package com.effyshopping.driver.mobile.design
 
 import androidx.compose.material3.ColorScheme
@@ -9,10 +8,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The raw Effy STOREFRONT tokens (087), light and dark (the dark appearance is the mobile app's; the
- * website is light only). Colour is rationed: black, white, zinc, Effy blue (primary — every action)
- * and Effy green (brand — Sale, savings, "Delivered by Effy", paid; never an action). No red:
- * destructive is the text colour.
+ * The raw Effy storefront tokens, light and dark. Colour is rationed: black, white, zinc, Effy blue
+ * (primary, every action) and Effy green (brand: Sale, savings, "Delivered by Effy", paid; never an
+ * action). No red: destructive is the text colour.
  */
 object EffyColor {
     object Light {

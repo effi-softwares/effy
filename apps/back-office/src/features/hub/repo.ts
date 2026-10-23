@@ -2,7 +2,7 @@ import type { HubCheckinsResponseDTO, HubExpectedDTO, LabelReadDTO } from "@effy
 
 import { api } from "@/lib/api";
 
-// 096 US5 — the hub station's data layer (fleet, staff gateway). Screens never call the api directly.
+// The hub station's data layer (fleet, staff gateway). Screens never call the api directly.
 
 export function getHubExpected(): Promise<HubExpectedDTO> {
   return api.get<HubExpectedDTO>("/fleet/v1/hub/expected");

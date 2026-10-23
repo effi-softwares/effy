@@ -1,13 +1,7 @@
 /**
- * The delivery-window picker, as words (078).
- *
- * ⚠ ONE WORDING, IN ONE PLACE — the same rule as `delivery-window.ts`. The customer website renders
- * exactly what `effyWindowsView` returns, and the customer app carries a Kotlin twin pinned to
- * `effy-windows.fixtures.json`. Two pickers that each render SOMETHING never fail when they disagree
- * about which day is "Fri 9 Oct" or whether a window still shows its surcharge.
- *
- * ⚠ NOTHING HERE FORMATS MONEY. A surcharge leaves as the 2-dp amount it arrived as; each surface
- * formats currency its own way.
+ * The delivery-window picker, as words: the website renders what `effyWindowsView` returns and the
+ * customer app has a Kotlin twin pinned to `effy-windows.fixtures.json`. Money is not formatted here:
+ * a surcharge leaves as its 2-dp amount.
  */
 import { DELIVERY_WINDOW_WORDS, type EffyDayDTO, type EffyWindowsDTO } from "./delivery";
 import { formatDeliveryDay, formatDeliveryWindow, formatMoment } from "./delivery-window";
@@ -35,12 +29,12 @@ export interface EffyDayView {
   /** Why there is nothing to choose that day; null when there is. */
   sentence: string | null;
   windows: EffyWindowLine[];
-  /** 085 — what to send as `deliveryWindow` to choose the day with NO TIME; null when it cannot be (today, always). */
+  /** What to send as `deliveryWindow` to choose the day with no time; null when it cannot be (always, today). */
   anyTime: { slotId: string; date: string } | null;
 }
 
 export interface EffyWindowsView {
-  /** The one sentence when NO day has a window; the sections are then not shown. */
+  /** The one sentence when no day has a window; the sections are then not shown. */
   unavailable: string | null;
   sameDayTitle: string;
   standardTitle: string;
@@ -48,7 +42,7 @@ export interface EffyWindowsView {
   today: EffyDayView | null;
   /** The following delivery days, under "Standard delivery". */
   later: EffyDayView[];
-  /** 085 — "as soon as possible", when it is offered. */
+  /** "As soon as possible", when offered. */
   asap: { title: string; hint: string; estimate: string } | null;
 }
 
@@ -71,7 +65,7 @@ function dayView(day: EffyDayDTO, now: Date): EffyDayView {
         slotId: w.slotId,
         date: w.date,
         label: formatDeliveryWindow({ startAt: w.startAt, endAt: w.endAt }),
-        // The time to order by is today's business; a later day's is days away and would only be noise.
+        // The order-by time is today's business; a later day's would be noise.
         note: !today ? null : closed ? "Closed" : `${DELIVERY_WINDOW_WORDS.cutoffPrefix} ${formatMoment(w.cutoffAt, now)}`,
         closed,
         surchargeAmount: Number(w.surchargeAmount) > 0 ? w.surchargeAmount : null,

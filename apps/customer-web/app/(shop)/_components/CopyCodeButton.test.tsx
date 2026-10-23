@@ -29,12 +29,7 @@ describe("CopyCodeButton", () => {
     expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument()
   })
 
-  /**
-   * ⚠ The clipboard can be refused outright — an insecure origin, a denied permission — and a
-   * rejected promise must not surface as a failure. The code is on screen and selectable, so the
-   * shopper has lost a shortcut, not the offer; an error about a convenience would read as the
-   * PROMOTION having failed, which is the one message that must not appear here.
-   */
+  /** A refused clipboard is not a failure: the code is on screen and selectable. */
   it("stays silent when the browser refuses the clipboard", async () => {
     stubClipboard(async () => {
       throw new Error("denied")

@@ -1,5 +1,4 @@
-// PUT /fleet/v1/shops/{shopId}/pack-scanning — require every bag to be scanned as packed (096 US4,
-// FR-020). Write = admin/manager.
+// Admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -22,7 +21,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     if (typeof body.required !== "boolean") {
       throw validationError("say whether pack scanning is required", [{ field: "required", message: "must be true or false" }]);
     }
-    // No announcement: nothing a screen shows changes until the shop next marks an order ready.
+    // No announcement: nothing shown changes until the shop next marks an order ready.
     return json(200, await setPackScanning(shopId, body.required, g.sub), scope);
   } catch (err) {
     return mapFleetError(err, scope);

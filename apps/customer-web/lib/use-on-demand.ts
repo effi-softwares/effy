@@ -2,9 +2,9 @@ import { useEffect, useState } from "react"
 
 /**
  * A component fetched after the page is interactive — the storefront's replacement for
- * `next/dynamic(…, { ssr: false })` on guest routes (PERF-01).
+ * `next/dynamic(…, { ssr: false })` on guest routes.
  *
- * ⚠ WHY NOT `next/dynamic`. Its client runtime measured 1.3 KB gzipped on EVERY guest route, to
+ * Why not `next/dynamic`. Its client runtime measured 1.3 KB gzipped on every guest route, to
  * lazy-load two things. This is the same behaviour — nothing on the server, nothing until the chunk
  * arrives — in one effect. `when` holds the fetch back until it is true (a panel nobody has opened).
  *

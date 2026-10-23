@@ -27,14 +27,14 @@ import {
 } from "./_payment/confirm"
 
 /**
- * THE PAYMENT STEP (051 US1).
+ * The payment step.
  *
- * ⚠ IT CARRIES NO ORDER CONTENT. No basket lines, no delivery address, no delivery-speed control
- * (FR-003). The shopper confirmed all of it on the step before, and restating it here invites a second
- * review instead of a payment. The ONE order-derived thing on the page is the amount — you cannot ask
+ * It carries no order content. No basket lines, no delivery address, no delivery-speed control.
+ * The shopper confirmed all of it on the step before, and restating it here invites a second
+ * review instead of a payment. The one order-derived thing on the page is the amount — you cannot ask
  * someone to pay without saying how much, and the exact figure has to be shown before payment.
  *
- * ⚠ WIDTH COMES FROM `container` AND NOTHING ELSE. No `max-w`, no `mx-auto` on the content: the repo's
+ * Width comes from `container` and nothing else. No `max-w`, no `mx-auto` on the content: the repo's
  * own `@utility container` (80rem, 16px gutter, 24px at `sm`) sets the page, and the measure comes from
  * the grid below it. The pay rail is held by a hairline rule rather than a bordered box — Principle V's
  * "no card layouts" rule applies here as everywhere.
@@ -47,7 +47,7 @@ export function PaymentStep({
   intent: CreateCheckoutIntentResponse
   onBack: () => void
   /**
-   * 069 — re-run the checkout intent because the same-day place has lapsed. Resolves true when the
+   * Re-run the checkout intent because the same-day place has lapsed. Resolves true when the
    * place is held again, false when it has gone (the flow then returns to the delivery options).
    */
   renewHold?: () => Promise<boolean>
@@ -58,21 +58,21 @@ export function PaymentStep({
 
   const [saveCard, setSaveCard] = useState(true)
   const [busy, setBusy] = useState(false)
-  // ⚠ A structured failure, not a string. The words the shopper reads are chosen from the provider's
+  // A structured failure, not a string. The words the shopper reads are chosen from the provider's
   // decline code where there is one, so the message can name a cause rather than echo a sentence
-  // written for a developer (FR-036).
+  // written for a developer.
   const [failure, setFailure] = useState<PaymentFailure | null>(null)
-  // Set while the bank has the shopper. NOT a failure, and must not read like one (FR-040).
+  // Set while the bank has the shopper. Not a failure, and must not read like one.
   const [awaitingBank, setAwaitingBank] = useState(false)
   // Whether a wallet actually rendered. Only then is the "or pay another way" rule meaningful — a rule
   // with nothing above it is a divider dividing one thing.
   const [walletShown, setWalletShown] = useState(false)
 
-  // 051 US3 — the shopper's kept cards. Read once when the step opens.
+  // The shopper's kept cards. Read once when the step opens.
   //
-  // ⚠ An empty list means "no kept cards"; a FAILED read means "we could not ask", and the two must not
+  // An empty list means "no kept cards"; a failed read means "we could not ask", and the two must not
   // look the same. On failure the list stays empty and the card form is shown — the shopper can still
-  // pay, which is the outcome that matters — but nothing claims they have no cards (FR-036).
+  // pay, which is the outcome that matters — but nothing claims they have no cards.
   const [cards, setCards] = useState<PaymentMethodDTO[]>([])
   const [selectedCard, setSelectedCard] = useState<string>(NEW_CARD)
 
@@ -85,8 +85,8 @@ export function PaymentStep({
         const data = (await res.json()) as { paymentMethods?: PaymentMethodDTO[] }
         if (cancelled || !data.paymentMethods?.length) return
         setCards(data.paymentMethods)
-        // ⚠ Pre-select the default, but only if it can actually be used — pre-selecting an expired
-        // card would put the shopper one tap from a refusal (FR-022/FR-023).
+        // Pre-select the default, but only if it can actually be used — pre-selecting an expired
+        // card would put the shopper one tap from a refusal.
         const preferred =
           data.paymentMethods.find((c) => c.isDefault && c.usable) ??
           data.paymentMethods.find((c) => c.usable)
@@ -101,35 +101,18 @@ export function PaymentStep({
     }
   }, [])
 
-  // 051 US4 — which family of payment the shopper is using. Card and pay-over-time are mutually
+  // Which family of payment the shopper is using. Card and pay-over-time are mutually
   // exclusive, and only one element is ever mounted (see MethodList).
   const [method, setMethod] = useState<MethodKind>("card")
-  // ⚠ Straight from the server's read of the intent — never inferred here. See the DTO's note.
+  // Straight from the server's read of the intent — never inferred here. See the dto's note.
   const laterAvailable = intent.payOverTimeAvailable === true
   const usingNewCard = selectedCard === NEW_CARD && method === "card"
 
   /**
-   * ⚠ FR-042 — an order that has ALREADY been paid for must not be payable again.
-   *
-   * A shopper reaches this screen with a stale intent more easily than it sounds: the browser back
-   * button from the receipt, a tab left open, a re-opened notification. The server refuses a second
-   * charge (FR-038), but showing the form at all invites the attempt and the confusion that follows.
-   *
-   * ⚠ ASKED, NOT ASSUMED. The confirm endpoint is the idempotent fallback finaliser: calling it for a
-   * pending order reports `paid: false` and changes nothing, and for a paid one reports `paid: true`
-   * without applying anything twice. That makes it the honest way to ask "is this already done?" —
-   * far better than trusting a flag the client happens to be holding.
-   *
-   * ⚠⚠ IT SAYS SO. IT DOES NOT NAVIGATE. This used to `router.replace` straight to the receipt, and
-   * that silent teleport was a live bug in dev on 2026-08-26: a shopper who pressed "Continue to
-   * payment" for a SECOND order had the payment screen flash up and replace itself with the receipt
-   * for their FIRST one. Proven from the two sides — the redirect went to `?order=<first order>` at
-   * 05:19:55, while the second order was not created until 05:22:14, so the screen was rendering an
-   * intent that belonged to a finished attempt.
-   *
-   * The redirect was never the requirement; not being able to pay twice was. So this states the fact
-   * and hands over the two ways out. A shopper is never moved somewhere they did not ask to go, and
-   * can never be shown one order's receipt while believing they are buying another.
+   * An order already paid must not be payable again (a stale intent comes back via Back, an open tab or
+   * a notification). The idempotent confirm endpoint is asked, not a client flag. The screen says so and
+   * offers the two ways out; it never navigates on its own, so a shopper is never shown one order's
+   * receipt while buying another.
    */
   const [alreadyPaidOrder, setAlreadyPaidOrder] = useState<string | null>(null)
 
@@ -159,7 +142,7 @@ export function PaymentStep({
 
   async function removeCard(id: string) {
     const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
-    // 404 is success from the shopper's point of view: the card is gone either way.
+    // Is success from the shopper's point of view: the card is gone either way.
     if (!res.ok && res.status !== 404) {
       setFailure({
         title: "We couldn't remove that card.",
@@ -171,7 +154,7 @@ export function PaymentStep({
     capture({ name: "card_removed", props: { from: "checkout" } })
     setCards((prev) => {
       const next = prev.filter((c) => c.id !== id)
-      // ⚠ FR-024b — removing the selected card must leave a usable selection behind, not a dead one.
+      // Removing the selected card must leave a usable selection behind, not a dead one.
       if (id === selectedCard) {
         setSelectedCard(next.find((c) => c.usable)?.id ?? NEW_CARD)
       }
@@ -179,19 +162,19 @@ export function PaymentStep({
     })
   }
 
-  // 074 — with points in the mix the CARD is charged only what the points did not cover.
+  // With points in the mix the card is charged only what the points did not cover.
   const amount = formatMoney(intent.cardAmount ?? intent.grandTotalAmount, intent.currency)
   // A kept card and a pay-over-time option are both ready as soon as they are selected: there is
   // nothing for Effy to validate, because the provider's own form does it.
   const ready = Boolean(stripe && elements) && (usingNewCard ? card.complete : true)
 
   /**
-   * 069 — make sure the same-day place is still held BEFORE the provider is asked to take money.
+   * Make sure the same-day place is still held before the provider is asked to take money.
    *
-   * ⚠ THIS IS THE LAST MOMENT THE SERVER CAN SAY NO. Payment is confirmed with the provider directly,
+   * This is the last moment the server can say no. Payment is confirmed with the provider directly,
    * so once it is submitted nothing of Effy's stands between the shopper and the charge. A place is
    * held for a few minutes from the intent call; a shopper who lingers past that may have lost it to
-   * someone else, and must find out HERE rather than after paying. The server cannot enforce this
+   * someone else, and must find out here rather than after paying. The server cannot enforce this
    * (it honours and flags a late payer instead) — this is what makes that rare.
    */
   async function holdIsLive(): Promise<boolean> {
@@ -235,32 +218,32 @@ export function PaymentStep({
             paymentMethodId: selectedCard,
           })
 
-      // ⚠ The FAMILY only — never which provider, never an amount, never a card reference.
+      // The family only — never which provider, never an amount, never a card reference.
       const family =
         method === "later" ? "pay_over_time" : usingNewCard ? "card" : "saved_card"
 
       switch (outcome.kind) {
         case "succeeded":
         case "processing":
-          // ⚠ `processing` goes to the receipt too, and that is correct: the receipt reads the
+          // `processing` goes to the receipt too, and that is correct: the receipt reads the
           // webhook-authoritative order state and can say "we're confirming your payment". What it must
-          // NOT do is announce success here (FR-040).
+          // not do is announce success here.
           capture({ name: "payment_succeeded", props: { method: family } })
           if (family === "card" && saveCard) capture({ name: "card_saved" })
           if (family === "saved_card") capture({ name: "saved_card_used" })
-          // ⚠ A FULL PAGE LOAD, NOT `router.push`. Checkout is finished, and every scrap of client
+          // A full page load, not `router.push`. Checkout is finished, and every scrap of client
           // state that belongs to it must die with it. A soft navigation leaves this flow's React
-          // state in the client router's cache, where a later checkout can render a FINISHED
+          // state in the client router's cache, where a later checkout can render a finished
           // attempt's intent — which is precisely the defect the already-paid notice above records.
           // The cost is one page load at the terminal step of the flow, which is not a cost.
           window.location.assign(`/checkout/complete?order=${intent.orderId}`)
           return
         case "requires_action":
           capture({ name: "payment_failed", props: { method: family, reason: "needs_action" } })
-          // ⚠ The provider drives the bank's challenge and returns to `return_url`. Saying so is the
+          // The provider drives the bank's challenge and returns to `return_url`. Saying so is the
           // point: this is the moment a shopper most often panics and closes the tab, and being told
           // in advance that their bank will ask — and that they will be brought back — is what stops
-          // that (FR-040).
+          // that.
           setAwaitingBank(true)
           return
         case "failed":
@@ -268,16 +251,16 @@ export function PaymentStep({
           return
       }
     } finally {
-      // ⚠ ALWAYS. The previous implementation cleared `busy` only on a validation error, so the control
+      // Always. The previous implementation cleared `busy` only on a validation error, so the control
       // stayed disabled and reading "Processing…" through the navigation and the receipt's two server
-      // round trips — and forever if that navigation failed (research R12 D2, FR-041).
+      // round trips — and forever if that navigation failed.
       setBusy(false)
     }
   }
 
-  // ⚠ AN ALREADY-PAID ORDER TAKES OVER THE WHOLE SCREEN, rather than sitting as a notice beside a pay
+  // An already-paid order takes over the whole screen, rather than sitting as a notice beside a pay
   // button that cannot work. A form the shopper is invited to fill in and then refused is worse than no
-  // form; and the two things they might actually want — see what they paid for, or buy this basket —
+  // form; and the two things they might actually want — see what they paid for, or buy this basket
   // are the only two controls here.
   if (alreadyPaidOrder) {
     return (
@@ -323,7 +306,7 @@ export function PaymentStep({
       <h2 className="mt-4 text-xl font-semibold">How would you like to pay?</h2>
       <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex min-w-0 flex-col gap-6">
-          {/* ⚠ ABOVE the card form, and that ordering is the requirement (FR-008). A wallet is one tap
+          {/* Above the card form, and that ordering is the requirement. A wallet is one tap
               against sixteen typed digits; putting it below the form it replaces would bury it. */}
           <WalletRow
             disabled={busy}

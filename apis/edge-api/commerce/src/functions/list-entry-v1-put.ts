@@ -1,5 +1,3 @@
-// PUT /commerce/v1/lists/{listId}/entries/{productId} — place a product in a list. Idempotent.
-// The optional body carries undo's `restoreAddedAt` and (098) the `variantId` to remember.
 import { customerRoute, jsonBody, pathParam } from "../lib/route";
 import { savedService } from "../lib/wiring";
 import { badBody, noContentOr, parseRfc3339 } from "../saved/respond";

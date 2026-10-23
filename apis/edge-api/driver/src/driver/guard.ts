@@ -1,10 +1,5 @@
-// Shared entry guard for authenticated /driver/v1/* handlers (049).
-//
-// Resolves the authenticated, provisioned, active driver from the token subject, or returns the
-// correct problem response. Every term is uniform and non-disclosing (SC-008): an absent record and
-// a non-active record both surface as the same refusal without revealing which — and since 056 that
-// also means a suspended driver and an offboarded one are indistinguishable at the login screen,
-// which is deliberate: why someone is not working is between them and their employer.
+// Resolves the authenticated, active driver from the token subject. Absent and non-active records
+// get the same refusal: why someone is not working is between them and their employer.
 
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -24,7 +19,6 @@ export interface GuardErr {
   response: APIGatewayProxyStructuredResultV2;
 }
 
-/** Resolve the driver for an authenticated handler, or produce the refusal response. */
 export async function authenticate(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
   const scope = preamble(event, context);
   const sub = subject(event);
@@ -46,7 +40,6 @@ export async function authenticate(event: AuthedEvent, context: Context): Promis
     return { ok: true, driver, scope };
   } catch (err) {
     if (err instanceof DriverAccessError) {
-      // Uniform 403 for both not_provisioned and not_active — never disclose which (SC-008).
       return {
         ok: false,
         response: problem(

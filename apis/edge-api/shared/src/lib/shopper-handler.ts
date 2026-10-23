@@ -1,17 +1,8 @@
 /**
- * The wrapper every function in a SHOPPER-FACING service exports through (070 FR-030).
- *
- * Shopper services connect as a database role with a connection limit. When a burst exhausts it,
- * the database refuses the next connection immediately and this wrapper turns that refusal into a
- * retryable 503 — so shoppers are told to try again in a moment while staff, shop and driver
- * services, which connect as a different role, carry on untouched.
- *
- * It is also the last line for anything a handler failed to catch: the cause is logged under the
- * request id and the caller gets the standard opaque 500.
- *
- * ⚠ This is not a middleware framework (ARCHITECTURE.md). A handler still calls `preamble()` and
- * owns its parsing, authorization and error mapping; this catches only what escapes it.
- * `functions.guard.test.ts` fails the build if a shopper-facing function is exported without it.
+ * The wrapper every shopper-facing function exports through. Shopper services connect as a
+ * connection-limited role; this turns the database's refusal into a retryable 503, and anything else a
+ * handler failed to catch into a logged, opaque 500. Not a middleware framework: the handler still owns
+ * parsing, authorization and error mapping. `functions.guard.test.ts` requires it.
  */
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 

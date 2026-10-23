@@ -21,7 +21,7 @@ variable "root_domain" {
 }
 
 # ── 037-platform-email-delivery: the apex's mail identity ─────────────────────────────────────
-# The apex does not SEND automated mail — the environments do, from their own namespaces. What it
+# The apex does not send automated mail — the environments do, from their own namespaces. What it
 # does is host the operator's human mailbox (workspace-admin@, with hello@ and support@ as aliases)
 # and publish the policy that stops anyone forging Effy's name.
 

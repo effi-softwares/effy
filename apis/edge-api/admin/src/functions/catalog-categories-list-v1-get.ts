@@ -1,4 +1,3 @@
-// GET /admin/v1/catalog/categories — flat list (parentId-linked; tree built client-side). Read access.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -16,16 +16,16 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.utf16CodePoint
 
 /**
- * A HANDHELD (BLUETOOTH) BARCODE SCANNER, PAIRED WITH THE PHONE.
+ * A handheld (bluetooth) barcode scanner, paired with the phone.
  *
  * Such a scanner is a keyboard: reading a label, it types `EFY1:5MQKVF` and (usually) presses Enter. This
  * collects those keystrokes into one read. Pure, so it is tested without a device.
  *
- * ⚠ A read is taken THE MOMENT a whole package token has arrived — not at Enter. Scanners are configured
+ * A read is taken the moment a whole package token has arrived — not at Enter. Scanners are configured
  * to end with Enter, Tab or nothing at all; waiting for a suffix would make one of those never count.
  * Whatever follows the token (the Enter) lands in an empty buffer and is ignored.
  *
- * ⚠ Letters are upper-cased: a scanner types as the phone's keyboard state says, and Caps Lock on a
+ * Letters are upper-cased: a scanner types as the phone's keyboard state says, and Caps Lock on a
  * paired keyboard turns `EFY1:5MQKVF` into `efy1:5mqkvf`. Nothing else is forgiven — what is left goes
  * through [PackageToken.parse], the one rule for what a label says.
  */
@@ -69,9 +69,9 @@ private val DIGITS: Map<Key, Char> =
             .mapIndexed { i, k -> k to ('0' + i) }.toMap()
 
 /**
- * The character a key types when the event carries none. ⚠ Not every platform puts the character on a
+ * The character a key types when the event carries none. Not every platform puts the character on a
  * hardware key event (the iOS test harness does not), so the label's characters — letters, digits and
- * the colon (Shift + ;) — are worked out from the key itself. Nothing else is needed for a label.
+ * the colon (Shift +;) — are worked out from the key itself. Nothing else is needed for a label.
  */
 internal fun keyChar(key: Key, shift: Boolean): Char? = when {
     key == Key.Semicolon -> if (shift) ':' else ';'
@@ -82,7 +82,7 @@ internal fun keyChar(key: Key, shift: Boolean): Char? = when {
  * Listens for a paired scanner while [enabled], and hands each label it reads to [onRead] — the same
  * value, and the same rule, as the camera's read.
  *
- * ⚠ Keystrokes reach only what has focus, so this takes it — and takes it back whenever it is enabled
+ * Keystrokes reach only what has focus, so this takes it — and takes it back whenever it is enabled
  * again (the type-a-code sheet, which has its own field, borrows it while open).
  */
 @Composable

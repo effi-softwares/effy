@@ -92,15 +92,11 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * 095 — a promotion in a staff-designed skin: the twin of `@effy/web-kit/promo-skin` (`PromoSkin.tsx`).
- * Same layouts, same sizes (dp = px), same words, from [PromoSkinRules].
- *
- * ⚠ A skin's colours are CONTENT (constitution v3.6.0): they come from the skin, were checked for
- * readability by the server, and are used only inside this frame. The skin's own dark colours apply in
- * the dark appearance; without them it looks the same in both (spec US4-3).
- *
- * Reading order: label, headline, supporting line, the picture's description, the action. Decorations
- * are not read. With a code the button copies it; without one, the skin opens the offer.
+ * A promotion in a staff-designed skin: the twin of `@effy/web-kit/promo-skin` (`PromoSkin.tsx`), with the
+ * same layouts, sizes (dp = px) and words from [PromoSkinRules]. The skin's colours are content, checked by
+ * the server and used only inside this frame; its dark colours apply in dark, and without them it looks the
+ * same in both. Reading order: label, headline, supporting line, the picture's description, the action
+ * (decorations are not read). With a code the button copies it; without one, it opens the offer.
  */
 @Composable
 fun PromoSkinView(
@@ -247,8 +243,8 @@ private fun Actions(s: SkinSettings, code: String?, onCopied: (String) -> Unit) 
     val words = PromoSkinRules.buttonWords(s, code != null)
     val showChip = s.chip.show && code != null
     if (!showChip && words == null) return
-    // ⚠ `LocalClipboardManager` is deprecated for a suspending replacement whose plain-text entry has no
-    // common-source factory in CMP 1.11.1 (see PromotionScreen.kt). WARNING level.
+    // `LocalClipboardManager` is deprecated for a suspending replacement whose plain-text entry has no
+    // common-source factory in CMP 1.11.1 (see PromotionScreen.kt). Warning level.
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
@@ -330,7 +326,7 @@ private val ICONS: Map<SkinDecorationSet, List<DrawableResource>> = mapOf(
     SkinDecorationSet.CELEBRATION to listOf(Res.drawable.lucide_gift, Res.drawable.lucide_party_popper, Res.drawable.lucide_sparkles),
 )
 
-/** Three bubbles in the same places as the web's (`decorations.tsx` SPOTS), hidden from screen readers. */
+/** Three bubbles in the same places as the web's (`decorations.tsx` spots), hidden from screen readers. */
 @Composable
 private fun BoxScope.Decorations(set: SkinDecorationSet, tint: Color, strength: Float, height: Int) {
     val spots = listOf(Triple(0.08f, 0.14f, 0.42f), Triple(0.3f, 0.46f, 0.3f), Triple(0.1f, 0.66f, 0.22f))

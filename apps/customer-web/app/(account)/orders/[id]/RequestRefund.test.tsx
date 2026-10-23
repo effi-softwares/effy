@@ -36,8 +36,7 @@ describe("what the form asks for", () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  // ⚠ A shopper who cannot point at one line — "the whole thing arrived warm" — must still be able
-  // to ask, or they are pushed back to the generic inbox this replaces.
+  // A shopper who cannot point at one line ("it all arrived warm") must still be able to ask.
   it("sends with no items named", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
@@ -46,14 +45,12 @@ describe("what the form asks for", () => {
 
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     const body = JSON.parse((fetch as never as ReturnType<typeof vi.fn>).mock.calls[0]![1].body)
-    // What went wrong leads the message, so it is the first thing staff read.
+    // What went wrong leads the message.
     expect(body.message).toBe("An item was damaged: Everything arrived warm")
     expect(body.items).toEqual([])
   })
 
-  // ⚠ THE LINE's id, never the product's. `order_item` has no uniqueness on (order, product), so two
-  // lines of the same product cannot be told apart by product id — and passing one for the other does
-  // not error: the server's join matches nothing and every named item is SILENTLY DROPPED.
+  // The line's id, never the product's: two lines of one product cannot be told apart by product id.
   it("names items by their LINE id", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
@@ -68,8 +65,7 @@ describe("what the form asks for", () => {
 })
 
 describe("what the shopper is told", () => {
-  // ⚠ IT MUST NOT READ AS A DECISION (FR-005r). A person decides; promising a refund here would be a
-  // commitment nobody has made, on the screen where a shopper is most likely to hold us to it.
+  // It must not read as a decision: a person decides.
   it("confirms the ask was received and promises no refund", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
@@ -81,8 +77,7 @@ describe("what the shopper is told", () => {
     expect(status.textContent ?? "").not.toMatch(/refund(ed|ing)?\b|money back|you.ll get/i)
   })
 
-  // ⚠ The 409's own sentence: their ask is already with us. A generic "request failed" would send
-  // them to raise it again through the generic inbox.
+  // The 409's own sentence: their ask is already with us.
   it("says a duplicate is already with us, in the server's words", async () => {
     respond(409, { error: "you've already told us about this order — we're looking into it" })
     render(<RequestRefund orderId="o1" items={ITEMS} />)

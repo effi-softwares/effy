@@ -8,17 +8,11 @@ import { edgeApiPublic } from "@/lib/api/edge"
 import { CACHE_LIFE } from "@/lib/cache-life"
 
 /**
- * The home payload — SHARED between requests for up to 60 seconds (PERF-06, 054 FR-015a as amended).
- *
- * It is ~8 queries per read, and not only the home page asks: the header's offers menu (`AisleRow`)
- * and `/offers` read its banners, so read live it cost a backend round trip on every page view.
- *
- * ⚠ `listing`, NOT LONGER: the rails carry availability, and the banners say "this offer is still
- * available" — a claim another shopper can falsify by redeeming it (029). Both are held to FR-015a's
- * listing tier. The cart and the payment re-check a code when they apply it, so a banner at most a
- * minute old sends nobody to pay for an offer that has ended. `/promotions/[id]` — the page a banner
- * leads to, where the shopper copies the code — stays live.
- * ⚠ No writer revalidates the tags (lib/cache-life.ts says why); the lifetime is the contract.
+ * The home payload, shared between requests for up to 60 seconds (the `listing` tier): about 8 queries,
+ * read by the home page, the header's offers menu and `/offers`. Not longer, since it carries
+ * availability and "still available" offers; the cart and payment re-check a code when applied, and
+ * `/promotions/[id]` stays live. Nothing revalidates the tags (lib/cache-life.ts); the lifetime is the
+ * contract.
  */
 async function readHome(): Promise<StorefrontHomeDTO> {
   "use cache"
@@ -28,11 +22,11 @@ async function readHome(): Promise<StorefrontHomeDTO> {
 }
 
 /**
- * The home payload, asked for at most ONCE per render however many components want it.
+ * The home payload, asked for at most once per render however many components want it.
  *
- * ⚠ IT EXISTS BECAUSE TWO SUSPENSE BOUNDARIES NEED THE SAME DATA. The promotions hero renders at the
+ * It exists because two suspense boundaries need the same data. The promotions hero renders at the
  * top of the page in its own boundary, so it can arrive without waiting on the category read; the
- * merchandised sections render in another. React's `cache()` makes the dedupe explicit — one lookup
+ * merchandised sections render in another. React's `cache` makes the dedupe explicit — one lookup
  * per render by construction, rather than by two call sites happening to match.
  */
 export const getHome = cache(async (): Promise<StorefrontHomeDTO> => {

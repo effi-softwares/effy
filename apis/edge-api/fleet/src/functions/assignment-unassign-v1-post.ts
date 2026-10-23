@@ -8,7 +8,7 @@ import { unassign } from "../assignments/service";
 import { announceDispatch } from "../lib/live";
 import { denied, guard } from "../shared/handler-support";
 
-/** POST /fleet/v1/dispatch/packages/{packageId}/unassign (073) — hand a package back to auto-assign. */
+/** Hands a package back to auto-assign. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");

@@ -18,12 +18,7 @@ import {
 
 import type { Theme } from "../runtime/ui-store";
 
-/**
- * The sidebar footer's identity + account menu: who am I, appearance (Light/Dark/System), sign out.
- *
- * Takes the identity and the callbacks rather than reaching for a session query, so it works for
- * any surface (and renders in a test without a router or a query client).
- */
+/** The sidebar footer's identity and account menu: who am I, appearance (Light/Dark/System), sign out. Takes props, so it renders without a router or query client. */
 export interface ConsoleUserMenuProps {
   email: string;
   theme: Theme;
@@ -47,16 +42,13 @@ export function ConsoleUserMenu({
 }: ConsoleUserMenuProps) {
   const { isMobile } = useSidebar();
 
-  // The session carries only the email; its local part stands in for a display name until the
-  // staff record's `name` field is surfaced.
+  // The session carries only the email; its local part stands in for a display name.
   const name = email ? (email.split("@")[0] ?? email) : "Signed in";
   const initial = (name[0] ?? "?").toUpperCase();
 
   const identityBlock = (
     <>
-      {/* ⚠ 057: a rounded SQUARE (6px), matching the imported design's `26px / border-radius:6px`
-          identity tile. Squared avatars are the console's house style; the round default belongs to
-          the customer surfaces. */}
+      {/* A 6px rounded square: the console's identity tile. */}
       <Avatar className="size-8 rounded-md">
         <AvatarFallback className="rounded-md text-[11px] font-medium">{initial}</AvatarFallback>
       </Avatar>

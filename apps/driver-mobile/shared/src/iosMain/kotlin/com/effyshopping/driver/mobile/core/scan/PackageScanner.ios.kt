@@ -78,7 +78,7 @@ actual fun PackageScanner(
             session.addInput(input)
             session.addOutput(output)
             output.setMetadataObjectsDelegate(delegate, dispatch_get_main_queue())
-            // Set AFTER the output joins the session: before, the available types are empty.
+            // Set after the output joins the session: before, the available types are empty.
             output.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode, AVMetadataObjectTypeCode128Code)
             // startRunning blocks; never on the main thread.
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), 0u)) { session.startRunning() }

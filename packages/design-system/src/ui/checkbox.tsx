@@ -4,9 +4,7 @@ import { CheckIcon } from "lucide-react"
 
 import { cn } from "../cn"
 
-// ⚠ 16px at the `sm` radius step (4px) with a `--brand` fill when checked — the design's selection
-// control, and the one place the 4px step is used at all. A larger radius on a 16px box reads as a
-// circle, which is a radio; the step exists to keep that distinction legible at this size.
+// 16px at the 4px radius step, `--brand` when checked: any rounder and it reads as a radio.
 function Checkbox({
   className,
   ...props

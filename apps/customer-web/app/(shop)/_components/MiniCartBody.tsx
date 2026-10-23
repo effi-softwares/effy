@@ -13,7 +13,7 @@ import { formatMoney } from "@/lib/money"
 /**
  * What the cart drawer shows once it is open: the lines, the subtotal and the two ways out.
  *
- * ⚠ FETCHED WHEN THE DRAWER IS FIRST WANTED, NOT WITH THE PAGE (PERF-01). `MiniCart` is in the chrome,
+ * Fetched when the drawer is first wanted, not with the page. `MiniCart` is in the chrome,
  * so everything it imports is on every guest route. The button and the empty `<dialog>` stay there;
  * this — with `next/image` and the cart's write actions behind it — is fetched when the pointer or
  * focus reaches the button, or on the first press. Add nothing here to `MiniCart.tsx`'s imports.
@@ -38,7 +38,7 @@ export function MiniCartBody({
       </span>
       <p className="mt-4 text-base font-semibold">Your cart is empty</p>
       <p className="mt-1 text-sm text-muted-foreground">Add something and it will show up here.</p>
-      {/* FR-044: a route back into the catalogue, never a dead end. */}
+      {/* A route back into the catalogue, never a dead end. */}
       <Link
         href="/search"
         onClick={close}
@@ -71,7 +71,7 @@ export function MiniCartBody({
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="line-clamp-2 text-sm font-medium">
                 {line.name}
-                {/* 098 — the size chosen. */}
+                {/* The size chosen. */}
                 {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
               </span>
               <span className="mt-0.5 text-xs text-muted-foreground">
@@ -81,7 +81,7 @@ export function MiniCartBody({
               <div className="mt-2 flex items-center justify-between gap-2">
                 {/* One bordered group rather than two loose buttons: it reads as a single
                     control operating on the number between them.
-                    ⚠ `leading-none` on the glyphs — `−` and `+` sit on different baselines
+                    `leading-none` on the glyphs — `−` and `+` sit on different baselines
                     to the box, and without it the row looks a pixel out of true. */}
                 <div className="inline-flex items-center overflow-hidden rounded-md border border-input shadow-xs">
                   <button
@@ -114,7 +114,7 @@ export function MiniCartBody({
                 type="button"
                 onClick={() => removeItem(line.variantId)}
                 // The accessible name carries the product; "Remove" alone, repeated down a
-                // list, tells a screen-reader user nothing about WHICH thing goes.
+                // list, tells a screen-reader user nothing about which thing goes.
                 aria-label={`Remove ${line.name}`}
                 className="mt-2 self-start text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
               >

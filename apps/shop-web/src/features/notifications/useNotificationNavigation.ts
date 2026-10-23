@@ -6,18 +6,18 @@ import { onServiceWorkerNavigate } from "@/lib/pwa"
 import { track } from "@/lib/telemetry"
 
 /**
- * Handle the two messages the service worker sends (059, US1).
+ * Handle the two messages the service worker sends.
  *
- *   NAVIGATE — a notification was tapped while this console was already open (FR-014). The worker
- *              focused this window rather than opening a second one, and told us where to go.
- *   REFRESH  — a push arrived for something already on screen, so the worker showed nothing
- *              (FR-030) and nudged us to refetch instead.
+ *  navigate — a notification was tapped while this console was already open. The worker
+ *  focused this window rather than opening a second one, and told us where to go.
+ *  refresh — a push arrived for something already on screen, so the worker showed nothing
+ *  and nudged us to refetch instead.
  *
- * ⚠ ROUTING HAPPENS HERE, NOT IN THE WORKER. `client.navigate()` would have been one line there and
+ * Routing happens here, not in the worker. `client.navigate` would have been one line there and
  * is a full document load: it discards the Query cache, the operator's scroll position and whatever
  * they were half-way through. Going through the router keeps the SPA intact.
  *
- * ⚠ `notif_opened` IS FIRED HERE TOO, for the same reason — a service worker has no PostHog, and
+ * `notif_opened` is fired here too, for the same reason — a service worker has no PostHog, and
  * giving it one would mean giving it a credential. It is the number that decides whether this slice
  * was worth building, and the engagement signal browsers rate-limit against.
  */

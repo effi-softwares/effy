@@ -1,28 +1,16 @@
 /**
- * Moving an order between "Delivered by Effy" and "Courier delivery" from back-office, and making it
- * right with the customer (081).
- *
- * Contract: `specs/081-courier-override-compensation/contracts/routes.md`; decisions in its research.
- *
- * ⚠ ONE TRANSACTION, EVERY PART. A move releases (or takes) a window place, rewrites how the packages
- * are routed, takes them off drivers' rounds, gives the order its courier (or takes it away), records
- * the change through 079's one writer, and gives the compensation staff chose. Any part failing leaves
- * nothing changed (FR-003): a customer credited for a move that never happened, or moved without the
- * points they were shown, is the defect this file exists to make impossible.
- *
- * ⚠ IT WRITES THROUGH THE ONE WRITERS, NEVER AROUND THEM:
- *   the delivery type and its history     recordDeliveryType           (079)
- *   the courier service and mode          setCourierRouting            (080, consignment.ts)
- *   a driver's round                      removeAssignment             (073, driver-work.ts)
- *   points                                points.credit                (074)
- *   a refund                              recordRefundIn, then submitRecorded after commit (055)
- *   the window rule                       judgeWindow                  (078)
- *   the courier fee                       courierFee                   (077)
- *
- * ⚠ LOCK ORDER: the planner's pass lock FIRST (as every manual driver-work action takes it), then the
- * order row, then the payment row (a refund), then the customer's points (074's order).
- *
- * ⚠ Nothing here announces; the caller does after commit, with what `MoveResult` names.
+ * Moving a paid order between "Delivered by Effy" and "Courier delivery" from back-office, with the
+ * compensation staff chose, in one transaction: any part failing changes nothing. Writes go through
+ * the one writers:
+ *  the delivery type and its history recordDeliveryType
+ *  the courier service and mode setCourierRouting (consignment.ts)
+ *  a driver's round removeAssignment (driver-work.ts)
+ *  points points.credit
+ *  a refund recordRefundIn, then submitRecorded after commit
+ *  the window rule judgeWindow
+ *  the courier fee courierFee
+ * lock order: the planner's pass lock, the order row, the payment row, the customer's points. Nothing
+ * here announces; the caller does after commit, with what `MoveResult` names.
  */
 import type {
   AdminDeliveryMoveDTO, CustomerCompensationDTO, DeliveryCompensationKind, DeliveryMoveChoiceDTO,
@@ -47,9 +35,7 @@ import { judgeWindow, loadSlots, loadSlotSettings, lockSlot, nonDeliveryDates, s
 import { effyDays, openWindows } from "./windows";
 import { normalizePostcode } from "./zone";
 
-// ── Refusals ────────────────────────────────────────────────────────────────────────────────────
-
-/** Each refusal in the one line staff read. The console says these words, not its own. */
+/** Each refusal in the one line staff read; the console uses these words. */
 export const MOVE_REFUSAL_WORDS: Record<DeliveryMoveRefusal, string> = {
   not_found: "That order does not exist.",
   not_paid: "Only a paid order can be moved.",
@@ -73,15 +59,13 @@ export class DeliveryMoveError extends Error {
   }
 }
 
-// ── Amounts (pure) ──────────────────────────────────────────────────────────────────────────────
-
 export interface AmountsInput {
-  /** What the customer paid for delivery (the order's stored delivery total). */
+  /** The order's stored delivery total. */
   paidCents: number;
-  /** What the active courier fee table charges this basket now; null on a move back to Effy. */
+  /** What the active courier table charges this basket now; null on a move back to Effy. */
   courierCents: number | null;
   centsPerPoint: number;
-  /** What may still be refunded on the order (055's ceiling, card and points together). */
+  /** The refund ceiling, card and points together. */
   refundableCents: number;
 }
 
@@ -90,15 +74,12 @@ export interface Amounts {
   choices: Record<DeliveryCompensationKind, { cents: number; points: number | null }>;
 }
 
-/** Points worth `cents`, rounded UP — in the customer's favour. */
+/** Rounded up, in the customer's favour. */
 export const pointsFor = (cents: number, centsPerPoint: number): number => (cents <= 0 ? 0 : Math.ceil(cents / centsPerPoint));
 
 /**
- * What each way of making it right gives (081 research R8).
- *
- * ⚠ THE DIFFERENCE NEVER GOES BELOW ZERO: a courier dearer than what the customer paid is Effy's cost,
- * and the customer is charged nothing (FR-010). ⚠ A card refund is capped at what may still be
- * refunded — the preview shows the cap rather than a figure the refund would refuse.
+ * What each way of making it right gives. The difference never goes below zero (a dearer courier is
+ * Effy's cost), and a card refund is capped at the refund ceiling.
  */
 export function overrideAmounts(a: AmountsInput): Amounts {
   const differenceCents = a.courierCents === null ? null : Math.max(0, a.paidCents - a.courierCents);
@@ -116,7 +97,7 @@ export function overrideAmounts(a: AmountsInput): Amounts {
   };
 }
 
-/** Every way of making it right, for validating a request. */
+/** For validating a request. */
 export const DELIVERY_COMPENSATION_KINDS_SET: ReadonlySet<string> = new Set<DeliveryCompensationKind>([
   "points_difference", "free_delivery_points", "free_delivery_refund", "refund_difference", "none",
 ]);
@@ -124,11 +105,7 @@ export const DELIVERY_COMPENSATION_KINDS_SET: ReadonlySet<string> = new Set<Deli
 const POINTS_KINDS: ReadonlySet<DeliveryCompensationKind> = new Set(["points_difference", "free_delivery_points"]);
 const REFUND_KINDS: ReadonlySet<DeliveryCompensationKind> = new Set(["free_delivery_refund", "refund_difference"]);
 
-/**
- * What the CUSTOMER is told they received, from a stored move. Null when nothing was given — including
- * a points or refund kind whose amount came to zero. ⚠ The one mapping: the customer's order page and
- * the email both call it.
- */
+/** What the customer is told they received; null when nothing was given. The one mapping for the order page and the email. */
 export function customerCompensationOf(row: { compensation: string; amount_cents: number; points: number | null }): CustomerCompensationDTO | null {
   if (row.amount_cents <= 0) return null;
   const kind = row.compensation as DeliveryCompensationKind;
@@ -136,8 +113,6 @@ export function customerCompensationOf(row: { compensation: string; amount_cents
   if (REFUND_KINDS.has(kind)) return { kind: "refund", amount: formatCents(row.amount_cents) };
   return null;
 }
-
-// ── Facts ───────────────────────────────────────────────────────────────────────────────────────
 
 interface Assignment {
   id: string;
@@ -147,18 +122,15 @@ interface Assignment {
   kind: "collection" | "delivery";
   state: "assigned" | "picked_up";
   driver_id: string;
-  /** 088 — `skipped` on a delivery stop means the drop failed and the parcel is still in the van. */
+  /** `skipped` on a delivery stop: the drop failed and the parcel is still in the van. */
   stop_status: string;
 }
 
-/** 088 — a parcel of this order failed delivery and has not been returned to the hub yet. */
+/** Failed delivery and not yet returned to the hub. */
 const hasParcelToReturn = (f: MoveFacts): boolean =>
   f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.stop_status === "skipped");
 
-/**
- * 088 — staff have chosen a returned parcel's next step: its failure is dealt with, which is what
- * releases it to the planner (the delivery gather holds a returned parcel with an open failure).
- */
+/** Staff chose a returned parcel's next step: dealing with its failure releases it to the planner. */
 async function resolveOpenFailures(tx: Queryable, orderId: string): Promise<void> {
   await tx.query(
     `UPDATE public.delivery_attempt_failure f
@@ -182,7 +154,7 @@ export interface MoveFacts {
   basketCents: number;
   packages: { id: string; handed: boolean; delivered: boolean }[];
   assignments: Assignment[];
-  /** A parcel of the order has left a supplier in a driver's van (at any time) — it can only go via the hub now. */
+  /** A parcel has ever left a supplier in a driver's van: it can only go via the hub now. */
   collected: boolean;
   booking: { slot_id: string; delivery_date: string; window_start: Date; window_end: Date; state: string } | null;
   courier: {
@@ -200,11 +172,7 @@ export interface MoveFacts {
 
 const cents = (v: string | number | null | undefined) => Math.round(Number(v ?? 0) * 100);
 
-/**
- * Everything a preview and a move decide from — ONE read, so the preview a person confirms and the
- * move that checks it can never be computed two ways. Pass the move's transaction when moving (the
- * order row is locked FOR UPDATE).
- */
+/** One read for both preview and move, so they cannot compute differently. Pass the move's transaction (the order row is locked). */
 export async function loadMoveFacts(q: Queryable, orderId: string, opts: { lock?: boolean } = {}): Promise<MoveFacts | null> {
   const o = (
     await q.query<{
@@ -250,7 +218,7 @@ export async function loadMoveFacts(q: Queryable, orderId: string, opts: { lock?
       [orderId],
     )
   ).rows;
-  // A collected parcel stays collected after its round ends: that it ever left the supplier is what matters.
+  // A collected parcel stays collected after its round ends.
   const collected = (
     await q.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM public.round_package rp
@@ -324,60 +292,51 @@ export async function loadMoveFacts(q: Queryable, orderId: string, opts: { lock?
   };
 }
 
-/** How a moved order's parcels reach the courier: via the hub once any has left a supplier. */
+/** Via the hub once any has left a supplier. */
 export const collectionFor = (f: MoveFacts): "hub" | "supplier" => (f.collected ? "hub" : f.courier.collectionDefault);
 
-/**
- * Why a move may not happen, or null. ⚠ The order of the checks is the order a person can act on them.
- * The coverage check for a move back is async and done by the caller (`guardBackToEffy`).
- */
+/** Why a move may not happen, or null, in the order a person can act on. The move-back coverage check is the caller's (`guardBackToEffy`). */
 export function guardMove(f: MoveFacts, to: DeliveryType): DeliveryMoveRefusal | null {
   if (!f.paid) return "not_paid";
   if (to === "courier" && f.type === "courier") return "already_courier";
   if (to === "effy" && f.type === "effy") return "already_effy";
   if (f.packages.some((p) => p.delivered)) return "delivered";
   if (f.packages.some((p) => p.handed)) return "handed_over";
-  // 088 — still in a van after a failed drop: it has to come back to the hub before anything else.
+  // Still in a van after a failed drop: it must come back to the hub first.
   if (hasParcelToReturn(f)) return "with_driver_after_failure";
   if (to === "courier") {
-    // ⚠ A delivery round under way is never touched (fleet's own rule): the parcel is in a van.
+    // A delivery round under way is never touched.
     if (f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.round_status === "in_progress")) return "out_for_delivery";
     if (!f.courier.planReady || f.courier.serviceId === null || f.courier.courierCents === null) return "courier_not_ready";
   }
   return null;
 }
 
-async function guardBackToEffy(q: Queryable, f: MoveFacts, now: Date): Promise<DeliveryMoveRefusal | null> {
+async function guardBackToEffy(q: Queryable, f: MoveFacts): Promise<DeliveryMoveRefusal | null> {
   const g = guardMove(f, "effy");
   if (g) return g;
-  if (!f.postcode || (await coverageForPostcode(q, f.postcode, now)).kind !== "effy") return "not_in_area";
+  if (!f.postcode || (await coverageForPostcode(q, f.postcode)).kind !== "effy") return "not_in_area";
   return null;
 }
 
-// ── Windows for a move back ─────────────────────────────────────────────────────────────────────
-
-/**
- * 097 — whether today may be sold to this order's address: its postcode's own setting, from the one
- * coverage answer. ⚠ An Effy order whose postcode has since left the list (or has no postcode) keeps
- * today's behaviour — removal from the list never touched an existing order, and this does not start to.
- */
-async function todayOfferedFor(q: Queryable, f: MoveFacts, now: Date): Promise<boolean> {
-  return f.postcode ? (await coverageForPostcode(q, f.postcode, now)).todayOffered : true;
+/** Whether today may be sold to this address, from its postcode's setting; an order whose postcode left the list keeps today. */
+async function todayOfferedFor(q: Queryable, f: MoveFacts): Promise<boolean> {
+  return f.postcode ? (await coverageForPostcode(q, f.postcode)).todayOffered : true;
 }
 
-/** The windows this order's customer could be sold now — the quote's calendar and rule, never a second one. */
+/** The quote's own calendar and rule. */
 async function windowsNow(q: Queryable, f: MoveFacts, now: Date): Promise<DeliveryMoveWindowDTO[]> {
   const { runs, bufferMin } = await collectionSchedule(q);
   const settings = await loadSlotSettings(q);
   const today = melbourneDate(now);
   const calendar = effyDays(
-    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today), await todayOfferedFor(q, f, now),
+    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today), await todayOfferedFor(q, f),
   );
   const slots = await loadSlots(q);
   const load = await slotLoadByDate(q, calendar.map((d) => d.date));
   const days = openWindows(now, calendar, slots, load, runs, bufferMin, settings.turnaroundMin);
   return days.flatMap((d) => [
-    // 085 — the day with no time first; staff may choose today's too.
+    // The day with no time first; staff may choose today's too.
     ...(d.anyTime
       ? [{
           slotId: d.anyTime.id,
@@ -397,8 +356,6 @@ async function windowsNow(q: Queryable, f: MoveFacts, now: Date): Promise<Delive
     })),
   ]);
 }
-
-// ── Preview ─────────────────────────────────────────────────────────────────────────────────────
 
 function choicesOf(a: Amounts): DeliveryMoveChoiceDTO[] {
   const c = a.choices;
@@ -440,43 +397,41 @@ function previewOf(f: MoveFacts, to: DeliveryType, refusal: DeliveryMoveRefusal 
   };
 }
 
-/** `GET …/delivery-move?to=` — what a move would do, and whether it may. */
+/** What a move would do, and whether it may. */
 export async function previewMove(q: Queryable, orderId: string, to: DeliveryType, now: Date = new Date()): Promise<DeliveryMovePreviewDTO> {
   const f = await loadMoveFacts(q, orderId);
   if (!f) throw new DeliveryMoveError("not_found");
   if (to === "courier") return previewOf(f, to, guardMove(f, to), null);
-  const refusal = await guardBackToEffy(q, f, now);
-  // 085 — an order Effy already delivers cannot be moved, but may be re-timed: list the windows for that.
+  const refusal = await guardBackToEffy(q, f);
+  // An Effy order cannot be moved to Effy, but may be re-timed: list the windows.
   return previewOf(f, to, refusal, refusal && refusal !== "already_effy" ? [] : await windowsNow(q, f, now));
 }
-
-// ── The moves ───────────────────────────────────────────────────────────────────────────────────
 
 export interface MoveResult {
   overrideId: string;
   orderId: string;
-  /** Drivers whose work changed — read BEFORE the change; tell them after commit. */
+  /** Read before the change; tell them after commit. */
   driverIds: string[];
-  /** A refund recorded in the move's transaction and waiting to be sent (`submitRecorded`). */
+  /** Recorded in the move's transaction, waiting for `submitRecorded`. */
   refundToSubmit: string | null;
   compensation: DeliveryCompensationKind;
 }
 
 const trimmed = (v: string | null | undefined, max = 500): string => (v ?? "").trim().slice(0, max);
 
-/** The move itself, through 079's one writer; the id of the history row it wrote. */
+/** Returns the id of the history row written. */
 async function recordedChange(tx: Queryable, orderId: string, actorSub: string, to: DeliveryType, courierEstimate: string | null, reason: string): Promise<string> {
   const written = await changeDeliveryType(tx, {
     orderId,
     actor: { kind: "staff", sub: actorSub },
     change: { to, reason: "staff_change", courierEstimate, note: trimmed(reason) },
   });
-  // The guards ran under the same order lock, so the type cannot already be `to` here.
+  // The guards ran under the same lock, so the type cannot already be `to`.
   if (!written) throw new Error("override: the delivery-type change was not recorded");
   return written.changeId;
 }
 
-/** Push + email to the customer, once per move. ⚠ Routing ids only; the worker words it at send. */
+/** Push and email, once per move. Routing ids only; the worker words it. */
 async function enqueueChanged(tx: Queryable, orderId: string, overrideId: string): Promise<void> {
   await tx.query(
     `INSERT INTO public.notification_request
@@ -502,12 +457,12 @@ export interface MoveToCourierInput {
   compensation: DeliveryCompensationKind;
   compensationNote?: string | null;
   expectedUpdatedAt: string;
-  /** The chosen compensation's amount as previewed, in cents. */
+  /** As previewed, in cents. */
   expectedAmountCents: number;
   now?: Date;
 }
 
-/** Move a paid Effy order to courier delivery, with the compensation staff chose — in `tx`. */
+/** In `tx`. */
 export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): Promise<MoveResult> {
   const now = input.now ?? new Date();
   await tx.query(PLANNER_PASS_LOCK);
@@ -516,7 +471,7 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
   const refusal = guardMove(f, "courier");
   if (refusal) throw new DeliveryMoveError(refusal);
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
-  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  // A parcel returned after a failed delivery: this is its next step, so release it.
   await resolveOpenFailures(tx, input.orderId);
 
   const amounts = amountsOf(f, "courier");
@@ -526,8 +481,7 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
   const collection = collectionFor(f);
   const driverIds = new Set<string>();
 
-  // Driver work. Delivery always goes (the courier delivers now); collection only when the courier
-  // collects from the supplier — via the hub, the parcels still have to reach it.
+  // Delivery work always goes; collection only when the courier collects from the supplier.
   for (const a of f.assignments) {
     if (a.state !== "assigned") continue;
     if (a.kind === "delivery" || (a.kind === "collection" && collection === "supplier")) {
@@ -536,14 +490,14 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
     }
   }
 
-  // The window place is given back; `released` stops counting at once (069).
+  // The window place is given back; `released` stops counting at once.
   await tx.query(
     `UPDATE public.delivery_slot_booking SET state = 'released', held_until = NULL, updated_at = now()
       WHERE order_id = $1 AND state <> 'released'`,
     [input.orderId],
   );
 
-  // How a courier package is stored (079): standard, no window, no day — routing, not a promise.
+  // A courier package is stored standard, no window, no day: routing, not a promise.
   await tx.query(
     `UPDATE public.order_package_delivery
         SET method = 'standard', slot_id = NULL, window_start = NULL, window_end = NULL, promised_from = NULL, promised_to = NULL
@@ -556,12 +510,11 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
   );
 
   await setCourierRouting(tx, input.orderId, { serviceId: f.courier.serviceId!, collection }, input.actorSub);
-  // 085 — cleared BEFORE the type changes: the database ties a promise to an Effy order.
+  // Cleared before the type changes: the database ties a promise to an Effy order.
   await setPromise(tx, input.orderId, null);
   const changeId = await recordedChange(tx, input.orderId, input.actorSub, "courier", f.courier.estimate ?? "", input.reason);
   const overrideId = (await tx.query<{ id: string }>(`SELECT gen_random_uuid()::text AS id`)).rows[0]!.id;
 
-  // The compensation, through the one writers.
   let pointsEntryId: string | null = null;
   let refundId: string | null = null;
   let refundToSubmit: string | null = null;
@@ -612,16 +565,16 @@ export interface MoveToEffyInput {
   now?: Date;
 }
 
-/** Move a courier order back to Effy delivery, in a window it could be sold now — in `tx`. No money moves. */
+/** In a window it could be sold now, in `tx`. No money moves. */
 export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise<MoveResult> {
   const now = input.now ?? new Date();
   await tx.query(PLANNER_PASS_LOCK);
   const f = await loadMoveFacts(tx, input.orderId, { lock: true });
   if (!f) throw new DeliveryMoveError("not_found");
-  const refusal = await guardBackToEffy(tx, f, now);
+  const refusal = await guardBackToEffy(tx, f);
   if (refusal) throw new DeliveryMoveError(refusal);
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
-  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  // A parcel returned after a failed delivery: this is its next step, so release it.
   await resolveOpenFailures(tx, input.orderId);
 
   const w = await bindEffyWindow(tx, f, input.window, now);
@@ -644,11 +597,8 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
 }
 
 /**
- * Bind every package of an order to one window on one day — the window a customer could be sold now.
- *
- * ⚠ THE ONE WINDOW RULE (078), under the slot's lock — the same lock two customers taking the last
- * place are serialised by. A day outside the calendar the customer would be offered is refused too —
- * including today, where the address's postcode does not offer it (097).
+ * Binds every package to one window on one day by the one window rule, under the slot's lock. A day
+ * outside the customer's calendar is refused, including today where the postcode does not offer it.
  */
 async function bindEffyWindow(
   tx: Queryable,
@@ -660,7 +610,7 @@ async function bindEffyWindow(
   const settings = await loadSlotSettings(tx);
   const today = melbourneDate(now);
   const calendar = effyDays(
-    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(tx, today), await todayOfferedFor(tx, f, now),
+    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(tx, today), await todayOfferedFor(tx, f),
   );
   const day = calendar.find((d) => d.date === window.date && !d.nonDelivery);
   const slot = day ? await lockSlot(tx, window.slotId) : null;
@@ -671,7 +621,7 @@ async function bindEffyWindow(
   if (judged.verdict !== "open") throw new DeliveryMoveError("window_unavailable");
   const w = judged.slot;
 
-  // One order holds one place (UNIQUE order_id): the released row moves to the new window.
+  // One place per order (unique order_id): the released row moves to the new window.
   await tx.query(
     `INSERT INTO public.delivery_slot_booking (slot_id, delivery_date, order_id, state, held_until, window_start, window_end, over_capacity)
      VALUES ($1, $2::date, $3, 'confirmed', NULL, $4, $5, false)
@@ -681,7 +631,7 @@ async function bindEffyWindow(
     [w.id, w.date, orderId, w.start, w.end],
   );
 
-  // How an Effy window is stored (078): today's is same-day, a later day's standard — with the window.
+  // Today's window is stored same-day, a later day's standard, with the window.
   const method = w.date === today ? "same_day" : "standard";
   await tx.query(
     `UPDATE public.order_package_delivery
@@ -697,7 +647,7 @@ async function bindEffyWindow(
   return { ...w, anyTime: slot.anyTime };
 }
 
-/** 085 — what staff's choice promises the order (null for a courier order). Never "asap", so the estimate goes. */
+/** Null for a courier order; never "asap", so the estimate is cleared. */
 async function setPromise(tx: Queryable, orderId: string, promise: "window" | "day" | null): Promise<void> {
   await tx.query(
     `UPDATE public."order" SET delivery_promise = $2, asap_estimate = NULL, updated_at = now() WHERE id = $1`,
@@ -709,7 +659,7 @@ export interface ChangeEffyWindowInput {
   orderId: string;
   actorSub: string;
   reason: string;
-  /** A timed window, or the day's Any time window (the order is then promised the day). */
+  /** A timed window, or the day's Any time window (the day is then promised). */
   window: { slotId: string; date: string };
   expectedUpdatedAt: string;
   now?: Date;
@@ -718,18 +668,14 @@ export interface ChangeEffyWindowInput {
 export interface ChangeEffyWindowResult {
   orderId: string;
   promise: "window" | "day";
-  /** Drivers whose work changed — tell them after commit. */
+  /** Tell them after commit. */
   driverIds: string[];
 }
 
 /**
- * 085 — back-office gives an Effy order a different window or day. ⚠ No money moves, and who
- * delivers does not change.
- *
- * Refused once a parcel is out for delivery, handed over or delivered. Driver work planned for the
- * old window is taken back; the planner's next pass gives it to the new window's round.
- *
- * ⚠ Recorded in `admin.audit_log`: `delivery_override` is for a change of WHO delivers.
+ * Gives an Effy order another window or day. No money moves and the delivery type stays. Refused once a
+ * parcel is out, handed over or delivered; planned work goes back to the planner. Audited in
+ * `admin.audit_log` (`delivery_override` is for a change of who delivers).
  */
 export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInput): Promise<ChangeEffyWindowResult> {
   const now = input.now ?? new Date();
@@ -745,10 +691,10 @@ export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInp
     throw new DeliveryMoveError("out_for_delivery");
   }
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
-  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  // A parcel returned after a failed delivery: this is its next step, so release it.
   await resolveOpenFailures(tx, input.orderId);
 
-  // Work planned for the old window goes back to the planner. What a driver already holds stays held.
+  // Planned work goes back to the planner; what a driver holds stays held.
   const driverIds = new Set<string>();
   for (const a of f.assignments) {
     if (a.state !== "assigned" || a.round_status === "in_progress") continue;
@@ -775,8 +721,6 @@ export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInp
   return { orderId: input.orderId, promise, driverIds: [...driverIds] };
 }
 
-// ── Reads ───────────────────────────────────────────────────────────────────────────────────────
-
 interface MoveRow {
   id: string; change_id: string; created_at: Date; to_type: DeliveryType; actor_sub: string; actor_name: string | null;
   delivery_date: string | null; window_start: Date | null; window_end: Date | null;
@@ -786,7 +730,7 @@ interface MoveRow {
   compensation_note: string | null;
 }
 
-/** Every move of an order, oldest first, as back-office reads it. ⚠ Staff only — it carries the reason and the fee. */
+/** Oldest first. Staff only: it carries the reason and the fee. */
 export async function deliveryMovesFor(q: Queryable, orderId: string): Promise<AdminDeliveryMoveDTO[]> {
   const rows = (
     await q.query<MoveRow>(
@@ -805,7 +749,7 @@ export async function deliveryMovesFor(q: Queryable, orderId: string): Promise<A
       [orderId],
     )
   ).rows;
-  // The reason lives on the history row the move accompanies — read through its one module.
+  // The reason lives on the history row, read through its one module.
   const notes = await deliveryTypeChangeNotes(q, rows.map((r) => r.change_id));
   return rows.map((r) => ({
     id: r.id,

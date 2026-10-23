@@ -37,7 +37,7 @@ describe("createSessionGuard", () => {
     expect(result).toEqual(identity);
   });
 
-  // FR-004 / SC-010: the operator lands where they meant to go, not on the dashboard.
+  // The operator lands where they meant to go, not on the dashboard.
   it("throws a redirect to sign-in, preserving the intended destination", async () => {
     await expect(
       requireSession(fakeQueryClient({ status: "signed-out" }), "/manager"),

@@ -45,8 +45,7 @@ describe("subscribe — validation happens before any work (FR-030)", () => {
     expect(upsertSubscriber).not.toHaveBeenCalled()
   })
 
-  /** ⚠ RFC 5321 caps a path at 254 octets. Longer is not an address; accepting it lets a caller push
-   *  arbitrary length through the validator and into a query parameter. */
+  /** RFC 5321 caps a path at 254 octets. */
   it("rejects an over-long address before touching the database", async () => {
     const huge = `${"a".repeat(250)}@example.com`
     expect(await subscribe(huge, config)).toEqual({ status: "invalid" })
@@ -76,7 +75,7 @@ describe("subscribe — the happy path", () => {
     expect(sendEmail.mock.calls[0]![2]).toMatchObject({ to: "person@example.com", audience: "customer" })
   })
 
-  /** ⚠ The token goes in the link; only its HASH reaches the database. */
+  /** The token goes in the link; only its hash reaches the database. */
   it("stores a hash, never the token that is emailed", async () => {
     await subscribe("person@example.com", config)
 
@@ -106,10 +105,7 @@ describe("subscribe — the happy path", () => {
   })
 })
 
-/**
- * ⚠ FR-035 — the ONLY enforcement of it, now that the gateway throttle is gone (spec amendment,
- * research R4). Before this test the requirement had an implementation and no coverage at all.
- */
+/** The cooldown is the only rate limit. */
 describe("subscribe — abuse resistance (FR-035)", () => {
   it("sends NOTHING when the repo says the cooldown has not elapsed", async () => {
     upsertSubscriber.mockResolvedValue({ sendDue: false })
@@ -119,7 +115,6 @@ describe("subscribe — abuse resistance (FR-035)", () => {
   })
 
   it("submitting the same address repeatedly sends exactly one email", async () => {
-    // First submission is due; every later one is inside the cooldown.
     upsertSubscriber
       .mockResolvedValueOnce({ sendDue: true })
       .mockResolvedValue({ sendDue: false })
@@ -130,12 +125,7 @@ describe("subscribe — abuse resistance (FR-035)", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1)
   })
 
-  /**
-   * ⚠ WHAT THE COOLDOWN DOES **NOT** COVER, asserted so it stays a recorded decision rather than an
-   * assumption. It caps email PER ADDRESS. A script submitting thousands of DISTINCT addresses still
-   * gets one email each — the same per-source/per-identity split 035 hit (FR-012 vs FR-013: two
-   * mechanisms, not one). Closing it needs WAF or a gateway throttle, which this slice does not build.
-   */
+  /** It caps email per address; thousands of distinct addresses still get one each (that needs WAF). */
   it("does not cap distinct addresses — recorded, not fixed", async () => {
     for (let i = 0; i < 5; i++) await subscribe(`person${i}@example.com`, config)
 
@@ -143,19 +133,16 @@ describe("subscribe — abuse resistance (FR-035)", () => {
   })
 })
 
-/**
- * ⚠ FR-032 — the property that stops this form being an oracle. Pinned so a future "helpful" 409 or
- * "you're already subscribed" message cannot be added without failing a test.
- */
+/** No answer may reveal whether an address is subscribed. */
 describe("subscribe — non-enumeration (FR-032)", () => {
   it("returns a byte-identical result for a new, a pending and a confirmed address", async () => {
-    upsertSubscriber.mockResolvedValueOnce({ sendDue: true }) // new → sends
+    upsertSubscriber.mockResolvedValueOnce({ sendDue: true })
     const fresh = await subscribe("new@example.com", config)
 
-    upsertSubscriber.mockResolvedValueOnce({ sendDue: false }) // pending, in cooldown → no send
+    upsertSubscriber.mockResolvedValueOnce({ sendDue: false })
     const pending = await subscribe("pending@example.com", config)
 
-    upsertSubscriber.mockResolvedValueOnce({ sendDue: false }) // already confirmed → no send
+    upsertSubscriber.mockResolvedValueOnce({ sendDue: false })
     const confirmed = await subscribe("confirmed@example.com", config)
 
     expect(JSON.stringify(fresh)).toBe(JSON.stringify(pending))
@@ -173,7 +160,7 @@ describe("subscribe — non-enumeration (FR-032)", () => {
 })
 
 describe("subscribe — failure is retryable, not silent", () => {
-  /** ⚠ The template declares `onSendFailure: "throw"`, so a failed send reaches the service. */
+  /** `onSendFailure: "throw"`, so a failed send reaches the service. */
   it("reports `error` when the confirmation email cannot be sent", async () => {
     sendEmail.mockRejectedValue(new Error("SES is down"))
 
@@ -187,7 +174,7 @@ describe("subscribe — failure is retryable, not silent", () => {
     expect(sendEmail).not.toHaveBeenCalled()
   })
 
-  /** ⚠ An error must not become an oracle either — it says nothing about the address. */
+  /** An error says nothing about the address. */
   it("returns the same error shape whatever failed", async () => {
     sendEmail.mockRejectedValue(new Error("a"))
     const sendFailed = await subscribe("person@example.com", config)
@@ -213,11 +200,7 @@ describe("confirm — single-use, TTL-bounded, and never disclosing", () => {
     expect(tokenHash).not.toContain("a-real-token")
   })
 
-  /**
-   * ⚠ INVALID, EXPIRED, ALREADY-USED AND MISSING ALL LOOK THE SAME. Distinguishing them would confirm
-   * that a token existed — a small oracle — and there is nothing the holder of a dead token could do
-   * differently in any case.
-   */
+  /** Invalid, expired, used and missing tokens look the same. */
   it("reports `expired` identically for a missing, empty, over-long or unmatched token", async () => {
     confirmSubscriber.mockResolvedValue({ confirmed: false })
 
@@ -238,7 +221,6 @@ describe("confirm — single-use, TTL-bounded, and never disclosing", () => {
     expect(confirmSubscriber).not.toHaveBeenCalled()
   })
 
-  /** A 500 on a link in an email is worse than a clear "this link has expired". */
   it("degrades to `expired` when the database is unavailable", async () => {
     confirmSubscriber.mockRejectedValue(new Error("no connection"))
 

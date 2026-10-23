@@ -1,4 +1,3 @@
-// POST /shop/v1/sections — create a shop section (US5).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

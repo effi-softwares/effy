@@ -39,23 +39,23 @@ import com.effyshopping.mobile.kit.ui.MotionLevel
 import kotlinx.coroutines.flow.first
 
 /**
- * THE LAUNCH INTRO (087) — the native splash's "e." becomes "effy." letter by letter, then hands over to
+ * The launch intro — the native splash's "e." becomes "effy." letter by letter, then hands over to
  * the app.
  *
- * ⚠ THE FIRST FRAME IS THE NATIVE SPLASH, PIXEL FOR PIXEL, so the swap is invisible. The splash is the
+ * The first frame is the native splash, pixel for pixel, so the swap is invisible. The splash is the
  * brand's "e." mark (packages/brand `logo.svg`) on #09090B: the wordmark's own "e" and full stop, ×5,
  * centred in an 836.67-unit canvas that the platform draws at 192pt (iOS `LaunchLogo`, centred in the
- * SAFE AREA) or 288dp (Android's splash icon, centred in the WINDOW). This draws the same letter shapes
+ * safe area) or 288dp (Android's splash icon, centred in the window). This draws the same letter shapes
  * — outlined from Geist Bold in `packages/brand/src/wordmark.svg`, copied below — at the same size, in
  * the same place, on the same ground (`--foreground`, which IS #09090B).
  *
- * Then the FULL STOP LEADS: e. → ef. → eff. → effy. — in three steps the dot slides right and drags the
+ * Then the full stop leads: e. → ef. → eff. → effy. — in three steps the dot slides right and drags the
  * next letter out from behind the previous one (clipped at that letter's right edge, so nothing shows
  * through the e's counter), each step on the iOS curve; the word drifts so it stays centred. After a short hold — and only once the
  * session is known, so the app never appears half-restored — the ground turns white and the word black
  * (the light app's colours), and the intro fades away.
  *
- * ⚠ LIGHTWEIGHT: five paths parsed once, ONE animated clock, drawn in a Canvas — the clock is read only
+ * Lightweight: five paths parsed once, one animated clock, drawn in a Canvas — the clock is read only
  * in the draw phase, so a frame redraws and nothing recomposes. Reduce motion: the letters fade in
  * where they belong (no sliding); no motion at all: the finished wordmark, then straight to the app.
  */
@@ -86,7 +86,7 @@ internal fun EffyIntro(ready: Boolean, darkTheme: Boolean, onFinished: () -> Uni
     StatusBarIcons(lightIcons = darkGround)
 
     val ios = remember { platformTag() == "ios" }
-    // From the splash's fixed colours to the APP's: white ground + black word on the light theme; on the
+    // From the splash's fixed colours to the app's: white ground + black word on the light theme; on the
     // dark theme the ground stays near-black and the word white.
     val dark = EffyRoles.splashGround // #09090B — the splash ground (packages/brand SPLASH_GROUND)
     val light = MaterialTheme.colorScheme.background
@@ -156,14 +156,10 @@ private class IntroLetters {
     private val trailing = listOf(f1, f2, y)
 
     /**
-     * THE DOT LEADS (operator direction): e. → ef. → eff. → effy. In each step the full stop slides
-     * right to where it will sit after the next letter, and that letter is DRAGGED along behind it —
-     * its right edge held a fixed gap before the dot — emerging from behind the previous letter (it is
-     * clipped at that letter's right edge, so nothing shows through the e's counter). A letter stops
-     * at its own place; the dot moves on.
-     *
-     * The splash's "e." spans 0 … 75.3 (dot 6 units after the e) and centres on 44.2 vertically; the
-     * word keeps that line and stays centred as it grows.
+     * The dot leads: e. → ef. → eff. → effy. Each step the full stop slides right to where it will sit after
+     * the next letter, which is dragged behind it a fixed gap before the dot, emerging from behind the previous
+     * letter (clipped at that letter's right edge). A letter stops at its place; the dot moves on. The splash's
+     * "e." spans 0 … 75.3 and centres on 44.2 vertically; the word keeps that line and stays centred.
      */
     fun draw(scope: DrawScope, p: FloatArray, reduced: Boolean, unit: Float, ink: Color, dotColour: Color) = with(scope) {
         // Where the dot rests after each step: 6 units after e, f, f — and tucked into the y's tail.
@@ -189,7 +185,7 @@ private class IntroLetters {
                 for (i in 1..3) {
                     val alpha = if (reduced) p[i - 1] else 1f
                     if (alpha <= 0f) continue
-                    // Clip at the previous letter's CURRENT right edge: the letter emerges from behind it.
+                    // Clip at the previous letter's current right edge: the letter emerges from behind it.
                     val clipLeft = if (reduced) -1000f else rights[i - 1] + offset[i - 1]
                     clipRect(left = clipLeft, top = -1000f, right = 1000f, bottom = 1000f) {
                         translate(offset[i], 0f) { drawPath(trailing[i - 1], ink.copy(alpha = ink.alpha * alpha)) }
@@ -209,8 +205,8 @@ private class IntroLetters {
     }
 }
 
-// ── The wordmark's outlines, from packages/brand/src/wordmark.svg (Geist Bold, outlined) ─────────────
-// ⚠ Copied, not loaded: five short path strings cost nothing at launch, and loading the SVG would need
+// The wordmark's outlines, from packages/brand/src/wordmark.svg (Geist Bold, outlined)
+// Copied, not loaded: five short path strings cost nothing at launch, and loading the SVG would need
 // a resource read before the very first frame. If the wordmark is ever redrawn, copy these again.
 private const val PATH_E = "M0 44.2Q0 35.8 3.3 29.45Q6.6 23.1 12.7 19.65Q18.8 16.2 26.9 16.2Q34.8 16.2 40.75 19.7Q46.7 23.2 49.9 29.75Q53.1 36.3 53.1 45.2V48.2H15.5Q15.7 54.4 18.8 57.6Q21.9 60.8 27.3 60.8Q31.1 60.8 33.65 59.2Q36.2 57.6 37.3 54.3L52.4 55.2Q50.2 63.2 43.45 67.7Q36.7 72.2 27 72.2Q18.9 72.2 12.75 68.75Q6.6 65.3 3.3 58.95Q0 52.6 0 44.2ZM26.9 27.3Q22.1 27.3 19.1 30.4Q16.1 33.5 15.5 39H37.8Q37.5 33.3 34.6 30.3Q31.7 27.3 26.9 27.3Z"
 private const val PATH_F1 = "M80.1 0H91.5V11.2H83.3Q80.2 11.2 78.8 12.7Q77.4 14.2 77.4 17.4V71H62.4V16.7Q62.4 8.6 66.8 4.3Q71.2 0 80.1 0ZM54.6 19.4H90.7V30.6H54.6Z"

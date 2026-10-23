@@ -15,12 +15,7 @@ import io.ktor.utils.io.errors.IOException
 import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 
-/**
- * Payment methods over the commerce service (051 US6; moved from the retired Go backend by 070).
- *
- * ⚠ They live with checkout, not with the address book beside them in the UI: listing a card is a
- * call to the payment provider, and the provider secret has one custodian.
- */
+/** Payment methods over the commerce service: listing a card is a provider call, and the provider secret has one custodian. */
 class HttpPaymentMethodsRepository(private val edge: HttpClient) : PaymentMethodsRepository {
 
     override suspend fun list(): List<KeptCard> = request {
@@ -33,8 +28,8 @@ class HttpPaymentMethodsRepository(private val edge: HttpClient) : PaymentMethod
 
     override suspend fun remove(id: String) {
         request {
-            // ⚠ Ownership is verified SERVER-SIDE before anything is detached; a client-supplied id is
-            // never trusted (FR-026). A 404 means "not yours or not there" — deliberately the same
+            // Ownership is verified server-side before anything is detached; a client-supplied id is
+            // never trusted. A 404 means "not yours or not there" — deliberately the same
             // answer, so the route cannot be used as an oracle for which ids exist. It is also benign
             // from the shopper's point of view: the card is gone either way.
             val response = edge.delete("commerce/v1/payment-methods/$id")

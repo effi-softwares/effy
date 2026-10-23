@@ -10,17 +10,7 @@ import { DropNotFoundError, ProofValidationError, submitFailure } from "../proof
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
-/**
- * POST /driver/v1/delivery/drops/{dropId}/fail (064, US2).
- *
- * ⚠ THE ROUTE THAT LET A DRIVER TELL THE TRUTH. Until 064 a driver who could not complete a drop had
- * two options: mark it delivered when it was not, or leave it open for ever. The app has had these
- * screens since 060 and the platform has had nothing behind them.
- *
- * ⚠ THIS DOES NOT DELIVER, RELEASE OR REASSIGN ANYTHING. The package is still physically in the
- * driver's van (FR-011), and the order must never report delivered because of a failure (SC-011).
- * The only writes are the attempt row and the stop's own status.
- */
+/** Records the attempt and the stop status only: the package stays in the van, and the order is never delivered by a failure. */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -42,12 +32,9 @@ export const handler = async (
 
   try {
     const result = await submitFailure(dropId, guard.driver.id, body);
-    // 071 — committed; tell the screens that show it.
-    await announceStop(dropId); // 073 — the shop sees it too
+    await announceStop(dropId);
 
-    // ⚠ THE REASON IS LOGGED, THE NOTE IS NOT. The mix of reasons is what makes the exception list
-    // reportable in aggregate; the note is free text a driver typed at a doorstep and may name a
-    // person or a property (FR-028, and 050's no-PII rule). No address, no recipient, no location.
+    // The reason is logged, the note is not: it may name a person or a property.
     guard.scope.log.info(
       { dropId, reason: body.reason, replayed: result.replayed },
       "driver.drop_failed",
@@ -56,7 +43,7 @@ export const handler = async (
     const response: DropFailResponse = { status: "failed" };
     return json(200, response, guard.scope);
   } catch (err) {
-    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    // The round has not opened: nothing was written.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof ProofValidationError) {

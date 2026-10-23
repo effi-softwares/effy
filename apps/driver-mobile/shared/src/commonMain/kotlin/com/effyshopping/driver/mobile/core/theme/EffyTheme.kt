@@ -19,7 +19,7 @@ import com.effyshopping.driver.mobile.design.effyTypography
 val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
- * The driver app's theme (092, constitution v3.5.0): the STOREFRONT identity, generated from
+ * The driver app's theme (092, constitution v3.5.0): the storefront identity, generated from
  * `packages/design-system/src/storefront/tokens.css` — Effy blue for the next action, Effy green for
  * done, a problem is black with an icon (no red, no orange), Geist, light and dark.
  */
@@ -50,7 +50,7 @@ fun EffyTheme(
 /**
  * The roles Material 3 has no slot for — read them here, never as literals. Each follows the appearance.
  *
- * - [brand] Effy green: collected, delivered, on duty, done. ⚠ NEVER an action.
+ * - [brand] Effy green: collected, delivered, on duty, done. Never an action.
  * - [brandMuted] the green tint a done word sits on.
  * - [primaryMuted] the blue tint: the next stop's badge, info notes, the swipe track.
  * - [scrim] the backdrop behind a sheet.
@@ -62,10 +62,10 @@ object EffyRoles {
     val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
     val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
 
-    /** 092 — the launch splash's fixed ground (#09090B, packages/brand SPLASH_GROUND) and its ink. No appearance. */
+    /** The launch splash's fixed ground (#09090B, packages/brand SPLASH_GROUND) and its ink. No appearance. */
     val splashGround: Color get() = EffyColor.Light.foreground
     val splashInk: Color get() = EffyColor.Light.background
-    /** The driver mark's full stop on the splash: Effy blue (packages/brand COLOURWAYS.driver.dot). */
+    /** The driver mark's full stop on the splash: Effy blue (packages/brand colourways.driver.dot). */
     val splashDot: Color get() = EffyColor.Light.primary
 
     @Composable

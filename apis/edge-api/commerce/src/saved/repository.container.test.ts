@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql, transactorFor } from "@effy/edge-shared";
+import { transactorFor } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { refreshListing } from "@effy/edge-shared/catalog";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -11,15 +12,8 @@ import {
 } from "./repository";
 
 /**
- * 070 — saved items and lists against the REAL schema (FR-021, FR-035).
- *
- * Three things here cannot be shown without a real database and real concurrency:
- *
- *  · THE CAP IS A CAP. Simultaneous saves on separate connections cannot exceed it — which is true
- *    only because every writer takes the per-customer lock first.
- *  · THE INVARIANT HOLDS. A product is "saved" if and only if it is in at least one list; the sweep
- *    that maintains the second half runs in the same transaction as every removal.
- *  · ONE SHOPPER NEVER SEES OR TOUCHES ANOTHER'S LISTS.
+ * Against a real database: the cap holds under concurrent saves, "saved" iff in at least one list,
+ * and one shopper never sees or touches another's lists.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -31,7 +25,6 @@ let me: string;
 let other: string;
 const products: string[] = [];
 
-/** 098 — a product's price is its variant's; the listing summary follows through its one writer. */
 async function setVariant(productId: string, set: string, args: unknown[] = []) {
   await pool.query(`UPDATE public.product_variant SET ${set} WHERE product_id = $1`, [productId, ...args]);
   await refreshListing(pool, productId);
@@ -222,7 +215,7 @@ SELECT id::text AS id FROM p`,
     await expect(repo.list(other, mine)).rejects.toBeInstanceOf(ListNotFoundError);
     await expect(repo.renameList(other, mine, "Stolen")).rejects.toBeInstanceOf(ListNotFoundError);
     await expect(repo.addEntry(other, mine, products[1]!, null, 200)).rejects.toBeInstanceOf(ListNotFoundError);
-    await repo.deleteList(other, mine); // idempotent no-op, NOT a deletion
+    await repo.deleteList(other, mine); // idempotent no-op, not a deletion
     await repo.removeEntry(other, mine, products[0]!); // likewise
     expect((await repo.list(me, mine)).map((r) => r.product_id)).toEqual([products[0]]);
     expect(await repo.lists(other, null)).toEqual([]);

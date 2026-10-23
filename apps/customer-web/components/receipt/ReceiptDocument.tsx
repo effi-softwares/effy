@@ -10,16 +10,16 @@ import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 
 /**
- * THE RECEIPT DOCUMENT — the itemised record of one paid order (052 US1).
+ * The receipt document — the itemised record of one paid order.
  *
- * ⚠ NOT A CARD LAYOUT, and Principle V requires that to be argued rather than assumed. The banned
+ * Not a card layout, and Principle V requires that to be argued rather than assumed. The banned
  * pattern is a dashboard aesthetic: tiled content boxes and metric cards at the top of a page. There
- * are none here. The border is the EDGE OF THE PAPER and the shaded block is a TOTALS BLOCK — the
+ * are none here. The border is the edge of the paper and the shaded block is a totals block — the
  * conventional anatomy of an invoice, and what eBay and Amazon order detail render (Principle V's own
  * reference platforms). The interior is what the principle prefers: a line-item table, a totals table,
  * and labelled detail rows. Recorded in plan.md § Constitution Check.
  *
- * ⚠ It discloses NO fulfilment structure — no shop, count, distance or ring (FR-009).
+ * It discloses NO fulfilment structure — no shop, count, distance or ring.
  *
  * Pure and synchronous, so it is unit-testable: the pages hosting it are async Server Components,
  * which Vitest cannot render. (The same reasoning as `OrderAddresses`.)
@@ -75,13 +75,7 @@ export function ReceiptDocument({
   )
 }
 
-/**
- * Who sold it, to which order, and when — the three things that make this a record.
- *
- * ⚠ THE SELLER'S IDENTITY COMES FROM `@effy/legal-content` AND ONLY WHAT IS RECORDED IS SHOWN. A
- * missing ABN or address is omitted, never filled with a placeholder: this is a document a customer
- * keeps (052; `legal-absence.test.tsx`).
- */
+/** Who sold it, to which order, and when. The seller identity comes from `@effy/legal-content`; anything unrecorded is omitted. */
 function Masthead({ order }: { order: OrderDTO }) {
   const paid = order.paymentStatus === "succeeded" || order.status === "paid"
   const seller = sellerIdentity()
@@ -128,9 +122,9 @@ function LineItem({
       <td className="px-2 py-2.5">
         <div className="flex items-center gap-3">
           {/*
-            ⚠ DECORATION ONLY. A missing picture is a plain tile and the line stays whole — nothing
-            here is gated on it (FR-003). Every OTHER field is the order's own immutable snapshot,
-            which is why a renamed or re-priced product still shows what was actually bought (FR-011).
+            Decoration only. A missing picture is a plain tile and the line stays whole — nothing
+            here is gated on it. Every other field is the order's own immutable snapshot,
+            which is why a renamed or re-priced product still shows what was actually bought.
           */}
           <div className={cn("relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-muted-foreground", unavailable && "opacity-50")}>
             {item.imageUrl ? (
@@ -142,7 +136,7 @@ function LineItem({
           <div className="min-w-0">
             <div className={cn("font-medium", unavailable && "text-muted-foreground")}>
               {item.productName}
-              {/* 098 — the size as it was sold. */}
+              {/* The size as it was sold. */}
               {item.variantLabel ? <span className="font-normal text-muted-foreground"> · {item.variantLabel}</span> : null}
             </div>
             {/* The unit price beside the line total: what makes a line checkable, not merely stated. */}
@@ -179,7 +173,7 @@ function Totals({ order }: { order: OrderDTO }) {
     <div className="mt-4 ml-auto max-w-sm">
       <dl className="flex flex-col gap-2">
         <Row label="Items subtotal" value={formatMoney(order.itemSubtotalAmount, order.currency)} />
-        {/* 094 — one row per promotion as sold. */}
+        {/* One row per promotion as sold. */}
         {order.promotions
           .filter((p) => p.goodsAmount !== "0.00")
           .map((p) => (
@@ -197,7 +191,7 @@ function Totals({ order }: { order: OrderDTO }) {
         {order.deliveryDiscountAmount !== "0.00" ? (
           <Row label="Delivery offer" value={`−${formatMoney(order.deliveryDiscountAmount, order.currency)}`} />
         ) : null}
-        {/* 077 — the lines the order was SOLD with (stored, never re-priced); a free delivery is shown as
+        {/* The lines the order was sold with (stored, never re-priced); a free delivery is shown as
             the lines that make its $0. */}
         {order.deliveryFee.lines.map((l, i) => (
           <Row
@@ -215,7 +209,7 @@ function Totals({ order }: { order: OrderDTO }) {
         </dd>
       </div>
 
-      {/* 074 — points are a way of PAYING: a line beside the card's, never a discount above the total. */}
+      {/* Points are a way of paying: a line beside the card's, never a discount above the total. */}
       {order.paymentSplit ? (
         <p className="mt-2 text-xs text-muted-foreground">
           Paid with{" "}
@@ -243,7 +237,7 @@ function Row({ label, value }: { label: React.ReactNode; value: string }) {
 }
 
 /**
- * How it was paid (FR-006). ⚠ Rendered ONLY when captured — a pre-052 order, or one whose
+ * How it was paid. Rendered only when captured — a pre-052 order, or one whose
  * post-commit capture failed, simply has no such line. Absent, never blank.
  */
 function PaidWith({ method }: { method: PaymentMethodSummaryDTO }) {
@@ -266,7 +260,7 @@ function brandLabel(method: PaymentMethodSummaryDTO): string {
 }
 
 /**
- * ⚠ Fixed to `Australia/Melbourne`, not the server's zone. A receipt states when an order was placed,
+ * Fixed to `Australia/Melbourne`, not the server's zone. A receipt states when an order was placed,
  * and the platform trades in one timezone (047 judges its cutoff in the same one). Rendering this on a
  * server in another zone would print a different date than the shopper experienced.
  */

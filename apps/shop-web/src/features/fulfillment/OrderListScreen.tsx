@@ -44,28 +44,14 @@ import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
 
 /**
- * The Orders list — transcribed from the imported design's `isOrders` block ("Effy Shop Console.dc.html"),
- * row for row (revision 3): search + Filters + Export CSV; the segmented status tabs on their own row;
- * the result count with "Clear filters" over one rule; the bulk bar; the bordered table with a muted
- * header; the dashed empty state; Previous / Next. The filters themselves live in a right-side sheet.
+ * The Orders list: search, Filters (a right-side sheet) and Export CSV; the status tabs; the result count
+ * with "Clear filters"; the bulk bar; the table; the empty state; Previous / Next. Effy's model, not the
+ * design's: the tabs are Effy's states (a shop never ships), "Goes with" (Effy driver / Courier) replaces
+ * a channel filter, and the row's flag is "At risk" against the ready-by promise.
  *
- * ⚠ REMOVED ON PURPOSE (revision 3) — do not re-add: the saved-views pills (presets of these same
- * filters), a Fulfilment select (the tabs do that job) and the uppercase labels above body selects.
- *
- * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS FOR EFFY'S MODEL, NOT FOR TASTE:
- *   • the tabs are Effy's states (Awaiting pick · Picking · Ready · Collected · Delivered · Can't supply
- *     · Cancelled), not "Packed / Shipped" — a shop never ships anything (049);
- *   • the design's Channel filter is "Goes with" (Effy driver / Courier, 079) — Effy has one sales channel, and
- *     how the package travels is the dimension that actually splits a shop's orders;
- *   • the row's flag is "At risk" against the ready-by promise — Effy has no fraud score.
- *
- * ⚠ EVERYTHING THAT NARROWS THE LIST IS SERVER-SIDE, so the tab counts cover every state and a search
- * finds last month's order. The state lives in the URL (`search` / `onSearchChange`).
- *
- * ⚠ THE DEFAULT SORT IS NEWEST FIRST (operator direction, 2026-09-19) — it was oldest-first, the
- * queue's FIFO rule (020 FR-001b). The urgency that default carried is now carried by the ROW: an
- * order that has just arrived is washed `--success-soft` and one NOBODY HAS OPENED is washed
- * `--warning-soft`, so the work that needs a person is findable wherever it sits. See `orderRowTone`.
+ * Narrowing is server-side, so tab counts cover every state; the state lives in the URL. Newest first; an
+ * order just arrived is washed `--success-soft` and one nobody has opened `--warning-soft`
+ * (`orderRowTone`).
  */
 export function OrderListScreen({
   search,
@@ -80,7 +66,7 @@ export function OrderListScreen({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  // ⚠ The row tones AGE. The list polls every 15 s; without a clock of its own a row washed green on
+  // The row tones AGE. The list polls every 15 s; without a clock of its own a row washed green on
   // arrival would stay green until the next fetch changed something, which on a quiet afternoon is
   // never (058 FR-009 — a highlight that outlives its claim is read as fresh).
   const now = useNow(15_000)
@@ -92,7 +78,7 @@ export function OrderListScreen({
     track({ name: "shop_order_queue_viewed", state: tab === "all" || tab === "new" || tab === "picking" ? "active" : "completed" })
   }, [tab])
 
-  // ⚠ Selection is cleared whenever the list changes under it — acting on rows no longer visible is
+  // Selection is cleared whenever the list changes under it — acting on rows no longer visible is
   // the definition of an unreviewed bulk action.
   useEffect(() => {
     setSelected(new Set())
@@ -139,7 +125,7 @@ export function OrderListScreen({
   async function exportCsv() {
     setExporting(true)
     try {
-      // ⚠ 058: the export itself moved to `exportOrders.ts` when Today's Quick actions became its
+      // The export itself moved to `exportOrders.ts` when Today's Quick actions became its
       // second caller. Two implementations would mean two CSV shapes, and the divergence would be
       // noticed in a spreadsheet on someone else's desk long after the change that caused it.
       const exported = await exportOrdersCsv(search)
@@ -153,7 +139,7 @@ export function OrderListScreen({
 
   return (
     <div className="grid gap-4">
-      {/* ── The controls: three rows, 22px apart; a rule under the result meta (revision 3) ────── */}
+      {/* The controls: three rows, 22px apart; a rule under the result meta (revision 3) */}
       <div className="grid gap-[22px]">
         {/* Row 1 — search, then the page actions */}
         <div className="flex flex-wrap items-center gap-2">
@@ -182,7 +168,7 @@ export function OrderListScreen({
         </div>
 
         {/* Row 2 — the status tabs, on their own row.
-            ⚠ THIS WAS A THIRD, HAND-ROLLED COPY OF THE SEGMENTED CONTROL. The platform had three:
+            This was A third, hand-rolled copy of the segmented control. The platform had three:
             `Tabs` in the design system, `Segmented` in the console primitives, and this one — each
             with its own active treatment. The theme adoption changed the active segment to a solid
             --brand fill, and a copy nobody remembered would have stayed a raised white chip with a
@@ -246,7 +232,7 @@ export function OrderListScreen({
         />
       ) : (
         <>
-          {/* ── The table — always rendered; it scrolls sideways on a narrow viewport rather than
+          {/* The table — always rendered; it scrolls sideways on a narrow viewport rather than
               being swapped for a stripped-down list (revision 2). ─────────────────────────────── */}
           <div
             className={cn(
@@ -270,7 +256,7 @@ export function OrderListScreen({
                   <SortTh label="Items" search={search} onSort={update} />
                   <SortTh label="Placed" sortKey="placed" width="8%" search={search} onSort={update} />
                   <SortTh label="Fulfilment" width="13%" search={search} onSort={update} />
-                  {/* ⚠ Wide enough for "Partially refunded", its longest label, on one line. */}
+                  {/* Wide enough for "Partially refunded", its longest label, on one line. */}
                   <SortTh label="Payment" width="14%" search={search} onSort={update} />
                   <SortTh label="Total" sortKey="total" width="11%" align="right" search={search} onSort={update} />
                 </tr>
@@ -287,7 +273,7 @@ export function OrderListScreen({
                       data-tone={tone ?? undefined}
                       className={cn(
                         "border-border hover:bg-accent cursor-pointer border-t",
-                        // ⚠ THE WASH IS SKIPPED WHEN THE ROW IS SELECTED, not layered under it. Two
+                        // The wash is skipped when the row is selected, not layered under it. Two
                         // background utilities on one element are resolved by stylesheet order, not
                         // by the order they are written here, so "selected" would win on some builds
                         // and lose on others — and a selected row the operator cannot see is how a
@@ -297,7 +283,7 @@ export function OrderListScreen({
                         sel && "bg-accent",
                       )}
                     >
-                      {/* ⚠ Ticking a row must not also open it. */}
+                      {/* Ticking a row must not also open it. */}
                       <td className="py-3 pl-3.5" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           aria-label={`Select ${o.orderNumber}`}
@@ -319,8 +305,8 @@ export function OrderListScreen({
                       </td>
                       <td className="px-3.5 py-3">
                         {/* Wraps rather than overflowing when a flag rides beside the name. */}
-                        {/* ⚠ An avatar per person (adoption prompt, list pattern). The tint is
-                            DETERMINISTIC on the order id, so the same customer keeps the same colour
+                        {/* An avatar per person (adoption prompt, list pattern). The tint is
+                            Deterministic on the order id, so the same customer keeps the same colour
                             down the column and across screens — an index-derived tint would re-colour
                             everyone on every sort and actively mislead. */}
                         <div className="flex flex-wrap items-center gap-x-[7px] gap-y-[3px]">
@@ -347,7 +333,7 @@ export function OrderListScreen({
                         {formatPlacedShort(o.placedAt)}
                       </td>
                       <td className="px-3.5 py-3">
-                        {/* 073 — where it really is, past Collected; the shared words. */}
+                        {/* Where it really is, past Collected; the shared words. */}
                         <PackageStatusPill view={o.statusView} showDetail={false} />
                       </td>
                       <td className={cn("px-3.5 py-3 text-[12.5px] font-medium whitespace-nowrap", paymentTextClass(o.payment))}>
@@ -395,24 +381,23 @@ export function OrderListScreen({
   )
 }
 
-
 /**
  * The row's flag chip (`padding:1px 6px; border-radius:4px; 10.5px; coloured border and text`).
- * ⚠ Effy's "risk" is the promise: an open order near or past its ready-by. A shortfall is the other
+ * Effy's "risk" is the promise: an open order near or past its ready-by. A shortfall is the other
  * thing a shop must see from the list, so it takes the same chip in the quiet tone.
  *
- * ⚠ THE TONE CHIP IS WHAT MAKES THE WASH LEGAL. The row's colour is the FINDER — it is what lets an
- * operator spot the row from across a bench — and the word is the MEANING. Colour alone excludes a
+ * The tone chip is what makes the wash legal. The row's colour is the finder — it is what lets an
+ * operator spot the row from across a bench — and the word is the meaning. Colour alone excludes a
  * colour-blind operator, a screen-reader user and anyone printing the list, which is the same rule
  * Today's Live orders keeps (its green row also says "New") and the same one every status pill on
  * this screen keeps.
  *
- * ⚠ THE CHIP IS BORDERED AND UNFILLED, unlike Today's. Here the row itself carries the `-soft` fill,
+ * The chip is bordered and unfilled, unlike Today's. Here the row itself carries the `-soft` fill,
  * so a chip with that same fill would dissolve into it — most visibly on an unopened row, whose
- * status pill is ALREADY `--warning-soft`. The bordered chip is this component's existing device
+ * status pill is already `--warning-soft`. The bordered chip is this component's existing device
  * ("At risk", "N short") and cannot collide with any wash.
  *
- * ⚠ "Not opened" IS NOT WHAT THE STATUS PILL SAYS. That pill maps `pending` and `received` both to
+ * "Not opened" is not what the status pill says. That pill maps `pending` and `received` both to
  * "Awaiting pick" — the same work — so until now the console could not show that an order had never
  * been looked at by anyone.
  */
@@ -460,7 +445,7 @@ function SortTh({
   onSort: (patch: Partial<OrdersSearch>) => void
 }) {
   const current = !!sortKey && (search.sort ?? "placed") === sortKey
-  // ⚠ DESCENDING, matching `validateOrdersSearch` and the service. Reading "asc" here would draw ↑
+  // Descending, matching `validateOrdersSearch` and the service. Reading "asc" here would draw ↑
   // over a newest-first list and make the first click on `Placed` a no-op.
   const dir = search.dir ?? "desc"
   return (
@@ -481,7 +466,7 @@ function SortTh({
         )}
       >
         {label}
-        {/* ⚠ The arrow is rendered ONLY for the active column, in the action colour. An arrow on
+        {/* The arrow is rendered only for the active column, in the action colour. An arrow on
             every header says every column is sorted; a neutral glyph everywhere is noise in a row
             that is already dense. */}
         <span className="text-[10px] text-brand" aria-hidden="true">
@@ -493,7 +478,7 @@ function SortTh({
 }
 
 /**
- * The search box — 250px, a ✕ inside it once there is text. ⚠ DEBOUNCED: every keystroke would
+ * The search box — 250px, a ✕ inside it once there is text. Debounced: every keystroke would
  * otherwise be a server round trip and a URL write.
  */
 function SearchBox({ value, onChange }: { value: string; onChange: (q: string) => void }) {

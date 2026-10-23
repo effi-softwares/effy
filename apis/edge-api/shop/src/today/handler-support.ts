@@ -1,7 +1,4 @@
-// Domain → wire mapping for Today, plus the conditional-GET plumbing the screens poll through (058).
-//
-// The gate and the error mapping are the fulfilment slice's, reused as-is: same audience, same
-// membership rule (both roles), same uniform 403 for "not yours" and "no such thing".
+// Domain → wire mapping for Today and its conditional GET. The gate and error mapping are the fulfilment slice's.
 import { createHash } from "node:crypto";
 
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
@@ -85,23 +82,13 @@ export function toTodayDTO(s: TodaySnapshot, attention: AttentionView): ShopToda
   };
 }
 
-/**
- * A weak ETag over the payload, with `now` excluded.
- *
- * ⚠ EXCLUDING THE CLOCK IS THE WHOLE POINT. Today is polled every 30 seconds when the live stream is
- * unavailable, and `now` changes on every single read — an ETag computed over it would never match,
- * so the 304 would never fire and the conditional GET would be decoration. What the operator needs
- * to know is whether the WORK changed.
- *
- * ⚠ It saves bandwidth, not a database read: the snapshot must be computed to know whether it moved.
- * Said plainly here so nobody later reports the polling cost as a bug in this function.
- */
+/** A weak ETag over the payload excluding `now`, which changes on every read. Saves bandwidth, not a database read. */
 export function etagFor(dto: ShopTodayDTO): string {
   const { now: _now, ...rest } = dto;
   return `W/"${createHash("sha256").update(JSON.stringify(rest)).digest("base64url").slice(0, 27)}"`;
 }
 
-/** Case-insensitive header read — API Gateway v2 lower-cases, tests and proxies may not. */
+/** Case-insensitive: API Gateway v2 lower-cases, tests and proxies may not. */
 export function ifNoneMatch(event: AuthedEvent): string | null {
   const headers = event.headers ?? {};
   for (const [k, v] of Object.entries(headers)) {
@@ -110,13 +97,7 @@ export function ifNoneMatch(event: AuthedEvent): string | null {
   return null;
 }
 
-/**
- * 200 with the body, or 304 when the caller already has this exact work state.
- *
- * `private, no-cache` — private because this is one shop's operational state and must never sit in
- * a shared cache; no-cache because the client MUST revalidate rather than serve a stale backlog from
- * memory. Freshness is the entire value of this screen.
- */
+/** 200, or 304 when unchanged. `private, no-cache`: one shop's state, always revalidated. */
 export function todayResponse(
   dto: ShopTodayDTO,
   event: AuthedEvent,

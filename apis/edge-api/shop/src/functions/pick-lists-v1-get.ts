@@ -1,8 +1,4 @@
-// GET /shop/v1/pick-lists — every order waiting to be picked, as printable documents (058, US4).
-//
-// Scoped to the caller's own shop by gate(); there is no shop parameter to supply. Deliberately a
-// separate read from the order console's: this one carries no money and no payment state, because
-// what it produces is paper for the shelves.
+// Paper for the shelves: no money and no payment state.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -29,8 +25,6 @@ export const handler = async (
           orderNumber: l.orderNumber,
           customerName: l.customerName,
           paidAt: l.paidAt.toISOString(),
-          // ⚠ 079 declared `deliveredBy` on the pick list and this mapping never sent it (the body is
-          // untyped here); 080 found it adding `courierPickup` beside it.
           deliveredBy: l.deliveredBy,
           ...(l.courierPickup ? { courierPickup: l.courierPickup } : {}),
           lines: l.lines,

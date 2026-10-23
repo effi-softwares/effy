@@ -123,7 +123,7 @@ export function AppSidebar({ groups, counts, environment, onOpenSearch, user }: 
 
 /**
  * An entry with sub-pages. The chevron turns and the sub-pages slide open under it (220 ms); the group
- * holding the page on screen opens itself on load WITHOUT animating — motion explains a change the
+ * holding the page on screen opens itself on load without animating — motion explains a change the
  * person made, never one the page made for them.
  */
 function NavGroupItem({

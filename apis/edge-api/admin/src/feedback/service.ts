@@ -1,5 +1,3 @@
-// Feedback console service (046 US2/US3): read/search/triage, and the reply that emails the submitter.
-// Pure shaping + orchestration here; SQL lives in repository.ts (Principle VI).
 import { logger } from "@effy/edge-shared"
 import { sendEmail } from "@effy/email-kit/send"
 import {
@@ -88,8 +86,7 @@ export async function detail(referenceCode: string): Promise<FeedbackDetailDTO> 
 }
 
 export async function changeStatus(referenceCode: string, status: unknown): Promise<void> {
-  // ⚠ `replied` is SYSTEM-set on a successful reply — it is deliberately not in the settable set, so a
-  // staff member cannot hand-mark a submission answered without one actually being sent.
+  // `replied` is set only by a successful reply, never by hand.
   if (
     typeof status !== "string" ||
     !(FEEDBACK_SETTABLE_STATUSES as readonly string[]).includes(status)
@@ -109,14 +106,7 @@ export async function addNote(referenceCode: string, body: unknown, actor: Staff
   if (!ok) throw new FeedbackError("not_found", "no feedback with that reference")
 }
 
-/**
- * Reply to a submission and email the submitter (046 US3).
- *
- * ⚠ THE ORDER IS LOAD-BEARING. The email is sent FIRST; only on a successful send is the reply row
- * written and the status flipped to `replied` (FR-029/030). `feedback-reply` declares
- * `onSendFailure: "throw"`, so a send failure lands in the catch below as `send_failed` and NOTHING is
- * written — the submission is never falsely marked answered.
- */
+/** The email goes first; only a successful send writes the reply and sets `replied`. */
 export async function reply(referenceCode: string, body: unknown, actor: StaffActor): Promise<void> {
   const text = typeof body === "string" ? body.trim() : ""
   if (text.length === 0 || text.length > FEEDBACK_REPLY_MAX) {
@@ -149,11 +139,9 @@ export async function reply(referenceCode: string, body: unknown, actor: StaffAc
   const written = await repo.insertReplyAndMarkReplied(referenceCode, text, actor)
   if (!written) throw new FeedbackError("not_found", "no feedback with that reference")
 
-  // ⚠ Logged WITHOUT the address (Principle VII).
+  // Without the address.
   logger.info({ msg: "feedback.replied", referenceCode, category: row.category }, "feedback reply sent")
 }
-
-// ── query-param parsing shared by the list handler ──────────────────────────────────────────────
 
 const MAX_LIMIT = 100
 

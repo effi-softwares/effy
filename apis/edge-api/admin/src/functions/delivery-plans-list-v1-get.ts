@@ -1,5 +1,3 @@
-// GET /admin/v1/delivery/plans?kind=effy|courier — every fee plan of a kind, with its gaps (077).
-// Read: any active staff, csa included.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -34,18 +34,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * ⚠ THIS SUITE SHRANK BY DESIGN. It used to be dominated by the delivery step — quote fetching, a
- * method preference, per-package overrides, scheduled dates, set-aside confirmation, requoting.
- * Delivery zones, quotes and fees were WITHDRAWN from the platform, so those tests were not "fixed":
- * the behaviour they described no longer exists.
- *
- * What remains is what checkout still is on this surface: choose a shipping address, optionally
- * diverge the billing address, pay.
- */
+/** The checkout ViewModel: the shipping address and its quote, an optional billing address, and the hand-off to payment. */
 class CheckoutViewModelTest {
 
-    // ⚠ The ViewModel loads its addresses from `init` on `viewModelScope`, which dispatches to Main.
+    // The ViewModel loads its addresses from `init` on `viewModelScope`, which dispatches to Main.
     // Without a test Main the state never leaves Loading and every assertion here reads a screen the
     // shopper would never see.
     @BeforeTest fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -65,7 +57,7 @@ class CheckoutViewModelTest {
         override suspend fun setDefault(id: String) = items.first()
         override suspend fun delete(id: String) = Unit
 
-        /** 066 — every write to an address's saved instructions, in order. */
+        /** Every write to an address's saved instructions, in order. */
         val savedInstructions = mutableListOf<Pair<String, InstructionsDraft>>()
         override suspend fun saveInstructions(id: String, instructions: InstructionsDraft): SavedAddress {
             savedInstructions += id to instructions
@@ -74,8 +66,8 @@ class CheckoutViewModelTest {
     }
 
     private class FakeCheckout(
-        // The quote the fake returns. ⚠ A COURIER quote by default, on purpose: it has one fee ($6.00)
-        // and NOTHING TO CHOOSE, so the tests that are not about delivery can go straight to paying.
+        // The quote the fake returns. A courier quote by default, on purpose: it has one fee ($6.00)
+        // and nothing to choose, so the tests that are not about delivery can go straight to paying.
         private val quote: DeliveryQuote = DeliveryQuote(
             serviced = true,
             courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
@@ -84,11 +76,11 @@ class CheckoutViewModelTest {
                 noWindowLeft = false,
             ),
         ),
-        /** 077 — when set, the first intent is refused as "the delivery fee changed", with this quote. */
+        /** When set, the first intent is refused as "the delivery fee changed", with this quote. */
         private var feeChangedTo: DeliveryQuote? = null,
-        /** 078 — when set, the first intent is refused over the delivery choice. */
+        /** When set, the first intent is refused over the delivery choice. */
         private var refusal: com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused? = null,
-        /** 079 — a quote per ADDRESS: who delivers is decided from where the order is going. */
+        /** A quote per address: who delivers is decided from where the order is going. */
         private val quoteFor: Map<String, DeliveryQuote> = emptyMap(),
     ) : CheckoutRepository {
         var lastOrder: PlaceOrder? = null
@@ -133,7 +125,7 @@ class CheckoutViewModelTest {
     /** The address fake behind the most recent [vm] — for asserting what was (not) written back. */
     private var lastAddresses: FakeAddresses? = null
 
-    // ── Address selection ──────────────────────────────────────────────────────────────────────
+    // Address selection
 
     @Test
     fun `the default address is pre-selected`() = runTest {
@@ -141,7 +133,7 @@ class CheckoutViewModelTest {
         assertEquals("b", ready(vm)?.selectedId)
     }
 
-    // ⚠ Deterministic when nothing is marked default — a shopper must not get a different address
+    // Deterministic when nothing is marked default — a shopper must not get a different address
     // depending on read order.
     @Test
     fun `with no default it falls back to the first saved address`() = runTest {
@@ -155,12 +147,12 @@ class CheckoutViewModelTest {
         vm.select("b")
 
         assertEquals("b", ready(vm)?.selectedId)
-        // ⚠ The SAVED default is untouched (022 FR-006): choosing where one order goes is not the same
+        // The saved default is untouched: choosing where one order goes is not the same
         // as changing where every future order goes.
         assertTrue(ready(vm)!!.addresses.first { it.id == "a" }.isDefault)
     }
 
-    // ── Billing (023 US4) ──────────────────────────────────────────────────────────────────────
+    // Billing
 
     @Test
     fun `billing defaults to same as shipping`() = runTest {
@@ -169,7 +161,7 @@ class CheckoutViewModelTest {
         assertNull(ready(vm)!!.effectiveBillingId)
     }
 
-    // FR-013: turning "same as shipping" back ON discards the divergent choice rather than remembering it.
+    // Turning "same as shipping" back ON discards the divergent choice rather than remembering it.
     @Test
     fun `re-enabling same-as-shipping discards the divergent billing address`() = runTest {
         val vm = vm(listOf(addr("a", isDefault = true), addr("b")))
@@ -183,8 +175,8 @@ class CheckoutViewModelTest {
         assertNull(ready(vm)?.effectiveBillingId)
     }
 
-    // ⚠ A billing address EQUAL to shipping is sent as null, not as a duplicate snapshot — "same as
-    // shipping" is the ABSENCE of a divergent billing address, not a copy of one.
+    // A billing address equal to shipping is sent as null, not as a duplicate snapshot — "same as
+    // shipping" is the absence of a divergent billing address, not a copy of one.
     @Test
     fun `billing equal to shipping sends nothing`() = runTest {
         val vm = vm(listOf(addr("a", isDefault = true)))
@@ -194,9 +186,9 @@ class CheckoutViewModelTest {
         assertNull(ready(vm)?.effectiveBillingId)
     }
 
-    // ── Paying ─────────────────────────────────────────────────────────────────────────────────
+    // Paying
 
-    // FR-012: a diverged billing address must be chosen before paying.
+    // A diverged billing address must be chosen before paying.
     @Test
     fun `paying without a chosen billing address is refused`() = runTest {
         val vm = vm(listOf(addr("a", isDefault = true)))
@@ -208,12 +200,7 @@ class CheckoutViewModelTest {
         assertEquals("Choose a billing address.", ready(vm)?.error)
     }
 
-    /**
-     * ⚠ THE DEFECT THIS PINS. Checkout used to create the intent AND present the provider's modal sheet
-     * in one call. 051 built an Effy-drawn payment screen to replace that sheet and never routed to it,
-     * so the modal kept appearing with every test green — the new screen was unreachable, not broken.
-     * This asserts the handoff actually happens.
-     */
+    /** Creating the intent hands off to Effy's payment screen. */
     @Test
     fun `paying hands the created intent to the payment screen`() = runTest {
         val handoff = PaymentHandoff()
@@ -224,13 +211,13 @@ class CheckoutViewModelTest {
         assertEquals("o1", handoff.pending?.orderId)
         assertEquals("cs", handoff.pending?.clientSecret)
         assertTrue(ready(vm)!!.handedOffToPayment)
-        // ⚠ The busy state is cleared on the way out. Leaving it set means a shopper who backs out of
+        // The busy state is cleared on the way out. Leaving it set means a shopper who backs out of
         // payment returns to a checkout whose pay button is stuck spinning.
         assertFalse(ready(vm)!!.paying)
     }
 
     /**
-     * ⚠ The one-shot must disarm, or backing out of payment re-fires it and bounces the shopper straight
+     * The one-shot must disarm, or backing out of payment re-fires it and bounces the shopper straight
      * back in — with no way out but the app switcher.
      */
     @Test
@@ -253,7 +240,7 @@ class CheckoutViewModelTest {
         assertEquals("Add a delivery address to continue.", ready(vm)?.error)
     }
 
-    // ── Delivery quote (047) ─────────────────────────────────────────────────────────────────────
+    // Delivery quote
 
     @Test
     fun `the selected address is quoted on entry`() = runTest {
@@ -272,12 +259,12 @@ class CheckoutViewModelTest {
         vm.payNow()
 
         assertFalse(ready(vm)!!.paying)
-        // 076 — the ONE refusal sentence, the same the address book and the website show.
+        // The one refusal sentence, the same the address book and the website show.
         assertEquals(CoverageWords.REFUSAL, ready(vm)?.error)
         assertNull(unserviced.lastOrder) // never reached placement
     }
 
-    // ── 077: one delivery fee for the order ────────────────────────────────────────────────────
+    // One delivery fee for the order
 
     private fun fee(vararg lines: Pair<com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind, String>, total: String) =
         com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee(
@@ -310,7 +297,7 @@ class CheckoutViewModelTest {
         assertTrue(ready(vm)!!.handedOffToPayment)
     }
 
-    // ── 078: one window for the order ──────────────────────────────────────────────────────────
+    // One window for the order
 
     private fun window(slot: String, date: String, surcharge: String, total: String) =
         com.effyshopping.customer.mobile.features.checkout.domain.EffyWindow(
@@ -440,7 +427,7 @@ class CheckoutViewModelTest {
         assertEquals(false, ready(vm)?.deliveryChosen)
     }
 
-    // ── 079: Delivered by Effy, or by a courier ─────────────────────────────────────────────────
+    // Delivered by Effy, or by a courier
 
     private fun courierQuote(noWindowLeft: Boolean = false) = DeliveryQuote(
         serviced = true,
@@ -488,7 +475,7 @@ class CheckoutViewModelTest {
     }
 
     /**
-     * ⚠ 083 — A SERVICED QUOTE WITH NEITHER WINDOWS NOR A COURIER CANNOT BE PAID FOR. It is a server
+     * A serviced quote with neither windows nor a courier cannot be paid for. It is a server
      * fault (a serviced address always answers one or the other); the app must not turn it into an
      * order with no window and no delivery charge.
      */
@@ -517,7 +504,7 @@ class CheckoutViewModelTest {
         assertNotNull(far.courier)
         assertEquals("9.00", far.deliveryFee?.totalAmount)
         vm.payNow()
-        // ⚠ Nothing of the first address went with it: not its window, not its $6.00.
+        // Nothing of the first address went with it: not its window, not its $6.00.
         assertEquals("far", checkout.lastOrder?.addressId)
         assertEquals(courierType, checkout.lastOrder?.deliveryType)
         assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
@@ -568,7 +555,7 @@ class CheckoutViewModelTest {
         assertEquals(false, s.paying)
         assertNull(s.window)
         assertEquals(true, s.courier?.noWindowLeft)
-        // Pressing pay again buys what is NOW on the screen.
+        // Pressing pay again buys what is now on the screen.
         vm.payNow()
         assertEquals(2, checkout.intents)
         assertEquals(courierType, checkout.lastOrder?.deliveryType)
@@ -576,7 +563,7 @@ class CheckoutViewModelTest {
         assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
     }
 
-    // ── Delivery instructions (066) ────────────────────────────────────────────────────────────
+    // Delivery instructions
 
     private val sideGate = DeliveryInstructions(Handover.LeaveAtDoor, "Side gate")
 

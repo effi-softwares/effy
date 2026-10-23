@@ -1,20 +1,12 @@
-// GUARD — the storefront identity (constitution v3.3.0, Principle V; feature 084).
-//
-// `src/storefront/tokens.css` is a second identity, not a second copy of the console palette, and
-// nothing about check-tokens.mjs applies to it (no dark block, no -soft tints, a different radius
-// scale). So it gets its own law, held here:
-//
-//   1. the key set is exactly the storefront's — a console-only token added "to make something
-//      compile" is how two identities turn back into one muddle;
-//   2. ONE light block (`:root`, the website) and ONE `.dark` block (the mobile app's dark appearance,
-//      087) with the same keys — and no data-theme selector or colour-scheme query, so nothing on the
-//      web can switch to it;
-//   3. five values: every colour is a grey, the blue or the green. No red, no fourth hue;
-//   4. --destructive IS the foreground (there is no red to fall back to);
-//   5. --brand is NOT --primary (green is never the action colour);
-//   6. WCAG AA on every text pair, and every ratio written in a comment matches the recomputed one.
-//
-// Run: node scripts/check-storefront-tokens.mjs (part of `pnpm --filter @effy/design-system test`).
+// Guard for the storefront identity (src/storefront/tokens.css), a second identity with its own rules:
+//  1. the key set is exactly the storefront's;
+//  2. one `:root` block (the website) and one `.dark` block (the mobile app) with the same keys, and no
+//  data-theme selector or colour-scheme query, so the web cannot switch to dark;
+//  3. every colour is a grey, the blue or the green;
+//  4. --destructive is the foreground;
+//  5. --brand is not --primary (green is never the action colour);
+//  6. WCAG aa on every text pair, and every ratio written in a comment is real.
+// Part of `pnpm --filter @effy/design-system test`.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -48,7 +40,7 @@ const EXPECTED = [
 for (const k of EXPECTED) if (!(k in vars)) fail.push(`missing --${k}`);
 for (const k of Object.keys(vars)) if (!EXPECTED.includes(k)) fail.push(`unexpected --${k} (not a storefront token)`);
 
-// 087 — the mobile app's dark appearance: the same colour keys (no --radius; shapes do not change).
+// The mobile app's dark appearance: the same colour keys (no --radius).
 const darkBody = css.match(/\.dark\s*\{([\s\S]*?)\}/)?.[1];
 const darkVars = {};
 if (darkBody) {
@@ -71,8 +63,7 @@ const ratio = (a, b) => {
 };
 
 function checkAppearance(vars, label) {
-  // Five values. A colour is a grey when its channels sit within 6 of each other (zinc has a faint
-  // cool cast); otherwise it must be the blue family (b dominant) or the green family (g dominant).
+  // A grey when the channels sit within 6 of each other (zinc is faintly cool); else the blue (b dominant) or green (g dominant) family.
   for (const [k, v] of Object.entries(vars)) {
     if (!/^#[0-9a-f]{6}$/.test(v)) continue;
     const [r, g, b] = rgb(v);
@@ -102,7 +93,7 @@ function checkAppearance(vars, label) {
     ["secondary-foreground", "secondary", 4.5],
     ["accent-foreground", "accent", 4.5],
     ["destructive-foreground", "destructive", 4.5],
-    ["ring", "background", 3], // WCAG 1.4.11 — a focus ring nobody can see is not one
+    ["ring", "background", 3],
   ];
   for (const [fg, bg, min] of PAIRS) {
     if (!vars[fg] || !vars[bg]) continue;
@@ -114,7 +105,7 @@ function checkAppearance(vars, label) {
 checkAppearance(vars, "")
 if (darkBody) checkAppearance(darkVars, ".dark: ")
 
-// Every ratio written beside a value must be the real one (check-tokens.mjs learned this the hard way).
+// Every ratio written beside a value must be the real one.
 for (const m of raw.matchAll(/--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6});\s*\/\*([^*]*)\*\//g)) {
   const [, name, hex, note] = m;
   for (const c of note.matchAll(/([\d.]+):1 on (white|--[\w-]+)/g)) {

@@ -8,14 +8,14 @@ import { RoundDetailScreen } from "@/features/dispatch/RoundDetailScreen";
 
 import { appRoute } from "./app";
 
-// The order console (053). Both routes nest under the protected app shell (appRoute), so the session
-// guard runs first. Read access is open to any signed-in back-office role INCLUDING csa — triage is
+// The order console. Both routes nest under the protected app shell (appRoute), so the session
+// guard runs first. Read access is open to any signed-in back-office role including csa — triage is
 // their work, and until this feature they could not see a single order they were being asked about.
 // Recording a handover or an arrival is gated in-screen (and independently enforced by the backend).
 export const ordersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders",
-  // The list's view and its delivery filters live in the URL (redesign: "a view is a saved filter —
+  // The list's view and its delivery filters live in the URL (redesign: "a view is a saved filter
   // its link opens the same list for anyone").
   validateSearch: (search: Record<string, unknown>): OrdersSearch => ({
     ...(typeof search.view === "string" && (ORDER_VIEWS as readonly string[]).includes(search.view)
@@ -29,7 +29,7 @@ export const ordersIndexRoute = createRoute({
   component: OrdersListScreen,
 });
 
-// 069 — what must be handed to the carrier, by when. Read-only for every role; a static segment, so
+// What must be handed to the carrier, by when. Read-only for every role; a static segment, so
 // it is matched ahead of the `$orderId` route below.
 export const ordersHandoverRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -37,7 +37,7 @@ export const ordersHandoverRoute = createRoute({
   component: CourierScreen,
 });
 
-// 073 — the dispatcher's view lives inside Orders now, as the Assignments tab.
+// The dispatcher's view lives inside Orders now, as the Assignments tab.
 export const ordersAssignmentsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/assignments",
@@ -59,7 +59,7 @@ export const orderDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/$orderId",
   component: OrderDetailRouteComponent,
-  // 096 — opened from a scan: the bag (or package) to highlight.
+  // Opened from a scan: the bag (or package) to highlight.
   validateSearch: (search: Record<string, unknown>): { parcel?: string; package?: string } => ({
     ...(typeof search.parcel === "string" ? { parcel: search.parcel } : {}),
     ...(typeof search.package === "string" ? { package: search.package } : {}),

@@ -2,15 +2,6 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * 067 — product review, against the REAL migrations.
- *
- * ⚠ EVERY GUARANTEE HERE IS SQL: that a decision carrying a stale version is refused, that an
- * approval applies everything or nothing, that a send-back leaves the live product byte-identical,
- * that the audit row and the shop's notification are written in the decision's own transaction. A
- * mocked repository would agree with whatever the author believed the queries do.
- */
-
 const holder = vi.hoisted(() => ({ pool: null as Pool | null, failNext: null as RegExp | null }));
 
 vi.mock("@effy/edge-shared", async () => {
@@ -22,7 +13,7 @@ vi.mock("@effy/edge-shared", async () => {
     pooled: { query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) },
     withTransaction: async (fn: (c: unknown) => unknown) => {
       const client = await holder.pool!.connect();
-      // A client whose query can be made to fail on a chosen statement — to kill a decision midway.
+      // A client whose query can be made to fail on a chosen statement, to kill a decision midway.
       const proxied = {
         query: (text: string, params?: unknown[]) => {
           if (holder.failNext && holder.failNext.test(text)) {
@@ -47,7 +38,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 
 import { bulkSet, missing } from "../gst/service";
 
@@ -84,7 +75,7 @@ async function makeShop(code: string, staff = 2): Promise<string> {
       [`${code}-staff-${i}`, id],
     );
   }
-  // …and one DISABLED operator, who must never be notified.
+  // …and one disabled operator, who must never be notified.
   await pool.query(
     `INSERT INTO public.shop_staff (cognito_sub, email, name, status, shop_id)
      VALUES ($1, $1 || '@effyshopping.com', 'Gone', 'disabled', $2)`,
@@ -138,7 +129,6 @@ async function proposeChange(productId: string, proposed: Record<string, unknown
 }
 
 async function live(id: string) {
-  // 098 — prices live on the variant; these products have one.
   const p = (await pool.query(
     `SELECT p.name, p.brand, p.status, v.price_amount::text, v.compare_at_amount::text, v.shop_price_amount::text,
             v.shop_compare_at_amount::text, p.margin_kind, p.margin_value::text, p.approved_at IS NOT NULL AS approved,
@@ -156,7 +146,7 @@ async function live(id: string) {
   return { p, media, attrs };
 }
 
-/** 098 — a proposal's whole variant set: the product's one live variant at a new shop price. */
+/** The product's one live variant at a new shop price. */
 async function repriced(productId: string, shopPriceAmount: string) {
   const v = (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!;
   return {
@@ -171,7 +161,6 @@ async function repriced(productId: string, shopPriceAmount: string) {
 const variantIdOf = async (productId: string) =>
   (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!.id;
 
-/** 098 — a live customer price is the variant's. */
 const setCustomerPrice = (productId: string, amount: string) =>
   pool.query(`UPDATE public.product_variant SET price_amount = $2 WHERE product_id = $1`, [productId, amount]);
 
@@ -209,8 +198,6 @@ d("067 — product review against real PostgreSQL", () => {
     shopId = await makeShop("SA");
   });
 
-  // ── The queue ──────────────────────────────────────────────────────────────────────────────────
-
   it("lists new products and pending changes as ONE queue, longest-waiting first", async () => {
     const older = await makeProduct({ name: "Old loaf", submittedAgo: "3 hours" });
     const newer = await makeProduct({ name: "New loaf", submittedAgo: "1 hour" });
@@ -225,7 +212,7 @@ d("067 — product review against real PostgreSQL", () => {
       [liveOne, "change", 2],
       [newer, "new_product", 1],
     ]);
-    // For a change the reviewer sees the LIVE name — the one they would recognise.
+    // For a change the reviewer sees the live name — the one they would recognise.
     expect(out.items[1]!.productName).toBe("Live milk");
     expect(out.items[0]!.shopName).toBe("SA shop");
     expect(out.nextCursor).toBeNull();
@@ -281,8 +268,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(await oldestWaitingHours()).toBe(5);
   });
 
-  // ── A new product ──────────────────────────────────────────────────────────────────────────────
-
   it("shows a reviewer everything the shop entered, with its images", async () => {
     const id = await makeProduct({ was: "12.00" });
     const out = await item(id);
@@ -295,7 +280,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.images.proposed).toBeNull();
   });
 
-  /** ⚠ FR-028. */
   it("⚠ refuses to approve a new product without a margin", async () => {
     const id = await makeProduct();
     const { version } = await item(id);
@@ -314,7 +298,7 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await live(id)).p).toMatchObject({
       status: "active", approved: true, review_state: "none",
       shop_price_amount: "10.00", price_amount: "12.00",
-      // FR-035 — the "was" price carries the same margin.
+      // The "was" price carries the same margin.
       shop_compare_at_amount: "12.00", compare_at_amount: "14.40",
       margin_kind: "percent", margin_value: "20.0000",
     });
@@ -334,7 +318,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await live(id)).p.approved).toBe(false);
   });
 
-  /** ⚠ FR-014 — nothing is approved that nobody looked at. */
   it("⚠ refuses a decision on an item the shop edited after the reviewer opened it", async () => {
     const id = await makeProduct();
     const { version } = await item(id);
@@ -345,7 +328,7 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await live(id)).p).toMatchObject({ approved: false, review_state: "in_review" });
   });
 
-  /** ⚠ The 056 trap: a version that had been through a JS Date would never match its own row. */
+  /** A version that went through a JS Date would never match its own row. */
   it("⚠ accepts the version it handed out, to the microsecond", async () => {
     const id = await makeProduct();
     await pool.query(`UPDATE public.product SET updated_at = '2026-10-04 10:00:00.123456+00' WHERE id = $1`, [id]);
@@ -363,8 +346,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(await kindOf(item(id))).toBe("not_found");
   });
 
-  // ── Send back ──────────────────────────────────────────────────────────────────────────────────
-
   it("sending back needs a reason, keeps the product off sale, and shows the shop why", async () => {
     const id = await makeProduct();
     const { version } = await item(id);
@@ -377,8 +358,6 @@ d("067 — product review against real PostgreSQL", () => {
     });
     expect((await queue({})).items).toEqual([]);
   });
-
-  // ── A change to a live product ─────────────────────────────────────────────────────────────────
 
   it("shows ONLY what the shop is changing, before and after", async () => {
     const id = await makeProduct({ approved: true });
@@ -408,7 +387,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.marginRequired).toBe(true); // the shop price is changing
   });
 
-  /** FR-019. */
   it("approving a change applies every proposed value together, images included", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id]);
@@ -431,7 +409,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await pool.query(`SELECT count(*) AS n FROM public.product_change`)).rows[0].n).toBe("0");
   });
 
-  /** ⚠ FR-019, the other half: all of it, or none of it. */
   it("⚠ a failure midway through applying a change leaves NOTHING changed", async () => {
     const id = await makeProduct({ approved: true });
     await proposeChange(id, { name: "Rye" }, ["new/three.jpg"]);
@@ -449,7 +426,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(await notifications()).toEqual([]);
   });
 
-  /** ⚠ FR-020 / SC-004. */
   it("⚠ sending a change back leaves the live product byte-identical", async () => {
     const id = await makeProduct({ approved: true });
     await proposeChange(id, { name: "Rye", ...(await repriced(id, "99.00")) }, ["new/three.jpg"]);
@@ -487,9 +463,6 @@ d("067 — product review against real PostgreSQL", () => {
     await pool.query(`DELETE FROM public.category WHERE id = $1`, [retired]);
   });
 
-  // ── Margin ─────────────────────────────────────────────────────────────────────────────────────
-
-  /** FR-031. */
   it("a change to the shop price cannot be approved without confirming the margin", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id]);
@@ -551,7 +524,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(await kindOf(approve(id, { version }, ADMIN))).toBe("validation");
   });
 
-  /** FR-032. */
   it("setting a live product's margin moves the customer price at once", async () => {
     const id = await makeProduct({ approved: true, was: "12.00" });
     const out = await setMargin(id, { margin: { kind: "amount", value: "2.50" }, expectedCurrent: null }, ADMIN);
@@ -570,7 +542,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(await kindOf(setMargin(id, { margin: { kind: "percent", value: "10" }, expectedCurrent: null }, ADMIN))).toBe("conflict");
   });
 
-  /** FR-008 / FR-046. */
   it("lists approved products with no margin, and nothing else", async () => {
     const none = await makeProduct({ name: "No margin", approved: true });
     const has = await makeProduct({ name: "Has margin", approved: true });
@@ -581,9 +552,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.items[0]).toMatchObject({ productName: "No margin", shopPriceAmount: "10.00" });
   });
 
-  // ── The record, and telling the shop ───────────────────────────────────────────────────────────
-
-  /** FR-048 / SC-011. */
   it("writes exactly one audit row per decision, with who, what and the margin before and after", async () => {
     const fresh = await makeProduct();
     await approve(fresh, { version: (await item(fresh)).version, margin: { kind: "percent", value: "20" } }, ADMIN);
@@ -610,7 +578,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect((await audits(sent)).map((r) => r.action)).toEqual(["product.sent_back"]);
   });
 
-  /** ⚠ FR-049 — who decided is never somewhere a shop can read. */
   it("⚠ leaves no trace of the reviewer on anything the shop can see", async () => {
     const id = await makeProduct();
     await sendBack(id, { version: (await item(id)).version, reason: "Blurry" }, ADMIN);
@@ -618,7 +585,6 @@ d("067 — product review against real PostgreSQL", () => {
     expect(row.all).not.toContain(ADMIN);
   });
 
-  /** FR-041. */
   it("tells every ACTIVE member of the shop, once, with a routing id and nothing else", async () => {
     const id = await makeProduct();
     await approve(id, { version: (await item(id)).version, margin: { kind: "percent", value: "20" } }, ADMIN);

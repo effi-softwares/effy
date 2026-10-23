@@ -1,7 +1,4 @@
-// Manual field validation → typed field errors. Deliberately no schema library
-// (ARCHITECTURE.md: keep bundles small; validation is code you can read). The
-// bootstrap surface is read-only — the first write route consumes these helpers;
-// they are conformance-tested now so the pattern is locked in.
+// Manual field validation into typed field errors. No schema library: small bundles, readable code.
 import type { FieldError } from "./lib/http";
 
 export interface Validation<T> {

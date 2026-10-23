@@ -1,13 +1,6 @@
-// Repository for shop order fulfilment (020): raw parameterized SQL, no ORM, no query builder.
-//
-// EVERY statement here is bound to `shopId` — the value gate() resolved from the operator's own
-// shop_staff record, never anything a client sent. That is what makes cross-shop access structurally
-// impossible rather than merely checked (FR-019, SC-007, research R11).
-//
-// Transitions use a GUARDED CONDITIONAL UPDATE — `WHERE id=$1 AND shop_id=$2 AND status=$expected` —
-// the same idiom 019's payment finalizer proved. Zero rows affected means someone else already
-// applied it, which the service turns into a benign no-op rather than an error (FR-014, SC-005).
-// This is single-statement atomic: no advisory locks, no SELECT ... FOR UPDATE, no extra round trip.
+// Every statement is bound to the `shopId` gate resolved from the operator's own record, so
+// cross-shop access is structurally impossible. Transitions are a guarded conditional UPDATE
+// (`where id and shop_id and status = expected`): zero rows means someone else already applied it.
 
 import { query, withTransaction } from "@effy/edge-shared";
 
@@ -24,11 +17,8 @@ import {
   type FulfillmentItem,
   type FulfillmentStatus,
   type FulfillmentSummary,
-  type ItemProgress,
   type QueueState,
 } from "./types";
-
-// ── Row shapes (never escape this module) ──────────────────────────────────────────────────────
 
 interface SummaryRow {
   id: string;
@@ -66,26 +56,10 @@ interface ItemRow {
   unavailable_quantity: number | null;
 }
 
-// ── Queue (US1) ────────────────────────────────────────────────────────────────────────────────
-
 /**
- * The queue read.
- *
- * ORDER BY is THE 021 SEAM (research R7): while every order carries the same promise, `readyBy` is a
- * constant offset from `placed_at`, so ordering by promise IS ordering by arrival — strict FIFO,
- * SC-020, by construction. 021 replaces this expression with its real promised-ready column and
- * nothing else in the query changes. `sf.id` is the stable tiebreaker so the ordering is TOTAL:
- * two orders placed in the same millisecond must not swap position between polls (SC-018).
- *
- * The progress counts are a LEFT JOIN aggregate so a portion with no pick rows still reports 0/0
- * rather than dropping out of the queue.
- *
- * ⚠ CORRECTED BY 054: this comment used to say rows "do not exist until picking begins". That is no
- * longer true — the paid transaction now pre-seeds a row for any line the shelf could not supply, so
- * the shop sees the shortfall on OPENING the order rather than discovering it hours later at the
- * shelf (FR-022a). The aggregate is unaffected, and `status` comes from `sf.status` alone, so a
- * `pending` portion with pre-seeded rows still reads as pending. ⚠ NOTHING may infer "picking has
- * started" from the presence of fulfillment_item rows; that inference is now wrong.
+ * Ordered by the ready-by promise (a fixed offset from placement, so FIFO), with `sf.id` as the
+ * tiebreak for a total order. Progress is a left join aggregate. Payment pre-seeds rows for lines the
+ * shelf could not supply, so nothing may infer "picking has started" from fulfillment_item rows.
  */
 const LIST_QUEUE = `
 SELECT sf.id,
@@ -94,7 +68,7 @@ SELECT sf.id,
        sf.status,
        sf.state_changed_at,
        sf.item_count,
-       -- 079 — who takes the package away: the one thing a shop is told about delivery.
+       -- Who takes the package away: the one thing a shop is told about delivery.
        ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(SUM(fi.gathered_quantity), 0)    AS gathered_count,
        COALESCE(SUM(fi.unavailable_quantity), 0) AS unavailable_count
@@ -133,15 +107,7 @@ export async function listQueue(
   });
 }
 
-// ── Detail (US2) ───────────────────────────────────────────────────────────────────────────────
-
-/**
- * The portion header.
- *
- * Note what is NOT selected: no payment columns, no order grand total, no item_subtotal, no
- * delivery fee, and no other shop's anything. A shop sees the delivery snapshot and its own lines
- * (FR-007, FR-008). An order-level total would itself leak the existence of other shops' items.
- */
+/** No payment columns, no order total and no other shop's anything: an order total would leak other shops' lines. */
 const READ_DETAIL = `
 SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address,
        ${DELIVERED_BY_SQL} AS delivered_by
@@ -150,17 +116,11 @@ SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_chan
  WHERE sf.id = $1 AND sf.shop_id = $2
 `;
 
-/**
- * This shop's lines only.
- *
- * `oi.shop_id = sf.shop_id` is the load-bearing predicate: order_item.shop_id was denormalized at
- * placement by 019 precisely so a shop's slice of a multi-shop order is a direct query with no
- * ambiguity. Without it, opening a two-shop order would show the whole order.
- */
+/** This shop's lines only (`oi.shop_id = sf.shop_id`). */
 const READ_ITEMS = `
 SELECT oi.id AS order_item_id,
        oi.product_name AS name,
-       -- 098 — the variant, its stock code and barcode AS SOLD: a picker must never guess the size.
+       -- The variant, its stock code and barcode AS SOLD: a picker must never guess the size.
        oi.variant_label,
        oi.variant_code,
        oi.sku,
@@ -183,7 +143,7 @@ SELECT oi.id AS order_item_id,
  ORDER BY oi.product_name ASC, oi.variant_label ASC NULLS FIRST
 `;
 
-/** Implicit acknowledge on first open (FR-011a). Guarded, so concurrent opens yield one transition. */
+/** Opening acknowledges; guarded, so concurrent opens yield one transition. */
 const ACKNOWLEDGE = `
 UPDATE public.shop_fulfillment
    SET status = 'received', state_changed_at = now(), updated_at = now()
@@ -221,13 +181,7 @@ function mapItem(r: ItemRow): FulfillmentItem {
   };
 }
 
-/**
- * Opening a portion IS the acknowledgement (FR-011a). Exported because the pick screen and the 057 A3
- * order console are two ways of opening the same portion, and both must acknowledge it — a console
- * that did not would leave an order it had shown someone reading "New" on the tablet.
- *
- * The audit row is written only when the transition actually happened (rowCount > 0).
- */
+/** Opening a portion is the acknowledgement, from the pick screen or the order console. Audited only when it happened. */
 export async function acknowledge(
   fulfillmentId: string,
   shopId: string,
@@ -250,22 +204,19 @@ export async function readDetail(
   shopId: string,
   actorStaffId: string | null,
 ): Promise<FulfillmentDetail> {
-  // Acknowledge BEFORE reading, so the returned status reflects the acknowledgement the caller just
-  // caused.
+  // Acknowledge before reading, so the status reflects it.
   await acknowledge(fulfillmentId, shopId, actorStaffId);
 
   const head = await query<DetailRow>(READ_DETAIL, [fulfillmentId, shopId]);
   const row = head.rows[0];
-  // Not found and belongs-to-another-shop are indistinguishable here BY DESIGN — the handler turns
-  // this into 403, so response codes cannot be used to enumerate other shops' portions.
+  // Missing and another shop's are indistinguishable; the handler answers 403.
   if (!row) throw new FulfillmentError("not_found", "fulfillment not found");
 
   const [items, pickups] = await Promise.all([query<ItemRow>(READ_ITEMS, [fulfillmentId, shopId]), courierPickups(shopId, [fulfillmentId])]);
 
   return {
     id: row.id,
-    // ⚠ 057 — the shop refund route addresses the ORDER, and `order_number` is a human reference, not
-    // an identifier. Selected on the detail read only; the queue never needs it.
+    // The shop refund route addresses the order by `order_number`; selected on the detail read only.
     orderId: row.order_id,
     orderNumber: row.order_number,
     placedAt: row.placed_at,
@@ -277,7 +228,7 @@ export async function readDetail(
   };
 }
 
-/** Current status only — the service reads this to decide legality before attempting a transition. */
+/** For the service's legality check before a transition. */
 export async function readStatus(
   fulfillmentId: string,
   shopId: string,
@@ -289,8 +240,6 @@ export async function readStatus(
   return res.rows[0]?.status ?? null;
 }
 
-// ── Audit (FR-015, FR-019b) ────────────────────────────────────────────────────────────────────
-
 const APPEND_EVENT = `
 INSERT INTO public.fulfillment_event
        (shop_fulfillment_id, actor_staff_id, event_type, from_status, to_status, order_item_id, quantity, detail)
@@ -300,7 +249,6 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 export interface EventInput {
   fulfillmentId: string;
   actorStaffId: string | null;
-  /** ⚠ 057 A3 widened this with the console's two events; see the migration for the reader audit. */
   eventType:
     | "state_changed"
     | "item_gathered"
@@ -312,16 +260,11 @@ export interface EventInput {
   toStatus?: string | null;
   orderItemId?: string | null;
   quantity?: number | null;
-  /** 057 A3 — the resulting tag set for `tags_changed`; NULL otherwise. */
+  /** The resulting tag set for `tags_changed`; null otherwise. */
   detail?: string | null;
 }
 
-/**
- * Append one audit row. Pass a client to write it INSIDE the caller's transaction — which every
- * state change does, so the audit can never disagree with the state it records (research R6).
- *
- * Exported for the 057 A3 order console, whose tag and note writes land in this same log.
- */
+/** Pass a client to write it inside the caller's transaction, which every state change does. */
 export async function appendEvent(
   client: { query: (text: string, values: unknown[]) => Promise<unknown> } | null,
   e: EventInput,
@@ -340,12 +283,10 @@ export async function appendEvent(
   else await query(APPEND_EVENT, args);
 }
 
-// ── Transitions (US3) ──────────────────────────────────────────────────────────────────────────
-
 const TRANSITION = `
 UPDATE public.shop_fulfillment
    SET status = $4,
-       -- ⚠ 055 — WRITTEN IN THE SAME STATEMENT AS THE STATUS, so the CHECK constraint sees both at
+       -- ⚠ WRITTEN IN THE SAME STATEMENT AS THE STATUS, so the CHECK constraint sees both at
        -- once. Setting the status first and the reason after would make the intermediate row violate
        -- the unfulfillable-reason CHECK and fail — which is the constraint doing exactly
        -- what it was written for.
@@ -355,12 +296,7 @@ UPDATE public.shop_fulfillment
  RETURNING id
 `;
 
-/**
- * Seed one progress row per line on entry to picking.
- *
- * ON CONFLICT DO NOTHING makes re-entry after a reversal idempotent — a portion that goes
- * ready_for_pickup -> picking must NOT lose the progress already recorded (FR-011d).
- */
+/** On entry to picking. On conflict do nothing keeps progress across a reversal. */
 const SEED_ITEMS = `
 INSERT INTO public.fulfillment_item (shop_fulfillment_id, order_item_id, ordered_quantity)
 SELECT sf.id, oi.id, oi.quantity
@@ -370,23 +306,19 @@ SELECT sf.id, oi.id, oi.quantity
 ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING
 `;
 
-/**
- * Apply a guarded transition. Returns false when zero rows matched — the service decides whether
- * that is a benign no-op (already in the target state) or a conflict (in some other state).
- */
+/** false when zero rows matched; the service decides no-op versus conflict. */
 export async function transition(
   fulfillmentId: string,
   shopId: string,
   from: FulfillmentStatus,
   to: FulfillmentStatus,
   actorStaffId: string | null,
-  /** 055 — required by the database when `to` is `unfulfillable`; NULL in every other transition. */
+  /** Required by the database when `to` is `unfulfillable`. */
   reason?: string,
 ): Promise<boolean> {
   return withTransaction(async (client) => {
-    // ⚠ 096 — THE READY GATE: every live bag printed (and pack-scanned where the shop requires it),
-    // under the package's lock so a print recorded at the same moment is seen. A refusal is named
-    // (`labels_not_printed`, `bags_not_packed`, `zone_bag_required`) and the transition does not happen.
+    // The ready gate: every live bag printed (and pack-scanned where required), under the package's lock.
+    // A refusal is named (`labels_not_printed`, `bags_not_packed`, `zone_bag_required`).
     if (to === "ready_for_pickup") {
       const locked = await client.query(`SELECT 1 FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2 FOR UPDATE`, [fulfillmentId, shopId]);
       if ((locked.rowCount ?? 0) > 0) await assertReadyForPickup(client, fulfillmentId);
@@ -406,9 +338,7 @@ export async function transition(
       toStatus: to,
     });
 
-    // 050 — push intent: the customer's order portion is ready for handoff. Same tx as the
-    // transition, so it is enqueued exactly once (dedupe on the fulfilment id). No PII — order id +
-    // deep link only (FR-021). The notifications worker resolves the customer's device tokens.
+    // Push intent in the same transaction, deduped on the fulfilment id; order id and deep link only.
     if (to === "ready_for_pickup") {
       await client.query(
         `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
@@ -427,183 +357,10 @@ export async function transition(
   });
 }
 
-// ── The pickup stub (US3a) — ⚠ DEV-ONLY SCAFFOLD, FR-030…FR-034 ────────────────────────────────
-
 /**
- * Mark a ready portion collected by a PLACEHOLDER driver.
- *
- * The driver reference is stored in the audit trail prefixed `placeholder:` and never in a column
- * that a future driver system would read as real dispatch data (FR-033, SC-014). There is
- * deliberately no `driver_id` column anywhere in this slice — inventing one would be modelling the
- * delivery execution this product does not expose (FR-002a, SC-021).
- *
- * Deleted when the driver slice ships a real dispatch path (FR-034). Do not extend it.
- */
-export async function collectViaStub(
-  fulfillmentId: string,
-  shopId: string,
-  driverRef: string,
-  actorStaffId: string | null,
-): Promise<boolean> {
-  return withTransaction(async (client) => {
-    const res = await client.query<{ id: string }>(TRANSITION, [
-      fulfillmentId,
-      shopId,
-      "ready_for_pickup",
-      "collected",
-    ]);
-    if ((res.rowCount ?? 0) === 0) return false;
-
-    await appendEvent(client, {
-      fulfillmentId,
-      actorStaffId,
-      eventType: "state_changed",
-      fromStatus: "ready_for_pickup",
-      toStatus: `collected:placeholder:${driverRef}`,
-    });
-    return true;
-  });
-}
-
-/** DEV-ONLY driver stub: mark a `collected` portion `delivered` (020 driver-stub tail). Mirrors
- * collectViaStub — guarded transition + audit event; the placeholder driver ref is recorded. */
-export async function deliverViaStub(
-  fulfillmentId: string,
-  shopId: string,
-  driverRef: string,
-  actorStaffId: string | null,
-): Promise<boolean> {
-  return withTransaction(async (client) => {
-    const res = await client.query<{ id: string }>(TRANSITION, [
-      fulfillmentId,
-      shopId,
-      "collected",
-      "delivered",
-    ]);
-    if ((res.rowCount ?? 0) === 0) return false;
-
-    await appendEvent(client, {
-      fulfillmentId,
-      actorStaffId,
-      eventType: "state_changed",
-      fromStatus: "collected",
-      toStatus: `delivered:placeholder:${driverRef}`,
-    });
-    return true;
-  });
-}
-
-// ── Item progress (US2) ────────────────────────────────────────────────────────────────────────
-
-/**
- * Record absolute picked/unavailable quantities for one line.
- *
- * Scoped through shop_fulfillment so a caller cannot patch a line on another shop's portion even
- * with a valid order_item_id. COALESCE leaves an omitted field untouched, so the two quantities can
- * be updated independently. The DB CHECK (gathered + unavailable <= ordered) is the backstop behind
- * the service's validation.
- */
-const UPDATE_ITEM = `
-UPDATE public.fulfillment_item fi
-   SET gathered_quantity    = COALESCE($3, fi.gathered_quantity),
-       unavailable_quantity = COALESCE($4, fi.unavailable_quantity),
-       updated_at           = now()
-  FROM public.shop_fulfillment sf
- WHERE fi.shop_fulfillment_id = sf.id
-   AND sf.id = $1 AND sf.shop_id = $2
-   AND fi.order_item_id = $5
- RETURNING fi.id, fi.gathered_quantity, fi.unavailable_quantity, fi.ordered_quantity
-`;
-
-export async function updateItemProgress(
-  fulfillmentId: string,
-  shopId: string,
-  orderItemId: string,
-  progress: ItemProgress,
-  actorStaffId: string | null,
-): Promise<void> {
-  await withTransaction(async (client) => {
-    let res;
-    try {
-      res = await client.query<{
-        id: string;
-        gathered_quantity: number;
-        unavailable_quantity: number;
-        ordered_quantity: number;
-      }>(UPDATE_ITEM, [
-        fulfillmentId,
-        shopId,
-        progress.gatheredQuantity ?? null,
-        progress.unavailableQuantity ?? null,
-        orderItemId,
-      ]);
-    } catch (err) {
-      // 23514 check_violation — the accounting CHECK. Surfaces as a validation error, not a 500.
-      if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23514") {
-        throw new FulfillmentError("validation", "quantities exceed the quantity ordered", [
-          { field: "gatheredQuantity", message: "gathered + unavailable cannot exceed ordered" },
-        ]);
-      }
-      throw err;
-    }
-
-    const row = res.rows[0];
-    if (!row) throw new FulfillmentError("not_found", "line not found on this fulfillment");
-
-    if (progress.gatheredQuantity !== undefined) {
-      await appendEvent(client, {
-        fulfillmentId,
-        actorStaffId,
-        eventType: "item_gathered",
-        orderItemId,
-        quantity: progress.gatheredQuantity,
-      });
-    }
-    if (progress.unavailableQuantity !== undefined) {
-      // Distinguish flagging from un-flagging so the audit shows an item that turned up (FR-010d).
-      await appendEvent(client, {
-        fulfillmentId,
-        actorStaffId,
-        eventType: progress.unavailableQuantity > 0 ? "item_unavailable" : "item_restored",
-        orderItemId,
-        quantity: progress.unavailableQuantity,
-      });
-      // ⚠ ONLY a real shortfall corrects the count. Un-flagging (`item_restored`, unavailable → 0)
-      // means the item turned up after all, which says nothing about how many MORE are on the shelf —
-      // zeroing the count there would invent a fact the picker never reported.
-      if (row.unavailable_quantity > 0) {
-        await emptyShelfFromPick(client, orderItemId, actorStaffId);
-      }
-    }
-  });
-}
-
-/**
- * ⚠ 054 FR-023 — THE SHELF IS THE TRUTH.
- *
- * A picker standing at the shelf has just produced better information than the count did. If they
- * could only find 1 of 3, the shop does not have 2 more somewhere; the count was wrong, and leaving
- * it wrong means the next shopper is sold the same phantom unit. So recording a shortfall CORRECTS
- * the count rather than raising a discrepancy for someone to approve later — a correction queue
- * nobody works is worse than no queue (spec A9).
- *
- * ⚠ IT SETS ZERO, IT DOES NOT SUBTRACT. The paid transaction already deducted what was ordered, so
- * subtracting again would double-count. And the fact a shortfall reports is simple: the picker took
- * everything that was there and it still was not enough — so the shelf is EMPTY. Any arithmetic
- * fancier than that would be inventing a number nobody counted.
- *
- * ⚠ It is guarded by `stock_on_hand <> 0` so a shelf already known to be empty writes no movement.
- * A history full of "corrected 0 → 0" entries is a history nobody reads.
- *
- * ⚠ AND IT IS IN THE SAME TRANSACTION as the pick. A count that moved with no movement recorded
- * makes SC-005 false forever; the history can never be reconstructed after the fact.
- *
- * ⚠ `actor_sub` is a COGNITO SUB, resolved from the staff id — the movement table snapshots subjects,
- * not `shop_staff.id`, because shop staff live in `public` and back-office staff in `admin` and one
- * audit column cannot reference both. It resolves to NULL when the staff record is gone, which the
- * table permits for a human actor on purpose: a pick must not fail because an operator record moved.
- *
- * Untracked products match nothing here and produce no movement (FR-024).
+ * A pick shortfall sets the variant's count to zero (payment already deducted the order, so never
+ * subtract), in the same transaction as the pick and only when not already zero. `actor_sub` is the
+ * staff member's Cognito sub (null if the record is gone). Untracked variants are untouched.
  */
 export async function emptyShelfFromPick(
   client: { query: (text: string, values: unknown[]) => Promise<unknown> },
@@ -611,7 +368,7 @@ export async function emptyShelfFromPick(
   actorStaffId: string | null,
 ): Promise<void> {
   await client.query(
-    // 098 — the shelf that is empty is the VARIANT's that was sold, not its siblings'.
+    // The variant that was sold, not its siblings.
     `WITH prev AS (
        SELECT v.id, v.product_id, v.shop_id, v.stock_on_hand
          FROM public.product_variant v

@@ -41,7 +41,7 @@ beforeEach(() => {
 
 describe("CoveragePanel — where the fleet has no cover", () => {
   /**
-   * ⚠ FR-018 — TWO REASONS, AND THE WORDS NAME DIFFERENT REMEDIES.
+   * Two reasons, and the words name different remedies.
    *
    * "Nobody is cleared" is fixed on a driver's record. "Cleared drivers cannot work today" is fixed
    * in readiness — a licence, a vehicle. A single "uncovered" label would send an operator to the
@@ -63,7 +63,7 @@ describe("CoveragePanel — where the fleet has no cover", () => {
 
     expect(await screen.findByText(/Nobody is cleared for this/)).toBeInTheDocument();
     expect(screen.getByText(/Cleared drivers cannot work today/)).toBeInTheDocument();
-    // ⚠ The count is what makes the second reason actionable — somebody HAS the clearance.
+    // The count is what makes the second reason actionable — somebody has the clearance.
     expect(screen.getByText(/2 cleared, none available/)).toBeInTheDocument();
   });
 
@@ -73,11 +73,11 @@ describe("CoveragePanel — where the fleet has no cover", () => {
     });
     renderPanel();
     expect(await screen.findByText(/^Collect —/)).toBeInTheDocument();
-    // 082 — a gap is per area and kind of work; no delivery method is named.
+    // A gap is per area and kind of work; no delivery method is named.
     expect(document.body.textContent).not.toMatch(/same[- ]day|standard/i);
   });
 
-  /** ⚠ FR-019 — a list of problems, not a matrix. Nothing covered appears at all. */
+  /** A list of problems, not a matrix. Nothing covered appears at all. */
   it("⚠ says everything is covered rather than listing zones with a green tick", async () => {
     getCoverage.mockResolvedValue({ gaps: [] });
     renderPanel();

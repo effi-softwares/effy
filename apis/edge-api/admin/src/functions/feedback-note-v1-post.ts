@@ -1,5 +1,4 @@
-// POST /admin/v1/feedback/{referenceCode}/notes — add a staff-only internal note (046 US2). Any active staff.
-// ⚠ Notes are NEVER emailed and NEVER shown to the submitter (FR-024/FR-038).
+// Notes are never emailed or shown to the submitter.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 
 import type { AuthedEvent } from "@effy/edge-shared"

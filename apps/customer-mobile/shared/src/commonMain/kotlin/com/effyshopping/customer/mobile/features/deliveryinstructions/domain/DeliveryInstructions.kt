@@ -1,17 +1,17 @@
 package com.effyshopping.customer.mobile.features.deliveryinstructions.domain
 
 /**
- * Delivery instructions (066) — what a shopper tells the driver: how to hand the order over, and a
+ * Delivery instructions — what a shopper tells the driver: how to hand the order over, and a
  * short note. Shared by checkout, the receipt and the address book.
  *
- * ⚠ THE RULE IS THE SERVER'S. What is valid — how whitespace collapses, what counts as blank — is
+ * The rule is the server's. What is valid — how whitespace collapses, what counts as blank — is
  * `normaliseDeliveryInstructions` in `packages/shared-types`, applied again by the server and pinned
- * to it by a shared fixture. This app does NOT carry a third copy of that rule: it clamps typing to
+ * to it by a shared fixture. This app does not carry a third copy of that rule: it clamps typing to
  * the limit so the counter can stop at zero, sends what was typed, and shows what the server stored.
- * The one thing duplicated here is the NUMBER ([NOTE_MAX]), which `DeliveryInstructionsTest` pins.
+ * The one thing duplicated here is the number ([NOTE_MAX]), which `DeliveryInstructionsTest` pins.
  */
 
-/** ⚠ Must equal `DELIVERY_NOTE_MAX` in `packages/shared-types/src/delivery-instructions.ts`. */
+/** Must equal `DELIVERY_NOTE_MAX` in `packages/shared-types/src/delivery-instructions.ts`. */
 const val NOTE_MAX = 250
 
 enum class Handover(val label: String) {
@@ -57,7 +57,7 @@ fun String.codePointLength(): Int {
 }
 
 /**
- * Keep typing inside the limit, never splitting a surrogate pair. ⚠ This limits what can be TYPED;
+ * Keep typing inside the limit, never splitting a surrogate pair. This limits what can be typed;
  * it is not validation, and nothing a shopper submitted is ever shortened behind their back — the
  * server refuses an over-long note outright.
  */

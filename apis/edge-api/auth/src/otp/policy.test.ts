@@ -31,8 +31,7 @@ describe("generateCode (contract invariant 1)", () => {
   });
 
   it("⚠ preserves leading zeros — the defect a numeric representation would introduce", () => {
-    // A code held as a number formats 7 as "7". At ~1-in-100,000 that ships a shopper who can
-    // never sign in and a bug nobody can reproduce. Force the low range to prove the padding.
+    // A code held as a number formats 7 as "7"; force the low range to prove the padding.
     const padded = Array.from({ length: 20000 }, () => generateCode()).filter((c) =>
       c.startsWith("0"),
     );
@@ -53,8 +52,7 @@ describe("isWellFormedCode / normalizeAnswer (FR-004, FR-005)", () => {
   });
 
   it("⚠ REFUSES an 8-digit value rather than reshaping it — this is the shipped defect being fixed", () => {
-    // shop-mobile truncated to the first six and submitted that. The result was a sign-in that
-    // could never succeed and a shopper with no way to tell why.
+    // Truncating a longer code to six makes a sign-in that can never succeed.
     expect(isWellFormedCode("12345678")).toBe(false);
   });
 
@@ -66,8 +64,7 @@ describe("isWellFormedCode / normalizeAnswer (FR-004, FR-005)", () => {
 
   it("trims surrounding whitespace only", () => {
     expect(normalizeAnswer("  123456 \n")).toBe("123456");
-    // ⚠ Inner separators are NOT stripped: recovering "123456" from "12 34 56" would be reshaping
-    // a value the shopper did not send. The client normalises input; the server refuses.
+    // Inner separators are not stripped: the client normalises, the server refuses.
     expect(normalizeAnswer("12 34 56")).toBe("12 34 56");
   });
 });
@@ -78,8 +75,7 @@ describe("decideNextStep — the attempt cap (FR-011, contract invariant 3)", ()
   });
 
   it("⚠ allows exactly three attempts — the off-by-one that would silently grant a fourth", () => {
-    // Lengths 0,1,2 issue a challenge; length 3 fails. `> MAX` instead of `>= MAX` would be a 33%
-    // larger brute-force budget and is invisible on reading.
+    // Lengths 0, 1, 2 issue; 3 fails. An off-by-one would be a 33% larger brute-force budget.
     expect(decideNextStep([ours(false)], false)).toEqual({ kind: "issue-challenge" });
     expect(decideNextStep([ours(false), ours(false)], false)).toEqual({ kind: "issue-challenge" });
     expect(decideNextStep([ours(false), ours(false), ours(false)], false)).toEqual({ kind: "fail" });
@@ -90,7 +86,7 @@ describe("decideNextStep — the attempt cap (FR-011, contract invariant 3)", ()
   });
 
   it("⚠ NEVER issues tokens when the session contains a challenge we did not author (invariant 5)", () => {
-    // AWS: "always check challengeName ... and verify that it matches the expected value."
+    // AWS: "always check challengeName... and verify that it matches the expected value."
     const foreign: ChallengeResult = { challengeName: "PASSWORD_VERIFIER", challengeResult: true };
     expect(decideNextStep([foreign], false)).toEqual({ kind: "fail" });
     expect(decideNextStep([foreign, ours(true)], false)).toEqual({ kind: "fail" });
@@ -102,8 +98,7 @@ describe("decideNextStep — the attempt cap (FR-011, contract invariant 3)", ()
   });
 
   it("⚠ counts a phantom user's attempts identically — no short-circuit refusal (FR-016)", () => {
-    // If an unknown address failed on attempt 1 while a real one got three, the number of round
-    // trips before refusal would itself answer "does this account exist?".
+    // Unknown addresses get three attempts too, or the round-trip count reveals existence.
     expect(decideNextStep([], true)).toEqual({ kind: "issue-challenge" });
     expect(decideNextStep([ours(false)], true)).toEqual({ kind: "issue-challenge" });
     expect(decideNextStep([ours(false), ours(false)], true)).toEqual({ kind: "issue-challenge" });
@@ -145,8 +140,7 @@ describe("verifyAnswer (FR-005, FR-008, FR-015)", () => {
   });
 
   it("⚠ rejects at the TTL boundary (invariant 4) — expiry is enforced HERE, not by AuthSessionValidity", () => {
-    // AuthSessionValidity is refreshed on every round trip, so it cannot express "this code dies
-    // five minutes after issue". A slow third attempt would otherwise keep a stale code alive.
+    // AuthSessionValidity refreshes every round trip, so the code's own TTL is checked here.
     const last = NOW + OTP_TTL_SECONDS;
     expect(verifyAnswer({ answer: "123456", envelope, key: KEY, nowSeconds: last }).ok).toBe(true);
     expect(verifyAnswer({ answer: "123456", envelope, key: KEY, nowSeconds: last + 1 })).toEqual({
@@ -219,9 +213,7 @@ describe("maskDestination (contract invariant 8)", () => {
 
 describe("secret leakage (contract invariants 7 and 8; FR-014, SC-008)", () => {
   it("⚠ the carried envelope never contains the code", () => {
-    // `challengeMetadata` round-trips through the client's Session string. The AWS-authored sample
-    // puts the CLEARTEXT code here; we put a keyed hash, because no AWS page states as a positive
-    // fact that the client cannot read it.
+    // `challengeMetadata` round-trips through the client, so it carries a keyed hash, not the code.
     for (const code of ["000000", "123456", "999999", "042042"]) {
       const encoded = encodeEnvelope({ issuedAt: NOW, digest: digestCode(code, KEY) });
       const digestSegment = encoded.split(":")[2] ?? "";
@@ -236,8 +228,7 @@ describe("secret leakage (contract invariants 7 and 8; FR-014, SC-008)", () => {
   });
 
   it("a digest cannot be reversed to a code by this module", () => {
-    // There is deliberately no `decodeCode` / `revealCode` export anywhere. If one ever appears,
-    // this assertion is the place someone will have to delete — make them think about it.
+    // There is deliberately no export that decodes or reveals a code.
     const api = Object.keys({ generateCode, verifyAnswer, maskDestination });
     expect(api.some((k) => /reveal|decode|plain|clear/i.test(k))).toBe(false);
   });

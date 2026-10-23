@@ -9,10 +9,10 @@ import { btnClass } from "@/components/storefront/actions"
 /**
  * Something failed while a storefront page was being put together (reference: Help & info · Error).
  *
- * ⚠ IT SAYS WHOSE FAULT IT IS — ours — and what is safe: the cart and saved items live apart from
+ * It says whose fault it is — ours — and what is safe: the cart and saved items live apart from
  * the page that failed. A shopper who believes they lost their cart does not try again.
  *
- * ⚠ The reference is the error's DIGEST: an opaque id that lets us find the failure in our logs. The
+ * The reference is the error's digest: an opaque id that lets us find the failure in our logs. The
  * error's own message is never shown — it is written for us, and may say more than a visitor should
  * read.
  */

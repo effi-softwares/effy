@@ -14,7 +14,7 @@ import { canDecideReview } from "./access";
 import { gstMissingQuery, useSetGstBulk } from "./queries";
 
 /**
- * 096 US9 — live products nobody has classified as taxable or GST-free (FR-092). Tax invoices stay off
+ * Live products nobody has classified as taxable or GST-free. Tax invoices stay off
  * until this list is empty: an unclassified product's invoice could not say how much GST it carried.
  * Tick several and set them at once; each change is recorded against the product.
  */

@@ -48,14 +48,8 @@ import com.effyshopping.customer.mobile.features.paymentmethods.domain.KeptCard
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * Payment methods (051 US6) — the cards a shopper chose to keep.
- *
- * ⚠ WHY IT EXISTS when removal is already reachable at the payment step: that means a shopper who
- * wants to remove a card has to START A CHECKOUT to do it, and card removal is a trust action people
- * take precisely when they are NOT shopping. The address book set the expectation; this is its sibling
- * (Clarification Q1, FR-024a).
- *
- * ⚠ A LIST OF ROWS, NEVER CARDS (Principle V) — same as the address book beside it.
+ * Payment methods: the cards a shopper kept, as rows beside the address book, so a card can be removed
+ * without starting a checkout.
  */
 @Composable
 fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
@@ -72,14 +66,14 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
         when {
             state.loading -> Column(Modifier.padding(EffySpacing.lg)) { repeat(3) { EffyRowSkeleton(image = false) } }
 
-            // ⚠ A FAILED READ IS NOT AN EMPTY LIST (FR-036).
+            // A failed read is not an empty list.
             state.loadFailed -> EffyErrorState(
                 title = "We couldn't load your saved cards",
                 body = "This doesn't affect them. Check your connection and try again.",
                 onRetry = vm::load,
             )
 
-            // ⚠ An honest empty state that EXPLAINS, with no dead controls (US6 scenario 4).
+            // An honest empty state that explains, with no dead controls (US6 scenario 4).
             state.cards.isEmpty() -> EffyEmptyState(
                 title = "No saved cards",
                 body = "When you pay, you can choose to save your card for next time — it will appear here.",
@@ -137,7 +131,7 @@ private fun CardRow(card: KeptCard, removing: Boolean, onRemove: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("${brandName(card.brand)} •••• ${card.last4}", style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"))
             if (card.unusableReason != null) {
-                // ⚠ An unusable card states its reason (FR-023) — with an icon, never red.
+                // An unusable card states its reason — with an icon, never red.
                 EffyInlineError(card.unusableReason)
             } else {
                 Text(
@@ -148,7 +142,7 @@ private fun CardRow(card: KeptCard, removing: Boolean, onRemove: () -> Unit) {
                 )
             }
         }
-        // ⚠ Disabled while a removal is in flight, so a second tap cannot start another (FR-041).
+        // Disabled while a removal is in flight, so a second tap cannot start another.
         EffyTextLink(if (removing) "Removing…" else "Remove", onClick = onRemove, enabled = !removing)
     }
 }

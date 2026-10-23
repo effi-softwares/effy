@@ -86,7 +86,7 @@ describe("refreshCart", () => {
     expect(readCart().lines[0].productId).toBe("p1")
   })
 
-  // 401 is not a failure here — it is the platform answering "you are a guest", and the guest path is
+  // Is not a failure here — it is the platform answering "you are a guest", and the guest path is
   // what makes FR-004 true for someone who has no server cart.
   it("falls through to preview when /api/cart says 401 (a guest)", async () => {
     addToCart(line("p1", 1, "5.00"))
@@ -110,7 +110,7 @@ describe("refreshCart", () => {
     expect(calls.filter((c) => c.includes("preview"))).toHaveLength(0)
   })
 
-  // ⚠ The rule that matters most: a failed check must never read as "your cart is empty".
+  // The rule that matters most: a failed check must never read as "your cart is empty".
   it("keeps the cart when the platform cannot be reached at all", async () => {
     addToCart(line("keep", 3))
     vi.stubGlobal(

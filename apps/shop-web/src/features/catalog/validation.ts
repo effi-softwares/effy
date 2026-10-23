@@ -4,12 +4,9 @@ import type { ProductType, ProductTypeAttribute } from "./model";
 import type { AttributeDraftValue, ProductDraft } from "./draft";
 
 /**
- * Pure form-gating + attribute mapping (no React, no I/O — unit-testable in isolation).
- *
- * The backend is authoritative (it re-validates everything server-side); this only decides when the
- * step form may advance and shapes the wire payload. Mandatory = the universal fields (name / type /
- * category / short description / primary image), a valid variant set (098 — every variant priced),
- * PLUS the selected type's mandatory attributes.
+ * Pure form gating and attribute mapping. The backend re-validates everything; this decides when the step
+ * form may advance and shapes the payload. Mandatory: name, type, category, short description, primary
+ * image, a valid variant set (every variant priced), and the type's mandatory attributes.
  */
 
 /** A positive decimal money string (the wire carries price as a string to avoid float drift). */
@@ -140,7 +137,7 @@ export function basicsComplete(draft: ProductDraft): boolean {
     draft.name.trim().length > 0 &&
     !!draft.primaryCategoryId &&
     draft.shortDescription.trim().length > 0 &&
-    // 096 — every product is taxable or GST-free from the moment it exists.
+    // Every product is taxable or GST-free from the moment it exists.
     (draft.gstStatus === "taxable" || draft.gstStatus === "gst_free")
   );
 }

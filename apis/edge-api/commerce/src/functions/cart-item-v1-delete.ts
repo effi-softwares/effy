@@ -1,5 +1,4 @@
-// DELETE /commerce/v1/cart/items/{variantId}?changeId= — remove a line. Removing one already gone
-// is not an error.
+// Removing a line that is already gone is not an error.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

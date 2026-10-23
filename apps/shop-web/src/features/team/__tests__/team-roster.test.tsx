@@ -41,11 +41,11 @@ function wrap(roles: string[], team: ShopTeamMemberDTO[]) {
 }
 
 /**
- * US7 / FR-019b (T062) — the roster is readable by everyone; the actions are manager-only.
+ * The roster is readable by everyone; the actions are manager-only.
  *
- * ⚠ THIS IS NOT THE SECURITY BOUNDARY. The backend re-checks `shop_manager` against the platform
+ * This is not the security boundary. The backend re-checks `shop_manager` against the platform
  * record on every write and refuses regardless of what renders. What these pin is that a `shop_staff`
- * operator is not shown controls that would only ever refuse — and, just as importantly, that they ARE
+ * operator is not shown controls that would only ever refuse — and, just as importantly, that they are
  * still shown the list, because knowing who you work with is not privileged.
  */
 describe("team roster visibility", () => {
@@ -79,8 +79,8 @@ describe("team roster visibility", () => {
   })
 
   /**
-   * ⚠ A courtesy against locking yourself out, not the protection. The backend refuses removing the
-   * LAST manager whoever asks — which is the case this cannot cover, since a manager standing down a
+   * A courtesy against locking yourself out, not the protection. The backend refuses removing the
+   * last manager whoever asks — which is the case this cannot cover, since a manager standing down a
    * different sole manager is still a lockout.
    */
   it("withholds stand-down on the manager's own row", async () => {

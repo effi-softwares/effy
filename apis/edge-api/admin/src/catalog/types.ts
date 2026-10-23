@@ -1,7 +1,3 @@
-// Domain types for back-office catalog schema authority (016). Wire DTOs live in
-// @effy/shared-types and are mapped explicitly in handler-support; these are the internal domain
-// shapes and never leak wire concerns (constitution Principle VI). Mirrors data-model.md §2.1–2.5.
-
 export type AttributeDataType =
   | "short_text"
   | "long_text"
@@ -49,7 +45,7 @@ export interface AttributeDefinition {
   updatedAt: string;
 }
 
-/** An attribute as assigned to a product type (the join, carrying per-type facts + the definition). */
+/** The type-attribute join, with per-type facts and the definition. */
 export interface Assignment {
   attributeId: string;
   key: string;
@@ -89,11 +85,10 @@ export interface FieldIssue {
   message: string;
 }
 
-// Domain exception → mapped to problem+json in the handler (no HTTP concern here).
 export type CatalogErrorKind =
   | "validation" // → 400
   | "conflict" // → 409 (duplicate key, retire/delete an in-use attribute/value, category cycle)
-  | "not_found"; // → 404
+  | "not_found";
 
 export class CatalogError extends Error {
   constructor(

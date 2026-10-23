@@ -8,14 +8,7 @@ import type { MailIdentity } from "../src/audience.js";
 import { CATALOG, validateVars } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
-/**
- * order-delivered (053 US3) — the order arrived.
- *
- * ⚠ THE ONLY MESSAGE A WEB-ONLY SHOPPER GETS ABOUT THEIR DELIVERY. Before 053 the three post-payment
- * lifecycle events were push-only, so the entire customer-web audience heard nothing after the
- * receipt. These tests pin the two properties that make it safe to send: it discloses no fulfilment
- * structure, and its plain-text part is actually readable.
- */
+/** The order arrived: the only delivery message a web-only shopper gets. It discloses no fulfilment structure, and its text part is readable. */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name: string) =>
@@ -30,7 +23,7 @@ const identity: MailIdentity = {
 
 const vars = loadFixture("order-delivered.json");
 
-/** The handful of entities Handlebars' escaper emits — enough to compare a URL honestly. */
+/** The entities Handlebars' escaper emits, to compare a URL honestly. */
 const decodeEntities = (s: string) =>
   s
     .replace(/&#x3D;/g, "=")
@@ -52,12 +45,7 @@ describe("order-delivered — what it says", () => {
     expect(out.text).toContain(vars.orderUrl);
   });
 
-  /**
-   * ⚠ 039's DEFECT, PINNED. Every email's plain-text part was HTML-escaped in the shared render
-   * path, because Handlebars turns `=` into `&#x3D;`. Harmless in HTML (clients decode entities in
-   * attributes); in text/plain NOTHING decodes it, so a URL arrived unusable — send succeeds, mail
-   * arrives, link is visible, and it simply does not work.
-   */
+  /** The text part is not HTML-escaped, so its URL works. */
   it("does not HTML-escape the URL in the plain-text part", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).not.toContain("&#x3D;");
@@ -65,23 +53,14 @@ describe("order-delivered — what it says", () => {
   });
 
   it("gives the recipient somewhere to go when it did NOT arrive", () => {
-    // With no carrier integration, "delivered" is a person's assertion about a package they never
-    // saw. A message that asserts it without an escape hatch is a support ticket with no address.
+    // "Delivered" is a person's assertion, so the message offers a way to say it did not arrive.
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).toContain(identity.replyToPublic);
   });
 });
 
 describe("order-delivered — what it must NEVER say", () => {
-  /**
-   * ⚠ FR-021, THE DISCLOSURE THIS TEMPLATE IS MOST LIKELY TO BREAK. Effy's fulfilment nodes are
-   * hidden by the product model: a customer buys from one brand and never learns which shops served
-   * them, nor how many. A delivery notice is exactly where "your 2 parcels have arrived" feels
-   * helpful and would leak the count.
-   *
-   * The structural defence is that the catalogue gives this template no var to say it with. This
-   * test pins that, so adding one is a deliberate act that fails here first.
-   */
+  /** No shop and no package count: the catalogue gives this template no var to say them with. */
   it("has no var that could carry a shop, a package count, or a tracking reference", () => {
     const declared = Object.keys(CATALOG["order-delivered"].vars);
     expect(declared.sort()).toEqual(["deliveredOn", "orderNumber", "orderUrl"]);
@@ -102,7 +81,7 @@ describe("order-delivered — what it must NEVER say", () => {
     }
   });
 
-  /** It is not a second receipt — a total here invites reconciling two documents (FR-025's spirit). */
+  /** Not a second receipt: no total. */
   it("restates no amount", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).not.toMatch(/\$\s?\d/);
@@ -111,16 +90,14 @@ describe("order-delivered — what it must NEVER say", () => {
 
 describe("order-delivered — catalogue rules", () => {
   it("is transactional, so it cannot carry an unsubscribe", () => {
-    // The `Category` union gives the transactional arm no field for one, so an unsubscribable
-    // delivery notice is a compile error rather than a review catch.
+    // The `Category` union already makes an unsubscribable notice a compile error.
     expect(CATALOG["order-delivered"].category).toBe("transactional");
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.html.toLowerCase()).not.toContain("unsubscribe");
   });
 
   it("swallows a send failure, because the package already arrived", () => {
-    // The arrival is committed and cannot be unwound; a throw would make a caller report failure for
-    // something that demonstrably happened. The notification row records it instead.
+    // Swallow: the arrival is committed; the notification row records a failed send.
     expect(CATALOG["order-delivered"].onSendFailure).toBe("swallow");
   });
 

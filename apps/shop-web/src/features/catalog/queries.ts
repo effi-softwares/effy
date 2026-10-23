@@ -33,13 +33,13 @@ import {
 } from "./repo";
 import type { ProductListParams } from "./model";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). The list query is keyed on its
+// Server state lives only in the TanStack Query cache (Principle VI). The list query is keyed on its
 // params so each page/filter/search combination caches independently; mutations invalidate the
 // affected keys rather than hand-patching cached rows.
 
 const CATALOG_ROOT = ["shop", "catalog"] as const;
 
-/** The schema drives the create form AND the list filter selects — cache it a while; it changes
+/** The schema drives the create form and the list filter selects — cache it a while; it changes
  *  only when the back office edits the taxonomy. */
 export const catalogSchemaQuery = queryOptions({
   queryKey: [...CATALOG_ROOT, "schema"] as const,
@@ -84,7 +84,7 @@ export function useCreateProduct() {
   });
 }
 
-// ── US4: focused edit + media ─────────────────────────────────────────────────────────────────
+// Focused edit + media
 
 export function useUpdateProduct(id: string) {
   const queryClient = useQueryClient();
@@ -135,7 +135,7 @@ export function useDeleteMedia(id: string) {
   });
 }
 
-// ── US5: lifecycle + sections ─────────────────────────────────────────────────────────────────
+// Lifecycle + sections
 
 export function useChangeStatus(id: string) {
   const queryClient = useQueryClient();
@@ -148,7 +148,7 @@ export function useChangeStatus(id: string) {
   });
 }
 
-/** 098 — a size on or off sale, or removed. Its stock screens change too. */
+/** A size on or off sale, or removed. Its stock screens change too. */
 export function useSetVariantState(productId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -161,7 +161,7 @@ export function useSetVariantState(productId: string) {
   });
 }
 
-/** 067 — submit a never-approved product for Effy's review. */
+/** Submit a never-approved product for Effy's review. */
 export function useSubmitForReview(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -173,7 +173,7 @@ export function useSubmitForReview(id: string) {
   });
 }
 
-/** 067 — withdraw a submission, or discard a pending change. The live product is never touched. */
+/** Withdraw a submission, or discard a pending change. The live product is never touched. */
 export function useWithdrawReview(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

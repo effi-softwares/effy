@@ -7,15 +7,9 @@ import { PaymentMarks } from "./PaymentMarks"
 import { StoreBadges } from "./StoreBadges"
 
 /**
- * The storefront footer (reference: Shared components · Storefront footer).
- *
- * Top to bottom: the newsletter row, four link columns, then the wordmark, the payment marks and the
- * app badges. Same container as the header, so its edges line up with every page above it.
- *
- * ⚠ The app badges say "Coming soon" and are NOT links — there is no store listing to send anyone to.
- * ⚠ The payment marks are text in a box, not the schemes' logos: they say what checkout accepts
- * without shipping six third-party assets on every page.
- * ⚠ `hello@effyshopping.com` is the approved customer-facing mailbox (CLAUDE.md, Prohibited values).
+ * The storefront footer: the newsletter row, four link columns, then the wordmark, the payment marks
+ * and the app badges ("Coming soon", not links), in the header's container. The payment marks are text,
+ * not scheme logos. `hello@effyshopping.com` is the approved customer-facing mailbox.
  */
 const COLUMNS: ReadonlyArray<{ title: string; links: ReadonlyArray<{ label: string; href: string }> }> = [
   {

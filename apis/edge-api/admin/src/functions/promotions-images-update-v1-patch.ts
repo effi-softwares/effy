@@ -1,4 +1,3 @@
-// PATCH /admin/v1/promotions/{id}/images/{imageId} — promotion pictures — update (095). Mutate: admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

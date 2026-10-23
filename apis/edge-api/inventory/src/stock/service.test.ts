@@ -61,8 +61,7 @@ describe("counts must be whole, non-negative numbers (FR-001, FR-006)", () => {
       service.setCount(shopActor, "p1", { onHand, reason: "correction" }),
     );
     expect(err.kind).toBe("validation");
-    // ⚠ The second half matters as much as the first: a refused change must leave no trace, or the
-    // history stops being an account of what actually happened to the shelf.
+    // A refused change must leave no trace in the history.
     expect(repo.setCount).not.toHaveBeenCalled();
   });
 
@@ -82,8 +81,7 @@ describe("a reason is required on anything that moves a count (FR-007)", () => {
   });
 
   it("refuses a reason the platform writes for itself", async () => {
-    // ⚠ `order_paid` and `pick_shortfall` are facts the PLATFORM records. A human choosing one would
-    // be writing a false account of why stock moved, into the table that exists to be true.
+    // `order_paid` and `pick_shortfall` are recorded by the platform, never chosen by a person.
     for (const reason of ["order_paid", "pick_shortfall", "tracking_enabled"]) {
       const err = await refusal(() => service.setCount(shopActor, "p1", { onHand: 4, reason }));
       expect(err.kind, reason).toBe("validation");
@@ -139,8 +137,7 @@ describe("moving a count on an untracked product", () => {
     const err = await refusal(() =>
       service.setCount(shopActor, "p1", { onHand: 4, reason: "received" }),
     );
-    // ⚠ The database would refuse this too (the write matches no row), but that refusal is
-    // indistinguishable from "no such product" and would tell the operator the wrong thing.
+    // The database would refuse too, but as "no such product", which is the wrong message.
     expect(err.kind).toBe("conflict");
   });
 });
@@ -181,22 +178,17 @@ describe("a product that is not this shop's", () => {
     vi.mocked(repo.readStock).mockResolvedValue(null);
     const missing = await refusal(() => service.getStock(shopActor, "p1"));
     const foreign = await refusal(() => service.getStock(shopActor, "someone-elses"));
-    // ⚠ Byte-identical, not merely similar. A difference in wording is a difference an attacker can
-    // read, and it would turn this route into an oracle for which product ids are real.
+    // Byte-identical, or the route reveals which product ids are real.
     expect(missing.kind).toBe(foreign.kind);
     expect(missing.message).toBe(foreign.message);
   });
 });
 
-// ── 054 US4: back-office acts on a shop's behalf, with FULL parity (FR-026, the Q5 clarification) ──
+// Back-office acts on a shop's behalf with full parity.
 describe("the assisted path", () => {
   const boActor: Actor = { sub: "sub-admin", shopId: "shop-1", kind: "back_office" };
 
-  // ⚠ FOUR POWERS, NOT A SUBSET. FR-026 and the Q5 answer both say "every stock action a shop
-  // operator can". A support call that cannot do the thing a shop is ringing up to ask for is not an
-  // assisted path — and "turn tracking off, we can't keep it accurate right now" is exactly the kind
-  // of call support takes. The safety here is attribution and visibility (FR-027), not a narrower set
-  // of actions.
+  // All four powers: the safety is attribution, not a narrower set of actions.
   it("can do everything a shop operator can", async () => {
     await expect(
       service.setTracking(boActor, "p1", { tracked: true, onHand: 5 }),
@@ -215,8 +207,7 @@ describe("the assisted path", () => {
     ).resolves.toBeDefined();
   });
 
-  // ⚠ ONE SERVICE, TWO AUDIENCES (research R6). Two copies of "what a valid stock change is" would
-  // drift, and the drift would surface as back-office being able to write something a shop cannot.
+  // One service for both audiences, so they cannot drift.
   it("applies the SAME validation to back-office as to a shop", async () => {
     const shopErr = await refusal(() =>
       service.setCount(shopActor, "p1", { onHand: -1, reason: "correction" }),

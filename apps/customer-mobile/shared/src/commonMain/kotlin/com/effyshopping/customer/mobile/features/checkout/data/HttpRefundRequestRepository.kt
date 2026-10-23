@@ -12,13 +12,7 @@ import io.ktor.http.ContentType
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
-/**
- * Raise a refund request (055 US3).
- *
- * On the commerce service, beside the cancel route (moved from the retired Go backend by 070).
- *
- * ⚠ IT MOVES NO MONEY. The 201 means the ask was recorded, never that a refund is coming.
- */
+/** Raise a refund request (commerce service). It moves no money: the 201 means the ask was recorded. */
 class HttpRefundRequestRepository(private val edge: HttpClient) : RequestRefund {
 
     @Serializable
@@ -34,11 +28,11 @@ class HttpRefundRequestRepository(private val edge: HttpClient) : RequestRefund 
         }
         when (response.status) {
             HttpStatusCode.Created, HttpStatusCode.OK -> RefundRequestResult.Received
-            // ⚠ 409 is not a failure — their ask is already with us, and saying so is the one thing
+            // Is not a failure — their ask is already with us, and saying so is the one thing
             // that stops them raising it again through the generic inbox.
             HttpStatusCode.Conflict -> RefundRequestResult.AlreadyOpen
-            // ⚠ 404 covers BOTH "not yours" and "no such order" — the server refuses them identically
-            // so this client cannot tell them apart either (FR-016).
+            // Covers both "not yours" and "no such order" — the server refuses them identically
+            // so this client cannot tell them apart either.
             HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.NotFound ->
                 RefundRequestResult.NotAllowed
             else -> RefundRequestResult.Failed

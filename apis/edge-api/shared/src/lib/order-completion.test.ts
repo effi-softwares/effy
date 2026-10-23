@@ -4,11 +4,7 @@ import {
   COUNTED_REFUND_STATUSES, countsAsRefundedToCustomer, customerCancellable, customerRefundState, stageFor,
 } from "./order-completion";
 
-/**
- * 070 — the ONE implementation of what a customer is told about their order. Until 070 this rule
- * lived in the Go backend and a second copy here was kept honest by a test that read the Go source;
- * these are that backend's own table tests, now pinned on the only copy there is.
- */
+/** What a customer is told about their order: the one implementation. */
 describe("stageFor", () => {
   it.each([
     ["no packages yet is confirmed", [], "confirmed"],
@@ -25,7 +21,7 @@ describe("stageFor", () => {
   });
 
   it("is a rollup, not a max", () => {
-    // A max would tell a shopper their shopping is on the doorstep while half of it is being picked.
+    // A max would say it is on the doorstep while half of it is being picked.
     expect(stageFor(["delivered", "picking"])).toBe("packing");
     expect(stageFor(["delivered", "pending"])).toBe("confirmed");
   });
@@ -43,9 +39,9 @@ describe("stageFor", () => {
 
 describe("customerCancellable", () => {
   it("is offered only on a paid order no shop has started", () => {
-    expect(customerCancellable("paid", [])).toBe(true); // paid, not yet fanned out
+    expect(customerCancellable("paid", [])).toBe(true);
     expect(customerCancellable("paid", ["pending", "pending"])).toBe(true);
-    expect(customerCancellable("paid", ["pending", "picking"])).toBe(false); // ANY shop beginning closes it
+    expect(customerCancellable("paid", ["pending", "picking"])).toBe(false);
     expect(customerCancellable("paid", ["received"])).toBe(false);
   });
 
@@ -74,7 +70,7 @@ describe("refund states", () => {
     expect(countsAsRefundedToCustomer("submitted")).toBe(true);
     expect(countsAsRefundedToCustomer("succeeded")).toBe(true);
     expect(countsAsRefundedToCustomer("submitting")).toBe(false);
-    // ⚠ Where it differs from the ceiling: a failed refund did not reach the shopper.
+    // Unlike the ceiling: a failed refund did not reach the shopper.
     expect(countsAsRefundedToCustomer("failed")).toBe(false);
     expect(countsAsRefundedToCustomer("refused")).toBe(false);
   });

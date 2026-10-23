@@ -1,18 +1,11 @@
 /**
- * Client-side cart totals for DISPLAY. Integer-cents math (never floats) mirroring the backend's money
- * module. This is a display approximation for the guest cart review — the SERVER computes the
- * authoritative amount at checkout, and the charge is always the server's.
- *
- * 021: there is NO client-side delivery fee any more. Delivery is geographic and needs a destination
- * address to price (077: one fee for the ORDER, never per package) — so it is quoted only at the delivery step (FR-024/SC-010: no order
- * or package ever falls back to a flat/hardcoded fee). The cart shows the item subtotal and says
- * "Delivery calculated at checkout".
+ * Cart totals for display, in integer cents. The server computes the amount charged. There is no
+ * client-side delivery fee: delivery needs an address to price, so the cart says "Delivery calculated at
+ * checkout".
  */
 /**
- * ⚠ Takes a STRUCTURAL shape rather than importing `GuestCartLine`. 027 made the cart store depend on this
- * module (a local edit recomputes the subtotal), and a type-only import back would still be a cycle as far
- * as the dependency guard — correctly, because a cycle is a cycle. Asking only for what the arithmetic
- * needs breaks it at the right end and makes this module reusable by anything with priced lines.
+ * Takes a structural shape rather than importing `GuestCartLine`: the cart store depends on this module,
+ * and a type-only import back would still be a cycle.
  */
 export interface PricedLine {
   unitPriceAmount: string
@@ -32,11 +25,11 @@ export function formatCents(cents: number): string {
 }
 
 export interface CartTotals {
-  /** Σ(unit×qty). The ONLY amount the cart can know before an address is chosen (021). */
+  /** Σ(unit×qty). The only amount the cart can know before an address is chosen. */
   itemSubtotal: string
 }
 
-/** Σ(unit×qty). Delivery is NOT included — it is quoted once for the order at checkout (021, 077). */
+/** Σ(unit×qty). Delivery is not included — it is quoted once for the order at checkout. */
 export function computeCartTotals(lines: readonly PricedLine[]): CartTotals {
   const subtotal = lines.reduce((c, l) => c + parseCents(l.unitPriceAmount) * l.quantity, 0)
   return { itemSubtotal: formatCents(subtotal) }

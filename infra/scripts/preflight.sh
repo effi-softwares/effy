@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Belt-and-braces account guard (research.md D8): assert the resolved AWS credentials
-# point at the account the target env expects BEFORE any mutating terraform command.
+# point at the account the target env expects before any mutating terraform command.
 # The authoritative gate is the provider's allowed_account_ids; this fails faster and
 # with a friendlier message. Called by `make apply` / `make destroy`; skip with
 # SKIP_PREFLIGHT=1.

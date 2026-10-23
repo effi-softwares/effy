@@ -1,5 +1,4 @@
-// @effy/edge-shared/live — 071. The one way the backend tells open apps that something changed,
-// and the one rule for whose updates a person may hear.
+// How the backend tells open apps that something changed, and whose updates a person may hear.
 export { announce, LIVE_METRIC_NAMESPACE, type AnnounceDeps, type LiveChange } from "./announce";
 export {
   channelPrefix,

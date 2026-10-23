@@ -1,11 +1,6 @@
 /**
- * Establishing — and removing — a back-office administrator out-of-band (spec 006).
- *
- * Two systems hold an admin: the identity provider (so the person can sign in) and the platform's
- * own staff record (so they are authorized). There is no transaction across the two, so they are
- * kept consistent by ORDER and IDEMPOTENCE: the identity provider first (it issues the stable
- * subject the record is keyed on), then the record; every step is safe to repeat, so a run that
- * dies halfway is repaired by running it again.
+ * Adds or removes a back-office administrator out of band. Cognito and the staff record share no
+ * transaction, so Cognito goes first (it issues the subject) and every step is safe to repeat.
  */
 import {
   AdminAddUserToGroupCommand, AdminCreateUserCommand, AdminDeleteUserCommand, AdminEnableUserCommand, AdminGetUserCommand,
@@ -13,20 +8,18 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import type pg from "pg";
 
-/** The back-office super-admin role and group (full administrative access). */
 export const ROLE_ADMIN = "admin";
 
-/** Refusing to remove the last active administrator. */
 export class LastAdminError extends Error {
   constructor() {
     super("refusing to delete the last active administrator (pass --force to override)");
   }
 }
 
-/** A deliberately plain check: one address, something@something.tld, no display-name form. */
+/** Deliberately plain: something@something.tld. */
 const EMAIL = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
-/** ⚠ Runs BEFORE any side effect, so bad input leaves no partial state. */
+/** Runs before any side effect. */
 export function validateInput(email: string, name: string): void {
   if (name.trim() === "") throw new Error("name is required");
   if (!EMAIL.test(email)) throw new Error(`invalid email "${email}"`);
@@ -51,12 +44,8 @@ const subOf = (attrs: AttributeType[] | undefined) => attrs?.find((a) => a.Name 
 export function cognitoIdentityProvider(client: Pick<CognitoIdentityProviderClient, "send">, poolId: string): IdentityProvider {
   return {
     /**
-     * Create a PASSWORDLESS, CONFIRMED user and put them in the admin group.
-     *
-     * ⚠ No temporary password: that is what lands the user confirmed on a passwordless pool, able
-     * to sign in with a one-time code at once. ⚠ The invitation is SUPPRESSED — the operator tells
-     * the person themselves; the platform sends nothing to an address on the strength of this tool.
-     * On a re-run an existing user is reconciled (re-enabled if disabled), never duplicated.
+     * A passwordless, confirmed user in the admin group. No temporary password, and the invitation is
+     * suppressed: the operator tells the person. A re-run re-enables an existing user.
      */
     async ensureAdmin(email, name) {
       let username: string;
@@ -65,7 +54,7 @@ export function cognitoIdentityProvider(client: Pick<CognitoIdentityProviderClie
       try {
         const created = await client.send(new AdminCreateUserCommand({
           UserPoolId: poolId,
-          Username: email, // the pool signs in by email; the provider assigns the real username
+          Username: email,
           MessageAction: "SUPPRESS",
           UserAttributes: [
             { Name: "email", Value: email },
@@ -85,7 +74,6 @@ export function cognitoIdentityProvider(client: Pick<CognitoIdentityProviderClie
         if (!got.Enabled) await client.send(new AdminEnableUserCommand({ UserPoolId: poolId, Username: username }));
       }
       if (sub === "") throw new Error("cognito: no sub attribute in response");
-      // Adding an existing member is a no-op.
       await client.send(new AdminAddUserToGroupCommand({ UserPoolId: poolId, Username: username, GroupName: ROLE_ADMIN }));
       return { sub, outcome };
     },
@@ -114,10 +102,7 @@ export function cognitoIdentityProvider(client: Pick<CognitoIdentityProviderClie
 
 export function staffRecords(db: Pick<pg.Client, "query">): StaffRecords {
   return {
-    /**
-     * An active staff row keyed on the subject, plus the admin role, in ONE transaction. A re-run
-     * refreshes email and name and restores a disabled row to active (this is the break-glass).
-     */
+    /** One transaction. A re-run refreshes email and name and re-activates a disabled row. */
     async upsertSuperAdmin(sub, email, name) {
       await db.query("BEGIN");
       try {
@@ -149,7 +134,6 @@ export function staffRecords(db: Pick<pg.Client, "query">): StaffRecords {
       }
     },
 
-    /** This subject is an active admin AND no OTHER active admin exists. */
     async isLastActiveAdmin(sub) {
       return (
         (
@@ -165,7 +149,7 @@ export function staffRecords(db: Pick<pg.Client, "query">): StaffRecords {
       );
     },
 
-    /** By subject; by email when the subject is unknown (the identity is already gone). */
+    /** By subject, or by email when the identity is already gone. */
     async deleteAdmin(sub, email) {
       const res = sub !== ""
         ? await db.query(`DELETE FROM admin.staff WHERE cognito_sub = $1`, [sub])
@@ -198,11 +182,7 @@ export interface DeleteResult {
   staff: "deleted" | "not-found";
 }
 
-/**
- * Remove an admin from BOTH systems. Safe to re-run: what is already gone reports "not-found".
- * ⚠ Refuses the last active administrator unless forced — that would leave nobody able to sign in
- * to the back office, recoverable only by this tool's other half.
- */
+/** Safe to re-run. Refuses the last active administrator unless forced. */
 export async function deleteAdmin(idp: IdentityProvider, records: StaffRecords, email: string, force: boolean): Promise<DeleteResult> {
   if (!EMAIL.test(email)) throw new Error(`invalid email "${email}"`);
   const found = await idp.resolveAdmin(email);

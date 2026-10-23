@@ -15,7 +15,7 @@ import { momentText, roundLabel, roundOpenState } from "../model";
  * Today's rounds (redesign, board "Dispatch — today", Rounds tab): who holds which run, how far
  * through it they are, when it opens and when it is due.
  *
- * ⚠ Late is DERIVED on read, never stored — a stored flag is wrong every minute nothing writes to it.
+ * Late is derived on read, never stored — a stored flag is wrong every minute nothing writes to it.
  */
 export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
   const [kind, setKind] = useState<"all" | "collection" | "delivery">("all");
@@ -97,7 +97,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                     <td data-m="meta" data-label="Packages left" className="is-num">
                       {r.packagesRemaining}
                     </td>
-                    {/* ⚠ Words, never colour: "Open" and "Opens 1:15 pm" differ by text. */}
+                    {/* Words, never colour: "Open" and "Opens 1:15 pm" differ by text. */}
                     <td data-m="meta" data-label="Opens">
                       {open.text || "—"}
                     </td>
@@ -107,7 +107,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                     </td>
                     <td data-m="badge">
                       <span className="flex flex-wrap items-center gap-2">
-                        {/* 093 — where the run is, in the words the driver's app uses ("Out 4 of 9"). */}
+                        {/* Where the run is, in the words the driver's app uses ("Out 4 of 9"). */}
                         <StatusWord tone={r.round.status === "completed" ? "done" : r.round.status === "cancelled" ? "quiet" : "moving"}>
                           {r.stageLabel ?? r.round.status.replace("_", " ")}
                         </StatusWord>

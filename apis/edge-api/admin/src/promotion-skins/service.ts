@@ -1,6 +1,5 @@
-// 095 US2 — promotion skins: validation and rules. The shape and the readability check are declared once
-// in @effy/shared-types (promotion-skins.ts) and run here authoritatively: back-office runs the same
-// functions as staff type, but only this service decides what is saved. Every change is announced.
+// The shape and readability check are declared in @effy/shared-types (promotion-skins.ts); back-office
+// runs them as staff type, but only this service decides what is saved. Every change is announced.
 import { emitMetric, metricNamespace } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import {
@@ -33,12 +32,12 @@ function layout(v: unknown): DesignedLayout {
   return v as DesignedLayout;
 }
 
-/** Lower-case every colour so one colour is one value (and the history compares like with like). */
+/** Lower-cased so one colour is one value. */
 function normalise(settings: SkinSettings): SkinSettings {
   return JSON.parse(JSON.stringify(settings), (_k, v) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : v)) as SkinSettings;
 }
 
-/** Refuse a skin that is malformed (422 invalid_skin) or unreadable (422 skin_unreadable, naming each pair). */
+/** Invalid_skin, or 422 skin_unreadable naming each pair. */
 function assertSaveable(l: DesignedLayout, settings: unknown): SkinSettings {
   const { issues, unreadable } = skinProblems(l, settings as SkinSettings);
   if (issues.length > 0) throw new PromoError(422, "invalid_skin", "Some settings aren't valid.", issues);

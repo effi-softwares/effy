@@ -18,16 +18,16 @@ dependencies {
     implementation(projects.shared)
 
     implementation(libs.androidx.activity.compose)
-    // 092 — the branded splash, as the customer app (backports the Android 12+ API to API 21).
+    // The branded splash, as the customer app (backports the Android 12+ API to API 21).
     implementation(libs.androidx.core.splashscreen)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
-    // 092 rev 2 — the debug-only design gallery draws screens directly.
+    // Rev 2 — the debug-only design gallery draws screens directly.
     debugImplementation(libs.compose.foundation)
     debugImplementation(libs.compose.material3)
 
-    // 049 — Amplify Android requires core library desugaring (enabled in compileOptions below).
+    // Amplify Android requires core library desugaring (enabled in compileOptions below).
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 }
 
@@ -66,7 +66,7 @@ android {
         }
     }
     compileOptions {
-        // 049 — required by Amplify Android (backports java.time etc. below the API level it needs).
+        // Required by Amplify Android (backports java.time etc. below the API level it needs).
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

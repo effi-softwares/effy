@@ -27,6 +27,6 @@ function useInvalidating<A, R>(fn: (a: A) => Promise<R>) {
 export const useCreateGroup = () => useInvalidating((b: AdminCreatePromotionGroupRequest) => createGroup(b));
 export const useUpdateGroup = (id: string) => useInvalidating((b: AdminUpdatePromotionGroupRequest) => updateGroup(id, b));
 export const useDeleteGroup = () => useInvalidating((id: string) => deleteGroup(id));
-/** 095 — members in order, each with its skin and picture (null = the group's default / the best fit). */
+/** Members in order, each with its skin and picture (null = the group's default / the best fit). */
 export type MemberChoice = { promotionId: string; skinId: string | null; imageId: string | null };
 export const usePutMembers = (id: string) => useInvalidating((members: MemberChoice[]) => putMembers(id, { members }));

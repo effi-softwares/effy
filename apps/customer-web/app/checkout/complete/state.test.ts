@@ -2,13 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { completionState, mayClearCart } from "./state"
 
-/**
- * ⚠ THE DEFECT THIS PINS. The order row is created at INTENT time, so it exists from the moment the
- * shopper reaches the payment step — before any money moves — and `GET /v1/orders/{id}` has no status
- * filter. The page branched on whether the order could be FETCHED rather than on whether it was PAID,
- * so a shopper who abandoned at Klarna, Zip, Afterpay or a 3DS challenge came back to "Thank you …
- * Total paid" AND an emptied basket, while the abandoned copy promised the basket was still there.
- */
+/** Only a paid order is a receipt and clears the basket; an order that exists but was not paid keeps it. */
 describe("completion state", () => {
   it("is a receipt only when the order is actually paid", () => {
     expect(completionState({ status: "paid" })).toBe("receipt")
@@ -24,7 +18,7 @@ describe("completion state", () => {
     expect(completionState({ status: "pending_payment" }, "canceled")).toBe("abandoned")
   })
 
-  // ⚠ The hint can be edited, replayed or stale — it must never override what the platform says.
+  // The hint can be edited, replayed or stale — it must never override what the platform says.
   it("never lets the redirect hint contradict the platform", () => {
     expect(completionState({ status: "paid" }, "failed")).toBe("receipt")
     expect(completionState({ status: "pending_payment" }, "succeeded")).toBe("confirming")
@@ -37,7 +31,7 @@ describe("completion state", () => {
 })
 
 describe("the cart rule", () => {
-  // ⚠ Nothing was charged in any state but the first, so the basket is how a shopper tries again.
+  // Nothing was charged in any state but the first, so the basket is how a shopper tries again.
   it("empties the basket only for a paid order", () => {
     expect(mayClearCart("receipt")).toBe(true)
     expect(mayClearCart("abandoned")).toBe(false)

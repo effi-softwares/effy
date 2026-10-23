@@ -5,13 +5,7 @@ import { describe, expect, it } from "vitest"
 
 import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
 
-/**
- * ⚠ THE DEPLOYMENT CONTRACT for the feedback routes (046 US1) — the same guard as the newsletter's
- * (035 R13 / 038). A unit test that supplies its own configuration can never notice the configuration
- * does not exist, so this one mocks nothing: it reads the ACTUAL `serverless.yml` and the ACTUAL
- * service source and asserts they agree. A missing FEEDBACK_RATE_* key would silently disable the
- * abuse resistance; a missing MAIL_* key would silently kill the thank-you email.
- */
+/** Reads the real serverless.yml and source: missing FEEDBACK_RATE_* or MAIL_* keys would silently disable rate limits or the email. */
 
 const here = dirname(fileURLToPath(import.meta.url))
 const serviceRoot = resolve(here, "../..")
@@ -32,7 +26,6 @@ function readServerlessEnvKeys(): Set<string> {
   return keys
 }
 
-/** Every `env.SOMETHING` the feedback service reads. */
 function readEnvKeysUsedBySource(): Set<string> {
   const source = readFileSync(resolve(here, "service.ts"), "utf8")
   const keys = new Set<string>()
@@ -69,8 +62,7 @@ describe("feedback routes — the authed/public split is intentional and stays t
     const start = yaml.indexOf(`  ${fn}:`)
     expect(start, `${fn} is not declared in serverless.yml`).toBeGreaterThan(-1)
     const rest = yaml.slice(start + fn.length)
-    // ⚠ Stop at the next 2-space line that is a function OR a comment — a naive `[a-zA-Z]`-only
-    // boundary overruns through a comment block into the NEXT function and reads its authorizer.
+    // Stop at the next 2-space line that is a function or a comment, or the match runs into the next function.
     const end = rest.search(/\n {2}(?:[A-Za-z]|#)/)
     return end < 0 ? rest : rest.slice(0, end)
   }
@@ -79,10 +71,7 @@ describe("feedback routes — the authed/public split is intentional and stays t
     expect(blockFor("customerFeedbackV1Post")).toContain("authorizer")
   })
 
-  /**
-   * ⚠ The guest route must stay public. An `authorizer` here would 401 every guest — the failure would
-   * look like a frontend bug because the page renders fine.
-   */
+  /** The guest route must stay public. */
   it("attaches no authorizer to the public route", () => {
     expect(blockFor("customerFeedbackPublicV1Post")).not.toContain("authorizer")
   })

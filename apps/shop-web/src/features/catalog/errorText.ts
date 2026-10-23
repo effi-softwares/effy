@@ -17,14 +17,14 @@ export function productMutationError(err: unknown, conflictMessage?: string): st
 }
 
 /**
- * A 409 conflict — the discriminator for BOTH catalog conflicts: a stale focused edit
- * (`expectedUpdatedAt` moved under us, FR-023a) and a refused hard-delete of a published product
- * (R8). The caller decides which copy to show; the message never leaks server `detail`.
+ * A 409 conflict — the discriminator for both catalog conflicts: a stale focused edit
+ * (`expectedUpdatedAt` moved under us, FR-023a) and a refused hard-delete of a published product.
+ * The caller decides which copy to show; the message never leaks server `detail`.
  */
 export function isConflict(err: unknown): boolean {
   return isDomainError(err) && err.status === 409;
 }
 
-/** Copy for a stale focused edit (FR-023a) — the row changed elsewhere; the operator must reload. */
+/** Copy for a stale focused edit — the row changed elsewhere; the operator must reload. */
 export const STALE_EDIT_MESSAGE =
   "This product changed elsewhere. Reload to see the latest, then re-apply your edit.";

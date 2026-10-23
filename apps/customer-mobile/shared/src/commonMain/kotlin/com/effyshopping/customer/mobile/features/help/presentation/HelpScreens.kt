@@ -55,21 +55,13 @@ import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.resources.lucide_package
 
 /**
- * The help area (026 US4 / T070) — the source design's FAQs, Help Center and Customer Service screens.
- *
- * ⚠ THE CONTENT IS STATIC, AND THAT IS THE SHIPPED ANSWER, not a placeholder. The platform has no CMS
- * and does not need one for a dozen answers; unlike Notifications, nothing here pretends a capability
- * exists. What IS deliberately absent is anything the platform cannot honour — there is no live-chat
- * entry point, because there is no live chat behind it.
- *
- * ⚠ Every answer below is written to be true of Effy AS BUILT. The source kit's own FAQ copy talks
- * about e-wallets and card linking, neither of which this platform has; copying it would have put
- * confident answers about features that do not exist in front of customers.
+ * The help area: FAQs, Help Center and Customer Service. Static content, true of Effy as built, and nothing
+ * the platform cannot honour (no live-chat entry, because there is no live chat).
  */
 private data class Faq(val question: String, val answer: String)
 
-// 087 (Help board) — the board's five questions, answered TRUE OF EFFY AS BUILT (083/085 delivery,
-// 074 points, 055 refunds and cancellation). ⚠ Nothing here may say how many suppliers fill an order.
+// 087 (Help board) — the board's five questions, answered true of Effy as built (083/085 delivery,
+// Points, 055 refunds and cancellation). Nothing here may say how many suppliers fill an order.
 private val FAQS = listOf(
     Faq(
         "Who delivers my order?",
@@ -101,7 +93,7 @@ private val FAQS = listOf(
 )
 
 /**
- * Help (087, Help board) — ONE page: "How can we help?", the answers, how to reach a person, and where
+ * Help (087, Help board) — one page: "How can we help?", the answers, how to reach a person, and where
  * to go when something is wrong with an order. It replaces three screens (FAQs, Help centre, Contact
  * us) that each held a fragment of this; their routes all open it.
  */
@@ -143,13 +135,7 @@ fun HelpScreen(onOpenOrders: () -> Unit) = HelpScaffold("Help") {
     }
 }
 
-/**
- * A pushed help screen: fixed app bar, scrolling body.
- *
- * ⚠ All three of these used to open a large left-aligned heading and nothing else — no app bar, so no
- * back arrow, and the tab bar hides below a tab root, which left the shopper with no way out but the
- * system gesture. The title belongs in the bar, and the bar must NOT scroll away with the content.
- */
+/** A pushed help screen: a fixed app bar (title and back arrow) over a scrolling body. */
 @Composable
 private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -164,7 +150,7 @@ private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> U
 @Composable
 private fun FaqRow(faq: Faq) {
     var open by remember { mutableStateOf(false) }
-    // 087 — the chevron ROTATES (it snapped) — state by orientation and by the answer's presence.
+    // The chevron rotates (it snapped) — state by orientation and by the answer's presence.
     val rotation by animateFloatAsState(if (open) 180f else 0f, tween(effyDuration(EffyStorefrontMotion.StandardMillis)), label = "faqChevron")
     Column(
         modifier = Modifier
@@ -196,5 +182,5 @@ private fun FaqRow(faq: Faq) {
     }
 }
 
-/** The customer-facing Effy address — the only one a shopper may see (CLAUDE.md). */
+/** The customer-facing Effy address — the only one a shopper may see (claude.md). */
 internal const val SUPPORT_EMAIL = "hello@effyshopping.com"

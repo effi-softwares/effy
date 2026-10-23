@@ -18,7 +18,7 @@ import com.effyshopping.driver.mobile.core.presentation.DriverChoice
 import com.effyshopping.driver.mobile.core.presentation.DriverSheet
 import com.effyshopping.driver.mobile.core.presentation.DriverTextField
 
-/** 093 — one package not scanned, as the account sheet lists it. */
+/** One package not scanned, as the account sheet lists it. */
 data class Unscanned(val code: String, val title: String, val sub: String? = null)
 
 /** What the driver said about one unscanned package: it is here (ticked by hand), or it is missing. */
@@ -29,12 +29,9 @@ sealed interface Accounted {
 }
 
 /**
- * 093 — "Mark all loaded" / "Check in without scanning" no longer assume. Every package not scanned is
- * listed, and the driver says of each: it's here, or it's missing (and, where the step asks, why). The
- * confirm button waits until every one is answered — nothing is out for delivery, or at the hub, by
- * silence.
- *
- * [reasons] are (key, words) pairs; empty means "missing" needs no reason (check-in: it is not in the van).
+ * Accounting for every package not scanned: the driver says of each that it is here or missing (with a
+ * reason where the step asks), and the confirm waits until every one is answered; nothing moves by
+ * silence. [reasons] are (key, words) pairs; empty means "missing" needs no reason.
  */
 @Composable
 fun AccountSheet(

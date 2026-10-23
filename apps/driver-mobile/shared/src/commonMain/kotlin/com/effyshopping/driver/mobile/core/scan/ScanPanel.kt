@@ -138,13 +138,13 @@ internal sealed interface ScanBanner {
 }
 
 /**
- * 092 — the scanning screen every step shares (redesign `04 Scanning`): a camera box with corner
+ * The scanning screen every step shares (redesign `04 Scanning`): a camera box with corner
  * brackets, the count and the torch; a banner for the last read; the hub's instruction; the packages
  * (or their groups) with Type a code; the fallback at the bottom; and, once every package is in, a green
  * bar that counts three seconds with Undo, then completes.
  *
- * ⚠ ONE RULE: every read goes through [ScanSession] (090), offline. A package for another stop or drop is
- * a HARD STOP — a low tone, a long buzz, and it is not counted.
+ * One rule: every read goes through [ScanSession], offline. A package for another stop or drop is
+ * a hard stop — a low tone, a long buzz, and it is not counted.
  */
 @Composable
 fun ScanPanel(
@@ -175,7 +175,7 @@ fun ScanPanel(
     message: String? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     /**
-     * 093 — the fallback, told what has been scanned so far. Set where the step accounts for every
+     * The fallback, told what has been scanned so far. Set where the step accounts for every
      * package (loading, check-in): what was scanned stays scanned, and the rest are asked about.
      */
     onFallbackWith: ((List<HandedOver>) -> Unit)? = null,
@@ -197,7 +197,7 @@ fun ScanPanel(
 
     fun read(raw: String, method: HandMethod) {
         val o = session.judge(raw, typed = method == HandMethod.TYPED)
-        // 096 — every read is kept and sent with the step, refused ones included.
+        // Every read is kept and sent with the step, refused ones included.
         if (o != ScanOutcome.NotALabel || method == HandMethod.TYPED) ReadLog.record(raw, method == HandMethod.TYPED, o)
         when (o) {
             is ScanOutcome.Accepted -> {
@@ -352,11 +352,11 @@ fun ScanPanel(
     }
 }
 
-// ── the camera box ─────────────────────────────────────────────────────────────────────────────────
+// the camera box
 
 /**
- * ⚠ Always dark, whatever the appearance: it frames a live picture (as the photo camera). So its chrome
- * reads the DARK palette directly, and its result banners the LIGHT one — fixed, but still tokens.
+ * Always dark, whatever the appearance: it frames a live picture (as the photo camera). So its chrome
+ * reads the dark palette directly, and its result banners the light one — fixed, but still tokens.
  */
 private val CameraGround = EffyColor.Dark.muted
 private val CameraChip = EffyColor.Dark.background
@@ -498,9 +498,9 @@ internal data class BannerLook(
 )
 
 /**
- * ⚠ A PLAIN FUNCTION ON PURPOSE — NOT INLINE IN [CameraBanner]. Written as two `when`s inside the
+ * A plain function on purpose — not inline in [CameraBanner]. Written as two `when`s inside the
  * composable, Kotlin/Native (iOS) threw `NoWhenBranchMatchedException` on an exhaustive `when` the
- * moment a package counted, and the app aborted (SIGABRT) at the door — Android was fine. The same
+ * moment a package counted, and the app aborted (sigabrt) at the door — Android was fine. The same
  * `when` outside Compose is correct on iOS (`ScanBannerWhenIosTest`); `DoorScanTypedCodeIosTest` drives
  * the screen that crashed. Keep the decision here.
  */
@@ -513,7 +513,7 @@ internal fun bannerLook(b: ScanBanner?, idleSub: String?): BannerLook = when (b)
     null -> BannerLook(CameraChip, Bracket, Res.drawable.lucide_search, "Point at a package label", idleSub)
 }
 
-// ── below the camera ───────────────────────────────────────────────────────────────────────────────
+// below the camera
 
 /** The hub's instruction: "PUT IT IN / LOAD NOW / Effy · Today, 4 pm – 6 pm". */
 @Composable
@@ -675,7 +675,7 @@ private fun TypeCodeSheet(
     /** A paired scanner read a label into this box: it counts as a scan, at once. */
     onScanned: (String) -> Unit,
 ) {
-    // ⚠ The field holds what was TYPED, not the six boxes: a scanner types `EFY1:5MQKVF` here, and
+    // The field holds what was typed, not the six boxes: a scanner types `EFY1:5MQKVF` here, and
     // filtering each keystroke down to six letters and digits turned that into "EFY15M".
     var raw by remember { mutableStateOf("") }
     val code = typedCode(raw)

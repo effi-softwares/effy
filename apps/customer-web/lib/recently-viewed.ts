@@ -1,6 +1,6 @@
 /**
- * Device-local recently-viewed store (FR-004, FR-012). For a guest this lives ONLY on the device
- * (localStorage) — there is no server table (R12). Most-recent-first, capped.
+ * Device-local recently-viewed store. For a guest this lives only on the device
+ * (localStorage) — there is no server table. Most-recent-first, capped.
  *
  * The ordering logic is a pure function so it is unit-testable without a DOM; the localStorage wrapper
  * is a thin edge that guards `typeof window` for SSR.

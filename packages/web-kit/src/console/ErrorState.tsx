@@ -2,14 +2,9 @@ import { isDomainError, type DomainError } from "@effy/api-client";
 import { Button } from "@effy/design-system/ui";
 
 /**
- * The single client error-handling contract, rendered.
- *
- * Every backend failure reaches the operator through here. The raw `detail`, the status code, the
- * stack, and any credential material stay out of the DOM — a screen renders a human state keyed on
- * `DomainError.kind` and nothing else.
- *
- * `unavailable` is not a bug: the cost-optimized backend is allowed to be slow on first wake, so
- * "waking up" and "unreachable" share one recoverable state with a Retry.
+ * The client error contract, rendered: a human state keyed on `DomainError.kind` only, never the raw
+ * `detail`, status, stack or credentials. `unavailable` covers a slow first wake and an unreachable
+ * backend alike, with a Retry.
  */
 export interface ErrorStateProps {
   error: unknown;

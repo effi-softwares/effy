@@ -1,8 +1,4 @@
-// Back-office customers and their points (074). No HTTP, no SQL beyond the repository.
-//
-// ⚠ EVERY POINTS RULE IS @effy/edge-shared/points. This file decides only what is back-office's to
-// decide: who is asking (the CSA limit, from the staff RECORD — Principle IV), and when to meter and
-// announce (after the commit, never inside it).
+// Every points rule is @effy/edge-shared/points; this decides who is asking, and meters and announces after commit.
 import {
   emitMetric, formatCents, hasStaffRole, metricNamespace, OUTWARD_ACTION_ROLES, pooled, withTransaction,
   type Queryable, type Transactor,
@@ -18,7 +14,7 @@ import type {
 
 import * as repo from "./repository";
 
-/** Raised for a customer id that does not exist (or is not a uuid). */
+/** Also raised for a non-uuid id. */
 export class CustomerNotFoundError extends Error {}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,7 +22,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export interface CustomerServiceDeps {
   db?: Queryable;
   transact?: Transactor;
-  /** Admin or manager — the roles with no credit limit, and the only ones that may debit. */
+  /** No credit limit, and the only roles that may debit. */
   isWriter?: (sub: string) => Promise<boolean>;
   now?: () => Date;
 }
@@ -74,11 +70,7 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
       };
     },
 
-    /**
-     * Credit points. A customer-service agent may credit up to the business's per-credit limit; admins
-     * and managers have none (FR-007). The limit is read inside the same transaction as the credit, so
-     * a settings change cannot slip between the check and the write.
-     */
+    /** A csa may credit up to the per-credit limit, read inside the same transaction as the credit. */
     async credit(actorSub: string, customerId: string, req: PointsCreditRequest): Promise<PointsChangeResultDTO> {
       const c = await requireCustomer(customerId);
       const unlimited = await isWriter(actorSub);
@@ -98,7 +90,7 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
       return { entryId, usable: await usableNow(c.id) };
     },
 
-    /** Debit points (admin, manager — the handler's gate). Refused when more than is usable. */
+    /** Refused when more than is usable. */
     async debit(actorSub: string, customerId: string, req: PointsDebitRequest): Promise<PointsChangeResultDTO> {
       const c = await requireCustomer(customerId);
       const at = now();
@@ -128,5 +120,4 @@ export function createCustomerService(deps: CustomerServiceDeps = {}) {
 
 export type CustomerService = ReturnType<typeof createCustomerService>;
 
-/** Module-scope singleton (ARCHITECTURE.md): built once per container. */
 export const customerService = createCustomerService();

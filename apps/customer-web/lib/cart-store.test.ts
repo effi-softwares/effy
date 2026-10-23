@@ -101,7 +101,7 @@ describe("groupByPackage", () => {
   })
 })
 
-/* ── The mirror (027) ─────────────────────────────────────────────────────────────────────────── */
+/* The mirror */
 
 describe("the cart mirror — persistence and adoption", () => {
   const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
@@ -150,7 +150,7 @@ describe("the cart mirror — persistence and adoption", () => {
     expect(JSON.parse(raw!).cart.lines[0].quantity).toBe(2)
   })
 
-  // 098 — a mirror from before variants names products, which can no longer be bought as such.
+  // A mirror from before variants names products, which can no longer be bought as such.
   it("two sizes of one product are two lines; changing one leaves the other", () => {
     window.localStorage.clear()
     addToCart({ ...line("p", 1), variantId: "p-500g", variantLabel: "500 g" })

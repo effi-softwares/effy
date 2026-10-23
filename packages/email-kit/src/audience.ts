@@ -1,17 +1,7 @@
 /**
- * Audience → how a message addresses that person, and where a reply goes.
- *
- * Extends the profile `apis/edge-api/auth/src/lib/audience.ts` already keeps (which carries only a
- * product name and an `internal` flag) with what email needs.
- *
- * ⚠ THE REPLY ADDRESS IS DERIVED, NEVER PASSED IN. A send site cannot choose it, which is what makes
- * it structurally impossible to introduce a third address (constitution: Real-World Identifiers —
- * only `hello@` and `workspace-admin@` are approved, and the distinction is what the address
- * *communicates*, since both land in one inbox).
- *
- * ⚠ AND THE TWO ADDRESSES ARE NOT LITERALS HERE EITHER. They arrive from the SSM contract 037
- * established (`/effy/<env>/ses/*`), because the platform already had this exact value hardcoded in
- * three places in two different shapes, and they had already drifted. One writer, many readers.
+ * Audience → how a message addresses that person, and where a reply goes. The reply address is derived,
+ * never passed in, so no send site can introduce a third address; both addresses come from the SSM
+ * contract (`/effy/<env>/ses/*`).
  */
 
 export type Audience = "customer" | "driver" | "shop" | "back-office";
@@ -34,8 +24,7 @@ const PROFILES: Record<Audience, AudienceProfile> = {
 export function profileFor(audience: Audience): AudienceProfile {
   const p = PROFILES[audience];
   if (!p) {
-    // ⚠ Fail closed. Guessing a default would mean sending on behalf of an audience nobody
-    // reviewed — the same rule `audience.ts` already applies to an unknown pool id.
+    // Fail closed rather than send for an audience nobody reviewed.
     throw new Error(`email-kit: unknown audience '${String(audience)}'`);
   }
   return p;
@@ -48,19 +37,16 @@ export interface MailIdentity {
   readonly replyToPublic: string;
   /** Operational reply address — from `/effy/<env>/ses/reply_to_internal`. */
   readonly replyToInternal: string;
-  /** ⚠ Operator-supplied — from `/effy/<env>/mail/postal_address`. Never inferred. */
+  /** Operator-supplied, from `/effy/<env>/mail/postal_address`. Never inferred. */
   readonly postalAddress: string;
 }
 
-/** ⚠ Derived, never chosen: internal audiences reply to the operational mailbox. */
+/** Derived: internal audiences reply to the operational mailbox. */
 export function replyAddressFor(profile: AudienceProfile, identity: MailIdentity): string {
   return profile.internal ? identity.replyToInternal : identity.replyToPublic;
 }
 
-/**
- * The values every template's layout consumes. ⚠ Platform-injected: a call site supplies none of
- * these, which is why the footer is the same footer in every message.
- */
+/** The values every layout consumes, injected by the platform: a call site supplies none. */
 export function platformVars(
   profile: AudienceProfile,
   identity: MailIdentity,

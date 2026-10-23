@@ -26,7 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * ⚠ These exist because the capability this replaces had ZERO tests on ANY surface. SC-014 is the
+ * These exist because the capability this replaces had zero tests on any surface. SC-014 is the
  * requirement; this file is part of the evidence.
  */
 class SavedStoreTest {
@@ -35,7 +35,7 @@ class SavedStoreTest {
     private fun signedInToggle(repo: SavedRepository, store: SavedStore) =
         ToggleSaved(repo, store, isSignedIn = { true }, now = { FIXED_NOW })
 
-    /** A GUEST toggle — no platform call at all; the device is the record until sign-in. */
+    /** A guest toggle — no platform call at all; the device is the record until sign-in. */
     private fun guestToggle(repo: SavedRepository, store: SavedStore) =
         ToggleSaved(repo, store, isSignedIn = { false }, now = { FIXED_NOW })
 
@@ -59,7 +59,7 @@ class SavedStoreTest {
         var failWith: AppError? = null,
         var membership: Set<String> = emptySet(),
         var named: Set<String> = emptySet(),
-        /** 068: what the platform answers to the heart's un-save of a product in a named list. */
+        /** What the platform answers to the heart's un-save of a product in a named list. */
         var refuseRemove: ListRefusal? = null,
     ) : SavedRepository {
         val saved = mutableListOf<Pair<String, String?>>()
@@ -78,7 +78,7 @@ class SavedStoreTest {
         }
     }
 
-    // ── The mirror ──────────────────────────────────────────────────────────────────────────────
+    // The mirror
 
     @Test
     fun `adopt replaces the set wholesale`() {
@@ -86,7 +86,7 @@ class SavedStoreTest {
         store.adopt(SavedMembership(setOf("a", "b")))
         store.adopt(SavedMembership(setOf("b", "c")))
 
-        // ⚠ Replace, not merge. The platform is authoritative for membership, and merging would
+        // Replace, not merge. The platform is authoritative for membership, and merging would
         // resurrect items the shopper removed on another device.
         assertEquals(setOf("b", "c"), store.saved.value)
         assertFalse(store.isSaved("a"))
@@ -101,7 +101,7 @@ class SavedStoreTest {
         assertTrue(store.saved.value.isEmpty(), "an account's saved items must not stay readable (FR-031)")
     }
 
-    // ── Optimistic toggle ───────────────────────────────────────────────────────────────────────
+    // Optimistic toggle
 
     @Test
     fun `save applies to the mirror before the platform is told`() = runTest {
@@ -132,7 +132,7 @@ class SavedStoreTest {
 
         assertFailsWith<AppException> { signedInToggle(repo, store)("p1", saved = true) }
 
-        // ⚠ Reverting a whole-mirror snapshot would undo unrelated taps made while this was in flight.
+        // Reverting a whole-mirror snapshot would undo unrelated taps made while this was in flight.
         assertTrue(store.isSaved("other"))
         assertFalse(store.isSaved("p1"))
     }
@@ -149,7 +149,7 @@ class SavedStoreTest {
     }
 
     /**
-     * ⚠ FR-014: the end state must match the shopper's LAST INTENT, not whichever response arrived
+     * The end state must match the shopper's last intent, not whichever response arrived
      * last. This is why the use case takes an absolute desired state rather than flipping whatever
      * the mirror happens to hold when its coroutine runs.
      */
@@ -168,7 +168,7 @@ class SavedStoreTest {
         assertEquals(1, repo.removed.size)
     }
 
-    // ── 068: the heart never takes a product out of a named list (FR-019, FR-020, SC-008) ────────
+    // The heart never takes a product out of a named list
 
     @Test
     fun `loading membership seeds the named set too`() = runTest {
@@ -328,7 +328,7 @@ class SavedStoreTest {
         assertTrue(store.isSaved("p0"), "⚠ nothing already saved is EVER evicted to make room (FR-047)")
     }
 
-    // ── The join (FR-028/FR-029/FR-032) ─────────────────────────────────────────────────────────
+    // The join
 
     @Test
     fun `the join sends the device list and adopts the platform's answer`() = runTest {

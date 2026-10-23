@@ -22,7 +22,7 @@ class CartTotalsTest {
 
     @Test
     fun sumsLinesItemSubtotalOnly() {
-        // 021: the flat delivery fee is gone (FR-024) — the cart shows the item subtotal only.
+        // The flat delivery fee is gone — the cart shows the item subtotal only.
         val totals = computeTotals(listOf(line("5.00", 2), line("3.00", 1)))
         assertEquals("13.00", totals.itemSubtotal)
     }

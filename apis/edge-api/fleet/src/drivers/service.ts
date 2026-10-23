@@ -1,10 +1,6 @@
-// Back-office driver management use-cases (056).
-//
-// Provisioning is Cognito-first → the platform record (the 006/009 pattern), because the identity is
-// what produces the `sub` the record is keyed on. ⚠ It cannot be made atomic — two systems, no shared
-// transaction — so the failure mode is a Cognito account with no record. That is why `accountState`
-// exists on the profile and why `fleet.driver_provision_failed` is the service's one alarm: the
-// half-created driver is the single state an operator cannot fix from the console.
+// Provisioning is Cognito first, then the record (Cognito issues the `sub`). The two cannot be atomic,
+// so a Cognito account with no record is possible: `accountState` shows it and
+// `fleet.driver_provision_failed` alarms on it.
 import type {
   AdminDriverCreateRequest,
   AdminDriverListResponse,
@@ -36,17 +32,7 @@ const DATE_FIELDS = [
   "startedOn",
 ] as const;
 
-/**
- * Validate the shape of a create/update payload. Returns field errors, so a refusal can NAME what is
- * wrong (FR-011) — a generic "validation failed" tells the operator nothing to act on.
- *
- * ⚠ AT MOST ONE ERROR PER FIELD. The screen renders these against the input they belong to, so two
- * entries for `name` would print the same sentence twice under one box. An earlier draft checked the
- * name here AND again in `createDriver`, and a test caught the duplicate.
- *
- * `nameRequired` distinguishes create (the name must be present) from update (a name that is absent
- * simply is not being changed).
- */
+/** Field errors, at most one per field, so a refusal names what is wrong. `nameRequired` on create only. */
 function validateProfileFields(
   patch: Record<string, unknown>,
   nameRequired = false,
@@ -68,7 +54,7 @@ function validateProfileFields(
   return errors;
 }
 
-/** Trim strings; turn an empty string into null so "cleared in the UI" and "cleared" are one thing. */
+/** Trims, and an empty string becomes null. */
 function normalise(patch: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch)) {
@@ -82,20 +68,12 @@ function normalise(patch: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────────────────────────
-
 export async function listDrivers(params: repo.ListParams): Promise<AdminDriverListResponse> {
   const result = await repo.listDrivers(params);
   return { items: result.items, nextCursor: result.nextCursor };
 }
 
-/**
- * The profile, with `accountState` resolved against the identity provider.
- *
- * ⚠ The identity lookup is BEST-EFFORT. If Cognito is unreachable the profile still renders and
- * reports `ok` rather than failing the whole read — an operator who cannot open a driver at all is
- * worse off than one who cannot see whether the sign-in account exists. The failure is logged.
- */
+/** The identity lookup is best-effort: Cognito being down still renders the profile (logged). */
 export async function getDriver(id: string, scope?: RequestScope): Promise<AdminDriverProfile> {
   const row = await repo.getDriver(id);
   if (!row) throw notFound("driver not found");
@@ -113,19 +91,7 @@ export async function getDriver(id: string, scope?: RequestScope): Promise<Admin
   return { ...row, accountState };
 }
 
-// ── Writes ───────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Provision a driver: a record and a working sign-in, created together (FR-013).
- *
- * ⚠ A WORK EMAIL ALREADY IN USE IS REFUSED, AND THE REFUSAL NAMES THE EXISTING DRIVER (FR-014).
- * The predecessor did the opposite: `ensureDriverUser` swallowed the exists exception and RE-ENABLED
- * a disabled account, and the repository's `ON CONFLICT DO UPDATE` then overwrote that person's name,
- * zone and vehicle — reporting success. Creating a "new" driver with the email of someone who had
- * been deliberately stood down brought their sign-in back to life. Both halves are refused now, and
- * the refusal names them so the operator chooses consciously between a re-hire and a different
- * address.
- */
+/** A work email already in use is refused, naming the existing driver, so a re-hire is a conscious choice. */
 export async function createDriver(
   input: AdminDriverCreateRequest,
   actorSub: string,
@@ -141,8 +107,7 @@ export async function createDriver(
   }
   if (errors.length > 0) throw validationError("the driver could not be created", errors);
 
-  // The record check first: it is cheap, it is the one the citext UNIQUE index guarantees, and it
-  // gives the better refusal because it can name the driver.
+  // The record check first: cheap, guaranteed by the citext unique, and it can name the driver.
   const existing = await repo.findByWorkEmail(email);
   if (existing) {
     throw conflict(
@@ -156,8 +121,7 @@ export async function createDriver(
     sub = await createDriverUser(email, name);
   } catch (err) {
     if (err instanceof DriverUserExistsError) {
-      // A sign-in account with no record — the other half of a half-provisioned driver. Refuse, and
-      // say so precisely: reusing it would adopt an identity nobody in this console created.
+      // A sign-in account with no record: refused, never adopted.
       throw conflict(
         "a sign-in account already exists for this work email but no driver record does; " +
           "resolve the orphaned account before creating this driver",
@@ -176,8 +140,7 @@ export async function createDriver(
     delete patch.workEmail;
     id = await repo.insertDriver({ sub, name, workEmail: email, profile: patch });
   } catch (err) {
-    // ⚠ The identity now exists and the record does not. This is the one state an operator cannot
-    // repair from the console, so it is logged at the exact string the alarm's metric filter selects.
+    // Identity exists, record does not: logged at the exact string the alarm's metric filter selects.
     scope.log.error(
       { err: err instanceof Error ? err.message : String(err), stage: "record", sub },
       "fleet.driver_provision_failed",
@@ -194,7 +157,7 @@ export async function createDriver(
   return getDriver(id, scope);
 }
 
-/** Apply a profile patch under optimistic concurrency (FR-009, FR-010, FR-012). */
+/** Under optimistic concurrency. */
 export async function updateDriver(
   id: string,
   input: AdminDriverUpdateRequest,
@@ -211,8 +174,7 @@ export async function updateDriver(
 
   const patch = normalise(raw);
   delete patch.updatedAt;
-  // ⚠ Refused, not ignored. Silently dropping it would let an operator believe they had changed a
-  // driver's sign-in address (research R7).
+  // Refused, not ignored: the sign-in address cannot be changed here.
   if ("workEmail" in patch) {
     throw validationError("the driver could not be updated", [
       { field: "workEmail", message: "a work email cannot be changed; it is the sign-in identity" },
@@ -243,21 +205,6 @@ export interface StatusOutcome {
   profile: AdminDriverProfile;
 }
 
-/**
- * Move a driver between employment states (FR-015…FR-020).
- *
- * ⚠ FR-020'S HELD-WORK REFUSAL IS GONE, AND THE HAZARD IT GUARDED IS GONE WITH IT — FOR NOW.
- * Standing a driver down used to be refused until the operator acknowledged an itemised list of what
- * they were already carrying, because `releaseIneligibleWork` never yanked picked-up work and the
- * UNIQUE(shop_fulfillment_id) constraint then kept those packages claimed forever, with an order
- * attached to each. Nothing assigns work now, so nothing can be holding any, and a warning that can
- * never fire is a warning people learn to click through.
- *
- * ⚠ THE DISPATCH SLICE MUST REBUILD THIS, and it is not a nicety: it was 056's headline finding, it
- * was in no register because nobody knew, and it strands physical goods permanently and invisibly.
- * Releasing stranded work stays an explicit human action for the reason 056 gave — it asserts
- * something about the physical world that no query can know.
- */
 export async function setStatus(
   id: string,
   status: DriverEmploymentStatus,
@@ -276,18 +223,8 @@ export async function setStatus(
   if (!current) throw notFound("driver not found");
 
   /**
-   * ⚠⚠ STANDING A DRIVER DOWN WHILE THEY HOLD A VEHICLE IS REFUSED, AND THIS IS THE SLICE'S MOST
-   * IMPORTANT SAFETY BEHAVIOUR (FR-019).
-   *
-   * The van is in a carpark somewhere. Suspending or offboarding the driver does not make it appear
-   * at the hub — but it DOES remove them from every list an operator looks at, so the vehicle
-   * silently stops being anybody's problem while remaining physically absent. 056 found exactly this
-   * shape with collected packages and recorded that it strands goods "permanently and invisibly,
-   * and this was in no register because nobody knew".
-   *
-   * ⚠ The refusal NAMES the vehicle, because "record its return first" is only actionable if the
-   * operator knows which one. Recording a return is a statement about the physical world, which is
-   * why it stays an explicit human act rather than something this transition does on their behalf.
+   * Standing a driver down while they hold a vehicle is refused, naming the vehicle: otherwise it
+   * vanishes from every list while still out. Recording its return stays an explicit human act.
    */
   if (current.status === "active" && status !== "active") {
     const held = await heldByDriver(id);
@@ -311,8 +248,7 @@ export async function setStatus(
         actorSub,
         action: "driver.status_changed",
         driverId,
-        // ⚠ The reason is operator-authored prose about an employee. It is recorded — that is the
-        // point of FR-016 — but the field list stays free of the PII columns (FR-050).
+        // The reason is recorded; the field list stays free of the PII columns.
         detail: { changed: ["status"], values: { status, reason: trimmedReason } },
       },
       tx,
@@ -320,9 +256,7 @@ export async function setStatus(
   });
   if (!email) throw notFound("driver not found");
 
-  // Defence in depth. ⚠ Deliberately AFTER the record write: the record is authoritative, so if the
-  // identity call fails the driver is already refused by the gate, and we log rather than roll back a
-  // correct record change because an external service was unavailable.
+  // After the record write: the record is authoritative, so an identity failure is logged, not rolled back.
   try {
     if (status === "active") await enableDriverUser(email);
     else await disableDriverUser(email);

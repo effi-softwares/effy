@@ -19,13 +19,13 @@ export const metadata: Metadata = {
 type Search = Promise<Record<string, string | string[] | undefined>>
 
 /**
- * Search and the aisle pages (US4; PERF-09).
+ * Search and the aisle pages.
  *
- * The shell is static; inside the boundary the server reads the FIRST page and its filter counts for
+ * The shell is static; inside the boundary the server reads the first page and its filter counts for
  * the address it was asked for, so the page arrives with its products in it — an aisle is the main
  * listing a shopper lands on. From there the browser refines and pages by itself (`SearchExperience`).
  *
- * ⚠ Read live (`uncached`), like every listing (054 FR-015a). Facet params stay Disallowed in
+ * Read live (`uncached`), like every listing. Facet params stay Disallowed in
  * robots.ts.
  */
 export default function SearchPage({ searchParams }: { searchParams: Search }) {
@@ -50,7 +50,7 @@ async function NamedSearch({ searchParams }: { searchParams: Search }) {
 }
 
 /**
- * ⚠ A failed read is NOT an error here: the page renders without a first page and the browser asks
+ * A failed read is not an error here: the page renders without a first page and the browser asks
  * for it itself — which is where "we couldn't load results" and its Try again already live.
  */
 async function firstPage(search: Awaited<Search>): Promise<SearchInitial | null> {

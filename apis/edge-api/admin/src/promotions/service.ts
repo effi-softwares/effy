@@ -1,22 +1,14 @@
-// The order rules (027 FR-053). ⚠ Promotions themselves moved to `promotion-service.ts` (094).
+// The order rules.
 import * as repo from "./repository";
 import { type FieldIssue, type OrderPolicy, PromoError } from "./types";
 
-const MONEY_RE = /^\d+(\.\d{1,2})?$/; // non-negative, at most 2 decimals
-
-// ── Order rules ──────────────────────────────────────────────────────────────────────────────
+const MONEY_RE = /^\d+(\.\d{1,2})?$/;
 
 export async function readOrderPolicy(): Promise<OrderPolicy> {
   return repo.readOrderPolicy();
 }
 
-/**
- * Set the order rules.
- *
- * ⚠ The ceilings are bounded to what the SCHEMA allows: `max_line_quantity` must stay inside
- * `cart_item`'s own `CHECK (quantity <= 99)`, so an operator cannot configure a rule the table would
- * reject at the moment a shopper tried to use it.
- */
+/** `max_line_quantity` stays inside `cart_item`'s `CHECK (quantity <= 99)`. */
 export async function writeOrderPolicy(input: Record<string, unknown>, actorSub: string): Promise<OrderPolicy> {
   const fields: FieldIssue[] = [];
   const minimum = input.minimumSubtotalAmount;

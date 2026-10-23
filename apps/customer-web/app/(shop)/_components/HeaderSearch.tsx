@@ -18,7 +18,7 @@ const field =
 const submit =
   "inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
 
-/* ── Recent searches: this device's own, kept on this device ─────────────────────────────────── */
+/* Recent searches: this device's own, kept on this device */
 
 const RECENT_KEY = "effy:recent-searches"
 const RECENT_MAX = 5
@@ -41,7 +41,7 @@ function rememberSearch(q: string): void {
   }
 }
 
-/* ── What the list under the field offers ────────────────────────────────────────────────────── */
+/* What the list under the field offers */
 
 type Kind = "phrase" | "aisle" | "product" | "recent"
 interface Option {
@@ -59,7 +59,7 @@ const searchHref = (q: string, category?: string) => {
   return `/search?${p.toString()}`
 }
 
-/** The typed part in bold, the rest as offered — so the eye lands on what is NEW in each line. */
+/** The typed part in bold, the rest as offered — so the eye lands on what is new in each line. */
 function emphasised(text: string, typed: string): React.ReactNode {
   if (!typed || !text.toLowerCase().startsWith(typed.toLowerCase())) return text
   return (
@@ -106,23 +106,10 @@ const DEBOUNCE_MS = 200
 const MIN_CHARS = 2
 
 /**
- * The header search (reference: Shared components · Storefront header; Home · Search suggestions).
- *
- * Desktop: the field, an aisle chooser, and a Search button in one bordered control. Phone
- * (`size="lg"`): the field alone at 44 tall — the aisle is chosen from the listing's own filters.
- *
- * While the field has focus a list opens under it: the typed text completed from the catalogue, a
- * few products, and this device's recent searches. Arrow keys move through it, Enter follows the
- * chosen line, Escape closes it.
- *
- * ⚠ THE LIST IS AN ADDITION, NEVER A REQUIREMENT. If suggestions are slow, fail or are empty the
- * field is still a plain search box: typing and Enter always search.
- *
- * ⚠ The focus ring is on the SHELL (`focus-within`), not the input: the input has no border of its
- * own, so its default outline would draw a second box inside the first.
- *
- * ⚠ It stays a real `<form>`: Enter submits, and without JavaScript `HeaderSearchFallback` posts the
- * same `q` and `category` to `/search`.
+ * The header search. Desktop: field, aisle chooser and Search in one control; phone: the field alone.
+ * While focused, a list of completions, a few products and recent searches (arrows, Enter, Escape). The
+ * list is an addition: typing and Enter always search, and without JavaScript `HeaderSearchFallback`
+ * posts the same `q` and `category`. The focus ring is on the shell, since the input has no border.
  */
 export function HeaderSearch({
   className,
@@ -153,8 +140,7 @@ export function HeaderSearch({
 
   const typed = value.trim()
 
-  // ⚠ Debounced, and a stale answer is CANCELLED: a reply to "oa" must never land on top of the
-  // list for "oat milk".
+  // Debounced, and a stale answer is cancelled so "oa" never lands on top of "oat milk".
   useEffect(() => {
     if (!open || typed.length < MIN_CHARS) {
       setFound(null)
@@ -293,8 +279,7 @@ export function HeaderSearch({
                     id={`${listId}-${index}`}
                     role="option"
                     aria-selected={index === active}
-                    // ⚠ `mousedown`, prevented: a press must not blur the field (which closes this
-                    // list) before the click that follows can land on the line.
+                    // `mousedown`, prevented, so the field does not blur (closing the list) before the click lands.
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => go(option)}
                     onMouseMove={() => setActive(index)}

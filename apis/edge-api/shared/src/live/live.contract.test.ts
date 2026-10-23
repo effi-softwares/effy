@@ -10,11 +10,8 @@ import { listStacks } from "../lib/serverless-stacks.js";
 import { LIVE_NAMESPACES } from "./channel";
 
 /**
- * 071 — the live channel is held together by names written in three languages: the code that
- * publishes (TypeScript), the service configuration that permits it (YAML), and the infrastructure
- * that creates the channel and watches it (Terraform). A mismatch between any two fails silently:
- * a publish is refused and swallowed, a route answers "no channel", an alarm watches a series
- * nothing emits. This holds them to each other.
+ * The live channel's names are written in TypeScript (publish), YAML (permission) and Terraform
+ * (channel and alarms). A mismatch fails silently; this holds them to each other.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
@@ -30,13 +27,7 @@ function sources(dir: string): string[] {
   return out;
 }
 
-/**
- * Every deployed STACK, with its config and its service's source.
- *
- * ⚠ A stack, not a directory (075): `inventory` deploys twice from one `src/`, once per gateway,
- * and each stack is its own role and its own environment. A stack whose source announces must be
- * able to publish — both of them, not just the one in `serverless.yml`.
- */
+/** Every deployed stack (not directory: `inventory` deploys twice), with its config and source. */
 const services = listStacks().map((stack) => ({
   dir: stack.name,
   yml: stack.yml,
@@ -44,10 +35,8 @@ const services = listStacks().map((stack) => ({
 }));
 
 /**
- * A service announces if its own source calls one of the announcing functions, or builds the shared
- * refund service — whose refunds and cancellations announce from inside it, under the calling
- * service's role. Missing the second case is how a back-office refund would publish from a role
- * with no permission to: refused, swallowed, and every screen stale.
+ * A service announces if its source calls an announcing function or builds the shared refund service,
+ * which announces under the calling service's role.
  */
 const announces = (s: { src: string }) => /\bannounce\w*\(/.test(s.src) || /\bcreateRefundService\(/.test(s.src);
 const describes = (s: { src: string }) => /\bliveRoute\(/.test(s.src);
@@ -89,8 +78,7 @@ describe("071 — the channel's infrastructure", () => {
   });
 
   it("watches send failures for every kind the code can publish", () => {
-    // ⚠ 094's `promotions` is deliberately NOT watched: a CloudWatch alarm holds at most 10 metrics, and
-    // a missed promotions update only leaves a back-office screen stale until it is reloaded.
+    // `promotions` is not watched: an alarm holds at most 10 metrics, and a stale back-office screen is the only cost.
     expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => k !== "promotions"));
   });
 

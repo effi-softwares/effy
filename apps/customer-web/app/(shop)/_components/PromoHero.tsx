@@ -1,8 +1,6 @@
 import type { Banner } from "../promotion-groups"
 import Link from "next/link"
 
-
-
 import { ArrowRight } from "lucide-react"
 
 import { btnClass } from "@/components/storefront/actions"
@@ -18,20 +16,10 @@ import { PromoCarousel } from "./PromoCarousel"
 import { offerHref } from "./OffersPanels"
 
 /**
- * THE PROMOTIONS HERO — a carousel of every advertised promotion, with two promo cards beside it.
- *
- * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from the `home-hero` and `home-side` display groups,
- * kept for at most a minute (FR-015a's listing tier) — "this offer is still available" is a claim another
- * shopper can falsify (029), so it is never prerendered. The page's largest element arrives by stream.
- *
- * ⚠ THE WORDS SIT ON A DRAWN BANNER, NOT ON ARTWORK (2026-10-12). The band is a flat promo colour with
- * a white decoration and icon bubbles (`PromoBanner`), so white type reads at one known contrast
- * whatever a promotion uploads. A promotion's `imageUrl` is not drawn here.
- *
- * ⚠ IT IS A REAL CAROUSEL NOW (operator direction, 2026-10-12): previous / dots / pause / next, and
- * the move between slides animated with Motion. That replaced the CSS-only rotation and its generated
- * keyframes, which existed to keep script off this band. The behaviour is `PromoCarousel`, a client
- * island; the slides are still rendered here, on the server, and all of them are in the HTML.
+ * The promotions hero: a carousel of the `home-hero` group with up to two `home-side` cards. Not in the
+ * static shell (held a minute at most, since availability can change), so it streams. The words sit on
+ * a drawn promo-colour band (`PromoBanner`), never on uploaded artwork, so white type has one known
+ * contrast. The behaviour is the `PromoCarousel` island; every slide is rendered here.
  */
 
 /** The band's height, in one place — the skeleton below reserves exactly this. */
@@ -52,17 +40,17 @@ const eyebrow = "text-xs font-semibold uppercase opacity-85"
  * columns — the offer's words on the left, icon bubbles on the right from `md` — with up to two
  * full-colour cards stacked beside it.
  *
- * ⚠ SLIDES SHARE ONE GRID CELL rather than being pinned to the band, so the band is as tall as its
- * longest slide and a long title is never clipped. The decoration and the bubbles are drawn ONCE,
+ * Slides share one grid cell rather than being pinned to the band, so the band is as tall as its
+ * longest slide and a long title is never clipped. The decoration and the bubbles are drawn once,
  * behind every slide.
  *
- * ⚠ The side cards: one promotion WITHOUT a code (the whole card is its link) above promotions WITH
+ * The side cards: one promotion without a code (the whole card is its link) above promotions with
  * one (the code and a copy button), two at most. The first slide is not repeated beside itself.
  */
 export function PromoHero({ slides, side }: { slides: PlacedBanner[]; side: PlacedBanner[] }) {
   if (slides.length === 0) return null
 
-  // 094 — the cards beside the band are their own display group (`home-side`), two at most.
+  // The cards beside the band are their own display group (`home-side`), two at most.
   const tiles = side.filter((b) => b.key !== slides[0]?.key).slice(0, 2)
   const sideList =
     tiles.length > 0 ? (
@@ -80,7 +68,7 @@ export function PromoHero({ slides, side }: { slides: PlacedBanner[]; side: Plac
       </ul>
     ) : null
 
-  // 095 — when staff have put any hero promotion in a skin, every slide draws itself: a designed one in
+  // When staff have put any hero promotion in a skin, every slide draws itself: a designed one in
   // its skin, a Classic one on the band it always had. All Classic: the hero exactly as before.
   if (slides.some(isDesigned)) {
     return (

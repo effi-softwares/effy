@@ -15,8 +15,7 @@ describe("createConfig", () => {
     expect(config.require("VITE_API_BASE_URL")).toBe("https://api.test");
   });
 
-  // Fail loud, and name every missing key at once — a console that boots half-configured points at
-  // the wrong pool and then blames the backend (contracts/config.contract.md).
+  // Fail loud and name every missing key: a half-configured console points at the wrong pool.
   it("names every missing key in one throw", () => {
     const config = createConfig(REQUIRED, { VITE_COGNITO_CLIENT_ID: "client" });
     expect(() => config.assert()).toThrow(/VITE_COGNITO_USER_POOL_ID.*VITE_API_BASE_URL/s);

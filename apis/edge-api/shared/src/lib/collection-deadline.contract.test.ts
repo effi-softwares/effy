@@ -3,22 +3,12 @@ import { describe, expect, it } from "vitest";
 import { collectionDeadline, endOfLocalDay } from "./collection-deadline";
 
 /**
- * ⚠ THE DST FIXTURES. Two rules read one clock — when same-day ordering closes (checkout) and when
- * collection must be finished (the wave planner) — and both resolve a Melbourne wall-clock run time
- * to an instant through `collection-deadline.ts`.
- *
- * Until 070 the checkout half was written in a second language on a second backend, and this file
- * was one side of a hand-duplicated fixture set that kept the two honest. There is one
- * implementation now, so the fixtures pin IT — and, below, the real checkout function is called
- * and held to them, rather than a formula restated in the test.
- *
- * ⚠ THE DST ROWS ARE THE POINT. 058 found two real calendar bugs that only DST tests caught,
- * including one that silently skipped an entire trading hour. Melbourne 2026: DST ENDS Sun 5 April
- * (03:00 → 02:00, so 02:30 happens twice) and STARTS Sun 4 October (02:00 → 03:00, so 02:30 never
- * happens).
+ * DST fixtures for resolving a Melbourne run time to an instant (checkout's cutoff and the planner's
+ * deadline both use it). Melbourne 2026: DST ends Sun 5 April (02:30 happens twice) and starts
+ * Sun 4 October (02:30 never happens).
  */
 
-// ─── FIXTURES — unchanged since 063; do not "tidy" an expected instant ────────────────────────────
+// Fixtures: do not "tidy" an expected instant.
 const FIXTURES: ReadonlyArray<{
   name: string;
   onDate: string;
@@ -60,7 +50,7 @@ const FIXTURES: ReadonlyArray<{
     expect: "2026-10-04T02:00:00.000Z",
   },
   {
-    // ⚠ 02:30 occurs TWICE. The earlier instant wins — a deadline may be strict, never loose.
+    // 02:30 occurs twice: the earlier instant wins (a deadline may be strict, never loose).
     name: "AMBIGUOUS local time — 02:30 on the day DST ends",
     onDate: "2026-04-05T00:00:00Z",
     runHour: 2,
@@ -69,7 +59,7 @@ const FIXTURES: ReadonlyArray<{
     expect: "2026-04-04T15:30:00.000Z",
   },
   {
-    // ⚠ 02:30 NEVER HAPPENS. The instant just before the gap wins, by the same rule.
+    // 02:30 never happens: the instant just before the gap wins.
     name: "NON-EXISTENT local time — 02:30 on the day DST starts",
     onDate: "2026-10-04T00:00:00Z",
     runHour: 2,
@@ -94,20 +84,10 @@ const FIXTURES: ReadonlyArray<{
     expect: "2026-05-31T13:30:00.000Z",
   },
 ];
-// ─── END FIXTURES ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * ⚠ WHAT THIS PINS, AND WHAT IT ONCE WRONGLY PINNED. Before 2026-09-30 it asserted that collection
- * must finish at the very instant same-day ordering closes. That WAS the bug: it left a shop zero
- * time to pick and let a shopper buy "same-day" for a package that could only be collected
- * tomorrow. A test that pins a defect turns it into something a later reader is told not to touch.
- *
- * The relationship the two rules are supposed to have:
- *
- *     checkout's cutoff  ==  the planner's collection deadline  −  the prep buffer
- *
- * i.e. a shop always gets exactly the configured buffer between ordering closing and the driver
- * arriving.
+ * checkout's cutoff == the planner's collection deadline − the prep buffer: a shop always gets the
+ * configured buffer between ordering closing and the driver arriving.
  */
 describe("checkout cutoff == collection deadline − prep buffer", () => {
   it.each(FIXTURES)("$name", ({ onDate, runHour, runMinute, bufferMin, expect: want }) => {
@@ -127,14 +107,12 @@ describe("the collection deadline", () => {
   const run = { hour: 14, minute: 0 };
   const onDate = new Date("2026-07-15T00:00:00Z");
 
-  /** ⚠ THE CORRECTION ITSELF: the driver collects at the run time, not before it. */
+  /** The driver collects at the run time, not before it. */
   it("IS the run time", () => {
     expect(collectionDeadline(run, onDate).toISOString()).toBe("2026-07-15T04:00:00.000Z");
   });
 
-  // ⚠ 072 removed `wavePlanningTime` and `runsDueForPlanning` — there is no planning window any
-  // more. Which run a package belongs to is `nextRunInstant` (next-run-instant.test.ts); when its
-  // round opens is `public.round_opens_at`, in the database.
+  // Which run a package belongs to is `nextRunInstant`; when its round opens is `public.round_opens_at`.
 });
 
 describe("endOfLocalDay — DST-safe, because the first draft of it was not", () => {
@@ -142,14 +120,12 @@ describe("endOfLocalDay — DST-safe, because the first draft of it was not", ()
     expect(endOfLocalDay(new Date("2026-01-15T05:00:00Z")).toISOString()).toBe("2026-01-15T12:59:59.000Z");
   });
 
-  // ⚠ The planner's first draft hardcoded a −11h offset. This row is the one that caught it.
+  // A hardcoded −11h offset would fail this row.
   it("is 23:59:59 local in winter (AEST +10) — an hour different, and the hardcoded version was wrong here", () => {
     expect(endOfLocalDay(new Date("2026-07-15T05:00:00Z")).toISOString()).toBe("2026-07-15T13:59:59.000Z");
   });
 
-  // ⚠ The day BEGINS at +11 and ENDS at +10, so the last instant is an hour "later" in UTC than the
-  // summer case. My first expectation here said 12:59:59 — the test caught my arithmetic, not the
-  // code's, which is what a fixture covering a transition is for.
+  // The day begins at +11 and ends at +10, so its last instant is an hour later in UTC than in summer.
   it("is correct on the day DST ends, which is 25 hours long", () => {
     expect(endOfLocalDay(new Date("2026-04-05T05:00:00Z")).toISOString()).toBe("2026-04-05T13:59:59.000Z");
   });

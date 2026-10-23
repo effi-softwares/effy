@@ -1,7 +1,4 @@
-// Search suggestions (084): what the catalogue itself can offer for a few typed characters. SQL only.
-//
-// ⚠ EVERYTHING HERE COMES FROM THE CATALOGUE — product names, brands and aisles. Nothing is read
-// from, or written about, what any shopper searched for.
+// Everything comes from the catalogue; nothing is read or written about what shoppers searched.
 import { pooled, type Queryable } from "@effy/edge-shared";
 
 import { CARD_SELECT, type CardRow } from "../lib/cards";
@@ -16,26 +13,21 @@ export interface AisleRow {
 }
 
 export interface SuggestRepository {
-  /** Products whose name contains the text; a name that STARTS with it first. */
+  /** A name that starts with the text comes first. */
   products(q: string, limit: number): Promise<CardRow[]>;
-  /** The text completed from product names ("oat milk" → "oat milk barista") and brands. */
+  /** "oat milk" → "oat milk barista", from product names and brands. */
   completions(q: string, limit: number): Promise<PhraseRow[]>;
-  /** The top-level aisles the matching products sit in, the fullest first. */
+  /** The fullest first. */
   aislesHolding(q: string, limit: number): Promise<AisleRow[]>;
-  /** Aisles and categories whose own name starts with the text. */
   aislesNamed(q: string, limit: number): Promise<AisleRow[]>;
 }
 
-/** `q` as a LIKE operand: its own `%`, `_` and `\` matched literally. */
+/** `%`, `_` and `\` matched literally. */
 export function likeLiteral(q: string): string {
   return q.replace(/[\\%_]/g, "\\$&");
 }
 
-/**
- * The pattern that lifts a completion out of a product name: the typed text, the rest of the word
- * it ends in, and at most ONE more word — unless that word is a size ("1L", "500g"), which says
- * nothing about what to search for.
- */
+/** The typed text, the rest of its word, and at most one more word unless that is a size ("1L"). */
 export function completionPattern(q: string): string {
   const literal = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return `(?i)(${literal}\\S*(?:\\s+[^\\s\\d]\\S*)?)`;
@@ -50,7 +42,7 @@ export function createSuggestRepository(db: Queryable = pooled): SuggestReposito
       rows<CardRow>(
         `${CARD_SELECT}
 -- availability-exempt: public.product — a LISTING filter, the search's own. An out-of-stock product
--- stays findable; the projected available column marks it (054 FR-013).
+-- stays findable; the projected available column marks it.
 WHERE p.status = 'active'
   AND p.name ILIKE '%' || $1 || '%'
 ORDER BY (p.name ILIKE $1 || '%') DESC, p.name ASC, p.id ASC
@@ -65,13 +57,13 @@ SELECT phrase
 FROM (
     SELECT lower(substring(p.name FROM $2)) AS phrase, count(*) AS n
     FROM public.product p
-    -- availability-exempt: public.product — a LISTING filter, the search's own (054 FR-013).
+    -- availability-exempt: public.product — a LISTING filter, the search's own.
     WHERE p.status = 'active' AND p.name ILIKE '%' || $1 || '%'
     GROUP BY 1
   UNION ALL
     SELECT lower(p.brand) AS phrase, count(*) AS n
     FROM public.product p
-    -- availability-exempt: public.product — a LISTING filter, the search's own (054 FR-013).
+    -- availability-exempt: public.product — a LISTING filter, the search's own.
     WHERE p.status = 'active' AND p.brand ILIKE $1 || '%'
     GROUP BY 1
 ) found
@@ -88,7 +80,7 @@ LIMIT $4`,
 WITH RECURSIVE matched AS (
     SELECT p.primary_category_id AS id, count(*) AS n
     FROM public.product p
-    -- availability-exempt: public.product — a LISTING filter, the search's own (054 FR-013).
+    -- availability-exempt: public.product — a LISTING filter, the search's own.
     WHERE p.status = 'active' AND p.name ILIKE '%' || $1 || '%'
     GROUP BY 1
 ), up AS (

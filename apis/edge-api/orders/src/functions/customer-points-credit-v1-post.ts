@@ -8,12 +8,7 @@ import { intField, objectBody, pointsProblem, textField } from "../customers/res
 import { customerService } from "../customers/service";
 import { requireStaff } from "../lib/guard";
 
-/**
- * POST /orders/v1/customers/{customerId}/points/credit — staff credit points with a reason (074 US1).
- *
- * ⚠ GATE: any active staff — a customer-service agent's job includes making things right — but the
- * service holds a csa to the per-credit limit, decided from the staff RECORD (FR-007).
- */
+/** Any active staff; a csa is held to the per-credit limit. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const guard = await requireStaff(event, context);
   if (!guard.ok) return guard.response;

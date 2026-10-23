@@ -1,37 +1,23 @@
-// The Home rails. Wire rows only; composition is the service's job.
 import { pooled, productAvailableSql, type Queryable } from "@effy/edge-shared";
 
 import { CARD_SELECT, type CardRow } from "../lib/cards";
 import { categorySubtreeById } from "../lib/category-tree";
 
 /**
- * One product on one Home rail: the card, plus which rail it is on and where that rail sits.
- *
- * `rail` is `featured`, `on_sale` or `category:<key>`; `rail_title` is the category's name on a
- * category rail and NULL on the other two (their titles are the service's words). Rows arrive in
- * rail order, and newest first within a rail.
+ * `rail` is `featured`, `on_sale` or `category:<key>`; `rail_title` is set on category rails only.
+ * Rows arrive in rail order, newest first within a rail.
  */
 export interface RailRow extends CardRow {
   rail: string;
   rail_title: string | null;
 }
 
-// ⚠ 054: RAILS use the FULL rule, and that is not an inconsistency with the listing filters in
-// search. A rail is merchandising — "here are things to buy" — and 025 FR-023 requires that it
-// carry only available products. A SEARCH RESULT or a PRODUCT PAGE is somewhere a shopper navigated
-// to deliberately, or linked to, and there FR-013/A10 keep an out-of-stock product visible and
-// marked. Two different questions, two different filters, one shared rule underneath.
+// Rails use the full availability rule: merchandising offers only what can be bought. Search and
+// product pages keep out-of-stock products visible and marked.
 const RAIL_WHERE = `WHERE ${productAvailableSql("p")}`;
 
 export interface HomeRepository {
-  /**
-   * Every Home rail in ONE statement (PERF-11): Featured (newest), On sale, and up to `categoryMax`
-   * category rails, each at most `limit` products.
-   *
-   * ⚠ ONE STATEMENT BECAUSE THE POOL IS ONE CONNECTION (`max: 1`, shared/src/lib/db.ts). The
-   * `Promise.all` this replaced looked like two waves of parallel reads; on one connection it was
-   * seven queries in series, each a full round trip to the database.
-   */
+  /** Every rail in one statement, because the pool is one connection. */
   rails(limit: number, categoryMax: number): Promise<RailRow[]>;
 }
 

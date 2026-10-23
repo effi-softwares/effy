@@ -1,5 +1,4 @@
-// GET /commerce/v1/cart/policy — PUBLIC. The minimum spend and the two ceilings, so a guest cart can
-// gate and explain honestly without a server cart to read them from.
+// Public: a guest cart needs the minimum spend and the ceilings without a server cart.
 import { ConnectionLimitError, formatCents, internal, json } from "@effy/edge-shared";
 
 import { publicRoute } from "../lib/route";

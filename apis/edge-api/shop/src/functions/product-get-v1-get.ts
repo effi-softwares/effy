@@ -1,4 +1,3 @@
-// GET /shop/v1/products/{id} — full detail, shop-scoped (404 if not this shop's).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

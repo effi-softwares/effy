@@ -3,23 +3,10 @@ import type { InsightsBucketDTO, InsightsFigureDTO, ComparisonBasis } from "@eff
 import { barHeights, deltaText, deltaToneClass } from "./model"
 
 /**
- * One of the twin bar charts (058, US3).
- *
- * ⚠ PLAIN DIVS, NO CHART LIBRARY. The design draws flat bars with mono axis labels; recharts would
- * add ~400 KB to a login-gated console (041 recorded that cost) to render rectangles.
- *
- * ⚠ TWO SERIES, AND WHICH CHART GETS WHICH IS FIXED. The adopted design pairs these charts with
- * `--brand` for the first (revenue) and `--violet` for the second (volume) — the same two hues, in
- * the same order, every time. That consistency is the whole point: an operator who glances at a
- * cobalt bar knows it is money without reading the header. Swapping them per screen would make the
- * colour meaningless.
- *
- * ⚠ THE LATEST BUCKET IS AT FULL SATURATION, THE REST AT `-mid`. It marks "now" — the bucket still
- * filling up — rather than "best". A uniform chart makes the reader compare a partial bar against
- * complete ones without knowing it.
- *
- * ⚠ EVERY BUCKET IS DRAWN, INCLUDING THE EMPTY ONES. A missing bar and a zero bar say different
- * things: a chart that silently omits quiet hours misreports the shape of a trading day.
+ * One of the twin bar charts, in plain divs (a chart library would add ~400 KB to draw rectangles). The
+ * first chart (revenue) is always `--brand`, the second (volume) `--violet`. The latest bucket, still
+ * filling, is full strength, the rest `-mid`. Every bucket is drawn, empty ones included: a missing bar
+ * and a zero bar say different things.
  */
 export function BarChart({
   title,

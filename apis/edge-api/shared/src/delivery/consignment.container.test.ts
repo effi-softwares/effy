@@ -2,18 +2,13 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { packageStatuses } from "../status";
 import {
   bookConsignment, changeCourierCollection, ConsignmentRefusal, consignmentsFor, handOver, recordConsignmentStep,
 } from "./consignment";
 
-/**
- * 080 — the consignment writer against the REAL schema: a courier parcel's journey, the facts 053
- * records beside it, what the customer is told, and the collection mode's rules.
- *
- * ⚠ The courier service here is obviously fictional. A real courier's name is the operator's to enter.
- */
+/** The consignment writer against the real schema. The courier service is fictional. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 const STAFF = { kind: "staff" as const, sub: "sub-staff" };
@@ -104,13 +99,12 @@ d("080 — courier consignments", () => {
     const first = await tx((c) => handOver(c, { packageId: pkg, actor: STAFF, reference: "ABC123" }));
     expect(first).toMatchObject({ created: true, reference: "ABC123", carrierName: "Test Courier", orderId: order });
     expect(first.consignmentId).not.toBeNull();
-    // ⚠ 053's record of the handover is written WITH it — status, arrival guard and completion read it.
+    // The handover record is written with it.
     expect((await pool.query(`SELECT reference FROM public.carrier_handoff WHERE shop_fulfillment_id = $1`, [pkg])).rows).toEqual([{ reference: "ABC123" }]);
     expect((await packageStatuses(pool, [pkg])).get(pkg)?.status).toBe("with_carrier");
-    // Repeating it is a replay, not a second handover.
+    // Repeating it is a replay.
     expect((await tx((c) => handOver(c, { packageId: pkg, actor: STAFF }))).created).toBe(false);
-    // The customer is told once.
-    // ⚠ Push AND email, once each per consignment — the email is the per-parcel tracking (Q8).
+    // The customer is told once: push and email, once each per consignment.
     expect((await pool.query(`SELECT channel, payload->>'entityId' AS entity, recipient_email IS NOT NULL AS has_email
                                 FROM public.notification_request WHERE type = 'order_with_courier' ORDER BY channel`)).rows)
       .toEqual([

@@ -6,7 +6,7 @@ import { declineRefundRequest, dismissProposal, issueRefund } from "./refundRepo
 import { orderDetailQuery } from "./queries";
 
 /**
- * ⚠ NO OPTIMISTIC UPDATE, DELIBERATELY.
+ * No optimistic UPDATE, deliberately.
  *
  * Optimism is right when the worst case is a flicker. Here the worst case is telling a staff member a
  * refund happened when the provider refused it — and they would move on. The screen waits for the
@@ -26,7 +26,7 @@ export function useIssueRefund(orderId: string) {
 /**
  * Dismissing a proposal.
  *
- * ⚠ Also no optimistic update, for the same reason as issuing — and one more: a dismissal that
+ * Also no optimistic update, for the same reason as issuing — and one more: a dismissal that
  * appears to have worked and did not leaves a refund the platform believes is owed, invisible, with
  * nobody looking for it.
  */
@@ -43,7 +43,7 @@ export function useDismissProposal(orderId: string) {
 /**
  * Declining a request.
  *
- * ⚠ No optimistic update, for the same reason as the other two: a decline that appears to have worked
+ * No optimistic update, for the same reason as the other two: a decline that appears to have worked
  * and did not leaves a customer waiting for an answer nobody will give again.
  */
 export function useDeclineRefundRequest(orderId: string) {

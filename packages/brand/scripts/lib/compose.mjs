@@ -1,17 +1,9 @@
-// COMPOSE — build a wrapper SVG from (mark × colourway × composition).
-//
-// Composition happens in VECTOR space, before rasterisation (rule P4). No raster padding, cropping
-// or compositing: each of those is an extra resample and a source of non-determinism, and it puts
-// geometry decisions in the wrong domain.
+// Builds a wrapper SVG from mark × colourway × composition, in vector space before rasterising (no raster padding or cropping).
 
 import { applyColourway } from "../../src/colourways.mjs"
 import { paddingFor } from "../../src/compositions.mjs"
 
-/**
- * ⚠ RULE V1 — the authored master carries `width="100%" height="100%"`. Some rasterisers resolve a
- * percentage root size against a zero-size viewport and silently produce an empty surface. Explicit
- * dimensions are substituted before anything else touches the markup.
- */
+/** The master carries `width="100%" height="100%"`, which some rasterisers render empty; explicit dimensions go in first. */
 export function withExplicitSize(svg, w, h) {
   if (!/width="100%"\s+height="100%"/.test(svg)) {
     throw new Error(
@@ -31,15 +23,13 @@ function innerMarkup(svg) {
 }
 
 /**
- * Build the composed wrapper SVG.
+ * The composed wrapper SVG. The authored viewBox (0 0 500 500) is not the content bounds, so the viewBox
+ * is recomputed around the measured bbox.
  *
- * The authored viewBox (0 0 500 500) is NOT the content bounds. Recomputing the viewBox around
- * the measured bbox fixes centring, padding and background in one exact step.
- *
- * @param {string}  markSvg  the authored master
- * @param {object}  bbox     {x, y, w, h} in viewBox units, MEASURED (rule V2), never hand-counted
- * @param {object}  cw       colourway
- * @param {object}  comp     composition
+ * @param {string} markSvg the authored master
+ * @param {object} bbox {x, y, w, h} in viewBox units, measured
+ * @param {object} cw colourway
+ * @param {object} comp composition
  */
 export function composeSvg(markSvg, bbox, cw, comp) {
   const pad = paddingFor(comp.occupancy)
@@ -53,9 +43,7 @@ export function composeSvg(markSvg, bbox, cw, comp) {
   const coloured = applyColourway(markSvg, cw)
   const body = innerMarkup(coloured)
 
-  // The composition decides WHETHER there is a ground; when it opts in via `groundFromColourway`,
-  // the colourway decides WHICH. `mono()` carries no ground, so mono targets fall back to the
-  // composition's own value — which is what `ios-tinted`'s black relies on.
+  // The composition decides whether there is a ground, the colourway which one. Mono has none, so the composition's own value applies (`ios-tinted`'s black).
   const ground = comp.groundFromColourway && cw.ground ? cw.ground : comp.background
   const rx = comp.radius ? ` rx="${r(side * comp.radius)}"` : ""
   const bg = ground
@@ -68,15 +56,12 @@ export function composeSvg(markSvg, bbox, cw, comp) {
   )
 }
 
-/**
- * Fixed 4-decimal rounding. Float formatting differences across platforms are a determinism hazard
- * (SC-009) — pinning the precision removes a whole class of "identical but different" output.
- */
+/** Fixed 4-decimal rounding, so float formatting cannot vary across platforms. */
 function r(n) {
   return Number(n.toFixed(4))
 }
 
-/** Occupancy actually achieved — used by the tests to assert rule P1 rather than trusting the input. */
+/** Occupancy actually achieved, for the tests. */
 export function actualOccupancy(bbox, comp) {
   const pad = paddingFor(comp.occupancy)
   const maxDim = Math.max(bbox.w, bbox.h)

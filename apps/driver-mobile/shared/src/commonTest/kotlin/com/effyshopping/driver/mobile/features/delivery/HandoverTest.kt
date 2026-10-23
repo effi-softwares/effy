@@ -9,12 +9,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 066 — what a driver is shown of what the customer said. */
+/** What a driver is shown of what the customer said. */
 class HandoverTest {
     private fun drop(instructions: String? = null, handover: Handover? = null) =
         Drop("d1", "EFY-1", "Pat", "1 Test St, Carlton", instructions, emptyList(), DropStatus.ARRIVED, handover = handover)
 
-    /** FR-021 — nothing said means NO instruction area, on every screen. */
+    /** Nothing said means NO instruction area, on every screen. */
     @Test
     fun `nothing said is null - so no instruction area is drawn`() {
         assertNull(drop().driverInstructions)
@@ -27,7 +27,7 @@ class HandoverTest {
         assertEquals(note, drop(instructions = note).driverInstructions)
     }
 
-    /** FR-018 — the preference is said in words. */
+    /** The preference is said in words. */
     @Test
     fun `a preference alone is said in words`() {
         assertEquals(

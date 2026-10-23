@@ -4,10 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { inflateSync } from "node:zlib";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { buildDeliveryNote, NotDelivered, renderDeliveryNotePdf } from "./delivery-note";
 
-/** Every stream of a PDF, inflated where it is compressed, as one latin1 string. */
+/** Every PDF stream, inflated where compressed, as one latin1 string. */
 function pdfText(pdf: Uint8Array): string {
   const buf = Buffer.from(pdf);
   const out: string[] = [buf.toString("latin1")];
@@ -66,11 +66,11 @@ d("096 US7 — the delivery note", () => {
     const eggs = await product(c, "Free-range eggs 12 pack");
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('c1', 'c1@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at)
-       VALUES ($1, 'EFY-DN0001', 30, 32, '{}'::jsonb, 'paid', now() - interval '1 day') RETURNING id`, [cust.id]);
+      `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at, delivery_type, delivery_type_reason)
+       VALUES ($1, 'EFY-DN0001', 30, 32, '{}'::jsonb, 'paid', now() - interval '1 day', 'effy', 'in_coverage') RETURNING id`, [cust.id]);
     const line = async (productId: string, shopId: string, name: string, qty: number) => (await one<{ id: string }>(
-      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, 4.50, $5::int, 4.50 * $6::numeric) RETURNING id`, [order.id, productId, shopId, name, qty, qty])).id;
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, 4.50, $5::int, 4.50 * $6::numeric, 4.50, 4.50 * $6::numeric) RETURNING id`, [order.id, productId, shopId, name, qty, qty])).id;
     const pkg = async (shopId: string, status: string) => (await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, unfulfillable_reason)
        VALUES ($1, $2, 1, 10, $3, CASE WHEN $3 = 'unfulfillable' THEN 'Out of stock' END) RETURNING id`,
@@ -104,7 +104,7 @@ d("096 US7 — the delivery note", () => {
 
     const pdf = await renderDeliveryNotePdf(note);
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
-    // pdf-lib compresses page content and writes text as hex strings: inflate, then look in both forms.
+    // pdf-lib compresses content and writes text as hex: inflate, then search both forms.
     const raw = pdfText(pdf);
     const hex = (t: string) => Buffer.from(t, "latin1").toString("hex").toUpperCase();
     expect(raw).toContain(hex("Sourdough loaf"));

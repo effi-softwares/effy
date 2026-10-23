@@ -7,14 +7,14 @@ import com.effyshopping.customer.mobile.features.checkout.domain.EffyDayClosed
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
 
 /**
- * The delivery-window picker, as words (078).
+ * The delivery-window picker, as words.
  *
- * ⚠ THE KOTLIN TWIN OF `effyWindowsView` IN `packages/shared-types/src/effy-windows.ts`. The website
+ * The kotlin twin of `effyWindowsView` IN `packages/shared-types/src/effy-windows.ts`. The website
  * renders that function's output; this app renders this one's, and `EffyWindowsViewTest` runs it
- * against the SAME fixture the TypeScript is tested with. A shopper offered "Fri 9 Oct · 4 pm – 6 pm"
+ * against the same fixture the TypeScript is tested with. A shopper offered "Fri 9 Oct · 4 pm – 6 pm"
  * on the web and something else in the app has been offered two things.
  *
- * ⚠ NOTHING HERE FORMATS MONEY. A surcharge leaves as the amount it arrived as.
+ * Nothing here formats money. A surcharge leaves as the amount it arrived as.
  */
 data class EffyWindowLine(
     val slotId: String,
@@ -37,16 +37,16 @@ data class EffyDayView(
     val sentence: String?,
     val windows: List<EffyWindowLine>,
     /**
-     * 085 — the day can be chosen with NO TIME: what to choose for that. Null when it cannot (today,
+     * The day can be chosen with no time: what to choose for that. Null when it cannot (today,
      * always; a day with no untimed room left).
      */
     val anyTime: AnyTimeChoice? = null,
 )
 
-/** 085 — what is sent for a day with no time: that day's Any time window. */
+/** What is sent for a day with no time: that day's Any time window. */
 data class AnyTimeChoice(val slotId: String, val date: String)
 
-/** 085 — "as soon as possible", when it is offered: its two lines and the business's estimate. */
+/** "as soon as possible", when it is offered: its two lines and the business's estimate. */
 data class AsapView(val title: String, val hint: String, val estimate: String)
 
 data class EffyWindowsView(

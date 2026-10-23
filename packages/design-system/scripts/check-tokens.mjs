@@ -1,12 +1,7 @@
-// TOKEN GUARD — zero-dependency, runs in CI as `tokens:test` (017 SC-003 / research R8).
-//
-// This package intentionally has NO test framework (its generator is proudly zero-dep); this guard
-// follows the same philosophy — Node stdlib only — so "is the brand legible?" is a build failure, not a
-// Lighthouse score three months later. It asserts, against src/tokens.css:
-//   1. every color var exists in BOTH :root (light) and .dark,
-//   2. --radius-sm = 0.375rem (6px) and --radius-md = 0.5rem (8px) — web == mobile EffyRadius (SC-004),
-//   3. every foreground/surface text pair meets WCAG 2.1 AA (>= 4.5:1) in both appearances, and the
-//      accent/destructive fills + the focus ring clear their thresholds.
+// Token guard for src/tokens.css (Node stdlib only), run as `tokens:test`. It asserts:
+//  1. every colour var exists in both:root (light) and.dark;
+//  2. the radius scale, which web and mobile EffyRadius share;
+//  3. WCAG 2.1 AA on every text pair in both appearances, and the UI thresholds for fills and the ring.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -14,11 +9,7 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// ⚠ THIS GUARD CHECKS ONE FILE AGAIN. 057 split the palette across `tokens.css` and a shop-scoped
-// `tokens/shop.css`; the platform-wide theme adoption collapsed that back to a single SSOT, and the
-// second file is deleted rather than left restating the same values. A guard that iterates a list of
-// one is kept as a list on purpose — the next per-surface value layer adds an entry here and inherits
-// every rule below, which is the property that made the shop layer safe in the first place.
+// A list of one on purpose: a future per-surface token layer adds an entry and inherits every rule.
 const TARGETS = [{ label: "tokens.css", path: "../src/tokens.css" }];
 
 const errors = [];
@@ -33,11 +24,7 @@ console.log(
 );
 
 function checkFile({ label, path }) {
-// ⚠ COMMENTS ARE STRIPPED BEFORE PARSING, and that is not tidiness. This file's own prose
-// legitimately discusses the selectors it declares; without this, a sentence mentioning the dark
-// block is matched as the block, `[^}]*` captures the rest of the comment, and every token is
-// reported missing from dark — which is exactly how this guard failed once. Worse, the generator
-// hits the same trap silently and emits a light-only theme.
+// Comments are stripped before parsing: prose naming a selector would otherwise be matched as the block.
 const css = readFileSync(resolve(here, path), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const err = (m) => errors.push(`[${label}] ${m}`);
 
@@ -54,20 +41,10 @@ function parseBlock(selector) {
   return out;
 }
 
-// 0) ⚠ THE RESIDUE AFTER COMMENT-STRIPPING MUST STILL BE CSS — and this guard exists because
-// every other check in this file was blind to the failure that added it.
-//
-// A comment ends at the FIRST `*/`, so writing a glob like `--chart-*/` inside one closes it
-// mid-sentence and turns the remaining prose into stylesheet source. Nothing here noticed: this
-// guard, gen-compose-theme and check-compose-theme all strip comments before parsing, so to all
-// three the file looked perfect and both appearances parsed cleanly. The only thing that failed was
-// the customer-web production build, with a PostCSS error quoting a phrase several lines past the
-// real fault. A token file that passes every token check and cannot be compiled is the worst shape
-// of this bug, because the signal arrives nowhere near the cause.
-//
-// The rule below is deliberately coarse: outside comments this file is only ever at-rules,
-// selectors, braces and `name: value;` declarations. Anything else is prose that escaped. It scans
-// STATEMENTS, not lines, because a declaration may legitimately wrap (--font-sans does).
+// 0) The residue after stripping comments must still be CSS. A `*/` inside a comment (e.g. a glob like
+// `--chart-` + `*/`) closes it early and turns the rest into stylesheet source, which every parser here
+// would miss and only a production build would catch. Outside comments the file is only at-rules,
+// selectors, braces and declarations; statements are scanned, since a declaration may wrap.
 {
   let buf = "";
   let depth = 0;
@@ -111,27 +88,23 @@ function parseBlock(selector) {
 const light = parseBlock(":root");
 const dark = parseBlock(".dark");
 
-// 1) same key set in both appearances
+// 1) The same key set in both appearances.
 for (const k of Object.keys(light)) if (!(k in dark)) err(`--${k} missing from .dark`);
 for (const k of Object.keys(dark)) if (!(k in light)) err(`--${k} missing from :root`);
 
-// 2) radius parity with mobile EffyRadius (px at 16px root)
+// 2) Radius parity with mobile EffyRadius (px at a 16px root).
 const remPx = (name) => {
   const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
   return m ? Math.round(parseFloat(m[1]) * 16) : null;
 };
-// ⚠ THE FOUR-STEP SCALE, read off the adopted design's own declarations rather than its `--radius`
-// literal: 4px checkboxes, 6px controls, 8px buttons/icon chips, 10px containers. Pinned because an
-// earlier pass collapsed it to a single value and the console looked wrong in a way no colour check
-// could see — an 8px button on an 8px card has no hierarchy. The invariant is also web==mobile
-// PARITY (SC-004): both sides derive from these numbers, and gen-compose-theme.mjs emits the same dp.
+// The four-step scale: 4px checkboxes, 6px controls, 8px buttons and icon chips, 10px containers.
 const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 10 };
 for (const [step, px] of Object.entries(RADII)) {
   if (remPx(step) !== px) err(`${step} must be ${px}px, got ${remPx(step)}px`);
 }
 if (remPx("--radius") !== 10) err(`--radius must be 0.625rem (10px, the container step), got ${remPx("--radius")}px`);
 
-// 3) WCAG 2.1 contrast
+// 3) WCAG 2.1 contrast.
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const luminance = (hex) => {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -144,23 +117,9 @@ const ratio = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-// [foreground var, background var, minRatio]. All text pairs (incl. button/badge/nav LABELS on a
-// fill) hold to WCAG AA normal-text 4.5:1 — the near-black accent clears it easily, so no lenient
-// exception is needed. The focus ring is a non-text UI indicator (WCAG 1.4.11 → 3:1); it also
-// clears 4.5 here, so we hold it to the same bar for simplicity.
-//
-// UI (3:1) is WCAG 1.4.11 for non-text UI components. Three pairs sit here deliberately (026 C3):
-//   - disabled-foreground/disabled — WCAG EXEMPTS disabled controls entirely. We hold 3:1 anyway,
-//     because the source design's own disabled style (white on #CCCCCC) measures 1.61:1 and is
-//     unreadable in sunlight. Exceeding the standard is a choice, recorded so nobody "restores
-//     fidelity" and silently reintroduces it.
-//   - placeholder/background — the source's #999999 measures 2.85:1 on white and FAILS; #808080 is
-//     the adopted value at 3.95:1.
-//   - success/background — #0C9409 measures 4.00:1: above the 3:1 UI bar, BELOW the 4.5:1 text bar.
-//     That is exactly why success is a NON-TEXT indicator only (constitution v1.11.0, Principle V).
-//
-// Borders are deliberately NOT tested. A divider is decorative, exempt under 1.4.11, and a 3:1
-// border would be a heavy slab on every surface.
+// [foreground, background, minimum]. Text pairs (including labels on fills) hold 4.5:1. UI pairs hold
+// 3:1 (WCAG 1.4.11): disabled controls (exempt in WCAG, held anyway), placeholders. Borders are not
+// tested: a 3:1 border would be a slab on every surface.
 const TEXT = 4.5;
 const UI = 3;
 const PAIRS = [
@@ -175,16 +134,13 @@ const PAIRS = [
   ["sidebar-foreground", "sidebar", TEXT],
   ["sidebar-primary-foreground", "sidebar-primary", TEXT],
   ["sidebar-accent-foreground", "sidebar-accent", TEXT],
-  // A focus ring is a non-text UI component (WCAG 1.4.11 → 3:1), not text. 041 tuned the adopted
-  // grey ring to clear this bar in both appearances.
+  // The focus ring is a non-text UI component: 3:1.
   ["ring", "background", UI],
   ["disabled-foreground", "disabled", UI],
   ["placeholder", "background", UI],
 
-  // ── THE ADOPTED PALETTE (platform-wide theme adoption) ────────────────────────────────────────
-  // Every tinted surface is tested against the solid that is written ON it, because a `-soft`
-  // background is exactly where a palette quietly fails: the pair looks harmonious and measures 3.4.
-  // Three source values were tuned to clear these rows — see the header of src/tokens.css.
+  // Every tinted surface against the solid written on it: a `-soft` ground is where a palette fails
+  // while looking harmonious.
   ["brand", "background", TEXT], // link, eyebrow label, "label →" ghost link
   ["brand-ink", "brand-soft", TEXT], // active nav item, in-progress status pill
   ["primary-foreground", "brand", TEXT], // the label on a primary button
@@ -195,23 +151,17 @@ const PAIRS = [
   ["destructive", "destructive-soft", TEXT], // failed / refunded pill
   ["warning", "warning-soft", TEXT], // awaiting / at-risk pill
   ["warning", "background", TEXT],
-  // ⚠ success IS tested as text here, which it never used to be. The retired #0c9409 measured 4.00:1
-  // and could only ever be a border or a ✓; the adopted #0d8043 clears 4.5:1 on white and on its own
-  // tint, so a paid/shipped pill may carry the word. It still gets no -foreground pair — see below.
+  // Success clears 4.5:1 as text on white and on its tint, but still gets no -foreground pair (below).
   ["success", "success-soft", TEXT],
   ["success", "background", TEXT],
 ];
 
-// 026 FR-009a / constitution v1.11.0: success is a NON-TEXT indicator — a field border and a ✓ glyph,
-// never a fill with a label on it. The structural guarantee is that it has NO paired foreground
-// token: without `--success-foreground` there is nothing to put text on it with. Adding one is the
-// exact regression this forbids, and it would need its own 4.5:1 pair (which #0C9409 fails at 4.00:1).
+// Success is never a fill with a label on it: it has no `--success-foreground`, so there is nothing to put
+// text on it with.
 const SEMANTIC_NON_TEXT = ["success", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
 
-// The bounded data-visualisation palette (constitution v1.13.0): CHARTS ONLY. Each must exist in
-// both appearances (the key-set check above enforces parity; this asserts presence at all) and — via
-// SEMANTIC_NON_TEXT below — none may acquire a -foreground pair, so a chart hue can never become
-// text-on-fill or a labelled UI accent.
+// The data-visualisation palette is for charts only: present in both appearances, and never given a
+// -foreground pair (SEMANTIC_NON_TEXT), so it cannot become a UI accent.
 const CHART_TOKENS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
 for (const name of CHART_TOKENS) {
   if (!(name in light)) err(`--${name} missing from :root (chart palette must exist in both appearances)`);
@@ -234,19 +184,9 @@ for (const [appName, set] of [
   }
 }
 
-// 3b) ⚠ EVERY RATIO WRITTEN IN A COMMENT MUST MATCH THE RECOMPUTED ONE.
-//
-// The annotations beside each token ("7.23:1 on --muted") are provenance, and provenance that is
-// maintained by hand rots the moment a value moves. This was not hypothetical: the dark block was
-// re-derived three times in one sitting, and on the last pass THIRTEEN of its annotations were
-// wrong — each one a plausible-looking number that no longer described the pair it named. A stale
-// figure is worse than none, because the next person trusts it instead of measuring. 058 recorded
-// the same shape ("a count in a comment is true only while someone maintains it") about a comment
-// claiming how many routes a service had.
-//
-// So the comments are now checked like code. Two forms are understood, matching what the file
-// writes: "N:1 on --token" / "N:1 on the ground", and a bare "N:1" on a *-foreground declaration,
-// which always means "on the surface this is the foreground of".
+// 3b) Every ratio written in a comment must match the recomputed one: hand-maintained figures rot when a
+// value moves. Two forms: "N:1 on --token" / "N:1 on the ground", and a bare "N:1" on a *-foreground
+// declaration, meaning on the surface it is the foreground of.
 {
   const SOLO = {
     foreground: "background",
@@ -264,7 +204,7 @@ for (const [appName, set] of [
   ]) {
     const block = css.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m"));
     if (!block) continue;
-    // ⚠ Read the ORIGINAL text, not the comment-stripped css — the annotations live in the comments.
+    // The original text: the annotations live in the comments.
     const raw = readFileSync(resolve(here, path), "utf8");
     const rb = raw.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([\\s\\S]*?)\\n\\}`, "m"));
     if (!rb) continue;
@@ -296,23 +236,8 @@ for (const [appName, set] of [
   }
 }
 
-// 4) ⚠ the monospace stack must stay monospace — one-time codes are read back character by character.
-//
-// ⚠ THIS GUARD'S REASON CHANGED IN 044, AND THE MESSAGE WAS REWRITTEN RATHER THAN THE GUARD DELETED.
-//
-// It was written for 036's cell GEOMETRY: six positions painted behind one input by a
-// `repeating-linear-gradient` whose period was `1ch + gap`, where `1ch` is the advance of "0" and
-// equals every other digit's advance only in a monospace font. 044 rebuilt the control — the digits
-// and the boxes are now the same grid cells and there is not a `ch` unit left in it — so that
-// geometry can no longer drift, and a message claiming it can would be asserting a reason that is no
-// longer true. A guard that states a false reason is worse than no guard: the next person deletes it
-// on the (correct) grounds that its justification does not hold, and takes the real requirement with
-// it.
-//
-// What remains true, and is what this now guards: a code is dictated over the phone, read back to
-// support, and compared digit by digit against an email. Proportional digits make 1/l, 0/O and 5/S
-// ambiguous at exactly the moment ambiguity is most expensive. The failure is still silent — nothing
-// else in the repository would fail if `--font-mono` became a proportional family.
+// 4) The monospace stack must stay monospace: codes are dictated, read back and compared digit by
+// digit, and proportional digits make 1/l, 0/O and 5/S ambiguous. Nothing else would fail.
 const MONO_HINTS = ["mono", "consol", "menlo", "courier", "sfmono"];
 const monoDecl = css.match(/--font-mono\s*:\s*([^;]+);/);
 if (monoDecl) {
@@ -327,7 +252,7 @@ if (monoDecl) {
   }
 }
 
-// 5) non-text semantic colours must not acquire a foreground pair (see SEMANTIC_NON_TEXT above)
+// 5) Non-text semantic colours must not acquire a foreground pair (SEMANTIC_NON_TEXT).
 for (const name of SEMANTIC_NON_TEXT) {
   if (`${name}-foreground` in light || `${name}-foreground` in dark) {
     err(

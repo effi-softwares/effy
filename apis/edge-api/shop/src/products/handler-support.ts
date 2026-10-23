@@ -1,7 +1,3 @@
-// Shared handler support for the shop products slice (016): the shop-member auth gate (resolving
-// the actor's shop id), ProductError → problem+json mapping, and domain → wire-DTO mappers. Keeps
-// the thin handlers free of repetition while each owns its own parse/authorize/map flow
-// (ARCHITECTURE: no middleware framework).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -32,11 +28,7 @@ import type {
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
 
-/**
- * Authenticate (401 if no sub) + authorize from the platform record, resolving the actor's active
- * shop id in the same step (403 on deny). Fail-closed to 503 on an infra error. The returned
- * `shopId` scopes every downstream query — it is never taken from client input (FR-019/FR-031).
- */
+/** 401, 403 from the platform record (resolving the shop id), 503 on infra error. `shopId` scopes every query. */
 export async function gate(
   event: AuthedEvent,
   scope: RequestScope,
@@ -61,7 +53,7 @@ export async function gate(
   }
 }
 
-/** Map a domain error to problem+json. Unknown errors become 503 with the cause logged only. */
+/** Unknown errors become 503 with the cause logged only. */
 export function mapProductError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (isProductError(err)) {
     switch (err.kind) {
@@ -72,16 +64,13 @@ export function mapProductError(err: unknown, scope: RequestScope): APIGatewayPr
       case "conflict":
         return problem(409, CONFLICT, "Conflict", err.message, scope);
       case "forbidden":
-        // ⚠ Uniform, and it never says which term of the gate failed (007 FR-021): not a manager,
-        // stood down, or at a suspended shop all read identically from outside.
+        // Uniform: never says which term of the gate failed.
         return forbidden(scope);
     }
   }
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "product op failed");
   return unavailable(scope);
 }
-
-// ── domain → wire DTO (never leak domain shapes past the handler) ──────────────────────────────
 
 function toAssignmentDTO(a: SchemaAttribute): ProductTypeAttributeDTO {
   return {
@@ -143,7 +132,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     longDescription: d.longDescription,
     gstStatus: d.gstStatus,
     unitBasis: d.unitBasis,
-    // 098 — the options and every variant, each with its shop price, the customer price and its stock.
+    // Options and every variant, each with shop price, customer price and stock.
     options: d.options.map((o) => ({
       id: o.id, position: o.position, name: o.name,
       values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position })),
@@ -195,7 +184,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     missingMandatoryAttributes: d.missingMandatoryAttributes,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
-    // 067 — review state. The two prices are per variant (098), above.
+    // Review state.
     reviewState: d.reviewState,
     reviewReason: d.reviewReason,
     pendingChange: d.pendingChange

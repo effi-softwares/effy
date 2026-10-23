@@ -6,21 +6,8 @@ import { describe, expect, it } from "vitest"
 import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
 
 /**
- * ⚠ THE DEPLOYMENT CONTRACT for the newsletter routes (039 US6).
- *
- * This is the FIFTH time this platform has guarded the same defect — 027 R13, 029, 033, 035, and now
- * here. In 035 an audience map read four environment variables `serverless.yml` never declared: every
- * pool resolved "unknown", **no email was ever sent**, and 100 passing tests missed it because the
- * tests set those variables themselves.
- *
- * A unit test that supplies its own configuration can never notice that the configuration does not
- * exist. So this one mocks nothing: it reads the ACTUAL `serverless.yml` and the ACTUAL service source
- * and asserts they agree.
- *
- * ⚠ The newsletter is exactly the shape that hides this failure. A missing `NEWSLETTER_CONFIRM_BASE_URL`
- * does not crash — it renders a confirm link of `?token=…` with no origin, which is a URL the mail
- * client will happily display and nobody can follow. Subscribing would appear to work, the email would
- * arrive, and confirmation would be impossible.
+ * Reads the real serverless.yml and source. A missing `NEWSLETTER_CONFIRM_BASE_URL` would not crash:
+ * the email would arrive with a link nobody can follow.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -43,7 +30,6 @@ function readServerlessEnvKeys(): Set<string> {
   return keys
 }
 
-/** Every `env.SOMETHING` / `process.env.SOMETHING` the newsletter service actually reads. */
 function readEnvKeysUsedBySource(): Set<string> {
   const source = readFileSync(resolve(here, "service.ts"), "utf8")
   const keys = new Set<string>()
@@ -63,10 +49,7 @@ describe("newsletter deployment contract — serverless.yml declares what the co
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
   })
 
-  /**
-   * ⚠ Self-checked against email-kit's own exported list rather than a copy of it. If email-kit adds a
-   * `MAIL_*` key, this fails here instead of at the first send in dev.
-   */
+  /** Self-checked against email-kit's own list. */
   it("declares every MAIL_* key email-kit requires to send the confirmation", () => {
     const missing = MAIL_ENV_KEYS.filter((k) => !declared.has(k))
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
@@ -86,11 +69,7 @@ describe("newsletter deployment contract — serverless.yml declares what the co
 describe("newsletter routes — the public posture is intentional and stays that way", () => {
   const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
 
-  /**
-   * ⚠ Subscribing must work for someone with no account. If an `authorizer` ever appears on these two
-   * routes, the form silently 401s for every visitor it exists for — and the failure would look like a
-   * frontend bug, because the page renders perfectly.
-   */
+  /** These two routes must stay public. */
   it("attaches no authorizer to either newsletter route", () => {
     for (const fn of ["customerNewsletterV1Post", "customerNewsletterV1Confirm"]) {
       const start = yaml.indexOf(`  ${fn}:`)

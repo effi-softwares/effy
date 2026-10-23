@@ -1,8 +1,4 @@
-// POST /shop/v1/team/invite — provision a colleague on the shop pool (057 US7).
-//
-// ⚠ MANAGER-ONLY, decided in the service from the PLATFORM RECORD (role AND status), never from the
-// token claim. ⚠ And an email already known to this shop is REFUSED rather than adopted — see
-// `service.invite` for why 009's re-enable-on-conflict behaviour is unsafe for this caller.
+// Manager-only, from the platform record. An email already known to this shop is refused, not adopted.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

@@ -44,10 +44,10 @@ import kotlin.test.assertTrue
 
 /**
  * What happens when the window a shopper chose goes before payment, the refusal on the wire, and the
- * hold (069, 078). Choosing a window is covered in `CheckoutViewModelTest`.
+ * hold. Choosing a window is covered in `CheckoutViewModelTest`.
  *
- * ⚠ THE RULE THIS SUITE PINS: the app never chooses a delivery time for the shopper, and never moves
- * them to a different one. A window that has gone leaves NOTHING selected (FR-006, FR-010).
+ * The rule this suite pins: the app never chooses a delivery time for the shopper, and never moves
+ * them to a different one. A window that has gone leaves nothing selected.
  */
 class DeliveryChoiceTest {
 
@@ -120,7 +120,7 @@ class DeliveryChoiceTest {
 
     private fun ready(vm: CheckoutViewModel) = assertNotNull(vm.state.value as? CheckoutUiState.Ready)
 
-    // ── A window that goes before payment ───────────────────────────────────────────────────────────
+    // A window that goes before payment
 
     @Test
     fun `a window that has gone is refused - nothing is selected in its place and no payment opens`() = runTest {
@@ -135,14 +135,14 @@ class DeliveryChoiceTest {
         vm.payNow()
 
         val s = ready(vm)
-        assertNull(s.window) // ⚠ NOT moved to "evening"
+        assertNull(s.window) // Not moved to "evening"
         assertFalse(s.deliveryChosen)
         assertFalse(s.handedOffToPayment)
         assertNotNull(s.error)
         assertEquals(listOf("evening"), s.effyWindows!!.days.first().windows.map { it.slotId })
     }
 
-    // ── 085 — a day with no time, and as soon as possible ───────────────────────────────────────────
+    // A day with no time, and as soon as possible
 
     /** Tomorrow can be bought with no time (the Any time window), and "as soon as possible" is offered. */
     private fun flexQuote(asap: Boolean = true): DeliveryQuote {
@@ -248,7 +248,7 @@ class DeliveryChoiceTest {
         assertNull(deliveryRefusalOrNull("not json"))
     }
 
-    // ── The hold ────────────────────────────────────────────────────────────────────────────────────
+    // The hold
 
     @OptIn(kotlin.time.ExperimentalTime::class)
     @Test

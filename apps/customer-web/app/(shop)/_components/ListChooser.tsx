@@ -17,17 +17,9 @@ import {
 } from "@/lib/list-actions"
 
 /**
- * The list chooser (068): which of the shopper's lists a product is in, with a tick box for each
- * and a way to make a new one.
- *
- * ⚠ THIS MODULE IS ONLY EVER REACHED THROUGH `import()`. The heart is on the guest path and `/` had
- * 0.3 KB of budget left; nothing here may be imported statically from a guest route.
- *
- * ⚠ A NATIVE `<dialog>`, not a dialog library, for the reason `MiniCart` records: the library costs
- * more than the route's whole headroom. `showModal()` gives the focus trap, Escape, the backdrop,
- * and returns focus to the control that opened it.
- *
- * Checkbox rows, not cards (Principle V).
+ * The list chooser: which of the shopper's lists a product is in, a tick box each, and a way to make a
+ * new one. Reached only through `import` (the heart is on the guest path). A native `<dialog>`
+ * (`showModal` gives the focus trap, Escape, backdrop and focus return).
  */
 export function openListChooser(productId: string, onClose?: () => void, variantId?: string | null): void {
   const host = document.createElement("div")
@@ -58,7 +50,7 @@ export function ListChooser({
   onClosed,
 }: {
   productId: string
-  /** 098 — the size on screen, remembered when the product is placed in a list. */
+  /** The size on screen, remembered when the product is placed in a list. */
   variantId?: string | null
   onClosed: () => void
 }) {
@@ -72,7 +64,7 @@ export function ListChooser({
   async function load() {
     const result = await fetchLists(productId)
     if (result.ok) setState({ phase: "ready", lists: result.value })
-    // ⚠ 401 is "you are a guest", not a failure (FR-037). Their save already happened, on this device.
+    // Means a guest, not a failure; their save already happened on this device.
     else setState({ phase: result.reason === "guest" ? "guest" : "failed" })
   }
 

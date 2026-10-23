@@ -3,29 +3,11 @@ import type * as React from "react"
 import { cn } from "../cn"
 
 /**
- * THE LOADER — the orbit mark for LARGE regions: a whole page, a table, a drawer's body.
- *
- * An `--accent2` (orange) sun at the centre, a `--brand` (blue) planet orbiting it once a second, and
- * a small moon orbiting the planet twice as fast (adapted from css-loaders.com "l17"). The moon is
- * `--brand-mid` (light blue) in light and `--muted-foreground` (grey) in dark, where `--brand-mid` is a
- * dim navy that all but disappears on the near-black ground.
- *
- * ⚠ `--accent2` is otherwise reserved for attention (dots, cut-off chips). Its use here is an operator
- * decision, bounded to this one decorative, non-interactive mark — it carries no meaning.
- *
- * ⚠ WHY NOT A SKELETON HERE. A shimmer is honest for a small thing whose shape is known — a line of
- * text, a figure. For a table or a page it draws a layout the data may not have (six rows for three
- * orders, a card where an empty state will land), and a screen of pulsing grey bars reads as broken.
- * Small things keep `Skeleton`; regions use this.
- *
- * ⚠ FLAT DISCS, NOT `radial-gradient`. The source loader paints its discs with gradients; the platform
- * rule is flat fills only, and three positioned `rounded-full` elements draw the same thing.
- *
- * ⚠ Every dimension is a ratio of the source's 70px geometry, so the mark scales without drifting —
- * the moon's pivot (`transform-origin`) must stay on the planet's centre at any size.
- *
- * ⚠ `data-effy-loader` exempts it from tokens.css's reduced-motion flattening (which would freeze it
- * mid-orbit) and slows it instead, exactly as `data-effy-spinner` does for the small spinner.
+ * The loader for large regions (a page, a table, a drawer body): an `--accent2` sun, a `--brand` planet
+ * orbiting once a second and a moon orbiting it twice as fast (`--brand-mid` light, `--muted-foreground`
+ * dark). Decorative, so `--accent2` carries no meaning here. Regions use this rather than a skeleton,
+ * which would draw a layout the data may not have. Flat discs, every size a ratio of 70px, and
+ * `data-effy-loader` slows it under reduced motion instead of freezing it.
  */
 function Loader({
   size = 64,
@@ -83,11 +65,7 @@ const AREA = {
   },
 } as const
 
-/**
- * A region that is loading: the Loader centred in space sized for what will replace it, with a short
- * title ("Loading orders") and one line saying what is being fetched. The text is what
- * `role="status"` announces; the mark itself is `aria-hidden`.
- */
+/** A loading region: the Loader in space sized for what will replace it, with a title and one line that `role="status"` announces. */
 function LoadingArea({
   variant = "region",
   title = "Loading",

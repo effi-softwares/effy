@@ -1,43 +1,28 @@
-// Driver domain types (049). Wire shapes live in @effy/shared-types (driver.ts); these are the
-// internal domain model the repository maps rows into and never leak past the data layer.
-
-// ⚠ WIDENED BY 056. 049 modelled a driver as active-or-disabled; back-office driver management
-// separates "temporarily stood down" from "no longer employed" because the register is unusable
-// for either while they are the same value. The driver app treats all three identically — only
-// `active` can hold a session or receive work — but the type must admit them or it lies.
+// The app treats every status but `active` alike: only `active` can hold a session or receive work.
 export type DriverStatus = "active" | "suspended" | "offboarded";
 export type DutyStatus = "on_duty" | "off_duty";
 
-/** The platform's authoritative driver record (Principle IV). */
 export interface DriverRecord {
   id: string;
-  subject: string; // cognito_sub
+  subject: string;
   name: string;
   workEmail: string;
-  /** ⚠ 062 — DERIVED from clearances, never a stored zone. One line ("Every zone" / a zone name /
-   *  "N zones"), or null when the driver is cleared for nothing. The rule lives in
-   *  @effy/edge-shared so back-office and the driver app cannot describe one driver differently. */
+  /** Derived from clearances ("Every zone" / a zone name / "N zones"), or null; worded in @effy/edge-shared. */
   coverageLabel: string | null;
   vehicleType: string | null;
   vehiclePlate: string | null;
-  /** 093 — the vehicle behind the open holding, its label, and today's check of it. */
+  /** The vehicle behind the open holding, its label, and today's check. */
   vehicleId?: string | null;
   vehicleLabel?: string | null;
   vehicleCheck?: "none" | "ok" | "due" | "unsafe";
   status: DriverStatus;
   dutyStatus: DutyStatus;
-  onDutySince: string | null; // ISO 8601; null when off duty
-  /** ⚠ null = the driver did not say when they expect to finish. Never a default (061, FR-033). */
+  onDutySince: string | null;
+  /** null: the driver did not say when they expect to finish. */
   expectedEndAt: string | null;
 }
 
-/** Raised when a driver-pool token has no provisioned record, or the record is not active. Both are
- *  refused (Principle IV) — a valid token never overrides the record.
- *
- *  ⚠ `disabled` became `not_active` in 056: the kind names the REASON FOR REFUSAL, and with three
- *  employment states there is more than one way to not be active. It stays ONE kind rather than two,
- *  because the refusal a driver sees must not disclose whether they were suspended or offboarded —
- *  that is between them and their employer, not something an app tells them at a login screen. */
+/** No record, or not active. One kind, so the refusal never says whether someone was suspended or offboarded. */
 export class DriverAccessError extends Error {
   constructor(readonly kind: "not_provisioned" | "not_active") {
     super(kind);

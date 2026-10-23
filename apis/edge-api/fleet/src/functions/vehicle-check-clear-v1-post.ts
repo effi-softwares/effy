@@ -8,10 +8,7 @@ import { announceDispatch } from "../lib/live";
 import { SequenceActionError, clearVehicleCheck } from "../sequence/service";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * POST /fleet/v1/vehicle-checks/{checkId}/clear (093) — the vehicle a driver found unsafe has been
- * fixed or swapped; they can be given work again.
- */
+/** The vehicle a driver found unsafe was fixed or swapped; they can be given work again. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");

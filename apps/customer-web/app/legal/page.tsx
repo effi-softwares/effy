@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 }
 
 /**
- * One line on what each document is FOR, so the index can be chosen from rather than guessed at.
+ * One line on what each document is for, so the index can be chosen from rather than guessed at.
  *
- * ⚠ A description of the document's subject, never a summary of its terms: the terms are the
+ * A description of the document's subject, never a summary of its terms: the terms are the
  * document's own words, and a paraphrase here would be a second, unversioned set of them.
  */
 const ABOUT: Partial<Record<DocumentSlug, string>> = {

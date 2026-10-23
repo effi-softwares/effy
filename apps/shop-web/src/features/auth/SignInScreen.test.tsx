@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The card and the OTP flow live in @effy/web-kit; here we mock the SDK boundary so this test
-// exercises the REAL card wired to THIS surface's telemetry, branding, and `next` handling.
+// exercises the real card wired to this surface's telemetry, branding, and `next` handling.
 const { signIn, confirmSignIn, navigate, fetchAuthSession } = vi.hoisted(() => ({
   signIn: vi.fn(),
   confirmSignIn: vi.fn(),
@@ -39,7 +39,7 @@ describe("SignInScreen (shop-web)", () => {
     fetchAuthSession.mockReset().mockResolvedValue({ tokens: undefined });
   });
 
-  // ⚠ The live defect: sign-out (or the guard that sent the operator here) leaves `signed-out` in the
+  // The live defect: sign-out (or the guard that sent the operator here) leaves `signed-out` in the
   // cache, and nothing on this page observes the session. Reading it back without a forced fetch gave
   // the guard that stale answer, so a correct code bounced the operator back to sign-in.
   it("replaces a cached signed-out session with the fresh one after authenticating", async () => {
@@ -65,7 +65,7 @@ describe("SignInScreen (shop-web)", () => {
   });
 
   it("advances from the email step to the OTP step after a code is sent", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     const user = userEvent.setup();
     renderScreen();
 
@@ -78,9 +78,9 @@ describe("SignInScreen (shop-web)", () => {
     expect(await screen.findByLabelText(/one-time code/i)).toBeInTheDocument();
   });
 
-  // SC-010: the operator lands where they were headed, not on the dashboard.
+  // The operator lands where they were headed, not on the dashboard.
   it("returns the operator to the intended destination after authenticating", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     confirmSignIn.mockResolvedValue({ nextStep: { signInStep: "DONE" } });
     const user = userEvent.setup();
     renderScreen("/manager");
@@ -94,7 +94,7 @@ describe("SignInScreen (shop-web)", () => {
   });
 
   it("falls back to the dashboard when there is no intended destination", async () => {
-    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_EMAIL_CODE" } });
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
     confirmSignIn.mockResolvedValue({ nextStep: { signInStep: "DONE" } });
     const user = userEvent.setup();
     renderScreen();
@@ -108,11 +108,8 @@ describe("SignInScreen (shop-web)", () => {
   });
 
   /**
-   * ⚠ 057 MOVED THE BRAND LOCKUP UP INTO THE AUTH LAYOUT, which is where the imported design puts it
-   * — above the heading, not inside the form. This test renders the SCREEN alone, so it can no longer
-   * see it. Rather than delete the guarantee, the assertion splits in two: the screen must still say
-   * which surface this is in words an operator reads, and the layout must still render the lockup
-   * (checked from source, since the route component is not independently renderable here).
+   * The brand lockup is in the auth layout, not the screen, so this checks both: the screen names the
+   * surface in words, and the layout (read from source) renders the lockup.
    */
   it("says which surface this is", () => {
     renderScreen();

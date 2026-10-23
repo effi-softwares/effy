@@ -15,7 +15,7 @@ import type {
   CourierServiceInput,
 } from "@effy/shared-types";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
+// Server state lives only in the TanStack Query cache (Principle VI). Mutations invalidate the root
 // rather than hand-patching cached rows.
 const ROOT = ["back-office", "delivery"] as const;
 
@@ -42,7 +42,7 @@ export function useActivatePlan() {
     onSuccess: () => invalidate(qc),
   });
 }
-/** ⚠ A mutation only in the HTTP sense: it changes nothing, so it invalidates nothing. */
+/** A mutation only in the HTTP sense: it changes nothing, so it invalidates nothing. */
 export function useSimulateFee() {
   return useMutation({ mutationFn: (b: FeeSimulationRequest) => simulateFee(b) });
 }
@@ -51,7 +51,7 @@ export function usePutSettings() {
   return useMutation({ mutationFn: (b: DeliverySettingsDTO) => putSettings(b), onSuccess: () => invalidate(qc) });
 }
 
-// ── Collection runs (047 US2) ────────────────────────────────────────────
+// Collection runs
 
 export const collectionRunsQuery = () =>
   queryOptions({ queryKey: [...ROOT, "collection-runs"] as const, queryFn: listCollectionRuns });
@@ -69,17 +69,17 @@ export function useDeleteCollectionRun() {
   return useMutation({ mutationFn: (id: string) => deleteCollectionRun(id), onSuccess: () => invalidate(qc) });
 }
 
-// ── 069: same-day slots and the standard-delivery calendar ────────────────────────────────────────
+// Same-day slots and the standard-delivery calendar
 
 /**
- * ⚠ NOT POLLED (071). "Booked today" moves as customers pay; a live `slots` update re-reads this
+ * Not polled. "Booked today" moves as customers pay; a live `slots` update re-reads this
  * when a same-day place is confirmed or freed, so an operator deciding whether to raise a slot's
  * capacity is reading the current number without the console asking every 30 seconds.
  */
 export const slotsQuery = () =>
   queryOptions({ queryKey: [...ROOT, "slots"] as const, queryFn: listSlots });
 /**
- * 078 — the windows WITH how full each is, day by day. Its key sits under `slots`, so the same live
+ * The windows with how full each is, day by day. Its key sits under `slots`, so the same live
  * update that re-reads the list re-reads the grid.
  */
 export const slotGridQuery = () =>
@@ -111,13 +111,13 @@ export function useRemoveNonDeliveryDate() {
   return useMutation({ mutationFn: (day: string) => removeNonDeliveryDate(day), onSuccess: () => invalidate(qc) });
 }
 
-// ── 076: Effy delivery coverage ───────────────────────────────────────────────────────────────────
+// Effy delivery coverage
 
 /** Root of every coverage query — what the live channel's `coverage` kind re-reads (features/live/routes.ts). */
 export const COVERAGE_ROOT = [...ROOT, "coverage"] as const;
 
 /**
- * The list, page by page. ⚠ `keepPreviousData`, so typing in the search box does not blank the
+ * The list, page by page. `keepPreviousData`, so typing in the search box does not blank the
  * table between answers.
  */
 export const coverageQuery = (filters: CoverageFilters) =>
@@ -131,7 +131,7 @@ export const coverageQuery = (filters: CoverageFilters) =>
 
 /**
  * The add dialog's search, as the person types. Under `COVERAGE_ROOT`, so a postcode just added reads
- * "Already on the list" without a second search. ⚠ Two characters at least — the service answers
+ * "Already on the list" without a second search. Two characters at least — the service answers
  * nothing for fewer.
  */
 export const coveragePlacesQuery = (q: string) =>
@@ -157,11 +157,11 @@ export const useUpdateCourier = () => useCoverageMutation((change: CourierReachU
 export const useAddCourierExclusion = () => useCoverageMutation((v: { postcode: string; reason: string }) => addCourierExclusion(v.postcode, v.reason));
 export const useRemoveCourierExclusion = () => useCoverageMutation((postcode: string) => removeCourierExclusion(postcode));
 
-// ── 080 — courier services ──────────────────────────────────────────────────────────────────────
+// Courier services
 export const courierServicesQuery = () =>
   queryOptions({ queryKey: ["delivery", "courier-services"] as const, queryFn: () => listCourierServices() });
 export const useCreateCourierService = () => useCoverageMutation((b: CourierServiceInput) => createCourierService(b));
 export const useUpdateCourierService = () => useCoverageMutation((v: { id: string; body: CourierServiceInput }) => updateCourierService(v.id, v.body));
 
-// ── going live with the new delivery model (083) ───────────────────────────────────────────────────
+// going live with the new delivery model
 

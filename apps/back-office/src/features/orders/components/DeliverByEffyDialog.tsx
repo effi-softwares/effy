@@ -11,10 +11,10 @@ import { deliveryMovePreviewQuery, useDeliveryMove } from "../queries";
 const key = (w: { slotId: string; date: string }) => `${w.slotId}|${w.date}`;
 
 /**
- * "Deliver by Effy…" (081 US3) — a courier order back to Effy's drivers, before the courier has it.
+ * "Deliver by Effy…" — a courier order back to Effy's drivers, before the courier has it.
  *
- * ⚠ ONLY WINDOWS THE ORDER COULD BE SOLD NOW (the server's list, from the checkout's own calendar and
- * rule). Staff cannot overfill a window. ⚠ No money moves: nothing is taken, and anything given when
+ * Only windows the order could be sold now (the server's list, from the checkout's own calendar and
+ * rule). Staff cannot overfill a window. No money moves: nothing is taken, and anything given when
  * the order went to courier stays with the customer.
  */
 export function DeliverByEffyDialog({ orderId, open, onOpenChange }: { orderId: string; open: boolean; onOpenChange: (open: boolean) => void }) {

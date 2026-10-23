@@ -14,13 +14,10 @@ import { FeeSimulator } from "./FeeSimulator";
 import { PlanEditor } from "./PlanEditor";
 
 /**
- * Delivery pricing (077): the fee plans for "Delivered by Effy" and the courier fee table.
- *
- * ⚠ A TABLE, not cards (Principle V). The state is a pill — active → brand, draft and retired →
- * muted — and the number of things a draft is missing is a column on its own row.
- *
- * ⚠ AN ACTIVE PLAN IS A RECORD. It opens read-only; changing prices means copying it to a draft and
- * activating that, so what was charged on any day can always be read back.
+ * Delivery pricing: the fee plans for "Delivered by Effy" and the courier fee table. The state is a pill
+ * (active → brand, draft and retired → muted); what a draft lacks is a column. An active plan opens
+ * read-only: changing prices means copying it to a draft and activating that, so what was charged on any
+ * day can be read back.
  */
 export function PricingPanel({ canManage }: { canManage: boolean }) {
   const [kind, setKind] = useState<FeePlanKind>("effy");

@@ -1,21 +1,10 @@
 import { defineConfig, devices } from "@playwright/test"
 
 /**
- * E2E for the customer storefront.
- *
- * This is not a nice-to-have layer on top of the unit tests — it is the ONLY way several of
- * this slice's headline promises can be proven at all:
- *
- *   • SC-004 — "content is present with NO client-side code executed". Only a raw HTTP fetch
- *     can prove that. No unit test can.
- *   • SC-002 — Core Web Vitals on a real page.
- *   • SC-008 — the deferred sign-in returns the shopper to their exact destination.
- *   • SC-012 — a cross-pool token is refused, both directions.
- *   • Async Server Components — untestable by Vitest (see vitest.config.ts).
- *
- * ⚠ It runs against a PRODUCTION build (`next build && next start`), never `next dev`.
- * Dev-mode bundles, caching and prerendering do not resemble what ships, so a green dev-mode
- * E2E would be proving the wrong artifact.
+ * E2E for the storefront: proves what unit tests cannot (content present with no client code, Core Web
+ * Vitals, deferred sign-in returning to the exact page, cross-pool tokens refused, async Server
+ * Components). Runs against a production build, never `next dev`, whose bundles do not resemble what
+ * ships.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -31,7 +20,7 @@ export default defineConfig({
 
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    // A mid-range mobile device is the profile the CWV budgets (D7) are written against.
+    // A mid-range mobile device is the profile the CWV budgets are written against.
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
 

@@ -1,25 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { migrationSql } from "@effy/edge-shared";
+import { migrationSql } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-/**
- * 064's two new tables, against real PostgreSQL 16, loaded from the REAL migrations.
- *
- * ⚠ EVERY CONSTRAINT BELOW IS PROVEN BY VIOLATING IT. A `CHECK` nobody has ever tripped is
- * indistinguishable from a `CHECK` that was never written — it passes `tsc`, it applies cleanly, and
- * the first thing it fails to stop is a real one. These constraints are where several of this
- * slice's requirements actually live:
- *
- *   · FR-005 (one delivery per drop, however many times a phone retries)  → `delivery_proof_stop_uq`
- *   · FR-006 (never delivered against proof that failed to upload)        → the media CHECKs
- *   · FR-010 ("other" must say what happened)                             → the note CHECK
- *   · FR-003 (the `code` method is deferred, not half-built)              → the method CHECK
- *
- * ⚠ THE SCHEMA IS NOT TRANSCRIBED. It is read from `db/migrations` by `migrationSql()`. A transcribed
- * schema drifts, and a container test against a schema that no longer exists is worse than no
- * container test, because it looks like proof.
- */
+/** The proof tables' constraints, each proven by violating it, against the real migrations. */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -27,7 +11,6 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 
-// A drop to hang proof off: driver → wave → round → stop.
 let stopId: string;
 let driverId: string;
 let roundId: string;
@@ -69,20 +52,16 @@ d("064 — delivery_proof & delivery_attempt_failure constraints", () => {
        VALUES ($1, $2, 'delivery', now() + interval '6 hours') RETURNING id`,
       [wave.rows[0]!.id, driverId],
     );
-    // ⚠ A `customer_drop` MUST carry an order and MUST NOT carry a shop — `round_stop_target_ck`.
-    // The first draft of this fixture created a bare stop and all fourteen tests failed identically,
-    // which is the loader doing its job: the real constraint is stricter than a transcription would
-    // have remembered. (The same CHECK requires a `hub_checkin` to carry NEITHER, which is what makes
-    // the hub stop R11 adds representable.)
+    // A `customer_drop` must carry an order and no shop (`round_stop_target_ck`).
     const cust = await pool.query<{ id: string }>(
       `INSERT INTO public.customer (cognito_sub, email)
        VALUES ('sub-cust-proof-1', 'proof-customer@effyshopping.com') RETURNING id`,
     );
     const order = await pool.query<{ id: string }>(
       `INSERT INTO public."order"
-         (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address)
+         (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, delivery_type, delivery_type_reason)
        VALUES ($1, 'EFY-PROOF01', 10.00, 12.50,
-               '{"line1":"1 Test St","city":"Richmond","postalCode":"3121","region":"VIC"}'::jsonb)
+               '{"line1":"1 Test St","city":"Richmond","postalCode":"3121","region":"VIC"}'::jsonb, 'effy', 'in_coverage')
        RETURNING id`,
       [cust.rows[0]!.id],
     );
@@ -113,8 +92,7 @@ d("064 — delivery_proof & delivery_attempt_failure constraints", () => {
     });
 
     it("⚠ REFUSES `code` — no delivery code exists to verify against (FR-003, research R4)", async () => {
-      // Not a styling choice. `delivery_code` appears in no service, migration, contract or app, so a
-      // `code` proof could only compare a value to itself. The database refuses to hold the state.
+      // No delivery code exists anywhere, so a `code` proof could only compare a value to itself.
       await expect(insertProof("code", null)).rejects.toThrow(/delivery_proof_method_check/);
     });
 
@@ -144,21 +122,14 @@ d("064 — delivery_proof & delivery_attempt_failure constraints", () => {
   describe("⚠ FR-005 — one delivery per drop, structurally", () => {
     it("refuses a second proof for the same drop", async () => {
       await insertProof("contactless", null);
-      // This is SC-007's real guarantee: two devices submitting at once cannot both win, because the
-      // second row cannot exist. No application logic is involved.
+      // Two devices submitting at once cannot both win: the second row cannot exist.
       await expect(insertProof("photo", "proof/a/3.jpg")).rejects.toThrow(
         /delivery_proof_stop_uq/,
       );
     });
 
     it("⚠ refuses a replayed changeId on a DIFFERENT drop", async () => {
-      // ⚠ THE FIRST VERSION OF THIS TEST WAS WRONG and the container caught it. It inserted, DELETED
-      // the row, then re-inserted with the same changeId and expected a violation — but a unique
-      // index constrains rows that exist, so deleting the witness makes the replay legitimately
-      // succeed. It was asserting something untrue about PostgreSQL.
-      //
-      // The guarantee that actually matters is GLOBAL: one shopper action can only ever produce one
-      // proof, so a replayed changeId must not be able to mint proof somewhere else either.
+      // Global: a replayed changeId must not mint proof on another drop.
       const change = crypto.randomUUID();
       await insertProof("contactless", null, change);
 
@@ -207,15 +178,14 @@ d("064 — delivery_proof & delivery_attempt_failure constraints", () => {
     });
 
     it("⚠ refuses `other` with a note that is only whitespace", async () => {
-      // The interesting half. A required field a client can satisfy with a space is not required.
+      // A required field satisfied by a space is not satisfied.
       await expect(insertFailure("other", "   ")).rejects.toThrow(
         /delivery_attempt_failure_other_note_check/,
       );
     });
 
     it("⚠ ALLOWS several failures for one drop — deliberately not unique", async () => {
-      // A drop may be attempted more than once, and a second attempt is a second row. Collapsing
-      // them would destroy the history FR-012 exists to keep.
+      // A second attempt is a second row; the history is kept.
       await insertFailure("nobody_home", null);
       await insertFailure("nobody_home", null);
       const n = await pool.query<{ count: string }>(

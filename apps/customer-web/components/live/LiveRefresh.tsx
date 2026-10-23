@@ -4,31 +4,31 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
 import type { LiveDescriptor } from "@effy/shared-types"
-// ⚠ `/live`, NEVER the package root: the root imports the auth SDK, which is barred from this app's
+// `/live`, never the package root: the root imports the auth SDK, which is barred from this app's
 // client bundles. This entry point is the channel client and the coalescer, and nothing else.
 import { createCoalescer, createLiveClient, type LiveState } from "@effy/web-kit/live"
 
 /**
- * Keeps a signed-in customer's order page current without a timer (071 US4).
+ * Keeps a signed-in customer's order page current without a timer.
  *
  * A client island on a server-rendered page, like `CancelOrder` beside it. When the platform says
- * this customer's orders changed, it asks the server to render the page again (`router.refresh()`)
+ * this customer's orders changed, it asks the server to render the page again (`router.refresh`)
  * — the same re-read `CancelOrder` already does after a tap. It holds no order data and patches
  * nothing: the page is whatever the server says it is.
  *
- * ⚠ IT IS TOLD ONLY WHEN THE PAGE WOULD CHANGE (FR-025), and never which shop, or how many, is
- * behind the order (FR-024) — the update is the single word "orders".
+ * It is told only when the page would change, and never which shop, or how many, is
+ * behind the order — the update is the single word "orders".
  *
  * It renders nothing while live. If the channel cannot be held it says so quietly and offers a
- * refresh (FR-015); the page itself is always the last thing the server rendered.
+ * refresh; the page itself is always the last thing the server rendered.
  *
- * Mounted ONLY on the order list and order detail — signed-out pages and the storefront load none
+ * Mounted only on the order list and order detail — signed-out pages and the storefront load none
  * of this.
  */
 export function LiveRefresh() {
   const router = useRouter()
   const [state, setState] = useState<LiveState>("live")
-  // ⚠ Not `useState(() => Date.now())`: this page is prerendered, and reading the clock while
+  // Not `useState( => Date.now)`: this page is prerendered, and reading the clock while
   // rendering a client component fails the production build. Set when the component mounts.
   const [since, setSince] = useState<number | null>(null)
   const [shown, setShown] = useState(false)

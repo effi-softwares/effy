@@ -5,14 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ THE DEPLOYMENT CONTRACT for the catalog service (067).
- *
- * A unit test that supplies its own configuration can never notice that the configuration does not
- * exist (035: four env vars `serverless.yml` never declared, no email ever sent, one hundred green
- * tests). So this mocks nothing. It reads the ACTUAL serverless.yml.
- *
- * And it pins the one thing this service exists to keep true: EVERY decision route is behind the
- * BACK-OFFICE authorizer. A review route behind the shop authorizer is a shop approving itself.
+ * Reads the real serverless.yml, and holds every decision route behind the back-office authorizer:
+ * behind the shop's, a shop could approve itself.
  */
 
 const yaml = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "serverless.yml"), "utf8");
@@ -45,7 +39,6 @@ describe("catalog deployment contract — serverless.yml declares what the servi
     expect(yaml).not.toMatch(/s3:(PutObject|DeleteObject|\*)/);
   });
 
-  /** ⚠ The reason this service is not `edge-shop`. */
   it("⚠ puts every HTTP route except healthz behind the BACK-OFFICE authorizer, and none behind the shop's", () => {
     const http = functions().filter((f) => f.block.includes("httpApi:") && f.name !== "healthz");
     expect(http.length).toBeGreaterThanOrEqual(6);

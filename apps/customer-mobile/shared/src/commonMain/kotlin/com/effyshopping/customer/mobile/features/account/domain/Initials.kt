@@ -1,19 +1,17 @@
 package com.effyshopping.customer.mobile.features.account.domain
 
 /**
- * The initials for a customer's avatar (013 data-model § 3; SC-013). The ONE place initials are
- * derived. It must render correctly for every name shape and **never** guess letters from the email.
+ * The initials for a customer's avatar, derived only here, never from the email.
  *
- *   "Ada" / "Lovelace"  → "AL"      two names → first grapheme of each
- *   "Ada" / null        → "A"       one name → one initial
- *   null / null         → "—"       an em dash — NEVER the email
- *   "李" / "明"          → "李明"     graphemes, not chars
- *   "👩‍🚀" (given only)   → "👩‍🚀"     one emoji is ONE grapheme (several code points)
+ *  "Ada" / "Lovelace" → "AL" two names → first grapheme of each
+ *  "Ada" / null → "A" one name → one initial
+ *  null / null → "—" an em dash — never the email
+ *  "李" / "明" → "李明" graphemes, not chars
+ *  "👩‍🚀" (given only) → "👩‍🚀" one emoji is one grapheme (several code points)
  *
- * commonMain has no `BreakIterator`, so [firstGrapheme] is a pragmatic grapheme-cluster segmenter:
- * it extends the first code point across ZWJ sequences, variation selectors, skin-tone modifiers,
- * combining marks, and regional-indicator pairs — enough for names and avatar emoji. A `.first()` on
- * a `Char` would split a surrogate pair and render as `�`, which is exactly the SC-013 failure.
+ * commonMain has no `BreakIterator`, so [firstGrapheme] extends the first code point across ZWJ sequences,
+ * variation selectors, skin-tone modifiers, combining marks and regional-indicator pairs. A `.first` on a
+ * `Char` would split a surrogate pair into `�`.
  */
 fun initialsFor(given: String?, family: String?): String {
     val g = given?.trim().orEmpty()

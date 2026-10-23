@@ -48,9 +48,9 @@ private class FakeCollectionRepo(
     /** When true, writes answer as saved-to-send, as the real repository does with no signal. */
     var offline = false
     val changeIds = mutableListOf<String>()
-    /** 093 — how many packages the next collect leaves waiting (added while the driver was there). */
+    /** How many packages the next collect leaves waiting (added while the driver was there). */
     var remaining = 0
-    /** 096 — the bags a collect handed over, and those declared not at the shop. */
+    /** The bags a collect handed over, and those declared not at the shop. */
     var bagsHanded: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
     var bagsMissing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()
     override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
@@ -93,7 +93,7 @@ class CollectionViewModelTest {
     }
 
     /**
-     * 092 rev 2 — "work changed" while the driver is on a stop: the stop's packages are re-read. A tick
+     * Rev 2 — "work changed" while the driver is on a stop: the stop's packages are re-read. A tick
      * on a package still there is kept (it is the work in progress); one on a package dispatch withdrew
      * is dropped, so the collect never names a package the stop no longer has.
      */
@@ -195,7 +195,7 @@ class CollectionViewModelTest {
         assertEquals(true, done)
     }
 
-    /** 093 — a package added while the driver was at the counter: the stop stays open and says so. */
+    /** A package added while the driver was at the counter: the stop stays open and says so. */
     @Test fun a_package_added_meanwhile_keeps_the_stop_open() = runTest {
         val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a")); remaining = 1 }
         val v = vm(repo); v.loadStop("s1")
@@ -221,7 +221,7 @@ class CollectionViewModelTest {
     )
 
     /**
-     * A report names ITS package and rides the collect. It used to be a request of its own that named
+     * A report names its package and rides the collect. It used to be a request of its own that named
      * none, which the platform reads as every package at the stop.
      */
     @Test fun a_reported_package_is_sent_as_not_collected_and_the_rest_as_collected() = runTest {
@@ -271,7 +271,7 @@ class CollectionViewModelTest {
         assertEquals(handed, repo.handed)
     }
 
-    /** 092 — Undo on a report: the package is neither reported nor ticked, and goes as collected if ticked later. */
+    /** Undo on a report: the package is neither reported nor ticked, and goes as collected if ticked later. */
     @Test fun undoing_a_report_leaves_the_package_unticked() = runTest {
         val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a"), pkg("b")) }
         val v = vm(repo); v.loadStop("s1")
@@ -305,7 +305,7 @@ class CollectionViewModelTest {
     }
 
     /**
-     * 072 — the platform refused a collect because the round has not opened. The driver is told WHEN
+     * The platform refused a collect because the round has not opened. The driver is told when
      * it opens, in the server's words — not "someone else changed this", and not a generic failure.
      */
     @Test fun a_collect_before_the_round_opens_says_when_it_opens() = runTest {

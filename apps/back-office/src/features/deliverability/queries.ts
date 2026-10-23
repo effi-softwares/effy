@@ -3,7 +3,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { getDeliverability, listDeliverability, repairDeliverability } from "./repo";
 import type { DeliveryListParams } from "./model";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI).
+// Server state lives only in the TanStack Query cache (Principle VI).
 const ROOT = ["back-office", "deliverability"] as const;
 
 export const deliverabilityListQuery = (params: DeliveryListParams) =>
@@ -16,7 +16,7 @@ export const deliverabilityDetailQuery = (address: string) =>
   queryOptions({
     queryKey: [...ROOT, "detail", address] as const,
     queryFn: () => getDeliverability(address),
-    // ⚠ Never cached across a repair: `suppressedInSes` is read LIVE from the mail service on every
+    // Never cached across a repair: `suppressedInSes` is read live from the mail service on every
     // request, and a stale "still suppressed" would make an operator repeat a repair that worked.
     staleTime: 0,
   });

@@ -39,7 +39,7 @@ describe("066 — the storefront's delivery-instructions draft", () => {
     expect(draftFrom(undefined)).toEqual(EMPTY_DRAFT)
   })
 
-  /** FR-004 / FR-029 — the limit is characters as a person counts them. */
+  /** The limit is characters as a person counts them. */
   it("⚠ counts and clamps in code points, so an emoji is one character", () => {
     expect(remainingCharacters("")).toBe(250)
     expect(remainingCharacters("🚪")).toBe(249)

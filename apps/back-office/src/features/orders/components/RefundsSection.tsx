@@ -8,14 +8,14 @@ import { useDeclineRefundRequest, useDismissProposal } from "../refundQueries";
 import { RefundPanel } from "./RefundPanel";
 
 /**
- * The refund half of an order, for staff (055 US1).
+ * The refund half of an order, for staff.
  *
- * ⚠ ORDERED BY WHAT NEEDS A DECISION. Proposals first — they are money the platform's own records say
+ * Ordered by what needs a decision. Proposals first — they are money the platform's own records say
  * is owed and nobody has returned — then the control, then what has already happened. An operator
  * opening this order because a customer is on the phone should not have to scroll past history to
  * find the thing they must act on.
  *
- * ⚠ Detail rows and tables, no cards (Principle V), and no colour carries meaning: a failed refund is
+ * Detail rows and tables, no cards (Principle V), and no colour carries meaning: a failed refund is
  * marked by the word "failed" and its reason, not by a red tint that a colour-blind operator or a
  * greyscale print loses entirely.
  */
@@ -50,12 +50,12 @@ export function RefundsSection({
 }
 
 /**
- * A customer's unanswered ask (055 FR-005r).
+ * A customer's unanswered ask.
  *
- * ⚠ THEIR OWN WORDS, UNEDITED. A summarised complaint is a different complaint, and the summary is
+ * Their own words, unedited. A summarised complaint is a different complaint, and the summary is
  * always written by someone who has already decided what they think happened.
  *
- * ⚠ IT IS ANSWERED BY ISSUING A REFUND OR BY DECLINING — there is no third button and no reply box.
+ * It is answered by issuing a refund or by declining — there is no third button and no reply box.
  * A thread would be a support product, and building half of one, where replies arrive and nobody is
  * assigned to answer, is worse than not building it.
  */
@@ -88,7 +88,7 @@ function OpenRequest({
         <p className="text-sm text-muted-foreground">They did not name particular items.</p>
       )}
 
-      {/* ⚠ Issuing a refund below closes this automatically — there is no "mark as refunded" button,
+      {/* Issuing a refund below closes this automatically — there is no "mark as refunded" button,
           because a request answered without money moving would be a lie in the record. */}
       {canAct ? (
         declining ? (
@@ -96,7 +96,7 @@ function OpenRequest({
             <label htmlFor="decline-note" className="text-sm font-medium">
               Why are you declining this?
             </label>
-            {/* ⚠ Required by this screen. Telling a customer they are not owed money they believe
+            {/* Required by this screen. Telling a customer they are not owed money they believe
                 they are owed is as consequential as paying them, and nobody comes back to check it. */}
             <Input
               id="decline-note"
@@ -138,11 +138,8 @@ function OpenRequest({
 }
 
 /**
- * ⚠ THE PLATFORM'S OWN EVIDENCE THAT SOMEBODY IS OWED MONEY.
- *
- * A picker recorded that these units were not supplied. Making the customer notice and ask is the
- * failure this whole slice exists to close — but a payment triggered by a warehouse tap has no second
- * pair of eyes, so this proposes and a person decides (spec A5b).
+ * The platform's own evidence that somebody is owed money: a picker recorded units not supplied. A
+ * payment triggered by a warehouse tap has no second pair of eyes, so this proposes and a person decides.
  */
 function ProposedRefunds({
   orderId,
@@ -184,7 +181,7 @@ function ProposedRefunds({
         </tbody>
       </table>
 
-      {/* ⚠ A REASON IS REQUIRED, and the server refuses without one. Deciding a customer is NOT owed
+      {/* A reason is required, and the server refuses without one. Deciding a customer is not owed
           money they paid for is exactly as consequential as deciding they are — and it is the
           decision nobody will ever come back and check. */}
       {dismissing ? (
@@ -269,7 +266,7 @@ function RefundHistory({
               </td>
               <td className="w-24 py-2 align-top tabular-nums">
                 {r.amount}
-                {/* 074 — part of it came back as points: say how it was made up. */}
+                {/* Part of it came back as points: say how it was made up. */}
                 {r.pointsReturned ? (
                   <span className="block text-xs text-muted-foreground">
                     {r.cardAmount} to card · {r.pointsReturned.toLocaleString("en-AU")} points
@@ -278,7 +275,7 @@ function RefundHistory({
               </td>
               <td className="py-2 align-top">
                 {r.kind !== "item" ? (
-                  // ⚠ Neither names a line, by design — which is why the note is required on both.
+                  // Neither names a line, by design — which is why the note is required on both.
                   // An `external` one was issued in the provider's dashboard, so its note is the only
                   // thing that can explain it at all.
                   <span>
@@ -293,17 +290,17 @@ function RefundHistory({
               </td>
               <td className="w-56 py-2 align-top">
                 {STATE_WORD[r.status] ?? r.status}
-                {/* ⚠ The provider's reason, STAFF ONLY. It is what decides whether retrying could
+                {/* The provider's reason, staff only. It is what decides whether retrying could
                     ever help, and it is never shown to the customer — "your bank refused it" is
                     something a shopper can do nothing with and reads as an accusation. */}
                 {r.failureReason ? (
                   <span className="block text-xs text-muted-foreground">{r.failureReason}</span>
                 ) : null}
               </td>
-              {/* ⚠ 057 — THE ACTOR'S POOL IS NAMED, NOT JUST THEIR LABEL, AND THIS FIXED A REAL GAP.
-                  `actorLabel` is resolved by a LEFT JOIN against `admin.staff`. That answers for a
-                  back-office actor and for nobody else — so the moment a SHOP could issue a refund
-                  (057 US5), every shop-issued refund would have rendered here as a bare "—":
+              {/* The actor's pool is named, not just their label, and this fixed a real gap.
+                  `actorLabel` is resolved by a left join against `admin.staff`. That answers for a
+                  back-office actor and for nobody else — so the moment a shop could issue a refund
+                  , every shop-issued refund would have rendered here as a bare "—":
                   unattributable, with nothing on screen saying anything was missing. The refund
                   table's own comment calls that "the audit gap this table exists to close."
                   Showing the kind means an unresolved label is still attributed to a pool. */}
@@ -323,7 +320,7 @@ function RefundHistory({
 }
 
 /**
- * ⚠ FIVE STATES, SAID PLAINLY. The pairs exist because each answers a different question — has the
+ * Five states, said plainly. The pairs exist because each answers a different question — has the
  * provider got it (`submitting`/`submitted`), and could retrying ever help (`failed`/`refused`).
  * Collapsing them would leave staff unable to tell a stuck attempt from a dead one.
  */
@@ -335,7 +332,7 @@ const KIND_WORD: Record<string, string> = {
 };
 
 const STATE_WORD: Record<string, string> = {
-  // ⚠ NOT "sending" — that reads as progress, and this state is the absence of an answer. The provider
+  // Not "sending" — that reads as progress, and this state is the absence of an answer. The provider
   // never replied, so nobody can say whether the refund exists. An operator told "sending" waits; one
   // told the truth escalates, which is the only useful thing to do with it.
   submitting: "No answer from the bank — needs checking",
@@ -348,7 +345,7 @@ const STATE_WORD: Record<string, string> = {
 /**
  * Who issued a refund, in words.
  *
- * ⚠ `system` HAS NO PERSON AND MUST NOT INVENT ONE — it arrived from the provider unattributed, and
+ * `system` has no person and must not invent one — it arrived from the provider unattributed, and
  * a name here would be a false statement in the one record that exists to say who moved money.
  * Everything else names its pool, so a label that failed to resolve still says where to look.
  */

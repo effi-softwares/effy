@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 sealed interface ProductDetailUiState {
     data object Loading : ProductDetailUiState
-    /** 098 — [selectedVariantId] is the ONE size price, availability and add follow. */
+    /** [selectedVariantId] is the one size price, availability and add follow. */
     data class Ready(val product: ProductDetail, val selectedVariantId: String = product.defaultVariantId) : ProductDetailUiState {
         val selected: Variant? get() = product.variants.firstOrNull { it.id == selectedVariantId } ?: product.variants.firstOrNull()
     }
@@ -25,7 +25,7 @@ sealed interface ProductDetailUiState {
 }
 
 /**
- * The product detail ViewModel (019 US2). Loads the product and adds it to the device-local guest
+ * The product detail ViewModel. Loads the product and adds it to the device-local guest
  * cart.
  */
 class ProductDetailViewModel(
@@ -45,7 +45,7 @@ class ProductDetailViewModel(
     }
 
     /**
-     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs. [load] replaces the content with
+     * Reload without clearing the screen — what a pull-to-refresh needs. [load] replaces the content with
      * a spinner, which is right on first open and wrong when the shopper is looking at this and asking for
      * a newer version of it. A failure keeps what is on screen.
      */
@@ -72,7 +72,7 @@ class ProductDetailViewModel(
         }
     }
 
-    /** 098 — the shopper picked value [valueId] of the option at [slot]; the selection moves to one size. */
+    /** The shopper picked value [valueId] of the option at [slot]; the selection moves to one size. */
     fun pickValue(slot: Int, valueId: String) {
         val ready = _state.value as? ProductDetailUiState.Ready ?: return
         val current = ready.selected ?: return

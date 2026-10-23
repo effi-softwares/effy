@@ -1,8 +1,5 @@
-// Container-test fixtures for the catalogue (098). Since 098 a product cannot be bought, priced or
-// counted without a variant, so every container test that needs "a product" needs a product AND its
-// variant — written here once, the way the one writer would, so no test re-types the shape and drifts.
-//
-// Test-only: imported from `*.container.test.ts` files, never from service code.
+// Container-test fixtures for the catalogue: a product is not buyable without a variant, so both are
+// written here once, the way the one writer would. Test-only.
 
 import { refreshListing } from "../catalog/listing";
 import type { Queryable } from "../lib/db";
@@ -12,13 +9,13 @@ export interface TestProductInput {
   productTypeId: string;
   primaryCategoryId: string;
   name: string;
-  /** The CUSTOMER price (the variant's price_amount). */
+  /** The customer price (the variant's price_amount). */
   price: string;
   /** The shop's price; defaults to `price` (no margin). */
   shopPrice?: string;
   compareAt?: string | null;
   status?: "draft" | "active" | "unavailable" | "archived";
-  /** Default true for an active product (067: only an approved product is active). */
+  /** Default true for an active product (only an approved product is active). */
   approved?: boolean;
   brand?: string | null;
   shortDescription?: string;

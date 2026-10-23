@@ -26,7 +26,6 @@ vi.mock("../repo", () => ({
   addOrderNote: vi.fn(),
   listFulfillments: vi.fn(),
   getFulfillment: vi.fn(),
-  updateItemProgress: vi.fn(),
 }))
 
 import { OrderListScreen } from "../OrderListScreen"
@@ -67,13 +66,13 @@ describe("the Orders list (057 A3)", () => {
     expect(table().getByText("Maya Oyelaran")).toBeInTheDocument()
     // The design's Items column — this shop's lines, summarised.
     expect(table().getByText("Barossa Free-Range Eggs 700g ×2, Oat milk 1L ×2")).toBeInTheDocument()
-    // ⚠ The longest payment label, on one line — the column is sized for it.
+    // The longest payment label, on one line — the column is sized for it.
     const pay = table().getByText("Partially refunded")
     expect(pay.className).toContain("whitespace-nowrap")
     expect(table().getByText("$57.80")).toBeInTheDocument()
   })
 
-  /** ⚠ Counts cover EVERY state, from the server — not the rows on this page. */
+  /** Counts cover every state, from the server — not the rows on this page. */
   it("shows the server's counts on every status tab", async () => {
     listOrders.mockResolvedValue(
       orderList([orderRow()], {
@@ -132,7 +131,7 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
   })
 
-  /** ⚠ Revision 3 — the saved-views row and the body selects are gone on purpose. */
+  /** Revision 3 — the saved-views row and the body selects are gone on purpose. */
   it("has no saved views, no Fulfilment select and no labels above body selects", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap()
@@ -191,7 +190,7 @@ describe("the Orders list (057 A3)", () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { onSearchChange, rerender } = wrap()
     await screen.findByRole("table")
-    // ⚠ Descending is the DEFAULT now, so it is dropped from the URL rather than written into it.
+    // Descending is the default now, so it is dropped from the URL rather than written into it.
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
     expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
 
@@ -206,7 +205,7 @@ describe("the Orders list (057 A3)", () => {
   })
 
   /**
-   * ⚠ The arrow is the only thing on screen that says which way the list runs. When it disagreed with
+   * The arrow is the only thing on screen that says which way the list runs. When it disagreed with
    * the default it drew ↑ over a newest-first list and the first click on `Placed` did nothing
    * visible — the exact shape of defect a green suite hides.
    */
@@ -219,7 +218,7 @@ describe("the Orders list (057 A3)", () => {
   })
 
   /**
-   * ⚠ THE WASH AND THE WORD ARE ONE FEATURE, TESTED TOGETHER. A test that asserted only the class
+   * The wash and the word are one feature, tested together. A test that asserted only the class
    * would pass over a row that is legible to nobody who cannot see the colour; one that asserted
    * only the word would pass over a row nobody can find. Both, or neither, is the contract.
    */
@@ -248,7 +247,7 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
 
-    /** Opening it IS the acknowledgement (020 FR-011a) — `received` is the proof a person saw it. */
+    /** Opening it IS the acknowledgement — `received` is the proof a person saw it. */
     it("leaves an opened order untinted, though its status pill still reads Preparing (073 words)", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Seen Already", placedAt: minutesAgo(45), status: "received" })]),
@@ -262,7 +261,7 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("Not opened")).not.toBeInTheDocument()
     })
 
-    /** ⚠ A cancelled order placed ten minutes ago is not fresh work, and green would say it is. */
+    /** A cancelled order placed ten minutes ago is not fresh work, and green would say it is. */
     it("never calls a terminal order recent", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Called Off", placedAt: minutesAgo(2), status: "withdrawn" })]),
@@ -273,7 +272,7 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
 
-    /** ⚠ Two background utilities on one row resolve by stylesheet order, not by source order. */
+    /** Two background utilities on one row resolve by stylesheet order, not by source order. */
     it("drops the wash on a selected row so the selection is never invisible", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Fresh Arrival", placedAt: minutesAgo(2), status: "pending" })]),

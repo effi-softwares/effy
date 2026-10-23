@@ -14,29 +14,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * 036 T059 — the two rules most likely to strand a real shopper.
- *
- * ⚠ THESE HAD NO COVERAGE ON EITHER MOBILE APP, and the reason is worth recording: the logic lived as
- * private constants and inline `if`s inside `AuthViewModel`, which takes twelve collaborators
- * including concrete `SessionManager` and `CustomerNavigator` classes. Testing it meant standing up
- * the entire auth stack in fakes, so nobody did — and the rules that decide whether a shopper can get
- * back into their account went unasserted. Extracting them to pure functions is what made this file
- * possible; the extraction was the fix, the test is the proof.
- *
- * ⚠ NO COMMAS IN THESE BACKTICK NAMES. Kotlin/Native rejects them ("Name contains illegal
- * characters") while the JVM accepts them happily — so a comma here compiles and passes on Android
- * and fails ONLY at `compileTestKotlinIosSimulatorArm64`. 033 hit this exact wall and recorded it;
- * this file hit it again on its first run, and the gate 033 added is what caught it.
+ * The rules that decide whether a shopper can get back in (resend, cooldown, ceiling). No commas in the
+ * backtick names: Kotlin/Native rejects them while the JVM accepts them.
  */
 class OtpFlowRulesTest {
 
-    // ── The hourly send ceiling ─────────────────────────────────────────────────────────────────
+    // The hourly send ceiling
 
     @Test
     fun `the ceiling mirrors the platform's five sends per address per hour`() {
         // ⚠ If `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts` ever changes, this
         // number must change with it — the client counts locally precisely because the server's
-        // refusal is INVISIBLE (it returns a normal challenge with a masked destination).
+        // refusal is invisible (it returns a normal challenge with a masked destination).
         assertEquals(5, MAX_SENDS_PER_FLOW)
     }
 
@@ -50,7 +39,7 @@ class OtpFlowRulesTest {
 
     @Test
     fun `⚠ the SIXTH send is refused locally — not fired and silently dropped`() {
-        // THE CASE THIS WHOLE MECHANISM EXISTS FOR. Past five sends the trigger refuses but STILL
+        // The case this whole mechanism exists for. Past five sends the trigger refuses but still
         // returns a normal challenge, so firing anyway shows "we sent a code to a•••@…" for an email
         // that does not exist — and the shopper discovers it only after burning three guesses.
         assertEquals(
@@ -92,7 +81,7 @@ class OtpFlowRulesTest {
 
     @Test
     fun `⚠ submitting a code does not stop the resend countdown`() {
-        // THE DEFECT THIS PINS. `loading` was checked before the cooldown, so tapping "Sign in" flipped
+        // The defect this pins. `loading` was checked before the cooldown, so tapping "Sign in" flipped
         // the verdict Cooldown → Busy and the screen replaced "Send another code in 9s" with "Didn't
         // get it? Send another code" — answering a question the shopper had not asked, and offering the
         // one action the cooldown exists to withhold. A code submission is not a resend.
@@ -128,7 +117,7 @@ class OtpFlowRulesTest {
         assertEquals(RESEND_COOLDOWN_SECONDS, cooldownAfterSend())
     }
 
-    // ── The attempt cap ─────────────────────────────────────────────────────────────────────────
+    // The attempt cap
 
     @Test
     fun `the cap mirrors the platform's three attempts`() {

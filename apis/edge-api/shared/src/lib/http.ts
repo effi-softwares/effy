@@ -1,12 +1,10 @@
-// The shared handler preamble + response/problem builders. There is deliberately NO
-// middleware framework (ARCHITECTURE.md): every handler calls preamble() first and
-// owns its own parsing, claims checks, and error mapping. The problem vocabulary
-// mirrors docs/api/error-envelope.md.
+// The handler preamble and response/problem builders. No middleware framework: every handler calls
+// preamble first. The problem vocabulary is docs/api/error-envelope.md.
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import { logger } from "./logger";
 
-// Problem type URIs — the vocabulary of docs/api/error-envelope.md. Clients switch on these.
+// Problem type URIs; clients switch on these.
 export const ProblemType = {
   ValidationFailed: "https://effyshopping.com/problems/validation-failed",
   Unauthenticated: "https://effyshopping.com/problems/unauthenticated",
@@ -28,15 +26,12 @@ export interface FieldError {
 export interface RequestScope {
   log: ReturnType<typeof logger.child>;
   requestId: string;
-  /** The request path, used as the problem `instance`. */
+  /** The problem `instance`. */
   instance: string;
 }
 
-// preamble MUST be the first line of every handler. It pins the two per-invocation
-// disciplines the platform cannot survive without:
-//  1. callbackWaitsForEmptyEventLoop = false — the cached pg connection's socket
-//     timers would otherwise hang every invocation to timeout (research C4);
-//  2. the per-request child logger carrying awsRequestId + the gateway request id.
+// The first line of every handler: callbackWaitsForEmptyEventLoop = false (the pg socket's timers
+// would hang every invocation), and a per-request child logger with both request ids.
 export function preamble(event: APIGatewayProxyEventV2, context: Context): RequestScope {
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -48,8 +43,7 @@ export function preamble(event: APIGatewayProxyEventV2, context: Context): Reque
   };
 }
 
-// json builds a success response; the gateway request id is echoed as x-request-id so
-// client logs, gateway access logs, and function logs join on one value.
+// Echoes the gateway request id as x-request-id, so client, gateway and function logs join.
 export function json(
   status: number,
   body: unknown,
@@ -107,17 +101,13 @@ export function forbidden(scope: RequestScope): APIGatewayProxyStructuredResultV
     "the authenticated identity may not perform this action", scope);
 }
 
-// internal never explains itself to the caller — the cause lives only in the log
-// record sharing this request id (error-envelope conformance 3).
+// Never explains itself to the caller; the cause is only in the log under this request id.
 export function internal(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   return problem(500, ProblemType.Internal, "Internal error",
     "an unexpected error occurred; reference request_id when reporting", scope);
 }
 
-/**
- * 503. `retryAfterSeconds` sets `Retry-After` when the caller should simply try again — the
- * shopper connection limit (070) is the case that does.
- */
+/** `retryAfterSeconds` sets `Retry-After` when the caller should simply retry (the shopper connection limit). */
 export function unavailable(
   scope: RequestScope,
   retryAfterSeconds?: number,
@@ -128,19 +118,13 @@ export function unavailable(
   return { ...res, headers: { ...res.headers, "retry-after": String(retryAfterSeconds) } };
 }
 
-/**
- * Deliberately identical for every authentication failure — missing, malformed, expired, tampered,
- * wrong-pool, or no platform record — so a response leaks nothing about which check failed.
- */
+/** Identical for every authentication failure, so nothing leaks about which check failed. */
 export function unauthenticated(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   return problem(401, ProblemType.Unauthenticated, "Authentication required",
     "a valid access token for this audience is required", scope);
 }
 
-/**
- * 404 for a missing RESOURCE as well as a missing route — one type, on purpose: a shopper asking
- * for another shopper's order must not be able to tell "not yours" from "not there".
- */
+/** For a missing resource and a missing route alike: "not yours" must look like "not there". */
 export function notFound(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   return problem(404, ProblemType.NoRoute, "No such route",
     "the requested path (or API version) does not exist", scope);
@@ -154,11 +138,7 @@ export function validationFailed(
   return problem(400, ProblemType.ValidationFailed, "Request validation failed", detail, scope, errors);
 }
 
-/**
- * A refusal the CLIENT must tell apart from other refusals (a promo code that is expired vs
- * exhausted; a list at its limit). `reason` becomes the problem's own type URI — which is what
- * RFC 9457's `type` is for — with underscores written as hyphens.
- */
+/** A refusal the client tells apart: `reason` becomes the problem's own type URI (underscores as hyphens). */
 export function refused(
   scope: RequestScope,
   status: number,
@@ -172,7 +152,7 @@ export function refused(
   return { ...res, body: JSON.stringify({ ...(JSON.parse(res.body ?? "{}") as object), ...extra }) };
 }
 
-/** A state clash the client resolves by re-reading (a stale delivery quote). */
+/** A state clash the client resolves by re-reading. */
 export function conflict(scope: RequestScope, detail: string): APIGatewayProxyStructuredResultV2 {
   return problem(409, ProblemType.Conflict, "Conflict", detail, scope);
 }

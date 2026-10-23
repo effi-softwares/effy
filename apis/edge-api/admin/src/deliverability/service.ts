@@ -1,5 +1,3 @@
-// Deliverability service: turns raw delivery outcomes into the platform's conclusion, and owns the
-// three-part repair. Pure decisions live here; SQL lives in repository.ts (Principle VI).
 import {
   DeleteSuppressedDestinationCommand,
   GetSuppressedDestinationCommand,
@@ -26,15 +24,7 @@ function ses(): SESv2Client {
   return client
 }
 
-// ── Outcome → conclusion ─────────────────────────────────────────────────────────────────────
-
-/**
- * ⚠ THE ONE DECISION THAT LOCKS SOMEONE OUT. Only a PERMANENT failure reaches `undeliverable`.
- *
- * `Undetermined` — an outcome the mail service itself could not classify — is treated as TRANSIENT.
- * The bias is deliberately toward under-reporting: a missed lockout is found when the person
- * contacts support, while a FALSE lockout is found by nobody, because the person simply leaves.
- */
+/** Only a permanent failure locks someone out; `Undetermined` is transient (a false lockout is found by nobody). */
 export function stateFor(event: DeliveryEvent): EmailDeliveryState {
   switch (event.eventType) {
     case "bounce":
@@ -46,17 +36,12 @@ export function stateFor(event: DeliveryEvent): EmailDeliveryState {
     case "delivery_delay":
       return "soft_failing"
     case "reject":
-      // Recorded for diagnosis; SES accepted the message and then refused it (a virus, typically).
-      // It says nothing about whether the address works, so it must not move the conclusion.
+      // SES accepted and then refused it (a virus, typically): says nothing about the address.
       return "reachable"
   }
 }
 
-/**
- * Record one outcome.
- *
- * ⚠ The status row is advanced ONLY when the event was NEW. See repository.insertEvent.
- */
+/** The status advances only when the event was new. */
 export async function recordOutcome(event: DeliveryEvent): Promise<{ recorded: boolean; state: EmailDeliveryState }> {
   const state = stateFor(event)
   const isNew = await repo.insertEvent(event)
@@ -67,8 +52,6 @@ export async function recordOutcome(event: DeliveryEvent): Promise<{ recorded: b
 
   return { recorded: isNew, state }
 }
-
-// ── Reads ────────────────────────────────────────────────────────────────────────────────────
 
 export async function list(params: DeliveryListParams): Promise<DeliveryListDTO> {
   const { items, total } = await repo.listStatuses(params)
@@ -100,46 +83,27 @@ export async function detail(address: string): Promise<DeliveryDetailDTO> {
   }
 }
 
-/**
- * Is this address on the mail service's own block list?
- *
- * ⚠ READ LIVE, NEVER STORED. Two stored sources of truth for one fact disagree eventually, and at
- * that moment nobody can tell which is lying — the reasoning that made 027 count redemptions rather
- * than keep a counter.
- *
- * ⚠ RETURNS null ON FAILURE, never false. `false` reads as "not suppressed", which is the more
- * dangerous of the two lies: an operator would conclude the address is fine and stop looking.
- */
+/** Read live, never stored. null on failure, never false: "not suppressed" would be the worse lie. */
 async function isSuppressed(rawAddress: string): Promise<boolean | null> {
   try {
     await ses().send(new GetSuppressedDestinationCommand({ EmailAddress: rawAddress }))
     return true
   } catch (err) {
     if (err instanceof Error && err.name === "NotFoundException") return false
-    // ⚠ Log the ERROR NAME only. The rejection text embeds the address (035's rule).
+    // The error name only: the rejection text embeds the address.
     logger.warn({ err: err instanceof Error ? err.name : "unknown" }, "suppression lookup failed")
     return null
   }
 }
 
-// ── Repair ───────────────────────────────────────────────────────────────────────────────────
-
 /**
- * Restore a person's ability to receive mail (FR-034).
- *
- * ⚠ TWO HALVES, AND HALF A REPAIR IS A FAILED REPAIR. Clearing only the platform's record leaves the
- * mail service still accepting-and-dropping every send; clearing only the mail service's entry
- * leaves the console and the account page still reporting the person as unreachable.
- *
- * ⚠ MAIL SERVICE FIRST, DATABASE SECOND. If the remote call fails, the transaction never opens and
- * nothing is recorded — which leaves a TRUE state. The reverse order could commit "repaired" while
- * the address is still blocked, which is the worst outcome available because it LOOKS fixed.
+ * Both halves or none: SES suppression first, then the database, so a failed remote call records
+ * nothing and "repaired" is never committed while the address is still blocked.
  */
 export async function repair(address: string, actorSub: string, note: string): Promise<DeliveryDetailDTO> {
   const trimmed = note.trim()
   if (!trimmed) {
-    // Required on purpose: a repair with no stated reason is indistinguishable from a mistake six
-    // months later, and this action re-enables mail to an address that previously hard-failed.
+    // A reason is required: this re-enables mail to an address that hard-failed.
     throw new DeliverabilityError("validation", "a note explaining the repair is required")
   }
   if (trimmed.length > REPAIR_NOTE_MAX) {
@@ -150,15 +114,10 @@ export async function repair(address: string, actorSub: string, note: string): P
   if (!status) throw new DeliverabilityError("not_found", "no delivery record for that address")
 
   try {
-    // ⚠ `rawAddress` — the stored bytes, case intact. NOT the path parameter and NOT a lowercased
-    // form: this API is case-sensitive, and a normalising delete silently fails to remove an entry
-    // that demonstrably exists, leaving the operator certain they fixed something they did not
-    // (FR-035).
+    // `rawAddress`, case intact: the API is case-sensitive.
     await ses().send(new DeleteSuppressedDestinationCommand({ EmailAddress: status.rawAddress }))
   } catch (err) {
-    // ⚠ "Not found" IS SUCCESS. It means the address was never suppressed, or was cleared already —
-    // and the platform's own half still needs clearing. Treating it as an error would make the
-    // common case (a soft_failing address with no entry at all) permanently unrepairable.
+    // "Not found" is success: the platform's half still needs clearing.
     if (!(err instanceof Error && err.name === "NotFoundException")) {
       logger.error({ err: err instanceof Error ? err.name : "unknown" }, "suppression delete failed")
       throw new DeliverabilityError("unavailable", "could not clear the suppression entry")
@@ -169,24 +128,13 @@ export async function repair(address: string, actorSub: string, note: string): P
   return detail(status.address)
 }
 
-// ── Parsing the raw outcome payload ──────────────────────────────────────────────────────────
-
 interface RawRecipient {
   emailAddress?: string
   diagnosticCode?: string
   status?: string
 }
 
-/**
- * Normalise one outcome message into zero or more events — one per named recipient.
- *
- * ⚠ ONE MESSAGE CAN NAME SEVERAL RECIPIENTS. This platform sends one code to one address, but the
- * contract does not guarantee that and the consumer must not assume it.
- *
- * ⚠ RETURNS [] RATHER THAN THROWING on anything unrecognised. Throwing makes the delivery retry
- * forever, turning one unparseable message into an outage of the whole consumer — and the consumer
- * is the only thing that can see a person being locked out.
- */
+/** One event per named recipient. [] rather than a throw on anything unrecognised. */
 export function parseOutcome(raw: unknown): DeliveryEvent[] {
   if (typeof raw !== "object" || raw === null) return []
   const msg = raw as Record<string, any>
@@ -197,9 +145,7 @@ export function parseOutcome(raw: unknown): DeliveryEvent[] {
 
   const occurredAt: string = msg.mail?.timestamp ?? new Date().toISOString()
 
-  // ⚠ 038 attribution. SES `mail.tags` is a map of string→string[]; the platform sets exactly one
-  // `effy-template` value. Absent for a Cognito-sent message (which cannot be tagged) or a
-  // pre-038 send — both legitimately NULL, never an error.
+  // `mail.tags` holds one `effy-template` value; absent for Cognito-sent mail.
   const templateId: string | null = msg.mail?.tags?.["effy-template"]?.[0] ?? null
 
   let recipients: RawRecipient[] = []
@@ -267,7 +213,6 @@ function eventTypeFor(raw: unknown): DeliveryEventType | null {
     case "DeliveryDelay":
       return "delivery_delay"
     default:
-      // Unknown types are ignored, not thrown — see parseOutcome's header.
       return null
   }
 }

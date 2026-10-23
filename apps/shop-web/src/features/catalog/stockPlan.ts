@@ -1,11 +1,11 @@
 import type { ProductStockDTO } from "@effy/shared-types";
 
 /**
- * The stock table (098) — the pure half: what a number typed against a size MEANS, and what saving it
+ * The stock table — the pure half: what a number typed against a size means, and what saving it
  * will do. One table for every size of a product, one Save.
  *
- *   receive  — a delivery came in: the number is ADDED to what is on the shelf (reason "received").
- *   count    — a stocktake: the number REPLACES the count (reason "correction").
+ *  receive — a delivery came in: the number is added to what is on the shelf (reason "received").
+ *  count — a stocktake: the number replaces the count (reason "correction").
  *
  * A size that is not counted yet starts counting at the number either way — receiving 24 into an
  * uncounted size and counting it at 24 are the same fact.

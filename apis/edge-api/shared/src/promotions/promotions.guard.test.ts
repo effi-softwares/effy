@@ -5,21 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 094 — promotions live once (R2), which no behavioural test would notice being broken:
- *
- *   1. `promotion_use` is written by `uses.ts` only. A second writer is a second idea of how many
- *      uses are left, and the caps and the budget stop holding.
- *   2. A promotion's definition (`promotion`, `promotion_code`, `promotion_target`,
- *      `promotion_customer`, `promotion_group`, `promotion_group_member`) is written by back-office's
- *      admin service only.
- *   3. Those tables are READ only here (`shared/src/promotions`) and by the admin service. The cart, the
- *      intent and both group reads come through `candidates.ts`, so "what applies now" has one answer.
- *   4. No shop service reads a promotion or what an order's promotions were (FR-035).
- *   5. Nothing outside `engine.ts` works out a discount: the 027 evaluator is gone.
- *   7. 095 — skins and pictures (`promotion_skin`, `promotion_image`) are written by the admin service only
- *      and read here and there; a shop never reads them.
- *   6. Nothing names 027's tables or their keys (`promo_code`, `promo_redemption`, `promo_code_id`,
- *      `legacy_promo_code_id`) — stage C drops them. `order.promo_code`, the code's TEXT, stays.
+ * Promotions live once:
+ *  1. `promotion_use` is written by `uses.ts` only.
+ *  2. The definition tables are written by the admin service only.
+ *  3. They are read only here and by the admin service; everything else goes through `candidates.ts`.
+ *  4. No shop service reads a promotion or an order's promotions.
+ *  5. Nothing outside `engine.ts` works out a discount.
+ *  6. Nothing names the retired promo tables (`promo_code`, `promo_redemption`, …).
+ *  7. Skins and pictures are written by the admin service only and never read by a shop.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");

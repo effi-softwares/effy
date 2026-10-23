@@ -48,10 +48,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The manifest's shared views (065) — used by the shop pickup AND the customer drop.
+ * The manifest's shared views — used by the shop pickup and the customer drop.
  *
- * ⚠ THE CLASS IS CARRIED BY A WORD AND A SHAPE, NEVER BY COLOUR (FR-011, SC-004). Every icon here is
- * drawn in the text colour and differs from the others in OUTLINE — a six-armed star, a droplet, a
+ * The class is carried by a word and a shape, never by colour. Every icon here is
+ * drawn in the text colour and differs from the others in outline — a six-armed star, a droplet, a
  * box, a ring — so it reads the same in greyscale, in direct sunlight and to a colour-blind driver.
  * There is deliberately no blue-for-cold: Principle V gives the platform one action colour, and a
  * driver glancing at a van-mounted phone should not have to tell two blues apart.
@@ -60,11 +60,7 @@ import kotlin.math.sin
 /** One class: its icon and its word. The unit of meaning everything else here is built from. */
 @Composable
 fun ClassChip(temperatureClass: TemperatureClass, count: Int? = null, modifier: Modifier = Modifier) {
-    val tint = if (temperatureClass == TemperatureClass.NotRecorded) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val tint = MaterialTheme.colorScheme.onSurface
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         ClassIcon(temperatureClass, tint)
         Spacer(Modifier.width(6.dp))
@@ -89,7 +85,6 @@ private fun ClassIcon(temperatureClass: TemperatureClass, tint: Color) {
             TemperatureClass.Frozen -> snowflake(tint)
             TemperatureClass.Chilled -> droplet(tint)
             TemperatureClass.Normal -> box(tint)
-            TemperatureClass.NotRecorded -> dashedRing(tint)
         }
     }
 }
@@ -127,20 +122,10 @@ private fun DrawScope.box(tint: Color) {
     )
 }
 
-private fun DrawScope.dashedRing(tint: Color) {
-    val w = size.minDimension / 9f
-    val r = size.minDimension / 2f - w
-    val c = Offset(size.width / 2f, size.height / 2f)
-    for (i in 0 until 8) {
-        val a = (i * 45.0) * PI / 180.0
-        drawCircle(tint, radius = w * 0.7f, center = c + Offset((cos(a) * r).toFloat(), (sin(a) * r).toFloat()))
-    }
-}
-
 /**
  * Every line of one package. List rows, not cards (Principle V).
  *
- * ⚠ NOTHING IS DROPPED TO MAKE IT FIT (FR-005). A long name wraps under itself; the quantity and the
+ * Nothing is dropped to make it fit. A long name wraps under itself; the quantity and the
  * class sit in their own columns so neither can be pushed off the row.
  */
 @Composable
@@ -189,7 +174,7 @@ private fun ManifestRow(line: ManifestLine) {
             ClassChip(line.temperatureClass)
         }
         Spacer(Modifier.width(12.dp))
-        // ⚠ "Not included" is said in WORDS. A strikethrough alone is invisible to a screen reader
+        // "Not included" is said in words. A strikethrough alone is invisible to a screen reader
         // and easy to miss on a phone in a cradle.
         Text(
             quantity,
@@ -203,12 +188,12 @@ private fun ManifestRow(line: ManifestLine) {
 /**
  * A package's summary with its lines behind a "Show items" toggle.
  *
- * ⚠ The toggle is its OWN 48 dp target and is not the row above it: on the pickup screen the row
+ * The toggle is its own 48 dp target and is not the row above it: on the pickup screen the row
  * confirms the package, and a driver opening the list must not tick a package they have not loaded.
  */
 /**
  * Told when a driver opens a package's item list: whether cold goods are in it, and how many lines.
- * ⚠ An ambient rather than a parameter because the list sits four composables deep on two screens,
+ * An ambient rather than a parameter because the list sits four composables deep on two screens,
  * and what it reports is telemetry, not behaviour. Never an item name or an order reference.
  */
 val LocalManifestOpened = staticCompositionLocalOf<(hasCold: Boolean, lineCount: Int) -> Unit> { { _, _ -> } }
@@ -216,7 +201,7 @@ val LocalManifestOpened = staticCompositionLocalOf<(hasCold: Boolean, lineCount:
 
 
 /**
- * 092 rev 2 — a package's items in a grey rounded box (the redesign's shop stop and drop): "2× Greek
+ * Rev 2 — a package's items in a grey rounded box (the redesign's shop stop and drop): "2× Greek
  * yoghurt 1kg", the cold class on the right. A line the shop could not supply is struck through and says so.
  */
 @Composable

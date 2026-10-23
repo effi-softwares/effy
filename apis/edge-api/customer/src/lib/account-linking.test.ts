@@ -24,13 +24,7 @@ const base = {
 }
 
 describe("account linking", () => {
-  /**
-   * ⚠ THE MOST IMPORTANT TESTS IN THE SLICE.
-   *
-   * Linking on an unverified email hands an attacker JWTs carrying the VICTIM'S `sub`. If any of
-   * these ever go green-by-deletion, the platform has an account-takeover hole and no error to
-   * show for it.
-   */
+  /** Linking on an unverified email hands an attacker the victim's `sub`. */
   describe("REFUSES to link an unverified identity (FR-012)", () => {
     it("refuses when the provider does not assert email_verified", async () => {
       const a = admin()
@@ -87,7 +81,7 @@ describe("account linking", () => {
       expect(a.createNativeUser).not.toHaveBeenCalled()
       expect(a.linkProvider).toHaveBeenCalledWith({
         userPoolId: base.userPoolId,
-        destinationUsername: "existing-native-uuid", // ← the NATIVE profile is the destination
+        destinationUsername: "existing-native-uuid",
         providerName: "Google",
         providerSub: "1029384756",
       })
@@ -100,8 +94,7 @@ describe("account linking", () => {
 
       expect(r.outcome).toBe("created-and-linked")
       expect(a.createNativeUser).toHaveBeenCalledWith(base.userPoolId, base.email)
-      // The destination is the freshly-created NATIVE profile — never the federated one. If this
-      // ever inverts, `sub` stops surviving the link and every customer record breaks.
+      // The native profile is the destination, so `sub` survives the link.
       expect(a.linkProvider).toHaveBeenCalledWith(
         expect.objectContaining({ destinationUsername: "native-uuid" }),
       )

@@ -12,12 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/**
- * 087 FR-034 — the Orders row says where an order is and when it arrives, from what the list CARRIES.
- *
- * Every field is optional: an order from before 084 must degrade to the row it always had, never to an
- * invented stage or arrival.
- */
+/** The Orders row says where an order is and when it arrives; a missing field degrades, never to an invented stage or arrival. */
 class OrderSummaryRowTest {
 
     private fun order(

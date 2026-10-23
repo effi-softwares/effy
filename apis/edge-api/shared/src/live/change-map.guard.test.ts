@@ -5,20 +5,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 071 — NO ROUTE MAY CHANGE WHAT A LIVE SCREEN SHOWS WITHOUT SAYING SO.
- *
- * Since 071 no screen re-reads on a timer. A new route that changes an order, a round or a stock
- * count and does not announce it produces a screen that is simply wrong until someone refreshes —
- * no error, no log line, no failing test. This is the test that fails instead.
- *
- * Every state-changing function (`-post|-put|-patch|-delete`) and every scheduled function in the
- * services below must either REACH an announcing call, or be listed in `SILENT` with the reason it
- * changes nothing a live screen shows (specs/071-live-updates/contracts/change-map.md).
- *
- * ⚠ "REACHES" IS BY IMPORT, NOT BY EXECUTION PATH: the function's file, or a file it imports
- * (transitively, within its service), calls an announcing function. That is deliberately generous —
- * it cannot prove the right audience is told, only catch the route that tells nobody. The audience
- * is proved by the tests beside each announcing function.
+ * No route may change what a live screen shows without saying so. Every state-changing and scheduled
+ * function must reach an announcing call (by import, transitively within its service) or be listed in
+ * `SILENT` with its reason. It cannot prove the right audience is told; the tests beside each
+ * announcing function do that.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
@@ -26,20 +16,15 @@ const edgeApi = resolve(here, "../../..");
 const SERVICES = ["commerce", "shop", "inventory", "driver", "fleet", "orders", "catalog", "admin"] as const;
 
 /**
- * Calls that announce — directly, or from inside the shared money module under this service's role.
- *
- * ⚠ `commerce` wires its services in one module (`lib/wiring.ts`), which every one of its functions
- * imports. Following imports THROUGH it would make every cart route "reach" the refund service and
- * the check vacuous for the whole service — which is what this guard's first run did. So a wiring
- * hub is not followed; a function must itself call one of the hub's announcing entry points.
+ * Calls that announce. `commerce`'s `lib/wiring.ts` is imported by every function, so it is not
+ * followed: a function must call one of its announcing entry points itself.
  */
 const ANNOUNCES = /\b(announce\w*|createRefundService|refundService\.\w+|handleWebhook|checkoutService\.confirm\w*)\(/;
 const WIRING_HUB = /\/lib\/wiring\.ts$/;
 
 /** `service/function-file` → why it tells nobody. A reason is required; "n/a" is not one. */
 const SILENT: Record<string, string> = {
-  // ── commerce: the shopper's own cart, lists and saved items — kept in step across their devices
-  //    by the cart's own mechanism (027), and shown on no staff screen (spec Assumptions).
+  // commerce: the shopper's own cart, lists and saved items, synced by the cart's own mechanism.
   "commerce/cart-item-set-aside-v1-post": "cart — own sync mechanism (027)",
   "commerce/cart-item-v1-delete": "cart — own sync mechanism (027)",
   "commerce/cart-item-v1-patch": "cart — own sync mechanism (027)",
@@ -66,7 +51,7 @@ const SILENT: Record<string, string> = {
   "commerce/saved-item-v1-put": "the shopper's own saved items (033)",
   "commerce/saved-merge-v1-post": "the shopper's own saved items (033)",
 
-  // ── shop: catalogue authoring, notes and tags, devices, team.
+  // shop: catalogue authoring, notes and tags, devices, team.
   "shop/order-notes-v1-post": "an internal note on one order — shown on the order's own page to whoever opens it, not on a list",
   "shop/order-tags-v1-put": "internal tags on one order — as notes",
   "shop/product-create-v1-post": "catalogue authoring: a draft is the author's own until submitted, and submission announces `review`",
@@ -94,23 +79,23 @@ const SILENT: Record<string, string> = {
 
   "shop/insights-reconcile": "rebuilds the prepared analytics rollup; Insights is not a live screen (FR-030)",
 
-  // ── driver
+  // driver
   "driver/driver-devices-v1-id-delete": "push device registration — the other channel",
   "driver/driver-devices-v1-post": "push device registration — the other channel",
   "driver/driver-drop-proof-presign-v1-post": "issues an upload URL; changes nothing until the proof is submitted",
 
-  // ── fleet
+  // fleet
   "fleet/vehicle-create-v1-post": "vehicle register — no screen in FR-029",
   "fleet/vehicle-holding-issue-v1-post": "vehicle register — no screen in FR-029",
   "fleet/vehicle-holding-return-v1-post": "vehicle register — no screen in FR-029",
   "fleet/vehicle-status-v1-post": "vehicle register — no screen in FR-029",
   "fleet/vehicle-update-v1-patch": "vehicle register — no screen in FR-029",
 
-  // ── catalog
+  // catalog
   "catalog/review-queue-age-scheduled": "emits a metric about the queue's age; changes nothing",
 };
 
-/** Every admin function is configuration or administration, none of it on a screen in FR-029. */
+/** Every admin function is configuration or administration. */
 const SILENT_SERVICES: Record<string, string> = {
   admin:
     "back-office administration and configuration — catalogue taxonomy, delivery zones and plans, promotions, shops and their users, feedback, order policy. FR-029 lists orders, dispatch and drivers, slot load and the review queue; none of those is written here (they are written by `orders`, `fleet` and `catalog`).",
@@ -155,12 +140,10 @@ describe("071 — every change a live screen shows is announced", () => {
     }
   });
 
-  // There is deliberately no check that an exempted function does NOT reach an announcing call.
-  // Reach is by import: `shop/order-notes` imports the order service, where `setPicks` announces,
-  // and that says nothing about notes. Such a check fails on exactly the exemptions that are right.
+  // No check that an exempt function does not reach an announcer: reach is by import and says nothing about the exempt route.
 
   it("no admin function writes an order, a round, a slot or a review decision", () => {
-    // The whole-service exemption rests on this. If it stops being true, exempt per function.
+    // The whole-service exemption rests on this.
     const offenders = functions
       .filter((f) => f.service === "admin")
       .filter((f) => /^(order-(?!policy)|dispatch-|delivery-slot|review-|fulfillment-|refund-|driver-)/.test(f.name))

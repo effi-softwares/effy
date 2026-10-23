@@ -5,9 +5,9 @@ import com.effyshopping.driver.mobile.core.http.effyJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 089 — a package's label code and its bags arrive on the drop. */
+/** A package's label code and its bags arrive on the drop. */
 class PackageCodeWireTest {
-    private val base = """"ref":"EFY-1","fromShopCount":1,"items":[],"summary":{"frozen":0,"chilled":0,"normal":1,"notRecorded":0}"""
+    private val base = """"ref":"EFY-1","fromShopCount":1,"items":[],"summary":{"frozen":0,"chilled":0,"normal":1}"""
 
     @Test fun a_package_decodes_its_code_and_bags() {
         val pkg = effyJson.decodeFromString(

@@ -5,31 +5,10 @@ import { Eye, EyeOff } from "lucide-react"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
 /**
- * A password input (012 FR-023).
- *
- * Everything about this component is a decision, and most of them are decisions NOT to do the
- * traditional thing:
- *
- * ⚠ NO `onPaste` HANDLER, AND THERE NEVER WILL BE. Blocking paste breaks password managers, which
- *   makes people pick weaker passwords they can type — the exact opposite of the intent. It also
- *   FAILS WCAG 2.2 SC 3.3.8 (Accessible Authentication) outright.
- *
- * ⚠ NO "CONFIRM PASSWORD" FIELD. GOV.UK removed theirs once they shipped a reveal toggle, and their
- *   research was blunt: "a second field is not helpful for users". A reveal toggle solves the typo
- *   problem the confirm field was invented for, and it solves it better — you can SEE the password
- *   rather than typing it twice and hoping you made the same mistake both times.
- *
- * ⚠ `autoComplete` IS SET PROPERLY (`new-password` / `current-password`) so password managers fill
- *   and save correctly. Getting this wrong is why managers offer to save the OLD password.
- *
- * ⚠ THE LENGTH RULE IS IMPORTED, not retyped. `PASSWORD_MIN_LENGTH` has ONE definition
- *   (@effy/shared-types), shared with the backend that ENFORCES it. A hardcoded "12" here would
- *   drift from the real rule the first time it changed, and the customer would be told something
- *   false.
- *
- * ⚠ And what is shown here is a COURTESY, not a control. The backend re-checks the length and
- *   additionally screens the password against known breach corpora — which the browser never does,
- *   precisely so a crafted request cannot skip it.
+ * A password input. No `onPaste` handler (blocking paste breaks password managers and fails WCAG 2.2
+ * SC 3.3.8), no "CONFIRM PASSWORD" field (the reveal toggle does that job better), and a proper
+ * `autoComplete`. `PASSWORD_MIN_LENGTH` comes from @effy/shared-types; the backend enforces it and
+ * also screens against breach corpora, so what is shown here is a courtesy.
  */
 export function PasswordField({
   name,
@@ -76,11 +55,10 @@ export function PasswordField({
         <button
           type="button"
           onClick={() => setRevealed((r) => !r)}
-          // The toggle's accessible name must be DISTINCT per field — two fields on one page whose
-          // toggles are both called "Show password" are indistinguishable to a screen-reader user.
+          // A distinct accessible name per field, or two "Show password" toggles are indistinguishable.
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
           aria-pressed={revealed}
-          // 44px target — the platform's fat-finger rule, stricter than WCAG 2.2's 24px minimum.
+          // A 44px target.
           className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
         >
           {revealed ? (

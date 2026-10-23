@@ -22,12 +22,8 @@ import { NavList } from "./NavList";
 import type { NavItem } from "./nav";
 
 /**
- * The authenticated shell every protected screen renders inside: a collapsible sidebar rail
- * (brand · role-aware nav · identity + sign-out), a top bar showing the current location, and a
- * main content region.
- *
- * Everything variable is a prop — brand, nav, roles, identity, callbacks — so both consoles use
- * one shell rather than two near-identical copies. No DI framework: the app wires it by hand.
+ * The authenticated shell: a collapsible sidebar rail (brand, role-aware nav, identity and sign-out),
+ * a top bar, and the main region. Everything variable is a prop, so both consoles share it.
  */
 export interface ConsoleShellProps<TRole extends string> {
   brand: { name: string; surface: string };
@@ -36,31 +32,21 @@ export interface ConsoleShellProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
   roles: readonly TRole[];
   navGroupLabel?: string;
-  /** 057 — optional live counts beside nav items, keyed by `to`. Omitted = no badges (back-office). */
+  /** Optional live counts beside nav items, keyed by `to`. */
   navBadges?: Readonly<Record<string, number | undefined>>;
   /**
-   * 057 — optional controls on the right of the header bar.
-   *
-   * ⚠ THESE SIT BEFORE THE ALERTS BUTTON, WHICH THE SHELL SUPPLIES. The design pins it to the same
-   * place on every screen, so a screen cannot take its slot — record pagination and other per-screen
-   * controls go here, to its left. There is no header theme toggle: appearance lives in the sidebar
-   * user menu (Light / Dark / Follow-System).
+   * Optional header controls, placed before the alerts button (which the shell pins). Appearance lives
+   * in the sidebar user menu, not the header.
    */
   headerActions?: ReactNode;
-  /**
-   * Optional alerts affordance. Omitted, no bell renders at all — a console with nothing to alert
-   * about should not carry a permanently silent indicator.
-   */
+  /** Optional alerts affordance; omitted, no bell renders. */
   alerts?: { count: number; onOpen: () => void };
-  /** 057 — supplying a title swaps the breadcrumb header for the imported design's title+subtitle. */
+  /** Swaps the breadcrumb header for a title and subtitle. */
   headerTitle?: ReactNode;
   headerSubtitle?: ReactNode;
-  /** 057 — a breadcrumb trail in place of the title (see `ConsoleHeader`). Omitted = unchanged. */
+  /** A breadcrumb trail in place of the title (see `ConsoleHeader`). */
   headerBreadcrumb?: ReactNode;
-  /**
-   * 057 — the sidebar's width, e.g. "14rem" for the imported design's 224px rail. Omitted keeps the
-   * shadcn default, which is what back-office renders at today.
-   */
+  /** The sidebar's width, e.g. "14rem" for a 224px rail; omitted, the shadcn default. */
   sidebarWidth?: string;
 
   email: string;
@@ -78,11 +64,7 @@ export interface ConsoleShellProps<TRole extends string> {
   children: ReactNode;
 }
 
-/**
- * ⚠ THE WIDTH BELOW WHICH THE CONSOLE NAVIGATES BY THE BOTTOM BAR — the same 1100px `MobileNavBar`
- * and the content padding below key on. The sidebar is told it too, so below it the rail becomes the
- * off-canvas sheet (reached from the header trigger) instead of rendering beside the bottom bar.
- */
+/** Below this width the console navigates by the bottom bar, and the rail becomes the off-canvas sheet. */
 const NARROW_BREAKPOINT = 1100;
 
 export function ConsoleShell<TRole extends string>({
@@ -147,10 +129,8 @@ export function ConsoleShell<TRole extends string>({
           subtitle={headerSubtitle}
           breadcrumb={headerBreadcrumb}
         />
-        {/* ⚠ The bottom nav is FIXED, so it overlays the end of the scroll region. The padding below
-            reserves its height (56px + the device safe area) and is removed at the same 1100px
-            breakpoint the bar disappears at — without it the last table row and the pagination
-            controls sit permanently under the bar and cannot be reached. */}
+        {/* The fixed bottom nav overlays the scroll region, so its height (56px + the safe area) is
+            reserved below 1100px, or the last rows and the pagination sit under it. */}
         <div
           className={cn(
             contentClassName,

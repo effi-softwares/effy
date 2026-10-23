@@ -4,7 +4,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import type { Session } from "./model";
 
 // The EMAIL_OTP flow itself is identical on every pool, so it lives in the kit. What is
-// surface-specific is the SHAPE of a session — which role union it narrows the claim to.
+// surface-specific is the shape of a session — which role union it narrows the claim to.
 export { signOutUser, startSignIn, submitOtp, type SignInOutcome } from "@effy/web-kit";
 
 export async function loadSession(): Promise<Session> {

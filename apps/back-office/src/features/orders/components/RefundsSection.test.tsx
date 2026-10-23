@@ -49,7 +49,7 @@ describe("a refund the platform's own records say is owed", () => {
   it("is shown with what is short and what it is worth", async () => {
     renderSection({ proposedRefunds: [PROPOSAL] });
 
-    // ⚠ Scoped to the proposals section: "Milk" is also a selectable line in the refund control
+    // Scoped to the proposals section: "Milk" is also a selectable line in the refund control
     // below, and an unscoped query would pass whichever one it found first.
     const heading = await screen.findByText(/owed but not refunded/i);
     const section = within(heading.closest("section")!);
@@ -58,7 +58,7 @@ describe("a refund the platform's own records say is owed", () => {
     expect(section.getByText("20.00")).toBeInTheDocument();
   });
 
-  // ⚠ Deciding a customer is NOT owed money they paid for is as consequential as deciding they are,
+  // Deciding a customer is not owed money they paid for is as consequential as deciding they are,
   // and it is the decision nobody comes back to check.
   it("cannot be dismissed without a reason", async () => {
     renderSection({ proposedRefunds: [PROPOSAL] });
@@ -78,7 +78,7 @@ describe("a refund the platform's own records say is owed", () => {
   it("offers no dismissal at all to someone who cannot issue refunds", async () => {
     renderSection({ proposedRefunds: [PROPOSAL] }, false);
 
-    // Still VISIBLE — a csa taking the call must be able to see that money is owed.
+    // Still visible — a csa taking the call must be able to see that money is owed.
     expect(await screen.findByText(/owed but not refunded/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /not owed/i })).not.toBeInTheDocument();
   });
@@ -113,7 +113,7 @@ describe("refund history", () => {
     settledAt: null,
   };
 
-  // ⚠ The five states exist because each pair answers a different question. Collapsing them leaves
+  // The five states exist because each pair answers a different question. Collapsing them leaves
   // staff unable to tell a stuck attempt from a dead one.
   it("distinguishes a failure that can be retried from a refusal that cannot", async () => {
     renderSection({
@@ -193,7 +193,7 @@ describe("a customer's own request", () => {
   });
 });
 
-// ⚠ FR-005f / T038 — THE ONLY QUESTION ANYONE ASKS ABOUT A REFUND IS "DID THE MONEY GO?", and a
+// The only question anyone asks about a refund is "did the money go?", and a
 // staff member must be able to answer it from this screen alone.
 describe("did the money go?", () => {
   const R = {
@@ -224,7 +224,7 @@ describe("did the money go?", () => {
     expect(await screen.findByText(expected)).toBeInTheDocument();
   });
 
-  // ⚠ `submitting` is the ABSENCE of an answer, not progress. An operator told "sending to the bank"
+  // `submitting` is the absence of an answer, not progress. An operator told "sending to the bank"
   // waits for something that may never come; one told nobody answered escalates, which is the only
   // useful thing to do with it.
   it("never describes an unanswered submission as being in progress", async () => {
@@ -233,7 +233,7 @@ describe("did the money go?", () => {
     expect(row.textContent ?? "").not.toMatch(/sending|on its way|refunded/i);
   });
 
-  // ⚠ FR-010. Somebody returned money by hand in the provider's dashboard. The order must show it, or
+  // FR-010. Somebody returned money by hand in the provider's dashboard. The order must show it, or
   // staff read a total that does not match the bank.
   it("shows a refund issued outside Effy, and says so", async () => {
     renderSection({
@@ -243,9 +243,9 @@ describe("did the money go?", () => {
           kind: "external",
           reason: "external",
           status: "succeeded",
-          // ⚠ An `external` refund is `system`, not `back_office`. The migration is explicit: it "has
+          // An `external` refund is `system`, not `back_office`. The migration is explicit: it "has
           // no lines and no Effy actor, because the platform genuinely does not know either", and
-          // `refund_actor_sub_ck` makes `system` the ONLY kind permitted a null subject.
+          // `refund_actor_sub_ck` makes `system` the only kind permitted a null subject.
           actorKind: "system" as const,
           actorLabel: null,
           note: "Issued outside Effy, in the payment provider.",
@@ -255,10 +255,10 @@ describe("did the money go?", () => {
     } as never);
 
     expect(await screen.findByText(/issued outside effy/i)).toBeInTheDocument();
-    // ⚠ 057 changed this cell, and improved it. It used to render a bare "—" for any refund whose
+    // Changed this cell, and improved it. It used to render a bare "—" for any refund whose
     // label did not resolve — which conflated "nobody did this, it came from the provider" with "we
     // could not work out who did this". Naming the pool makes the first case say so, and is what
-    // stops a shop-issued refund (US5) from silently reading as unattributable.
+    // stops a shop-issued refund from silently reading as unattributable.
     expect(screen.getByText("Automatic")).toBeInTheDocument();
   });
 });
@@ -275,7 +275,7 @@ const OPEN_REQUEST = {
 };
 
 describe("answering a customer's request", () => {
-  // ⚠ Telling a customer they are not owed money they believe they are owed is as consequential as
+  // Telling a customer they are not owed money they believe they are owed is as consequential as
   // paying them, and it is the decision nobody comes back to check.
   it("cannot be declined without a reason", async () => {
     renderSection({ refundRequest: OPEN_REQUEST });
@@ -294,21 +294,21 @@ describe("answering a customer's request", () => {
     );
   });
 
-  // ⚠ A csa reads every order — triage is their work — and decides nothing.
+  // A csa reads every order — triage is their work — and decides nothing.
   it("offers no decline control to someone who cannot issue refunds", async () => {
     renderSection({ refundRequest: OPEN_REQUEST }, false);
     expect(await screen.findByText("Two cartons were missing")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /decline this request/i })).not.toBeInTheDocument();
   });
 
-  // ⚠ There is no "mark as refunded" button: issuing the refund closes the request. A request marked
+  // There is no "mark as refunded" button: issuing the refund closes the request. A request marked
   // answered without money moving would be a lie in the record.
   it("offers no way to close a request without either paying or declining", async () => {
     renderSection({ refundRequest: OPEN_REQUEST });
     expect(screen.queryByRole("button", { name: /mark as refunded|resolve|close/i })).toBeNull();
   });
 
-  // ⚠ One statement, one outcome. A reply box would be half a support product — replies arriving
+  // One statement, one outcome. A reply box would be half a support product — replies arriving
   // with nobody assigned to answer them.
   it("offers no reply box", async () => {
     renderSection({ refundRequest: OPEN_REQUEST });

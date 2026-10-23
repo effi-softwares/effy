@@ -9,7 +9,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.VariantSelection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 098 — the same cases as the storefront's `lib/variant-selection.test.ts`. */
+/** The same cases as the storefront's `lib/variant-selection.test.ts`. */
 class VariantSelectionTest {
     private val options = listOf(
         VariantOption("o1", 1, "Size", listOf(VariantOptionValue("s5", "500 g", 0), VariantOptionValue("s1", "1 kg", 1))),
@@ -19,7 +19,7 @@ class VariantSelectionTest {
     private fun v(id: String, a: String, b: String, available: Boolean = true) =
         Variant(id, a to b, id, "1.00", null, null, available, null)
 
-    // 500 g White, 500 g Brown (sold out), 1 kg White. No 1 kg Brown.
+    // G White, 500 g Brown (sold out), 1 kg White. No 1 kg Brown.
     private val variants = listOf(v("5w", "s5", "tw"), v("5b", "s5", "tb", available = false), v("1w", "s1", "tw"))
 
     @Test

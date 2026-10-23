@@ -17,15 +17,10 @@ import { printLabels, rememberedLayout, type PrintJob } from "../labels/printer"
 import { CantSupplyDialog } from "./StateControl"
 
 /**
- * The bulk bar — the design's `hasSel` strip: "N selected" · a rule · the actions · Clear on the right.
- *
- * ⚠ THE DESIGN'S "Mark packed / Mark shipped" ARE EFFY'S TWO FORWARD STEPS: "Start picking" and "Mark
- * ready". Each moves only the selected orders that are at the step before it — never a state forced
- * onto an order already past it. "Cancel orders" is the can't-supply declaration (a shop cannot cancel
- * a customer's order), confirmed in a sheet that names every order it will touch.
- *
- * ⚠ SEQUENTIAL, AND A FAILURE DOES NOT ABORT THE RUN — each portion is moved against the state the
- * server held when its turn came, and the toast names what refused.
+ * The bulk bar: "N selected" · the actions · Clear. "Start picking" and "Mark ready" move only selected
+ * orders at the step before; "Cancel orders" is the can't-supply declaration (a shop cannot cancel a
+ * customer's order), confirmed in a sheet naming every order. Sequential; a failure does not abort the run,
+ * and the toast names what refused.
  */
 export function BulkActions({
   rows,
@@ -72,7 +67,7 @@ export function BulkActions({
   }
 
   /**
-   * 096 — print every bag's label for the selected orders in one go (spec US2 AS4). Each order is read
+   * Print every bag's label for the selected orders in one go (spec US2 AS4). Each order is read
    * fresh so the labels carry what the server holds now; then one print job, recorded only once sent.
    */
   async function printSelected() {

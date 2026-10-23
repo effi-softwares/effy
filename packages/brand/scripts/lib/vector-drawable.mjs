@@ -1,19 +1,7 @@
-// VECTOR DRAWABLE — convert a composed SVG to an Android VectorDrawable (024 research R4).
-//
-// Android gets vectors wherever the platform allows: adaptive-icon layers (API 26+), the themed
-// monochrome layer (API 33+) and the splash mark are all resolution-independent and diff-readable.
-// Only API 24–25 still needs raster mipmaps, because adaptive icons did not exist yet.
-//
-// This is a TARGETED converter for the shapes our authored mark actually uses. It is deliberately
-// NOT a general SVG engine: anything it does not recognise raises. If the artwork ever gains a
-// gradient, a clip path or a nested transform this cannot express, the build FAILS LOUDLY rather
-// than silently dropping geometry and shipping a subtly wrong icon.
-//
-// Two structural differences from SVG it has to bridge:
-//   1. A VectorDrawable viewport always starts at 0,0 — there is no viewBox min-x/min-y. The offset
-//      becomes an outer <group> translation.
-//   2. <group> carries NO presentation attributes. Stroke/fill inherited from an SVG <g> must be
-//      resolved down onto every individual <path>.
+// Converts a composed SVG to an Android VectorDrawable (adaptive layers, themed layer, splash). A
+// targeted converter for the shapes the mark uses: anything else raises. It bridges two differences:
+// the viewport starts at 0,0 (the viewBox offset becomes a group translation), and <group> carries no
+// presentation attributes (inherited fill and stroke are resolved onto each path).
 
 const SUPPORTED = new Set(["path", "line", "rect", "g"])
 
@@ -28,7 +16,7 @@ function flatten(svg) {
   const body = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"))
   const out = []
 
-  // Walk tokens in document order, maintaining a stack of inherited attributes + translations.
+  // Document order, with a stack of inherited attributes and translations.
   const stack = [{ attrs: {}, tx: 0, ty: 0 }]
   const tokenRe = /<(\/?)([a-zA-Z]+)((?:\s+[^>]*?)?)(\/?)>/g
   let m
@@ -85,23 +73,14 @@ function flatten(svg) {
 
 function parseAttrs(raw) {
   const attrs = {}
-  // ⚠ The name class MUST admit digits. `[a-zA-Z-]+` silently fails to match x1/y1/x2/y2 on <line>,
-  // which produced `M undefined,undefined` pathData — valid XML that Android's PathParser rejects at
-  // inflation, so the adaptive icon AND the splash both fell back to system defaults with only a
-  // `ShellStartingWindow: Get attribute fail` warning in logcat to show for it.
+  // The name class must admit digits, or x1/y1/x2/y2 on <line> emit `undefined` pathData that Android rejects at inflation.
   const re = /([a-zA-Z_][\w:.-]*)="([^"]*)"/g
   let m
   while ((m = re.exec(raw)) !== null) attrs[m[1]] = m[2]
   return attrs
 }
 
-/**
- * Every coordinate that reaches pathData must be a real number.
- *
- * This exists because the bug above was NOT caught by "the converter throws on what it doesn't
- * understand" — it understood <line> perfectly well and then emitted rubbish. A converter that can
- * produce output Android refuses to inflate has to check its own output, not just its input.
- */
+/** Every coordinate that reaches pathData must be a real number: the converter checks its own output. */
 function requireNumber(v, what, el) {
   const n = Number(v)
   if (v === undefined || v === "" || !Number.isFinite(n)) {
@@ -130,7 +109,7 @@ function parseTranslate(transform) {
   return { x: Number(m[1]), y: Number(m[2] ?? 0) }
 }
 
-/** SVG colour → Android ARGB. `none` becomes fully transparent. */
+/** SVG colour → Android argb. `none` becomes fully transparent. */
 function colour(v) {
   if (!v || v === "none") return "#00000000"
   if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase()
@@ -141,8 +120,8 @@ const CAP = { butt: "butt", round: "round", square: "square" }
 const JOIN = { miter: "miter", round: "round", bevel: "bevel" }
 
 /**
- * @param {string} svg       composed SVG (already colourway-applied)
- * @param {number} sizeDp    android:width/height in dp (108 for adaptive layers, 288 for splash)
+ * @param {string} svg composed SVG (already colourway-applied)
+ * @param {number} sizeDp android:width/height in dp (108 for adaptive layers, 288 for splash)
  */
 export function toVectorDrawable(svg, sizeDp) {
   const { ox, oy, vw, vh, paths } = flatten(svg)
@@ -156,7 +135,7 @@ export function toVectorDrawable(svg, sizeDp) {
   lines.push(`    android:viewportWidth="${vw}"`)
   lines.push(`    android:viewportHeight="${vh}">`)
 
-  // Bridge #1: viewBox offset becomes a group translation, since a VectorDrawable viewport is 0,0-based.
+  // The viewBox offset becomes a group translation.
   const needsOffset = ox !== 0 || oy !== 0
   const indent = needsOffset ? "        " : "    "
   if (needsOffset) {
@@ -165,7 +144,7 @@ export function toVectorDrawable(svg, sizeDp) {
 
   for (const p of paths) {
     const a = p.attrs
-    // Bridge #2: inherited group translation folded into each path.
+    // Inherited group translation folded into each path.
     const inner = p.tx !== 0 || p.ty !== 0
     const pad = inner ? indent + "    " : indent
     if (inner) {
@@ -195,23 +174,14 @@ export function toVectorDrawable(svg, sizeDp) {
   return xml
 }
 
-/**
- * Last line of defence: refuse to emit a VectorDrawable Android would reject at inflation.
- *
- * The `undefined,undefined` bug shipped as perfectly well-formed XML that compiled cleanly through
- * aapt2 and packaged into the APK. Nothing failed until a device tried to draw it, and even then the
- * only signal was one warning line in logcat while the launcher quietly used a default icon. XML
- * validity is not the property we need — parseability by Android's PathParser is.
- */
+/** Refuses to emit a VectorDrawable Android's PathParser would reject: valid XML is not enough. */
 export function assertRenderable(xml) {
   for (const m of xml.matchAll(/android:pathData="([^"]*)"/g)) {
     const d = m[1]
     if (/undefined|NaN|null/.test(d)) {
       throw new Error(`vd: pathData contains a non-numeric token: "${d}"`)
     }
-    // Tokenise the way a path parser does. Splitting on separators is NOT good enough: compact SVG
-    // syntax glues commands to numbers ("M0,0h108v108h-108z" is valid and is what the solid
-    // background layer emits). A sticky scan that must consume the WHOLE string is the honest check.
+    // A sticky scan that must consume the whole string: compact syntax like "M0,0h108v108h-108z" glues commands to numbers.
     const token = /([MmLlHhVvCcSsQqTtAaZz])|(-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)|([\s,]+)/y
     let i = 0
     while (i < d.length) {

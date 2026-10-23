@@ -2,16 +2,8 @@ import * as React from "react"
 
 import { cn } from "../cn"
 
-// THE CARD (theme-adoption-prompt.md, Phase 2 §3).
-//
-// ⚠ BORDERED, NEVER SHADOWED, AND NEVER NESTED. A 1px `--border` on `--radius` (10px, the container
-// step). `shadow-sm` was REMOVED rather than overridden per call site: the adopted design reserves
-// shadows for floating layers only, and a shadowed card on a flat page is the single most visible
-// way this theme gets diluted.
-//
-// ⚠ BODY ROWS ARE SEPARATED BY A HAIRLINE, NOT BY A SECOND CARD. A card inside a card is the layout
-// the design never uses — it doubles the border, doubles the padding, and turns a list into a stack
-// of boxes. `CardRow` below exists so that separation has a named primitive to reach for.
+// The card: bordered, never shadowed, never nested. Body rows are separated by a hairline (`CardRow`),
+// not by a second card.
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -25,8 +17,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// The header row: an optional icon chip, then title + subtitle, then a spacer, then a count pill or a
-// `label →` ghost link. 16–18px padding, matching the design's card padding.
+// The header row: optional icon chip, title and subtitle, spacer, then a count pill or a `label →` link.
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -63,9 +54,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// Title + subtitle as one block, so the header's flex row keeps them together and the spacer pushes
-// the action to the far edge. Without this the subtitle becomes a sibling of the action and the
-// header collapses to one line at narrow widths.
+// Title and subtitle as one block, so the spacer pushes the action to the edge at narrow widths.
 function CardHeading({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -92,10 +81,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-/**
- * A body row inside a card. Rows are separated from each other by a hairline — the LAST row carries
- * no rule, which is what stops a card ending in a stray line just above its own border.
- */
+/** A body row. The last row carries no rule, so the card does not end in a stray line. */
 function CardRow({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

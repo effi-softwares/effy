@@ -7,11 +7,7 @@ import { isStage, mapAssignmentError } from "../assignments/handler-support";
 import { driversFor } from "../assignments/service";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * GET /fleet/v1/dispatch/packages/{packageId}/drivers?stage= (073) — who can take this package:
- * fine first, then those with a concern, then those who cannot, each with a few plain words.
- * Read = any back-office role, like the rest of dispatch.
- */
+/** Fine first, then concerns, then cannot, each with a few plain words. Any back-office role. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "read");

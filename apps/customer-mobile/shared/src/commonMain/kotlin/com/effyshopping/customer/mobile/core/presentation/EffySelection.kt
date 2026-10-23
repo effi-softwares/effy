@@ -47,14 +47,10 @@ import com.effyshopping.customer.mobile.design.EffyStorefrontShape
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * A chip — filters, sort, list names, handover choices, sub-aisles (Results, Saved, Checkout boards).
- *
- * 6dp corners (the storefront's controls are never pills), 40dp visual inside a 48dp target. Selected
- * is the light-blue tint with a blue border and blue label, so the state is carried by fill, edge and
- * colour together, never by colour alone.
- *
- * [unavailable] (098 — a sold-out size) strikes the label through and says "sold out" to a screen
- * reader: it stays pressable, because choosing it shows the shopper that size is sold out.
+ * A chip: filters, sort, list names, hand-over choices, sub-aisles. 6dp corners (controls are never pills),
+ * 40dp visual in a 48dp target. Selected is the light-blue tint with blue border and label: fill, edge and
+ * colour together. [unavailable] (a sold-out size) strikes the label and says "sold out" to a screen reader;
+ * it stays pressable, so choosing it shows that size is sold out.
  */
 @Composable
 fun EffyChip(
@@ -102,7 +98,7 @@ fun EffyChip(
 
 /**
  * The segmented control — Ongoing / Completed, Recent / Available / Aisle (Orders, Saved boards).
- * A white thumb SLIDES between equal segments on a zinc track (200ms; instant under reduced motion).
+ * A white thumb slides between equal segments on a zinc track (200ms; instant under reduced motion).
  */
 @Composable
 fun <T> EffySegmentedToggle(

@@ -11,8 +11,8 @@ vi.mock("@tanstack/react-router", () => ({
 const getToday = vi.hoisted(() => vi.fn())
 vi.mock("../repo", () => ({ getToday, getTeamActivity: vi.fn() }))
 
-// The glance strip's three money cells come from the INSIGHTS query — the same cache entry the
-// Insights screen reads, which is what makes the two screens agree by construction (FR-014).
+// The glance strip's three money cells come from the insights query — the same cache entry the
+// insights screen reads, which is what makes the two screens agree by construction.
 const getInsights = vi.hoisted(() => vi.fn())
 vi.mock("@/features/insights/repo", () => ({ getInsights }))
 
@@ -63,7 +63,7 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
   }
 }
 
-// ⚠ THE CLOCK IS FIXED. Every age and every relative time on this screen is computed against the
+// The clock is fixed. Every age and every relative time on this screen is computed against the
 // browser's clock, so a test that leaves it running asserts against whatever time the suite happens
 // to run at — green this afternoon, red tomorrow morning.
 beforeAll(() => {
@@ -179,7 +179,7 @@ describe("Today (US1)", () => {
 
     const row = await screen.findByText("EFY-4421")
     const link = row.closest("a")!
-    // ⚠ The row's own portion id. The design had rows that opened nothing (or worse, something
+    // The row's own portion id. The design had rows that opened nothing (or worse, something
     // else); here the id on the row IS the destination.
     expect(link).toHaveAttribute("href", "/orders/$fulfillmentId")  // params supplied by the router
     expect(within(link).getByText("Elin Wikström")).toBeInTheDocument()
@@ -198,7 +198,7 @@ describe("Today (US1)", () => {
             customerName: "Anders Holm",
             paidAt: "2026-09-14T03:50:00.000Z",
             itemCount: 1,
-            // ⚠ 079 — a "standard" order an EFFY DRIVER delivers (a later-day window): the customer's word
+            // A "standard" order an Effy driver delivers (a later-day window): the customer's word
             // would tell this shop the wrong thing, which is why the line no longer prints it.
             deliveredBy: "effy_driver",
             total: "12.00",
@@ -231,7 +231,7 @@ describe("Today (US1)", () => {
 
     expect(await screen.findByText("Nothing needs you right now")).toBeInTheDocument()
     expect(screen.getByText("Nothing is waiting")).toBeInTheDocument()
-    // A zero BADGE is noise: a caught-up shop should look caught up. (The glance strip still shows
+    // A zero badge is noise: a caught-up shop should look caught up. (The glance strip still shows
     // its figures — "0 orders today" is a measurement, not an alert.)
     const badge = screen.queryByText("0", { selector: "span.font-mono" })
     expect(badge).not.toBeInTheDocument()
@@ -241,7 +241,7 @@ describe("Today (US1)", () => {
     getToday.mockRejectedValue({ kind: "unavailable", status: 503, title: "x", detail: "y" })
     wrap(<TodayScreen />)
 
-    // ⚠ "Nothing needs you" over a failed read would be the worst possible lie this screen can tell.
+    // "Nothing needs you" over a failed read would be the worst possible lie this screen can tell.
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument()
     expect(screen.queryByText("Nothing needs you right now")).not.toBeInTheDocument()
   })
@@ -255,10 +255,10 @@ describe("⚠ FR-006 — one value, everywhere it appears", () => {
     // The screen's own rendering…
     wrap(<TodayScreen />)
     expect(await screen.findByText("3 orders awaiting pick")).toBeInTheDocument()
-    // ⚠ TWO PLACES, ONE VALUE: the attention row's detail line and the glance cell. Both are built
+    // Two places, one value: the attention row's detail line and the glance cell. Both are built
     // from `backlog.awaitingPick` by the same function, so they cannot say different things.
     expect(screen.getAllByText(/11 units to pack/)).toHaveLength(2)
-    // …the badge counts EVERY open item, including the ones the card could not fit…
+    // …the badge counts every open item, including the ones the card could not fit…
     expect(openItemCount(dto)).toBe(6)
     expect(screen.getByText("6")).toBeInTheDocument()
 

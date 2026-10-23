@@ -30,18 +30,11 @@ describe("isPasswordBreached", () => {
     await expect(isPasswordBreached("a-genuinely-unusual-passphrase")).resolves.toBe(false);
   });
 
-  // ⚠ THE TEST THIS FILE EXISTS FOR.
-  //
-  // If the password itself is ever sent, this is the only thing standing between us and a
-  // catastrophic own-goal — shipping our customers' chosen passwords to a third party in order to
-  // ask whether they are safe. Assert the request URL contains the 5-char PREFIX and, emphatically,
-  // NOT the password, NOT the full digest, and NOT the suffix.
+  // Only the 5-character prefix is ever sent: never the password, the full digest or the suffix.
   it("NEVER transmits the password, the full digest, or the suffix — only a 5-char prefix", async () => {
     const fetchMock = mockRange("");
 
-    // A distinctive secret. ⚠ Do NOT use the literal string "password" here: the endpoint host is
-    // `api.pwnedpasswords.com`, so a naive `not.toContain("password")` passes for the wrong reason
-    // and the assertion silently stops meaning anything. (It did, on the first run of this file.)
+    // Not the literal "password": the host `api.pwnedpasswords.com` would satisfy `not.toContain` for the wrong reason.
     const secret = "correct-horse-battery-staple-42";
     await isPasswordBreached(secret);
 
@@ -49,7 +42,7 @@ describe("isPasswordBreached", () => {
     const asString = String(url);
     const sent = asString.slice(asString.indexOf("/range/") + "/range/".length);
 
-    expect(sent).toHaveLength(5); // the prefix, and nothing else
+    expect(sent).toHaveLength(5);
     expect(asString).not.toContain(secret);
     expect(asString).not.toContain(encodeURIComponent(secret));
   });
@@ -63,11 +56,7 @@ describe("isPasswordBreached", () => {
     expect(headers["Add-Padding"]).toBe("true");
   });
 
-  // ⚠ FAIL CLOSED. If the breach service is down, the password is REFUSED — not waved through.
-  //
-  // Failing open here would mean an outage at a third party silently disables the platform's only
-  // defence against breached passwords, at precisely the moment nobody is watching. Affordable on
-  // Effy because a password is optional: the customer can still sign in with an emailed code.
+  // Fail closed: an outage refuses the password (a password is optional on Effy).
   it("throws (fail-closed) when the breach service errors", async () => {
     mockRange("", false, 503);
     await expect(isPasswordBreached("anything")).rejects.toBeInstanceOf(BreachCheckUnavailableError);
@@ -85,8 +74,7 @@ describe("isPasswordBreached", () => {
 
   it("matches case-insensitively against the corpus's uppercase suffixes", async () => {
     mockRange(`${PWNED_SUFFIX.toLowerCase()}:1`);
-    // The corpus returns uppercase; if we ever start lowercasing our digest this must not silently
-    // start clearing breached passwords. It should NOT match a lowercased corpus line by accident.
+    // The corpus is uppercase; a lowercased digest must not silently clear breached passwords.
     await expect(isPasswordBreached("password")).resolves.toBe(false);
   });
 });

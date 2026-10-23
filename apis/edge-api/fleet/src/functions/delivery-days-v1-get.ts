@@ -1,4 +1,3 @@
-// GET /fleet/v1/delivery-days — the standard-delivery calendar (069 US6). Read = any active staff.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

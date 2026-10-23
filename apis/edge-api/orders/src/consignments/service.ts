@@ -1,7 +1,5 @@
-// Courier consignments and a courier order's collection mode, for back-office (080).
-//
-// ⚠ EVERY WRITE IS @effy/edge-shared/delivery consignment.ts — this file opens the transaction, maps
-// its refusals and announces after the commit. It never writes SQL of its own.
+// Every write goes through @effy/edge-shared/delivery consignment.ts; this opens the transaction, maps
+// refusals and announces after the commit.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { presignLabelUpload, refused, withTransaction, type RequestScope } from "@effy/edge-shared";
@@ -16,7 +14,6 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
 const STEPS: readonly ConsignmentStepInput["kind"][] = ["in_transit", "delivered", "failed", "lost", "damaged", "returned", "resolved", "cancelled"];
 
-/** A request a person must fix, field by field. */
 export class ConsignmentInputError extends Error {
   constructor(readonly fields: { field: string; message: string }[]) {
     super("check the consignment");
@@ -29,7 +26,7 @@ const REFUSAL_STATUS: Record<string, 404 | 409 | 422> = {
   invalid_step: 409, collection_locked: 409, collection_assigned: 409, pickup_in_past: 422,
 };
 
-/** Map a refusal or an input error to its response; null for anything else. */
+/** null for anything that is not a refusal or input error. */
 export function consignmentError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 | null {
   if (err instanceof ConsignmentRefusal) return refused(scope, REFUSAL_STATUS[err.code] ?? 409, err.code, err.message, { code: err.code });
   if (err instanceof ConsignmentInputError) return refused(scope, 422, "invalid_consignment", err.message, { code: "invalid_consignment", fields: err.fields });
@@ -44,7 +41,6 @@ function text(v: unknown, max: number): string | null {
   return typeof v === "string" ? v.trim().slice(0, max) || null : null;
 }
 
-/** Book a consignment, or edit its booking (contracts § Orders). */
 export async function saveConsignment(packageId: string, body: ConsignmentInput, actorSub: string): Promise<{ consignmentId: string; created: boolean }> {
   const fields: { field: string; message: string }[] = [];
   if (!UUID.test(packageId)) throw new ConsignmentRefusal("not_found", "that package does not exist");
@@ -72,12 +68,10 @@ export async function saveConsignment(packageId: string, body: ConsignmentInput,
     });
     return { ...saved, orderId: await orderOfPackage(tx, packageId) };
   });
-  // 071 — the supplier's pickup row and the order page both show the booking.
   if (out.orderId) await announceOrder(out.orderId);
   return { consignmentId: out.consignmentId, created: out.created };
 }
 
-/** Record a step: in transit, delivered, a problem, resolved, cancelled. */
 export async function recordStep(packageId: string, body: ConsignmentEventInput, actorSub: string): Promise<{ orderFinished: boolean }> {
   if (!UUID.test(packageId)) throw new ConsignmentRefusal("not_found", "that package does not exist");
   if (!(STEPS as readonly string[]).includes(body?.kind as string)) {
@@ -90,19 +84,18 @@ export async function recordStep(packageId: string, body: ConsignmentEventInput,
   return { orderFinished: out.orderFinished };
 }
 
-/** A presigned upload for this package's label. Nothing is written until the booking names it. */
+/** Nothing is written until the booking names it. */
 export async function labelUpload(packageId: string, body: { contentType?: unknown; fileSize?: unknown }) {
   if (!UUID.test(packageId)) throw new ConsignmentRefusal("not_found", "that package does not exist");
   const { uploadUrl, storageKey, contentType } = await presignLabelUpload(packageId, body?.contentType, body?.fileSize);
   return { labelKey: storageKey, uploadUrl, contentType };
 }
 
-/** Change how one courier order's parcels reach the courier. */
 export async function changeCollection(orderId: string, body: CourierCollectionInput, actorSub: string): Promise<{ changed: boolean }> {
   if (!UUID.test(orderId)) throw new ConsignmentRefusal("not_found", "that order does not exist");
   if (body?.mode !== "hub" && body?.mode !== "supplier") throw new ConsignmentInputError([{ field: "mode", message: "hub or supplier" }]);
   const out = await withTransaction((tx) => changeCourierCollection(tx, { orderId, to: body.mode, actorSub, note: text(body.note, 500) }));
-  // ⚠ Drivers too: a package leaving the hub route stops being collection work.
+  // Drivers too: a package leaving the hub route stops being collection work.
   if (out.changed) await announceOrder(orderId, { drivers: true });
   return { changed: out.changed };
 }

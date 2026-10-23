@@ -12,18 +12,14 @@ import { readList } from "../read-list"
 import { SavedList } from "../SavedList"
 
 export const metadata: Metadata = {
-  // ⚠ NOT the list's name. A name is the shopper's own text and may say anything about them; it
-  // stays out of the document title, which browsers sync and history records (068 FR-040).
+  // Not the list's name: it is the shopper's own text, and browsers sync titles.
   title: "Saved items",
   robots: { index: false, follow: false },
 }
 
 /**
- * One of the shopper's own lists (068 FR-023). "Saved" itself lives at `/saved`.
- *
- * ⚠ `params` IS AWAITED INSIDE THE SUSPENSE BOUNDARY, not here. Awaiting it in the page component
- * makes the whole route block on uncached data and the production build refuses it
- * ("Uncached data was accessed outside of <Suspense>") — which typecheck and every test pass.
+ * One of the shopper's own lists ("Saved" is `/saved`). `params` is awaited inside the Suspense boundary:
+ * awaiting it in the page blocks the route on uncached data, which the production build refuses.
  */
 export default function ListPage({ params }: { params: Promise<{ listId: string }> }) {
   return (
@@ -54,7 +50,7 @@ async function List({ params }: { params: Promise<{ listId: string }> }) {
         currentId={listId}
         droppedCount={(items).filter((i) => i.priceDropped).length}
       />
-      {/* `key`: moving between two named lists reuses this route segment, and the rows are state. */}
+      {/* `key`: moving between named lists reuses this segment, and the rows are state. */}
       <SavedList key={listId} initial={items} listId={listId} />
     </>
   )

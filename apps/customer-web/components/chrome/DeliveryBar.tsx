@@ -6,16 +6,9 @@ import { defaultAddress, getAddresses } from "@/lib/customer-reads"
 import { getSession } from "@/lib/session"
 
 /**
- * The black bar across the top: where Effy is delivering, and who delivers there (FR-016).
- *
- * ⚠ THE ANSWER IS THE ADDRESS'S OWN `coverage` — the one the address book and checkout show, decided
- * by the platform's single coverage function. This component never works it out from a postcode: a
- * second derivation here is how the bar would one day promise an Effy window that checkout refuses.
- *
- * ⚠ It says only what is true. No default address → an invitation, not an assertion. Coverage absent
- * (a server older than 076) → the place, and no claim about who delivers.
- *
- * Read per customer, so it renders inside a Suspense boundary and never holds up the static shell.
+ * The black bar across the top: where Effy is delivering, and who delivers there, from the address's own
+ * `coverage` (never re-derived from a postcode). No default address: an invitation, not an assertion.
+ * Read per customer, so it is a Suspense island.
  */
 export async function DeliveryBar() {
   const session = await getSession()

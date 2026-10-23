@@ -1,45 +1,26 @@
 /**
- * Delivery — customer-facing contracts (047, rebuilt by 076–079; the old same-day/standard
- * checkout fields were removed by 083).
- *
- * The SSOT the backend (serviceability, localities, quote), customer-web, and customer-mobile all
- * consume (Principle II). ⚠ Money crosses the wire as a 2-dp decimal string (like every other amount on
- * the platform, e.g. `CartLineDTO.unitPriceAmount`) — never a float and never cents-as-number, which is
- * what the backend↔mobile wire-contract test exists to keep honest (research R14; 027 R13).
- *
- * ⚠ Nothing here ever carries a distance, a band, a weight, a fee plan or a shop identity (047
- * FR-018/FR-033; 077 FR-032). The delivery fee is lines and a total — see `delivery-fee.ts`.
+ * Delivery: customer-facing contracts, shared by the backend, customer-web and the customer app. Money is
+ * a 2-dp decimal string. Nothing here carries a distance, band, weight, fee plan or shop identity; the
+ * fee is lines and a total (`delivery-fee.ts`).
  */
 
 import type { CheckoutPointsDTO } from "./checkout";
 import type { DeliveryFeeDTO } from "./delivery-fee";
 
-/**
- * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today, `standard` =
- * a window on a later day (078). ⚠ No price of its own (077): the fee is ONE amount for the order.
- * ⚠ On an order placed before delivery types (079) `standard` meant a day a carrier delivered —
- * such an order is read through `deliveredBy`, never guessed from this word.
- */
+/** The customer's words for when an Effy order arrives: `same_day` (a window today) or `standard` (a later day). No price of its own. */
 export type DeliveryMethod = "same_day" | "standard";
 
 /**
- * 076 — WHO delivers to an address. The one answer every surface gives (FR-019/FR-020):
- *   effy     the postcode is on Effy's list — Effy's own drivers deliver
- *   courier  not on the list, and courier delivery is offered there
- *   none     neither reaches it
- *
- * ⚠ Decided in ONE place — the database function `public.coverage_for_postcode` — at the moment of
- * asking, and never stored against an address (FR-021).
- * ⚠ A customer contract carries this value and NOTHING about why: no group, no distance, no reason,
- * no hub (FR-023). Staff contracts are in `delivery-admin.ts`.
+ * Who delivers to an address:
+ *  effy the postcode is on Effy's list; Effy's drivers deliver
+ *  courier not on the list, and courier delivery is offered there
+ *  none neither reaches it
+ * Decided only by `public.coverage_for_postcode`, when asked, never stored against an address. A
+ * customer contract carries this value and nothing about why.
  */
 export type CoverageKind = "effy" | "courier" | "none";
 
-/**
- * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (FR-022, SC-004). Every server response and every
- * customer screen — web and mobile, address book and checkout — renders these constants. Before 076
- * the refusal existed twice, worded differently; `coverage.guard.test.ts` fails if it does again.
- */
+/** The only place these words are written: every response and customer screen renders them (`coverage.guard.test.ts`). */
 export const COVERAGE_LABEL = {
   effy: "Delivered by Effy",
   courier: "Courier delivery",
@@ -55,70 +36,46 @@ export const COVERAGE_REFUSAL_SENTENCE = "Sorry, we can't deliver to this addres
 export type AustralianState = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
 
 /**
- * The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted
- * fee — the client never sends a fee (047 FR-036).
- *
- * A serviced address answers exactly one of two things (083): `effyWindows` — the windows to choose
- * from — or `courier`. ⚠ Nothing about how the order splits across suppliers: no package list.
+ * The delivery quote shown at checkout, captured server-side so the order is honoured at it (the client
+ * never sends a fee). A serviced address answers `effyWindows` or `courier`. No package list.
  */
 export interface DeliveryQuoteDTO {
   postcode: string;
   serviced: boolean;
-  /**
-   * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only when a
-   * courier order can be placed (079); the quote then carries `courier`.
-   */
+  /** Who delivers to this address. `none` means not serviced; `courier` only when a courier order can be placed. */
   coverage?: CoverageKind;
   /** ISO datetime with the Australia/Melbourne offset; "" when not serviced. */
   expiresAt: string;
-  /** 074 — the customer's spendable points, when they have any. */
+  /** The customer's spendable points, when they have any. */
   points?: CheckoutPointsDTO;
-  /**
-   * 077 — how much more the basket needs for free delivery. Null when no free-delivery amount is
-   * set or it is already reached.
-   */
+  /** How much more the basket needs for free delivery; null when there is no such amount or it is reached. */
   freeDeliveryRemainingAmount?: string | null;
-  /**
-   * PRESENT EXACTLY WHEN `coverage` is `"effy"` (078): today's windows under "Same-day delivery",
-   * the following delivery days' under "Standard delivery". The choice is sent back as
-   * `deliveryWindow` on the intent.
-   */
+  /** Present exactly when `coverage` is `"effy"`: today's windows ("Same-day delivery") and later days' ("Standard delivery"). The choice goes back as `deliveryWindow`. */
   effyWindows?: EffyWindowsDTO | null;
   /**
-   * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose: the
-   * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType: "courier"`
-   * on the intent. ⚠ No distance, no courier company, nothing about how many suppliers fill the order.
+   * Present exactly when `coverage` is `"courier"`: nothing to choose; show "Courier delivery", the
+   * estimate and the fee, and send `deliveryType: "courier"`. No distance, company or supplier count.
    */
   courier?: CourierQuoteDTO;
 }
 
-/** 079 — what a customer is told and charged when a courier delivers the order. */
+/** What a customer is told and charged when a courier delivers the order. */
 export interface CourierQuoteDTO {
-  /**
-   * The courier's usual timeframe, in the business's words ("2–4 business days"). ⚠ An estimate,
-   * never a promise: print it through `courierLines` (`delivery-type.ts`), never on its own.
-   */
+  /** The courier's usual timeframe in the business's words ("2–4 business days"); always printed through `courierLines`. */
   estimate: string;
-  /** The courier fee for the whole order (077): lines and a total. */
+  /** The courier fee for the whole order: lines and a total. */
   fee: DeliveryFeeDTO;
   /**
-   * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no window
-   * is available on any offered day and the business sends such an order by courier: the client
-   * says there are no delivery windows FIRST, then offers this.
+   * `out_of_coverage`: Effy does not deliver there. `no_window`: it does, but no window is available
+   * and the business sends it by courier; the client says there are no windows first.
    */
   reason: CourierQuoteReason;
 }
 
-/** 079 — why a courier delivers this order. Named, so the generated Kotlin enum is too. */
+/** Why a courier delivers this order. Named, so the generated Kotlin enum is too. */
 export type CourierQuoteReason = "out_of_coverage" | "no_window";
 
-/**
- * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (078 FR-001a). Web and mobile render these constants;
- * the mobile app's `DeliveryWindowWords.kt` mirrors them and a test holds it to this file.
- *
- * "Standard delivery" kept its name and changed its meaning: from the switch it is Effy, on a later
- * day, in a window — no longer a carrier.
- */
+/** The only place these words are written; the app's `DeliveryWindowWords.kt` mirrors them (tested). "Standard delivery" means Effy, a later day. */
 export const DELIVERY_WINDOW_WORDS = {
   sectionSameDay: "Same-day delivery",
   sectionStandard: "Standard delivery",
@@ -127,7 +84,7 @@ export const DELIVERY_WINDOW_WORDS = {
   dayFull: "Every window on this day is taken.",
   noWindows: "There are no delivery windows available in the next few days. Please try again later.",
   cutoffPrefix: "Order by",
-  // 085 — Standard delivery without a time.
+  // Standard delivery without a time.
   anyTimeDay: "Any time during the day",
   timeOptionOpen: "Need a specific time?",
   timeOptionHint: "Optional. Pick a window and we'll deliver in it.",
@@ -135,18 +92,14 @@ export const DELIVERY_WINDOW_WORDS = {
   timeRequired: "Choose a time for this day.",
   asapTitle: "Standard",
   asapHint: "We'll deliver as soon as we can.",
-  /** Followed by the business's estimate. ⚠ Always an estimate — never a day, never a promise. */
+  /** Followed by the business's estimate: always an estimate, never a day. */
   asapEstimatePrefix: "As soon as possible —",
 } as const;
 
 /** Why a day has no window to choose. A later day is only ever "full". */
 export type EffyDayClosedReason = "not_delivery_day" | "closed" | "full";
 
-/**
- * 078 — one window on one day.
- *
- * ⚠ NO CAPACITY, no remaining count, and a full window is simply ABSENT (069 FR-050).
- */
+/** One window on one day. No capacity or remaining count: a full window is absent. */
 export interface EffyWindowDTO {
   /** Opaque. Sent back with `date` as `deliveryWindow` on the intent request. */
   slotId: string;
@@ -163,7 +116,7 @@ export interface EffyWindowDTO {
   fee: DeliveryFeeDTO;
 }
 
-/** 078 — one day on offer: today (`same_day`) or a following delivery day (`standard`). */
+/** One day on offer: today (`same_day`) or a later delivery day (`standard`). */
 export interface EffyDayDTO {
   date: string;
   section: DeliveryMethod;
@@ -171,49 +124,38 @@ export interface EffyDayDTO {
   windows: EffyWindowDTO[];
   /** Why `windows` is empty; null when it is not. */
   closedReason: EffyDayClosedReason | null;
-  /**
-   * 085 — this day sold with NO TIME. Sent back as `deliveryWindow` like any window; the order is
-   * then promised the day, not the hours. ⚠ Always null for today, and never also in `windows`.
-   */
+  /** This day sold with no time, sent back as `deliveryWindow`; the order is promised the day. Always null for today, never in `windows`. */
   anyTime?: EffyWindowDTO | null;
 }
 
 export interface EffyWindowsDTO {
   /** Today first, then the next delivery days. Never empty. */
   days: EffyDayDTO[];
-  /**
-   * Set when no window is open on ANY day: `no_windows` (all closed or taken) or `none_defined`
-   * (the business has switched none on). The customer reads `DELIVERY_WINDOW_WORDS.noWindows`.
-   */
+  /** Set when no window is open on any day: `no_windows` (closed or taken) or `none_defined` (none switched on). */
   unavailable: "no_windows" | "none_defined" | null;
-  /**
-   * 085 — "as soon as possible", when some day can take an order without a time. ⚠ Carries NO DAY.
-   * Chosen by sending `deliveryPromise: "asap"` on the intent.
-   */
+  /** "As soon as possible", when some day can take an untimed order. Carries no day; chosen with `deliveryPromise: "asap"`. */
   asap?: EffyAsapDTO | null;
 }
 
 export interface EffyAsapDTO {
   /** The business's words, e.g. "usually within 2–3 days". Print it only as an estimate. */
   estimate: string;
-  /** ⚠ Never carries a window or a delivery-today surcharge. */
+  /** Never carries a window or a delivery-today surcharge. */
   fee: DeliveryFeeDTO;
 }
 
 /**
- * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a 409
- * problem, with a fresh `quote` so the client can re-offer without a second request.
- *
- * ⚠ A refusal NEVER substitutes a window or a day (FR-010). The customer chooses again.
+ * Why an intent was refused over the delivery choice: the `code` of a 409, with a fresh `quote`. A
+ * refusal never substitutes a window or a day; the customer chooses again.
  */
 export type DeliveryChoiceRefusalCode =
   | "slot_required" | "slot_unavailable" | "date_unavailable" | "no_windows_available"
-  /** 079 — the delivery type the client showed is not the one that applies now (or it sent none for a courier order). */
+  /** The type the client showed is not the one that applies (or none was sent for a courier order). */
   | "delivery_type_changed";
 
 /** The body of a delivery-choice refusal. */
 export interface DeliveryChoiceRefusalDTO {
   code: DeliveryChoiceRefusalCode;
-  /** The options as they stand NOW. Absent on `slot_required` from a client that sent no slot. */
+  /** The options as they stand now. Absent on `slot_required` when no slot was sent. */
   quote?: DeliveryQuoteDTO | null;
 }

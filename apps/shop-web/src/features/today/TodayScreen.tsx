@@ -18,28 +18,28 @@ import { onlineStore } from "@/lib/online"
 import { track } from "@/lib/telemetry"
 
 /**
- * TODAY — the shop console's home screen (058, US1/US2).
+ * Today — the shop console's home screen.
  *
  * It answers one question: what needs doing right now. No charts and no date range live here; the
- * analysis is on Insights, one click away. That separation is the feature, not a simplification —
+ * analysis is on Insights, one click away. That separation is the feature, not a simplification
  * an operations screen that also carries a month of trend data invites the reader to study instead
  * of act.
  *
- * ⚠ IT REPLACED A DASHBOARD THAT ALREADY EXISTED (057 US1). That screen's counts were honest but
+ * It replaced a dashboard that already existed. That screen's counts were honest but
  * flat; what it could not do was tell an operator which single thing to do next, or show an order
  * arriving while they watched.
  *
- * ⚠ EVERY FIGURE ON THIS SCREEN COMES FROM ONE QUERY (FR-006). The card title, the unit count, the
+ * Every figure on this screen comes from one query. The card title, the unit count, the
  * badge, the sidebar badge and Insights' two fulfilment cells all read `todayQuery`'s `backlog`.
  */
 export function TodayScreen() {
   const today = useQuery(todayQuery)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [teamActivityOpen, setTeamActivityOpen] = useState(false)
-  // The render clock: relative times must age without new data (FR-009). Cleared on unmount.
+  // The render clock: relative times must age without new data. Cleared on unmount.
   const now = useNow(15_000)
 
-  // One event per visit, not per render. ⚠ No figures in it: whether the screen is used is a
+  // One event per visit, not per render. No figures in it: whether the screen is used is a
   // different question from what the shop earned, and the second belongs nowhere near PostHog.
   useEffect(() => {
     track({ name: "today_viewed" })
@@ -47,7 +47,7 @@ export function TodayScreen() {
 
   const data = today.data
   const awaitingPick = data?.backlog.awaitingPick.orders ?? 0
-  // ⚠ 059 FR-035 — WHILE OFFLINE, THIS SCREEN IS A PHOTOGRAPH, NOT A WINDOW. Today is the screen an
+  // While offline, this screen is a photograph, not a window. Today is the screen an
   // operator makes decisions from, and its figures are the ones that look most convincingly current
   // when they are not: "3 orders awaiting pick" reads identically whether it arrived four seconds or
   // four hours ago. The shell's offline banner says the console is offline; this says how old what
@@ -78,7 +78,7 @@ export function TodayScreen() {
           </p>
         </div>
         <div className="min-w-3 flex-1" />
-        {/* ⚠ No hand-rolled heights any more. `Button`'s default IS the design's 34px at 13.5px
+        {/* No hand-rolled heights any more. `Button`'s default IS the design's 34px at 13.5px
             since the theme adoption, so `h-[34px] px-3 text-[13px]` was three hardcoded values
             restating the component — and three places for it to drift. */}
         <Button variant="outline" onClick={() => setQuickActionsOpen(true)}>
@@ -87,7 +87,7 @@ export function TodayScreen() {
         <Button variant="outline" onClick={() => setTeamActivityOpen(true)}>
           Team activity
         </Button>
-        {/* ⚠ Unavailable when nothing is waiting, and it says why on hover: a primary button that
+        {/* Unavailable when nothing is waiting, and it says why on hover: a primary button that
             prints nothing teaches an operator to distrust the printer, not the button. */}
         <Button
           disabled={awaitingPick === 0}

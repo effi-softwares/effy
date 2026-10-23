@@ -1,23 +1,11 @@
 /// <reference lib="webworker" />
 /**
- * THE service worker for the shop console (059).
+ * The service worker for the shop console, and the only one: `src/lib/pwa.ts` registers it and hands the
+ * registration to `getToken`, so Firebase never registers its own (two workers on one scope reload the app
+ * after every deploy).
  *
- * ⚠ "THE", NOT "A". There is exactly one, and that is a hard constraint rather than tidiness: the
- * Firebase JS SDK registers its own `/firebase-messaging-sw.js` by default, and beside a Workbox
- * worker that is two workers competing for one scope. The documented symptom is THE APP RELOADING
- * ITSELF CONTINUOUSLY after every deploy (vite-plugin-pwa #777). `src/lib/pwa.ts` registers this
- * file and hands the registration to `getToken({ serviceWorkerRegistration })`, so the SDK never
- * registers its own. `src/lib/__tests__/pwa.test.ts` asserts there is one registration call site.
- *
- * ⚠ THIS FILE HOLDS NO CREDENTIAL, AND MUST NOT ACQUIRE ONE. It shows notifications and opens URLs;
- * the page authenticates. A token placed in a service worker outlives the tab that put it there and
- * survives sign-out, which is the opposite of what sign-out means.
- *
- * ⚠ KEEP THE LOGIC OUT OF HERE. Everything decidable is a pure function in `src/lib/sw-logic.ts`,
- * which is unit-tested in jsdom. What remains here is wiring, because a service worker cannot be
- * meaningfully tested — 024 shipped a drawable that compiled, packaged and inflated to nothing, and
- * 058 shipped a stream that would have died at 30 seconds while every test passed. Code that only
- * runs where nothing watches should be as small as it can be.
+ * It holds no credential and must not acquire one: a token here would outlive the tab and survive
+ * sign-out. Decisions are pure functions in `src/lib/sw-logic.ts`; what remains here is wiring.
  */
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching"
 import { NavigationRoute, registerRoute } from "workbox-routing"
@@ -28,21 +16,21 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>
 }
 
-// ── Precache the app shell (FR-034, US5) ────────────────────────────────────────────────────────
+// Precache the app shell
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
 /**
  * Serve the precached app shell for any navigation.
  *
- * ⚠ THIS IS THE OFFLINE EXPERIENCE, AND THERE IS DELIBERATELY NO SEPARATE `offline.html`. The shell
+ * This is the offline experience, and there is deliberately no separate `offline.html`. The shell
  * is precached, so an installed console launched with no network boots React and renders the
- * console's OWN offline state — the same one an operator sees when the network drops mid-shift. A
+ * console's own offline state — the same one an operator sees when the network drops mid-shift. A
  * second offline document would be a second place the message lives, and the two would diverge the
  * first time either was touched. One state, one wording.
  *
- * ⚠ API CALLS ARE EXCLUDED, AND NOTHING ELSE RUNTIME-CACHES THEM ANYWHERE. Server state is TanStack
- * Query's business; a Workbox cache in front of it would be a SECOND server-state cache, able to
+ * API calls are excluded, and nothing else runtime-caches them anywhere. Server state is TanStack
+ * Query's business; a Workbox cache in front of it would be a second server-state cache, able to
  * answer a fresh query with a stale response and with nothing marking it stale. The read cache that
  * survives a reload is the Query cache itself, persisted — see `src/lib/query-persist.ts`.
  */
@@ -52,9 +40,9 @@ registerRoute(
   }),
 )
 
-// ── Update handshake (FR-010) ───────────────────────────────────────────────────────────────────
+// Update handshake
 //
-// ⚠ NO `self.skipWaiting()` AT THE TOP LEVEL. Calling it unconditionally is what `autoUpdate` does,
+// NO `self.skipWaiting` at the top level. Calling it unconditionally is what `autoUpdate` does,
 // and it replaces the document under whoever is using it — a picker half-way through a pick list
 // loses their place. The new worker waits until the page, having shown the operator a prompt they
 // chose to accept, sends SKIP_WAITING.
@@ -64,18 +52,18 @@ self.addEventListener("message", (event: ExtendableMessageEvent) => {
   }
 })
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Notifications (059, US1)
 //
-// ⚠ EVERY DECISION BELOW IS MADE IN `lib/sw-logic.ts`, WHICH IS UNIT-TESTED. What is left here is
+// Notifications
+//
+// Every decision below is made in `lib/sw-logic.ts`, which is unit-tested. What is left here is
 // the parts that can only be wiring: reading IndexedDB, calling showNotification, matching clients.
 // A service worker runs where nothing watches, so the less judgement it holds the better.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
+//
 
 /**
  * The un-opened count per notification group.
  *
- * ⚠ IndexedDB, NOT A MODULE VARIABLE. A service worker is terminated aggressively between events —
+ * IndexedDB, not a module variable. A service worker is terminated aggressively between events
  * often within seconds — so an in-memory counter would reset between the first order and the second
  * and every banner would read "1 new order". IndexedDB survives the termination; that is the whole
  * reason the count is stored at all.
@@ -106,7 +94,7 @@ function withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => I
         }
       }
     } catch {
-      // ⚠ Blocked storage (a private window, cleared site data) must never stop a notification being
+      // Blocked storage (a private window, cleared site data) must never stop a notification being
       // shown — see the `push` handler: showing nothing costs the device its permission on iOS.
       done(null)
     }
@@ -127,13 +115,13 @@ async function totalCount(): Promise<number> {
 /**
  * A push arrived.
  *
- * ⚠ THIS HANDLER ALWAYS SHOWS SOMETHING, and that is a platform rule rather than a courtesy: iOS
- * REVOKES notification permission from a service worker that receives a push and displays nothing.
+ * This handler always shows something, and that is a platform rule rather than a courtesy: iOS
+ * revokes notification permission from a service worker that receives a push and displays nothing.
  * A thrown parse error here would not lose one notification — it would cost that device every
  * future notification, permanently, with nothing reported anywhere. Hence the try/catch of last
  * resort around a payload we could not read at all.
  *
- * ⚠ `event.waitUntil` WRAPS THE WHOLE CHAIN. Without it the worker may be terminated before
+ * `event.waitUntil` wraps the whole chain. Without it the worker may be terminated before
  * `showNotification` resolves, which is the same silent permission loss by another route.
  */
 self.addEventListener("push", (event: PushEvent) => {
@@ -147,7 +135,7 @@ self.addEventListener("push", (event: PushEvent) => {
       }
 
       try {
-        // FR-030 — do not interrupt an operator who is demonstrably already looking at this.
+        // Do not interrupt an operator who is demonstrably already looking at this.
         const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true })
         const visible = windows.map((c) => ({
           url: c.url,
@@ -165,28 +153,28 @@ self.addEventListener("push", (event: PushEvent) => {
 
         await self.registration.showNotification(plan.title, {
           body: plan.body,
-          // ⚠ `tag` + `renotify` TOGETHER. `tag` alone replaces the banner SILENTLY, so orders two
+          // `tag` + `renotify` together. `tag` alone replaces the banner silently, so orders two
           // through twenty would arrive with no alert at all; `renotify` without `tag` is ignored
           // entirely. Each is useless without the other, and both failures are invisible in a test
           // that only inspects the call.
           tag: plan.tag,
           renotify: true,
           icon: "/web-app-icon-192.png",
-          // ⚠ A MONOCHROME asset, not the icon. Android renders `badge` as a silhouette — every
+          // A monochrome asset, not the icon. Android renders `badge` as a silhouette — every
           // non-transparent pixel becomes white — so a full-colour icon arrives as a white blob.
           badge: "/notification-badge-96.png",
           data: { webPath: plan.webPath, type: data.type, group: plan.group },
         } as NotificationOptions)
 
-        // FR-032 — the app-icon badge, where the OS supports one.
+        // The app-icon badge, where the OS supports one.
         if ("setAppBadge" in self.navigator) {
           await (self.navigator as Navigator & { setAppBadge(n: number): Promise<void> })
             .setAppBadge(await totalCount())
             .catch(() => undefined)
         }
       } catch {
-        // ⚠ LAST RESORT. Whatever went wrong above — blocked storage, a clients call that threw —
-        // showing SOMETHING is better than showing nothing, because nothing costs the permission.
+        // Last resort. Whatever went wrong above — blocked storage, a clients call that threw
+        // showing something is better than showing nothing, because nothing costs the permission.
         await self.registration.showNotification(data.title, {
           body: data.body,
           tag: data.tag,
@@ -198,15 +186,9 @@ self.addEventListener("push", (event: PushEvent) => {
 })
 
 /**
- * The operator tapped a notification (FR-014).
- *
- * ⚠ `includeUncontrolled: true` IS LOAD-BEARING. A window loaded before this worker took control is
- * not controlled by it and is INVISIBLE to `matchAll` without the flag — so the worker would open a
- * SECOND console beside the one already open, which is exactly what FR-014 forbids.
- *
- * ⚠ AN EXISTING CLIENT IS NAVIGATED BY `postMessage`, NOT BY `client.navigate()`. The latter is a
- * full document load: it discards the Query cache, the operator's scroll position and whatever they
- * were half-way through. The page's router handles the message instead.
+ * The operator tapped a notification. `includeUncontrolled: true` finds a window loaded before this worker
+ * took control, so a second console is never opened. An existing client is navigated by `postMessage`, not
+ * `client.navigate` (a full load that drops the cache and the operator's place).
  */
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close()
@@ -231,7 +213,7 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
 
       if (target) {
         await target.c.focus()
-        // ⚠ `notif_opened` is fired by the PAGE from this message, not from here. A service worker
+        // `notif_opened` is fired by the page from this message, not from here. A service worker
         // has no PostHog, and giving it one would mean giving it a credential.
         target.c.postMessage({ type: "NAVIGATE", path, notificationType: data.type })
         return

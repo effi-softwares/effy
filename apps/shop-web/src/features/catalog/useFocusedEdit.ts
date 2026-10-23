@@ -9,8 +9,8 @@ import { STALE_EDIT_MESSAGE, isConflict, productMutationError } from "./errorTex
 import { useUpdateProduct } from "./queries";
 
 /**
- * Drives one focused-edit dialog's save (US4). Centralizes the optimistic-concurrency contract
- * (FR-023a): on a 409 it does NOT show a generic error — it flips `stale`, so the dialog can offer a
+ * Drives one focused-edit dialog's save. Centralizes the optimistic-concurrency contract:
+ * on a 409 it does not show a generic error — it flips `stale`, so the dialog can offer a
  * "reload" that refetches the detail (re-seeding a fresh `expectedUpdatedAt`) instead of blindly
  * retrying a doomed PATCH. On success it emits `product_edit_saved` and closes.
  */

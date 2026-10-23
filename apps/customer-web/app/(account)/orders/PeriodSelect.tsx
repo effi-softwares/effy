@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { select } from "@/components/storefront/kit"
 import { cn } from "@/lib/utils"
 
-/** The order history's time period. Choosing one is a navigation — the URL is the state. */
+/** The order history's period. Choosing one navigates: the URL is the state. */
 export function PeriodSelect({
   value,
   periods,

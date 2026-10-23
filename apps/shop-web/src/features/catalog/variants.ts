@@ -15,11 +15,11 @@ import {
 } from "@effy/shared-types";
 
 /**
- * Sizes and options (098) — the shop console's half, pure (no React, no I/O).
+ * Sizes and options — the shop console's half, pure (no React, no I/O).
  *
  * A product's options ("Size", "Flavour") and its variants (one per combination the shop sells) are
- * edited as ONE set and sent whole. The rules a set must meet are `validateVariantSet` from
- * @effy/shared-types — the SAME function the server runs inside its one writer — so a refusal shown
+ * edited as one set and sent whole. The rules a set must meet are `validateVariantSet` from
+ * @effy/shared-types — the same function the server runs inside its one writer — so a refusal shown
  * here is a refusal the server would give, in the same words, on the same cell.
  */
 
@@ -47,7 +47,7 @@ export interface VariantSetDraft {
   variants: VariantRowDraft[];
 }
 
-/** Client-generated ids (R6): the proposal, the reviewer and approval all name the same row. */
+/** Client-generated ids: the proposal, the reviewer and approval all name the same row. */
 export function newId(): string {
   return crypto.randomUUID();
 }
@@ -71,11 +71,11 @@ const valueIdsOf = (options: readonly OptionInputDTO[]) => new Set(options.flatM
  * Bring the rows in line with edited options.
  *
  * - A row whose combination no longer exists is dropped.
- * - When the NUMBER of options changes, every combination is laid out again; a row keeps its price,
- *   codes and weight when its first value is still there (adding "Flavour" to sized rows carries each
- *   size's price to every flavour of it).
- * - A new VALUE brings its combinations in. A combination the shop deleted earlier is NOT brought back
- *   just because another option changed — only "Add missing combinations" does that.
+ * - When the number of options changes, every combination is laid out again; a row keeps its price,
+ *  codes and weight when its first value is still there (adding "Flavour" to sized rows carries each
+ *  size's price to every flavour of it).
+ * - A new value brings its combinations in. A combination the shop deleted earlier is not brought back
+ *  just because another option changed — only "Add missing combinations" does that.
  */
 export function syncRows(prev: readonly OptionInputDTO[], next: readonly OptionInputDTO[], rows: readonly VariantRowDraft[]): VariantRowDraft[] {
   const byKey = new Map(rows.map((r) => [key(r.optionValueIds), r]));
@@ -121,7 +121,7 @@ export function addMissingRows(set: VariantSetDraft): VariantRowDraft[] {
 }
 
 /**
- * "Apply to all" — the FIRST row's value of [field] copied to every row. For the columns that are
+ * "Apply to all" — the first row's value of [field] copied to every row. For the columns that are
  * usually the same across sizes or colours (a price, a weight); codes are never copied (a code names
  * one item).
  */
@@ -192,13 +192,13 @@ export function unitsFor(basis: "" | UnitBasis): PackUnit[] {
   return basis === "" ? all : all.filter((u) => packUnitCompatible(basis, u));
 }
 
-/** The comparison price a row would show shoppers at its SHOP price (a preview; Effy's margin adds to it). */
+/** The comparison price a row would show shoppers at its shop price (a preview; Effy's margin adds to it). */
 export function previewUnitPrice(set: VariantSetDraft, row: VariantRowDraft): UnitPriceDTO | null {
   if (set.unitBasis === "" || row.packUnit === "") return null;
   return unitPrice(row.shopPriceAmount.trim(), row.packQuantity.trim(), row.packUnit, set.unitBasis);
 }
 
-// ── From the server ────────────────────────────────────────────────────────────────────────────
+// From the server
 
 function rowFromVariant(v: Pick<ShopVariantDTO, "id" | "code" | "position" | "optionValueIds" | "sku" | "gtin" | "shopPriceAmount" | "shopCompareAtAmount" | "weightGrams" | "weightIsAssumed" | "packQuantity" | "packUnit">, mediaKey: string | null): VariantRowDraft {
   return {
@@ -210,7 +210,7 @@ function rowFromVariant(v: Pick<ShopVariantDTO, "id" | "code" | "position" | "op
     gtin: v.gtin ?? "",
     shopPriceAmount: v.shopPriceAmount,
     shopCompareAtAmount: v.shopCompareAtAmount ?? "",
-    // ⚠ Seeded BLANK when assumed: the operator answers "how heavy is it?", never confirms a guess.
+    // Seeded blank when assumed: the operator answers "how heavy is it?", never confirms a guess.
     weightGrams: v.weightIsAssumed ? "" : String(v.weightGrams),
     packQuantity: v.packQuantity ?? "",
     packUnit: v.packUnit ?? "",
@@ -246,7 +246,7 @@ export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
   };
 }
 
-/** 098 — the size's words for a stock title ("1 kg"); null for a product sold one way. */
+/** The size's words for a stock title ("1 kg"); null for a product sold one way. */
 export function sizeLabelOf(detail: Pick<ProductDetailDTO, "variants">, variantId: string): string | null {
   const live = detail.variants.filter((v) => v.state !== "removed");
   if (live.length <= 1) return null;

@@ -4,25 +4,13 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * FR-026 — INSIGHTS READS THE ROLLUPS, AND NOTHING ELSE (058).
- *
- * ⚠ WHY A SOURCE GUARD RATHER THAN A PERFORMANCE TEST. The rule this protects is invisible at small
- * data: a join onto `order_item` to "just get the unit count" is instant against a dev database with
- * two hundred orders, passes every test, reviews as harmless, and gets slower every single month it
- * exists — until Insights is the screen nobody opens because it hangs. The point of pre-aggregating
- * is lost the first time a read path touches raw rows, and the loss is not observable on the day it
- * happens. So the boundary is asserted where it can actually be enforced: in the source.
- *
- * ⚠ COMMENTS ARE STRIPPED FIRST. Prose must stay free to explain WHY the order tables are out of
- * bounds — including this file and the repository's own header — while the code is held strictly. A
- * guard that fires on its own justification gets deleted by the next person, and takes the
- * requirement with it (057's guard learned this; 054's availability guard was written that way).
+ * Insights reads the rollups and nothing else: a join onto raw order rows is invisible at small data and
+ * slower every month. Comments are stripped, so prose may explain the rule.
  */
 
 const REPOSITORY = resolve(import.meta.dirname, "repository.ts");
 const SERVICE = resolve(import.meta.dirname, "service.ts");
 
-/** Tables that mean "this is an aggregate over raw commerce data". */
 const FORBIDDEN = [
   "public.\"order\"",
   "public.order_item",
@@ -31,7 +19,6 @@ const FORBIDDEN = [
   "public.refund_line",
 ];
 
-/** The two tables Insights is allowed to read. */
 const ALLOWED = ["public.shop_sales_hour", "public.shop_product_sales_day"];
 
 function stripComments(source: string): string {
@@ -67,8 +54,7 @@ describe("Insights reads only prepared figures (FR-026)", () => {
   });
 
   it("the ROLLUP job is the one place allowed to touch raw rows", () => {
-    // The asymmetry is the design: one writer reads everything, once a minute, off the user's path;
-    // every reader afterwards touches only what that writer prepared.
+    // One writer reads everything, once a minute, off the user's path; every reader touches only its output.
     const rollup = readFileSync(resolve(import.meta.dirname, "rollup.ts"), "utf8");
     expect(rollup).toContain("public.order_item");
   });

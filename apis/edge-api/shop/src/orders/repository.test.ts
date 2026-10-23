@@ -63,7 +63,7 @@ describe("counts cover every state, under every filter except the tab", () => {
       });
     const out = await listOrders("shop-1", { ...parseListQuery(null), tab: "picking" });
     expect(out.counts).toMatchObject({ all: 12, new: 3, picking: 2, delivered: 7, withdrawn: 0 });
-    // The counts query takes the six filters but NOT the tab.
+    // The counts query takes the filters but not the tab.
     expect(query.mock.calls[1]![1]).toHaveLength(6);
     expect(sql(query.mock.calls[1])).not.toContain("$8");
   });
@@ -103,7 +103,6 @@ describe("who issued a refund, as a shop sees it", () => {
   });
 });
 
-/** A withTransaction that runs the callback against a recording fake client. */
 function fakeTx(rowsByCall: Array<{ rowCount?: number; rows?: unknown[] }>) {
   const calls: Array<[string, unknown[]]> = [];
   let i = 0;
@@ -155,11 +154,7 @@ describe("notes are written with their log entry", () => {
   });
 });
 
-/**
- * ⚠ A3 lets the console show the order's money. It does NOT make capture or tax real: Effy captures at
- * payment (055 R3) and per-item GST is unmodelled (052 R13). If either ever appears in this module it
- * is inventing something, so the source is read and the test fails naming the file.
- */
+/** The console shows money but never invents capture or per-item GST. */
 describe("the console invents no money it cannot account for", () => {
   const here = dirname(fileURLToPath(import.meta.url));
   for (const file of ["repository.ts", "service.ts", "handler-support.ts", "types.ts"]) {

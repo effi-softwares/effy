@@ -8,7 +8,7 @@ import { getSession } from "@/lib/session"
 import { readPublicGroups } from "./promotion-groups-public"
 
 /**
- * 094 — display groups, by key. The places promotions are shown (Home hero, the cards beside it, the
+ * Display groups, by key. The places promotions are shown (Home hero, the cards beside it, the
  * offers between Home's sections, the Offers page) each read their group, so back-office decides what
  * appears where and in what order.
  *
@@ -30,7 +30,7 @@ export interface Banner {
 
 export type GroupBanner = Banner & { label: string | null; skin?: ShopperSkinDTO }
 
-/** What a promotion component draws: a banner, perhaps with a label and (095) the skin of its place. */
+/** What a promotion component draws: a banner, perhaps with a label and the skin of its place. */
 export type PlacedBanner = Banner & { label?: string | null; skin?: ShopperSkinDTO }
 
 /** A group's promotion in the shape the existing banner components draw. */
@@ -45,7 +45,7 @@ export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
     terms: p.terms,
     target: p.target,
     label: p.label,
-    // 095 — the skin this place wears; absent from a server before 095.
+    // The skin this place wears; absent from a server before 095.
     ...(p.skin ? { skin: p.skin } : {}),
   }
 }

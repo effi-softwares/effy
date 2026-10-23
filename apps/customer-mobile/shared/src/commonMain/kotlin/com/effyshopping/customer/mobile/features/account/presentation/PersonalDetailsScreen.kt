@@ -45,20 +45,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Personal info as DETAIL ROWS (034 US1). The screen holds NO input fields; activating a row opens a
- * sheet containing exactly that one value.
- *
- * ⚠ This replaces 026's two-input form, and the argument is not tidiness: a row with a live input in
- * it cannot also show a verified state, a "managed by Google" state, or a pending-change state
- * without becoming cramped. A value row is a DISPLAY surface and can carry status; an input row is an
- * ENTRY surface and cannot. It is also why the old screen had no dirty-check and this one does.
- *
- * ⚠ 034 T024 — THIS LIVES IN ITS OWN FILE WITH ITS OWN VIEWMODEL, deliberately.
- *
- * `AccountViewModel` owned name editing, all three password flows and both sign-outs at once, and had
- * to call `clearTransient()` on every route change to stop one sub-screen's error surfacing on
- * another. That is a workaround for a class doing too much. Splitting removes the need for it here:
- * this ViewModel's error state belongs to this screen and cannot leak.
+ * Personal info as detail rows with no input fields; a row opens a sheet holding that one value, so a row
+ * can show a verified, "managed by Google" or pending state. Its own ViewModel, so its errors cannot leak
+ * onto other account screens.
  */
 
 /** Which detail the sheet is currently editing. `null` = the sheet is closed. */
@@ -79,11 +68,11 @@ class PersonalDetailsViewModel(
     /**
      * Save one edited detail, carrying the others through unchanged.
      *
-     * ⚠ EVERY field is sent, not just the edited one — the backend's PATCH writes the columns it
+     * Every field is sent, not just the edited one — the backend's PATCH writes the columns it
      * names, so an omitted field would be cleared. `""` means "cleared"; a `null` would be dropped by
      * `explicitNulls = false` and the clear would silently no-op.
      *
-     * ⚠ [onSaved] fires ONLY on success (FR-021 / T030c). A failed save must leave the sheet open with
+     * [onSaved] fires only on success. A failed save must leave the sheet open with
      * what the shopper typed still in it — including when the failure is an expired session, where the
      * temptation to close and bounce to sign-in would discard their work on the way.
      */
@@ -116,7 +105,7 @@ class PersonalDetailsViewModel(
         is AppError.RateLimited -> "Too many attempts. Please wait a little and try again."
         AppError.Network -> "No connection. Check your network and try again."
         AppError.Forbidden -> "This account can't be used."
-        // ⚠ T030c — the sheet stays OPEN on this, so the typed value survives the trip to sign-in.
+        // The sheet stays open on this, so the typed value survives the trip to sign-in.
         AppError.Unauthenticated -> "Your session expired. Sign in again, then save."
         AppError.NotFound -> "We couldn't find that."
         AppError.Unavailable -> "We're having trouble right now. Try again shortly."
@@ -129,13 +118,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
     val vm = viewModel { PersonalDetailsViewModel(container.updateProfile, container.session) }
     val state by vm.state.collectAsState()
 
-    // ⚠ T030b — `rememberSaveable`, NOT `remember`.
-    //
-    // Which field is open and what has been typed into it must survive BACKGROUNDING AND PROCESS
-    // DEATH. A ViewModel survives a configuration change but not the process, so plain `remember`
-    // would silently discard an in-progress edit the moment Android reclaimed the app — and on iOS
-    // this is the same after-process-death class research R9 warns about, which shows up only on a
-    // real device under memory pressure and never in a unit test.
+    // `rememberSaveable`: the open field and its text survive process death, which a ViewModel does not.
     var editing by rememberSaveable { mutableStateOf<EditableDetail?>(null) }
     var draft by rememberSaveable { mutableStateOf("") }
     var emailNoted by rememberSaveable { mutableStateOf(false) }
@@ -153,7 +136,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
             })
             EffyHairline()
 
-            // ⚠ NO VERIFIED INDICATOR (FR-060a). The value is self-asserted and this feature never
+            // No verified indicator. The value is self-asserted and this feature never
             // verifies it, so a tick would be a claim the platform cannot support — and one a shopper
             // would reasonably rely on.
             EffyValueRow("Phone number", customer.phone, {
@@ -161,7 +144,7 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
             })
             EffyHairline()
 
-            // ⚠ FR-022 — shown, NOT editable, and activating it EXPLAINS why. A row that silently
+            // Shown, not editable, and activating it explains why. A row that silently
             // ignores a tap is indistinguishable from a broken one: the shopper taps twice, then
             // reports a bug. Changing an email is an identity operation, not a profile edit.
             EffyValueRow(
@@ -220,14 +203,8 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
 }
 
 /**
- * The single-field sheet (FR-012 … FR-021).
- *
- * ⚠ The value is HOISTED to the caller so it can be `rememberSaveable` there (T030b). Holding it
- * inside the sheet would tie its lifetime to the sheet's composition, which is exactly what dies
- * under process death.
- *
- * The dirty flag is handed to [EffySheet], which owns interception of all three dismissal routes —
- * drag, scrim and system back. Wiring only one of them is the defect this design exists to prevent.
+ * The single-field sheet. The value is hoisted to the caller so it can be `rememberSaveable` there. The
+ * dirty flag goes to [EffySheet], which intercepts all three dismissal routes (drag, scrim, system back).
  */
 @Composable
 private fun DetailEditSheet(
@@ -245,7 +222,7 @@ private fun DetailEditSheet(
 ) {
     val focus = remember { FocusRequester() }
 
-    // FR-013 — focused with the keyboard up, without a second interaction.
+    // Focused with the keyboard up, without a second interaction.
     LaunchedEffect(title) { focus.requestFocus() }
 
     EffySheet(
@@ -256,7 +233,7 @@ private fun DetailEditSheet(
         onPrimary = onSave,
         primaryEnabled = !saving,
     ) {
-        // ⚠ NO LABEL that repeats the title — the sheet already says "First name"; printing it twice
+        // No label that repeats the title — the sheet already says "First name"; printing it twice
         // is what the first build shipped. The phone's label differs ("Mobile number"), so it stays.
         EffyField(
             label = label,

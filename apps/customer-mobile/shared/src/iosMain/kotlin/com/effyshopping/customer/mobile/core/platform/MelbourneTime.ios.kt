@@ -6,7 +6,7 @@ import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.timeZoneWithName
 
 /**
- * ⚠ Falls back to +10:00 (AEST) if the zone cannot be loaded, rather than to UTC: a window an hour out
+ * Falls back to +10:00 (AEST) if the zone cannot be loaded, rather than to UTC: a window an hour out
  * in summer is a smaller lie than one ten hours out all year. iOS has shipped this zone since iOS 2.
  */
 actual fun melbourneOffsetSeconds(epochMillis: Long): Int {

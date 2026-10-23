@@ -32,26 +32,26 @@ import { printPickLists } from "./pickList";
 import { orderDetailQuery } from "./queries";
 
 /**
- * Order detail — the imported design's `isOrderDetail` block, revision 2 (057 A3): the sticky summary
+ * Order detail — the imported design's `isOrderDetail` block, revision 2: the sticky summary
  * bar; a two-column grid (the content column — "Items and fulfilment", then "Internal notes" — beside a
- * narrow column holding ONLY the payment card and the action buttons); then "Customer and delivery"
+ * narrow column holding only the payment card and the action buttons); then "Customer and delivery"
  * full width beneath. The activity log is a right-side sheet opened from "Activity". Order pagination
  * lives in the app header (`HeaderChrome`), never here.
  *
- * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS BECAUSE THE PLATFORM CANNOT DO THE THING, not for taste:
- *   • CAPTURE — Effy captures at payment (055 R3), so the design's capture button never has an
- *     authorised-but-uncaptured order to act on.
- *   • "VAT 25%" — per-item GST is unmodelled (052 R13); no tax row is drawn.
- *   • DUPLICATE / RESEND EMAIL / PRINT INVOICE / EDIT ORDER — an order is a paid record (055), the
- *     receipt resend is the customer's own route (052), and the platform cannot issue a tax invoice.
- *   • CARRIER / TRACKING / RECORD A RETURN — a shop hands its package to an Effy driver (049) and the
- *     platform has no returns model; "Fulfil" hands the package over instead.
- *   • CUSTOMER EMAIL, "CUSTOMER SINCE", BILLING ADDRESS — never shared with a shop (023 FR-018).
- *   • "Cancel order" opens the can't-supply declaration — a shop cannot cancel a customer's order.
+ * Where it departs from the mockup, it is because the platform cannot do the thing, not for taste:
+ *  • Capture — Effy captures at payment, so the design's capture button never has an
+ *  authorised-but-uncaptured order to act on.
+ *  • "VAT 25%" — per-item GST is unmodelled; no tax row is drawn.
+ *  • Duplicate / resend email / print invoice / edit order — an order is a paid record, the
+ *  receipt resend is the customer's own route, and the platform cannot issue a tax invoice.
+ *  • Carrier / tracking / record a return — a shop hands its package to an Effy driver and the
+ *  platform has no returns model; "Fulfil" hands the package over instead.
+ *  • Customer email, "CUSTOMER SINCE", billing address — never shared with a shop.
+ *  • "Cancel order" opens the can't-supply declaration — a shop cannot cancel a customer's order.
  * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if a
  * forbidden control reappears.
  *
- * ⚠ Opening this screen IS the acknowledgement (020 FR-011a).
+ * Opening this screen IS the acknowledgement.
  */
 export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(fulfillmentId));
@@ -69,7 +69,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per portion, not per status change
   }, [fulfillmentId]);
 
-  // ⚠ FR-014b — a courtesy, not the gate. The backend decides from the platform record.
+  // A courtesy, not the gate. The backend decides from the platform record.
   const canRefund = session?.status === "signed-in" && isShopManager(session.identity.roles);
 
   if (isError) {
@@ -93,7 +93,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
 
   return (
     <div className="grid gap-7">
-      {/* ── The sticky summary bar. `top-14` clears the 56px header exactly. ─────────────────── */}
+      {/* The sticky summary bar. `top-14` clears the 56px header exactly. */}
       <div className="border-border bg-background sticky top-14 z-[4] flex flex-wrap items-center gap-3 rounded-[var(--radius)] border px-4 py-3">
         <div className="grid min-w-0 gap-[7px]">
           <div className="flex flex-wrap items-center gap-2 gap-y-1.5">
@@ -102,7 +102,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             </span>
             <PackageStatusPill view={detail.statusView} />
             <PaymentPill state={detail.payment.state} />
-            {/* ⚠ WARNING, NOT DESTRUCTIVE. "At risk" means this order is ageing toward a cut-off —
+            {/* Warning, not destructive. "At risk" means this order is ageing toward a cut-off
                 the design's waiting/at-risk tone. Destructive is reserved for something that has
                 already failed (refunded, can't supply); using it here would make every busy morning
                 look like a page of errors and devalue the colour where it matters. */}
@@ -115,7 +115,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
           <div className="text-muted-foreground text-[12.5px]">
             {formatWhen(detail.placedAt)} · Online store ·{" "}
-            {/* 089 — the package's code: bag 1's. */}
+            {/* The package's code: bag 1's. */}
             <span className="font-mono" aria-label="Package code">
               {detail.parcels[0]?.code}
             </span>
@@ -131,7 +131,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       </div>
 
       <div className="grid items-start gap-14 min-[1060px]:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
-        {/* ── Content column: 52px between sections ───────────────────────────────────────────── */}
+        {/* Content column: 52px between sections */}
         <div className="grid min-w-0 gap-[52px]">
           <ItemsAndFulfilment detail={detail} />
 
@@ -159,7 +159,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           </section>
         </div>
 
-        {/* ── The narrow column: the payment card and the action buttons, nothing else ─────────── */}
+        {/* The narrow column: the payment card and the action buttons, nothing else */}
         <div className="grid min-w-0 gap-7">
           <div className="border-border grid gap-3 rounded-[var(--radius)] border p-3.5">
             <div className="flex items-baseline justify-between gap-2.5">
@@ -183,7 +183,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <Button variant="outline" onClick={() => printPickList(detail)}>
               Print pick list
             </Button>
-            {/* ⚠ `destructive-ghost`, the platform's default destructive affordance — NOT the filled
+            {/* `destructive-ghost`, the platform's default destructive affordance — not the filled
                 red button. A solid fill here would give the riskiest control on the screen the visual
                 weight of a primary action. The three hand-rolled classes it used to carry were
                 exactly that variant, restated. */}
@@ -196,11 +196,11 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         </div>
       </div>
 
-      {/* ── Customer and delivery — full width, below the grid ────────────────────────────────── */}
+      {/* Customer and delivery — full width, below the grid */}
       <section>
         <div className="border-border grid gap-1 border-b pb-3.5">
           <h2 className="text-[15px] font-semibold tracking-[-.01em]">Customer and delivery</h2>
-          {/* ⚠ The design's "Customer since {date}" is account history, which a shop is not given. */}
+          {/* The design's "Customer since {date}" is account history, which a shop is not given. */}
           <p className="text-muted-foreground text-[12.5px]">
             {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
           </p>
@@ -213,7 +213,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}
         >
           <Block label="Customer">
-            {/* ⚠ The avatar is seeded on the FULFILLMENT ID, not the name, so the same order shows
+            {/* The avatar is seeded on the fulfillment ID, not the name, so the same order shows
                 the same tint here and in the orders list — a name-seeded tint would shift the moment
                 a recipient name is corrected. */}
             <div className="flex items-center gap-2.5">
@@ -236,7 +236,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <div className="text-[13px] leading-[1.6] whitespace-pre-line">{addressText(detail)}</div>
           </Block>
           <Block label="Bill to">
-            {/* ⚠ Named and said to be withheld, not silently missing (023 FR-018). */}
+            {/* Named and said to be withheld, not silently missing. */}
             <div className="text-muted-foreground text-[13px] leading-[1.6]">Held by Effy with the payment.</div>
           </Block>
           <div className="grid content-start gap-2">
@@ -319,7 +319,7 @@ function addressText(detail: OrderDetail): string {
 }
 
 /**
- * "Print pick list" — one document, through the shared renderer (058 T010). Today's "Print pick
+ * "Print pick list" — one document, through the shared renderer. Today's "Print pick
  * lists" prints many through the same code, so the sheet a picker carries is the same either way.
  */
 function printPickList(detail: OrderDetail) {

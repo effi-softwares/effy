@@ -1,17 +1,9 @@
 import type { CustomerRefundDTO } from "@effy/shared-types"
 
 /**
- * What happened to the shopper's money (055 US5, FR-023).
- *
- * ⚠ NOTHING RENDERS WHEN THERE ARE NO REFUNDS (FR-028) — the caller checks, and the server omits the
- * fields entirely, so an unrefunded order is byte-identical to its pre-055 self (SC-011).
- *
- * ⚠ IT SITS ALONGSIDE THE RECEIPT AND NEVER INSIDE IT (FR-024). What was charged is a historical
- * record; a document that silently rewrote itself after a refund could not be reconciled against a
- * bank statement, which is the one thing a receipt is for.
- *
- * ⚠ NO COLOUR CARRIES MEANING. A refund that had a problem is marked by the words "there was a
- * problem", not by a red tint a colour-blind reader loses entirely.
+ * What happened to the shopper's money. Rendered only when there are refunds, beside the receipt and
+ * never inside it (a receipt must reconcile against a bank statement). A problem is said in words, not
+ * by colour.
  */
 export function RefundBlock({
   refunds,
@@ -44,9 +36,7 @@ export function RefundBlock({
           <dt>Refunded</dt>
           <dd className="tabular-nums">{refundedTotal}</dd>
         </div>
-        {/* ⚠ The figure the customer checks against their bank: paid, less what came back. It is
-            the server's subtraction, printed — 051 and 052 each shipped a receipt whose lines did
-            not add up. */}
+        {/* What the customer checks against their bank: paid, less what came back (the server's subtraction). */}
         <div className="flex justify-between gap-3 text-base font-semibold">
           <dt>You paid</dt>
           <dd className="tabular-nums">{amountPaidAfterRefunds}</dd>
@@ -63,16 +53,7 @@ const STATE_LABEL: Record<CustomerRefundDTO["state"], string> = {
   there_was_a_problem: "There was a problem — we’re looking into it",
 }
 
-/**
- * ⚠ THE PUBLISHED POLICY'S OWN SENTENCE, NOT A SECOND ONE (FR-026 / T062). Two places describing the
- * same timing will drift, and the one that drifts is whichever a developer edits without opening the
- * legal document.
- *
- * ⚠ AND IT DELIBERATELY PROMISES NO CREDIT LINE. A refund issued soon after payment often appears as
- * a REVERSAL — the original charge simply vanishes from the statement and no separate credit ever
- * shows up (research R2). A shopper told to look for a credit will not find one, and will contact us
- * about money that has already been returned.
- */
+/** The published refund policy's own sentence. It promises no credit line: an early refund often shows as a reversal. */
 function RefundTiming() {
   return (
     <p className="text-xs text-muted-foreground">

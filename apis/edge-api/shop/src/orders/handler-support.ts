@@ -1,6 +1,4 @@
-// Domain → wire DTO mappers for the shop order console (057 A3). The gate and the error mapping are
-// the fulfilment slice's, reused as-is: same audience, same membership rule (both roles, FR-019a),
-// same uniform 403 for "missing" and "another shop's".
+// The gate and error mapping are the fulfilment slice's: same audience, same rules.
 
 import type {
   ShopOrderActivityDTO,
@@ -70,7 +68,6 @@ export function toOrderDTO(d: OrderDetail): ShopOrderDetailDTO {
     payment: { ...d.payment, paidAt: iso(d.payment.paidAt) },
     refunds: d.refunds.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
     handoff: {
-      collectedAt: iso(d.handoff.collectedAt),
       deliveredAt: iso(d.handoff.deliveredAt),
       unfulfillableReason: d.handoff.unfulfillableReason,
     },

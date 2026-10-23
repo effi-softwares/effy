@@ -151,14 +151,14 @@ private fun OpenDrop(
 ) {
     val canScan = drop.packages.any { it.bags.isNotEmpty() }
     var stage by rememberSaveable(drop.dropId) {
-        // 093 — never straight to the door scan for a drop that is still at the hub.
+        // Never straight to the door scan for a drop that is still at the hub.
         mutableStateOf(if (startScanning && canScan && drop.loaded && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
     }
     var method by rememberSaveable(drop.dropId) {
         mutableStateOf(if (drop.handover == Handover.MeetAtDoor) ProofMethod.PHOTO else ProofMethod.CONTACTLESS)
     }
     var photo by remember(drop.dropId) { mutableStateOf<ByteArray?>(null) }
-    // 092 — how each bag was handed over at the door, from the scan; kept for the proof.
+    // How each bag was handed over at the door, from the scan; kept for the proof.
     var handed by remember(drop.dropId) { mutableStateOf<List<HandedOver>>(emptyList()) }
     val open = rememberIsOpen(drop.opening)
     val title = if (position != null && runTotal > 0) "Drop $position of $runTotal" else "Drop"
@@ -174,7 +174,7 @@ private fun OpenDrop(
             ScanPanel(
                 title = street, backLabel = "Drop",
                 context = base,
-                // 096 — one row per bag: every bag of every package is handed over.
+                // One row per bag: every bag of every package is handed over.
                 items = drop.packages.flatMapIndexed { i, p ->
                     p.bags.map { b ->
                         val words = listOfNotNull("Package ${i + 1} of $n".takeIf { n > 1 }, b.title().takeIf { b.of > 1 }).joinToString(" · ").ifEmpty { "Package 1 of 1" }
@@ -271,7 +271,7 @@ private fun DropDetail(
     onCall: (String) -> Unit,
     onDeliver: () -> Unit,
     onCantDeliver: () -> Unit,
-    /** 093 — to the run, where the van is loaded. */
+    /** To the run, where the van is loaded. */
     onLoadVan: () -> Unit,
 ) {
     val (street, rest) = splitAddress(drop.addressFull)
@@ -332,7 +332,7 @@ private fun DropDetail(
                 }
             }
             if (!drop.loaded) {
-                // 093 — the drop is still at the hub: loading the van is the next step, not this drop.
+                // The drop is still at the hub: loading the van is the next step, not this drop.
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     DriverIcon(Res.drawable.lucide_truck, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Load the van first — then this drop opens.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -351,7 +351,7 @@ private fun DropDetail(
     }
 }
 
-/** What the customer asked: how to hand it over, and their note, verbatim (066). Nothing when they said nothing. */
+/** What the customer asked: how to hand it over, and their note, verbatim. Nothing when they said nothing. */
 @Composable
 private fun InstructionCallout(drop: Drop) {
     val note = drop.instructions?.trim()?.takeIf { it.isNotEmpty() }

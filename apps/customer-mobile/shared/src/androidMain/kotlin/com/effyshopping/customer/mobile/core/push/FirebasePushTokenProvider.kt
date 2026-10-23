@@ -7,7 +7,7 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
- * Android FCM token access (050 US3). Injected into [com.effyshopping.customer.mobile.app.AppContainer]
+ * Android FCM token access. Injected into [com.effyshopping.customer.mobile.app.AppContainer]
  * by the Android entry point; iOS keeps [NoOpPushTokenProvider] until its APNs↔FCM Swift bridge lands.
  *
  * The token is opaque (no PII). Firebase auto-initialises from google-services resources, so there is
@@ -23,13 +23,13 @@ class FirebasePushTokenProvider(private val context: Context) : PushTokenProvide
     }
 
     /**
-     * Whether notifications are enabled for the app. ⚠ On API 33+ the runtime POST_NOTIFICATIONS
+     * Whether notifications are enabled for the app. On API 33+ the runtime POST_NOTIFICATIONS
      * prompt must be requested from an Activity (ActivityResult) — that Activity-level prompt is the
      * follow-up (same shape as the Stripe/payment Activity bridge); here we report current state so a
-     * caller never pushes into a denied channel (FR-019).
+     * caller never pushes into a denied channel.
      */
     override suspend fun requestPermission(): Boolean {
-        // areNotificationsEnabled() exists since API 24 (== minSdk), so no compat lib is needed.
+        // areNotificationsEnabled exists since API 24 (== minSdk), so no compat lib is needed.
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return nm.areNotificationsEnabled()
     }

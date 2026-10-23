@@ -1,32 +1,6 @@
-// The attention evaluator — 059, US3.
-//
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-// ⚠ WHY THIS IS A SCHEDULED JOB AND NOT A TRIGGER OR A SERVICE CALL
-//
-// `awaiting_pick` BECOMES TRUE BY THE PASSAGE OF TIME. An order ages into needing attention; there
-// is no INSERT, no UPDATE and no transaction to fire from. Any event-driven design covers three of
-// the four conditions and silently misses the most time-critical one, so this is not a preference
-// between architectures — it is the only shape that can work.
-//
-// Two alternatives were considered and refused, both on evidence this repo already paid for:
-//   • Database triggers (058's precedent). 058's own `triggers.guard.test.ts` constrains every
-//     trigger function in `public` to `pg_notify` + an `ON CONFLICT DO NOTHING` insert, and fails
-//     naming the trigger otherwise — correctly. These predicates are joins with thresholds and
-//     ordering; they do not belong in one, and the guard already says so.
-//   • Per-write application code. That is 054's `availability`-in-14-places defect, which that slice
-//     fixed by moving the rule into one place and adding a guard that fails naming the file.
-//
-// ⚠ ONE DERIVATION, TWO CALLERS (Principle II). This imports `readToday` and `buildAttention` from
-// `today/service.ts` — the SAME functions the Today screen calls. It deliberately does NOT re-derive
-// anything: if the screen and this job ever disagreed, an operator would be notified about something
-// the console does not list, or — worse — not notified about something it does.
-//
-// ⚠ A DELIBERATE DEVIATION FROM THE PLAN'S T067, recorded rather than silently taken. The plan said
-// to extract the derivation into `attention/derive.ts`. Reading the code showed `buildAttention` is
-// ALREADY pure, already exported, and already takes its cap as a parameter — so a `derive.ts` would
-// be a pass-through module that adds a file and no guarantee. The principle is "one rule, two
-// callers", and that is satisfied by importing it. What the cap parameter buys is below.
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The attention evaluator. A scheduled job, because `awaiting_pick` becomes true by time passing: no
+// write fires it. It derives attention with `readToday` and `buildAttention`, the Today screen's own
+// functions, so a notification always matches what the console lists.
 import { announce } from "@effy/edge-shared/live";
 import {
   ATTENTION_TYPE,
@@ -50,7 +24,6 @@ import {
   withTransaction,
 } from "./repository";
 
-/** What one run did, for the metric and the log. */
 export interface EvaluatorStats {
   shops: number;
   appeared: number;
@@ -59,31 +32,22 @@ export interface EvaluatorStats {
   failedShops: number;
 }
 
-/**
- * What an attention item is ABOUT, within its kind.
- *
- * ⚠ `awaiting_pick` IS PER SHOP AND ITS KEY IS THE EMPTY STRING, not null. The column is
- * `NOT NULL text` for exactly this: a nullable uuid would put NULL in the UNIQUE index, where NULL
- * is never equal to itself — so the backlog row would insert again on EVERY run and notify on every
- * run. A console that interrupts an operator every few minutes forever, with a fully green suite.
- */
+/** What an item is about, within its kind. `awaiting_pick` is per shop with key "" (never null, or the unique index would not dedupe it). */
 export function subjectKeyFor(item: AttentionItem): string {
   switch (item.kind) {
     case "awaiting_pick":
-      // The operator's question is "is there a backlog", not "which orders" — and the backlog
-      // changes composition constantly while remaining one situation.
+      // "Is there a backlog", not "which orders": one situation.
       return "";
     case "out_of_stock":
     case "low_stock":
-      // 098 — stock is per SIZE: two sizes of one product are two situations, and restocking one
-      // must not close the other.
+      // Stock is per size: restocking one size must not close another.
       return item.variantId;
     case "refund_proposed":
       return item.fulfillmentId;
   }
 }
 
-/** The entity a notification for this kind should open (the product; its page shows the size). */
+/** The product; its page shows the size. */
 function entityIdFor(item: AttentionItem): string {
   switch (item.kind) {
     case "awaiting_pick":
@@ -96,14 +60,7 @@ function entityIdFor(item: AttentionItem): string {
   }
 }
 
-/**
- * Evaluate every active shop.
- *
- * ⚠ ONE SHOP'S FAILURE MUST NOT SILENCE THE OTHERS. A shop whose pass throws is logged and skipped;
- * the run continues. 053 recorded the opposite shape as a shipped defect — an unconfigured FCM
- * halted the whole drain — and one shop's bad data taking down every other shop's notifications is
- * the same failure wearing a different hat.
- */
+/** One shop's failure is logged and skipped, never silencing the others. */
 export async function evaluateAll(): Promise<EvaluatorStats> {
   const shops = await activeShops();
   const stats: EvaluatorStats = {
@@ -117,8 +74,7 @@ export async function evaluateAll(): Promise<EvaluatorStats> {
   for (const shop of shops) {
     try {
       const s = await evaluateShop(shop.id);
-      // 071 — only the shops whose list actually changed in this pass are told; a quiet pass over
-      // forty shops publishes nothing. After evaluateShop's transaction has committed.
+      // Only shops whose list changed are told, after their transaction commits.
       if (s.appeared > 0 || s.cleared > 0) await announce([{ scope: "shop", shopId: shop.id, kind: "attention" }]);
       stats.appeared += s.appeared;
       stats.cleared += s.cleared;
@@ -131,23 +87,17 @@ export async function evaluateAll(): Promise<EvaluatorStats> {
   return stats;
 }
 
-/** One shop's pass, in ONE transaction. */
+/** In one transaction. */
 export async function evaluateShop(
   shopId: string,
 ): Promise<{ appeared: number; cleared: number; intents: number }> {
-  // ⚠ `canRefund: () => true` — the PROPOSALS ARE READ REGARDLESS OF ROLE, and the role filter is
-  // applied to RECIPIENTS below (FR-022). Filtering here instead would mean the occurrence was never
-  // recorded at all, so a shop with no manager online would lose the record of a refund waiting —
-  // and would then notify about it as brand new the moment one signed in.
+  // Proposals are read regardless of role; the role filter applies to recipients, so the occurrence is always recorded.
   const snapshot = await readToday(
     { sub: "", shopId, staffId: null },
     { canRefund: async () => true },
   );
 
-  // ⚠ `Infinity`, NOT the screen's cap of 8. The card shows the eight most urgent; the evaluator
-  // must see EVERY occurrence, or a shop with forty products below threshold would only ever record
-  // the first eight and the other thirty-two would be announced one at a time as the earlier ones
-  // cleared. This is what the cap being a parameter buys, and why no `derive.ts` was needed.
+  // `Infinity`, not the card's 8: every occurrence must be recorded.
   const current = buildAttention(snapshot, Number.POSITIVE_INFINITY).items;
 
   return withTransaction(async (tx) => {
@@ -167,12 +117,11 @@ export async function evaluateShop(
         continue;
       }
       const id = await insertOccurrence(tx, shopId, item.kind, subjectKeyFor(item));
-      // A null id means a concurrent run inserted it first and owns announcing it.
+      // Null: a concurrent run inserted it and owns announcing it.
       if (id) appeared.push({ id, kind: item.kind, entityId: entityIdFor(item) });
     }
 
-    // ⚠ Deleting the cleared rows is what makes a recurrence notify again (FR-019) — a condition
-    // that comes back gets a new row with a new id, and so a dedupe key the outbox has never seen.
+    // Deleting cleared rows is what makes a recurrence notify again (a new id, a new dedupe key).
     const clearedIds = stored.filter((o) => !seenKeys.has(`${o.kind}\u0000${o.subjectKey}`)).map((o) => o.id);
 
     await touchOccurrences(tx, stillThere);
@@ -182,17 +131,8 @@ export async function evaluateShop(
       return { appeared: 0, cleared: clearedIds.length, intents: 0 };
     }
 
-    // ── Coalesce (FR-020) ────────────────────────────────────────────────────────────────────────
-    //
-    // ⚠ ONE INTENT PER KIND PER RUN, NOT ONE PER ITEM. A single stock count can drop forty products
-    // below their reorder point at once; forty intents would be forty sends and forty banners — the
-    // exact behaviour that trains an operator to dismiss everything, and the exact behaviour
-    // browsers now rate-limit (Chrome began returning 429 to high-volume, low-engagement senders in
-    // January 2026). The operator opens the queue to see which.
-    //
-    // ⚠ THIS IS THE OPPOSITE OF WHAT NEW ORDERS DO, deliberately. Each order is a separate intent
-    // from a separate checkout transaction, and batching them would delay the first — which is the
-    // one SC-001 measures. Attention arrives as a set; orders do not.
+    // One intent per kind per run, not per item: a stock count can drop forty products at once. New
+    // orders are the opposite (one intent each), because batching would delay the first.
     const byKind = new Map<AttentionKind, typeof appeared>();
     for (const a of appeared) {
       const list = byKind.get(a.kind) ?? [];
@@ -204,21 +144,19 @@ export async function evaluateShop(
     let intents = 0;
 
     for (const [kind, group] of byKind) {
-      // The representative occurrence: the one whose id keys the dedupe and whose entity the
-      // notification opens. One per kind per run, by construction.
+      // The representative occurrence: its id keys the dedupe and its entity is what the tap opens.
       const lead = group[0]!;
       const type = ATTENTION_TYPE[kind];
 
       for (const r of recipients) {
-        // ⚠ FR-022 — a notification about an action only a manager may take is not sent to someone
-        // who cannot take it. Decided from the PLATFORM RECORD, never a claim and never client-side.
+        // Manager-only actions are sent only to managers, decided from the platform record.
         if (MANAGER_ONLY_KINDS.includes(kind) && !r.isManager) continue;
 
         await enqueueIntent(tx, {
           recipientSub: r.sub,
           type,
           entityId: lead.entityId,
-          // ⚠ THE OCCURRENCE ID, never the product or order id. See `insertOccurrence`.
+          // The occurrence id, never the product or order id.
           dedupeKey: `${type}:${r.sub}:${lead.id}`,
         });
         intents += 1;

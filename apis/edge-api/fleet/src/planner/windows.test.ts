@@ -4,8 +4,8 @@ import type { PlannablePackage } from "./types";
 import { deadlineFor, groupByWindow } from "./windows";
 
 const at = (iso: string) => new Date(iso);
-const EARLY = { windowStart: at("2026-10-08T06:00:00Z"), windowEnd: at("2026-10-08T08:00:00Z") }; // 5–7 pm AEDT
-const LATE = { windowStart: at("2026-10-08T08:00:00Z"), windowEnd: at("2026-10-08T10:00:00Z") }; //  7–9 pm AEDT
+const EARLY = { windowStart: at("2026-10-08T06:00:00Z"), windowEnd: at("2026-10-08T08:00:00Z") };
+const LATE = { windowStart: at("2026-10-08T08:00:00Z"), windowEnd: at("2026-10-08T10:00:00Z") };
 const END_OF_DAY = at("2026-10-08T12:59:59Z");
 
 function pkg(id: string, window: { windowStart: Date | null; windowEnd: Date | null }): PlannablePackage {
@@ -46,8 +46,7 @@ describe("deadlineFor", () => {
   });
 
   it("⚠ falls back to the end of the day once the window has passed, so a late package is still sent", () => {
-    // A deadline in the past fails every driver's feasibility gate; the package would sit at the hub
-    // being refused on every tick until midnight.
+    // A past deadline would fail every driver and leave the package refused until midnight.
     expect(deadlineFor(group, at("2026-10-08T08:00:00Z"), END_OF_DAY)).toEqual(END_OF_DAY);
     expect(deadlineFor(group, at("2026-10-08T09:30:00Z"), END_OF_DAY)).toEqual(END_OF_DAY);
   });

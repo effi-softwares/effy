@@ -12,11 +12,7 @@ import {
   type DeliveryWindowState,
 } from "./delivery-window";
 
-/**
- * ⚠ THE FIXTURE IS SHARED WITH KOTLIN. customer-mobile's arrival formatter and driver-mobile's
- * window state read this same file. The web page, the email and two apps all say when an order
- * arrives; this is what keeps them saying the same thing.
- */
+/** The fixture is shared with Kotlin: the customer app's arrival formatter and the driver app's window state read it. */
 interface Fixture {
   arrival: { name: string; now: string; input: ArrivalPromise; expect: string }[];
   state: { name: string; now: string; expect: DeliveryWindowState }[];
@@ -64,10 +60,8 @@ describe("formatDeliveryDay", () => {
 });
 
 /**
- * ⚠ THE KOTLIN COPIES. The two mobile apps cannot read a file outside their own build, so each embeds
- * this fixture as a string in its test sources. This is what keeps those copies honest: it reads the
- * Kotlin files and fails, naming the app, if the embedded JSON is not this fixture exactly. Without
- * it the apps would go on passing their own tests against a fixture nobody else uses.
+ * The Kotlin copies: each app embeds this fixture as a string in its tests, so this reads those files
+ * and fails, naming the app, if an embedded copy is not this fixture exactly.
  */
 describe("the Kotlin copies of the fixture", () => {
   const root = fileURLToPath(new URL("../../../", import.meta.url));

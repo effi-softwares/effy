@@ -9,7 +9,7 @@ const FIXTURES = JSON.parse(readFileSync(resolve(__dirname, "../package-code.fix
 }
 
 describe("package codes (089)", () => {
-  /** 090 — the driver app's Kotlin parser is held to the same rows. */
+  /** The driver app's Kotlin parser is held to the same rows. */
   it("agrees with every row of the shared fixture", () => {
     for (const { read, code } of FIXTURES.reads) expect(parsePackageToken(read), JSON.stringify(read)).toBe(code)
   })
@@ -34,7 +34,7 @@ describe("package codes (089)", () => {
     expect(isPackageCode("2345AB")).toBe(true)
   })
 
-  /** 090 — the driver app embeds a copy of the fixture (commonTest cannot read outside the app). */
+  /** The driver app embeds a copy of the fixture (commonTest cannot read outside the app). */
   it("the driver app's embedded fixture is this JSON", () => {
     const kt = readFileSync(
       resolve(__dirname, "../../../apps/driver-mobile/shared/src/commonTest/kotlin/com/effyshopping/driver/mobile/core/scan/PackageCodeFixture.kt"),
@@ -44,9 +44,9 @@ describe("package codes (089)", () => {
     expect(JSON.parse(embedded)).toEqual(FIXTURES)
   })
 
-  /** ⚠ The database generates codes from its own copy of the alphabet; they must be the same string. */
+  /** The database generates codes from its own copy of the alphabet; they must match. */
   it("matches the alphabet the database generates from", () => {
-    const sql = readFileSync(resolve(__dirname, "../../../db/migrations/20261016150000_package_code.sql"), "utf8")
+    const sql = readFileSync(resolve(__dirname, "../../../db/migrations/20261023000000_baseline.sql"), "utf8")
     expect(sql).toContain(`alphabet constant text := '${PACKAGE_CODE_ALPHABET}'`)
     const cls = /package_code ~ '\^\[([^\]]+)\]\{6\}\$'/.exec(sql)![1]!
     const chars = [...PACKAGE_CODE_ALPHABET].filter((c) => new RegExp(`[${cls}]`).test(c))
@@ -56,7 +56,7 @@ describe("package codes (089)", () => {
 })
 
 describe("variant codes (098)", () => {
-  const migration = readFileSync(resolve(__dirname, "../../../db/migrations/20261027090000_variant_code.sql"), "utf8")
+  const migration = readFileSync(resolve(__dirname, "../../../db/migrations/20261023000000_baseline.sql"), "utf8")
 
   it("the database generates them from the same alphabet, with the V", () => {
     expect(migration).toContain(`alphabet constant text := '${PACKAGE_CODE_ALPHABET}'`)

@@ -19,19 +19,12 @@ import {
 import type { CartDiscountDTO, CartNotAppliedDTO, CartPromotionLineDTO } from "@effy/shared-types";
 
 /**
- * Commerce's one way into the promotion engine (094). The cart read, applying a code and the payment
- * intent all price through `pricePromotionsFor`, so the cart, the charge and the receipt agree (SC-003).
- *
- * A basket line's id is its VARIANT id (098) — the cart has one line per variant, and the order's lines
- * are written from the same cart — so a line's discount is carried from the price to the order by
- * variant. Targets stay product, category and brand: a promotion on a product covers all its variants,
- * and a minimum quantity counts units across them (the engine sums the lines it covers).
+ * Commerce's one way into the promotion engine, so the cart, the charge and the receipt agree. A
+ * basket line is a variant; targets stay product, category and brand, covering all variants.
  */
 
 export interface PricingLine {
-  /** 098 — the line's id. */
   variantId: string;
-  /** What promotions target. */
   productId: string;
   unitCents: number;
   quantity: number;
@@ -54,7 +47,7 @@ export interface Pricing {
   enteredRefusal: CodeRefusal | null;
   enteredPromotionId: string | null;
   singleUseCodeIds: Set<string>;
-  /** Price the same basket again for another delivery type and fee (a quote's options) — no reads. */
+  /** Re-prices the same basket for another delivery type and fee, with no reads. */
   reprice?: (deliveryType: "effy" | "courier", deliveryFeeCents: number) => PromotionOutcome;
 }
 
@@ -91,10 +84,8 @@ export async function pricePromotionsFor(db: Queryable, input: PricingInput): Pr
 }
 
 /**
- * Whether a typed code may be put on the cart. A code the shopper cannot use is REFUSED with its reason
- * (027's rule, kept): unknown, not started, ended, used up, not for this account, already used, or the
- * cart is below its minimum. A code that is valid but loses to a better offer, or applies at another
- * time, IS stored — the cart says why it is not applying.
+ * A code the shopper cannot use is refused with its reason. A valid code that loses to a better
+ * offer or applies at another time is stored, and the cart says why it is not applying.
  */
 export async function vetCode(db: Queryable, input: { customerId: string; raw: string; lines: readonly PricingLine[]; now: Date }): Promise<string> {
   const found = await findCode(db, input.raw, input.now);
@@ -120,7 +111,7 @@ export async function vetCode(db: Queryable, input: { customerId: string; raw: s
   return found.codeId;
 }
 
-/** 094 — what the cart needs from promotions. A port, so the cart's unit tests can stand one in. */
+/** A port, so the cart's unit tests can stand one in. */
 export interface PromotionPort {
   price(input: PricingInput): Promise<Pricing>;
   vet(input: { customerId: string; raw: string; lines: readonly PricingLine[]; now: Date }): Promise<string>;
@@ -133,7 +124,6 @@ export const promotionPort = (db: Queryable): PromotionPort => ({
 
 const headlineOf = (rec: PromotionRecord | undefined): string => (rec ? rec.headline ?? offerLabelOf(rec.words) : "Promotion");
 
-/** The cart's promotion lines, its kept single `discount` (installed apps) and its not-applied sentences. */
 export function cartPromotionView(p: Pricing): {
   promotions: CartPromotionLineDTO[];
   notApplied: CartNotAppliedDTO[];
@@ -153,7 +143,7 @@ export function cartPromotionView(p: Pricing): {
     const rec = p.records.get(n.promotionId);
     if (!rec) continue;
     const isEntered = n.promotionId === p.enteredPromotionId;
-    // An automatic offer that is out of reach only by time or delivery is noise in the cart.
+    // An automatic offer out of reach only by time or delivery is noise in the cart.
     if (!isEntered && (n.reason === "wrong_time" || n.reason === "wrong_delivery")) continue;
     if (n.reason === "nothing_to_discount" || n.reason === "over_budget") continue;
     const instead = n.reason === "not_combined" ? (promotions[0]?.code ?? promotions[0]?.headline ?? null) : null;

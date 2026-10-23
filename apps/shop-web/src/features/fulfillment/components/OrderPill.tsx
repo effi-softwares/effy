@@ -5,16 +5,8 @@ import { PAYMENT_LABEL } from "../orderConsole"
 import { cn } from "@/lib/utils"
 
 /**
- * The design's status pill (`padding:2px 8px; border-radius:999px; 11.5px/500; 1px border`) with its
- * five tones — warn · info · pos · neg · muted.
- *
- * ⚠ THE TONES ARE NOW THE DESIGN'S, AS AUTHORED. They used to be weight-based: the mockup's warn was
- * amber (a third UI hue the monochrome constitution forbade) and its pos put `--success` under text
- * at 4.00:1. The theme adoption supplies a real `--warning` and re-tunes `--success` to #0d8043,
- * which clears 4.5:1 on its own tint — so both objections are answered and the map is adopted whole.
- *
- * ⚠ EVERY PILL STILL KEEPS ITS WORDS. Nothing here depends on the fill to be understood; the colour
- * is what makes the right row findable in a list of forty.
+ * The status pill in five tones (warn · info · pos · neg · muted). Every pill keeps its words; the colour
+ * only makes a row findable.
  */
 type Tone = "warn" | "info" | "pos" | "neg" | "muted"
 
@@ -44,7 +36,7 @@ export function TonePill({ tone, children }: { tone: Tone; children: ReactNode }
   )
 }
 
-// ⚠ 073 — `ORDER_STATUS_LABEL` and `OrderStatusPill` STOOD HERE. They named the shop's own status,
+// `ORDER_STATUS_LABEL` and `OrderStatusPill` stood here. They named the shop's own status,
 // which stops at "Collected", so a shop never saw its package reach the hub or the customer. The pill
 // is now `PackageStatusPill` (web-kit), reading the server's one derived status in the words every
 // staff screen uses.

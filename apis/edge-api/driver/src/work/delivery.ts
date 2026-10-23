@@ -1,10 +1,3 @@
-// Delivery drops, history and activity (063, US3).
-//
-// ⚠ HISTORY CARRIES REAL PROOF SINCE 064. This header used to say `proofCaptured` was always false
-// and `HistoryDetailDTO.proof` always null "until Slice D" — correct when written, and 064 IS that
-// slice. A comment asserting a limitation that no longer holds is the stale-claim shape 060 and 063
-// both record, so it was corrected in the same change rather than left to be believed.
-
 import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import { liveParcelsByPackage } from "@effy/edge-shared/labels";
@@ -26,7 +19,6 @@ import { NotFoundError, ordered } from "./service";
 import { runMapOf } from "./run-map";
 import { roundStops } from "./repository";
 
-/** GET /driver/v1/delivery/drops/{dropId} — one customer stop. */
 export async function deliveryDrop(dropId: string, driverId: string): Promise<DeliveryDropDTO> {
   const res = await query<{
     stop_id: string;
@@ -61,13 +53,13 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
             count(DISTINCT sf.shop_id)::text        AS shop_count,
             o.delivery_note                         AS delivery_note,
             o.delivery_handover                     AS delivery_handover,
-            -- 069 — the window the customer was sold. Read from the ORDER's own packages rather
+            -- The window the customer was sold. Read from the ORDER's own packages rather
             -- than through round_package: a late-joined package must not change the window.
             (SELECT min(opd.window_start) FROM public.order_package_delivery opd
               WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_start,
             (SELECT min(opd.window_end)   FROM public.order_package_delivery opd
               WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_end,
-            -- 085 — sold a day with no time.
+            -- Sold a day with no time.
             EXISTS (SELECT 1 FROM public.order_package_delivery opd
                       JOIN public.delivery_slot ds ON ds.id = opd.slot_id
                      WHERE opd.order_id = o.id AND ds.any_time) AS any_time
@@ -84,7 +76,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
   const r = res.rows[0];
   if (!r) throw new NotFoundError();
 
-  // 065 — one manifest per physical package, in the stable order the app labels by position.
+  // One manifest per package, in the stable order the app labels by position.
   const packageIds = await stopPackageIds(dropId, driverId);
   const [items, codes, bags] = await Promise.all([
     packageItems(packageIds),
@@ -102,54 +94,41 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     orderRef: r.order_number,
     customerName: r.recipient_name ?? "",
     addressFull: address,
-    // The customer's own note, verbatim (066). ⚠ This line read `instructions: null` from 049 until
-    // 066, under a comment saying nothing on the platform stored it and "whoever adds the field at
-    // checkout unblocks this line". Checkout now asks; the order keeps the answer; NULL still means the
-    // customer wrote nothing, and nothing is invented in its place.
+    // The customer's own note, verbatim; null means they wrote nothing.
     instructions: r.delivery_note,
-    // How they asked for it to be handed over. A REQUEST the app states and leads the proof chooser
-    // with — never a rule that removes a way of completing the drop (066 FR-020).
+    // A request the app leads the proof chooser with, never a rule that removes a way to complete.
     handover: r.delivery_handover,
-    // 069 — when the customer was told to expect it. Null for an order placed before 069: the app
-    // then shows no window at all. ⚠ Instants only — "due" and "late" are the app's to derive from
-    // these and its own clock, because they change while the screen is open.
+    // Instants only: "due" and "late" change while the screen is open, so the app derives them.
     ...dropWindow(r.window_start, r.window_end, r.any_time),
-    // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
-    // "staged", which is how a drop that HAD started kept showing "Start this drop".
+    // Every stored state reads back as itself.
     status: dropStatusOf(r.status),
-    // ⚠ ONE ENTRY PER PACKAGE (065). This used to be a single synthetic entry for the whole drop, so
-    // a driver holding two bags saw one row and could not match the list to what was in their hands.
+    // One entry per package, so the list matches the bags in hand.
     packages: packageIds.map((id) => {
       const manifest = manifests.get(id);
       return {
         ref: r.order_number,
-        packageCode: codes.get(id)!, // 089 — the code on bag 1's label
-        parcels: bags.get(id) ?? [], // 096 — every bag of this package
-        // ⚠ HOW MANY shops contributed, never WHICH. Hidden fulfilment is a product rule, not a UI
-        // choice — a driver learning which shops served an order would leak it to the customer. A
-        // package is one shop's portion, so this is 1; the drop-wide count is `packages.length`.
+        packageCode: codes.get(id)!,
+        parcels: bags.get(id) ?? [],
+        // How many shops, never which (hidden fulfilment). A package is one shop's portion, so 1.
         fromShopCount: 1,
         items: manifest?.items ?? [],
         summary: manifest?.summary ?? { ...EMPTY_SUMMARY },
       };
     }),
     summary: addSummaries(packageIds.map((id) => manifests.get(id)?.summary ?? EMPTY_SUMMARY)),
-    // 072 — the drop is readable before its round opens; every action on it is refused until then.
+    // Readable before its round opens; every action is refused until then.
     opening: (await stopRoundTimes(dropId, driverId))?.opening ?? null,
-    // 092 — the number the customer gave at checkout, so the driver can call from the door. ⚠ ONLY
-    // WHILE THE DROP IS OPEN: once it is delivered or not delivered the driver has no reason to call,
-    // and history never carries it.
+    // The customer's number, only while the drop is open; history never carries it.
     customerPhone: OPEN_DROP.has(r.status) ? (r.phone?.trim() || null) : null,
-    // 093 — loaded with the van. Until then nothing on the drop can be done.
+    // Loaded with the van; until then nothing on the drop can be done.
     loaded: r.status !== "pending",
   };
 }
 
-/** An open drop's states, in the only order it may move through them. */
+/** The only order an open drop may move through. */
 const PROGRESS = ["pending", "out_for_delivery", "en_route", "arrived"];
 const OPEN_DROP = new Set(PROGRESS);
 
-/** POST /driver/v1/delivery/drops/{dropId}/status — progress a drop. */
 export async function setDropStatus(
   dropId: string,
   driverId: string,
@@ -166,31 +145,24 @@ export async function setDropStatus(
     );
     if (owns.rowCount === 0) throw new NotFoundError();
 
-    // ⚠ A FINISHED DROP IS NEVER MOVED BACKWARDS. This function used to write whatever it was given,
-    // so a stale tap on a delivered drop would have reset it to `pending` — un-delivering a package
-    // that had proof and an arrival row. It now answers with where the drop actually is.
+    // A finished drop never moves backwards: answer with where it is.
     const current: string = owns.rows[0].status;
     if (current === "done" || current === "skipped") {
       return { status: current === "done" ? "delivered" : "failed" };
     }
 
-    // 072 — THE CALL THAT STOPS A VAN LEAVING THREE HOURS EARLY. A 5–7 pm delivery is assigned, and
-    // visible, from the moment it reaches the hub; "Start this drop" is refused until the window's
-    // round opens.
+    // Refused until the window's round opens, so a van cannot leave hours early.
     await assertStopRoundOpen(tx, dropId, driverId);
 
-    // 093 — not before the van is loaded. Loading is the only writer of `out_for_delivery` (the
-    // per-drop "Start this drop" is gone), so this route moves a loaded drop on and nothing else.
+    // Not before loading, the only writer of `out_for_delivery`.
     await assertDropLoaded(tx, dropId, driverId);
 
-    // ⚠ `delivered` is NOT reachable here: completing a drop requires proof (064). Nor is
-    // `out_for_delivery` since 093: that is the van being loaded.
+    // `delivered` needs proof; `out_for_delivery` is the van being loaded.
     const ALLOWED = new Set(["en_route", "arrived"]);
     if (!ALLOWED.has(body.to)) throw new NotFoundError();
     const next = body.to;
 
-    // ⚠ NOR IS AN OPEN DROP. An offline replay of "Start this drop" can land after "I've arrived";
-    // it answers with where the drop is and writes nothing.
+    // Nor backwards on an open drop: an offline replay answers with where it is and writes nothing.
     if (PROGRESS.indexOf(next) <= PROGRESS.indexOf(current)) {
       return { status: dropStatusOf(current) };
     }
@@ -204,7 +176,7 @@ export async function setDropStatus(
   });
 }
 
-/** GET /driver/v1/history — what this driver has finished, by local day. */
+/** What this driver has finished, by local day. */
 export async function history(driverId: string): Promise<HistoryDTO> {
   const res = await query<{
     local_date: string;
@@ -220,12 +192,12 @@ export async function history(driverId: string): Promise<HistoryDTO> {
             dr.id        AS run_id,
             dr.kind      AS kind,
             dr.updated_at AS completed_at,
-            -- 092 rev 2 — a delivery run's window: the span its drops were sold (none for a collection).
+            -- A delivery run's window: the span its drops were sold (none for a collection).
             (SELECT min(opd.window_start) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
               WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_start,
             (SELECT max(opd.window_end) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
               WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_end,
-            -- 092 rev 2 — shops or drops, not the hub: what a driver would count.
+            -- Shops or drops, not the hub: what a driver would count.
             (SELECT count(*) FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind <> 'hub_checkin')::text AS stop_count,
             (SELECT count(*) FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
               WHERE rs.round_id = dr.id)::text AS package_count
@@ -236,11 +208,6 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     [driverId],
   );
 
-  // ⚠ 064 — THE DROPS HALF, WHICH HAS ALWAYS BEEN AN EMPTY ARRAY. `HistoryDropRow.proofCaptured` has
-  // existed on the contract since 049 and never had a value, because `drops` was hardcoded to `[]`
-  // and nothing captured proof anyway. Both are true now, so the field finally means something: a
-  // driver can look back at a delivery and see that it WAS evidenced — which is the whole point of
-  // having captured it.
   const drops = await query<{
     local_date: string;
     drop_id: string;
@@ -252,8 +219,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     proof_method: string | null;
     failure_reason: string | null;
   }>(
-    // 092 rev 2 — a drop that CAME BACK is history too ("Returned · nobody home"), with its street and
-    // how a delivered one was handed over.
+    // A drop that came back is history too, with its street and how a delivered one was handed over.
     `SELECT to_char(x.at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date, x.*
        FROM (
          SELECT rs.id          AS drop_id,
@@ -283,16 +249,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     [driverId],
   );
 
-  // ⚠ THE DAYS ARE MERGED, NOT SORTED, AND THAT IS NOT A STYLE CHOICE.
-  //
-  // `one-ordering.guard.test.ts` forbids a raw `.sort(` anywhere in a file that produces an ordered
-  // stop list, and it is deliberately blunt: 063 hardened it after a cleverer version failed to catch
-  // its own negative proof, because "whatever the variable is called, sorting HERE is the thing that
-  // drifts". A `.sort(` on history days would have been harmless and would still have tripped it —
-  // correctly, since the guard cannot tell the two apart and should not try.
-  //
-  // It is also the better construction. Both queries already return newest-first, so merging their
-  // date sequences yields the right order BY BUILDING IT, rather than by fixing it up afterwards.
+  // Merged, not sorted: `one-ordering.guard.test.ts` forbids `.sort(` here, and both queries are newest first.
   const runRows = res.rows;
   const dropRows = drops.rows;
   const orderedDates: string[] = [];
@@ -301,7 +258,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
   while (i < runRows.length || j < dropRows.length) {
     const a = runRows[i]?.local_date;
     const b = dropRows[j]?.local_date;
-    // Descending, so the LATER date comes first; `undefined` means that source is exhausted.
+    // Descending; `undefined` means that source is exhausted.
     const pick = b === undefined || (a !== undefined && a >= b) ? a! : b!;
     if (orderedDates[orderedDates.length - 1] !== pick) orderedDates.push(pick);
     if (a === pick) i += 1;
@@ -337,7 +294,6 @@ export async function history(driverId: string): Promise<HistoryDTO> {
   return { days: [...byDay.values()] };
 }
 
-/** GET /driver/v1/history/{kind}/{id} — one finished item. */
 export async function historyDetail(
   kind: string,
   id: string,
@@ -395,7 +351,7 @@ export async function historyDetail(
     proof: await renderProof(r),
     addressFull: r.address,
     packages: [],
-    // 092 rev 2 — the order, how many packages, and why a drop came back.
+    // The order, its package count, and why a drop came back.
     orderRef: r.order_number,
     packageCount: Number(r.package_count),
     window: dropWindow(r.window_start, r.window_end).window,
@@ -403,7 +359,7 @@ export async function historyDetail(
   };
 }
 
-/** 092 — a finished run: its stops in order and how each ended. Only the caller's own, completed rounds. */
+/** The caller's own completed rounds: stops in order and how each ended. */
 async function historyRun(runId: string, driverId: string): Promise<HistoryDetailDTO> {
   const res = await query<{
     stop_id: string;
@@ -420,7 +376,7 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
     window_end: Date | null;
   }>(
     `SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.completed_at, dr.kind AS round_kind,
-            -- 092 rev 2 — a delivery run's window: the span its drops were sold (none for a collection).
+            -- A delivery run's window: the span its drops were sold (none for a collection).
             (SELECT min(opd.window_start) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
               WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_start,
             (SELECT max(opd.window_end) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
@@ -450,9 +406,9 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
     proofMethod: r.proof_method,
     failureReason: r.status === "skipped" ? r.failure_reason : null,
   }));
-  // 092 rev 2 — the finished run's map, every stop done (the list's own order, from the shared rule).
+  // Every stop done, in the shared rule's order.
   const map = await runMapOf(ordered(await roundStops(runId, driverId)), res.rows[0]!.round_kind === "collection" ? "collection" : "delivery", true);
-  // The latest finish — a max, not a sort (one-ordering.guard.test.ts forbids `.sort(` in this file).
+  // A max, not a sort (`.sort(` is forbidden in this file).
   const last = res.rows.map((r) => r.completed_at).filter((d): d is Date => d !== null)
     .reduce<Date | undefined>((a, b) => (a === undefined || b.getTime() > a.getTime() ? b : a), undefined);
   return {
@@ -474,21 +430,8 @@ interface ProofColumns {
 }
 
 /**
- * Turn stored proof into something viewable (064, US5 — FR-023).
- *
- * ⚠ THERE IS NO EXPIRY LOGIC HERE, AND ITS ABSENCE IS THE DESIGN. Proof media is ARCHIVED, never
- * deleted (operator direction, research R5): a lifecycle rule moves it to Glacier Instant Retrieval
- * after 90 days, which serves through the ordinary S3 API in milliseconds. A presigned GET works the
- * same on a photograph from this morning and one from two years ago, so no read path has two
- * behaviours depending on an object's age — and an earlier draft's shared `proof-retention.ts`, its
- * derived "has this expired?" answer and the test keeping that derivation in step with the Terraform
- * number all ceased to exist with the decision.
- *
- * ⚠ WHICH INVERTS FR-026. Under time-limited retention a missing object was an expected state to
- * render politely. Nothing deletes media now, so `mediaUrl: null` where a `media_key` EXISTS means
- * something is wrong — a failed upload recorded anyway, a key mismatch, or an object removed out of
- * band. It is alarmed on, never dressed up as a tidy empty state: a system that renders its own
- * corruption as a normal outcome cannot report it.
+ * Proof media is archived to Glacier IR, never deleted, so reads are the same at any age. A
+ * `media_key` that will not resolve is therefore a fault: it alarms rather than rendering as empty.
  */
 async function renderProof(r: ProofColumns): Promise<HistoryDetailDTO["proof"]> {
   if (r.proof_method === null || r.proof_captured_at === null) return null;
@@ -498,9 +441,7 @@ async function renderProof(r: ProofColumns): Promise<HistoryDetailDTO["proof"]> 
     try {
       mediaUrl = await presignRead(r.proof_media_key);
     } catch (err) {
-      // ⚠ EMF ON STDOUT AS ITS OWN RECORD — never a dimension on an existing metric, because a
-      // dimensioned metric is a DIFFERENT metric in CloudWatch and an alarm on the undimensioned
-      // name goes blind the moment one is added (059 found exactly this; 054 before it).
+      // Its own EMF record: a dimension would blind the undimensioned alarm.
       console.log(
         JSON.stringify({
           _aws: {
@@ -522,19 +463,14 @@ async function renderProof(r: ProofColumns): Promise<HistoryDetailDTO["proof"]> 
 
   return {
     method: r.proof_method,
-    // ⚠ Null here has TWO meanings and they are not the same fact:
-    //   · the proof never had media — only possible for `contactless`, and since FR-002 requires a
-    //     photograph for an unattended drop, only for rows written before that rule;
-    //   · the object should exist and could not be read — the fault case above, which alarms.
-    // They are distinguishable at the source (`media_key IS NULL` vs a key that will not resolve),
-    // which is what FR-026 asks for.
+    // Null: either the proof never had media (old contactless rows), or a fault, which alarms.
     mediaUrl,
     note: r.proof_note,
     capturedAt: r.proof_captured_at.toISOString(),
   };
 }
 
-/** A drop's window as the label the app shows and the instants it judges Due and Late by. */
+/** The label the app shows and the instants it judges Due and Late by. */
 function dropWindow(
   start: Date | null,
   end: Date | null,
@@ -542,9 +478,8 @@ function dropWindow(
 ): { window: string | null; deliveryWindow: DeliveryWindow | null } {
   if (!start || !end) return { window: null, deliveryWindow: null };
   const deliveryWindow = { startAt: new Date(start).toISOString(), endAt: new Date(end).toISOString() };
-  // ⚠ The SERVER words the window, in Melbourne time, with the one shared formatter. The app has no
-  // timezone database to do it with, and a second wording is how two screens disagree.
-  // 085 — sold a day with no time: "Any time", with the round's hours so the driver knows the end.
+  // The server words the window in Melbourne time with the shared formatter. A day with no time
+  // reads "Any time", with the round's hours.
   const hours = formatDeliveryWindow(deliveryWindow);
   return { window: anyTime ? `${ANY_TIME_LABEL} · ${hours}` : hours, deliveryWindow };
 }

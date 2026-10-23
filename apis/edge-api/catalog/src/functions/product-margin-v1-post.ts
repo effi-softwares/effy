@@ -1,5 +1,4 @@
-// POST /catalog/v1/products/{productId}/margin — set or change Effy's margin on an approved product
-// (067 FR-032). The customer price follows at once. Decide = admin/manager, from the staff record.
+// Admin/manager only. The customer price follows at once.
 import { announce } from "@effy/edge-shared/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -16,7 +15,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     const body = parseBody<{ margin?: unknown; expectedCurrent?: unknown }>(event.body);
     const margin = await setMargin(event.pathParameters?.productId, body, g.sub);
-    await announce([{ scope: "ops", kind: "review" }]); // 071 — committed; the "no margin set" list changed
+    await announce([{ scope: "ops", kind: "review" }]);
     return json(200, margin, scope);
   } catch (err) {
     return mapReviewError(err, scope);

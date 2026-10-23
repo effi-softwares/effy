@@ -3,41 +3,27 @@ import type { Stripe, StripeCardNumberElement, StripeElements } from "@stripe/st
 import type { BillingDetailsDTO } from "@effy/shared-types"
 
 /**
- * Confirming a card payment (051 T035).
- *
- * ⚠ THIS IS THE OTHER HALF OF THE THREE-FIELD FORM, AND THEY SHIP TOGETHER. The card form asks for no
- * country, postcode or name, so the details have to arrive from somewhere — and they arrive here, from
- * the intent response, sourced from the billing address the shopper confirmed one screen earlier. Ship
- * the short form without this and the payment is simply refused; ship this without the short form and
- * the shopper types an address Effy already has.
- *
- * The provider's own documentation is explicit that `payment_method: { card: <cardNumber Element>,
- * billing_details }` is supported for the split elements (spike S2), which is what makes FR-015 and
- * FR-028 compatible rather than a trade.
+ * Confirms a card payment. The card form asks for no country, postcode or name, so the billing details
+ * come from the intent response (the address the shopper confirmed) and are passed with the split
+ * elements (`payment_method: { card, billing_details }`).
  */
 
 export type ConfirmOutcome =
   | { kind: "succeeded" }
-  /** The provider took the payment but has not settled it yet — NOT a success and NOT a failure. */
+  /** The provider took the payment but has not settled it yet — not a success and not a failure. */
   | { kind: "processing" }
   /** The shopper's bank wants them to approve it; the provider handles the redirect. */
   | { kind: "requires_action" }
   | {
       kind: "failed"
       message: string
-      /**
-       * The provider's `decline_code`, where it gave one.
-       *
-       * ⚠ Carried so the CALLER can choose the words. Echoing the provider's own string is the fallback,
-       * not the plan: a decline code lets Effy say "there aren't enough funds on that card" instead of
-       * a sentence written for a developer reading a dashboard (FR-036).
-       */
+      /** The provider's `decline_code`, where given, so the caller can choose the words. */
       declineCode?: string
     }
 
 /**
- * ⚠ Every message below is OURS. A provider's raw decline string is written for a developer reading a
- * dashboard, not for a shopper deciding whether to try another card (FR-036). The provider's own message
+ * Every message below is ours. A provider's raw decline string is written for a developer reading a
+ * dashboard, not for a shopper deciding whether to try another card. The provider's own message
  * is preferred where it exists, because it is localised and specific ("your card was declined"), and the
  * fallback is a sentence a shopper can act on — never "something went wrong".
  */
@@ -53,9 +39,9 @@ export async function confirmCardPayment(input: {
   /**
    * Whether the shopper ticked "save this card".
    *
-   * ⚠ THIS IS THE ONLY THING THAT DECIDES WHETHER A CARD IS KEPT (FR-020). The server deliberately does
-   * NOT set `setup_future_usage` on the intent — doing so would keep a card the shopper declined, and it
-   * is a documented integration error besides (research R5). `allow_redisplay` is set explicitly
+   * This is the only thing that decides whether a card is kept. The server deliberately does
+   * not set `setup_future_usage` on the intent — doing so would keep a card the shopper declined, and it
+   * is a documented integration error besides. `allow_redisplay` is set explicitly
    * alongside, because without a customer session the provider does not infer it from a checkbox it
    * never rendered.
    */
@@ -116,15 +102,7 @@ export async function confirmSavedCard(input: {
   return outcomeFor(paymentIntent?.status)
 }
 
-/**
- * Map the provider's intent status to what the shopper is told.
- *
- * ⚠ `processing` IS NOT PAID, and treating it as paid is the defect this function exists to prevent.
- * The previous implementation called `onSuccess()` without looking at the status at all, so an intent
- * still settling was reported as a completed order (research R12 D2, FR-040). An unknown status is
- * treated as still-confirming rather than as a failure, because FR-039 forbids telling a shopper a
- * payment failed when it may well have succeeded.
- */
+/** Maps the intent status to what the shopper is told: `processing` is not paid, and an unknown status reads as still confirming, never failed. */
 function outcomeFor(status: string | undefined): ConfirmOutcome {
   switch (status) {
     case "succeeded":
@@ -143,15 +121,15 @@ function outcomeFor(status: string | undefined): ConfirmOutcome {
 }
 
 /**
- * Confirm a payment the shopper authorised in a wallet sheet (051 US2).
+ * Confirm a payment the shopper authorised in a wallet sheet.
  *
- * ⚠ A DIFFERENT CALL FROM THE CARD ROUTE, and it has to be. The wallet's own sheet has already
+ * A different call from the card route, and it has to be. The wallet's own sheet has already
  * collected the payment method, so there is no element to hand over — `confirmPayment` reads what the
  * Express Checkout Element captured from the shared Elements group. Passing a card element here would
  * confirm the wrong thing.
  *
- * ⚠ `redirect: "if_required"` keeps the common case inline. A wallet payment that needs the bank's
- * approval redirects to `returnUrl`, which is why one must be supplied even though most never use it —
+ * `redirect: "if_required"` keeps the common case inline. A wallet payment that needs the bank's
+ * approval redirects to `returnUrl`, which is why one must be supplied even though most never use it
  * omitting it makes 3DS fail with no way back.
  */
 export async function confirmWalletPayment(input: {
@@ -199,16 +177,16 @@ export async function confirmWalletPayment(input: {
 }
 
 /**
- * Confirm a pay-over-time payment (051 US4) — Klarna, Zip, Afterpay.
+ * Confirm a pay-over-time payment — Klarna, Zip, Afterpay.
  *
- * ⚠ ALWAYS A REDIRECT. Every BNPL provider takes the shopper to its own site to assess and approve
+ * Always a redirect. Every bnpl provider takes the shopper to its own site to assess and approve
  * them, so `return_url` is not optional here the way it is for a card: without it the shopper leaves
  * Effy and has no route back. `redirect: "if_required"` still applies — it means "redirect only when
  * the method needs it", and these always do.
  *
- * ⚠ NO `setup_future_usage`. Afterpay and Zip do not support it at all, and Klarna's support excludes
+ * NO `setup_future_usage`. Afterpay and Zip do not support it at all, and Klarna's support excludes
  * the saved-card flow. Sending it turns a working payment into an API error, so the save-card consent
- * deliberately does not reach this path (research R1).
+ * deliberately does not reach this path.
  */
 export async function confirmPayOverTime(input: {
   stripe: Stripe

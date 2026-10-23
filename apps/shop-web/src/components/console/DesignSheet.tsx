@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
  * header of title + one muted sentence over a hairline, a scrolling body, and a footer bar with the
  * cancel and save buttons on the right.
  *
- * ⚠ NO CORNER CLOSE BUTTON. The design's modal sheets close from their footer's cancel button (and
+ * No corner close button. The design's modal sheets close from their footer's cancel button (and
  * Escape / the overlay); only its right-side Activity sheet carries an ×.
  */
 export function DesignSheet({

@@ -13,17 +13,17 @@ import { assignErrorLine, driversForQuery, useAssignTo } from "./queries";
 import type { DriverFit, Stage } from "./repo";
 
 /**
- * "Assign to…" (073) — pick a driver for one package.
+ * "Assign to…" — pick a driver for one package.
  *
  * Drivers come in three groups, already sorted by the server:
- *   · Fine — pick and done.
- *   · Concern — not cleared for the area, or the round may run late. A person may decide; picking
- *     one asks once ("Assign anyway?").
- *   · Can't take it — off duty, no licence, no vehicle, van can't carry it, van full. Shown greyed
- *     with the reason, so "why isn't Ben in the list?" is never a question. The server refuses them
- *     too; greying is a courtesy.
+ *  · Fine — pick and done.
+ *  · Concern — not cleared for the area, or the round may run late. A person may decide; picking
+ *  one asks once ("Assign anyway?").
+ *  · Can't take it — off duty, no licence, no vehicle, van can't carry it, van full. Shown greyed
+ *  with the reason, so "why isn't Ben in the list?" is never a question. The server refuses them
+ *  too; greying is a courtesy.
  *
- * Every outcome is ONE line in a toast. A move is just "Assign to…" on a package someone already has.
+ * Every outcome is one line in a toast. A move is just "Assign to…" on a package someone already has.
  */
 export function AssignSheet({
   open,

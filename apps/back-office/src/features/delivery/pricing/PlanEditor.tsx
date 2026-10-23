@@ -14,13 +14,9 @@ import { planFieldErrors, pricingError } from "./gapText";
 import { draftFrom, emptyDraft, toInput, type PlanDraft } from "./planDraft";
 
 /**
- * Build or read one fee plan (077). A SECTIONED PAGE in a side sheet, not cards: amounts · distance
- * bands · weight bands · basket rules · surcharges — each a short heading and its fields.
- *
- * ⚠ READ-ONLY for an active or retired plan and for a customer-service agent. Those see the same
- * sections with every field disabled and, for a manager, "Copy to new draft".
- * ⚠ SAVING IS NOT ACTIVATING. A half-built draft may be saved; what it is missing is listed at the
- * top, in the console's own words, and activation is a separate, deliberate step.
+ * Build or read one fee plan, as a sectioned side sheet: amounts · distance bands · weight bands · basket
+ * rules · surcharges. Read-only for an active or retired plan and for an agent (a manager gets "Copy to new
+ * draft"). Saving is not activating: a half-built draft may be saved, with what it lacks listed at the top.
  */
 export function PlanEditor({
   kind, source, copy, canManage, onClose,
@@ -159,7 +155,7 @@ export function PlanEditor({
                   </tr>
                 </thead>
                 <tbody>
-                  {/* 085 — the Any time window takes no surcharge: an order with no time pays the plain fee. */}
+                  {/* The Any time window takes no surcharge: an order with no time pays the plain fee. */}
                   {(slots.data ?? []).filter((s) => !s.anyTime).map((s, i) => (
                     <tr key={s.id} className="border-t">
                       <td className="py-1.5 font-mono tabular-nums">

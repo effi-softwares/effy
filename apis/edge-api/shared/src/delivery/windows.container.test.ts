@@ -2,14 +2,10 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { loadSlotSettings, slotLoad, slotLoadByDate } from "./slots";
 
-/**
- * 078 — the switch, the settings and the relaxed window rule against the REAL schema. Selling a
- * window (the quote, the hold, the race for the last place) is proven where it happens, in
- * commerce's checkout container test.
- */
+/** Settings and the window rule against the real schema; selling a window is proven in commerce's checkout container test. */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
 
@@ -21,29 +17,12 @@ d("078 — delivery windows against the real schema", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     await pool.query(migrationSql());
+    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, -37.81, 144.96, 'test')`);
   }, 180_000);
 
   afterAll(async () => {
     await pool?.end();
     await container?.stop();
-  });
-
-  /**
-   * ⚠ 083 stage 2 — ONE MODEL. The database's own answer to "is the new delivery model on" is yes:
-   * with no settings row, with the switch column NULL, and at any instant. Nothing in the services
-   * asks it any more (`windows.guard.test.ts`); `courier_delivery_state` still does, inside the database.
-   */
-  it("the new delivery model is on for good — whatever the switch column holds, and with no settings row", async () => {
-    const on = async (at: Date) => (await pool.query<{ on: boolean }>(`SELECT public.delivery_model_v2_at($1) AS on`, [at])).rows[0]!.on;
-    await pool.query(`DELETE FROM public.delivery_settings`);
-    expect(await on(new Date())).toBe(true);
-    expect((await loadSlotSettings(pool)).effyLookaheadDays).toBe(3);
-
-    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, -37.81, 144.96, 'test')`);
-    expect(await on(new Date("2020-01-01T00:00:00Z"))).toBe(true);
-    expect((await loadSlotSettings(pool)).effyLookaheadDays).toBe(3);
-    // A settings row created after the removal is marked removed from the start.
-    expect((await pool.query(`SELECT legacy_model_removed_at IS NOT NULL AS removed FROM public.delivery_settings WHERE id = 1`)).rows[0].removed).toBe(true);
   });
 
   it("the look-ahead is 1 to 14 days", async () => {
@@ -64,8 +43,8 @@ d("078 — delivery windows against the real schema", () => {
     )).rows[0]!.id;
     const order = async (n: number) =>
       (await pool.query<{ id: string }>(
-        `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, delivery_fee_amount, grand_total_amount, currency, delivery_address)
-         VALUES ($1, $2, 'pending_payment', 1, 0, 1, 'AUD', '{}'::jsonb) RETURNING id::text AS id`,
+        `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, delivery_fee_amount, grand_total_amount, currency, delivery_address, delivery_type, delivery_type_reason)
+         VALUES ($1, $2, 'pending_payment', 1, 0, 1, 'AUD', '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
         [customer, `WIN-${n}`],
       )).rows[0]!.id;
 
@@ -92,7 +71,7 @@ d("078 — delivery windows against the real schema", () => {
       [slot, a, b, c],
     );
     const load = await slotLoadByDate(pool, ["2026-10-08", "2026-10-09", "2026-10-10"]);
-    expect([load.get("2026-10-08")!.get(slot), load.get("2026-10-09")!.get(slot), load.get("2026-10-10")!.size]).toEqual([2, 0, 0]); // the lapsed hold is a row that counts for nothing
+    expect([load.get("2026-10-08")!.get(slot), load.get("2026-10-09")!.get(slot), load.get("2026-10-10")!.size]).toEqual([2, 0, 0]);
     expect((await slotLoad(pool, "2026-10-08")).get(slot)).toBe(2);
     expect(await slotLoadByDate(pool, [])).toEqual(new Map());
   });

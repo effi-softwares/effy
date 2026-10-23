@@ -12,7 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * 098 — the app says a comparison price in the storefront's exact words (`unit-price.fixtures.json`).
+ * The app says a comparison price in the storefront's exact words (`unit-price.fixtures.json`).
  * The amount is the platform's; what is tested here is the sentence built from it.
  */
 class UnitPriceWordsTest {

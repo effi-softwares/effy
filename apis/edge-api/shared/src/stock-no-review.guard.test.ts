@@ -5,16 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * 067 — STOCK NEVER WAITS FOR REVIEW (FR-023, FR-026).
- *
- * The client excluded stock from approval by name: a shop that must wait for Effy before it can say
- * "we have run out" is worse off than it was. Stock lives in its own service (`edge-api/inventory`)
- * and its own columns, and today nothing in that service knows review exists.
- *
- * This keeps it that way. The risk is not that someone deletes the exemption — it is that someone
- * "consistently" routes a stock write through the pending-change path, or makes a stock adjustment
- * touch `review_state`, because every other product write now does. Nothing would fail: the count
- * would simply stop moving until an admin looked.
+ * Stock never waits for review: a shop must be able to say "we have run out" at once. Nothing in the
+ * inventory service may route through the pending-change path or touch `review_state`.
  */
 
 const EDGE_API = fileURLToPath(new URL("../..", import.meta.url));
@@ -34,7 +26,7 @@ function sourceFiles(dir: string): string[] {
 describe("067 — the inventory service knows nothing about product review", () => {
   it("no stock code path references a pending change or a review state", () => {
     const files = sourceFiles(join(EDGE_API, "inventory", "src"));
-    expect(files.length).toBeGreaterThan(5); // a guard that scanned nothing would pass for ever
+    expect(files.length).toBeGreaterThan(5);
 
     const offenders = files
       .filter((f) => {

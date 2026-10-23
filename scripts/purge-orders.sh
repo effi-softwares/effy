@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
 # purge-orders.sh — delete every order and all order-derived data from an environment's database.
 #
-# WHY THIS EXISTS: dev accumulates test orders — abandoned checkouts, half-paid intents, fan-outs to
+# why this exists: dev accumulates test orders — abandoned checkouts, half-paid intents, fan-outs to
 # shops, driver runs — and there is no product surface that deletes them (deliberately: an order is a
 # financial record and nothing in the platform may erase one). Clearing them is an operator action, so
 # it lives here rather than behind an API.
 #
-# ⚠ WHAT IT DELETES, and it is not just the `order` table. An order fans out into fulfilment, payment,
-#   delivery packages, driver work and event ledgers; two of those chains are ON DELETE RESTRICT, so a
-#   plain `DELETE FROM "order"` fails rather than cascading. The order below is the dependency order.
+# what it deletes, and it is not just the `order` table. An order fans out into fulfilment, payment,
+# delivery packages, driver work and event ledgers; two of those chains are on DELETE restrict, so a
+# plain `DELETE FROM "order"` fails rather than cascading. The order below is the dependency order.
 #
-# ⚠ WHAT IT DOES NOT TOUCH, on purpose:
-#     • customers, carts, addresses, saved items       — not order data
-#     • products, shops, drivers, delivery zones/plans — reference data the orders pointed at
-#     • customer.stripe_customer_id                    — the link to a shopper's SAVED CARDS. Clearing
-#       it would orphan real cards at the provider while leaving them charged-to-able. Not order data.
-#     • driver_duty_session                            — a driver being on duty is not an order
-#     • anything at Stripe                             — PaymentIntents/charges live there and CANNOT be
-#       deleted by this or anything else. Test-mode data is cleared from the Stripe dashboard, if ever.
+# what it does not touch, on purpose:
+# • customers, carts, addresses, saved items — not order data
+# • products, shops, drivers, delivery zones/plans — reference data the orders pointed at
+# • customer.stripe_customer_id — the link to a shopper's saved cards. Clearing
+# it would orphan real cards at the provider while leaving them charged-to-able. Not order data.
+# • driver_duty_session — a driver being on duty is not an order
+# • anything at Stripe — PaymentIntents/charges live there and cannot be
+# deleted by this or anything else. Test-mode data is cleared from the Stripe dashboard, if ever.
 #
 # Usage:
-#   ./scripts/purge-orders.sh --dry-run     # count what WOULD go, change nothing (recommended first)
-#   ./scripts/purge-orders.sh               # delete, after typing the confirmation phrase
+# ./scripts/purge-orders.sh --dry-run # count what would go, change nothing (recommended first)
+# ./scripts/purge-orders.sh # delete, after typing the confirmation phrase
 #
 # Env: ENV (default dev), AWS_PROFILE (default ef), AWS_REGION (default ap-southeast-2).
 #
-# ⚠ Refuses any environment but dev unless PURGE_ALLOW_NON_DEV=1 is set. This is a dev-data tool; on a
-#   real environment it destroys the record of what people bought and what they were charged.
+# Refuses any environment but dev unless PURGE_ALLOW_NON_DEV=1 is set. This is a dev-data tool; on a
+# real environment it destroys the record of what people bought and what they were charged.
 set -euo pipefail
 
 ENV="${ENV:-dev}"
@@ -50,52 +50,20 @@ command -v psql >/dev/null || { echo "purge-orders: psql not found on PATH" >&2;
 DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")" || {
   echo "purge-orders: could not compose the DSN for ENV=$ENV" >&2; exit 1; }
 
-# ── The dependency order. Children first; a RESTRICT parent needs its children gone first. ──────────
+# The dependency order: children before parents (a restrict parent needs its children gone first).
 #
-# ⚠ `event_outbox` and `notification_request` are FILTERED, not truncated: both are shared ledgers that
-#   carry non-order rows too. Deleting them wholesale would take unrelated events with them.
-# ⚠ `stripe_event` IS taken whole — it is the webhook de-duplication ledger and holds nothing else. It
-#   must go, or a re-delivered webhook for a deleted order is silently skipped as "already seen".
-# ⚠ THE NINE 049 WORK TABLES ARE NO LONGER LISTED — `driver_run`, both task tables, their issue and
-#   package tables, proof, failures, the event timeline and the activity feed were dropped by
-#   20260920101500_remove_driver_work_model.sql. The `run_assigned` notification filter below STAYS:
-#   that ledger still holds rows the retired sweep wrote, and purging an order should still take
-#   them.
+# `event_outbox` and `notification_request` are filtered, not truncated: they hold non-order rows too.
+# `stripe_event` goes whole: it is only the webhook de-duplication ledger, and left behind a re-delivered
+# webhook for a deleted order would be skipped as "already seen". The insights rollups go too (derived from
+# orders), with their `insights_dirty`/`insights_state` bookkeeping.
 #
-# ⚠⚠ THIS LIST WENT STALE AND THE SCRIPT WOULD HAVE FAILED (found 2026-09-22, while purging for a
-#   064 walk). It had not been updated since the 049 teardown, so it named none of the tables 053,
-#   055, 057, 063 and 064 hung off an order: refunds, arrivals, carrier handoffs, receipts, the whole
-#   dispatch chain (`dispatch_wave` → `driver_round` → `round_stop` → `round_package`) and 064's
-#   proof and exception rows. Every one of them references `shop_fulfillment` or `"order"`, so the
-#   run aborts on a foreign-key violation partway down — loudly, at least, rather than silently
-#   leaving orphans.
+# Points: only ledger entries tied to an order or a refund go, with every allocation touching one, so a
+# balance drops by what those orders earned and regains what they spent; a staff grant with no order stays.
 #
-#   ⚠ A SECOND SCRIPT WAS NEARLY WRITTEN INSTEAD OF FIXING THIS ONE. 064 drafted its own
-#   `reset-orders-dev.sql` without noticing `purge-orders` existed; two tools deleting one thing is
-#   how they drift, and the newer one had a WORSE env guard (it tested `current_database()`, which is
-#   `effy` in EVERY environment — so it refused dev and would have PERMITTED production). Deleted in
-#   favour of extending this.
-#
-# ⚠ THE INSIGHTS ROLLUPS GO TOO (058). They are DERIVED from orders; left behind they report revenue
-#   for orders that no longer exist, and 058's own rule is that a figure must be recomputable from
-#   source. `insights_dirty`/`insights_state` are the recompute bookkeeping and follow them.
-#
-# ⚠ S3 IS NOT TOUCHED. Deleting a `delivery_proof` row orphans its image under `proof/` in the media
-#   bucket — a bucket shared with the live product catalogue. A purge script that also deleted objects
-#   there is not something to point at dev data.
-# ⚠⚠ AND IT WENT STALE AGAIN (found 2026-10-17): 074–090 hung eleven more tables off an order or a
-#   driver round — 090's `package_handover` stopped the run at `driver_round`. Added below, and the
-#   list is now CHECKED against the database before anything is deleted (`preflight`): a foreign key
-#   into a purged table from a table this list does not name stops the run, dry run included, with
-#   the tables named. A new migration that forgets this script now fails here, by name, not halfway.
-#
-# ⚠ POINTS (074): only ledger entries tied to an order or a refund go, with every allocation that
-#   touches one. A customer's balance therefore drops by what those orders earned and gives back what
-#   they spent; a staff grant with no order stays. Points are a way of paying — keeping points earned
-#   by orders that no longer exist would be money with no record of where it came from.
-#
-# Dependency order: children before parents. `to_regclass` below skips anything an environment does
-# not have, so entries for tables a future migration drops stay harmless rather than breaking the run.
+# `preflight` checks this list against the database before anything is deleted: a foreign key into a purged
+# table from a table not named here stops the run (dry run included), naming the tables. `to_regclass` skips
+# tables an environment lacks. S3 is not touched (the bucket is shared with the live catalogue), so a
+# purged `delivery_proof` row leaves its image under `proof/`.
 read -r -d '' TARGETS <<'LIST' || true
 package_handover|
 delivery_proof|
@@ -168,8 +136,8 @@ EOSQL
   echo "\$\$;"
 }
 
-# ⚠ COUNTED THROUGH DYNAMIC SQL, because a plain `SELECT count(*) FROM t` fails at PARSE time when `t`
-# does not exist — CASE and COALESCE cannot rescue it. Without this the summary would break on exactly
+# counted through dynamic SQL, because a plain `SELECT count(*) FROM t` fails at parse time when `t`
+# does not exist — case and COALESCE cannot rescue it. Without this the summary would break on exactly
 # the environments the purge itself is careful to tolerate (one without the driver tables, say), which
 # is a script contradicting its own promise.
 counts() {
@@ -193,9 +161,9 @@ $$;
 EOSQL
 }
 
-# ⚠ THE LIST IS CHECKED, NOT TRUSTED. Every foreign key that points INTO a table this script purges must
-# come FROM a table it also purges (or be ON DELETE CASCADE / SET NULL, which the delete handles itself).
-# Anything else would abort the delete partway down — as would two listed tables in the wrong order —
+# the list is checked, not trusted. Every foreign key that points into a table this script purges must
+# come from a table it also purges (or be on DELETE cascade / set null, which the delete handles itself).
+# Anything else would abort the delete partway down — as would two listed tables in the wrong order
 # so both are refused here, before any row is touched.
 preflight() {
   local names ordered
@@ -260,8 +228,8 @@ printf 'Type the environment name to continue (%s): ' "$ENV"
 read -r reply
 [[ "$reply" == "$ENV" ]] || { echo "purge-orders: aborted."; exit 1; }
 
-# ⚠ ONE transaction. A partial purge leaves fulfilments pointing at orders that no longer exist, and
-# the RESTRICT constraints mean it can fail halfway — so it either all goes or none of it does.
+# one transaction. A partial purge leaves fulfilments pointing at orders that no longer exist, and
+# the restrict constraints mean it can fail halfway — so it either all goes or none of it does.
 psql "$DSN" -v ON_ERROR_STOP=1 -q <<EOSQL
 BEGIN;
 $(sql_body)

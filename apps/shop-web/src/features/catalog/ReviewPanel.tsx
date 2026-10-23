@@ -12,14 +12,14 @@ import { catalogSchemaQuery, useWithdrawReview } from "./queries";
 import { proposedRows } from "./review";
 
 /**
- * Where this product stands with Effy's review (067), in words, under the product's header.
+ * Where this product stands with Effy's review, in words, under the product's header.
  *
- * ⚠ THE PAGE BELOW THIS PANEL IS THE LIVE PRODUCT — what customers see and buy right now. A change
- * the shop has saved is NOT shown in those fields until Effy approves it; it is shown HERE, as
+ * The page below this panel is the live product — what customers see and buy right now. A change
+ * the shop has saved is not shown in those fields until Effy approves it; it is shown here, as
  * Now / Proposed. A page that showed the proposed name in the Name field would tell a shop its
  * storefront says something it does not.
  *
- * ⚠ THE REASON IS FROM EFFY, never from a named person: the contract carries no staff identity.
+ * The reason is from Effy, never from a named person: the contract carries no staff identity.
  */
 export function ReviewPanel({ detail }: { detail: ProductDetail }) {
   const schema = useQuery(catalogSchemaQuery);
@@ -111,7 +111,7 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
         </div>
       ) : null}
 
-      {/* A never-approved product withdraws from the header's own button; a pending CHANGE has no
+      {/* A never-approved product withdraws from the header's own button; a pending change has no
           header verb (the header's is Unpublish), so its way out lives here. */}
       {isChange ? (
         <div className="flex flex-wrap items-center gap-3">

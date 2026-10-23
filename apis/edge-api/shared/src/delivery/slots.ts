@@ -2,87 +2,53 @@ import { instantAtLocalTime, localDateParts } from "../lib/collection-deadline";
 import type { Queryable } from "../lib/db";
 import { melbourneDate, type CollectionRun } from "./schedule";
 
-/** A wall-clock time of day. It names no date and no zone — it describes Effy's working day. */
+/** No date and no zone: Effy's working day. */
 export interface Clock {
   hour: number;
   minute: number;
 }
 
-/**
- * A same-day delivery window as back-office defined it (069): wall-clock times in
- * Australia/Melbourne, a cutoff after which it cannot be chosen, and how many deliveries it takes.
- *
- * ⚠ `capacity: null` IS NO LIMIT, and it is the default: a slot fills only where the back-office
- * set a number.
- */
+/** Wall-clock times in Melbourne, a cutoff, and a capacity (null = no limit, the default). */
 export interface Slot {
   id: string;
   start: Clock;
   end: Clock;
   cutoff: Clock;
   capacity: number | null;
-  /**
-   * 085 — the "Any time" window, which sells a DAY WITH NO TIME.
-   *
-   * ⚠ A LABEL, NOT A RULE. `judgeWindow`, the hold, the collection run and the planner do not read
-   * it: an untimed order is an order in this window. Only what a customer is OFFERED and TOLD differs.
-   */
+  /** The "Any time" window, selling a day with no time. A label: no rule reads it; only what is offered and told differs. */
   anyTime: boolean;
 }
 
-/**
- * Place a clock on the Melbourne calendar day that `day` falls on.
- *
- * ⚠ THIS IS THE ONE PLACE A SLOT BECOMES AN INSTANT. The result is stored (the booking, the
- * package) and every later reader — the planner, the driver app, the receipt — reads that stored
- * instant. 058 found two calendar defects that only DST tests caught, both from rebuilding an
- * instant out of wall-clock fields in more than one place.
- */
+/** The one place a slot becomes an instant; the result is stored and every reader reads that. */
 export function clockOn(clock: Clock, day: Date): Date {
   const { year, month, day: d } = localDateParts(day);
   return instantAtLocalTime(year, month, d, clock.hour, clock.minute);
 }
 
-/** The same, for a Melbourne date written yyyy-mm-dd (078 — a window on a later day). */
+/** For a yyyy-mm-dd Melbourne date. */
 export function clockOnDate(clock: Clock, date: string): Date {
   const [year, month, day] = date.split("-").map(Number) as [number, number, number];
   return instantAtLocalTime(year, month, day, clock.hour, clock.minute);
 }
 
-/** A slot a customer may choose right now, as instants. */
 export interface OpenSlot {
   id: string;
   /** yyyy-mm-dd, Melbourne. */
   date: string;
   start: Date;
   end: Date;
-  /**
-   * The EFFECTIVE last moment: the slot's own cutoff, or — today — the last collection that can
-   * still serve it, whichever comes first.
-   */
+  /** The slot's own cutoff, or today the last collection that can still serve it, whichever is first. */
   cutoff: Date;
 }
 
-/** Why a slot is not open — or that it is. `uncollectable` is only ever said of TODAY. */
+/** `uncollectable` is only ever said of today. */
 export type SlotVerdict = "open" | "cutoff" | "full" | "uncollectable";
 
 /**
- * Decide whether one slot can be chosen at `now` for delivery on `date` (069 research R5, 078 R3).
- * It is open when:
- *
- *  1. its cutoff ON THAT DAY has not passed;
- *  2. — TODAY ONLY — a collection run is still makeable (now ≤ run − prep buffer, the 047 rule) AND
- *     that run reaches the hub in time to go out for it (run + turnaround ≤ slot start). A window on
- *     a later day can always be collected for; planning that collection is the driver side's job;
- *  3. it has capacity left on that day — always true for a slot with no limit.
- *
- * ⚠ THIS IS THE ONE WINDOW RULE. The quote, the hold at the payment-intent call and back-office's
- * move to Effy all call it; a second copy would let checkout offer what the hold then refuses.
- *
- * ⚠ ORDER MATTERS FOR THE REASON, NOT THE RESULT: a slot that is both full and past cutoff reports
- * the cutoff, because "it has closed" stays true and "it is full" might not.
- *
- * Pure: no clock, no database. `booked` is what `public.delivery_slot_load` says for `date`.
+ * The one window rule: open at `now` for `date` when its cutoff that day has not passed; today only, a
+ * run can still be made (now ≤ run − prep buffer) and reaches the hub in time (run + turnaround ≤
+ * start); and it has room on that day. The cutoff is reported before fullness, since "closed" stays
+ * true. Pure; `booked` is `public.delivery_slot_load` for `date`.
  */
 export function judgeWindow(
   now: Date,
@@ -101,13 +67,13 @@ export function judgeWindow(
 
   let effectiveCutoff = cutoff;
   if (date === melbourneDate(now)) {
-    // The latest collection run that can still be made AND still gets the goods out in time.
+    // The latest run that can still be made and gets the goods out in time.
     let lastOrder: Date | null = null;
     for (const r of runs) {
       const run = clockOn(r, now);
       const orderBy = new Date(run.getTime() - bufferMin * 60_000);
-      if (now.getTime() > orderBy.getTime()) continue; // this run can no longer be made
-      if (run.getTime() + turnaroundMin * 60_000 > start.getTime()) continue; // reaches the hub too late
+      if (now.getTime() > orderBy.getTime()) continue;
+      if (run.getTime() + turnaroundMin * 60_000 > start.getTime()) continue;
       if (!lastOrder || orderBy.getTime() > lastOrder.getTime()) lastOrder = orderBy;
     }
     if (!lastOrder) return { verdict: "uncollectable" };
@@ -118,27 +84,22 @@ export function judgeWindow(
   return { verdict: "open", slot: { id: slot.id, date, start, end, cutoff: effectiveCutoff } };
 }
 
-// ── Settings ─────────────────────────────────────────────────────────────────────────────────────
-
-/** The window timings read from the singleton settings row. */
+/** From the singleton settings row. */
 export interface SlotSettings {
   holdMin: number;
   turnaroundMin: number;
   /** ISO: 1 = Monday … 7 = Sunday. */
   noWeekdays: number[];
-  /** Effy delivery days offered after today (078). */
+  /** Effy delivery days offered after today. */
   effyLookaheadDays: number;
-  /** 085 — what an "as soon as possible" customer is told to expect. */
+  /** What an asap customer is told to expect. */
   asapEstimate: string;
 }
 
-/** 085 — the same words the column defaults to. */
+/** The words the column defaults to. */
 export const ASAP_ESTIMATE_DEFAULT = "usually within 2–3 days";
 
-/**
- * The column defaults of the 069 migration. Used only when the settings row does not exist yet — a
- * zone and a plan can exist before a hub is configured.
- */
+/** The column defaults, used only before the settings row exists. */
 const DEFAULT_SLOT_SETTINGS: SlotSettings = {
   holdMin: 10,
   turnaroundMin: 60,
@@ -171,8 +132,6 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
   };
 }
 
-// ── Slots and their load ─────────────────────────────────────────────────────────────────────────
-
 const SLOT_COLUMNS = `id::text AS id,
 		       EXTRACT(HOUR FROM start_time)::int AS start_hour,   EXTRACT(MINUTE FROM start_time)::int AS start_minute,
 		       EXTRACT(HOUR FROM end_time)::int AS end_hour,       EXTRACT(MINUTE FROM end_time)::int AS end_minute,
@@ -200,7 +159,6 @@ const toSlot = (r: SlotRow): Slot => ({
   anyTime: r.any_time,
 });
 
-/** The active slots. */
 export async function loadSlots(q: Queryable): Promise<Slot[]> {
   const rows = await q.query<SlotRow>(`
 		SELECT ${SLOT_COLUMNS}
@@ -210,13 +168,8 @@ export async function loadSlots(q: Queryable): Promise<Slot[]> {
 }
 
 /**
- * Read one ACTIVE slot and take its row lock for the rest of the transaction. `null` when the slot
- * does not exist or is disabled.
- *
- * ⚠ THE LOCK IS THE CAPACITY GUARANTEE (069 research R4). "At most N" cannot be a unique index, so
- * two customers taking the last place are serialised here: the second waits, then counts the
- * first's hold. Remove `FOR UPDATE` and both read "one place left" and both take it. `tx` MUST be
- * a transaction's client — against the pool the lock is released the moment the statement ends.
+ * Reads one active slot and holds its row lock: the capacity guarantee, serialising two customers for
+ * the last place. `tx` must be a transaction's client. null when missing or disabled.
  */
 export async function lockSlot(tx: Queryable, slotId: string): Promise<Slot | null> {
   const row = (
@@ -232,12 +185,7 @@ export async function lockSlot(tx: Queryable, slotId: string): Promise<Slot | nu
   return row ? toSlot(row) : null;
 }
 
-/**
- * How many places are taken in each slot on a Melbourne date.
- *
- * ⚠ It reads `public.delivery_slot_load` and nothing else. That view is the ONE definition of "a
- * booking counts" (confirmed, or held and not lapsed); the back-office console reads the same view.
- */
+/** Places taken per slot on a Melbourne date, from `public.delivery_slot_load` only. */
 export async function slotLoad(q: Queryable, date: string): Promise<Map<string, number>> {
   const rows = await q.query<{ slot_id: string; booked: number }>(
     `SELECT slot_id::text AS slot_id, booked::int AS booked FROM public.delivery_slot_load WHERE delivery_date = $1::date`,
@@ -246,10 +194,7 @@ export async function slotLoad(q: Queryable, date: string): Promise<Map<string, 
   return new Map(rows.rows.map((r) => [r.slot_id, r.booked]));
 }
 
-/**
- * The same, for several dates at once (078): date → slot → places taken. One round trip, and still
- * the one view.
- */
+/** For several dates in one round trip: date → slot → places taken. */
 export async function slotLoadByDate(q: Queryable, dates: readonly string[]): Promise<Map<string, Map<string, number>>> {
   const out = new Map<string, Map<string, number>>(dates.map((d) => [d, new Map()]));
   if (dates.length === 0) return out;
@@ -262,7 +207,7 @@ export async function slotLoadByDate(q: Queryable, dates: readonly string[]): Pr
   return out;
 }
 
-/** `ownLiveHolds` for several dates at once (078): date → slot → this customer's live holds. */
+/** For several dates: date → slot → this customer's live holds. */
 export async function ownLiveHoldsByDate(
   q: Queryable,
   customerId: string | null,
@@ -287,7 +232,7 @@ export async function ownLiveHoldsByDate(
   return out;
 }
 
-/** The individually excluded delivery dates from `from` (yyyy-mm-dd) onward. */
+/** From `from` (yyyy-mm-dd) onward. */
 export async function nonDeliveryDates(q: Queryable, from: string): Promise<Set<string>> {
   const rows = await q.query<{ day: string }>(
     `SELECT day::text AS day FROM public.delivery_non_delivery_date WHERE day >= $1::date`,

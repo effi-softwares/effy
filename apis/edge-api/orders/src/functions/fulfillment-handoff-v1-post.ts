@@ -10,16 +10,7 @@ import { carrierHandoffRecorded } from "../lib/metrics";
 import { refusalResponse, VALIDATION_FAILED } from "../lib/problems";
 import { recordHandoff } from "../handoff/repository";
 
-/**
- * POST /orders/v1/fulfillments/{fulfillmentId}/handoff — record a carrier handover (053 US2).
- *
- * ⚠ WRITE GATE: admin|manager only (FR-015). A `csa` can read every order and this one action is
- * refused — see `lib/guard.ts` for why the platform splits it there.
- *
- * ⚠ A MISSING `reference` IS NOT A VALIDATION ERROR (FR-003). Effy has no carrier contract, so most
- * handovers have no consignment number to record, and refusing without one would make the ordinary
- * case impossible. 201 with a null reference is a COMPLETE record.
- */
+/** Admin/manager only. A missing `reference` is a complete record (most handovers have none). */
 export const handler = async (
   event: AuthedEvent,
   context: Context,
@@ -57,15 +48,11 @@ export const handler = async (
       note: body.note,
       changeId: body.changeId,
     });
-    // ⚠ Metered only on a NEW record. Counting the idempotent replay too would make the metric a
-    // measure of how often someone double-clicked, not of how many packages left the hub.
+    // Metered only on a new record, not on a replay.
     if (result.created) carrierHandoffRecorded(result.reference !== null);
-    // 071 — committed. A handover to the carrier changes no status (the package stays `collected`
-    // until it arrives), so the customer's page does not change and they are not told; the order
-    // console and the hub's list do.
+    // A handover changes no status, so the customer is not told.
     if (result.created) await announce([{ scope: "ops", kind: "orders" }, { scope: "ops", kind: "dispatch" }]);
-    // 201 for a new record, 200 for the idempotent replay — the client can tell them apart without
-    // either being an error.
+    // For a new record, 200 for the replay.
     return json(result.created ? 201 : 200, result, guard.scope);
   } catch (err) {
     const refusal = refusalResponse(err, guard.scope);

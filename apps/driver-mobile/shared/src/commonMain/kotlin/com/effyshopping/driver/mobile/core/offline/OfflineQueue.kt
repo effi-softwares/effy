@@ -8,16 +8,16 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /**
- * A device-local, persisted FIFO of driver writes awaiting replay (049 US6, FR-039/040). Survives
+ * A device-local, persisted FIFO of driver writes awaiting replay. Survives
  * process death (multiplatform-settings = SharedPreferences / NSUserDefaults). Deduplicated by
  * `changeId` so the same action is never queued twice.
  *
- * ⚠ This holds only status-advance actions — small, low-frequency, and idempotent by `changeId`. It is
- * NOT a general write-behind cache.
+ * This holds only status-advance actions — small, low-frequency, and idempotent by `changeId`. It is
+ * not a general write-behind cache.
  */
 class OfflineQueue(private val settings: Settings, private val json: Json = Json { ignoreUnknownKeys = true }) {
 
-    // ⚠ Declared BEFORE _pending: _pending's initializer calls load(), which uses this. If it were
+    // Declared before _pending: _pending's initializer calls load, which uses this. If it were
     // declared later it would still be null during that initializer and every load would decode to empty.
     private val listSerializer = ListSerializer(PendingAction.serializer())
 
@@ -27,8 +27,8 @@ class OfflineQueue(private val settings: Settings, private val json: Json = Json
     val count: Int get() = _pending.value.size
 
     /**
-     * Writes the platform REFUSED when they were finally sent, kept until the driver has been told.
-     * ⚠ These were removed without a word: a collect made in a loading dock could be refused an hour
+     * Writes the platform refused when they were finally sent, kept until the driver has been told.
+     * These were removed without a word: a collect made in a loading dock could be refused an hour
      * later and the driver never learned the stop was not recorded.
      */
     private val _refused = MutableStateFlow(load(REFUSED_KEY))

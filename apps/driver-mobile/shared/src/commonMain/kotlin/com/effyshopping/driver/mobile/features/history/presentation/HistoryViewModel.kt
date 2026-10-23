@@ -27,7 +27,7 @@ data class HistoryUiState(
 class HistoryViewModel(
     private val getHistory: GetHistory,
     private val getDetail: GetHistoryDetail,
-    /** 071 — "your work changed": a round or drop that just finished belongs in this list. */
+    /** "your work changed": a round or drop that just finished belongs in this list. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(HistoryUiState())

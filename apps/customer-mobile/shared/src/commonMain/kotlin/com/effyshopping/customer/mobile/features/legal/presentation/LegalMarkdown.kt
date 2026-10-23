@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * A tiny, DEPENDENCY-FREE renderer for the constrained Markdown subset that @effy/legal-content ships.
+ * A tiny, dependency-free renderer for the constrained Markdown subset that @effy/legal-content ships.
  *
  * The content is authored once (web + mobile) and generated into `LegalContent.kt`; this renders it
  * natively so the documents work offline, inside the app, with no third-party Markdown library. The
@@ -37,7 +37,7 @@ import com.effyshopping.mobile.design.EffySpacing
  * web-side vitest subset test), so this parser is deliberately small.
  */
 
-// ── Model ────────────────────────────────────────────────────────────────────────────────────────
+// Model
 
 internal data class Run(val text: String, val bold: Boolean = false, val italic: Boolean = false, val href: String? = null)
 
@@ -48,7 +48,7 @@ internal sealed interface LegalBlock {
     data class Table(val header: List<List<Run>>, val rows: List<List<List<Run>>>) : LegalBlock
 }
 
-// ── Parser (mirror of markdown.ts) ─────────────────────────────────────────────────────────────────
+// Parser (mirror of markdown.ts)
 
 private val HEADING = Regex("^(#{1,3})\\s+(.*)$")
 private val UL = Regex("^[-*]\\s+(.*)$")
@@ -150,7 +150,7 @@ internal fun parseInline(text: String): List<Run> {
     return if (runs.isEmpty()) listOf(Run(text)) else runs
 }
 
-// ── Renderer ─────────────────────────────────────────────────────────────────────────────────────
+// Renderer
 
 /**
  * Renders a document body. `onNavigateSlug` handles internal `/legal/<slug>` links; external `http`

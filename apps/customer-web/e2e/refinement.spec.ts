@@ -1,15 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-/**
- * FR-015 / FR-016 / FR-017 / FR-018 — refinement must live in the URL.
- *
- * ⚠ Before 025, `SearchExperience` seeded its query from the URL exactly once and then held every
- * refinement in component state, never writing back. So a refined result set could not be shared,
- * bookmarked, or restored by the back button — FR-017 and FR-018 were unmet before this feature
- * started, and sort plus a price range would have added three more invisible dimensions.
- *
- * These need a seeded catalogue; without one they skip rather than fail falsely.
- */
+/** Refinement lives in the URL, so a refined search can be shared, bookmarked and restored. Skips without a seeded catalogue. */
 
 test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
@@ -59,8 +50,8 @@ test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
     await page.getByLabel("Sort").selectOption("price_asc")
     await expect(page).toHaveURL(/sort=price_asc/)
 
-    // The control must show what the SERVER applied, not what was requested — they differ when
-    // `relevance` is asked for without a query (FR-016).
+    // The control must show what the server applied, not what was requested — they differ when
+    // `relevance` is asked for without a query.
     await expect(page.getByLabel("Sort")).toHaveValue("price_asc")
   })
 
@@ -104,7 +95,7 @@ test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
     await page.waitForTimeout(600)
 
     await expect(page.getByText(/No results for/)).toBeVisible()
-    // FR-021: never an unexplained blank area — there is always a recovery path.
+    // Never an unexplained blank area — there is always a recovery path.
     await expect(page.getByRole("link", { name: "Browse categories" })).toBeVisible()
   })
 })

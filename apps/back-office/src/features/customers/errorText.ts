@@ -1,7 +1,7 @@
 import { isDomainError } from "@effy/api-client";
 
 /**
- * The console's own words for a points refusal (074). Keyed off the problem's `type` (the server's
+ * The console's own words for a points refusal. Keyed off the problem's `type` (the server's
  * stable refusal code), never its free-form `detail` — the same rule as `orders/errorText.ts`.
  */
 const BY_CODE: Readonly<Record<string, string>> = {

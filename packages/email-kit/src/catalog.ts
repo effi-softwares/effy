@@ -1,34 +1,20 @@
 /**
- * THE CATALOGUE — the single source of truth for every email the platform can send.
- *
- * Contract: specs/038-email-template-system/contracts/email-catalog.contract.md
- *
- * ⚠ A message that is not here is not sendable, and that is enforced by the type system rather than
- * by review: `TemplateId` is a closed union derived from this object, so "template not found" is not
- * a runtime failure class (spec FR-003) and a call site cannot compile with the wrong variables
- * (spec FR-004).
+ * The catalogue: every email the platform can send. `TemplateId` is a closed union derived from it, so
+ * an unknown template or the wrong variables fail to compile.
  */
 
 import type { Audience, AudienceProfile } from "./audience.js";
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Variable schemas — a tiny declarative spec, deliberately not a schema library.
-//
-// ⚠ Zero runtime dependencies beyond Handlebars is a hard requirement here: this code runs inside a
-// Cognito trigger with an unchangeable 5-second wall, where three of four audiences have no password
-// to fall back on. A schema library is 40–200 KB of cold start bought for eight field declarations.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Variable schemas: a tiny declarative spec, not a schema library. This runs inside a Cognito trigger
+// with a 5-second limit, so no runtime dependency beyond Handlebars.
 
 /** A leaf value's type. Anything a Handlebars expression renders directly. */
 export type ScalarSpec = "string" | "number" | "boolean";
 
 /**
- * A variable's shape. Scalars, a list of strings, or `{ of: {...} }` — a list of records with scalar
- * fields, which is what a receipt's line items are (a `{{#each}}` over `{ name, quantity, price }`).
- *
- * ⚠ Money, dates and quantities arrive PRE-FORMATTED as strings (spec FR-048). There is deliberately
- * no "money" or "date" spec: formatting is the caller's domain knowledge (locale, currency), and SES
- * has no formatting helpers anyway, so a template must never be handed a raw number to format.
+ * A variable's shape: scalars, a list of strings, or `{ of: {...} }`, a list of records with scalar
+ * fields (a receipt's line items). Money, dates and quantities arrive pre-formatted as strings:
+ * formatting is the caller's (locale, currency).
  */
 export type ObjectArraySpec = { readonly of: Readonly<Record<string, ScalarSpec>> };
 
@@ -56,59 +42,36 @@ type FromSpec<S extends VarSpec> = S extends "string"
 
 export type VarsOf<S extends VarShape> = { readonly [K in keyof S]: FromSpec<S[K]> };
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// Category — ⚠ a discriminated union, not a flag.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Category: a discriminated union, not a flag.
 
 /**
- * ⚠ THE WRONG COMBINATION MUST NOT COMPILE.
- *
- * `transactional` has no field to put an unsubscribe URL in; `lifecycle` cannot omit one. This is
- * structural rather than a lint rule because the failure is severe and silent: a person who
- * unsubscribes from `auth-sign-in-code` **cannot sign in**, and driver, shop and back-office have no
- * other credential. That is an account lockout with no recovery path.
- *
- * ⚠ Sources genuinely disagree about whether transactional mail may carry `List-Unsubscribe` —
- * Google scopes the requirement to marketing and subscribed mail, RFC 8058 imposes no message-type
- * restriction, and AWS's own blog does not draw the distinction at all. The platform draws it here.
- *
- * The `lifecycle` arm ships UNUSED on purpose, so the distinction is enforceable from day one rather
- * than retrofitted after the first campaign.
+ * The wrong combination does not compile: `transactional` has no unsubscribe field and `lifecycle`
+ * cannot omit one. Unsubscribing from `auth-sign-in-code` would lock out an audience with no other
+ * credential. `lifecycle` ships unused so the rule holds from the first campaign.
  */
 export type Category =
   | { readonly category: "transactional" }
   | { readonly category: "lifecycle"; readonly unsubscribeUrl: (vars: never) => string };
 
 /**
- * ⚠ Declared per message, because the two correct behaviours are irreconcilable as a default.
- *
- * `throw`   — a code that was never sent is a sign-in that cannot complete. The caller turns it into
- *             an opaque refusal.
- * `swallow` — the underlying change has ALREADY happened (a password was changed and the write
- *             cannot be unwound). Failing the request would tell the person a lie. ⚠ But the log
- *             must be loud: the silent absence of a security notification is exactly the condition
- *             under which a takeover goes unnoticed.
- *
- * Before this package the reasoning lived as a comment in two files, and the seventh message would
- * have had to guess.
+ * Declared per message, because neither default is right:
+ * `throw` a code that was never sent is a sign-in that cannot complete; the caller refuses opaquely.
+ * `swallow` the change has already happened and cannot be unwound, so failing would be a lie. Log it
+ *  loudly: a missing security notice is how a takeover goes unnoticed.
  */
 export type FailurePolicy = "throw" | "swallow";
 
 /**
- * Who actually puts the message on the wire.
- *
- * ⚠ `cognito` means Cognito sends it, and the platform therefore CANNOT attach a message tag, choose
- * a configuration set, or set a header on it. Those messages get no delivery attribution — a
- * property of the mechanism, not a gap. It also selects a much tighter size budget — see
- * `contracts/cognito-custom-message.contract.md`.
+ * Who puts the message on the wire. `cognito` means Cognito sends it, so no message tag, configuration
+ * set or header can be attached, and a much tighter size budget applies.
  */
 export type SentBy = "platform" | "cognito";
 
 export interface MessageDefinition<S extends VarShape = VarShape> {
   readonly vars: S;
-  /** ⚠ May carry the code: reading it from a lock-screen notification is a real usability win. */
+  /** May carry the code: reading it from a lock-screen notification is useful. */
   readonly subject: (vars: VarsOf<S>, profile: AudienceProfile) => string;
-  /** ⚠ MUST NOT repeat the subject and MUST NOT restate a code or an amount (spec FR-032). */
+  /** Must not repeat the subject or restate a code or an amount. */
   readonly preheader: (vars: VarsOf<S>, profile: AudienceProfile) => string;
   readonly audiences: readonly Audience[];
   readonly sentBy: SentBy;
@@ -120,20 +83,12 @@ export type MessageEntry<S extends VarShape = VarShape> = MessageDefinition<S> &
 const ALL_AUDIENCES: readonly Audience[] = ["customer", "driver", "shop", "back-office"];
 const CUSTOMER_ONLY: readonly Audience[] = ["customer"];
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// The catalogue itself.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// The catalogue.
 
 /**
- * ⚠ ID GRAMMAR: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` — lowercase, digits, single hyphens.
- *
- * Not a style preference. SES message tag values permit only `[A-Za-z0-9_-]`, and message tags are
- * how a delivery outcome is attributed to a message. A dotted id would need sanitising, and two ids
- * could sanitise onto ONE tag — silently merging the bounce statistics of two different messages.
- * The grammar makes ids tag-safe by construction, so no sanitiser exists to get wrong.
- *
- * ⚠ AN ID IS PERMANENT ONCE SHIPPED. It is written into delivery records; renaming one orphans every
- * historical row. A message that changes meaning gets a NEW id.
+ * Id grammar `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`: SES tag values allow only `[A-Za-z0-9_-]`, so an id is
+ * its own tag with no sanitiser that could merge two. An id is permanent once shipped (delivery records
+ * carry it); a message that changes meaning gets a new id.
  */
 export const TEMPLATE_ID_GRAMMAR = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -141,29 +96,24 @@ export const CATALOG = {
   "auth-sign-in-code": {
     vars: { code: "string", expiryMinutes: "number", isInternal: "boolean" },
     subject: (v, p) => `${v.code} is your ${p.productName} sign-in code`,
-    // ⚠ States the purpose; does not repeat the subject; does not restate the code.
+    // States the purpose; does not repeat the subject or restate the code.
     preheader: (v) => `Enter this code to sign in. It expires in ${v.expiryMinutes} minutes.`,
     audiences: ALL_AUDIENCES,
     sentBy: "platform",
     category: "transactional",
-    // ⚠ THROW. Three of four audiences have no password: an unsent code is a total lockout.
+    // Throw: three of four audiences have no password, so an unsent code is a lockout.
     onSendFailure: "throw",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // ⚠ COGNITO-SENT MESSAGES. Rendered by the CustomMessage interceptor and handed to Cognito, which
-  // makes the SES call. So: `sentBy: "cognito"` (selects the ~20,000-char budget), NO `code` variable
-  // (the code is Cognito's `{####}` placeholder, substituted after the trigger returns), no failure
-  // policy that this codebase acts on (the interceptor's fail-safe returns the event unmodified and
-  // Cognito falls back to its default template — a throw here would break sign-up/recovery outright).
-  // `onSendFailure` is still declared because the type requires it; it is inert for these.
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Cognito-sent messages, rendered by the CustomMessage interceptor and sent by Cognito: `sentBy:
+  // "cognito"` (the ~20,000-character budget), no `code` variable (Cognito substitutes `{####}`), and
+  // an inert failure policy (the interceptor's fail-safe returns the event unmodified).
 
   "auth-sign-up-code": {
     vars: {},
     subject: (_v, p) => `Confirm your email for ${p.productName}`,
     preheader: () => "Enter this code to finish setting up your account.",
-    audiences: CUSTOMER_ONLY, // only customers self-register
+    audiences: CUSTOMER_ONLY,
     sentBy: "cognito",
     category: "transactional",
     onSendFailure: "throw",
@@ -173,7 +123,7 @@ export const CATALOG = {
     vars: {},
     subject: (_v, p) => `Reset your ${p.productName} password`,
     preheader: () => "Enter this code to choose a new password.",
-    audiences: CUSTOMER_ONLY, // only the customer audience has passwords (035)
+    audiences: CUSTOMER_ONLY,
     sentBy: "cognito",
     category: "transactional",
     onSendFailure: "throw",
@@ -183,7 +133,7 @@ export const CATALOG = {
     vars: {},
     subject: (_v, p) => `Verify your email for ${p.productName}`,
     preheader: () => "Enter this code to confirm this email address.",
-    audiences: ALL_AUDIENCES, // an email attribute can be verified on any pool
+    audiences: ALL_AUDIENCES,
     sentBy: "cognito",
     category: "transactional",
     onSendFailure: "throw",
@@ -191,7 +141,7 @@ export const CATALOG = {
 
   "auth-step-up-code": {
     vars: {},
-    // ⚠ NOT the passwordless sign-in code — that is 035's custom challenge (`auth-sign-in-code`).
+    // Not the passwordless sign-in code, which is the custom challenge's `auth-sign-in-code`.
     subject: (_v, p) => `Your ${p.productName} verification code`,
     preheader: () => "Enter this code to continue.",
     audiences: ALL_AUDIENCES,
@@ -210,78 +160,53 @@ export const CATALOG = {
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     category: "transactional",
-    // ⚠ SWALLOW. The password is already changed and the write cannot be unwound; failing the
-    // request would tell the customer their change failed when it did not.
+    // Swallow: the password is already changed.
     onSendFailure: "swallow",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // ⚠ THE COMMERCE PROOF — a data-heavy message (spec US5). TEMPLATE ONLY: nothing sends it yet
-  // (FR-062). It exists so the receipt components (line-item table, totals, money formatting, the
-  // 102 KB budget with a large basket) are proven, not designed on paper. `items` uses the
-  // object-array spec. ⚠ Every money value and quantity is a PRE-FORMATTED string (FR-048).
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-
-  /**
-   * ⚠ 052 WIRED THIS UP. It is no longer template-only: `edge-notifications` renders and sends it when
-   * an order becomes paid, and the customer can request it again (FR-019/FR-027).
-   *
-   * ⚠ THE ID IS KEPT, and that is a deliberate reading of the rule at the top of this file. An id is
-   * permanent once shipped because it is written into delivery records and renaming one orphans every
-   * historical row. There are NO such rows: this message had no call site until now, so nothing
-   * references it. A new id would strand the artifacts and guards already built for it (research R8).
-   */
+  /** Sent when an order becomes paid, and again on the customer's request. */
   "order-confirmation": {
     vars: {
       orderNumber: "string",
       placedAt: "string",
-      /**
-       * 079 — the small label over the delivery line: "Arriving" for an order Effy delivers (and every
-       * order placed before 079), "Courier delivery" for one a courier does.
-       */
+      /** The small label over the delivery line: "Arriving" (Effy) or "Courier delivery". */
       deliveryLabel: "string",
       /**
-       * When it arrives, in the words the data supports — a window, a day, or "a date we'll confirm".
-       * ⚠ For a courier order it is the two sentences of `courierLines` (shared-types): who delivers,
-       * and the business's ESTIMATE said as an estimate. Never a date the platform did not promise.
+       * When it arrives, in the words the data supports: a window, a day, or "a date we'll confirm". For
+       * a courier order, `courierLines`' two sentences (who delivers, and the estimate as an estimate).
        */
       deliveryEstimate: "string",
-      /** "Same-day" / "Standard" / "Multiple deliveries". ⚠ EMPTY for a courier order, which is neither. */
+      /** "Same-day" / "Standard" / "Multiple deliveries"; empty for a courier order. */
       deliveryMethod: "string",
-      /** 079 — the inbox preview line, whole: "Arriving today, 5 pm – 7 pm." or the courier estimate. */
+      /** The inbox preview line: "Arriving today, 5 pm – 7 pm." or the courier estimate. */
       deliveryPreheader: "string",
-      /** ⚠ Money and quantity arrive PRE-FORMATTED (FR-048). `unitPrice` is 052's addition. */
+      /** Pre-formatted. */
       items: {
         of: { name: "string", quantity: "string", unitPrice: "string", lineTotal: "string" },
       },
       subtotal: "string",
-      /** `hasDiscount` gates the row; a zero discount is OMITTED, never rendered as a dash. */
+      /** `hasDiscount` gates the row; a zero discount is omitted. */
       hasDiscount: "boolean",
       discountLabel: "string",
       discountAmount: "string",
       hasDeliveryFee: "boolean",
       deliveryFee: "string",
       /**
-       * 077 — the delivery charge as the lines the customer was sold: "Delivery", "Window surcharge",
-       * "Small-order fee", "Free delivery" (a NEGATIVE amount). When present they are printed INSTEAD
-       * of the single `deliveryFee` row, and they sum to it. ⚠ Empty on an order placed before 077,
-       * which has only the one figure. Labels come from `DELIVERY_FEE_LINE_LABEL` in shared-types —
-       * the same words the checkout and the order page use — and amounts arrive pre-formatted.
-       * ⚠ A free delivery IS printed (as a $0.00 total made of its lines): it is a claim the customer
-       * was sold, not an absent figure.
+       * The delivery charge as sold, in `DELIVERY_FEE_LINE_LABEL`'s words ("Delivery", "Window surcharge",
+       * "Small-order fee", "Free delivery" as a negative amount), printed instead of `deliveryFee` and
+       * summing to it. A free delivery is printed: it is a claim the customer was sold.
        */
       hasDeliveryLines: "boolean",
       deliveryLines: {
         of: { label: "string", amount: "string" },
       },
       total: "string",
-      /** Absent on a pre-052 order, or where the post-commit capture failed (data-model §1). */
+      /** Absent where the post-commit capture failed. */
       hasPaymentMethod: "boolean",
       paymentMethod: "string",
       /**
-       * 074 — points were part of the payment: "1,250 Effy points ($12.50)". A way of PAYING, shown
-       * after the total like the card, never as a discount above it (FR-018). When points were used,
-       * `paymentMethod` carries the card's amount too, so the two lines add up to the total.
+       * Points used to pay: "1,250 Effy points ($12.50)", shown after the total like the card, never as
+       * a discount. `paymentMethod` then carries the card's amount, so the two add up to the total.
        */
       hasPoints: "boolean",
       pointsPaid: "string",
@@ -291,85 +216,50 @@ export const CATALOG = {
       orderUrl: "string",
     },
     subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} is confirmed`,
-    // ⚠ Does not repeat the subject and does not restate the amount (FR-025).
+    // Does not repeat the subject or restate the amount.
     preheader: (v) => String(v.deliveryPreheader),
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
 
-    /**
-     * ⚠ `transactional`, AND IT IS LOAD-BEARING. The `Category` union gives the transactional arm no
-     * field to put an unsubscribe URL in, so an unsubscribable receipt is a COMPILE ERROR rather than
-     * a review catch (FR-024). A customer must never be able to opt out of their own proof of
-     * purchase — and unlike a newsletter, there is no argument that they should be able to.
-     */
+    /** Transactional: nobody may opt out of their own proof of purchase. */
     category: "transactional",
 
     /**
-     * ⚠ `swallow`, and for the `account-password-changed` reason rather than the
-     * `newsletter-confirmation` one. THE ORDER IS ALREADY PAID and the write cannot be unwound; a
-     * throw would propagate into a caller that would then report a failure for something that
-     * demonstrably succeeded (FR-023). The dispatch row records the failure instead, so it is loud in
-     * the place an operator actually looks (`receipt_dispatch.status = 'failed'`) rather than silent.
+     * Swallow: the order is already paid. The failure is recorded on the dispatch row
+     * (`receipt_dispatch.status = 'failed'`), where an operator looks.
      */
     onSendFailure: "swallow",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // 053 — the order arrived.
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // The order arrived.
 
   /**
-   * ⚠ THE ONLY MESSAGE A WEB-ONLY SHOPPER GETS ABOUT THEIR DELIVERY (053 FR-019).
-   *
-   * Before this, the three post-payment lifecycle events — ready, out for delivery, delivered — were
-   * PUSH ONLY. A customer who shops on the website and has never installed the app received the
-   * receipt and then complete silence for the rest of the order's life. Push is not a channel that
-   * audience has.
-   *
-   * ⚠ IT NAMES NO SHOP AND NO PACKAGE COUNT (FR-021). "Your 2 parcels have arrived" would disclose
-   * the fulfilment structure the whole product model hides — the customer buys from Effy, and never
-   * learns how many shops served them. There is deliberately no `items` var here to make that
-   * mistake with.
-   *
-   * ⚠ IT DOES NOT RESTATE THE RECEIPT. That is a different document with a different job, already
-   * sent at payment. This one says the thing arrived and links to it.
+   * The only delivery message a web-only shopper gets. Names no shop and no package count (there is no
+   * `items` var), and does not restate the receipt.
    */
   "order-delivered": {
     vars: {
       orderNumber: "string",
-      /** ⚠ A DATE, never a time-of-day — the platform has no delivery window (052 research R4). */
+      /** The arrival date. */
       deliveredOn: "string",
       orderUrl: "string",
     },
     subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} has arrived`,
-    // ⚠ Does not repeat the subject, and makes no claim about condition or completeness — the
-    // platform knows the package was handed over, not what was in it.
+    // Does not repeat the subject, and claims nothing about condition: only that it was handed over.
     preheader: () => "Everything in your order has been delivered.",
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
 
-    /**
-     * ⚠ `transactional`. A delivery notice is the completion of a purchase the customer made, not
-     * marketing, so it carries no unsubscribe — and the `Category` union makes an unsubscribable one
-     * a COMPILE ERROR rather than a review catch.
-     */
+    /** Transactional: the completion of a purchase. */
     category: "transactional",
 
-    /**
-     * ⚠ `swallow`, for `order-confirmation`'s reason. THE PACKAGE HAS ALREADY ARRIVED and the
-     * arrival is already committed; a throw would propagate into a caller that would then report a
-     * failure for something that demonstrably happened. The notification row records the failure
-     * instead (`notification_request.status = 'failed'`, with `last_error`), which is loud in the
-     * place an operator actually looks.
-     */
+    /** Swallow: the arrival is committed; the notification row records the failure (`status = 'failed'`, `last_error`). */
     onSendFailure: "swallow",
   },
 
   /**
-   * A parcel from the order has been handed to a courier (080 US4) — one per consignment.
-   *
-   * ⚠ NO COUNT AND NO SHOP: there is no var to say "1 of 2" or who packed it. ⚠ The courier's name,
-   * reference and tracking link are the operator's entries for that consignment, resolved at send.
+   * A parcel was handed to a courier, one per consignment. No count and no shop; the courier's name,
+   * reference and tracking link are the operator's entries, resolved at send.
    */
   "order-with-courier": {
     vars: {
@@ -386,16 +276,13 @@ export const CATALOG = {
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     category: "transactional",
-    // ⚠ `swallow`: the handover is committed; the notification row records a failed send.
+    // Swallow: the handover is committed.
     onSendFailure: "swallow",
   },
 
   /**
-   * Back-office moved the order to courier delivery, or back to Effy (081 US1, US3).
-   *
-   * ⚠ NO REASON, NO COURIER FEE, NO COST: there is no var for them. `movedLine`, `arrivalLine` and
-   * `compensationLine` are worded by `@effy/shared-types` delivery-type.ts (the one wording) and
-   * passed in whole.
+   * Back-office moved the order to courier delivery, or back to Effy. No reason, fee or cost var; the
+   * lines are worded by `@effy/shared-types` delivery-type.ts and passed whole.
    */
   "order-delivery-changed": {
     vars: {
@@ -411,63 +298,37 @@ export const CATALOG = {
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     category: "transactional",
-    // ⚠ `swallow`: the move is committed; the notification row records a failed send.
+    // Swallow: the move is committed.
     onSendFailure: "swallow",
   },
 
   /**
-   * A refund was issued (055 US5, FR-027).
-   *
-   * ⚠ IT IS SENT WHEN THE MONEY IS ON ITS WAY, NOT WHEN IT ARRIVES, and the copy has to carry that
-   * distinction. The provider accepting a refund is not the bank moving it — that can take days and
-   * can still fail. "Your refund is complete" would be a claim the platform cannot make, and it is
-   * the one claim that stops a shopper looking for money that never turned up.
-   *
-   * ⚠ IT NAMES NO SHOP, NO PROVIDER AND NO FAILURE REASON — the catalogue gives it no var to make
-   * those mistakes with, the same mechanism that makes a package count unrepresentable above.
-   *
-   * ⚠ AND NO `reason` VAR. Whether this was item-derived, goodwill or a cancellation is Effy's own
-   * vocabulary; a shopper needs the amount, the order, and where to look for it.
+   * A refund was issued: sent when the money is on its way, not when it arrives, so the copy never says
+   * "complete". No shop, provider, failure reason or refund kind.
    */
   "order-refunded": {
     vars: {
       orderNumber: "string",
-      /** A 2-dp decimal string with no currency symbol — the template supplies the presentation. */
+      /** A 2-dp decimal string with no currency symbol. */
       refundAmount: "string",
       orderUrl: "string",
     },
     subject: (v) => `Your refund for order ${v.orderNumber} is on its way`,
-    // ⚠ Does not repeat the subject, and does not say "refunded" — see the note above.
+    // Does not repeat the subject, and does not say "refunded".
     preheader: () => "We've sent the money back to your original payment method.",
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
 
-    /**
-     * ⚠ `transactional`. A refund notice is the completion of a purchase the customer made — money
-     * leaving Effy's hands — not marketing, so it carries no unsubscribe. The `Category` union makes
-     * an unsubscribable one a COMPILE ERROR.
-     */
+    /** Transactional: money leaving Effy for a purchase. */
     category: "transactional",
 
-    /**
-     * ⚠ `swallow`. THE REFUND HAS ALREADY BEEN SUBMITTED and that transaction is committed; a throw
-     * would propagate into a caller that would then report a failure for something that demonstrably
-     * happened — and a retry could issue the refund again. The notification row records the send
-     * failure instead, which is loud where an operator actually looks.
-     */
+    /** Swallow: the refund is submitted, and a retry could issue it again. */
     onSendFailure: "swallow",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // 074 — customer points. Store credit, never "money back": no `refund` word, no reason code, no note.
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Customer points: store credit, never "money back" (no refund word, reason code or note).
 
-  /**
-   * Effy added points to the customer's balance (074 FR-011).
-   *
-   * ⚠ `reasonWords` IS A SENTENCE FROM A CLOSED VOCABULARY, decided on the server. There is no var for
-   * the staff note, which is internal — the same "no var to make the mistake with" mechanism as above.
-   */
+  /** Effy added points. `reasonWords` is a sentence from a closed vocabulary; there is no var for the staff note. */
   "points-credited": {
     vars: {
       /** A whole number, already formatted ("1,250"). */
@@ -483,21 +344,15 @@ export const CATALOG = {
     preheader: (v) => `They're worth $${v.valueAmount} off your next order.`,
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
-    /** ⚠ `transactional`: it reports a change to the customer's own account balance, not marketing. */
+    /** Transactional: a change to the customer's own balance. */
     category: "transactional",
-    /**
-     * ⚠ `swallow`. The credit is already committed; a throw would report a failure for something that
-     * happened. The notification row records the send failure where an operator looks.
-     */
+    /** Swallow: the credit is committed. */
     onSendFailure: "swallow",
   },
 
   /**
-   * Some of the customer's points are about to expire (074 FR-023). Sent once per expiry date.
-   *
-   * ⚠ `transactional`, and deliberately so: it warns of a loss to something the customer already
-   * holds. Points are a balance, not a campaign — and an unsubscribe would let a customer silently opt
-   * out of being told their balance is about to shrink.
+   * Some points are about to expire, sent once per expiry date. Transactional: it warns of a loss to
+   * something the customer holds.
    */
   "points-expiring": {
     vars: {
@@ -515,64 +370,41 @@ export const CATALOG = {
     onSendFailure: "swallow",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // 039 — newsletter double opt-in.
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Newsletter double opt-in.
 
   "newsletter-confirmation": {
     vars: { confirmUrl: "string", expiresIn: "string" },
     subject: (_v, p) => `Confirm your ${p.productName} subscription`,
-    // ⚠ Does not repeat the subject and carries no secret — the token lives in the URL only.
+    // Does not repeat the subject; the token is in the URL only.
     preheader: () => "One tap to confirm, and we'll keep you posted.",
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
 
     /**
-     * ⚠ `transactional`, AND THIS IS THE ARGUABLE ONE — so here is the reasoning rather than a bare
-     * value. It is newsletter-shaped, which suggests `lifecycle` and therefore a mandatory unsubscribe
-     * URL. But an unsubscribe link here would leave a subscription that DOES NOT YET EXIST: nobody is
-     * subscribed until this link is followed. The recipient's exit is to ignore it, which is stronger
-     * than any link, and the message says so in as many words.
-     *
-     * The distinction is not cosmetic. The moment the platform sends an actual campaign, that message
-     * is `lifecycle` and this catalogue's discriminated union makes it a COMPILE ERROR to ship without
-     * an unsubscribe URL. `lifecycle` ships unused precisely so that day is enforced, not remembered.
+     * Transactional, though newsletter-shaped: nobody is subscribed until the link is followed, so an
+     * unsubscribe link would leave a subscription that does not exist. A real campaign is `lifecycle`.
      */
     category: "transactional",
 
     /**
-     * ⚠ `throw`. The subscription row is written BEFORE the send, so a swallowed failure would leave a
-     * row stuck at `pending` with a token nobody ever received — a subscriber who believes they signed
-     * up, never confirms, and can never be written to. The caller turns the throw into the retryable
-     * error state (FR-033) so the visitor is told to try again while their input is still on screen.
-     *
-     * ⚠ It differs from `account-password-changed`'s `swallow` for a concrete reason: there the
-     * underlying change had ALREADY happened irreversibly, so failing the request would tell the
-     * customer a lie. Here nothing irreversible has occurred and a retry is genuinely useful.
+     * Throw: the subscription row is written before the send, so a swallowed failure would leave a
+     * pending row nobody can confirm. The caller shows a retryable error while the input is on screen.
      */
     onSendFailure: "throw",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // 046 — customer feedback. Two platform-sent transactional messages with OPPOSITE failure policies,
-  // which is exactly the discriminator this catalogue exists to carry.
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Customer feedback: two messages with opposite failure policies.
 
   "feedback-received": {
     vars: { referenceCode: "string", category: "string" },
     subject: (_v, p) => `We got your feedback — ${p.productName}`,
-    // ⚠ States the purpose; carries no secret; does not repeat the subject.
+    // States the purpose; does not repeat the subject.
     preheader: () => "Thanks for taking the time. Here's your reference.",
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
     category: "transactional",
 
-    /**
-     * ⚠ SWALLOW. The submission is ALREADY stored and the shopper's on-screen confirmation already
-     * said "received" (FR-015). A thrown failure here would contradict a true fact — the same reason
-     * `account-password-changed` swallows, and the mirror image of `newsletter-confirmation`'s throw
-     * (there the row is written before a send whose whole point is the recipient acting on it).
-     */
+    /** Swallow: the submission is stored and the shopper was already told "received". */
     onSendFailure: "swallow",
   },
 
@@ -590,10 +422,8 @@ export const CATALOG = {
     category: "transactional",
 
     /**
-     * ⚠ THROW. Nothing irreversible has happened yet, and the whole point of the action is that the
-     * shopper receives it. A swallowed failure would let the console mark the submission `replied`
-     * while the shopper got nothing (FR-030). The service writes the reply row + flips status ONLY
-     * after this send succeeds; the throw is what guarantees that ordering.
+     * Throw: the point is that the shopper receives it. The service writes the reply and flips the
+     * status only after this send succeeds.
      */
     onSendFailure: "throw",
   },
@@ -615,25 +445,16 @@ export function isTemplateId(value: string): value is TemplateId {
   return Object.prototype.hasOwnProperty.call(CATALOG, value);
 }
 
-/**
- * ⚠ The SES message tag value. Identical to the id because the grammar guarantees it is tag-safe —
- * there is deliberately no transformation here to get wrong.
- */
+/** The SES message tag value: the id itself, tag-safe by its grammar. */
 export function messageTagFor(id: TemplateId): string {
   return id;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────
 // Runtime validation.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * ⚠ Validate again at every boundary the COMPILER did not check — a Cognito trigger event, a queue
- * message, another service (spec FR-005). Static typing protects the call sites it can see; nothing
- * protects a payload that arrived as JSON.
- *
- * Reports EVERY problem with the template id attached, never just the first, and never produces a
- * message with gaps in it.
+ * Validates at every boundary the compiler did not check (a Cognito event, a queue message). Reports
+ * every problem with the template id, never just the first.
  */
 export function validateVars(id: TemplateId, vars: unknown): string[] {
   const shape = CATALOG[id].vars as VarShape;

@@ -1,6 +1,3 @@
-// Shared handler support for the promotions slice: the back-office guard, PromoError → problem+json, and
-// domain → wire-DTO mappers. Keeps the thin handlers free of repetition while each still owns its own
-// parse/authorize/map flow (ARCHITECTURE: no middleware framework). Mirrors the delivery slice.
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
@@ -10,11 +7,7 @@ import type { AuditEntryDTO, OrderPolicyDTO } from "@effy/shared-types";
 import { canManagePromotions, isActiveStaff } from "./authz";
 import { type AuditEntry, type OrderPolicy, isPromoError } from "./types";
 
-/**
- * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on an infra error.
- * `read` = any active staff including csa — answering "is this code still live?" is support work.
- * `mutate` = admin/manager only (FR-052).
- */
+/** 401, 403 from the staff record, 503 on infra error. `read`: any staff; `mutate`: admin/manager. */
 export async function guard(
   event: AuthedEvent,
   scope: RequestScope,
@@ -37,13 +30,7 @@ export async function guard(
   return { sub };
 }
 
-/**
- * Map a domain refusal to problem+json.
- *
- * ⚠ The refusal's own `code` becomes the problem `type` URI, so the console can tell a duplicate from an
- * inverted window from an attempt to rewrite a redeemed code — three different things for an operator to
- * do next. Unknown errors become 503 with the cause logged only.
- */
+/** The refusal's `code` becomes the problem type. Unknown errors become 503 with the cause logged only. */
 export function mapPromoError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (isPromoError(err)) {
     return problem(
@@ -58,8 +45,6 @@ export function mapPromoError(err: unknown, scope: RequestScope): APIGatewayProx
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "promotions op failed");
   return unavailable(scope);
 }
-
-// ── domain → wire DTO (never leak domain shapes past the handler) ──────────────────────────────
 
 export function toOrderPolicyDTO(p: OrderPolicy): OrderPolicyDTO {
   return {

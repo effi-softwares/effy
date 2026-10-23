@@ -26,9 +26,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * Account closure over the edge API (034 US3).
+ * Account closure over the edge API.
  *
- * ⚠ The DTO never escapes this layer (Principle VI) — the domain gets [ClosurePreview], which
+ * The DTO never escapes this layer (Principle VI) — the domain gets [ClosurePreview], which
  * deliberately makes a blocker's `clearsAt` non-null so a block with no stated end cannot be built.
  */
 class HttpClosureRepository(private val edge: HttpClient) : ClosureRepository {
@@ -82,7 +82,7 @@ private fun ClosureBlockerDTO.toDomain() = ClosureBlocker(
         ClosureBlockerKindDTO.OrderInTransit -> ClosureBlockerKind.ORDER_IN_TRANSIT
     },
     reference = reference,
-    // ⚠ Mobile routes on `target`, web on `href` — mobile has no URL router, which is why the closed
+    // Mobile routes on `target`, web on `href` — mobile has no URL router, which is why the closed
     // vocabulary exists. The backend sets both from one order id and a test pins that they agree.
     orderId = target.id,
     clearsAtIso = clearsAt,

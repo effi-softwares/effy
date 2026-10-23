@@ -81,7 +81,7 @@ describe("Team activity (US5)", () => {
     wrap(<TeamActivitySheet open onOpenChange={() => {}} />)
 
     expect(await screen.findByText(/6 min ago · Tobias Aldén/)).toBeInTheDocument()
-    // 020: a missing operator record means "the person is gone", never "nobody did it".
+    // A missing operator record means "the person is gone", never "nobody did it".
     expect(screen.getByText(/1 h ago · A former team member/)).toBeInTheDocument()
   })
 

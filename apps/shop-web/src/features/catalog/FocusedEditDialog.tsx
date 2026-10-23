@@ -13,9 +13,9 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * The shell every focused-edit dialog shares (US4): a small `Dialog` scoped to ONE field/group, with
+ * The shell every focused-edit dialog shares: a small `Dialog` scoped to one field/group, with
  * a save button, inline (non-leaking) error copy, and — when the save hit a 409 — a "Reload" affordance
- * in place of retry (FR-023a). No cards (DOCTRINE-2); the body is plain form rows. Reachable
+ * in place of retry. No cards (doctrine-2); the body is plain form rows. Reachable
  * desktop→mobile-web: the Dialog is height-capped + scrollable so it fits a narrow viewport.
  */
 export interface FocusedEditDialogProps {
@@ -37,7 +37,7 @@ export interface FocusedEditDialogProps {
    * basics and attribute editors lay their fields out in columns, which a 512px dialog stacks into a
    * tall scroll with half the screen unused beside it. Below the `sm` breakpoint both are full width.
    */
-  /** 098 — `full` fits the sizes table (a column per price, code and weight). */
+  /** `full` fits the sizes table (a column per price, code and weight). */
   size?: "default" | "wide" | "full";
   children: ReactNode;
 }

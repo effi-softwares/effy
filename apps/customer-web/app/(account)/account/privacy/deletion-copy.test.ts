@@ -3,18 +3,8 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
 /**
- * 034 SC-009 — the deletion flow never offers an alternative to deleting.
- *
- * ⚠ THIS IS AN AUTOMATED CHECK RATHER THAN A READING, AND THE REASON IS SPECIFIC.
- *
- * Both documented App Review rejections in this area were flows that said "delete" and behaved like
- * "deactivate". Google's User Data policy is blunter still: *"Temporary account deactivation,
- * disabling, or 'freezing' the app account does not qualify as account deletion."*
- *
- * The words are the tell. If one ever appears in shopper-facing copy — in a retention prompt, a
- * softened confirmation, a "are you sure you don't just want to…" — that is the moment this feature
- * stops being compliant, and it is exactly the kind of change that arrives as a friendly-sounding
- * copy tweak nobody flags in review.
+ * The deletion flow never offers an alternative to deleting: deactivate/disable/freeze wording in the
+ * rendered copy is what app-store reviewers reject.
  */
 
 const FORBIDDEN = ["deactivate", "deactivation", "freeze", "freezing", "pause your account"]
@@ -38,10 +28,7 @@ function sourceFiles(dir: string): string[] {
   return out
 }
 
-/**
- * Strip comments before scanning. The words are legitimate — and necessary — in the explanations of
- * WHY they must not appear; it is the rendered copy that must be clean.
- */
+/** Comments are stripped first: they may explain why the words must not appear. */
 function shopperFacingText(src: string): string {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, "")

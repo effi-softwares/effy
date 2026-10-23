@@ -8,7 +8,7 @@ import {
   type WorkUnit,
 } from "./driver-eligibility";
 
-const NOW = new Date("2026-09-21T02:00:00Z"); // midday Melbourne
+const NOW = new Date("2026-09-21T02:00:00Z");
 
 function driver(p: Partial<CandidateDriver> = {}): CandidateDriver {
   return {
@@ -67,7 +67,7 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ work: work({ function: "delivery" }) })).toContain("not_cleared");
   });
 
-  // 082 P5 — a postcode filed under no group is not a place nobody may go.
+  // A postcode in no group is not a place nobody may go.
   it("082 — work in NO area is cleared by any clearance for that function, and by none for another", () => {
     // The fixture driver collects in zone-1 only.
     expect(ask({ work: work({ zoneId: null }) })).not.toContain("not_cleared");
@@ -76,7 +76,7 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ driver: none, work: work({ zoneId: null }) })).toContain("not_cleared");
   });
 
-  // ⚠ 062 FR-011 — the single most important line of the matching rule.
+  // The most important line of the matching rule.
   it("treats a null-zone clearance as EVERY zone, including one that did not exist at grant time", () => {
     const everywhere = driver({ clearances: [{ function: "collection", zoneId: null }] });
     expect(ask({ driver: everywhere, work: work({ zoneId: "zone-created-yesterday" }) })).toEqual([]);
@@ -93,7 +93,7 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ work: work({ totalWeightGrams: 900_000 }) })).not.toContain("over_capacity");
   });
 
-  // R8 — the limitation is deliberate and must stay visible.
+  // The limitation is deliberate and must stay visible.
   it("does not gate on volume or crates, because the catalogue has no product volume", () => {
     const noPayload = driver({ vehicle: { vehicleId: "v3", payloadKg: null, canCarryChilled: true, canCarryFrozen: true } });
     expect(ask({ driver: noPayload, work: work({ totalWeightGrams: 10_000_000 }) })).not.toContain("over_capacity");
@@ -109,7 +109,7 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ driver: leavingSoon })).toContain("cannot_meet_deadline");
   });
 
-  // ⚠ FR-026 — sending an operator to fix one of three problems wastes the trip.
+  // Fixing one of three problems wastes the trip.
   it("returns EVERY failing condition, not the first", () => {
     const hopeless = driver({ status: "suspended", onDuty: false, licenceExpiresOn: "2020-01-01", vehicle: null });
     const reasons = ask({ driver: hopeless });
@@ -119,7 +119,7 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(reasons.length).toBeGreaterThanOrEqual(4);
   });
 
-  // ⚠ FR-015 / FR-034 both need the reason as data; a throw would make an ordinary outcome an error.
+  // The reason is data; a throw would make an ordinary outcome an error.
   it("never throws for an ineligible driver — it returns reasons", () => {
     expect(() => ask({ driver: driver({ status: "offboarded", vehicle: null }) })).not.toThrow();
   });
@@ -134,7 +134,7 @@ describe("eligibilityReasons — work that cannot be started yet (072)", () => {
     expect(ask({ work: work({ stopCount: 10, deadlineAt }) })).toEqual([]);
   });
 
-  // ⚠ The point of the field. Four hours from now fits twenty stops; forty-five minutes fits three.
+  // Four hours from now fits twenty stops; forty-five minutes fits three.
   it("judges the finish from when the work OPENS, not from when it was planned", () => {
     expect(ask({ work: work({ stopCount: 3, deadlineAt }), startAt: opensAt })).toEqual([]);
     expect(ask({ work: work({ stopCount: 4, deadlineAt }), startAt: opensAt })).toContain("cannot_meet_deadline");
@@ -166,7 +166,7 @@ describe("pickByLoad — choosing between eligible drivers (FR-014)", () => {
     expect(pickByLoad([cand("busy", 9), cand("light", 1), cand("mid", 4)])!.driverId).toBe("light");
   });
 
-  // ⚠ FR-014 — an arbitrary pick makes the planner untestable and "why?" unanswerable.
+  // An arbitrary pick makes the planner untestable.
   it("breaks a tie stably, not arbitrarily", () => {
     const a = pickByLoad([cand("zoe", 2), cand("amy", 2)])!.driverId;
     const b = pickByLoad([cand("amy", 2), cand("zoe", 2)])!.driverId;

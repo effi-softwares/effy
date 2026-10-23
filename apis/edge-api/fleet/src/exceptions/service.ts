@@ -1,5 +1,3 @@
-// Reading and closing delivery exceptions (064, US3).
-
 import { query, withTransaction } from "@effy/edge-shared";
 import { EXCEPTION_OUTCOMES } from "@effy/shared-types";
 import type {
@@ -41,12 +39,7 @@ interface ExceptionRow {
 
 const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
-/**
- * Every delivery that could not be completed (FR-019).
- *
- * @param includeResolved false (the default) shows only what still needs a decision — FR-022's
- *        "leaves the list once resolved". The record itself is never deleted and stays retrievable.
- */
+/** @param includeResolved false (default) shows only what needs a decision; records are never deleted. */
 export async function listExceptions(includeResolved = false): Promise<DeliveryExceptionListDTO> {
   const res = await query<ExceptionRow>(LIST_EXCEPTIONS, [includeResolved]);
 
@@ -67,7 +60,7 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
     resolution: r.resolved_at ? { outcome: r.resolution_outcome, note: r.resolution_note } : null,
   }));
 
-  // 093 — what else needs a dispatcher: packages declared missing, steps overdue, vehicles found unsafe.
+  // What else needs a dispatcher: missing packages, overdue steps, unsafe vehicles.
   const [held, overdue, vehicleChecks] = await Promise.all([heldPackages(), overdueRuns(), vehicleChecksToday()]);
 
   return {
@@ -80,15 +73,8 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
 }
 
 /**
- * Close an exception (FR-021, FR-022).
- *
- * ⚠ RESOLVING IS AN ASSERTION ABOUT THE PHYSICAL WORLD, which is why it is gated to staff who may
- * change an order's fate and why it is audited. No query can know that a package came back to the
- * hub, went out again or was written off — a person decided that, and the audit row is the only
- * record there will ever be of who and when.
- *
- * ⚠ The audit write shares the transaction with the change, and goes through the SHARED helper. 063
- * nearly added a second audit writer and would have skipped the PII redaction with it (Principle II).
+ * Resolving asserts something about the physical world, so it is gated and audited (in the same
+ * transaction, through the shared writer).
  */
 export class ExceptionOutcomeError extends Error {
   constructor(message: string) {
@@ -104,16 +90,14 @@ export async function resolveException(
   outcome: ExceptionOutcome | null = null,
 ): Promise<ResolveExceptionResponse> {
   if (outcome !== null && !EXCEPTION_OUTCOMES.includes(outcome)) throw new ExceptionOutcomeError("outcome is redelivered, refunded, collected or other");
-  // "Other" is only useful with words: the next person reads it instead of asking.
+  // "Other" needs words for the next person.
   if (outcome === "other" && !note) throw new ExceptionOutcomeError("Say what happened when the outcome is Other.");
   if (note !== null && note.length > 500) throw new ExceptionOutcomeError("Keep the note to 500 characters.");
   return withTransaction(async (tx: any) => {
     const updated = await tx.query(RESOLVE_EXCEPTION, [exceptionId, outcome, note]);
 
     if (updated.rowCount === 0) {
-      // Either it does not exist, or somebody already closed it. Both are answered the same way: the
-      // caller re-reads the list and sees the truth, and a second resolve never overwrites the first
-      // person's name with a later one.
+      // Missing or already closed, answered alike: a second resolve never overwrites the first person's name.
       const existing = await tx.query(EXCEPTION_BY_ID, [exceptionId]);
       if (existing.rowCount === 0) throw new ExceptionNotFoundError();
       return {
@@ -128,9 +112,7 @@ export async function resolveException(
         action: "dispatch.exception_resolve",
         driverId: exceptionId,
         targetType: "delivery_exception",
-        // ⚠ The operator's note is recorded; the DRIVER'S note is not. That one is free text typed at
-        // a doorstep and may name a person or a property (FR-028, 050's no-PII rule). The reason is
-        // a closed-set value and is safe.
+        // The operator's note is recorded; the driver's is not (it may name a person or property).
         detail: { noteProvided: note !== null, outcome },
       },
       tx,

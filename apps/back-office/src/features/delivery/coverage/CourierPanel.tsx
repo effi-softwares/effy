@@ -11,22 +11,16 @@ import { CourierServicesPanel } from "./CourierServicesPanel";
 const BLOCKER_COPY: Record<CourierBlocker, string> = {
   no_fee_table: "Make a courier fee table active on the Pricing tab.",
   no_service: "Add a courier service below and make it the default.",
-  // Not returned since 080 — the default service carries the timeframe.
-  no_estimate: "Add a courier service below and make it the default.",
 };
 
 /**
- * Courier reach (076 US4; 079): where an address NOT on Effy's list is offered courier delivery —
- * everywhere in the country except the places excluded here — what a customer is told about when it
- * arrives, and whether an address WITH Effy delivery may go by courier when no window is left.
+ * Courier reach: an address not on Effy's list is offered courier delivery everywhere except the places
+ * excluded here, from the moment this is on with a fee table and a default courier service; and whether
+ * an Effy address may go by courier when no window is left.
  *
- * ⚠ ON MEANS OFFERED (083): an address off Effy's list is sold a courier order from the moment this
- * is switched on with a fee table and a default courier service.
- *
- * ⚠ THE ESTIMATE IS SHOWN AS THE CUSTOMER WILL READ IT — the whole sentence, with "an estimate, not a
- * guaranteed date" on the end — because the field alone ("2–4 business days") reads like a promise.
- * ⚠ 080 — it is the DEFAULT COURIER SERVICE's timeframe now, edited on that service; 079's free-text
- * estimate field is gone from the console.
+ * The estimate is shown as the customer reads it, the whole sentence ending "an estimate, not a
+ * guaranteed date", because the timeframe alone reads like a promise. It is the default courier service's
+ * timeframe, edited on that service.
  */
 export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO; canManage: boolean }) {
   const update = useUpdateCourier();

@@ -5,7 +5,7 @@ import { ShopsListScreen } from "@/features/shops/ShopsListScreen";
 
 import { appRoute } from "./app";
 
-// Shop management (009). Both routes nest under the protected app shell (appRoute), so the session
+// Shop management. Both routes nest under the protected app shell (appRoute), so the session
 // guard runs first. Read access is open to any signed-in back-office role; mutating controls are
 // gated in the screens (and independently enforced by the backend).
 export const shopsIndexRoute = createRoute({

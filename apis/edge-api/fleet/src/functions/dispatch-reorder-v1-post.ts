@@ -8,7 +8,6 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
  import { reorder } from "../dispatch/service";
 
-/** POST /fleet/v1/dispatch/rounds/{id}/reorder (FR-031) — a dispatcher's own stop order. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -21,7 +20,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
   try {
     await reorder(id, body.stopIds, body.expectedUpdatedAt, g.sub);
-    await announceDispatch([await driverOfRound(id)]); // 071 — committed; the driver's stop order changed
+    await announceDispatch([await driverOfRound(id)]);
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

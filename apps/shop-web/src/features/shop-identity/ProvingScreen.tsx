@@ -17,13 +17,13 @@ import { track } from "@/lib/telemetry";
 import { meQuery } from "./queries";
 
 /**
- * US2 — the record-backed identity read.
+ * The record-backed identity read.
  *
  * Proves the whole vertical: client → shop backend → identity/role enforcement → platform record
- * → back. Two states here are NOT failures and must not read like them:
- *   • role-less        — recorded, but granted nothing yet
- *   • no shop assigned — expected, because the JIT upsert meets an operator before their shop
- *                        is known; the operator assigns it out of band
+ * → back. Two states here are not failures and must not read like them:
+ *  • role-less — recorded, but granted nothing yet
+ *  • no shop assigned — expected, because the JIT upsert meets an operator before their shop
+ *  is known; the operator assigns it out of band
  */
 export function ProvingScreen() {
   const { data, error, isPending, isError, refetch } = useQuery(meQuery);

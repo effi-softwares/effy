@@ -4,11 +4,7 @@ import { handler } from "./custom-message.js";
 import type { CustomMessageEvent } from "../otp/types.js";
 import { resetAudienceIndexForTests } from "../lib/audience.js";
 
-/**
- * ⚠ The overriding property under test is: THIS TRIGGER NEVER THROWS. A CustomMessage trigger that
- * throws fails the whole Cognito operation — sign-up or password recovery does not complete. Every
- * failure path must instead return the event UNMODIFIED so Cognito uses its own default template.
- */
+/** This trigger never throws: on any failure it returns the event unmodified so Cognito's default is sent. */
 
 const CUSTOMER_POOL = "ap-southeast-2_CUSTOMER";
 const SHOP_POOL = "ap-southeast-2_SHOP";
@@ -62,7 +58,7 @@ describe("CustomMessage interceptor — branding", () => {
     const out = await handler(makeEvent("CustomMessage_SignUp"));
     expect(out.response.emailSubject).toBe("Confirm your email for Effy");
     expect(out.response.emailMessage).toContain("<!doctype html>");
-    // ⚠ The placeholder is emitted verbatim — Cognito substitutes the real code after we return.
+    // The placeholder is emitted verbatim; Cognito substitutes the code.
     expect(out.response.emailMessage).toContain("{####}");
   });
 
@@ -118,8 +114,7 @@ describe("CustomMessage interceptor — the fail-safe (never throws, returns unm
   });
 
   it("⚠ passes through if Cognito's code placeholder is not the one the template baked in", async () => {
-    // Our templates hardcode {####}. If Cognito ever passed a different token, the code would not be
-    // substituted and the message would ship a literal placeholder — so we fall back instead.
+    // A different placeholder would never be substituted, so it falls back.
     const event = makeEvent("CustomMessage_SignUp");
     (event.request as { codeParameter: string }).codeParameter = "{code}";
     const out = await handler(event);
@@ -136,8 +131,7 @@ describe("CustomMessage interceptor — the fail-safe (never throws, returns unm
 });
 
 describe("CustomMessage interceptor — the fallback metric is meaningful", () => {
-  // ⚠ `custom_message_fallback` must fire ONLY when a message we SHOULD have branded failed — not on
-  // a benign pass-through. Otherwise an alarm on it cries wolf on every un-branded flow.
+  // `custom_message_fallback` fires only when a message that should be branded failed.
   function metricsFrom(lines: string[]): string[] {
     return lines
       .map((l) => {

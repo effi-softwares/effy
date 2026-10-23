@@ -4,41 +4,18 @@ import { dirname, join } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-/**
- * A GUARD, not a unit test.
- *
- * The upsert in repo.ts must never write `status` on the conflict path. If it does, a BARRED
- * customer un-bars themselves simply by signing in: the INSERT supplies the column default
- * ('active'), the DO UPDATE writes it straight over the ban, and the ban silently evaporates —
- * no error, no log, nothing to notice. It would defeat FR-025 and SC-011 completely, and in
- * review it would look like a harmless tidy-up ("why are we not updating status here?").
- *
- * A behavioural test cannot catch it: `upsertCustomer` is mocked in service.test.ts, and a real
- * one would need a live Postgres. So we assert the SQL itself. It is blunt, and it is the only
- * thing standing between a plausible-looking cleanup and a silent security hole.
- */
+/** The upsert must never write `status` on conflict, or a barred customer un-bars themselves by signing in. */
 const source = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "repo.ts"),
   "utf8",
 )
 
-/**
- * Take ONLY the executable SQL.
- *
- * ⚠ This stripping is load-bearing, and its absence is how this guard first went wrong: the
- * JSDoc above `upsertCustomer` deliberately quotes the DANGEROUS version of the statement, as a
- * warning. A guard that greps the raw file therefore fires on the counter-example in the comment
- * and reports a hole that does not exist — a false positive that trains people to ignore it,
- * which is the worst possible failure mode for a security guard.
- *
- * So: strip block comments (`/* ... *\/`) and line comments, then look only at the template
- * literals that actually reach Postgres.
- */
+/** Only the executable SQL: comments are stripped so prose cannot trip the guard. */
 function executableSql(src: string): string {
   const withoutBlockComments = src.replace(/\/\*[\s\S]*?\*\//g, "")
   const withoutLineComments = withoutBlockComments.replace(/\/\/[^\n]*/g, "")
   const literals = withoutLineComments.match(/`[\s\S]*?`/g) ?? []
-  // Inside SQL, `--` starts a comment; the real statement carries an explanatory one.
+  // `--` starts a SQL comment.
   return literals.join("\n").replace(/--[^\n]*/g, "")
 }
 
@@ -59,10 +36,7 @@ describe("upsert SQL guard (FR-025)", () => {
   })
 
   it("does NOT overwrite the customer's NAME on conflict either", () => {
-    // Different reason from `status`, same shape of bug: the name is captured at registration and is
-    // then the CUSTOMER'S to change (FR-026). Refreshing it from the token on every request would
-    // SILENTLY REVERT an edit made on the account page the moment they loaded any other page — the
-    // token still carries whatever Cognito was told at sign-up.
+    // Nor the name: it is the customer's to change, and refreshing it from the token would revert their edit.
     const doUpdate = /DO UPDATE([\s\S]*?)RETURNING/i.exec(sql)?.[1] ?? ""
 
     expect(
@@ -77,8 +51,7 @@ describe("upsert SQL guard (FR-025)", () => {
   })
 
   it("the guard itself can still detect a violation (it is not vacuously green)", () => {
-    // If the stripping ever becomes too aggressive, this guard would pass on ANY input — which
-    // is exactly as useless as no guard. Prove it still bites.
+    // Prove the stripping is not so aggressive that the guard passes anything.
     const bad = executableSql(
       "const q = `INSERT ... ON CONFLICT (x) DO UPDATE SET status = EXCLUDED.status RETURNING *`",
     )

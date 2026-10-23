@@ -22,7 +22,6 @@ const config = { windowMinutes: 60, maxPerWindow: 5, sourceSalt: "test-salt" }
 const guest = { kind: "guest" as const, sourceIp: "203.0.113.7" }
 const customerCtx = { kind: "customer" as const, cognitoSub: "sub-abc" }
 
-/** A valid guest body. */
 const validBody = {
   category: "suggestion",
   message: "Please add a dark mode.",
@@ -91,7 +90,7 @@ describe("submitFeedback — guest path", () => {
     const r = await submitFeedback(validBody, guest, config)
     expect(r).toEqual({ status: "ok", referenceCode: "FB-ABC123" })
 
-    // Stored as UNVERIFIED guest, not linked to any customer.
+    // Stored as unverified guest, not linked to any customer.
     const insertArg = insertSubmission.mock.calls[0]![0]
     expect(insertArg.customerId).toBeNull()
     expect(insertArg.emailVerified).toBe(false)

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * FR-045 / FR-046 / SC-009 — the storefront must be usable without a mouse and without sight.
+ * The storefront must be usable without a mouse and without sight.
  *
  * These assert the properties that silently rot: a control that loses its accessible name during a
  * redesign, a dialog that traps focus, a dynamic change that never reaches a live region. None of
@@ -14,7 +14,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
   test("every interactive element in the storefront chrome has an accessible name", async ({ page }) => {
     await page.goto("/")
 
-    // The three controls 025 added to the chrome, each addressed BY NAME — which only passes if the
+    // The three controls 025 added to the chrome, each addressed by name — which only passes if the
     // name exists.
     await expect(page.getByRole("button", { name: /delivery location/i })).toBeVisible()
     await expect(page.getByRole("searchbox", { name: /search products/i }).first()).toBeVisible()
@@ -28,7 +28,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
     const postcode = page.getByLabel("Suburb or postcode")
     await expect(postcode).toBeFocused({ timeout: 2000 }).catch(async () => {
       // A native <dialog> focuses its first focusable child; if the browser chose the close button
-      // instead, focus must still be INSIDE the dialog.
+      // instead, focus must still be inside the dialog.
       const active = await page.evaluate(() => document.activeElement?.closest("dialog") !== null)
       expect(active).toBe(true)
     })
@@ -44,7 +44,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
     await page.getByRole("button", { name: /^Cart/i }).click()
     await expect(page.getByRole("heading", { name: "Your cart" })).toBeVisible()
 
-    // FR-040: reviewing the cart must not cost the shopper their place.
+    // Reviewing the cart must not cost the shopper their place.
     expect(page.url()).toBe(before)
 
     await page.keyboard.press("Escape")
@@ -62,7 +62,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
   test("a guest can traverse the storefront by keyboard alone with focus always visible", async ({ page }) => {
     await page.goto("/")
 
-    // Walk the chrome. The assertion is that focus keeps LANDING on something real — a keyboard trap
+    // Walk the chrome. The assertion is that focus keeps landing on something real — a keyboard trap
     // or an unreachable control shows up here as focus that stops moving.
     const seen = new Set<string>()
     for (let i = 0; i < 12; i++) {
@@ -92,9 +92,9 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
 })
 
 /**
- * 039 — the merchandised home page (SC-009).
+ * The merchandised home page.
  *
- * ⚠ Six sections landed on this page one at a time. Each brought headings, links and controls, and
+ * Six sections landed on this page one at a time. Each brought headings, links and controls, and
  * every one of them was an opportunity to break the document outline or ship a target too small to
  * hit. None of that is visible in a screenshot, and none of it fails a unit test.
  */
@@ -102,7 +102,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   /**
-   * ⚠ THE INVARIANT THAT HAD TO SURVIVE ALL SIX SECTIONS. Exactly one `h1` — the screen-reader-only
+   * The invariant that had to survive all six sections. Exactly one `h1` — the screen-reader-only
    * page title — and every section heads itself at `h2`. The hero's headline is visually the largest
    * type on the page, which is precisely why it is tempting to mark it up as `h1`.
    */
@@ -112,7 +112,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
 
     await expect(page.locator("h1")).toHaveCount(1)
 
-    // ⚠ VISIBLE headings only. The mini-cart <dialog> carries an `h2` that sits BEFORE the page's
+    // Visible headings only. The mini-cart <dialog> carries an `h2` that sits before the page's
     // sr-only `h1` in document order — but a closed <dialog> is `display:none`, so it is not in the
     // accessibility tree and no screen reader ever meets it. Counting it made this test fail on a
     // document outline that is, to any real user, correct.
@@ -135,34 +135,12 @@ test.describe("home page accessibility (039, SC-009)", () => {
     }
   })
 
-  /**
-   * ⚠ 44 × 44 CSS px (plan § Numeric thresholds). 033 found a save control whose target was 32 dp
-   * under a comment claiming it cleared the minimum — harmless on a detail screen, load-bearing in the
-   * corner of a tile where a miss navigates away from the thing being tapped.
-   *
-   * Inline links inside a paragraph are excluded: WCAG 2.2 exempts targets in a sentence, and holding
-   * body copy to 44px would mean line-spacing prose to satisfy a rule not written for it.
-   */
+  /** 44 × 44 CSS px targets. Inline links in a sentence are exempt (as WCAG 2.2 exempts them). */
   test("every standalone interactive target is at least 44x44", async ({ page }) => {
     await page.goto("/")
     await page.waitForLoadState("networkidle")
 
-    /**
-     * ⚠ ONE PRE-EXISTING OFFENDER IS EXCLUDED, BY NAME AND WITH ITS OWNER — not silently:
-     *
-     *   • `SaveControl` — 36×36 on every product tile (039 counted 39 of them). ⚠ 033's post-mortem
-     *     records raising the MOBILE tile control from 32 dp to 48 dp for exactly this reason; the WEB
-     *     one was never raised. A real open defect, owned by the saved-items surface.
-     *
-     * Excluding it keeps this guard meaningful for everything else instead of red from day one.
-     * Fixing it belongs to its own slice — quietly repairing another feature's component inside a
-     * home-page redesign is how scope commitments erode.
-     *
-     * ⚠ The second exclusion — `PromoCarousel`'s 8×8 dots (029) — was REMOVED when that component was
-     * deleted from the home page (2026-08-09). The guard is correspondingly stricter now: if anything
-     * reintroduces a sub-minimum target named "go to promotion …", this fails rather than tolerating
-     * it on a stale allowance.
-     */
+    /** One known offender is excluded by name: `SaveControl` is 36×36 on every product tile (an open defect). */
     const KNOWN_PRE_EXISTING = [/save to saved items/i]
 
     const tooSmall = await page
@@ -191,7 +169,7 @@ test.describe("home page accessibility (039, SC-009)", () => {
   })
 
   /**
-   * ⚠ Every image on this page is decorative — the surrounding text names the thing. What must never
+   * Every image on this page is decorative — the surrounding text names the thing. What must never
    * happen is an image with NO alt attribute at all, which a screen reader reads as its filename.
    */
   test("no image is missing an alt attribute", async ({ page }) => {
@@ -208,9 +186,9 @@ test.describe("home page accessibility (039, SC-009)", () => {
   })
 
   /**
-   * ⚠ The store badges are the case this protects. They are `<span>`s, not disabled links — a disabled
+   * The store badges are the case this protects. They are `<span>`s, not disabled links — a disabled
    * `<a>` is still announced as a link and promises a destination that does not exist. "Coming soon"
-   * has to be in the accessible NAME, not implied by dimming, or a screen-reader user is told the apps
+   * has to be in the accessible name, not implied by dimming, or a screen-reader user is told the apps
    * are available.
    */
   test("the unpublished app badges announce that they are coming soon", async ({ page }) => {

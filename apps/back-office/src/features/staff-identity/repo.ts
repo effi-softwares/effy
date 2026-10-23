@@ -23,7 +23,7 @@ export async function loadMe(): Promise<StaffRecord> {
 }
 
 // US3 admin gate: the backend decides from the DB record (status + role). Non-admin/disabled →
-// 403 the api-client maps to a forbidden DomainError → the screen shows access-denied.
+// The api-client maps to a forbidden DomainError → the screen shows access-denied.
 export async function loadAdminPing(): Promise<AdminPingResult> {
   const dto = await api.get<BackOfficeAdminPingDTO>("/admin/v1/admin-ping");
   return { subject: dto.subject };

@@ -7,7 +7,6 @@ import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
  import { readRound } from "../dispatch/service";
 
-/** GET /fleet/v1/dispatch/rounds/{id} — one round: stops, order, holder (FR-027). */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "read");

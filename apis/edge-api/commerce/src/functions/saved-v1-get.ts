@@ -1,4 +1,3 @@
-// GET /commerce/v1/saved — the default list ("Saved"), newest first.
 import { json } from "@effy/edge-shared";
 
 import { customerRoute } from "../lib/route";

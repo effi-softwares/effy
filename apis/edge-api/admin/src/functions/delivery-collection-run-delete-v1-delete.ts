@@ -1,4 +1,3 @@
-// DELETE /admin/v1/delivery/collection-runs/{runId} — remove a collection run (047 US2). Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble } from "@effy/edge-shared";

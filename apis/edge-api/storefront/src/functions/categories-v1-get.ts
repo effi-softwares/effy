@@ -1,4 +1,3 @@
-// GET /storefront/v1/categories — the active category tree with counts and images. Public.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";

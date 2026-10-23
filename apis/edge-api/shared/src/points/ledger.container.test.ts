@@ -3,17 +3,14 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { transactorFor, type Transactor } from "../lib/db";
-import { migrationSql } from "../lib/load-migrations";
+import { migrationSql } from "../testing/migrations";
 import { InsufficientPointsError, PointsNoteRequiredError, PointsOrderNotFoundError, PointsReasonInvalidError } from "./errors";
 import { credit, debit, dueToExpire, expireLot, forfeit, hold, release, spendHeld, usable } from "./ledger";
 import { updateSettings } from "./settings";
 
 /**
- * 074 — the points ledger against the REAL schema (quickstart P2, P3, P5).
- *
- * ⚠ THESE CANNOT BE UNIT TESTS. "Never negative" is a row lock on points_account; FIFO is an ORDER BY
- * over lots; "expired points stop counting with no sweep" is a WHERE clause in points_usable; the sign,
- * note and author rules are CHECKs.
+ * The points ledger against the real schema: "never negative" is a row lock, FIFO an order by,
+ * expiry a where in points_usable, the sign, note and author rules CHECKs.
  */
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -34,8 +31,8 @@ async function customer() {
 async function order(customerId: string) {
   return (
     await one<{ id: string }>(
-      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
-       VALUES ($1, $2, 'pending_payment', 'AUD', 40.00, 40.00, 0, '{}'::jsonb) RETURNING id::text AS id`,
+      `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address, delivery_type, delivery_type_reason)
+       VALUES ($1, $2, 'pending_payment', 'AUD', 40.00, 40.00, 0, '{}'::jsonb, 'effy', 'in_coverage') RETURNING id::text AS id`,
       [customerId, `EFY-PT${++seq}`],
     )
   ).id;
@@ -175,7 +172,7 @@ d("074 — the points ledger against the real schema", () => {
     const out = await transact((tx) => spendHeld(tx, o, later));
     expect(out).toMatchObject({ spent: 40, shortfallPoints: 50 });
     expect(await usable(pool, c, later)).toBe(0);
-    // A second paid transition (it cannot happen — the order guard — but the ledger holds anyway).
+    // A second paid transition cannot happen (the order guard), but the ledger holds anyway.
     expect(await transact((tx) => spendHeld(tx, o, later))).toMatchObject({ spent: 0, shortfallPoints: 0 });
   });
 

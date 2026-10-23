@@ -119,7 +119,7 @@ variable "mail_postal_address" {
   default     = ""
 
   validation {
-    # ⚠ Empty is allowed (absent, not guessed). A NON-empty value must be real, not a placeholder —
+    # Empty is allowed (absent, not guessed). A NON-empty value must be real, not a placeholder
     # a wrong outward-facing value that silently works is worse than an omitted line, because it
     # reaches real people. This is the constitution's "refuse a placeholder" applied to the one
     # real-world identifier this slice prints on every email.
@@ -253,14 +253,8 @@ variable "alert_email" {
     error_message = "alert_email must be empty or a single email address."
   }
 
-  # ⚠ MECHANICAL ENFORCEMENT of the constitution's Real-World Identifiers rule (v1.12.0).
-  #
-  # The address that was applied here by mistake belongs to an assistant session, not to this
-  # platform. A rule that lives only in a document is a rule that gets broken again.
-  #
-  # ⚠ SCOPED TO THE WHOLE DOMAIN, NOT ONE ADDRESS. The first version of this block compared against
-  # a single literal — and `anything@sub.phantm.com` sailed straight through it. Banning one address
-  # while leaving its domain open is the shape of a guard that looks like enforcement and is not.
+  # Mechanical enforcement of the Real-World Identifiers rule: the banned address belongs to an assistant
+  # session. Scoped to the whole domain, so a sibling address on it is refused too.
   validation {
     condition     = !can(regex("(?i)phantm\\.com$", var.alert_email))
     error_message = "PROHIBITED: no phantm.com address (or any subdomain of it) may be used in this project — constitution v1.12.0, Real-World Identifiers. Approved Effy mailboxes: workspace-admin@effyshopping.com (operational), hello@effyshopping.com (customer-facing). Anything else: ask the operator."
@@ -289,8 +283,8 @@ variable "ses_sender_enabled" {
 }
 
 # ── Customer storefront CI/CD (042-customer-web-cicd) ─────────────────────────────────────────
-# The prod-portability knobs (FR-018/FR-019): producing effyshopping.com from the production branch
-# is these values changed in a prod .tfvars, not a code edit.
+# the prod-portability knobs: producing effyshopping.com from the production branch
+# is these values changed in a prod.tfvars, not a code edit.
 
 variable "amplify_repository_url" {
   description = "HTTPS URL of the Git repo Amplify connects to for the customer storefront. github.com is natively supported by Amplify."
@@ -339,7 +333,7 @@ variable "amplify_service_role_arn" {
 }
 
 # ── Internal console CI/CD (048-console-web-cicd) ─────────────────────────────────────────────
-# Two Vite SPA consoles on subdomains of this env's namespace. Prod portability (FR-020/FR-021):
+# two Vite SPA consoles on subdomains of this env's namespace. Prod portability:
 # producing shop.effyshopping.com / back-office.effyshopping.com is these values changed in a prod
 # .tfvars, not a code edit. The GitHub connection + deploy branch are reused from 042 above.
 
@@ -400,22 +394,12 @@ variable "fcm_project_id" {
   default     = ""
 }
 
-# ── 059 shop-web PWA / web push ─────────────────────────────────────────────────────────────────
+# The shop console's Firebase web app identity, build-inlined. All five are public (the FCM service account
+# stays in Secrets Manager) and all are required with no defaults: an empty one gives a console whose
+# notification toggle turns on and never rings.
 #
-# The Firebase web app's identity, build-inlined into the shop console.
-#
-# ⚠ ALL FIVE ARE PUBLIC, AND ALL FIVE ARE REQUIRED ANYWAY. They identify the Firebase project; they
-# do not authorise anything. The secret half is the FCM service account, which 050 already seeded
-# into Secrets Manager and which only the notifications worker reads.
-#
-# ⚠ NO DEFAULTS, ON PURPOSE (constitution § Real-World Identifiers: "where an identifier is not yet
-# known, the configuration MUST fail loudly"). A missing key here stops `terraform plan`. The
-# alternative — defaulting to "" — produces a console that boots, grants notification permission,
-# shows the toggle turning on, and never rings, with nothing thrown and nothing logged. That is
-# exactly the wrong outward-facing value that silently works.
-#
-# Source: Firebase console → Project settings → Your apps → Web (four), and → Cloud Messaging →
-# Web configuration → Web Push certificates (the PUBLIC half of the VAPID pair).
+# Source: Firebase console → Project settings → Your apps → Web (four), and → Cloud Messaging → Web
+# configuration → Web Push certificates (the public half of the VAPID pair).
 
 variable "firebase_api_key" {
   description = "Firebase web app API key (public; identifies the project, authorises nothing). Operator-supplied."
@@ -427,8 +411,8 @@ variable "firebase_api_key" {
   }
 }
 
-# ⚠ THERE IS NO `firebase_project_id`, DELIBERATELY. 050 already declares `fcm_project_id`, and it
-# is the SAME Firebase project — the console's web app and the worker's service account live in one
+# there is no `firebase_project_id`, deliberately. 050 already declares `fcm_project_id`, and it
+# is the same Firebase project — the console's web app and the worker's service account live in one
 # project by definition. A second variable naming the same fact is how the two drift, one gets
 # updated and the other does not, and the console ends up talking to a project the worker never
 # sends from. The env map below reads `var.fcm_project_id`.
@@ -458,8 +442,8 @@ variable "firebase_vapid_public_key" {
   type        = string
 
   validation {
-    # ⚠ Shape-checked, not just presence-checked, because this is the one value whose absence and
-    # whose wrongness look identical from the outside: getToken() simply never resolves. A VAPID
+    # Shape-checked, not just presence-checked, because this is the one value whose absence and
+    # whose wrongness look identical from the outside: getToken simply never resolves. A vapid
     # public key is a base64url-encoded uncompressed P-256 point — 87 or 88 characters, no padding.
     condition     = can(regex("^[A-Za-z0-9_-]{80,100}$", trimspace(var.firebase_vapid_public_key)))
     error_message = "firebase_vapid_public_key must be the base64url PUBLIC key from Firebase → Cloud Messaging → Web Push certificates (~87 chars, characters A-Z a-z 0-9 _ -). ⚠ Do NOT paste the private key."

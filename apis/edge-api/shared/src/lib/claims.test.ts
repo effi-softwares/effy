@@ -3,9 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AuthedEvent } from "./claims";
 import { parseGroups, subject } from "./claims";
 
-// The stringified-groups gotcha (research D3): the raw JWT carries a JSON array, but
-// the authorizer context stringifies it — differently per gateway flavor. The parser
-// must handle every observed form, and absent claim MUST mean deny.
+// The authorizer stringifies `cognito:groups` differently per gateway; every form parses, and an absent claim means deny.
 
 describe("parseGroups", () => {
   it.each([
@@ -34,7 +32,6 @@ function eventWithClaims(claims: Record<string, string>): AuthedEvent {
     },
   } as unknown as AuthedEvent;
 }
-
 
 describe("subject", () => {
   it("reads sub from the authorizer claims", () => {

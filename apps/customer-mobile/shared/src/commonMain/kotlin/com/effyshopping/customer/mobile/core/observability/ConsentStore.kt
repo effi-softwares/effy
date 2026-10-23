@@ -3,12 +3,12 @@ package com.effyshopping.customer.mobile.core.observability
 import com.effyshopping.customer.mobile.core.storage.DevicePreferences
 
 /**
- * The customer's analytics-consent choice (050 US4, T030), persisted device-locally so it survives
+ * The customer's analytics-consent choice, persisted device-locally so it survives
  * relaunch and gates analytics init on every start (Principle VII — consent-respecting for the public
  * audience).
  *
- * ⚠ Governs PRODUCT ANALYTICS ONLY. Crash reporting is independent and always on (clarification Q1) —
- * this store never touches it. `UNKNOWN` (first run) means "not yet asked": analytics stays OFF until
+ * Governs product analytics only. Crash reporting is independent and always on (clarification Q1)
+ * this store never touches it. `UNKNOWN` (first run) means "not yet asked": analytics stays off until
  * the customer explicitly accepts, so nothing is collected without opt-in.
  */
 enum class ConsentState { GRANTED, DENIED, UNKNOWN }

@@ -1,18 +1,7 @@
 /**
- * SQL only (Principle VI). Every write here obeys two rules that are not negotiable:
- *
- *   1. THE COUNT AND ITS MOVEMENT ARE WRITTEN IN ONE TRANSACTION. A count that moved with no record
- *      of why makes SC-005 false forever — the history can never be reconstructed after the fact.
- *   2. THE PRIOR VALUE COMES FROM THE UPDATE ITSELF (`RETURNING`), never from a read beforehand. A
- *      read-then-write would let two concurrent adjustments each record the same "before", and the
- *      history would then describe a sequence that never happened (FR-011).
- *
- * ⚠ 098 — STOCK IS PER VARIANT. Every count, threshold and movement here is a `product_variant`'s; the
- * movement also names the variant's product, held equal by a composite FK.
- *
- * ⚠ AND NOTHING HERE TOUCHES `updated_at`. That column means "someone edited the catalogue
- * entry"; a stock correction is not a catalogue edit, and conflating them would make the console's
- * recently-changed reading useless within a day of shipping.
+ * Stock is per variant. Every write records the count and its movement in one transaction, takes the
+ * prior value from the UPDATE itself (`RETURNING`), and never touches `updated_at`, which means a
+ * catalogue edit.
  */
 
 import {
@@ -37,12 +26,7 @@ interface StockDbRow {
   shop_default_threshold: number | null;
 }
 
-/**
- * ⚠ The shop scope is IN THE PREDICATE, not applied afterwards. A variant belonging to another shop
- * produces no row, which the service maps to the same refusal as one that does not exist — so the
- * route cannot be used to discover which ids are real or who owns them (FR-004). A REMOVED variant
- * is history: it has no stock screen.
- */
+/** Shop-scoped in the predicate, so another shop's variant is indistinguishable from none. Removed variants have no stock screen. */
 const SELECT_STOCK = `
 SELECT v.product_id::text    AS product_id,
        v.id::text            AS variant_id,
@@ -74,14 +58,7 @@ export async function readStock(variantId: string, shopId: string): Promise<Stoc
   return row ? toStockRow(row) : null;
 }
 
-/**
- * The movement history, newest first (FR-009).
- *
- * ⚠ `actorLabel` resolves a NAME, never an email address — an audit read is not a reason to put a
- * staff member's contact details on a screen. It is a LEFT JOIN across two identity tables because
- * `actor_sub` is a snapshot rather than an FK (shop staff live in `public`, back-office staff in
- * `admin`, and one column cannot reference both).
- */
+/** Newest first. `actorLabel` is a name, never an email; left JOINs because `actor_sub` is a snapshot, not an FK. */
 const SELECT_MOVEMENTS = `
 SELECT m.id::text          AS id,
        m.quantity_delta    AS quantity_delta,
@@ -131,7 +108,7 @@ export async function readMovements(variantId: string, limit = 50): Promise<Move
   }));
 }
 
-/** What every write returns: the state after, so the caller never re-reads to answer. */
+/** The state after the write, so the caller never re-reads. */
 export interface WriteResult {
   before: number;
   after: number;
@@ -144,16 +121,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `;
 
 /**
- * Set the count to an exact value.
- *
- * ⚠ THE `prev` CTE TAKES THE LOCK AND CARRIES THE OLD VALUE OUT. `SELECT … FOR UPDATE` inside the
- * same statement that writes means the before-value cannot be read by a second writer between our
- * read and our write, so two operators adjusting one product produce movements that CHAIN
- * (before₂ = after₁) instead of two that both claim the same starting point (FR-011).
- *
- * ⚠ An earlier draft put a sub-SELECT in RETURNING to fetch the old value. Do not: whether that
- * sub-SELECT observes the pre- or post-update row depends on snapshot rules subtle enough that the
- * next reader cannot verify it by eye, and the failure mode is a silently wrong audit trail.
+ * The `prev` CTE locks the row and carries the old value out in the same statement, so concurrent
+ * changes chain (before₂ = after₁). Do not fetch it with a sub-SELECT in RETURNING.
  */
 export async function setCount(
   actor: Actor,
@@ -187,14 +156,7 @@ export async function setCount(
   });
 }
 
-/**
- * Apply a relative change.
- *
- * ⚠ The floor lives in the STATEMENT (`GREATEST(0, …)`), not in a service branch. A check-then-write
- * would let a concurrent adjustment slip between the two and drive the count negative — the same
- * class of race the newsletter cooldown (039) and the promo redemption cap (027) both had to move
- * inside their writes.
- */
+/** The floor is in the statement (`GREATEST(0, …)`), so a concurrent change cannot go negative. */
 export async function adjustCount(
   actor: Actor,
   variantId: string,
@@ -227,12 +189,7 @@ export async function adjustCount(
   });
 }
 
-/**
- * Turn tracking on (a count is required) or off.
- *
- * Disabling leaves `stock_on_hand` where it was and the history intact, but re-enabling always takes
- * a fresh count — a number from before a period of not counting is not evidence of anything.
- */
+/** Disabling keeps the count and history; re-enabling always takes a fresh count. */
 export async function setTracking(
   actor: Actor,
   variantId: string,
@@ -267,7 +224,7 @@ export async function setTracking(
   });
 }
 
-/** Set or clear this variant's own threshold. Moves no count, so it writes no movement. */
+/** Moves no count, so it writes no movement. */
 export async function setThreshold(
   actor: Actor,
   variantId: string,
@@ -305,19 +262,9 @@ export async function writeSettings(
 }
 
 /**
- * The restock list (054 US5, FR-029): everything at zero, and everything at or below its EFFECTIVE
- * threshold — the product's own if set, else the shop's default.
- *
- * ⚠ `out` SORTS ABOVE `low`, and they are separate values rather than one "needs attention" flag. An
- * empty shelf and a thin one are different problems needing different actions — restock now versus
- * restock soon — and a row claiming both would sort into two places at once. `low` therefore
- * EXCLUDES zero (`p.stock_on_hand > 0`).
- *
- * ⚠ A product with NO threshold anywhere is never "low", but IS reported when it hits zero
- * (FR-005a): a missing threshold means "I have no opinion about running low", not "never tell me
- * about this product".
- *
- * Rides the partial index `product_variant_low_stock_idx (shop_id, stock_on_hand) WHERE stock_tracked`.
+ * Everything at zero (`out`) and everything at or below its effective threshold (`low`, which
+ * excludes zero). No threshold anywhere means never low, but still reported at zero. Rides
+ * `product_variant_low_stock_idx`.
  */
 const SELECT_LOW_STOCK = `
 SELECT v.product_id::text AS product_id,
@@ -333,7 +280,7 @@ SELECT v.product_id::text AS product_id,
   LEFT JOIN public.shop_stock_settings s ON s.shop_id = v.shop_id
  WHERE v.shop_id = $1
    AND ${LOW_STOCK_PREDICATE}
- -- ⚠ Most urgent first (FR-029) — the order IS the guarantee. Any presentation grouping is the
+ -- ⚠ Most urgent first — the order IS the guarantee. Any presentation grouping is the
  -- client's job, over a list that is already urgency-ordered.
  ORDER BY (v.stock_on_hand <= 0) DESC, v.stock_on_hand ASC, p.name ASC, v.position ASC
  LIMIT 500

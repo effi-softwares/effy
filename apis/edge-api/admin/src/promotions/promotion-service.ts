@@ -1,9 +1,6 @@
-// Promotions service (094): validation and rules — no SQL, no HTTP.
-//
-// ⚠ What the editor sends is checked HERE, field by field, with each refusal naming its field, before
-// the database's CHECKs (which make an ill-formed promotion unrepresentable) ever see it. ⚠ Once used,
-// what a promotion gives and who it is for are fixed (FR-020): a change to one of those fields is refused
-// with 409 `promotion_used` and its reason, while dates, limits, words and groups stay editable.
+// Each field is checked here, naming its field, before the database's CHECKs see it. Once used, a
+// change to what a promotion gives or who it is for is 409 `promotion_used`; dates, limits, words and
+// groups stay editable.
 import { announce } from "@effy/edge-shared/live";
 import { givesOf, offerLabelOf, type PromotionRecord, termsOf } from "@effy/edge-shared/promotions";
 import type {
@@ -27,7 +24,6 @@ const MONEY = /^\d{1,8}(\.\d{1,2})?$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CODE = /^[A-Z0-9-]{3,32}$/;
 
-/** Fields that are fixed once a promotion has been used (FR-020). */
 const FROZEN = ["kind", "trigger", "valueType", "percentOff", "amountOff", "maxDiscount", "bxgy", "appliesTo", "targets", "audience", "minSubtotal", "minQuantity", "deliveryTypes"] as const;
 
 const changed = () => announce([{ scope: "ops", kind: "promotions" }]);
@@ -41,10 +37,7 @@ const money = (v: unknown) => (typeof v === "string" && MONEY.test(v) ? Number(v
 const posInt = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v > 0 ? v : null);
 const trimmed = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max + 1) : null);
 
-/**
- * Turn the editor's body into a validated write. `current` is the promotion as it stands (PATCH), so a
- * partial body is judged together with what it does not change.
- */
+/** `current` is the promotion as it stands, so a partial body is judged with what it leaves alone. */
 export function parseWrite(body: Record<string, unknown>, current: PromotionRecord | null): { w: PromotionWrite; x: PromotionWriteExtras } {
   const issues: FieldIssue[] = [];
   const bad = (field: string, message: string) => issues.push({ field, message });
@@ -222,7 +215,6 @@ export function parseWrite(body: Record<string, unknown>, current: PromotionReco
   return { w, x };
 }
 
-/** A used promotion refuses any change to what it gives or who it is for. */
 function assertNotFrozen(body: Record<string, unknown>, used: boolean): void {
   if (!used) return;
   const touched = FROZEN.filter((k) => Object.prototype.hasOwnProperty.call(body, k));
@@ -230,8 +222,6 @@ function assertNotFrozen(body: Record<string, unknown>, used: boolean): void {
     throw new PromoError(409, "promotion_used", "This promotion has been used, so what it gives and who it is for can no longer change.", touched.map((field) => ({ field, message: "fixed once used" })));
   }
 }
-
-// ── DTOs ────────────────────────────────────────────────────────────────────────────────────────
 
 const WHO: Record<PromotionRecord["audience"], string> = {
   everyone: "Everyone",
@@ -292,8 +282,6 @@ export function toDetailDTO(r: PromotionRecord, x: repo.DetailExtras): AdminProm
     updatedAt: x.updated_at.toISOString(),
   };
 }
-
-// ── operations ──────────────────────────────────────────────────────────────────────────────────
 
 const clampPage = (n: unknown) => (typeof n === "number" && n > 0 ? Math.floor(n) : 1);
 const clampSize = (n: unknown) => (typeof n === "number" && n > 0 ? Math.min(Math.floor(n), 100) : 25);

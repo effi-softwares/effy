@@ -1,9 +1,9 @@
 import type { StockActorKind, StockMovementDTO, StockMovementReason } from "@effy/shared-types";
 
 /**
- * The vocabulary for a stock movement, in ONE place (Principle II).
+ * The vocabulary for a stock movement, in one place (Principle II).
  *
- * ⚠ IT LIVES HERE BECAUSE TWO SURFACES NOW RENDER THE SAME ROWS: the Inventory tab's full table
+ * It lives here because two surfaces now render the same rows: the Inventory tab's full table
  * and the Activity sheet's change log. Two copies of a reason map is how the table comes to say
  * "Short at picking" while the sheet still says "pick_shortfall" — a divergence that
  * is silent, because both keep rendering something.
@@ -21,7 +21,7 @@ const REASONS: Record<StockMovementReason, string> = {
   tracking_disabled: "Tracking turned off",
 };
 
-/** ⚠ Falls back to the raw value rather than throwing: a reason the backend adds before this map
+/** Falls back to the raw value rather than throwing: a reason the backend adds before this map
  *  learns it must degrade to something legible, never to a blank cell or a crash (tolerant reader). */
 export function reasonLabel(movement: StockMovementDTO): string {
   return REASONS[movement.reason] ?? movement.reason;
@@ -34,10 +34,8 @@ const ACTORS: Record<StockActorKind, string> = {
 };
 
 /**
- * ⚠ IT SAYS WHEN SOMEONE OUTSIDE THE SHOP CHANGED THE SHOP'S NUMBERS. FR-027 requires that plainly:
- * a back-office correction that looked like the shop's own would leave an operator unable to explain
- * their own stock. A sale names its order, which is the only way a drop nobody at the shop made can
- * be reconciled.
+ * Says when someone outside the shop changed its numbers, so a back-office correction never looks like
+ * the shop's own; a sale names its order, so a drop nobody at the shop made can be reconciled.
  */
 export function actorLabel(movement: StockMovementDTO): string {
   if (movement.actorKind === "system") {
@@ -58,7 +56,7 @@ export function formatDelta(delta: number): string {
 /**
  * One change-log line: what moved, and by how much.
  *
- * ⚠ THE COUNT IS PART OF THE TITLE, not decoration. "Correction" alone tells an operator scanning the
+ * The count is part of the title, not decoration. "Correction" alone tells an operator scanning the
  * log nothing they can act on; "Correction −3" is the whole event.
  */
 export function stockChangeTitle(movement: StockMovementDTO): string {

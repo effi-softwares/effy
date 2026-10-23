@@ -13,24 +13,20 @@ import com.effyshopping.customer.mobile.core.observability.IosCrashBridge
 import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
 
 /**
- * The iOS entry point. Swift builds the bridges Kotlin/Native cannot call directly (D5) and hands them
- * in; this wraps each in its common driver contract. See `iosApp/`.
- *
- * ⚠ NO PAYMENT BRIDGE (051). Paying used to be "present the provider's modal sheet", which Swift had to
- * do — so a payment bridge came in here beside the auth one. The in-app element is embedded in Effy's
- * own screen instead, and Swift supplies it through `IosPaymentElementRegistry` at startup rather than
- * through this entry point.
+ * The iOS entry point. Swift builds the bridges Kotlin/Native cannot call directly and hands them in; this
+ * wraps each in its common driver contract (see `iosApp/`). The payment element arrives separately, through
+ * `IosPaymentElementRegistry` at startup.
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
-    // 050 — observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
+    // Observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
     // APNs is set up (Apple Developer account — see docs/observability-apple-blockers.md).
     crashBridge: IosCrashBridge,
     analyticsBridge: IosAnalyticsBridge,
 ) =
     ComposeUIViewController {
-        // `remember` the container so a root recomposition does NOT rebuild it — a fresh AppContainer
-        // means a fresh, EMPTY in-memory GuestCartStore, which is why the cart appeared to empty on iOS
+        // `remember` the container so a root recomposition does not rebuild it — a fresh AppContainer
+        // means a fresh, empty in-memory GuestCartStore, which is why the cart appeared to empty on iOS
         // when returning from checkout/sign-in. Android already holds one Application-scoped instance.
         val container = remember {
             AppContainer(

@@ -1,4 +1,3 @@
-// GET /catalog/v1/review/items/{productId} — one item with its before/after (067 FR-009, FR-010).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

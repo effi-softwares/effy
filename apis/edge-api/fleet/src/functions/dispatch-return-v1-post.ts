@@ -9,13 +9,7 @@ import type { StaffParcelReturnRequest, StaffParcelReturnResponse } from "@effy/
 import { staffReturnParcels } from "../dispatch/return";
 import { denied, guard } from "../shared/handler-support";
 
-/**
- * POST /fleet/v1/dispatch/rounds/{roundId}/return (088, Story 4) — a staff member records that the
- * parcels from a round's failed drops were handed in at the hub, on the driver's behalf.
- *
- * ⚠ MUTATE, like resolving an exception: it asserts something about the physical world — the goods
- * are on a hub shelf — that no query can verify. Who said it is in the return row and the audit log.
- */
+/** Admin/manager: staff record that a round's failed parcels were handed in at the hub, for the driver. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
@@ -48,10 +42,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
 };
 
-/**
- * Committed: dispatch and order screens, the shops whose parcels came back, and the DRIVER — whose
- * "Return to hub" step has just been done for them. Never throws (071).
- */
+/** Tells dispatch and order screens, the shops whose parcels came back, and the driver. Never throws. */
 async function announceReturn(roundId: string, driverId: string): Promise<void> {
   let shopIds: string[] = [];
   try {
@@ -65,7 +56,7 @@ async function announceReturn(roundId: string, driverId: string): Promise<void> 
     );
     shopIds = rows.map((r) => r.shop_id);
   } catch {
-    // the rest still hear; a shop console catches up on its next read
+    // The rest still hear; a shop console catches up on its next read.
   }
   await announce([
     { scope: "ops", kind: "dispatch" },

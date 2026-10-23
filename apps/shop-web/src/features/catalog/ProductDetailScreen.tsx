@@ -55,21 +55,9 @@ type EditTarget = "basics" | "sizes" | "categorization" | "attributes" | null;
 type DetailTab = "details" | "inventory" | "media" | "visibility";
 
 /**
- * Product detail, rebuilt to the imported design (057) — revised 2026-09-10.
- *
- * ⚠ TABS ARE BACK, AND THAT IS NOT A REVERSAL OF THE FIRST REBUILD. The pre-057 screen was six tabs
- * that split "is this priced right" from "do we have any"; the first rebuild laid everything down one
- * scroll beside a summary rail. The revised mockup lands between the two: FOUR tabs, grouped by the
- * question an operator arrives with — Details (what is it, what does it cost), Inventory (how many,
- * what moved), Media, Visibility. Price and stock rules no longer share a scroll, but neither is one
- * click away from its own neighbour any more.
- *
- * ⚠ THE RAIL IS GONE. Its change log could only ever show four entries in 260px; it now lives in an
- * "Activity" sheet with a scrollable surface of its own, and the Archive control moved up into the
- * header's action row. The page is one full-width column.
- *
- * ⚠ THE TAB RESETS PER PRODUCT. The body is keyed on `productId`, so moving from one product to
- * another lands on Details — a tab is where you are on THIS product, not a preference to carry over.
+ * Product detail: four tabs grouped by the question an operator arrives with (Details, Inventory,
+ * Media, Visibility), in one full-width column; the change log is in the Activity sheet and Archive in the
+ * header's action row. The body is keyed on `productId`, so another product opens on Details.
  */
 export function ProductDetailScreen({ productId, initialSize }: { productId: string; initialSize?: string }) {
   return <ProductDetailBody key={productId} productId={productId} initialSize={initialSize} />;
@@ -80,7 +68,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   const [editing, setEditing] = useState<EditTarget>(null);
   const [tab, setTab] = useState<DetailTab>("details");
   const [activityOpen, setActivityOpen] = useState(false);
-  // 098 — the size whose stock the Inventory tab, Receive stock and Activity show.
+  // The size whose stock the Inventory tab, Receive stock and Activity show.
   const [chosenStockVariant, setStockVariant] = useState<string | null>(initialSize ?? null);
   const navigate = useNavigate();
 
@@ -106,10 +94,10 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
     chosenStockVariant && detail.variants.some((v) => v.id === chosenStockVariant && v.state !== "removed")
       ? chosenStockVariant
       : (defaultStockVariantId(detail) ?? "");
-  // 067 — the page shows the LIVE product; the editors open on the shop's own latest version.
+  // The page shows the live product; the editors open on the shop's own latest version.
   const working = workingDetail(detail);
   const chip = reviewChip(detail.reviewState);
-  // 098 — the header's price is the cheapest size on sale, "From" when sizes differ; its stock chip
+  // The header's price is the cheapest size on sale, "From" when sizes differ; its stock chip
   // answers for the product as a whole (sold out only when every size on sale is).
   const price = shopPriceSummary(detail);
   const onSale = detail.variants.filter((v) => v.state === "active");
@@ -118,7 +106,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
 
   return (
     <Page className="gap-[22px]">
-      {/* ── Hero: image, identity, and the header's four actions ───────────────────────────────── */}
+      {/* Hero: image, identity, and the header's four actions */}
       <div className="flex flex-wrap items-start gap-[18px]">
         <ProductThumb detail={detail} />
 
@@ -135,7 +123,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             <MetaDivider />
             <span className="text-muted-foreground text-[13px]">{detail.categoryName}</span>
             <MetaDivider />
-            {/* ⚠ The header chip answers "can a shopper buy this right now", which is the question
+            {/* The header chip answers "can a shopper buy this right now", which is the question
                 an operator opens this screen with — so it takes the live stock the rest of the page
                 is already reading rather than reporting a lifecycle state an empty shelf contradicts. */}
             <ProductStatusBadge status={detail.status} stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined} />
@@ -180,7 +168,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             <TabsTrigger
               key={t.value}
               value={t.value}
-              // ⚠ Inactive triggers are MUTED in both appearances. The shared trigger's light-mode
+              // Inactive triggers are muted in both appearances. The shared trigger's light-mode
               // default is full foreground, which leaves the active tab told apart by its fill alone.
               className="text-muted-foreground hover:text-foreground data-[state=active]:text-foreground flex-none px-[13px]"
             >
@@ -189,7 +177,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           ))}
         </TabsList>
 
-        {/* ── Details: what it is, and what it costs ─────────────────────────────────────────── */}
+        {/* Details: what it is, and what it costs */}
         <TabsContent value="details" className="grid gap-[34px]">
           <DetailSection
             title="Product details"
@@ -232,18 +220,18 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </DetailSection>
         </TabsContent>
 
-        {/* ── Inventory: Stock rules + Stock movements (see InventorySection) ─────────────────── */}
+        {/* Inventory: Stock rules + Stock movements (see InventorySection) */}
         <TabsContent value="inventory" className="grid gap-[34px]">
           <InventorySection detail={detail} variantId={stockVariantId} onVariantChange={setStockVariant} />
         </TabsContent>
 
         <TabsContent value="media" className="grid gap-[34px]">
           {/* The gallery edits the shop's own latest image set — the proposed one when images are
-              part of a pending change (067). */}
+              part of a pending change. */}
           <MediaGallery detail={working} />
         </TabsContent>
 
-        {/* ⚠ THE MOCKUP CALLS THIS "Visibility and channels" AND OURS MUST NOT. Effy is a single-brand
+        {/* The mockup calls this "Visibility and channels" and ours must not. Effy is a single-brand
             storefront with hidden fulfilment: there is exactly one channel, so a heading promising
             several describes a choice the operator does not have. What the tab really holds is
             whether shoppers can see the product and where it is filed. */}

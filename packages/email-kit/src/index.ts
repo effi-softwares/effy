@@ -1,9 +1,6 @@
 /**
- * `@effy/email-kit` — the PURE entrypoint.
- *
- * ⚠ NOTHING REACHABLE FROM HERE MAY IMPORT AN AWS SDK, OPEN A SOCKET, OR TOUCH THE FILESYSTEM.
- * The sender lives behind `@effy/email-kit/send`, and a test asserts this boundary holds. It is what
- * lets `make email-preview`, every lint check and every unit test run with no cloud access at all.
+ * The pure entrypoint: nothing reachable from here imports an AWS SDK, opens a socket or touches the
+ * filesystem (a test holds it). The sender is `@effy/email-kit/send`.
  */
 
 export {
@@ -37,8 +34,7 @@ export {
 
 export { render, type RenderedMessage } from "./render.js";
 
-// ⚠ Pure env-config, safe to import from the `.` entrypoint: reading configuration is not sending.
-// The Cognito interceptor uses these to render without pulling in the SES client.
+// Pure env-config: the Cognito interceptor renders with these without the SES client.
 export { identityFromEnv, MailConfigError, MAIL_ENV_KEYS } from "./config.js";
 
 export { EMAIL_LAYOUT, EMAIL_TOKENS, EMAIL_TYPE, type EmailTokenRole } from "./generated/tokens.generated.js";

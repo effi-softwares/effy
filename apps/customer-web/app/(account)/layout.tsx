@@ -2,14 +2,9 @@ import { StorefrontChrome } from "@/app/(shop)/_components/StorefrontChrome"
 import { AccountNav } from "@/components/chrome/AccountNav"
 
 /**
- * The account area's frame (reference: Account · every screen): the storefront header and footer,
- * then a sidebar of sections beside the page. Orders and Saved items live in the same frame — they
- * are account destinations, and the sidebar is how a customer moves between them. Below `lg` there is
- * no sidebar: the sections are the account level of the menu drawer.
- *
- * ⚠ Guarding is each PAGE's job (`requireCustomer`), not the layout's: a layout does not re-run on
- * navigation between its pages, so a check here would be skipped exactly when it matters. `/saved`
- * is also open to guests, whose saves live on the device.
+ * The account area's frame: header, footer and a sidebar of sections (Orders and Saved included); below
+ * `lg` the sections are in the menu drawer. Each page guards itself (`requireCustomer`): a layout does
+ * not re-run between its pages. `/saved` is open to guests.
  */
 export default function AccountLayout({
   children,

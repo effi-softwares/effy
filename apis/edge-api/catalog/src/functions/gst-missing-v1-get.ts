@@ -1,5 +1,3 @@
-// GET /catalog/v1/gst/missing — live products with no GST status yet (096 US9, FR-092). Read = any
-// active staff incl. csa: knowing what is unclassified is how it gets done.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

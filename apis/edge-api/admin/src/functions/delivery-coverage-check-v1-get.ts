@@ -1,4 +1,3 @@
-// GET /admin/v1/delivery/coverage/check?q= — who delivers to a postcode or place, and why (076 FR-025). Read.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

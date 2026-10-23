@@ -10,7 +10,7 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 
 const { ChangeDeliveryWindowDialog } = await import("./ChangeDeliveryWindowDialog");
 
-/** An order Effy already delivers: refused a MOVE, but the windows are listed for a re-time. */
+/** An order Effy already delivers: refused a move, but the windows are listed for a re-time. */
 const PREVIEW = {
   to: "effy", allowed: false, refusal: { code: "already_effy", message: "x" }, updatedAt: "2026-10-09T03:00:00.000Z", paidDeliveryAmount: "9.00",
   courierFeeAmount: null, differenceAmount: null, refundableAmount: "49.00", centsPerPoint: 1, choices: [], courier: null,

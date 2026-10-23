@@ -1,4 +1,3 @@
-// POST /admin/v1/promotion-skins/{id}/duplicate — promotion skins — duplicate (095). Mutate: admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

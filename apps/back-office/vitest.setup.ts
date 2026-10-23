@@ -16,8 +16,8 @@ if (typeof window !== "undefined" && !window.matchMedia) {
 }
 
 // jsdom implements no Pointer Capture API and no scrollIntoView. Radix's Select calls both while
-// opening, so without these any test that opens a <Select> dies with an unhandled TypeError —
-// which vitest reports as an "unhandled error", NOT as a failing assertion, so it is easy to
+// opening, so without these any test that opens a <Select> dies with an unhandled TypeError
+// which vitest reports as an "unhandled error", not as a failing assertion, so it is easy to
 // mistake for flake. Every console surface that offers a choice uses this primitive.
 for (const m of ["hasPointerCapture", "setPointerCapture", "releasePointerCapture"] as const) {
   if (!(m in Element.prototype)) {
@@ -28,7 +28,7 @@ if (!("scrollIntoView" in Element.prototype)) {
   Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true });
 }
 
-// jsdom has no ResizeObserver. Radix's Checkbox measures itself with one the moment it is CHECKED,
+// jsdom has no ResizeObserver. Radix's Checkbox measures itself with one the moment it is checked,
 // so a test that only renders a checkbox passes and one that ticks it dies.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class {

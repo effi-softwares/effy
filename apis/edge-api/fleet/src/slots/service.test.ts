@@ -6,7 +6,7 @@ import { slotProblems } from "./service";
 const OK = { startTime: "17:00", endTime: "19:00", cutoffTime: "15:00", capacity: 2 };
 const fields = (v: Record<string, unknown>) => slotProblems({ ...OK, ...v }).map((e) => e.field);
 
-/** FR-037 — each refusal names its field, so the console can put the message where the mistake is. */
+/** Each refusal names its field. */
 describe("slotProblems", () => {
   it("accepts a well-formed slot, including a cutoff AT the start", () => {
     expect(slotProblems(OK)).toEqual([]);
@@ -70,7 +70,7 @@ describe("daysProblems", () => {
   it("refuses each number outside its range", () => {
     expect(f({ effyLookaheadDays: 0 })).toEqual(["effyLookaheadDays"]);
     expect(f({ effyLookaheadDays: 15 })).toEqual(["effyLookaheadDays"]);
-    // ⚠ Required now (083): it is the only look-ahead there is.
+    // Required: it is the only look-ahead.
     expect(f({ effyLookaheadDays: undefined })).toEqual(["effyLookaheadDays"]);
     expect(f({ slotHoldMin: 0 })).toEqual(["slotHoldMin"]);
     expect(f({ hubTurnaroundMin: 1.5 })).toEqual(["hubTurnaroundMin"]);

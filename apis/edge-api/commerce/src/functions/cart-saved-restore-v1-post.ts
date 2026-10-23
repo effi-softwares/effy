@@ -1,5 +1,3 @@
-// POST /commerce/v1/cart/saved/{variantId}/restore?changeId= — move a set-aside line back into the
-// payable cart. Refused if the product cannot be bought right now, exactly like an add.
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";

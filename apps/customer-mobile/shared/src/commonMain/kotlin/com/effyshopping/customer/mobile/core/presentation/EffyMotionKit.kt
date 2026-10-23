@@ -30,25 +30,21 @@ import com.effyshopping.mobile.kit.ui.LocalMotionLevel
 import com.effyshopping.mobile.kit.ui.MotionLevel
 
 /**
- * Motion for the customer app (canvas Motion and Page transitions boards; 087 research D8).
- *
- * ⚠ These are the STOREFRONT's timings and live here, not in `packages/mobile-kit`'s `EffyMotion`,
- * whose values the shop and driver apps keep. They read the same [LocalMotionLevel], so reduced motion
- * (iOS Reduce Motion, Android animator scale 0) is honoured exactly as before:
+ * Motion for the customer app (the canvas's Motion and Page transitions boards). The storefront's timings,
+ * separate from `packages/mobile-kit`'s `EffyMotion`. They read [LocalMotionLevel]:
  * Full → the spec · Reduced → a short fade, no movement · None → instant.
  *
- * ── FR-016: every animation the app had before 087 is still present ────────────────────────────
- * Recorded so a reviewer can check it rather than trust it:
- *  - push / pop slide and predictive pop ............ app/CustomerShell.kt (transitionSpec family)
- *  - tab bar show / hide ............................ app/CustomerShell.kt + mobile-kit ResponsiveNavigation
- *  - primary-button press (0.98) .................... EffyButtons.kt EffyPrimaryButton → effyPress
- *  - product-card press (0.97) ...................... ProductTile.kt EffyProductCard → effyPress
- *  - skeleton shimmer 1100ms ........................ EffyStates.kt effyShimmer
- *  - pull-to-refresh content translation ............ mobile-kit EffyPullToRefresh (unchanged)
- *  - OTP caret blink ................................ mobile-kit OtpCells (unchanged)
- *  - onboarding pager + indicator width ............. features/onboarding/OnboardingScreen.kt
- *  - FAQ expand ..................................... features/help/HelpScreens.kt
- *  - banner carousel / product gallery pagers ....... HomeBlocks.kt, ProductDetailScreen.kt
+ * Where each animation lives:
+ *  - push / pop slide and predictive pop............ app/CustomerShell.kt (transitionSpec family)
+ *  - tab bar show / hide............................ app/CustomerShell.kt + mobile-kit ResponsiveNavigation
+ *  - primary-button press (0.98).................... EffyButtons.kt EffyPrimaryButton → effyPress
+ *  - product-card press (0.97)...................... ProductTile.kt EffyProductCard → effyPress
+ *  - skeleton shimmer 1100ms........................ EffyStates.kt effyShimmer
+ *  - pull-to-refresh content translation............ mobile-kit EffyPullToRefresh
+ *  - OTP caret blink................................ mobile-kit OtpCells
+ *  - onboarding pager + indicator width............. features/onboarding/OnboardingScreen.kt
+ *  - FAQ expand..................................... features/help/HelpScreens.kt
+ *  - banner carousel / product gallery pagers....... HomeBlocks.kt, ProductDetailScreen.kt
  */
 object EffyStorefrontMotion {
     const val PressMillis = 100
@@ -144,7 +140,7 @@ fun EffyNumberRoll(
     ) { value -> Text(value, style = style, color = color) }
 }
 
-/** Haptics (087 FR-020): a light tick for a quantity change, a confirm for a placed order. */
+/** Haptics: a light tick for a quantity change, a confirm for a placed order. */
 object EffyHaptics {
     @Composable
     fun tick(): () -> Unit {

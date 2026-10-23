@@ -1,9 +1,7 @@
-// 092 rev 2 — test-only: the two points the run map reads (D25), seeded for a container test.
-// ⚠ Like run-map.ts, this file is named in fleet's no-location guard on purpose; nothing else may
-// write a point. It is imported by tests only.
+// Test-only: seeds the two points the run map reads. Named in fleet's no-location guard on purpose.
 import type { Pool } from "pg";
 
-/** A postcode's place, as the locality list holds it. Replaces any row for that postcode. */
+/** Replaces any row for that postcode. */
 export async function seedPlace(pool: Pool, p: { name: string; state: string; postcode: string; lat: number; lng: number }) {
   await pool.query(`DELETE FROM public.locality WHERE postcode = $1`, [p.postcode]);
   await pool.query(
@@ -12,7 +10,6 @@ export async function seedPlace(pool: Pool, p: { name: string; state: string; po
   );
 }
 
-/** The hub's point on the business's delivery settings. */
 export async function seedHub(pool: Pool, lat: number, lng: number) {
   await pool.query(
     `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, $1, $2, 'test')

@@ -14,7 +14,7 @@ import { ProductRail } from "./ProductRail"
  * It reads the ids from localStorage, hydrates them to cards via the public storefront endpoint, and
  * preserves most-recent-first order (the server returns them re-ordered to the id list).
  *
- * ⚠ IT ASKS ONLY WHEN THE SHOPPER IS ABOUT TO SEE IT (PERF-18). The rail is the last thing on the home
+ * It asks only when the shopper is about to see it. The rail is the last thing on the home
  * page; reading it on load put a cross-origin request in the way of everything above it, for a rail
  * most visits never scroll to. An empty marker waits 600px below the viewport and the read starts as
  * it nears. No viewed products → no marker, no request.

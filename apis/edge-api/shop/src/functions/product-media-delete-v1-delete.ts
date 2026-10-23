@@ -1,4 +1,4 @@
-// DELETE /shop/v1/products/{id}/media/{mediaId} — remove media; an active product must keep a primary (US4).
+// An active product must keep a primary.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

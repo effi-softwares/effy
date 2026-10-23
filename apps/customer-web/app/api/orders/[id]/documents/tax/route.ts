@@ -5,9 +5,9 @@ import { getSession } from "@/lib/dal"
 import { edgeApiBaseUrl } from "@/lib/config"
 
 /**
- * The order's tax invoice and adjustment notes (096 US8): `?doc={number}` downloads one as a PDF,
- * otherwise the list as JSON. ⚠ The FIRST request issues the invoice — it is on request, never on
- * page view, so a customer can add their business details first (FR-085).
+ * The order's tax invoice and adjustment notes: `?doc={number}` downloads one as a PDF,
+ * otherwise the list as JSON. The first request issues the invoice — it is on request, never on
+ * page view, so a customer can add their business details first.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

@@ -7,7 +7,7 @@ import type {
 
 import { api } from "@/lib/api";
 
-// Promotion skins (095) — how a promotion looks in each place. Screens never touch the client directly.
+// Promotion skins — how a promotion looks in each place. Screens never touch the client directly.
 export const listSkins = () => api.get<{ items: AdminSkinListItemDTO[] }>("/admin/v1/promotion-skins").then((r) => r.items);
 export const getSkin = (id: string) => api.get<AdminSkinDTO>(`/admin/v1/promotion-skins/${id}`);
 export const createSkin = (body: AdminCreateSkinRequest) => api.post<AdminSkinDTO>("/admin/v1/promotion-skins", body);

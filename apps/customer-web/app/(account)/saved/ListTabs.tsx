@@ -16,12 +16,8 @@ import { createList, deleteList, listLabel, nameRemaining, refusalText, renameLi
 const href = (list: SavedListDTO) => (list.isDefault ? "/saved" : `/saved/${list.id}`)
 
 /**
- * The head of every saved-items page (reference: Saved items, Named list): which list this is and
- * what is in it, the list's own actions, and the shopper's lists as a row of tabs — "Saved" first,
- * each with its count (068 FR-027).
- *
- * ⚠ TABS OVER ONE LIST OF ROWS, not a grid of list cards. The row scrolls sideways rather than
- * wrapping, so twenty lists stay one line on a phone.
+ * The head of every saved-items page: which list, what is in it, its actions, and the shopper's lists as
+ * a row of tabs ("Saved" first, each with its count) that scrolls sideways rather than wrapping.
  */
 export function ListTabs({
   lists,
@@ -50,7 +46,7 @@ export function ListTabs({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* "Saved" offers neither: it cannot be renamed or deleted (FR-003). */}
+          {/* "Saved" cannot be renamed or deleted. */}
           {current && !current.isDefault && <ManageList list={current} />}
           <NewList />
         </div>
@@ -231,8 +227,7 @@ function ManageList({ list }: { list: SavedListDTO }) {
         ref={deleteRef}
         alert
         title={`Delete "${listLabel(list)}"?`}
-        // ⚠ FR-006: BOTH numbers. What is in the list, and how much of it lives nowhere else — the
-        // second is what the shopper actually loses, and the delete un-saves exactly that many.
+        // Both numbers: what is in the list, and how much lives nowhere else (the delete un-saves exactly that).
         description={deleteSummary(list)}
         footer={
           <>

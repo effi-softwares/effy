@@ -11,7 +11,7 @@ import { Panel } from "@/components/patterns/Panel";
 
 import { dispatchWindowsQuery } from "../queries";
 
-/** 082 — the round line under a window: who has it, or what will happen. */
+/** The round line under a window: who has it, or what will happen. */
 export function roundLine(w: DispatchWindowDTO, isToday: boolean): string {
   if (w.rounds.length === 0) return isToday ? "No round yet — auto-assign plans it as parcels reach the hub" : "Planned on the day";
   return w.rounds.map((r) => `${r.driver.name} (${r.parcels})`).join(", ");

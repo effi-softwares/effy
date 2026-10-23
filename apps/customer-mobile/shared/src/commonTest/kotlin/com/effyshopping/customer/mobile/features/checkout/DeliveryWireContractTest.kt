@@ -10,22 +10,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The Kotlin half of the delivery wire contract (047, research R14).
- *
- * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
- * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
- * source, takes each `const val`, and compares it with what the real mapper produces — so there is
- * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
- *
- * ⚠ ONE LITERAL, TWO INDEPENDENT JUDGES. The old arrangement kept two hand-made copies on the theory
- * that a shared fixture "moves with the bug". This one cannot: the literal is judged here by whether
- * the app can DECODE it, and on the backend by whether the real mapper PRODUCES it. Change the
- * literal and both must still agree with it separately; change either side's code and its own test
- * fails. (029 found the two-copy version agreeing with itself about a payload no server ever sent.)
- *
- * ⚠ WHY THIS EXISTS. 027 lost days because Kotlin serialised money/counts as `Double` and Go could not
- * unmarshal `1.0` into an int. Delivery money crosses as a 2-dp decimal STRING for exactly that reason;
- * this test proves the generated Kotlin parses Go's exact bytes and that `feeAmount` stays a String.
+ * The Kotlin half of the delivery wire contract. `apis/edge-api/commerce/src/wire.contract.test.ts` parses
+ * this file, takes each `const val` and compares it with what the real mapper produces; here the same
+ * literal must decode. Renaming a constant breaks that test: rename it there too. Money crosses as a 2-dp
+ * decimal string (`feeAmount` stays a String) and counts as integers.
  */
 class DeliveryWireContractTest {
 
@@ -33,8 +21,8 @@ class DeliveryWireContractTest {
 
     companion object {
         // Read by the backend's wire.contract.test.ts, byte for byte.
-        // ⚠ 083: a serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
-        // nothing else. The delivery charge is the ORDER's, one per window (077).
+        // A serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
+        // nothing else. The delivery charge is the order's, one per window.
         const val DELIVERY_QUOTE_WIRE =
             """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":"26.00","effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"closedReason":null,"anyTime":null},{"date":"2026-08-25","section":"standard","windows":[],"closedReason":"full","anyTime":null}],"unavailable":null,"asap":null}}"""
 

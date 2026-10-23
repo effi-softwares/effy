@@ -1,4 +1,3 @@
-// Facet composition (043): counts per option, each facet counted with its OWN selection cleared.
 import type { FacetDTO, FacetOptionDTO, FacetSetDTO } from "@effy/shared-types";
 
 import type { SearchParams } from "../search/filters";
@@ -15,7 +14,6 @@ const clearAttr = (p: SearchParams, key: string): SearchParams => ({
   attributes: Object.fromEntries(Object.entries(p.attributes).filter(([k]) => k !== key)),
 });
 
-/** Booleans are stored as 'true'/'false'; a shopper reads Yes/No. */
 function boolLabeler(dataType: string): ((v: string) => string) | null {
   if (dataType !== "boolean") return null;
   return (v) => (v === "true" ? "Yes" : v === "false" ? "No" : v);
@@ -29,15 +27,12 @@ function toOptions(rows: readonly OptionCountRow[], relabel: ((v: string) => str
 
 export function createFacetService(repo: FacetRepository) {
   return {
-    /**
-     * The facet set for the current query. Order is fixed — category, brand, then attributes by
-     * name — and a facet with no options is omitted, so the panel never shows an empty heading.
-     */
+    /** Category, brand, then attributes by name; a facet with no options is omitted. */
     async facets(q: FacetQuery): Promise<FacetSetDTO> {
       const base: SearchParams = {
         q: q.q, categoryKey: q.categoryKey, minPrice: q.minPrice, maxPrice: q.maxPrice,
         saleOnly: q.saleOnly, brands: q.brands, attributes: q.attributes,
-        sort: "newest", cursor: null, limit: 0, // unused by the count queries
+        sort: "newest", cursor: null, limit: 0,
       };
 
       const defs = await repo.facetableAttributeDefs();

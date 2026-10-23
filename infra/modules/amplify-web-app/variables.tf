@@ -1,8 +1,8 @@
 # Reusable Amplify Hosting web app (042-customer-web-cicd).
 #
 # Every environment-specific value is a variable — no `dev` / `dev.effyshopping.com` literal appears
-# in this module's logic (FR-018). Production is a second instantiation with different values
-# (FR-019): domain_name = "effyshopping.com", deploy_branch = the production release branch.
+# in this module's logic. Production is a second instantiation with different values:
+# domain_name = "effyshopping.com", deploy_branch = the production release branch.
 
 variable "name" {
   description = "Full resource name for the Amplify app, e.g. effy-dev-customer-web."

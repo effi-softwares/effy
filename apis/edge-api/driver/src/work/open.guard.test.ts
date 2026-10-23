@@ -5,16 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * ⚠ EVERY ROUTE THAT MOVES A ROUND FORWARD MUST CHECK THAT THE ROUND HAS OPENED (072, FR-023/024).
- *
- * Since 072 a round is on a driver's phone hours before it can be worked. The app disables its
- * controls until then, but a disabled control is a courtesy: the thing that actually stops a van
- * leaving three hours early is `assertRoundOpen` in the service. A NEW route that progresses a round
- * and forgets the call would work, pass every test written for it, and quietly reopen the hole.
- *
- * So this reads the routes the service really declares, and requires each state-changing one to be
- * EITHER listed below with the function that gates it, OR listed as exempt with a reason. A route
- * in neither list fails the build by name.
+ * Every state-changing route must call `assertRoundOpen` (listed with the function that does) or be
+ * listed exempt with a reason; anything else fails by name. The app's disabled controls are a courtesy.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -56,7 +48,7 @@ function bodyOf(file: string, fn: string): string {
   const start = src.indexOf(`export async function ${fn}(`);
   if (start === -1) return "";
   const next = src.indexOf("\nexport ", start + 1);
-  // Comments are stripped so a sentence ABOUT the gate cannot stand in for a call to it.
+  // Comments are stripped so a sentence about the gate cannot stand in for a call to it.
   return src
     .slice(start, next === -1 ? undefined : next)
     .split("\n")

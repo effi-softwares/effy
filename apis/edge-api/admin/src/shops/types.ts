@@ -1,6 +1,3 @@
-// Domain types for back-office shop management (009-shop-management). Wire DTOs live in
-// @effy/shared-types and are mapped explicitly in the handlers; these are the internal domain
-// shapes and never leak wire concerns (constitution Principle VI). Mirrors data-model.md §5.
 import type { ShopAddressDTO } from "@effy/shared-types";
 
 export type ShopLifecycleStatus = "active" | "suspended" | "disabled";
@@ -31,8 +28,7 @@ export interface Shop {
   status: ShopLifecycleStatus;
   contactPhone: string | null;
   notes: string | null;
-  /** ⚠ 061: where the shop physically is, so a driver can be told where to collect from. Address
-   *  only — no coordinates (FR-031), because nothing on this platform computes distance. */
+  /** Where a driver collects from. Address only, no coordinates. */
   address: ShopAddressDTO;
   createdAt: string;
   updatedAt: string;
@@ -40,9 +36,9 @@ export interface Shop {
 
 export interface ShopDetail extends Shop {
   users: ShopUser[];
-  /** 091 — how this shop's package labels scanned over the last [sinceDays] days. */
+  /** How this shop's labels scanned over the last [sinceDays] days. */
   labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
-  /** 096 — every bag must be scanned as packed before ready. Written only by fleet. */
+  /** Every bag must be scanned as packed before ready. Written only by fleet. */
   packScanRequired?: boolean;
 }
 
@@ -53,7 +49,6 @@ export interface ShopListItem {
   name: string;
   status: ShopLifecycleStatus;
   userCount: number;
-  /** 091 — the same count the shop page reads, so the register shows which shops print badly. */
   labelScanning: { scanned: number; notScanned: number; sinceDays: number };
 }
 
@@ -74,11 +69,10 @@ export interface AuditEntry {
   createdAt: string;
 }
 
-// Domain exception → mapped to problem+json in the handler (no HTTP concern here).
 export type ShopErrorKind =
   | "validation" // → 400
   | "conflict" // → 409 (duplicate code, email already a shop user, invalid transition, has dependents)
-  | "not_found"; // → 404
+  | "not_found";
 
 export interface FieldIssue {
   field: string;

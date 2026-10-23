@@ -1,8 +1,5 @@
-// Repository for promotions (094). SQL only — no HTTP, no validation (Principle VI).
-//
-// ⚠ Every write audits in the SAME transaction (009 pattern). ⚠ A promotion's STATE is never stored:
-// every read asks `public.promotion_state`. ⚠ Once used, what it gives and who it is for are fixed — the
-// service refuses first (409 `promotion_used`), and the database's triggers are the backstop.
+// Every write audits in the same transaction. State is never stored (`public.promotion_state`). Once
+// used, what a promotion gives and who it is for are fixed: the service refuses, triggers back it up.
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import { loadPromotions, type PromotionRecord } from "@effy/edge-shared/promotions";
 
@@ -14,7 +11,7 @@ import { type AuditEntry, type Paged, PromoError } from "./types";
 export const PROMOTION_STATES = ["draft", "scheduled", "active", "paused", "used_up", "out_of_budget", "ended", "archived"] as const;
 export type PromotionState = (typeof PROMOTION_STATES)[number];
 
-/** A validated write — every column the editor sets. Undefined = leave it (PATCH). */
+/** Undefined leaves a column as it is (PATCH). */
 export interface PromotionWrite {
   name?: string;
   kind?: "cart" | "item" | "bxgy" | "delivery";
@@ -89,7 +86,6 @@ async function audit(tx: Queryable, actor: string, action: string, targetType: s
   );
 }
 
-/** A database refusal as the operator's refusal. */
 function asRefusal(err: unknown): unknown {
   const e = err as { code?: string; constraint?: string; message?: string };
   if (e?.code === "23505" && e.constraint === "promotion_code_code_uq") {
@@ -104,8 +100,6 @@ function asRefusal(err: unknown): unknown {
   if (e?.code === "23514") return new PromoError(422, "invalid", "That combination of settings is not allowed.");
   return err;
 }
-
-// ── reads ───────────────────────────────────────────────────────────────────────────────────────
 
 export interface ListRow {
   id: string;
@@ -179,7 +173,6 @@ export interface DetailExtras {
   used: boolean;
   groups: { id: string; key: string; name: string; position: number }[];
   targets: { products: { id: string; name: string }[]; categories: { id: string; name: string }[]; brands: string[] };
-  /** 095 */
   images: AdminPromotionImageDTO[];
 }
 
@@ -211,8 +204,6 @@ export async function readPromotion(id: string, now: Date): Promise<{ record: Pr
   return { record, extras };
 }
 
-// ── writes ──────────────────────────────────────────────────────────────────────────────────────
-
 async function writeExtras(tx: Queryable, id: string, x: PromotionWriteExtras, actor: string) {
   if (x.targets) {
     await tx.query(`DELETE FROM public.promotion_target WHERE promotion_id = $1`, [id]);
@@ -237,7 +228,7 @@ async function writeExtras(tx: Queryable, id: string, x: PromotionWriteExtras, a
     }
     await tx.query(`DELETE FROM public.promotion_group_member WHERE promotion_id = $1 AND NOT (group_id = ANY($2::uuid[]))`, [id, x.groupIds]);
     for (const g of x.groupIds) {
-      // A promotion newly placed in a group goes to its end.
+      // Newly placed in a group: goes to its end.
       await tx.query(
         `INSERT INTO public.promotion_group_member (group_id, promotion_id, position)
          SELECT $1, $2, coalesce(max(position) + 1, 0) FROM public.promotion_group_member WHERE group_id = $1
@@ -270,11 +261,7 @@ export async function createPromotion(w: PromotionWrite, x: PromotionWriteExtras
   }
 }
 
-/**
- * ⚠ `touchesFixed` — the write changes what the promotion gives or who it is for. Whether it has been
- * used is decided HERE, under the promotion's row lock — the same lock the payment intent takes before
- * holding a use — so no use can appear between the check and the write (FR-020).
- */
+/** Whether it was used is decided under the promotion's row lock, the one the payment intent takes. */
 export async function updatePromotion(id: string, w: PromotionWrite, x: PromotionWriteExtras, actor: string, touchesFixed = false): Promise<void> {
   const keys = (Object.keys(w) as (keyof PromotionWrite)[]).filter((k) => w[k] !== undefined);
   try {
@@ -309,7 +296,7 @@ export async function applyAction(id: string, action: "publish" | "pause" | "res
   await withTransaction(async (tx) => {
     const res = await tx.query(`UPDATE public.promotion SET ${set[action]}, updated_by = $2, updated_at = now() WHERE id = $1`, [id, actor]);
     if (res.rowCount === 0) throw new PromoError(404, "not_found", "promotion not found");
-    // An archived or ended promotion leaves every group (FR-027: the grouping goes, never the promotion).
+    // Archived or ended: it leaves every group.
     if (action === "archive") await tx.query(`DELETE FROM public.promotion_group_member WHERE promotion_id = $1`, [id]);
     await audit(tx, actor, `promotion.${action}`, "promotion", id, {});
   });
@@ -339,14 +326,14 @@ export async function promotionAudit(id: string, limit: number): Promise<AuditEn
   return res.rows.map((r) => ({ id: r.id, actorSub: r.actor_sub, action: r.action, targetType: r.target_type, targetId: r.target_id, detail: r.detail, createdAt: r.created_at.toISOString() }));
 }
 
-/** Products a promotion can target, by name, SKU or brand — approved, not archived (094 editor). */
+/** By name, SKU or brand; approved, not archived. */
 export async function searchProducts(q: string, limit: number): Promise<{ id: string; name: string; brand: string | null }[]> {
   return (
     await query<{ id: string; name: string; brand: string | null }>(
       `SELECT p.id::text, p.name, p.brand FROM public.product p
         WHERE p.status <> 'archived'
           AND (p.name ILIKE '%' || $1 || '%' OR p.brand ILIKE '%' || $1 || '%'
-               -- 098 — stock codes are the variants'; a promotion still targets the PRODUCT.
+               -- Stock codes are the variants'; a promotion still targets the PRODUCT.
                OR EXISTS (SELECT 1 FROM public.product_variant v
                            WHERE v.product_id = p.id AND v.state <> 'removed' AND (v.sku ILIKE '%' || $1 || '%' OR v.code = upper($1))))
         ORDER BY p.name LIMIT $2`,

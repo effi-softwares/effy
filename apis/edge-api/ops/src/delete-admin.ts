@@ -1,5 +1,4 @@
-// make delete-admin EMAIL=… ENV=dev [FORCE=1] — COMPLETELY remove a back-office administrator from
-// the identity provider and the platform's staff record. Irreversible; the make target confirms.
+// make delete-admin EMAIL=… ENV=dev [FORCE=1]. Irreversible; the make target confirms.
 import { CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
 
 import { cognitoIdentityProvider, deleteAdmin, staffRecords } from "./admin-bootstrap";

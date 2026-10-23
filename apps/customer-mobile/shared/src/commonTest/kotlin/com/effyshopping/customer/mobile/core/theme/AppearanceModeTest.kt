@@ -6,7 +6,7 @@ import com.effyshopping.customer.mobile.core.storage.clearGuestData
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 087 / v3.4.0 — Light, Dark, or Match my phone; remembered on the device, never cleared with data. */
+/** Light, Dark, or Match my phone; remembered on the device, never cleared with data. */
 class AppearanceModeTest {
 
     @Test

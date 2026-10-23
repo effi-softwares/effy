@@ -10,7 +10,7 @@ vi.mock("@effy/edge-shared", async () => {
   return {
     ...actual,
     presignUpload: vi.fn(async () => ({ uploadUrl: "u", storageKey: "proof/d/1.jpg" })),
-    // The round-opening gate's read (072). Empty by default: a drop on an open round.
+    // The round-opening read; empty by default (an open round).
     query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
   };
 });
@@ -31,12 +31,7 @@ describe("submitProof — what a proof MAY be", () => {
     expect(recordProof).toHaveBeenCalledOnce();
   });
 
-  /**
-   * ⚠ FR-003. `ProofMethod` still carries `"code"` on the wire because the method is coming — but no
-   * delivery code exists anywhere on this platform, so accepting one would compare a value to itself:
-   * a gate that LOOKS enforced and checks nothing. It is refused by NAME, with a reason a driver can
-   * read, and never reaches the repository.
-   */
+  /** `code` is refused by name: no delivery code exists. */
   it("REFUSES `code`, names the field, and does not reach the database", async () => {
     await expect(
       submitProof("d1", "drv1", "sub1", { method: "code", code: "123456", changeId: change } as never),
@@ -65,18 +60,14 @@ describe("submitProof — what a proof MAY be", () => {
     });
 
     it("treats a whitespace-only mediaKey as absent", async () => {
-      // A required field a client can satisfy with a space is not required.
+      // A required field satisfied by a space is not satisfied.
       await expect(
         submitProof("d1", "drv1", "sub1", { method: "photo", mediaKey: "   ", changeId: change } as never),
       ).rejects.toMatchObject({ field: "mediaKey" });
     });
   });
 
-  /**
-   * ⚠ FR-002. An unattended drop is the case most likely to become a dispute, so it is the one that
-   * MUST carry a photograph. The schema permits contactless-without-media (it is the one legitimate
-   * no-media proof); the RULE that it needs a photo lives here.
-   */
+  /** An unattended drop must carry a photograph. */
   it("REQUIRES a photo for a contactless delivery", async () => {
     await expect(
       submitProof("d1", "drv1", "sub1", { method: "contactless", changeId: change } as never),
@@ -105,17 +96,13 @@ describe("submitProof — what a proof MAY be", () => {
 });
 
 describe("presignProof", () => {
-  /**
-   * ⚠ THE PREFIX IS INFRASTRUCTURE. The Terraform lifecycle rule that archives proof filters on this
-   * exact value; an object written anywhere else is never archived and sits in STANDARD for ever,
-   * with nothing reporting it.
-   */
+  /** The Terraform lifecycle rule archives this exact prefix. */
   it("writes under the shared proof prefix, not a local literal", async () => {
     await presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1000, changeId: change });
     expect(presignUpload).toHaveBeenCalledWith(PROOF_MEDIA_PREFIX, "d1", "image/jpeg", 1000);
   });
 
-  // ⚠ 072 — no upload slot for a delivery that cannot have happened yet.
+  // No upload slot for a delivery that cannot have happened yet.
   it("refuses, and mints nothing, while the drop's round has not opened", async () => {
     const opensAt = new Date("2026-10-08T05:15:00Z");
     vi.mocked(query).mockResolvedValueOnce({ rows: [{ opens_at: opensAt, closed: true }], rowCount: 1 } as never);
@@ -126,7 +113,7 @@ describe("presignProof", () => {
     expect(presignUpload).not.toHaveBeenCalled();
   });
 
-  // The gate is scoped to the caller, so somebody else's drop is not an oracle for "this id is real".
+  // Scoped to the caller, so another driver's drop reveals nothing.
   it("asks about the round only as this driver", async () => {
     await presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1000, changeId: change });
     expect(vi.mocked(query).mock.calls[0]![1]).toEqual(["d1", "drv1"]);

@@ -1,8 +1,4 @@
-// GET /shop/v1/team — this shop's roster (057 US7).
-//
-// ⚠ READABLE BY ANY SHOP MEMBER, not just managers. Knowing who you work with is not privileged, and
-// the console hides the ACTIONS from a non-manager rather than the list. Every mutating route below
-// checks `requireManager` from the platform record.
+// Readable by any member; every mutating route checks `requireManager`.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

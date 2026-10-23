@@ -1,5 +1,4 @@
-// 095 US2 — promotion skins: SQL only. Every write audits in the same transaction. Rules (validation,
-// readability, the built-in Classic skin) are the service's.
+// Every write audits in the same transaction; the rules are the service's.
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import type { AdminSkinDTO, AdminSkinListItemDTO, AdminSkinUsageDTO, DesignedLayout, GroupSize, SkinLayout, SkinSettings } from "@effy/shared-types";
 
@@ -43,7 +42,6 @@ async function audit(tx: Queryable, actor: string, action: string, id: string, d
 }
 
 export async function listSkins(): Promise<AdminSkinListItemDTO[]> {
-  // Classic first, then by name.
   return (await query<SkinRow>(`${SELECT} ORDER BY (s.layout = 'classic') DESC, lower(s.name)`)).rows.map(toItem);
 }
 
@@ -81,7 +79,7 @@ export async function readSkin(id: string, db: Queryable = { query }): Promise<A
   };
 }
 
-/** Sizes of the groups that would show this skin (as a member's choice or as a default). */
+/** Sizes of the groups that would show this skin, as a member's choice or a default. */
 export async function sizesUsing(db: Queryable, id: string): Promise<GroupSize[]> {
   const res = await db.query<{ size: GroupSize }>(
     `SELECT DISTINCT g.size FROM public.promotion_group g
@@ -105,10 +103,7 @@ export async function insertSkin(input: { name: string; layout: DesignedLayout; 
   });
 }
 
-/**
- * Update a skin if it is still at `expectedVersion` (FR-014). `check` runs inside the transaction with
- * the row locked, so a layout change cannot race a group that starts using the skin.
- */
+/** Only if still at `expectedVersion`. `check` runs with the row locked, so a layout change cannot race a new user of the skin. */
 export async function updateSkin(
   id: string,
   change: { name?: string; layout?: DesignedLayout; settings?: SkinSettings },
@@ -141,7 +136,7 @@ export async function updateSkin(
   });
 }
 
-/** Delete a skin nothing uses. Answers the usage instead when something does (FR-013). */
+/** Deletes a skin nothing uses; otherwise answers the usage. */
 export async function deleteSkin(id: string, actor: string): Promise<"deleted" | "missing" | AdminSkinUsageDTO> {
   return withTransaction(async (tx) => {
     const cur = (await tx.query<{ name: string }>(`SELECT name FROM public.promotion_skin WHERE id = $1 FOR UPDATE`, [id])).rows[0];

@@ -3,7 +3,7 @@ import type { PlanGapCode, PlanGapDTO } from "@effy/shared-types";
 
 import { deliveryMutationError } from "../errorText";
 
-// The console's OWN words for each thing a plan can be missing (077 FR-018), keyed on the code the
+// The console's own words for each thing a plan can be missing, keyed on the code the
 // service sends — never its prose. A `Record` over the closed union, so a new code does not compile
 // until it has a sentence: 047 shipped "cannot activate" with nobody able to say which term refused.
 
@@ -30,7 +30,7 @@ export function gapText(gap: PlanGapDTO): string {
 }
 
 /**
- * Per-field problems for a refused save, keyed on the field the service named. ⚠ The service's
+ * Per-field problems for a refused save, keyed on the field the service named. The service's
  * field messages are written for this console (they name the rule, never a value), so they are shown.
  */
 export function planFieldErrors(err: unknown): Record<string, string> {

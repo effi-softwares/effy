@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# No-Jade sweep (017 SC-008): the retired Jade brand values (#0FB57E accent, #047857 fill) MUST NOT
+# No-Jade sweep: the retired Jade brand values (#0FB57E accent, #047857 fill) must not
 # appear in any live source/asset. Scans packages/ + apps/ code files, excluding node_modules, build
 # output, and the theme guard tests (which legitimately name the forbidden hex to forbid it).
 set -euo pipefail

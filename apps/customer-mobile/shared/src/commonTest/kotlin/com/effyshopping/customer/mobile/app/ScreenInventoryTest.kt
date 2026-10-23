@@ -10,24 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * 026 T045 — the primary navigation destination set (contracts S9 / research R7).
- *
- * ⚠ FOUR tabs, not five. Browse was removed at the operator's instruction, which **supersedes 025
- * FR-010** ("an equivalent category browse experience reachable from its primary navigation"). That
- * requirement is no longer in force for mobile.
- *
- * ⚠ UPDATED BY 028: category filtering no longer lives in "the Discover chips" — those went with the
- * grid. It now lives in Home's **category shortcut row**, which pushes a scoped `Results` route.
- * Still not a tab, so the set below is unchanged; but a reader hitting this test first should not be
- * sent looking for chips that no longer exist.
- *
- * The set is still pinned: changing it is a navigation change, not a restyle.
- *
- * ⚠ CHANGED BY 087, DELIBERATELY: the operator directed "cart button should be in bottom nav", so
- * Cart became the fifth tab (087 spec FR-006/FR-007). That is exactly the navigation change this test
- * exists to make visible — it was made on purpose, through a spec, and the assertion moved with it.
- */
+/** The primary destinations: five tabs (Home · Search · Cart · Orders · Account). Pinned: changing it is a navigation change, not a restyle. */
 class ScreenInventoryTest {
 
     @Test
@@ -46,13 +29,7 @@ class ScreenInventoryTest {
     }
 }
 
-/**
- * 026 — iOS restore safety.
- *
- * Kotlin/Native has no reflection-based saved state, so every route must be registered in the
- * polymorphic module backing `customerNavSavedState`. A missing registration fails to restore **on
- * iOS only** and passes every Android test — the exact bug 015 predicted (research R6).
- */
+/** iOS restore safety: every route is registered in the polymorphic module behind `customerNavSavedState` (a missing one fails on iOS only). */
 class CustomerNavKeySerializationTest {
 
     @Test
@@ -61,7 +38,7 @@ class CustomerNavKeySerializationTest {
         // added to CustomerNavKey and forgotten here, this count drifts and the failure is loud.
         assertEquals(
             // 051 US6 adds PaymentMethods (33 → 34); wiring the payment screen adds Payment (34 → 35);
-            // 074 adds Points (35 → 36).
+            // Adds Points (35 → 36).
             36,
             ALL_CUSTOMER_ROUTES.size,
             "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
@@ -69,9 +46,9 @@ class CustomerNavKeySerializationTest {
     }
 
     /**
-     * 028 T021 — the counts above are necessary and not sufficient.
+     * The counts above are necessary and not sufficient.
      *
-     * ⚠ A route can be present in `ALL_CUSTOMER_ROUTES` and MISSING from the polymorphic module, and
+     * A route can be present in `ALL_CUSTOMER_ROUTES` and missing from the polymorphic module, and
      * every count test still passes. The failure then shows up only on iOS, only after process
      * death, only when that route is on the stack. This actually serialises each route through the
      * configured module, which is the only thing that proves the registration exists.
@@ -100,14 +77,14 @@ class CustomerNavKeySerializationTest {
 }
 
 /**
- * 026 — the invariant the back arrow rests on.
+ * The invariant the back arrow rests on.
  *
  * `rememberBackAffordanceDecorator` decides whether a destination shows a back arrow by comparing
  * `NavEntry.contentKey` against the bottom of the stack. `NavEntry.key` is private, and Nav3 derives
- * `contentKey` from `key.toString()`, so that comparison is only an identity check for as long as
+ * `contentKey` from `key.toString`, so that comparison is only an identity check for as long as
  * every route stringifies distinctly.
  *
- * A route that broke this — by overriding `toString()`, or by being declared as a `class` rather than
+ * A route that broke this — by overriding `toString`, or by being declared as a `class` rather than
  * a `data class`/`data object`, which would fall back to an identity hash — would make some screen
  * either lose its back arrow or grow one that pops nothing, and it would do so silently.
  */

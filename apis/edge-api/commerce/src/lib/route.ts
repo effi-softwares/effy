@@ -1,14 +1,14 @@
 /**
  * The two shapes a commerce route takes.
  *
- *   customerRoute(fn)  a signed-in shopper. The gateway has verified the token; this resolves the
- *                      platform's own customer record and refuses a barred or closing shopper
- *                      BEFORE `fn` runs. There is no way to write an authenticated route that
- *                      skips the check, which is the point (070 FR-011).
- *   publicRoute(fn)    no shopper identity (cart preview, cart policy, the payment webhook).
+ *  customerRoute(fn) a signed-in shopper. The gateway has verified the token; this resolves the
+ *  platform's own customer record and refuses a barred or closing shopper
+ *  before `fn` runs. There is no way to write an authenticated route that
+ *  skips the check, which is the point.
+ *  publicRoute(fn) no shopper identity (cart preview, cart policy, the payment webhook).
  *
  * Both export through `shopperHandler`, so the shopper connection limit is answered as a retryable
- * 503 everywhere. `functions.guard.test.ts` fails the build on a function that uses neither.
+ * Everywhere. `functions.guard.test.ts` fails the build on a function that uses neither.
  */
 import {
   preamble, resolveCustomer, shopperHandler,
@@ -77,7 +77,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * An optional change id: "" when absent, the id when it is a uuid, `null` when it is anything else.
  *
- * ⚠ A change id is stored in a uuid column. One that is not a uuid would raise in the database and
+ * A change id is stored in a uuid column. One that is not a uuid would raise in the database and
  * be reported as the platform failing; it is the caller's malformed request and is answered as one.
  */
 export function changeIdOf(v: unknown): string | null {

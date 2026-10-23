@@ -10,9 +10,6 @@ import {
   type ShopStaffStatus,
 } from "./types";
 
-// Raw SQL as named constants, explicit row → domain mapping, nothing wire-shaped escaping this
-// file (constitution Principle VI: repository pattern, no ORM, no query builder).
-
 interface StaffRow {
   cognito_sub: string;
   email: string | null;
@@ -39,9 +36,7 @@ SELECT ss.cognito_sub, ss.email, ss.status, ss.last_seen_at,
  GROUP BY ss.id, st.id
 `;
 
-// COALESCE(EXCLUDED.email, shop_staff.email): a token that carries no email must never clobber an
-// email the operator provisioning step already set (research R6). `status` and `shop_id` are
-// absent from this statement on purpose — they are platform-owned and never written from a token.
+// COALESCE keeps a provisioned email when the token has none. `status` and `shop_id` are never written from a token.
 const UPSERT_ON_CONTACT = `
 INSERT INTO public.shop_staff (cognito_sub, email, last_seen_at)
      VALUES ($1, $2, now())
@@ -61,13 +56,7 @@ INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1, $2)
 ON CONFLICT DO NOTHING
 `;
 
-/**
- * The manager gate — one predicate, three terms, each owned by a different place.
- *
- * The `JOIN public.shop` is load-bearing: an unassigned operator (shop_id IS NULL) and one at an
- * inactive shop both drop out of the join, so "no shop" and "inactive shop" are refused by the
- * same query with no extra branch. The cognito:groups claim is NOT consulted (FR-021).
- */
+/** Role, status and shop scope in one predicate; the join on public.shop drops unassigned and inactive. The groups claim is not consulted. */
 const AUTHORIZE_SHOP_MANAGER = `
 SELECT EXISTS (
   SELECT 1
@@ -81,12 +70,7 @@ SELECT EXISTS (
 ) AS ok
 `;
 
-/**
- * Record the operator on first contact, refresh them on every later one — idempotently.
- *
- * One transaction: upsert on the unique `cognito_sub`, then reconcile roles from the claim. Two
- * simultaneous first requests therefore resolve to exactly one row (SC-011).
- */
+/** Upsert on the unique `cognito_sub` then reconcile roles, in one transaction. */
 export async function upsertOnContact(
   sub: string,
   email: string | null,
@@ -118,15 +102,8 @@ async function readById(client: PoolClient, staffId: string): Promise<StaffRow> 
 }
 
 /**
- * The REFUND gate (057 US5): the manager gate above, plus "this shop has a portion of THIS order".
- *
- * ⚠ `shop_staff` IS DELIBERATELY NOT ENOUGH, and this is the one authority split that differs from
- * the rest of the console. Both roles pick and pack. A refund is irreversible and spends the
- * business's money, which places it with the manager.
- *
- * ⚠ The fulfilment term is an EXISTS, so several portions cannot multiply the answer. The shop id
- * comes back with the decision — from the SAME row that granted it — so the lines a refund may name
- * are scoped to the shop that was authorized, never to one read a moment later.
+ * The refund gate: a manager (shop_staff is not enough: a refund is irreversible money) at a shop with a
+ * portion of this order (an exists). The shop id comes from the same row that granted it.
  */
 const AUTHORIZE_SHOP_REFUND = `
 SELECT ss.shop_id::text AS shop_id
@@ -144,7 +121,7 @@ SELECT ss.shop_id::text AS shop_id
  LIMIT 1
 `;
 
-/** The caller's shop id when they may refund part of this order; null when they may not. */
+/** null when they may not. */
 export async function authorizeShopRefund(sub: string, orderId: string): Promise<string | null> {
   const res = await query<{ shop_id: string }>(AUTHORIZE_SHOP_REFUND, [sub, orderId]);
   return res.rows[0]?.shop_id ?? null;

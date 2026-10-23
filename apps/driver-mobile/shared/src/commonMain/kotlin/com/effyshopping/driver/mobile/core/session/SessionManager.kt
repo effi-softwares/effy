@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Owns [SessionState] (014). Reads the session from [authDriver] (Amplify owns tokens) and the record
- * via [getDriverIdentity] — identity is displayed from the RECORD, never the token (FR-019). Listens for SDK
+ * Owns [SessionState]. Reads the session from [authDriver] (Amplify owns tokens) and the record
+ * via [getDriverIdentity] — identity is displayed from the record, never the token. Listens for SDK
  * session drops (Android Keystore failure — 013 D11).
  */
 class SessionManager(
@@ -24,7 +24,7 @@ class SessionManager(
     private val scope: CoroutineScope,
     /** Clears what the app keeps on the phone for the signed-in driver (last copies). */
     private val onSignedOut: () -> Unit = {},
-    /** 092 rev 2 — "the driver's work changed" (`WorkChanges`); the record is re-read on it. */
+    /** Rev 2 — "the driver's work changed" (`WorkChanges`); the record is re-read on it. */
     private val workChanges: Flow<Unit> = emptyFlow(),
 ) {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
@@ -39,7 +39,7 @@ class SessionManager(
     suspend fun bootstrap() {
         _state.value = SessionState.Restoring
         val session = runCatching { authDriver.currentSession() }.getOrNull()
-        // ⚠ NO SESSION AND "COULD NOT CHECK" ARE DIFFERENT ANSWERS (backlog C3). With no signal the
+        // No session and "COULD NOT CHECK" are different answers (backlog C3). With no signal the
         // tokens cannot be refreshed, so `currentSession` is null — yet this device is still signed
         // in. Only a device holding no sign-in goes to the sign-in screen.
         val signedIn = session != null || runCatching { authDriver.holdsSignIn() }.getOrDefault(false)
@@ -83,7 +83,7 @@ class SessionManager(
     }
 
     /**
-     * 092 rev 2 — the driver's work changed (`WorkChanges`): re-read their record quietly, so a hub, van
+     * Rev 2 — the driver's work changed (`WorkChanges`): re-read their record quietly, so a hub, van
      * or name back-office changed mid-shift shows on Today and Account. Back-office's driver edit
      * already tells this driver "work" (`announceDispatch`); until now nothing here listened. A failure
      * changes nothing — a refused credential is [onRequestRejected]'s, via the client.
@@ -100,7 +100,7 @@ class SessionManager(
     /** After a successful email → code sign-in. */
     suspend fun onSignedIn() = loadRecord()
 
-    /** Local sign-out (this device). Purges tokens and returns to the sign-in flow (FR-018). */
+    /** Local sign-out (this device). Purges tokens and returns to the sign-in flow. */
     suspend fun signOutLocally() {
         runCatching { authDriver.signOut() }
         runCatching { onSignedOut() }
@@ -133,7 +133,7 @@ class SessionManager(
                             delay(RETRY_BASE_MILLIS * attempt)
                             continue
                         }
-                        // ⚠ "Could not check" is not "signed out" (backlog C3): open on the record
+                        // "Could not check" is not "signed out" (backlog C3): open on the record
                         // kept on the phone. Only with none kept is there nothing to open on.
                         val kept = (_state.value as? SessionState.SignedIn)?.driver ?: getDriverIdentity.lastKnown()
                         _state.value = if (kept != null) SessionState.SignedIn(kept, offline = true) else SessionState.SignedOut

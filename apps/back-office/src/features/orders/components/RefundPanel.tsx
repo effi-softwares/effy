@@ -28,26 +28,26 @@ import { useIssueRefund } from "../refundQueries";
 export interface RefundableLine {
   orderItemId: string;
   productName: string;
-  /** 098 — the size as sold. */
+  /** The size as sold. */
   variantLabel?: string | null;
   quantity: number;
   unitPriceAmount: string;
 }
 
 /**
- * Issuing a refund (055 US1).
+ * Issuing a refund.
  *
- * ⚠ THIS IS THE ONLY CONTROL IN THIS CONSOLE THAT MOVES MONEY, and refunding is irreversible: there
+ * This is the only control in this console that moves money, and refunding is irreversible: there
  * is no un-refund, and a correction would be a new charge the platform cannot make. Everything about
  * this component is shaped by that — a confirmation step that names the amount (FR/T031), no
  * optimistic update, and an amount that is computed rather than typed.
  *
- * ⚠ TWO KINDS, NEVER BLURRED (FR-003). Selecting lines computes the amount and it CANNOT be edited:
+ * Two kinds, never blurred. Selecting lines computes the amount and it cannot be edited:
  * if the two could disagree, the record would claim a refund covered items it did not. A goodwill
- * refund takes a free amount and REQUIRES a note, so the honest case for an untied figure — a late
+ * refund takes a free amount and requires a note, so the honest case for an untied figure — a late
  * delivery — does not have to borrow a line and put a false statement in the audit trail.
  *
- * ⚠ Detail rows and controls, no cards (Principle V), and no colour carries meaning.
+ * Detail rows and controls, no cards (Principle V), and no colour carries meaning.
  */
 export function RefundPanel({
   orderId,
@@ -67,7 +67,7 @@ export function RefundPanel({
   const [goodwillAmount, setGoodwillAmount] = useState("");
   const [confirming, setConfirming] = useState(false);
 
-  // ⚠ COMPUTED, never typed. This figure is what the server will independently recompute from the
+  // Computed, never typed. This figure is what the server will independently recompute from the
   // same lines; showing anything else would be a promise the server may not keep.
   const computed = lines
     .filter((l) => selected[l.orderItemId])
@@ -153,14 +153,14 @@ export function RefundPanel({
       ) : null}
       {issue.isSuccess ? (
         <p role="status" className="text-sm">
-          {/* ⚠ "on its way", NOT "refunded". The bank has not moved anything and may refuse it weeks
-              later (FR-007). Telling staff it is done would make them stop watching. */}
+          {/* "on its way", not "refunded". The bank has not moved anything and may refuse it weeks
+              later. Telling staff it is done would make them stop watching. */}
           {issue.data.amount} is on its way back to the customer. {issue.data.remainingAmount} remains
           refundable.
         </p>
       ) : null}
 
-      {/* ⚠ T031 — A CONFIRMATION THAT NAMES THE AMOUNT. This control moves real money and refunding
+      {/* A confirmation that names the amount. This control moves real money and refunding
           is irreversible; a mis-click here is not a wrong pixel. The dialog states the figure and what
           it covers, so confirming is a deliberate act rather than a second click in the same place. */}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
@@ -256,7 +256,7 @@ function ItemSelection({
         </Select>
       </div>
 
-      {/* ⚠ Read-only, and that is the requirement (FR-003 / A7a). If this could be typed over, the
+      {/* Read-only, and that is the requirement (FR-003 / A7a). If this could be typed over, the
           amount and the line selection could disagree, and the record would claim a refund covered
           items it did not. */}
       <dl className="grid grid-cols-[10rem_1fr] gap-x-4 text-sm">
@@ -292,7 +292,7 @@ function GoodwillFields({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="goodwill-note">Why</Label>
-        {/* ⚠ REQUIRED, and the database refuses without it. An amount with no line and no explanation
+        {/* Required, and the database refuses without it. An amount with no line and no explanation
             is unaccountable — nobody reading the record later can say what it was for. */}
         <Textarea
           id="goodwill-note"

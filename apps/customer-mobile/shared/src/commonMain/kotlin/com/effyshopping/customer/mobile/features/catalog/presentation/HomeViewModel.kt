@@ -20,7 +20,7 @@ sealed interface HomeUiState {
 }
 
 /**
- * The Home ViewModel (019 US1). Loads the merchandised Home + categories from the storefront service and exposes a
+ * The Home ViewModel. Loads the merchandised Home + categories from the storefront service and exposes a
  * single immutable [HomeUiState]; the View calls [load] for retry. No Android/iOS types — pure common.
  */
 class HomeViewModel(
@@ -36,10 +36,10 @@ class HomeViewModel(
     }
 
     /**
-     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs.
+     * Reload without clearing the screen — what a pull-to-refresh needs.
      *
-     * ⚠ [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
-     * right on first open and wrong on a refresh: the shopper is LOOKING at this content and asking for a
+     * [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
+     * right on first open and wrong on a refresh: the shopper is looking at this content and asking for a
      * newer version of it, not asking for it to disappear. A failure here keeps what is on screen for the
      * same reason — "we could not check" must never read as "there is nothing here".
      */

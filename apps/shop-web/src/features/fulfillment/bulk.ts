@@ -9,19 +9,10 @@ export interface BulkRow {
 }
 
 /**
- * Bulk state-advance (US2, T027) — pure logic, no React, unit-testable.
- *
- * ⚠ IT ADVANCES EACH PORTION TO ITS OWN NEXT STATE, NEVER TO A STATE THE OPERATOR PICKED. A selection
- * legitimately spans states — three orders waiting to be started and two mid-pick — and a control that
- * said "set all to picking" would either refuse the mixed selection or force a state onto a portion
- * that was already past it. Each row's next step is derived from what the server last said about THAT
- * row, using the same `nextTransition` the single-order screen uses, so the bulk path and the single
- * path cannot disagree about what "advance" means.
- *
- * ⚠ THERE IS NO BULK ENDPOINT, AND THAT IS DELIBERATE. Each portion transitions through the existing
- * per-portion route, which is the only place the state machine's guards live. A bulk route would be a
- * second implementation of those guards — the shape 055's own post-mortem warns about — and it would
- * have to invent an answer for "half of them failed", which the summary below gives honestly instead.
+ * Bulk state-advance, pure. Each portion advances to its own next state (`nextTransition`, as on the
+ * single-order screen), never to one the operator picked, since a selection spans states. There is no bulk
+ * endpoint: each portion goes through the per-portion route, where the state machine's guards live, and
+ * the summary says honestly what failed.
  */
 
 /** A portion that can be advanced, paired with the transition it would take. */
@@ -32,11 +23,8 @@ export interface BulkCandidate {
 }
 
 /**
- * ⚠ ONLY FORWARD, AND NEVER `unfulfillable`. `nextTransition` returns the one forward step; declaring
- * a portion unsuppliable is a separate, reason-carrying decision that tells Effy to refund a customer
- * (055 FR-031). Offering it as a one-click "advance" — where one click covers rows the operator did not
- * read individually — is how a mis-click refunds five people. 057 A3's bulk "Cancel" is therefore its
- * OWN control, which lists every order number and demands a reason (`CantSupplyDialog`).
+ * Only forward, never `unfulfillable`: declaring a portion unsuppliable tells Effy to refund a customer,
+ * so it is its own control listing every order and demanding a reason (`CantSupplyDialog`).
  */
 export function bulkCandidates(
   rows: readonly BulkRow[],
@@ -60,14 +48,7 @@ export interface BulkOutcome {
   skipped: number
 }
 
-/**
- * The sentence shown after a bulk run (FR-011).
- *
- * ⚠ IT REPORTS A COUNT, NOT A CLAIM OF SUCCESS. 033 shipped "0 items added to your cart" while every
- * item had failed for a reason the shopper was never told; the lesson is that a summary which counts
- * without naming leaves the operator unable to act. So failures are NAMED, and the message never says
- * "done" when nothing moved.
- */
+/** The sentence after a bulk run: a count with every failure named, never "done" when nothing moved. */
 export function summarise(outcome: BulkOutcome): string {
   const { succeeded, failed, skipped } = outcome
   const parts: string[] = []
@@ -83,7 +64,7 @@ export function summarise(outcome: BulkOutcome): string {
     parts.push(`${skipped} had nothing to advance`)
   }
 
-  // ⚠ Every arm reachable: a selection of only-terminal rows produces the third part alone, and an
+  // Every arm reachable: a selection of only-terminal rows produces the third part alone, and an
   // empty selection cannot reach here (the control is disabled). Never return "" — a silent control
   // is indistinguishable from a broken one.
   if (parts.length === 0) return "Nothing to advance."
@@ -91,8 +72,8 @@ export function summarise(outcome: BulkOutcome): string {
 }
 
 /**
- * The tag set each selected row should end with after "Add tag" (057 A3): its own tags plus the new
- * one. ⚠ Per row, because the tag route takes an ABSOLUTE set — sending just the new tag would erase
+ * The tag set each selected row should end with after "Add tag": its own tags plus the new
+ * one. Per row, because the tag route takes an absolute set — sending just the new tag would erase
  * every tag the row already had. Rows that already carry it are left out, so nothing is re-written.
  */
 export function withTag(
