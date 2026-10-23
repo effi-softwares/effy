@@ -1,0 +1,190 @@
+{
+  "note": "These categories, product types and attributes are seeded by the baseline migration with fixed ids, so nothing here needs creating. The products use these ids directly.",
+  "categories": [
+    {
+      "id": "7451ae3b-c4d5-4ffd-ba89-1e000aa393f4",
+      "key": "food",
+      "name": "Food",
+      "children": [
+        {
+          "id": "033ed643-bb52-42be-b666-5426142516d6",
+          "key": "meals",
+          "name": "Meals",
+          "usedBy": [
+            "butter-chicken",
+            "veg-lasagne"
+          ]
+        },
+        {
+          "id": "776c7a64-4b05-4f97-8f6b-32d377e85008",
+          "key": "bakery",
+          "name": "Bakery",
+          "usedBy": [
+            "sourdough"
+          ]
+        },
+        {
+          "id": "eb3efd7c-5ae2-4c64-9a20-74baa49d20db",
+          "key": "snacks",
+          "name": "Snacks",
+          "usedBy": []
+        }
+      ]
+    },
+    {
+      "id": "4bad5596-e6fa-4f5a-8ac3-68fecb801702",
+      "key": "grocery",
+      "name": "Grocery",
+      "children": [
+        {
+          "id": "e9fa5e10-1a9e-43c7-85f8-9de96f7fd85c",
+          "key": "pantry",
+          "name": "Pantry",
+          "usedBy": [
+            "olive-oil"
+          ]
+        },
+        {
+          "id": "1d178857-4f0a-4781-a677-f8e4040b7805",
+          "key": "chilled",
+          "name": "Chilled",
+          "usedBy": [
+            "greek-yoghurt"
+          ]
+        },
+        {
+          "id": "6d6364c2-56a2-4ae2-98d2-ce902083e144",
+          "key": "frozen",
+          "name": "Frozen",
+          "usedBy": [
+            "frozen-berries"
+          ]
+        },
+        {
+          "id": "c0b82da2-bf51-42e6-bb84-49f403b89950",
+          "key": "beverages",
+          "name": "Beverages",
+          "usedBy": [
+            "mineral-water"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "da12a078-9f8c-435e-b760-44a5c06c8579",
+      "key": "household",
+      "name": "Household",
+      "children": [
+        {
+          "id": "f5f8f0ea-a4c7-40ff-a939-d23de9ae98bd",
+          "key": "cleaning",
+          "name": "Cleaning",
+          "usedBy": [
+            "dish-liquid"
+          ]
+        },
+        {
+          "id": "0650c09d-2750-4888-8e2d-c787f4779f44",
+          "key": "paper_goods",
+          "name": "Paper Goods",
+          "usedBy": []
+        }
+      ]
+    }
+  ],
+  "productTypes": [
+    {
+      "id": "a0e74544-e7dc-4d9e-818b-fd80f7e87cec",
+      "key": "prepared_food",
+      "mandatory": [
+        "allergens"
+      ],
+      "optional": [
+        "dietary_labels",
+        "spice_level",
+        "prep_time",
+        "ingredients"
+      ]
+    },
+    {
+      "id": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
+      "key": "packaged_grocery",
+      "mandatory": [
+        "net_weight",
+        "storage"
+      ],
+      "optional": [
+        "country_of_origin",
+        "allergens",
+        "ingredients"
+      ]
+    },
+    {
+      "id": "eefee447-c3a6-4003-829d-ea62cf695bb5",
+      "key": "beverage",
+      "mandatory": [
+        "net_volume"
+      ],
+      "optional": [
+        "storage",
+        "country_of_origin"
+      ]
+    },
+    {
+      "id": "b295d766-4828-43df-8adc-54f68d6b1a83",
+      "key": "household",
+      "mandatory": [],
+      "optional": [
+        "material",
+        "dimensions"
+      ]
+    }
+  ],
+  "attributes": {
+    "dietary_labels": {
+      "id": "3537f808-2679-4d93-850e-213d04ec57f2",
+      "kind": "multi_select"
+    },
+    "allergens": {
+      "id": "044667ba-e3ab-4ade-ba87-e701202b9041",
+      "kind": "multi_select"
+    },
+    "spice_level": {
+      "id": "34a7c738-4cc2-4b39-9997-95eedd816190",
+      "kind": "single_select"
+    },
+    "prep_time": {
+      "id": "67cf567a-ff9a-4d8d-b95a-70840d49c451",
+      "kind": "number"
+    },
+    "net_weight": {
+      "id": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
+      "kind": "number"
+    },
+    "net_volume": {
+      "id": "68d05001-331c-4089-99f0-cadca5e3af69",
+      "kind": "number"
+    },
+    "storage": {
+      "id": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+      "kind": "single_select"
+    },
+    "country_of_origin": {
+      "id": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+      "kind": "text"
+    },
+    "ingredients": {
+      "id": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+      "kind": "text"
+    },
+    "material": {
+      "id": "7c95da19-9415-42d6-94ca-8dbe265bb091",
+      "kind": "text"
+    },
+    "dimensions": {
+      "id": "1a82d077-155a-4850-a19a-fe65357c602f",
+      "kind": "text"
+    }
+  },
+  "storageNote": "Storage (frozen/chilled/ambient) comes from the `storage` attribute and decides the driver manifest's temperature class; a product without it is ambient."
+}

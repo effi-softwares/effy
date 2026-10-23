@@ -1,0 +1,84 @@
+{
+  "shops": [
+    {
+      "code": "RICH01",
+      "create": {
+        "method": "POST",
+        "path": "/admin/v1/shops",
+        "signInAs": "back-office admin",
+        "body": {
+          "code": "RICH01",
+          "name": "Richmond Kitchen",
+          "contactPhone": "03 7010 4521",
+          "notes": "Test shop. Prepared meals, bakery and chilled dairy. Collection from the rear loading bay.",
+          "primaryContact": {
+            "name": "Priya Raman",
+            "email": "priya.raman@example.com"
+          }
+        }
+      },
+      "address": {
+        "method": "PATCH",
+        "path": "/admin/v1/shops/{shopId}",
+        "body": {
+          "addressLine1": "112 Swan Street",
+          "addressLine2": "Rear loading bay",
+          "suburb": "Richmond",
+          "postcode": "3121",
+          "state": "VIC"
+        }
+      },
+      "users": [
+        {
+          "method": "POST",
+          "path": "/admin/v1/shops/{shopId}/users",
+          "body": {
+            "name": "Tom Nguyen",
+            "email": "tom.nguyen@example.com",
+            "role": "shop_staff"
+          }
+        }
+      ]
+    },
+    {
+      "code": "FOOT01",
+      "create": {
+        "method": "POST",
+        "path": "/admin/v1/shops",
+        "signInAs": "back-office admin",
+        "body": {
+          "code": "FOOT01",
+          "name": "Footscray Pantry",
+          "contactPhone": "03 7010 4588",
+          "notes": "Test shop. Pantry, drinks, frozen and household lines.",
+          "primaryContact": {
+            "name": "Marco Bianchi",
+            "email": "marco.bianchi@example.com"
+          }
+        }
+      },
+      "address": {
+        "method": "PATCH",
+        "path": "/admin/v1/shops/{shopId}",
+        "body": {
+          "addressLine1": "45 Barkly Street",
+          "addressLine2": null,
+          "suburb": "Footscray",
+          "postcode": "3011",
+          "state": "VIC"
+        }
+      },
+      "users": [
+        {
+          "method": "POST",
+          "path": "/admin/v1/shops/{shopId}/users",
+          "body": {
+            "name": "Aisha Khan",
+            "email": "aisha.khan@example.com",
+            "role": "shop_staff"
+          }
+        }
+      ]
+    }
+  ]
+}

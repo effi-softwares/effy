@@ -1,0 +1,136 @@
+{
+  "drivers": [
+    {
+      "create": {
+        "method": "POST",
+        "path": "/fleet/v1/drivers",
+        "signInAs": "back-office admin",
+        "body": {
+          "name": "Sam Wilson",
+          "workEmail": "sam.wilson@example.com",
+          "contactPhone": "0491 570 156",
+          "licenceReference": "TEST-DL-100201",
+          "licenceExpiresOn": "2029-06-30",
+          "licenceClass": "LR",
+          "emergencyContactName": "Jordan Wilson",
+          "emergencyContactPhone": "0491 570 157",
+          "startedOn": "2026-10-01",
+          "notes": "Test driver."
+        }
+      },
+      "clearances": [
+        {
+          "method": "POST",
+          "path": "/fleet/v1/drivers/{driverId}/capabilities",
+          "body": {
+            "function": "collection",
+            "zoneId": null
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/fleet/v1/drivers/{driverId}/capabilities",
+          "body": {
+            "function": "delivery",
+            "zoneId": null
+          }
+        }
+      ],
+      "vehicle": {
+        "method": "POST",
+        "path": "/fleet/v1/vehicles",
+        "body": {
+          "registrationPlate": "TST001",
+          "make": "Toyota",
+          "model": "HiAce",
+          "bodyType": "van",
+          "ownership": "effy_owned",
+          "year": 2023,
+          "fuelType": "diesel",
+          "payloadKg": 1000,
+          "loadVolumeLitres": 6200,
+          "crateCapacity": 60,
+          "canCarryChilled": true,
+          "canCarryFrozen": true,
+          "registrationExpiresOn": "2027-09-30",
+          "insurancePolicyReference": "TEST-INS-0001",
+          "insuranceExpiresOn": "2027-09-30",
+          "roadworthyExpiresOn": "2027-09-30",
+          "odometerKm": 18450,
+          "notes": "Refrigerated test van."
+        }
+      },
+      "issueVehicle": {
+        "method": "POST",
+        "path": "/fleet/v1/vehicles/{vehicleId}/holdings",
+        "body": {
+          "driverId": "{driverId}",
+          "odometerStartKm": 18450,
+          "note": "Issued for testing."
+        }
+      }
+    },
+    {
+      "create": {
+        "method": "POST",
+        "path": "/fleet/v1/drivers",
+        "signInAs": "back-office admin",
+        "body": {
+          "name": "Lena Ortiz",
+          "workEmail": "lena.ortiz@example.com",
+          "contactPhone": "0491 570 158",
+          "licenceReference": "TEST-DL-100202",
+          "licenceExpiresOn": "2029-06-30",
+          "licenceClass": "C",
+          "emergencyContactName": "Diego Ortiz",
+          "emergencyContactPhone": "0491 570 159",
+          "startedOn": "2026-10-01",
+          "notes": "Test driver."
+        }
+      },
+      "clearances": [
+        {
+          "method": "POST",
+          "path": "/fleet/v1/drivers/{driverId}/capabilities",
+          "body": {
+            "function": "delivery",
+            "zoneId": null
+          }
+        }
+      ],
+      "vehicle": {
+        "method": "POST",
+        "path": "/fleet/v1/vehicles",
+        "body": {
+          "registrationPlate": "TST002",
+          "make": "Hyundai",
+          "model": "Staria Load",
+          "bodyType": "van",
+          "ownership": "effy_owned",
+          "year": 2024,
+          "fuelType": "diesel",
+          "payloadKg": 1000,
+          "loadVolumeLitres": 4900,
+          "crateCapacity": 45,
+          "canCarryChilled": true,
+          "canCarryFrozen": false,
+          "registrationExpiresOn": "2027-11-30",
+          "insurancePolicyReference": "TEST-INS-0002",
+          "insuranceExpiresOn": "2027-11-30",
+          "roadworthyExpiresOn": "2027-11-30",
+          "odometerKm": 6120,
+          "notes": "Chilled only; no freezer."
+        }
+      },
+      "issueVehicle": {
+        "method": "POST",
+        "path": "/fleet/v1/vehicles/{vehicleId}/holdings",
+        "body": {
+          "driverId": "{driverId}",
+          "odometerStartKm": 6120,
+          "note": "Issued for testing."
+        }
+      }
+    }
+  ]
+}

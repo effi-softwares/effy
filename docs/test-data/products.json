@@ -1,0 +1,1039 @@
+{
+  "products": [
+    {
+      "key": "butter-chicken",
+      "shopCode": "RICH01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "RICH01 shop manager",
+        "body": {
+          "productTypeId": "a0e74544-e7dc-4d9e-818b-fd80f7e87cec",
+          "primaryCategoryId": "033ed643-bb52-42be-b666-5426142516d6",
+          "name": "Butter Chicken with Basmati Rice",
+          "brand": "Richmond Kitchen",
+          "shortDescription": "Slow-cooked chicken in a mild tomato and butter sauce, with steamed basmati rice.",
+          "longDescription": "Made fresh each morning. Heat for 4 minutes in the microwave or 15 minutes in the oven at 180°C. Keep refrigerated and eat within 3 days.",
+          "gstStatus": "taxable",
+          "unitBasis": "per_100g",
+          "options": [
+            {
+              "id": "03c6dd5f-d18d-5bee-82d9-81d8d3bd08f5",
+              "position": 1,
+              "name": "Size",
+              "values": [
+                {
+                  "id": "27c34d17-2009-5805-9a18-3e43c20db185",
+                  "value": "Regular",
+                  "position": 0
+                },
+                {
+                  "id": "8bf364f7-6212-562f-a6bc-8fa8b53a476b",
+                  "value": "Large",
+                  "position": 1
+                }
+              ]
+            }
+          ],
+          "variants": [
+            {
+              "id": "ccac83af-f98c-54fb-b747-70d242bb8f93",
+              "position": 0,
+              "optionValueIds": [
+                "27c34d17-2009-5805-9a18-3e43c20db185",
+                null
+              ],
+              "sku": "RK-BC-400",
+              "gtin": "2000000000015",
+              "shopPriceAmount": "12.90",
+              "shopCompareAtAmount": null,
+              "weightGrams": 450,
+              "packQuantity": "400",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "0e413f8c-5834-5fc5-952a-a1473eef6f07",
+              "position": 1,
+              "optionValueIds": [
+                "8bf364f7-6212-562f-a6bc-8fa8b53a476b",
+                null
+              ],
+              "sku": "RK-BC-650",
+              "gtin": "2000000000022",
+              "shopPriceAmount": "16.90",
+              "shopCompareAtAmount": "18.50",
+              "weightGrams": 700,
+              "packQuantity": "650",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "044667ba-e3ab-4ade-ba87-e701202b9041",
+              "valueOptions": [
+                "milk",
+                "tree_nuts"
+              ]
+            },
+            {
+              "attributeId": "3537f808-2679-4d93-850e-213d04ec57f2",
+              "valueOptions": [
+                "halal",
+                "gluten_free"
+              ]
+            },
+            {
+              "attributeId": "34a7c738-4cc2-4b39-9997-95eedd816190",
+              "valueText": "mild"
+            },
+            {
+              "attributeId": "67cf567a-ff9a-4d8d-b95a-70840d49c451",
+              "valueNumber": 4
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Chicken thigh (35%), basmati rice, tomato, cream (milk), butter (milk), onion, cashew, garlic, ginger, garam masala, salt."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "20"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "ccac83af-f98c-54fb-b747-70d242bb8f93",
+          "sku": "RK-BC-400",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/ccac83af-f98c-54fb-b747-70d242bb8f93/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 40
+            }
+          }
+        },
+        {
+          "variantId": "0e413f8c-5834-5fc5-952a-a1473eef6f07",
+          "sku": "RK-BC-650",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/0e413f8c-5834-5fc5-952a-a1473eef6f07/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "veg-lasagne",
+      "shopCode": "RICH01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "RICH01 shop manager",
+        "body": {
+          "productTypeId": "a0e74544-e7dc-4d9e-818b-fd80f7e87cec",
+          "primaryCategoryId": "033ed643-bb52-42be-b666-5426142516d6",
+          "name": "Roast Vegetable Lasagne",
+          "brand": "Richmond Kitchen",
+          "shortDescription": "Layers of roast pumpkin, zucchini and spinach with ricotta and a rich tomato sauce.",
+          "longDescription": "Serves one. Heat for 5 minutes in the microwave or 20 minutes in the oven at 180°C.",
+          "gstStatus": "taxable",
+          "unitBasis": null,
+          "options": [],
+          "variants": [
+            {
+              "id": "604945e7-b861-5869-aa19-a4b8ac462fcc",
+              "position": 0,
+              "optionValueIds": [
+                null,
+                null
+              ],
+              "sku": "RK-LAS-450",
+              "gtin": "2000000000039",
+              "shopPriceAmount": "13.50",
+              "shopCompareAtAmount": null,
+              "weightGrams": 500,
+              "packQuantity": null,
+              "packUnit": null,
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "044667ba-e3ab-4ade-ba87-e701202b9041",
+              "valueOptions": [
+                "milk",
+                "wheat",
+                "eggs"
+              ]
+            },
+            {
+              "attributeId": "3537f808-2679-4d93-850e-213d04ec57f2",
+              "valueOptions": [
+                "vegetarian"
+              ]
+            },
+            {
+              "attributeId": "34a7c738-4cc2-4b39-9997-95eedd816190",
+              "valueText": "none"
+            },
+            {
+              "attributeId": "67cf567a-ff9a-4d8d-b95a-70840d49c451",
+              "valueNumber": 5
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Pasta (wheat, egg), pumpkin, zucchini, spinach, ricotta (milk), mozzarella (milk), tomato, olive oil, basil, salt."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "20"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "604945e7-b861-5869-aa19-a4b8ac462fcc",
+          "sku": "RK-LAS-450",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/604945e7-b861-5869-aa19-a4b8ac462fcc/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 30
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "sourdough",
+      "shopCode": "RICH01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "RICH01 shop manager",
+        "body": {
+          "productTypeId": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
+          "primaryCategoryId": "776c7a64-4b05-4f97-8f6b-32d377e85008",
+          "name": "White Sourdough Loaf",
+          "brand": "Richmond Kitchen",
+          "shortDescription": "A naturally leavened loaf with a crisp crust and an open crumb, baked daily.",
+          "longDescription": "Baked from flour, water and salt with a 24-hour ferment. Best within 2 days; freezes well sliced.",
+          "gstStatus": "gst_free",
+          "unitBasis": "per_kg",
+          "options": [],
+          "variants": [
+            {
+              "id": "3c4f09e2-461a-58b0-af8f-0edea0db170a",
+              "position": 0,
+              "optionValueIds": [
+                null,
+                null
+              ],
+              "sku": "RK-SD-750",
+              "gtin": "2000000000046",
+              "shopPriceAmount": "8.50",
+              "shopCompareAtAmount": null,
+              "weightGrams": 780,
+              "packQuantity": "750",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
+              "valueNumber": 750
+            },
+            {
+              "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+              "valueText": "ambient"
+            },
+            {
+              "attributeId": "044667ba-e3ab-4ade-ba87-e701202b9041",
+              "valueOptions": [
+                "wheat"
+              ]
+            },
+            {
+              "attributeId": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+              "valueText": "Australia"
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Wheat flour, water, salt."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "amount",
+            "value": "1.50"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "3c4f09e2-461a-58b0-af8f-0edea0db170a",
+          "sku": "RK-SD-750",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/3c4f09e2-461a-58b0-af8f-0edea0db170a/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 20
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "greek-yoghurt",
+      "shopCode": "RICH01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "RICH01 shop manager",
+        "body": {
+          "productTypeId": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
+          "primaryCategoryId": "1d178857-4f0a-4781-a677-f8e4040b7805",
+          "name": "Greek Style Yoghurt",
+          "brand": "Yarra Dairy",
+          "shortDescription": "Thick, creamy strained yoghurt with live cultures.",
+          "longDescription": "Strained for a thick, high-protein yoghurt. Keep refrigerated at or below 4°C. Use within 5 days of opening.",
+          "gstStatus": "gst_free",
+          "unitBasis": "per_100g",
+          "options": [
+            {
+              "id": "d3cb9509-89b9-5b9b-b7a2-2eb60418d12f",
+              "position": 1,
+              "name": "Flavour",
+              "values": [
+                {
+                  "id": "8ccf7faa-4ab3-59dd-9532-da57d53df5e3",
+                  "value": "Natural",
+                  "position": 0
+                },
+                {
+                  "id": "db3cd3d7-616b-5474-ba63-6a5cf3e7a969",
+                  "value": "Honey",
+                  "position": 1
+                }
+              ]
+            },
+            {
+              "id": "67383c44-45c4-5f6a-ad3b-7ce8f25300ed",
+              "position": 2,
+              "name": "Size",
+              "values": [
+                {
+                  "id": "12c53176-8ff4-5735-bbc1-2208a554ac29",
+                  "value": "500 g",
+                  "position": 0
+                },
+                {
+                  "id": "63f09cf9-5941-54fb-a44d-158095dd083d",
+                  "value": "1 kg",
+                  "position": 1
+                }
+              ]
+            }
+          ],
+          "variants": [
+            {
+              "id": "3e6cad7c-9222-5048-a79d-6d4556b6b22a",
+              "position": 0,
+              "optionValueIds": [
+                "8ccf7faa-4ab3-59dd-9532-da57d53df5e3",
+                "12c53176-8ff4-5735-bbc1-2208a554ac29"
+              ],
+              "sku": "YD-GY-NAT-500",
+              "gtin": "2000000000053",
+              "shopPriceAmount": "4.80",
+              "shopCompareAtAmount": null,
+              "weightGrams": 530,
+              "packQuantity": "500",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "1ab461d5-7e5d-51b6-9d88-2abc64dd3cb3",
+              "position": 1,
+              "optionValueIds": [
+                "8ccf7faa-4ab3-59dd-9532-da57d53df5e3",
+                "63f09cf9-5941-54fb-a44d-158095dd083d"
+              ],
+              "sku": "YD-GY-NAT-1K",
+              "gtin": "2000000000060",
+              "shopPriceAmount": "8.20",
+              "shopCompareAtAmount": null,
+              "weightGrams": 1050,
+              "packQuantity": "1",
+              "packUnit": "kg",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "8cb5d575-fd1c-543d-9c66-9172a7aa098b",
+              "position": 2,
+              "optionValueIds": [
+                "db3cd3d7-616b-5474-ba63-6a5cf3e7a969",
+                "12c53176-8ff4-5735-bbc1-2208a554ac29"
+              ],
+              "sku": "YD-GY-HON-500",
+              "gtin": "2000000000077",
+              "shopPriceAmount": "5.20",
+              "shopCompareAtAmount": null,
+              "weightGrams": 530,
+              "packQuantity": "500",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "4a6ef27a-d7fc-5957-82f4-c2c17566b320",
+              "position": 3,
+              "optionValueIds": [
+                "db3cd3d7-616b-5474-ba63-6a5cf3e7a969",
+                "63f09cf9-5941-54fb-a44d-158095dd083d"
+              ],
+              "sku": "YD-GY-HON-1K",
+              "gtin": "2000000000084",
+              "shopPriceAmount": "8.90",
+              "shopCompareAtAmount": "9.80",
+              "weightGrams": 1050,
+              "packQuantity": "1",
+              "packUnit": "kg",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
+              "valueNumber": 500
+            },
+            {
+              "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+              "valueText": "chilled"
+            },
+            {
+              "attributeId": "044667ba-e3ab-4ade-ba87-e701202b9041",
+              "valueOptions": [
+                "milk"
+              ]
+            },
+            {
+              "attributeId": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+              "valueText": "Australia"
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Milk, cream (milk), live cultures. Honey variant: honey (8%)."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "15"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "3e6cad7c-9222-5048-a79d-6d4556b6b22a",
+          "sku": "YD-GY-NAT-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/3e6cad7c-9222-5048-a79d-6d4556b6b22a/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 24
+            }
+          }
+        },
+        {
+          "variantId": "1ab461d5-7e5d-51b6-9d88-2abc64dd3cb3",
+          "sku": "YD-GY-NAT-1K",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/1ab461d5-7e5d-51b6-9d88-2abc64dd3cb3/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 12
+            }
+          }
+        },
+        {
+          "variantId": "8cb5d575-fd1c-543d-9c66-9172a7aa098b",
+          "sku": "YD-GY-HON-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/8cb5d575-fd1c-543d-9c66-9172a7aa098b/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 24
+            }
+          }
+        },
+        {
+          "variantId": "4a6ef27a-d7fc-5957-82f4-c2c17566b320",
+          "sku": "YD-GY-HON-1K",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/4a6ef27a-d7fc-5957-82f4-c2c17566b320/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 12
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "olive-oil",
+      "shopCode": "FOOT01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "FOOT01 shop manager",
+        "body": {
+          "productTypeId": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
+          "primaryCategoryId": "e9fa5e10-1a9e-43c7-85f8-9de96f7fd85c",
+          "name": "Australian Extra Virgin Olive Oil",
+          "brand": "Western Grove",
+          "shortDescription": "Cold-pressed extra virgin olive oil with a fresh, peppery finish.",
+          "longDescription": "Pressed within hours of harvest from Australian-grown olives. Store in a cool, dark place.",
+          "gstStatus": "gst_free",
+          "unitBasis": "per_l",
+          "options": [
+            {
+              "id": "a99dafe5-f564-518c-aeae-5246be44f3f1",
+              "position": 1,
+              "name": "Size",
+              "values": [
+                {
+                  "id": "54556199-4b69-50a4-97e3-152abe1c9c16",
+                  "value": "500 mL",
+                  "position": 0
+                },
+                {
+                  "id": "9ab784e5-9af6-51a1-96fd-a295678ac4f9",
+                  "value": "1 L",
+                  "position": 1
+                }
+              ]
+            }
+          ],
+          "variants": [
+            {
+              "id": "157258c5-c190-5d62-8464-53ae74249cc4",
+              "position": 0,
+              "optionValueIds": [
+                "54556199-4b69-50a4-97e3-152abe1c9c16",
+                null
+              ],
+              "sku": "WG-EVOO-500",
+              "gtin": "2000000000091",
+              "shopPriceAmount": "11.00",
+              "shopCompareAtAmount": null,
+              "weightGrams": 900,
+              "packQuantity": "500",
+              "packUnit": "ml",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "d86f7270-671b-57ef-a383-a486d9983c1b",
+              "position": 1,
+              "optionValueIds": [
+                "9ab784e5-9af6-51a1-96fd-a295678ac4f9",
+                null
+              ],
+              "sku": "WG-EVOO-1L",
+              "gtin": "2000000000107",
+              "shopPriceAmount": "19.50",
+              "shopCompareAtAmount": null,
+              "weightGrams": 1500,
+              "packQuantity": "1",
+              "packUnit": "l",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
+              "valueNumber": 460
+            },
+            {
+              "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+              "valueText": "ambient"
+            },
+            {
+              "attributeId": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+              "valueText": "Australia"
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Extra virgin olive oil (100%)."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "20"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "157258c5-c190-5d62-8464-53ae74249cc4",
+          "sku": "WG-EVOO-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/157258c5-c190-5d62-8464-53ae74249cc4/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 36
+            }
+          }
+        },
+        {
+          "variantId": "d86f7270-671b-57ef-a383-a486d9983c1b",
+          "sku": "WG-EVOO-1L",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/d86f7270-671b-57ef-a383-a486d9983c1b/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 18
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "mineral-water",
+      "shopCode": "FOOT01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "FOOT01 shop manager",
+        "body": {
+          "productTypeId": "eefee447-c3a6-4003-829d-ea62cf695bb5",
+          "primaryCategoryId": "c0b82da2-bf51-42e6-bb84-49f403b89950",
+          "name": "Sparkling Mineral Water",
+          "brand": "Dandenong Springs",
+          "shortDescription": "Naturally sparkling mineral water from the Dandenong Ranges.",
+          "longDescription": "Bottled at the source. Serve chilled.",
+          "gstStatus": "gst_free",
+          "unitBasis": "per_l",
+          "options": [
+            {
+              "id": "7f301d7c-8db0-5232-8d3f-e2250cc74d15",
+              "position": 1,
+              "name": "Pack",
+              "values": [
+                {
+                  "id": "c3367756-aab7-52c6-8962-b7278f8fdf30",
+                  "value": "Single bottle",
+                  "position": 0
+                },
+                {
+                  "id": "4f163922-36f7-511c-ac39-6f090ee46f09",
+                  "value": "6 pack",
+                  "position": 1
+                }
+              ]
+            }
+          ],
+          "variants": [
+            {
+              "id": "77f8db9f-889c-5639-9a0c-b2ab068dd698",
+              "position": 0,
+              "optionValueIds": [
+                "c3367756-aab7-52c6-8962-b7278f8fdf30",
+                null
+              ],
+              "sku": "DS-SMW-1250",
+              "gtin": "2000000000114",
+              "shopPriceAmount": "2.40",
+              "shopCompareAtAmount": null,
+              "weightGrams": 1330,
+              "packQuantity": "1.25",
+              "packUnit": "l",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "0bed3b25-38b1-50dc-8aa5-8f356e754412",
+              "position": 1,
+              "optionValueIds": [
+                "4f163922-36f7-511c-ac39-6f090ee46f09",
+                null
+              ],
+              "sku": "DS-SMW-1250-6",
+              "gtin": "2000000000121",
+              "shopPriceAmount": "12.00",
+              "shopCompareAtAmount": "14.40",
+              "weightGrams": 8000,
+              "packQuantity": "7.5",
+              "packUnit": "l",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "68d05001-331c-4089-99f0-cadca5e3af69",
+              "valueNumber": 1250
+            },
+            {
+              "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+              "valueText": "ambient"
+            },
+            {
+              "attributeId": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+              "valueText": "Australia"
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "15"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "77f8db9f-889c-5639-9a0c-b2ab068dd698",
+          "sku": "DS-SMW-1250",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/77f8db9f-889c-5639-9a0c-b2ab068dd698/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 60
+            }
+          }
+        },
+        {
+          "variantId": "0bed3b25-38b1-50dc-8aa5-8f356e754412",
+          "sku": "DS-SMW-1250-6",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/0bed3b25-38b1-50dc-8aa5-8f356e754412/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 20
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "frozen-berries",
+      "shopCode": "FOOT01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "FOOT01 shop manager",
+        "body": {
+          "productTypeId": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
+          "primaryCategoryId": "6d6364c2-56a2-4ae2-98d2-ce902083e144",
+          "name": "Frozen Mixed Berries",
+          "brand": "Western Grove",
+          "shortDescription": "Strawberries, raspberries, blueberries and blackberries, snap frozen.",
+          "longDescription": "Snap frozen at peak ripeness. Keep frozen at -18°C or below. Do not refreeze once thawed.",
+          "gstStatus": "gst_free",
+          "unitBasis": "per_kg",
+          "options": [],
+          "variants": [
+            {
+              "id": "ef9975af-a481-5f7d-83a8-178aebb8595c",
+              "position": 0,
+              "optionValueIds": [
+                null,
+                null
+              ],
+              "sku": "WG-FMB-500",
+              "gtin": "2000000000138",
+              "shopPriceAmount": "7.50",
+              "shopCompareAtAmount": null,
+              "weightGrams": 520,
+              "packQuantity": "500",
+              "packUnit": "g",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
+              "valueNumber": 500
+            },
+            {
+              "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
+              "valueText": "frozen"
+            },
+            {
+              "attributeId": "f6d3daa0-1827-4159-8188-5ff5dab931de",
+              "valueText": "Australia"
+            },
+            {
+              "attributeId": "f50a7712-eb8a-4b63-9de4-005e552a82f9",
+              "valueText": "Strawberries (40%), raspberries (25%), blueberries (20%), blackberries (15%)."
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "20"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "ef9975af-a481-5f7d-83a8-178aebb8595c",
+          "sku": "WG-FMB-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/ef9975af-a481-5f7d-83a8-178aebb8595c/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 30
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "dish-liquid",
+      "shopCode": "FOOT01",
+      "create": {
+        "method": "POST",
+        "path": "/shop/v1/products",
+        "signInAs": "FOOT01 shop manager",
+        "body": {
+          "productTypeId": "b295d766-4828-43df-8adc-54f68d6b1a83",
+          "primaryCategoryId": "f5f8f0ea-a4c7-40ff-a939-d23de9ae98bd",
+          "name": "Plant-Based Dishwashing Liquid",
+          "brand": "Clean Co.",
+          "shortDescription": "Concentrated dishwashing liquid that cuts grease and is gentle on hands.",
+          "longDescription": "Plant-based surfactants, biodegradable, in a 100% recycled bottle. A few drops per sink is enough.",
+          "gstStatus": "taxable",
+          "unitBasis": "per_100ml",
+          "options": [
+            {
+              "id": "2300b6a4-bd86-569f-916b-d1a34c17614a",
+              "position": 1,
+              "name": "Scent",
+              "values": [
+                {
+                  "id": "c6f249e5-2f97-5ea9-97da-035c8ce1bdcc",
+                  "value": "Lemon",
+                  "position": 0
+                },
+                {
+                  "id": "3e116ee5-2225-5065-9ab7-485705fd529a",
+                  "value": "Unscented",
+                  "position": 1
+                }
+              ]
+            }
+          ],
+          "variants": [
+            {
+              "id": "37e5029c-ee36-59e1-b5b8-13b0afec6200",
+              "position": 0,
+              "optionValueIds": [
+                "c6f249e5-2f97-5ea9-97da-035c8ce1bdcc",
+                null
+              ],
+              "sku": "CC-DL-LEM-500",
+              "gtin": "2000000000145",
+              "shopPriceAmount": "4.90",
+              "shopCompareAtAmount": null,
+              "weightGrams": 560,
+              "packQuantity": "500",
+              "packUnit": "ml",
+              "mediaStorageKey": null
+            },
+            {
+              "id": "836d2324-cb15-5243-a0b5-3e475c16b4db",
+              "position": 1,
+              "optionValueIds": [
+                "3e116ee5-2225-5065-9ab7-485705fd529a",
+                null
+              ],
+              "sku": "CC-DL-UNS-500",
+              "gtin": "2000000000152",
+              "shopPriceAmount": "4.90",
+              "shopCompareAtAmount": null,
+              "weightGrams": 560,
+              "packQuantity": "500",
+              "packUnit": "ml",
+              "mediaStorageKey": null
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": "7c95da19-9415-42d6-94ca-8dbe265bb091",
+              "valueText": "Recycled PET bottle"
+            },
+            {
+              "attributeId": "1a82d077-155a-4850-a19a-fe65357c602f",
+              "valueText": "7 × 5 × 22 cm"
+            }
+          ],
+          "sectionIds": [],
+          "media": []
+        }
+      },
+      "submitForReview": {
+        "method": "POST",
+        "path": "/shop/v1/products/{productId}/submit",
+        "body": {}
+      },
+      "approve": {
+        "method": "POST",
+        "path": "/catalog/v1/review/items/{productId}/approve",
+        "signInAs": "back-office admin",
+        "body": {
+          "version": "{version from GET /catalog/v1/review/items/{productId}}",
+          "margin": {
+            "kind": "percent",
+            "value": "20"
+          }
+        }
+      },
+      "stock": [
+        {
+          "variantId": "37e5029c-ee36-59e1-b5b8-13b0afec6200",
+          "sku": "CC-DL-LEM-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/37e5029c-ee36-59e1-b5b8-13b0afec6200/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 48
+            }
+          }
+        },
+        {
+          "variantId": "836d2324-cb15-5243-a0b5-3e475c16b4db",
+          "sku": "CC-DL-UNS-500",
+          "request": {
+            "method": "PUT",
+            "path": "/inventory/v1/variants/836d2324-cb15-5243-a0b5-3e475c16b4db/stock/tracking",
+            "body": {
+              "tracked": true,
+              "onHand": 24
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
