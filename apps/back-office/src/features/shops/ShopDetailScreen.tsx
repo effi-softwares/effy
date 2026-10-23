@@ -259,7 +259,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                     ) : null}
                     <DangerRow
                       title="Remove this shop"
-                      body="This removes the shop and its roster. This action cannot be undone."
+                      body="Only a shop that never had operators can be removed. Otherwise, disable it."
                       action="Remove…"
                       onClick={() => setRemoveOpen(true)}
                     />

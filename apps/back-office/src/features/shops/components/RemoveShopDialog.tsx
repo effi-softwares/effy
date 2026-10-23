@@ -44,7 +44,12 @@ export function RemoveShopDialog({
       onOpenChange(false);
       onRemoved();
     } catch (err) {
-      setFormError(shopMutationError(err));
+      setFormError(
+        shopMutationError(
+          err,
+          "This shop has had operators, so it can't be removed. Disable it instead — its history is kept.",
+        ),
+      );
     }
   }
 
@@ -54,7 +59,7 @@ export function RemoveShopDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Remove {shopName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the shop and its roster. This action cannot be undone.
+            Only a shop that never had operators can be removed. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
