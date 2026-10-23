@@ -58,7 +58,7 @@ provider:
     CUSTOMER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_id}
     CUSTOMER_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id},${ssm:/effy/${sls:stage}/auth/customer/mobile_app_client_id}
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
-    SHOP_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/shop/app_client_id},${ssm:/effy/${sls:stage}/auth/shop/mobile_app_client_id}
+    SHOP_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/shop/app_client_id}
     DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
     DRIVER_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/driver/app_client_id},${ssm:/effy/${sls:stage}/auth/driver/mobile_app_client_id}
     BACK_OFFICE_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_id}
