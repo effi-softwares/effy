@@ -5,7 +5,7 @@ verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
 **099-shop-floor-signals — Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
-2026-10-24 — NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
+2026-10-24 — SPEC SIGNED OFF BY THE OPERATOR 2026-10-24; NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
 Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/tasks.md).
 - **Next collection**: the shop is told the Effy collection run that will take each package and its next run's
   state (`none` · `assigned` · `on_the_way` · `collected`), on Today (`nextCollection`), the queue, the list and an

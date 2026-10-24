@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-24
 
-**Status**: Draft
+**Status**: Signed off by the operator, 2026-10-24
 
 **Input**: User description: "Shop console: collection, pick order, availability and quality. The redesigned shop console (docs/shop-web-redesign-brief.md §11, canvas docs/reference-screens/Effy Shop Console Redesign) marks four things "Needs backend". (1) Next collection: shop staff see when the next Effy collection run reaches their shop, which of their orders go on it (ready vs still picking), and whether a driver is on the way — on Today, the Orders queue and an order's page ("Ready by 12:30 · collected on the 12:30 run · driver on the way"); a courier pickup shows its own time. (2) Pick in walking order: an order's lines are grouped Ambient · Chilled · Frozen with cold items last, using each item's temperature class. (3) Availability: one quick screen listing every size the shop sells with its stock count and an on-sale switch, so staff can take a size off sale in one tap (off sale stays immediate, no review). (4) Quality on Insights: found rate, can't-supply rate and average time from paid to ready, for the selected range. A shop still never sees delivery money, windows or other shops; it is told only "Effy driver" or "Courier"."
 
