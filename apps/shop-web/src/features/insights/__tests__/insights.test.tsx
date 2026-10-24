@@ -76,6 +76,7 @@ function dto(range: InsightsRange = "7d", over: Partial<ShopInsightsDTO> = {}): 
         share: 1,
       },
     ],
+    quality: { foundRate: null, cantSupplyRate: null, averageTimeToReady: null },
     ...over,
   }
 }
@@ -93,6 +94,7 @@ function today(): ShopTodayDTO {
     attentionMore: 0,
     oldestWaitingAt: null,
     live: [],
+    nextCollection: null,
   }
 }
 
@@ -274,5 +276,25 @@ describe("the CSV export", () => {
   it("quotes a product name containing a comma", () => {
     const csv = insightsCsv(dto("7d"), new Date(NOW).getTime())
     expect(csv).toContain('"Linen apron, sand"')
+  })
+})
+
+describe("how well the shop fulfils (099)", () => {
+  it("shows found rate, can't-supply rate and time to ready — and '—' when there is nothing to measure", async () => {
+    getInsights.mockResolvedValue(
+      dto("today", {
+        quality: {
+          foundRate: { value: "92.5", previous: "90.0", change: { kind: "abs", amount: "2.5" } },
+          cantSupplyRate: null,
+          averageTimeToReady: { value: "1080", previous: "1200", change: { kind: "pct", amount: "-10" } },
+        },
+      }),
+    )
+    wrap(<InsightsScreen />)
+    expect(await screen.findByText("92.5%")).toBeInTheDocument()
+    expect(screen.getByText(/▲ 2.5 pts/)).toBeInTheDocument()
+    expect(screen.getByText("18 min")).toBeInTheDocument()
+    expect(screen.getByText("—")).toBeInTheDocument()
+    expect(screen.getByText("No orders in this window yet")).toBeInTheDocument()
   })
 })

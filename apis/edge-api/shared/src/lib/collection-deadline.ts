@@ -151,6 +151,22 @@ export function collectionRunFor(
   return null;
 }
 
+/**
+ * The run a parcel is due on: an Effy parcel sold a window travels on the latest run that still makes
+ * it (`collectionRunFor`); a courier parcel, or an Effy parcel with no window ("any time" / ASAP), is
+ * due on the next run — returned as null, for the caller to use the next run. The ONE rule: the fleet
+ * planner collects by it and the shop service tells shops the same run (099).
+ */
+export function dueRun(
+  p: { deliveredBy: "effy" | "courier"; windowStart: Date | null },
+  runs: readonly CollectionRun[],
+  settings: { hubTurnaroundMin: number },
+  calendar: RunCalendar,
+): Date | null {
+  if (p.deliveredBy !== "effy" || p.windowStart === null) return null;
+  return collectionRunFor(p.windowStart, runs, settings.hubTurnaroundMin, calendar);
+}
+
 /** 23:59:59 in the operating zone. Lives here because `midnight − 11 h` is wrong half the year. */
 export function endOfLocalDay(at: Date): Date {
   const { year, month, day } = localDateParts(at);

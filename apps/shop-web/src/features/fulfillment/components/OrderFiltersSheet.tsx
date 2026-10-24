@@ -1,25 +1,16 @@
 import { SHOP_ORDER_DELIVERED_BY, SHOP_ORDER_PAYMENT_STATES, SHOP_ORDER_RANGES } from "@effy/shared-types"
-import {
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@effy/design-system/ui"
+import { Button } from "@effy/design-system/ui"
+import { ResponsiveSheet } from "@effy/web-kit/patterns"
+
+import { ChoiceCards } from "@/components/console/ChoiceCards"
 
 import { DELIVERED_BY_FILTER_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../orderConsole"
 
 /**
- * The Orders list's filters: a right-hand sheet with no footer; selections apply at once (they write the
- * URL), with the count and "Clear all" at the end. Date; Payment (the states a paid order can be in;
- * capture is automatic, so no "Authorized"); Goes with (Effy driver / Courier). No Fulfilment select: the
- * status tabs do that.
+ * The Orders list's filters on a portrait tablet or a phone (Orders board 09): a right sheet (a drawer on a
+ * phone) of choice cards — the whole card is the target. Selections apply at once (they write the URL);
+ * the footer clears them or closes the sheet with the count. Placed; Goes with (Effy driver / Courier);
+ * Payment (the states a paid order can be in). No Fulfilment choice: the status tabs do that.
  */
 export function OrderFiltersSheet({
   open,
@@ -37,85 +28,41 @@ export function OrderFiltersSheet({
   onClearAll: () => void
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 rounded-none sm:max-w-[440px]">
-        <SheetHeader className="border-border gap-1 border-b px-5 pt-[18px] pb-3.5 pr-12">
-          <SheetTitle className="text-[15.5px] tracking-[-.015em]">Filters</SheetTitle>
-          <SheetDescription className="text-[13px] leading-[1.55]">
-            Narrow the list down. Changes apply straight away.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="grid min-h-0 flex-1 content-start gap-[18px] overflow-y-auto px-5 py-[18px]">
-          <LabelledSelect
-            id="filter-date"
-            label="Date"
-            value={search.range ?? "any"}
-            options={SHOP_ORDER_RANGES.map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
-            onChange={(v) => onChange({ range: v as OrdersSearch["range"] })}
-          />
-          <LabelledSelect
-            id="filter-payment"
-            label="Payment"
-            value={search.payment ?? "any"}
-            options={[
-              { value: "any", label: "Any" },
-              ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
-            ]}
-            onChange={(v) => onChange({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
-          />
-          <LabelledSelect
-            id="filter-delivery"
-            label="Goes with"
-            value={search.deliveredBy ?? "any"}
-            options={SHOP_ORDER_DELIVERED_BY.map((d) => ({ value: d, label: DELIVERED_BY_FILTER_LABEL[d] }))}
-            onChange={(v) => onChange({ deliveredBy: v === "any" ? undefined : (v as OrdersSearch["deliveredBy"]) })}
-          />
-
-          <div className="border-border flex items-center justify-between gap-2.5 border-t pt-4">
-            <div className="text-muted-foreground text-[13px] tabular-nums" aria-live="polite">
-              {countLabel}
-            </div>
-            <Button variant="outline" className="h-8 px-[11px] text-[13px]" onClick={onClearAll}>
-              Clear all
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-function LabelledSelect({
-  id,
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  id: string
-  label: string
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-medium">
-        {label}
-      </label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} className="h-9 w-full px-[9px] text-[13.5px] shadow-none" aria-label={label}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Filters"
+      description="Narrow the list down. Changes apply straight away."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClearAll}>
+            Clear all
+          </Button>
+          <Button onClick={() => onOpenChange(false)}>Done</Button>
+        </>
+      }
+    >
+      <ChoiceCards
+        label="Placed"
+        value={search.range ?? "any"}
+        options={SHOP_ORDER_RANGES.map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
+        onChange={(v) => onChange({ range: v === "any" ? undefined : (v as OrdersSearch["range"]) })}
+      />
+      <ChoiceCards
+        label="Goes with"
+        value={search.deliveredBy ?? "any"}
+        options={SHOP_ORDER_DELIVERED_BY.map((d) => ({ value: d, label: DELIVERED_BY_FILTER_LABEL[d] }))}
+        onChange={(v) => onChange({ deliveredBy: v === "any" ? undefined : (v as OrdersSearch["deliveredBy"]) })}
+      />
+      <ChoiceCards
+        label="Payment"
+        value={search.payment ?? "any"}
+        options={[{ value: "any", label: "Any" }, ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))]}
+        onChange={(v) => onChange({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
+      />
+      <p className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
+        {countLabel}
+      </p>
+    </ResponsiveSheet>
   )
 }

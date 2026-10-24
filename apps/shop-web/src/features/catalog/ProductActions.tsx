@@ -1,17 +1,11 @@
 import { useState } from "react";
 
 import type { ProductStatus } from "@effy/shared-types";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  Button,
-} from "@effy/design-system/ui";
+import { History } from "lucide-react";
+
+import { Button } from "@effy/design-system/ui";
+
+import { DesignSheet } from "@/components/console/DesignSheet";
 
 import { track } from "@/lib/telemetry";
 
@@ -117,7 +111,6 @@ export function ProductHeaderActions({
       {action ? (
         <Button
           variant="outline"
-          size="sm"
           disabled={busy}
           onClick={() => {
             setError(null);
@@ -128,13 +121,14 @@ export function ProductHeaderActions({
         </Button>
       ) : null}
 
-      <Button variant="outline" size="sm" onClick={onOpenActivity}>
+      <Button variant="outline" onClick={onOpenActivity}>
+        <History aria-hidden="true" />
         Activity
       </Button>
 
       <ProductRemovalControl detail={detail} onDeleted={onDeleted} />
 
-      {error ? <span className="text-destructive text-sm">{error}</span> : null}
+      {error ? <span role="alert" className="text-sm font-medium">{error}</span> : null}
 
       {/* Mounted only once the stock read has landed. The receive dialog shows "on hand → after"
           before the write, and it cannot do that arithmetic against a count it does not have yet — an
@@ -170,27 +164,20 @@ export function ProductHeaderActions({
       ) : null}
 
       {action ? (
-        <AlertDialog open={confirm} onOpenChange={setConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
-              <AlertDialogDescription>{action.confirmBody}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (action.kind === "status") apply(action.target);
-                  else review(action.kind);
-                }}
-                disabled={busy}
-              >
-                {action.confirmLabel}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DesignSheet
+          open={confirm}
+          onOpenChange={setConfirm}
+          title={action.confirmTitle}
+          description={action.confirmBody}
+          saveLabel={action.confirmLabel}
+          saving={busy}
+          onSave={() => {
+            if (action.kind === "status") apply(action.target);
+            else review(action.kind);
+          }}
+        >
+          {null}
+        </DesignSheet>
       ) : null}
     </div>
   );
@@ -244,42 +231,27 @@ export function ProductRemovalControl({
 
   return (
     <>
-      {/* Outlined, not filled — only the word takes the destructive colour (operator direction,
-          2026-09-10, reversing this button's earlier neutral treatment). The platform's `--destructive`
-          is AA as text, so the label reads; a filled red button would shout a reversible archive as
-          loudly as a permanent delete, and the confirmation is what carries the weight. */}
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={busy}
-        onClick={() => setConfirm(true)}
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-      >
+      {/* Outlined, not filled: a reversible archive must not shout as loudly as a permanent delete.
+          The confirmation carries the weight, with its consequence in words and a foreground (black)
+          confirm — the identity has no red. */}
+      <Button variant="outline" disabled={busy} onClick={() => setConfirm(true)}>
         {action.label}
       </Button>
 
-      {error ? <span className="text-destructive text-sm">{error}</span> : null}
+      {error ? <span role="alert" className="text-sm font-medium">{error}</span> : null}
 
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{action.confirmTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{action.confirmBody}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                run();
-              }}
-              disabled={busy}
-            >
-              {action.confirmLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DesignSheet
+        open={confirm}
+        onOpenChange={setConfirm}
+        title={action.confirmTitle}
+        description={action.confirmBody}
+        saveLabel={action.confirmLabel}
+        destructive
+        saving={busy}
+        onSave={run}
+      >
+        {null}
+      </DesignSheet>
     </>
   );
 }

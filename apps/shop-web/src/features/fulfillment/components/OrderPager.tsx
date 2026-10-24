@@ -1,4 +1,6 @@
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -49,14 +51,14 @@ export function OrderPager({
 
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="text-muted-foreground text-[12.5px] whitespace-nowrap tabular-nums">
+      <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums max-md:hidden">
         {(page - 1) * pageSize + index + 1} of {total}
       </span>
       <PagerButton label="Previous order" target={prev} onNavigate={onNavigate}>
-        ←
+        <ChevronLeft aria-hidden="true" className="size-5" />
       </PagerButton>
       <PagerButton label="Next order" target={next} onNavigate={onNavigate}>
-        →
+        <ChevronRight aria-hidden="true" className="size-5" />
       </PagerButton>
     </div>
   )
@@ -71,7 +73,7 @@ function PagerButton({
   label: string
   target: { id: string; search: OrdersSearch } | null
   onNavigate: (fulfillmentId: string, search: OrdersSearch) => void
-  children: string
+  children: ReactNode
 }) {
   return (
     <button
@@ -81,7 +83,7 @@ function PagerButton({
       disabled={!target}
       onClick={() => target && onNavigate(target.id, target.search)}
       className={cn(
-        "border-input bg-background grid size-7 place-items-center rounded-md border p-0 text-[12px]",
+        "grid size-11 place-items-center rounded-lg border border-input bg-background p-0 shadow-xs",
         target ? "text-foreground hover:bg-accent cursor-pointer" : "text-muted-foreground cursor-default",
       )}
     >

@@ -3,22 +3,22 @@ import { Loader2 } from "lucide-react"
 
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalTitle,
+  useResponsiveModalIsMobile,
 } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
 
 /**
- * The imported design's modal sheet ("Effy Shop Console.dc.html", the `sheetOpen` block), transcribed
- * once so every order dialog is the same shape: a 470px (or 620px for line pickers) centred panel, a
- * header of title + one muted sentence over a hairline, a scrolling body, and a footer bar with the
- * cancel and save buttons on the right.
+ * Every order and product overlay, one shape (redesign, "Patterns — Overlays"): the responsive dialog —
+ * a centred dialog from 768px, a bottom drawer below it. A title and one sentence, a scrolling body, and
+ * a footer. On a phone the primary action comes first and full width.
  *
- * No corner close button. The design's modal sheets close from their footer's cancel button (and
- * Escape / the overlay); only its right-side Activity sheet carries an ×.
+ * No corner close button: it closes from its footer's cancel button, Escape or the scrim. Focus lands
+ * on the first field, never on the destructive button.
  */
 export function DesignSheet({
   open,
@@ -46,64 +46,123 @@ export function DesignSheet({
   onSave: () => void
   canSave?: boolean
   saving?: boolean
-  /** The save button in the destructive colour (cancelling / can't-supply). */
+  /** A destructive confirm — the foreground fill (black / white), never red. */
   destructive?: boolean
   /** Inline failure copy, shown above the footer. */
   error?: string | null
   children: ReactNode
 }) {
   return (
-    <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
-      <DialogContent
-        showCloseButton={false}
-        className={cn(
-          "flex max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[var(--radius)] p-0",
-          wide ? "sm:max-w-[620px]" : "sm:max-w-[470px]",
-        )}
+    <ResponsiveModal open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+      <SheetBody
+        title={title}
+        description={description}
+        wide={wide}
+        cancelLabel={cancelLabel}
+        saveLabel={saveLabel}
+        onSave={onSave}
+        canSave={canSave}
+        saving={saving}
+        destructive={destructive}
+        error={error}
+        onCancel={() => onOpenChange(false)}
       >
-        <div className="border-border grid gap-1 border-b px-5 pt-[18px] pb-3.5">
-          <DialogTitle className="text-[15.5px] font-semibold tracking-[-.015em]">{title}</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-[13px] leading-[1.55]">
-            {description}
-          </DialogDescription>
-        </div>
-
-        <div className="grid min-h-0 content-start gap-4 overflow-y-auto px-5 py-[18px]">
-          {children}
-          {error ? (
-            <p role="alert" className="text-destructive text-[12.5px]">
-              {error}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="border-border bg-background flex flex-wrap justify-end gap-2.5 border-t px-5 py-3.5">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 px-3.5 text-[13.5px]"
-            disabled={saving}
-            onClick={() => onOpenChange(false)}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="button"
-            variant={destructive ? "destructive" : "default"}
-            className="h-9 px-3.5 text-[13.5px]"
-            disabled={!canSave || saving}
-            onClick={onSave}
-          >
-            {saving ? <Loader2 className="animate-spin" /> : null}
-            {saveLabel}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        {children}
+      </SheetBody>
+    </ResponsiveModal>
   )
 }
 
-/** A form label in the design's sheets: 13px / 500 above its control. */
+function SheetBody({
+  title,
+  description,
+  wide,
+  cancelLabel,
+  saveLabel,
+  onSave,
+  canSave,
+  saving,
+  destructive,
+  error,
+  onCancel,
+  children,
+}: {
+  title: ReactNode
+  description: ReactNode
+  wide?: boolean
+  cancelLabel: string
+  saveLabel: string
+  onSave: () => void
+  canSave: boolean
+  saving: boolean
+  destructive: boolean
+  error?: string | null
+  onCancel: () => void
+  children: ReactNode
+}) {
+  const phone = useResponsiveModalIsMobile()
+  const save = (
+    <Button
+      type="button"
+      variant={destructive ? "destructive" : "default"}
+      disabled={!canSave || saving}
+      onClick={onSave}
+      className={cn(phone && "w-full")}
+    >
+      {saving ? <Loader2 className="animate-spin" /> : null}
+      {saveLabel}
+    </Button>
+  )
+  const cancel = (
+    <Button type="button" variant="outline" disabled={saving} onClick={onCancel} className={cn(phone && "w-full")}>
+      {cancelLabel}
+    </Button>
+  )
+  return (
+    <ResponsiveModalContent
+      {...(phone ? {} : { showCloseButton: false })}
+      className={cn(
+        "flex flex-col gap-0 overflow-hidden p-0",
+        phone ? "max-h-[92dvh]" : cn("max-h-[86vh]", wide ? "sm:max-w-[620px]" : "sm:max-w-[500px]"),
+      )}
+    >
+      <div className={cn("grid gap-1", phone ? "px-4 pt-3 pb-2" : "px-6 pt-6 pb-2")}>
+        <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
+        <ResponsiveModalDescription>{description}</ResponsiveModalDescription>
+      </div>
+
+      <div className={cn("grid min-h-0 content-start gap-4 overflow-y-auto", phone ? "px-4 py-3" : "px-6 py-4")}>
+        {children}
+        {error ? (
+          <p role="alert" className="flex items-start gap-2 text-sm font-medium text-foreground">
+            {error}
+          </p>
+        ) : null}
+      </div>
+
+      <div
+        className={cn(
+          "flex gap-2.5 border-t border-border bg-background",
+          phone ? "flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" : "justify-end px-6 py-4",
+        )}
+      >
+        {phone ? (
+          <>
+            {save}
+            {cancel}
+          </>
+        ) : (
+          <>
+            {cancel}
+            {save}
+          </>
+        )}
+      </div>
+    </ResponsiveModalContent>
+  )
+}
+
+/** A form field in a sheet: a 15px label above its control, an optional hint below. */
 export function SheetField({
   label,
   htmlFor,
@@ -116,12 +175,12 @@ export function SheetField({
   children: ReactNode
 }) {
   return (
-    <div className="grid gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-medium">
+    <div className="grid gap-2">
+      <label htmlFor={htmlFor} className="text-[15px] font-medium">
         {label}
       </label>
       {children}
-      {hint ? <div className="text-muted-foreground text-[12px]">{hint}</div> : null}
+      {hint ? <div className="text-sm text-muted-foreground">{hint}</div> : null}
     </div>
   )
 }
@@ -137,10 +196,10 @@ export function SheetToggleRow({
   control: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="bo-switch-row">
       <div className="grid gap-0.5">
-        <div className="text-[13.5px] font-medium">{title}</div>
-        <div className="text-muted-foreground text-[12.5px]">{detail}</div>
+        <div className="text-[15px] font-medium">{title}</div>
+        <div className="text-sm text-muted-foreground">{detail}</div>
       </div>
       {control}
     </div>

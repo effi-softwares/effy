@@ -9,9 +9,9 @@ import { cn } from "@effy/design-system";
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { Pager, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageShops } from "./access";

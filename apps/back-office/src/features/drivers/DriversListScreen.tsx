@@ -10,10 +10,10 @@ import { Checkbox, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { DotWord, StatusWord } from "@/components/patterns/StatusWord";
-import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { DotWord, StatusWord } from "@effy/web-kit/patterns";
+import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 

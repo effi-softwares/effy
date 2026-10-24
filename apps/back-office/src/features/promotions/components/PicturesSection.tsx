@@ -17,8 +17,8 @@ import {
 } from "@effy/design-system/ui";
 import type { AdminPromotionImageDTO } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { track } from "@/lib/telemetry";
 
 import { inUseError, promotionMutationError } from "../errorText";

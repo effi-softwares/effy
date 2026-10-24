@@ -14,7 +14,7 @@ import {
 } from "@effy/design-system/ui";
 import { EXCEPTION_OUTCOMES, type DeliveryExceptionDTO, type ExceptionOutcome } from "@effy/shared-types";
 
-import { Callout } from "@/components/patterns/States";
+import { Callout } from "@effy/web-kit/patterns";
 
 import { exceptionMutationError } from "./errorText";
 import { reasonLabel } from "./model";

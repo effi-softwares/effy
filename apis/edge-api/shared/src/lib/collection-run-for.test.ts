@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectionRunFor, type CollectionRun } from "./collection-deadline";
+import { collectionRunFor, dueRun, instantAtLocalTime, type CollectionRun } from "./collection-deadline";
 
 const RUNS: CollectionRun[] = [{ hour: 9, minute: 0 }, { hour: 14, minute: 0 }, { hour: 18, minute: 0 }];
 const TURNAROUND = 60;
@@ -48,5 +48,32 @@ describe("collectionRunFor (082 P1)", () => {
   it("no runs, or none within reach: null — the caller falls back to the next run", () => {
     expect(collectionRunFor(aedt("2026-10-15T16:00:00"), [], TURNAROUND)).toBeNull();
     expect(collectionRunFor(aedt("2026-10-15T08:00:00"), RUNS, TURNAROUND, { noWeekdays: [1, 2, 3, 4, 5, 6, 7] })).toBeNull();
+  });
+});
+
+describe("dueRun — the one rule the planner collects by and shops are told (099)", () => {
+  const runs = [
+    { hour: 9, minute: 0 },
+    { hour: 12, minute: 30 },
+    { hour: 16, minute: 0 },
+  ];
+  const settings = { hubTurnaroundMin: 60 };
+
+  it("puts an Effy parcel sold a window on the latest run that still makes it", () => {
+    // 15:00 window, 60 min turnaround: 12:30 makes it (13:30 ≤ 15:00), 16:00 does not.
+    const windowStart = instantAtLocalTime(2026, 10, 27, 15, 0);
+    expect(dueRun({ deliveredBy: "effy", windowStart }, runs, settings, {})).toEqual(instantAtLocalTime(2026, 10, 27, 12, 30));
+  });
+
+  it("leaves a courier parcel, or an Effy parcel with no window, to the next run (null)", () => {
+    const windowStart = instantAtLocalTime(2026, 10, 27, 15, 0);
+    expect(dueRun({ deliveredBy: "courier", windowStart }, runs, settings, {})).toBeNull();
+    expect(dueRun({ deliveredBy: "effy", windowStart: null }, runs, settings, {})).toBeNull();
+  });
+
+  it("finds the previous delivery day's run for an early window", () => {
+    // 09:30 window: no run that day reaches the hub by 08:30, so the last run the day before.
+    const windowStart = instantAtLocalTime(2026, 10, 27, 9, 30);
+    expect(dueRun({ deliveredBy: "effy", windowStart }, runs, settings, {})).toEqual(instantAtLocalTime(2026, 10, 26, 16, 0));
   });
 });

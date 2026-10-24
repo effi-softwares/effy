@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./console": "./src/console/index.ts",
     "./live": "./src/live/index.ts",
+    "./patterns": "./src/patterns/index.ts",
     "./promo-skin": "./src/promo-skin/index.ts",
     "./scanner": "./src/scanner/index.ts"
   },

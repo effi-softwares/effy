@@ -5,10 +5,10 @@ import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@
 import { ErrorState } from "@effy/web-kit/console";
 import type { VehicleDetail } from "@effy/shared-types";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 

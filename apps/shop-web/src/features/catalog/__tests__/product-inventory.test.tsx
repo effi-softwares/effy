@@ -487,7 +487,7 @@ describe("the product state chip", () => {
     // reading "active" beside an empty shelf answers a question nobody asked.
     wrap(<ProductStatusBadge status="active" stock={stockDetail({ onHand: 0, outOfStock: true }).stock} />)
     expect(screen.getByText("Out of stock")).toBeInTheDocument()
-    expect(screen.queryByText("active")).not.toBeInTheDocument()
+    expect(screen.queryByText("Live")).not.toBeInTheDocument()
   })
 
   it("says low stock when it is thin but still on sale", () => {
@@ -498,7 +498,7 @@ describe("the product state chip", () => {
   it("falls back to the lifecycle label where the count is unknown", () => {
     // The catalog table carries no per-row count. Degrading is right; inventing one is not.
     wrap(<ProductStatusBadge status="active" />)
-    expect(screen.getByText("active")).toBeInTheDocument()
+    expect(screen.getByText("Live")).toBeInTheDocument()
   })
 
   it("never lets stock relabel a product that is not on sale", () => {
@@ -507,7 +507,7 @@ describe("the product state chip", () => {
       const view = wrap(
         <ProductStatusBadge status={status} stock={stockDetail({ onHand: 0, outOfStock: true }).stock} />,
       )
-      expect(within(view.container).getByText(status)).toBeInTheDocument()
+      expect(within(view.container).getByText({ draft: "Draft", unavailable: "Unavailable", archived: "Archived" }[status])).toBeInTheDocument()
       expect(within(view.container).queryByText("Out of stock")).not.toBeInTheDocument()
     }
   })
@@ -517,8 +517,8 @@ describe("the product state chip", () => {
     const cases = [
       { status: "active" as const, stock: stockDetail({ onHand: 0, outOfStock: true }).stock, word: "Out of stock" },
       { status: "active" as const, stock: stockDetail({ onHand: 2, low: true }).stock, word: "Low stock" },
-      { status: "draft" as const, stock: undefined, word: "draft" },
-      { status: "archived" as const, stock: undefined, word: "archived" },
+      { status: "draft" as const, stock: undefined, word: "Draft" },
+      { status: "archived" as const, stock: undefined, word: "Archived" },
     ]
     for (const c of cases) {
       const view = wrap(<ProductStatusBadge status={c.status} stock={c.stock} />)

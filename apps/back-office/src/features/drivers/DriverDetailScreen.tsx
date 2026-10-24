@@ -8,11 +8,11 @@ import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger }
 import { ErrorState } from "@effy/web-kit/console";
 import type { AdminDriverProfile } from "@effy/shared-types";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
-import { ResponsiveSheet } from "@/components/patterns/ResponsiveSheet";
-import { Callout } from "@/components/patterns/States";
-import { DotWord, StatusWord } from "@/components/patterns/StatusWord";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { ResponsiveSheet } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
+import { DotWord, StatusWord } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";

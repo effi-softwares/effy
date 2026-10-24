@@ -6,8 +6,8 @@ import { Clock, Radio } from "lucide-react";
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { dispatchDayQuery } from "@/features/dispatch/queries";
 

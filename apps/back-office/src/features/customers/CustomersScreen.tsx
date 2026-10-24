@@ -7,8 +7,8 @@ import { ChevronRight, Coins, History, Search, SearchX } from "lucide-react";
 import { Button, Input, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 
 import { PointsSettingsPanel } from "./components/PointsSettingsPanel";

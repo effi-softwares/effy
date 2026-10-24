@@ -43,6 +43,9 @@ export function crumbsFor(
   if (pathname === "/catalog/new") {
     return [{ label: "Catalog", to: "/catalog" }, { label: "New product" }]
   }
+  if (pathname === "/catalog/availability") {
+    return [{ label: "Catalog", to: "/catalog" }, { label: "Availability" }]
+  }
   if (pathname.startsWith("/catalog/")) {
     return [{ label: "Catalog", to: "/catalog" }, { label: names.productName ?? "Product" }]
   }
@@ -87,7 +90,7 @@ export function HeaderBreadcrumbs() {
           return (
             <Fragment key={`${i}:${c.label}`}>
               {i > 0 ? (
-                <BreadcrumbSeparator className="text-muted-foreground text-[13px]">/</BreadcrumbSeparator>
+                <BreadcrumbSeparator className="text-muted-foreground [&>svg]:size-4" />
               ) : null}
               <BreadcrumbItem className="min-w-0">
                 {last ? (
@@ -97,7 +100,7 @@ export function HeaderBreadcrumbs() {
                     <span
                       aria-current="page"
                       className={cn(
-                        "text-foreground block truncate text-sm font-semibold tracking-[-.01em]",
+                        "text-foreground block truncate text-[15px] font-medium",
                         c.mono && "font-mono",
                       )}
                     >
@@ -109,13 +112,13 @@ export function HeaderBreadcrumbs() {
                     <Link
                       to={c.to}
                       search={c.to === "/orders" && params.fulfillmentId ? search : undefined}
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm font-medium tracking-[-.01em] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none"
+                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-[15px] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {c.label}
                     </Link>
                   </BreadcrumbLink>
                 ) : (
-                  <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
+                  <span className="text-muted-foreground text-[15px] whitespace-nowrap">
                     {c.label}
                   </span>
                 )}

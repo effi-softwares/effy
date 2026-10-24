@@ -88,6 +88,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
         unitPrice: "8.90",
         lineTotal: "17.80",
         pickNote: null,
+        storageClass: "ambient",
       },
     ],
     money: {

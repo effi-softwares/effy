@@ -79,7 +79,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
       <div className="grid gap-3">
         <div className="grid gap-1">
           <MicroLabel>Options</MicroLabel>
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-sm text-muted-foreground">
             {hasOptions
               ? "What shoppers choose between. Each combination you keep below is sold as its own item, with its own price and stock."
               : "Leave this empty if the product comes in one form. Add an option — Size, Flavour — if shoppers choose between versions of it."}
@@ -97,7 +97,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
             onRemove={() => setOptions(value.options.filter((_, j) => j !== i))}
           />
         ))}
-        {err("options") ? <p className="text-destructive text-xs">{err("options")}</p> : null}
+        {err("options") ? <p className="text-sm font-medium">{err("options")}</p> : null}
 
         {value.options.length < VARIANT_LIMITS.options ? (
           <div>
@@ -134,21 +134,21 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
             ))}
           </SelectContent>
         </Select>
-        <p id="v-basis-help" className="text-muted-foreground text-[13px]">
+        <p id="v-basis-help" className="text-sm text-muted-foreground">
           How shoppers compare sizes — "$0.64 / 100 g" beside the price. Give each size its pack size below.
         </p>
-        {err("unitBasis") ? <p className="text-destructive text-xs">{err("unitBasis")}</p> : null}
+        {err("unitBasis") ? <p className="text-sm font-medium">{err("unitBasis")}</p> : null}
       </div>
 
       {/* Variants */}
       <div className="grid gap-2">
         <MicroLabel>{hasOptions ? `Variants (${value.variants.length} of up to ${VARIANT_LIMITS.variants})` : "Price and codes"}</MicroLabel>
         {!hasOptions && value.variants[0]?.code ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-sm text-muted-foreground">
             Effy code <span className="text-foreground font-mono">{value.variants[0].code}</span>
           </p>
         ) : null}
-        {err("variants") ? <p className="text-destructive text-xs">{err("variants")}</p> : null}
+        {err("variants") ? <p className="text-sm font-medium">{err("variants")}</p> : null}
         <TableFrame>
           <thead className="bg-muted">
             <tr>
@@ -197,7 +197,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   {hasOptions ? (
                     <Td>
                       <span className="font-medium">{rowLabel(value, r)}</span>
-                      <span className="text-muted-foreground block font-mono text-[11.5px]">{r.code ?? "New"}</span>
+                      <span className="text-muted-foreground block font-mono text-[13px]">{r.code ?? "New"}</span>
                       {cell("optionValueIds") ? <CellError text={cell("optionValueIds")!} /> : null}
                     </Td>
                   ) : null}
@@ -213,7 +213,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       onChange={(e) => patchRow(i, { shopPriceAmount: e.target.value })}
                     />
                     {cell("shopPriceAmount") ? <CellError text={cell("shopPriceAmount")!} /> : null}
-                    {unit ? <p className="text-muted-foreground mt-1 text-[11.5px] tabular-nums">{unitPriceText(unit)}</p> : null}
+                    {unit ? <p className="text-muted-foreground mt-1 text-[13px] tabular-nums">{unitPriceText(unit)}</p> : null}
                   </Td>
                   <Td>
                     <Input
@@ -324,7 +324,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       {value.variants.length > 1 ? (
                         <Button
                           type="button"
-                          variant="destructive-ghost"
+                          variant="ghost"
                           size="icon"
                           aria-label={`Don't sell ${rowLabel(value, r)}`}
                           disabled={disabled}
@@ -354,7 +354,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
 
 /** One plain line under a column heading: what goes in it. */
 function ColumnHelp({ children }: { children: string }) {
-  return <span className="text-muted-foreground block text-[11px] font-normal tracking-normal normal-case">{children}</span>;
+  return <span className="text-muted-foreground block text-[12px] font-normal tracking-normal normal-case">{children}</span>;
 }
 
 /** Copies the first row's value down the column. */
@@ -362,7 +362,7 @@ function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => 
   return (
     <button
       type="button"
-      className="text-primary mt-0.5 block text-[11px] font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
+      className="text-primary mt-0.5 block text-[12px] font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
       onClick={onClick}
       disabled={disabled}
       aria-label={`Use the first row's ${label} for every variant`}
@@ -373,7 +373,7 @@ function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => 
 }
 
 function CellError({ text }: { text: string }) {
-  return <p className="text-destructive mt-1 text-[11.5px] leading-tight">{text}</p>;
+  return <p className="mt-1 text-[13px] font-medium leading-tight">{text}</p>;
 }
 
 /** One option: its name, its values (in order), and a field to add another. */
@@ -420,15 +420,15 @@ function OptionRow({
             onChange={(e) => onChange({ ...option, name: e.target.value })}
           />
         </div>
-        <Button type="button" variant="destructive-ghost" size="sm" disabled={disabled} onClick={onRemove}>
+        <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onRemove}>
           Remove option
         </Button>
       </div>
-      {errors[`${f}.name`] ? <p className="text-destructive text-xs">{errors[`${f}.name`]}</p> : null}
+      {errors[`${f}.name`] ? <p className="text-sm font-medium">{errors[`${f}.name`]}</p> : null}
 
       <div className="flex flex-wrap items-center gap-1.5">
         {option.values.map((v) => (
-          <span key={v.id} className="border-border bg-muted inline-flex items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-[13px]">
+          <span key={v.id} className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2.5 text-sm">
             {v.value}
             <Button
               type="button"
@@ -448,7 +448,7 @@ function OptionRow({
             <Input
               aria-label={`Add a value to ${option.name || `option ${index + 1}`}`}
               placeholder={index === 0 ? "500 g" : "Plain"}
-              className="h-8 w-[140px]"
+              className="w-[160px]"
               value={adding}
               disabled={disabled}
               onChange={(e) => setAdding(e.target.value)}
@@ -465,7 +465,7 @@ function OptionRow({
           </div>
         ) : null}
       </div>
-      {errors[`${f}.values`] || valueError ? <p className="text-destructive text-xs">{errors[`${f}.values`] ?? valueError}</p> : null}
+      {errors[`${f}.values`] || valueError ? <p className="text-sm font-medium">{errors[`${f}.values`] ?? valueError}</p> : null}
     </div>
   );
 }

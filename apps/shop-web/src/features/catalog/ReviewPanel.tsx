@@ -2,7 +2,11 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
+import { CircleAlert, Hourglass } from "lucide-react";
+
 import { Button } from "@effy/design-system/ui";
+
+import { cn } from "@/lib/utils";
 
 import { track } from "@/lib/telemetry";
 
@@ -59,66 +63,65 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
     });
   }
 
+  // Waiting on Effy is in progress (blue); sent back is a problem — the foreground edge with its icon.
+  const Icon = sentBack ? CircleAlert : Hourglass;
   return (
-    <section
-      aria-label="Review"
-      className={
-        "grid gap-3 rounded-lg border px-4 py-3.5 " +
-        (sentBack ? "border-warning/40 bg-warning-soft" : "border-border bg-muted")
-      }
-    >
+    <section aria-label="Review" className={cn("bo-alert gap-y-3!", sentBack ? "bo-alert--destructive" : "bo-alert--info")}>
+      <Icon aria-hidden="true" className="mt-0.5" />
       <div className="grid gap-1">
-        <h2 className="text-[14px] font-semibold">{title}</h2>
-        <p className="text-muted-foreground text-[13px]">{body}</p>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="text-muted-foreground">{body}</p>
       </div>
 
       {sentBack && detail.reviewReason ? (
-        <div className="grid gap-1">
-          <span className="text-[12px] font-medium">Why</span>
+        <div className="col-start-2 grid gap-1">
+          <span className="text-sm font-medium">Why</span>
           {/* Rendered as text. `whitespace-pre-line` keeps the reviewer's line breaks. */}
-          <p className="text-[13px] break-words whitespace-pre-line">{detail.reviewReason}</p>
+          <p className="break-words whitespace-pre-line">{detail.reviewReason}</p>
         </div>
       ) : null}
 
       {isChange && rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-md border border-border bg-background">
-          <table className="w-full text-[13px]">
-            <thead className="bg-muted text-left">
-              <tr>
-                <th className="px-3 py-2 font-medium">Detail</th>
-                <th className="px-3 py-2 font-medium">On sale now</th>
-                <th className="px-3 py-2 font-medium">Your change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.label} className="border-t border-border align-top">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">
-                    {r.label}
-                  </th>
-                  <td className="text-muted-foreground px-3 py-2 break-words whitespace-pre-line">
-                    <span className="sr-only">on sale now: </span>
-                    {r.now}
-                  </td>
-                  <td className="px-3 py-2 break-words whitespace-pre-line">
-                    <span className="sr-only">your change: </span>
-                    {r.proposed}
-                  </td>
+        <div className="bo-table-wrap col-start-2">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-table--compact">
+              <thead>
+                <tr>
+                  <th>Detail</th>
+                  <th>On sale now</th>
+                  <th>Your change</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.label} className="align-top">
+                    <th scope="row" className="h-auto! py-2.5! text-left font-medium text-foreground">
+                      {r.label}
+                    </th>
+                    <td className="break-words whitespace-pre-line text-muted-foreground">
+                      <span className="sr-only">on sale now: </span>
+                      {r.now}
+                    </td>
+                    <td className="font-medium break-words whitespace-pre-line">
+                      <span className="sr-only">your change: </span>
+                      {r.proposed}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 
       {/* A never-approved product withdraws from the header's own button; a pending change has no
           header verb (the header's is Unpublish), so its way out lives here. */}
       {isChange ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" size="sm" disabled={withdraw.isPending} onClick={discard}>
+        <div className="col-start-2 flex flex-wrap items-center gap-3">
+          <Button variant="outline" disabled={withdraw.isPending} onClick={discard}>
             Discard this change
           </Button>
-          {error ? <span className="text-destructive text-[13px]">{error}</span> : null}
+          {error ? <span role="alert" className="text-sm font-medium">{error}</span> : null}
         </div>
       ) : null}
     </section>

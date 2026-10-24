@@ -2,7 +2,8 @@ import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
 import type { ShopBacklogDTO } from "@effy/shared-types"
-import { IconChip, Skeleton, Spinner } from "@effy/design-system/ui"
+import { cn } from "@effy/design-system"
+import { Skeleton } from "@effy/design-system/ui"
 
 import { deltaText, money } from "@/features/insights/model"
 import { insightsQuery } from "@/features/insights/queries"
@@ -10,78 +11,67 @@ import { insightsQuery } from "@/features/insights/queries"
 import { unitsToPack } from "./model"
 
 /**
- * "Today at a glance": reads `insightsQuery("today")`, the same entry Insights reads, so the two agree by
- * construction. "Awaiting pick" comes from the operational snapshot instead, because it is live work.
- * Four figures in one bordered strip. Each cell has an icon chip with the design's geometric glyphs
- * (◈ ◫ ◎ ▤, never emoji): money is brand, volume violet, average teal, and Awaiting pick the attention hue,
- * as the one cell that is work rather than a result.
+ * "Today at a glance" — the rail panel ("Today so far" on the canvas): four label · value rows, not
+ * cards. It reads `insightsQuery("today")`, the same entry Insights reads, so the two agree by
+ * construction. "Awaiting pick" comes from the operational snapshot instead, because it is live work —
+ * and it is the one figure in blue, as work rather than a result.
  */
 export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }) {
   const insights = useQuery(insightsQuery("today"))
   const dto = insights.data
 
-  const cells = [
+  const rows = [
     {
-      tone: "brand" as const,
-      glyph: "\u25c8", // ◈
       label: "Revenue today",
       value: dto ? money(dto.primary.revenue.value, dto.currency) : null,
       note: dto ? deltaText(dto.primary.revenue, dto.comparison.basis) : "",
     },
     {
-      tone: "violet" as const,
-      glyph: "\u25ab", // ▫
       label: "Orders today",
       value: dto ? dto.primary.orders.value : null,
       note: dto ? `${dto.primary.orders.lastHour ?? 0} in the last hour` : "",
     },
     {
-      tone: "teal" as const,
-      glyph: "\u25ce", // ◎
       label: "Average order value",
       value: dto ? money(dto.primary.averageOrderValue.value, dto.currency) : null,
       note: dto ? deltaText(dto.primary.averageOrderValue, dto.comparison.basis) : "",
     },
     {
-      tone: "attention" as const,
-      glyph: "\u25a4", // ▤
       label: "Awaiting pick",
       value: backlog ? String(backlog.awaitingPick.orders) : null,
       note: backlog ? unitsToPack(backlog.awaitingPick.units) : "",
+      live: true,
     },
   ]
 
   return (
-    <section className="overflow-hidden rounded-[var(--radius)] border">
-      <header className="flex items-center gap-3 border-b px-[18px] py-[13px]">
-        <h2 className="text-[13px] font-semibold">Today at a glance</h2>
-        {insights.isFetching ? <Spinner /> : null}
-        <div className="flex-1" />
-        <Link
-          to="/insights"
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium no-underline"
-        >
+    <section className="bo-panel min-w-0">
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 className="bo-panel__title">Today at a glance</h2>
+          <p className="bo-panel__desc">Your goods only, since midnight.</p>
+        </div>
+        <Link to="/insights" className="text-sm font-medium text-foreground no-underline hover:underline">
           Full insights →
         </Link>
-      </header>
-      {/* Rules as a grid gap — at two columns on a phone the second row would otherwise draw one
-          against the card's left edge (see MetricStrip). */}
-      <dl className="bg-border grid grid-cols-2 gap-px sm:grid-cols-4">
-        {cells.map((c) => (
-          <div key={c.label} className="bg-background grid min-w-0 gap-1 px-[18px] py-[15px]">
-            <dt className="flex min-w-0 items-center gap-2">
-              <IconChip tone={c.tone} size="sm">
-                {c.glyph}
-              </IconChip>
-              <span className="truncate text-xs font-medium text-muted-foreground">{c.label}</span>
-            </dt>
-            <dd className="truncate text-[22px] font-semibold tracking-[-0.02em] tabular-nums">
-              {c.value ?? <Skeleton className="h-6 w-16" />}
-            </dd>
-            <dd className="text-muted-foreground truncate text-[11.5px]">{c.note}</dd>
-          </div>
-        ))}
-      </dl>
+      </div>
+      <div className="bo-panel__body py-1!">
+        <dl className="bo-dl bo-dl--tight">
+          {rows.map((r) => (
+            <div key={r.label} className="bo-dl__row items-baseline">
+              <dt>{r.label}</dt>
+              <dd className="min-w-0">
+                {r.value === null ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className={cn("font-semibold tabular-nums", r.live && "text-primary")}>{r.value}</span>
+                )}
+                {r.note ? <span className="bo-sub">{r.note}</span> : null}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
     </section>
   )
 }

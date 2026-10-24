@@ -25,10 +25,10 @@ import {
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Kbd } from "@/components/patterns/Kbd";
-import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { Kbd } from "@effy/web-kit/patterns";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";

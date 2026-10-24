@@ -80,6 +80,49 @@ export interface ShopOrderListQuery {
   page?: number
 }
 
+// Collection (099)
+
+/**
+ * Where the Effy collection run's driver is, as far as one shop is concerned: no round yet, a driver
+ * given the run, set off (the round is open and the driver on duty), or collected from this shop.
+ * Never a name, a position or another stop.
+ */
+export const COLLECTION_DRIVER_STATES = ["none", "assigned", "on_the_way", "collected"] as const
+export type CollectionDriver = (typeof COLLECTION_DRIVER_STATES)[number]
+
+/** One Effy collection run as a shop sees it. */
+export interface ShopCollectionRunDTO {
+  /** The run's instant. */
+  runAt: string
+  /** 0 today, 1 tomorrow… in the shop's timezone. */
+  dayOffset: WireInt
+  driver: CollectionDriver
+  /** When the run's round opens to its driver; null while no round exists. The screen words "on the way" from it. */
+  opensAt: string | null
+  driverOnDuty: boolean
+}
+
+/** Today's "Next collection": the run, and this shop's Effy orders due on it. */
+export interface ShopNextCollectionDTO extends ShopCollectionRunDTO {
+  due: { ready: WireInt; picking: WireInt }
+}
+
+/** The run expected to collect an Effy-driver package still at the shop. A courier package never has one. */
+export interface ShopOrderCollectionDTO {
+  runAt: string
+  dayOffset: WireInt
+  driver: CollectionDriver
+}
+
+/** A line's temperature, from the item at checkout. Pick lists run Ambient → Chilled → Frozen. */
+export const STORAGE_CLASSES = ["ambient", "chilled", "frozen"] as const
+export type StorageClass = (typeof STORAGE_CLASSES)[number]
+export const STORAGE_CLASS_WORDS: Record<StorageClass, string> = {
+  ambient: "Ambient",
+  chilled: "Chilled",
+  frozen: "Frozen",
+}
+
 /** One row. `id` is the portion (shop_fulfillment.id), which the detail route is keyed on. */
 export interface ShopOrderRowDTO {
   id: string
@@ -98,6 +141,8 @@ export interface ShopOrderRowDTO {
   deliveredBy: DeliveredBy
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
+  /** Present only for an Effy-driver package still at the shop: the run expected to collect it (099). */
+  collection?: ShopOrderCollectionDTO
   /** Open and within 15 minutes of, or past, its ready-by. */
   atRisk: boolean
   payment: ShopOrderPaymentState
@@ -145,6 +190,8 @@ export interface ShopOrderLineDTO {
   lineTotal: string
   /** The picker's note from "Adjust this line". */
   pickNote: string | null
+  /** Ambient, chilled or frozen: groups the pick list in walking order (099). */
+  storageClass: StorageClass
 }
 
 /** One refund on the order, any issuer, so the shop sees money Effy returned too. */
@@ -246,6 +293,8 @@ export interface ShopOrderDetailDTO {
   deliveredBy: DeliveredBy
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
+  /** Present only for an Effy-driver package still at the shop: the run expected to collect it (099). */
+  collection?: ShopOrderCollectionDTO
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO
   /** This package's live bags, each with its own label. */

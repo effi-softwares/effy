@@ -6,7 +6,7 @@ import { ExternalLink, Lock, Reply, Send } from "lucide-react"
 import { cn } from "@effy/design-system"
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 
-import { StatusWord, type StatusTone } from "@/components/patterns/StatusWord"
+import { StatusWord, type StatusTone } from "@effy/web-kit/patterns"
 import { moment } from "@/lib/format"
 
 import {

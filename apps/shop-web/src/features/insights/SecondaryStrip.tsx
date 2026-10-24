@@ -71,21 +71,18 @@ export function SecondaryStrip({
   ]
 
   return (
-    // Rules as a grid gap — see MetricStrip: a wrapped row must not draw one against the container edge.
-    <div className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius)] border sm:grid-cols-5">
+    <div className="sh-kpis">
       {cells.map((c) => (
         <Link
           key={c.label}
           to={c.to}
           search={c.search}
-          className="bg-background hover:bg-accent grid gap-[3px] px-4 py-3 text-left no-underline"
+          className="sh-kpi"
           onClick={() => track({ name: "insights_drilled", metric: c.label })}
         >
-          <span className="text-muted-foreground truncate text-xs">{c.label}</span>
-          <span className="flex items-baseline gap-[7px]">
-            <span className="text-base font-semibold tabular-nums">{c.value}</span>
-            <span className="text-muted-foreground truncate text-[11.5px]">{c.note}</span>
-          </span>
+          <span className="sh-kpi__label">{c.label}</span>
+          <span className="text-lg font-semibold tabular-nums">{c.value}</span>
+          <span className="sh-kpi__sub">{c.note}</span>
         </Link>
       ))}
     </div>

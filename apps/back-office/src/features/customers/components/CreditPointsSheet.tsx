@@ -14,7 +14,7 @@ import {
   toast,
 } from "@effy/design-system/ui";
 
-import { ResponsiveSheet } from "@/components/patterns/ResponsiveSheet";
+import { ResponsiveSheet } from "@effy/web-kit/patterns";
 
 import { pointsActionError } from "../errorText";
 import { useCreditPoints } from "../queries";

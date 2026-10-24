@@ -4,6 +4,46 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**099-shop-floor-signals — Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
+2026-10-24 — NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
+Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/tasks.md).
+- **Next collection**: the shop is told the Effy collection run that will take each package and its next run's
+  state (`none` · `assigned` · `on_the_way` · `collected`), on Today (`nextCollection`), the queue, the list and an
+  order's page (`collection`). ⚠ **The run is the planner's own rule**: `dueRun` moved into
+  `@effy/edge-shared` and `shopPackageRuns` (`@effy/edge-shared/delivery`) reads the window **there** and hands the
+  shop only run times — `shop/src/fulfillments/no-delivery-window.guard.test.ts` still forbids any shop file from
+  reading a window. "On the way" = the round is open (`round_opens_at`) and its driver on duty; the screen flips
+  it at the opening minute on its own clock. No driver name, position or other stop. A courier's own pickup from
+  the supplier never gets an Effy run; a courier parcel via the hub does (the planner collects it).
+- **Live**: the planner pass, manual assign/unassign and driver duty now announce `orders` to the shops on the
+  affected collection rounds (`announceCollectionShops`, `@effy/edge-shared/live`).
+- **Pick order**: `storageClass` on every shop order line and pick-list line (from `order_item.storage_class`); the
+  pick list and the printed sheet run Ambient → Chilled → Frozen.
+- **Availability**: `GET /shop/v1/availability` (shared gateway 163 → 164/300) — sizes of live/unavailable
+  products, views Needs a look · Out of stock · Low stock · Off sale · Everything, `lastOnSale`. The switch is the
+  existing variant state route (one writer). Screen: Catalog › Availability, and the palette's "Take a size off sale".
+- **Quality**: five columns on `shop_sales_hour` (`db/migrations/20261024084434_shop_floor_signals.sql`, which marks
+  the last 60 days for the rollup job); a portion finishes at its FIRST ready or its can't-supply, a customer
+  cancellation never counts. Insights shows Found rate, Can't-supply rate (points) and Average time to ready.
+- **Verified**: unit + container tests (collection against real rounds/stops; pick order; availability filters and
+  last-on-sale; rollup counts a reopened portion once and drops a withdrawn one); shop-web 538 tests; builds; guards.
+- **Operator steps open**: `make db-up ENV=dev`; then `make edge-deploy SERVICE=shop ENV=dev` (after the migration),
+  `SERVICE=fleet`, `SERVICE=driver`; shop-web from `dev`; walk [quickstart.md](specs/099-shop-floor-signals/quickstart.md).
+
+**Shop console redesign (2026-10-24, no spec).** shop-web moved to the back-office identity sized for touch, per
+`docs/shop-web-redesign-brief.md` and the canvas in `docs/reference-screens/Effy Shop Console Redesign/`. ⚠ Built
+straight from the brief at the operator's request — there is no `spec.md`/`plan.md`/`tasks.md` for it, which
+constitution Principle I requires before merge; write them (or fold them into a spec) before this merges.
+- **One look, shared**: back-office's primitive and pattern styles moved into `@effy/design-system`
+  (`backoffice/primitives.css`, `backoffice/patterns.css`) and its pattern components into `@effy/web-kit/patterns`;
+  both consoles import them. shop-web adds one layer, `apps/shop-web/src/styles/touch.css` (touch sizes, the queue,
+  pick line, tick, stepper, action bar, KPI strip). ⚠ Fixed on the way: "done" statuses read `--brand-muted`, which
+  the back-office identity does not declare, so they were blue — now `--success`.
+- **New on screen**: Orders › Queue (four lanes), the new-order alert with a repeating chime and the header's Sound
+  chip, ⌘K search and commands, the header's Scan dialog, choice-card dialogs (no native selects or `confirm()`),
+  the pick list's 44px ticks and product-barcode scan. A shop's "Cancel order" is now "Can't supply it…", and
+  "Items from other shops" is no longer shown (brief §6).
+
 **098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** ✅ **BUILT
 2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** A product is now its shared details plus one or more **variants**
 (up to two options such as Size and Flavour, up to 20 values each, up to 50 variants). Each variant has its own shop

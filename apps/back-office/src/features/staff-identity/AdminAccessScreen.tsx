@@ -3,8 +3,8 @@ import { Check, Minus } from "lucide-react";
 import type { BackOfficeRole } from "@effy/shared-types";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
 import { canManageCatalog } from "@/features/catalog-schema/access";
 import { canDebitPoints, canEditPointsSettings } from "@/features/customers/access";
 import { canRepairDelivery } from "@/features/deliverability/access";

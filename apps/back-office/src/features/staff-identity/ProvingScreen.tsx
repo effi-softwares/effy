@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ErrorState } from "@effy/web-kit/console";
 
-import { DetailRows, Panel } from "@/components/patterns/Panel";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
 
 import { meQuery } from "./queries";
 

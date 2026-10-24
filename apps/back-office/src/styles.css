@@ -10,9 +10,9 @@
    second import would silently win. */
 @import "@effy/design-system/backoffice.css";
 /* How the shared primitives look here, and the frame around every screen. */
-@import "./styles/primitives.css";
+@import "@effy/design-system/backoffice/primitives.css";
 @import "./styles/shell.css";
-@import "./styles/patterns.css";
+@import "@effy/design-system/backoffice/patterns.css";
 
 @layer base {
   * {

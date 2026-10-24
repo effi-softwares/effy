@@ -8,10 +8,10 @@ import { cn } from "@effy/design-system";
 import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
-import { Pager, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
+import { Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns";
 import { moment } from "@/lib/format";
 
 import { STATE_LABEL, type EmailDeliveryState } from "./model";

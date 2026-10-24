@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { CircleAlert, CircleCheck, Hourglass, type LucideIcon } from "lucide-react"
 
 import type { OrderRow } from "../orderConsole"
 import { PAYMENT_LABEL } from "../orderConsole"
@@ -10,27 +11,28 @@ import { cn } from "@/lib/utils"
  */
 type Tone = "warn" | "info" | "pos" | "neg" | "muted"
 
+/** The closed mapping as status words: waiting → outline · in progress → blue · done → green · problem → black · inert → grey. */
 const TONE_CLASS: Record<Tone, string> = {
-  // waiting / at-risk
-  warn: "border-border bg-warning-soft text-warning font-medium",
-  // in-progress — the work is moving
-  info: "border-brand-mid bg-brand-soft text-brand-ink font-medium",
-  // positive / complete
-  pos: "border-border bg-success-soft text-success font-medium",
-  // failed / refunded
-  neg: "border-border bg-destructive-soft text-destructive font-medium",
-  // inert — nothing to say about it
-  muted: "border-border bg-muted text-muted-foreground font-medium",
+  warn: "bo-st--waiting",
+  info: "bo-st--moving",
+  pos: "bo-st--done",
+  neg: "bo-st--problem",
+  muted: "bo-st--muted",
+}
+
+const TONE_ICON: Record<Tone, LucideIcon | null> = {
+  warn: Hourglass,
+  info: null,
+  pos: CircleCheck,
+  neg: CircleAlert,
+  muted: null,
 }
 
 export function TonePill({ tone, children }: { tone: Tone; children: ReactNode }) {
+  const Icon = TONE_ICON[tone]
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] whitespace-nowrap",
-        TONE_CLASS[tone],
-      )}
-    >
+    <span className={cn("bo-st", TONE_CLASS[tone])}>
+      {Icon ? <Icon aria-hidden="true" /> : null}
       {children}
     </span>
   )

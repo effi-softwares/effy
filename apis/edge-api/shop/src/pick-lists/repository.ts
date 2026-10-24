@@ -1,6 +1,6 @@
 // Printable pick lists: no money, because sheets get left on benches.
 import { query } from "@effy/edge-shared";
-import type { CourierPickupDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, StorageClass } from "@effy/shared-types";
 
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
@@ -18,7 +18,7 @@ export interface PickListRow {
   deliveredBy: DeliveredBy;
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number; storageClass: StorageClass }>;
 }
 
 /** Oldest first, matching the queue, so a printed stack matches the screen. */
@@ -31,8 +31,9 @@ SELECT sf.id::text AS fulfillment_id,
        COALESCE(
          json_agg(
            -- The variant and its stock code AS SOLD.
-           json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'variantCode', oi.variant_code, 'sku', oi.sku, 'quantity', oi.quantity)
-           ORDER BY oi.product_name, oi.variant_label NULLS FIRST
+           -- The temperature as sold: the sheet runs Ambient → Chilled → Frozen, cold last (099).
+           json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'variantCode', oi.variant_code, 'sku', oi.sku, 'quantity', oi.quantity, 'storageClass', oi.storage_class)
+           ORDER BY CASE oi.storage_class WHEN 'ambient' THEN 0 WHEN 'chilled' THEN 1 ELSE 2 END, oi.product_name, oi.variant_label NULLS FIRST
          ) FILTER (WHERE oi.id IS NOT NULL),
          '[]'::json
        ) AS lines
@@ -58,7 +59,7 @@ interface PickListDbRow {
   customer_name: string;
   paid_at: Date;
   delivered_by: DeliveredBy;
-  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number; storageClass: StorageClass }>;
 }
 
 export async function readPickLists(

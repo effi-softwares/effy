@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
 } from "@effy/design-system/ui";
 
 import { cn } from "@/lib/utils";
@@ -57,23 +57,23 @@ export function FocusedEditDialog({
   children,
 }: FocusedEditDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent
         className={cn(
-          "max-h-[90vh] overflow-y-auto",
+          "max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh] max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4",
           size === "full" ? "sm:max-w-6xl" : size === "wide" ? "sm:max-w-3xl" : "sm:max-w-lg",
         )}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
+          {description ? <ResponsiveModalDescription>{description}</ResponsiveModalDescription> : null}
+        </ResponsiveModalHeader>
 
         <div className="space-y-4">{children}</div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="text-sm font-medium">{error}</p> : null}
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
@@ -86,8 +86,8 @@ export function FocusedEditDialog({
               {saving ? "Saving…" : "Save"}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

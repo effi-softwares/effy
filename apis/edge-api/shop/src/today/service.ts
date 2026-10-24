@@ -17,17 +17,24 @@ const PROPOSAL_FETCH = ATTENTION_LIMIT + 1;
 /** Today writes nothing, so it attributes nothing; it reuses the fulfilment gate's Actor. */
 export type { Actor } from "../fulfillments/service";
 import type { Actor } from "../fulfillments/service";
+import type { ShopNextCollectionDTO, ShopOrderCollectionDTO } from "@effy/shared-types";
 
 export interface TodayDeps {
   /** Whether this operator may refund. Injected, and the filter happens here on the server. */
   canRefund: (sub: string) => Promise<boolean>;
+  /**
+   * The next Effy collection run and the runs the live orders go on (099, `collection/service.ts`).
+   * The Today route passes both; the attention evaluator, which only counts what needs a person, does not.
+   */
+  nextCollection?: (shopId: string, now: Date) => Promise<ShopNextCollectionDTO | null>;
+  collectionsFor?: (shopId: string, ids: readonly string[], now: Date) => Promise<Map<string, ShopOrderCollectionDTO>>;
 }
 
 export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySnapshot> {
   const canRefund = await deps.canRefund(actor.sub);
 
   // Independent reads issued together: each RDS hop is ~135 ms.
-  const [clock, backlog, stock, proposals, live] = await Promise.all([
+  const [clock, backlog, stock, proposals, live, nextCollection] = await Promise.all([
     readClock(actor.shopId),
     readBacklog(actor.shopId),
     readStockAttention(actor.shopId, STOCK_FETCH),
@@ -35,7 +42,11 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
       ? proposedRefundsForShop(actor.shopId, PROPOSAL_FETCH)
       : Promise.resolve([] as Awaited<ReturnType<typeof proposedRefundsForShop>>),
     readLiveOrders(actor.shopId, LIVE_LIMIT),
+    deps.nextCollection ? deps.nextCollection(actor.shopId, new Date()) : Promise.resolve(null),
   ]);
+  const collections = deps.collectionsFor
+    ? await deps.collectionsFor(actor.shopId, live.map((o) => o.fulfillmentId), new Date())
+    : new Map<string, ShopOrderCollectionDTO>();
 
   // One row per order: the decision a manager makes.
   const byOrder = new Map<string, ProposedRefund>();
@@ -60,7 +71,11 @@ export async function readToday(actor: Actor, deps: TodayDeps): Promise<TodaySna
     backlog,
     stock,
     proposals: [...byOrder.values()],
-    live,
+    live: live.map((o) => {
+      const collection = collections.get(o.fulfillmentId);
+      return collection ? { ...o, collection } : o;
+    }),
+    nextCollection,
   };
 }
 

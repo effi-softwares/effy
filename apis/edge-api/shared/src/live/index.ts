@@ -24,4 +24,4 @@ export {
   type AnnounceOrderOptions,
   type PackageMove,
 } from "./order-moves";
-export { announceDispatch, announceSlots } from "./dispatch";
+export { announceCollectionShops, announceDispatch, announceSlots } from "./dispatch";

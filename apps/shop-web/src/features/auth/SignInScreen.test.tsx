@@ -119,7 +119,8 @@ describe("SignInScreen (shop-web)", () => {
 
   it("keeps the brand lockup on the sign-in route", () => {
     const layout = readFileSync(resolve(__dirname, "../../routes/auth.tsx"), "utf8");
-    expect(layout).toContain("Effy Shop Console");
+    expect(layout).toContain('src="/icon.svg"');
+    expect(layout).toMatch(/Effy <span[^>]*>Shop<\/span>/);
   });
 
   it("never renders a password field (passwordless only)", () => {

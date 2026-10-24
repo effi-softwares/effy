@@ -13,7 +13,7 @@ import {
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Kbd } from "@/components/patterns/Kbd";
+import { Kbd } from "@effy/web-kit/patterns";
 import { meQuery } from "@/features/staff-identity/queries";
 
 import { CHORDS } from "./chords";

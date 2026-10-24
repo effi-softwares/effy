@@ -1,7 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { ImageOff } from "lucide-react"
+import { Check, CircleAlert, CircleCheck, ImageOff, Minus, Package, Pencil, Plus, Snowflake, Thermometer, X, type LucideIcon } from "lucide-react"
 
-import { toast } from "@effy/design-system/ui"
+import { STORAGE_CLASSES, STORAGE_CLASS_WORDS, type StorageClass } from "@effy/shared-types"
+
+import { Button, Input, Textarea, toast } from "@effy/design-system/ui"
+import { ScanField } from "@effy/web-kit/scanner"
+
+import { ChoiceCards } from "@/components/console/ChoiceCards"
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { cn } from "@/lib/utils"
@@ -24,18 +29,20 @@ import { useSetPicks, useTransitionFulfillment } from "../queries"
 import { lineCodes } from "../codes";
 
 /**
- * "Items and fulfilment": the priced lines are the pick list. One click on a line's box marks the whole
- * line picked (again clears it); "Select all" / "Clear all" does every line; part picked, unavailable or a
- * note go through the line's "Adjust" dialog. A line's state is two absolute counts, one write per click
- * (`setPicks`). "Fulfil {n} items" hands the package to Effy.
+ * "Items and fulfilment" — the packing screen's pick list (Packing board 01). The priced lines ARE the
+ * pick list: one tap on a line's 44px tick marks the whole line picked (again clears it); "Select all" /
+ * "Clear all" does every line; part picked, can't find or a note go through the line's "Adjust" sheet. A
+ * line's state is two absolute counts, one write per tap (`setPicks`). A product barcode — from a
+ * hand scanner anywhere on the page, the camera or typed — ticks the line it belongs to.
  *
  * No "Edit order": an order is a paid record; an unsuppliable line is marked Unavailable and the money
  * follows by refund. No carrier or tracking fields; "Shipments" lists the hand-over.
  */
 export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const picks = useSetPicks(detail.id)
-  const [adjusting, setAdjusting] = useState<OrderLine | null>(null)
+  const [adjusting, setAdjusting] = useState<{ line: OrderLine; preset?: Exclude<PickMode, "none"> } | null>(null)
   const [fulfilOpen, setFulfilOpen] = useState(false)
+  const [scan, setScan] = useState<{ ok: boolean; text: string; lineId?: string } | null>(null)
 
   const editable = canPick(detail.status)
   const modes = detail.lines.map((l) => pickModeOf(l))
@@ -62,6 +69,23 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
     })
   }
 
+  /** A scanned or typed product code: it ticks its line, or says plainly that it is not on this order. */
+  function onScan(raw: string) {
+    const code = raw.trim()
+    const l = detail.lines.find((x) => x.gtin === code || x.variantCode === code || x.sku === code)
+    if (!l) {
+      setScan({ ok: false, text: "That item isn't on this order — check the shelf." })
+      return
+    }
+    setScan({ ok: true, text: `${l.name}${l.variantLabel ? ` · ${l.variantLabel}` : ""}`, lineId: l.orderItemId })
+    if (pickModeOf(l) !== "full" && editable && !busy) {
+      picks.mutate({
+        lines: [{ orderItemId: l.orderItemId, mode: "full" }],
+        toast: pickToast(l.name, "full", l.orderedQuantity, l.orderedQuantity),
+      })
+    }
+  }
+
   function fulfil() {
     if (!pickedAny) {
       toast("Tick at least one item first")
@@ -71,94 +95,114 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   }
 
   const m = detail.money
-  const others = Math.round(Number(m.itemSubtotal) * 100) - Math.round(Number(m.shopSubtotal) * 100)
+  const pct = detail.lines.length > 0 ? (pickedFull / detail.lines.length) * 100 : 0
 
   return (
-    <section className="min-w-0">
-      <div className="border-border flex flex-wrap items-end gap-4 border-b pb-3.5">
-        <div className="grid min-w-0 gap-1">
-          <h2 className="text-[15px] font-semibold tracking-[-.01em]">Items and fulfilment</h2>
-          <p className="text-muted-foreground text-[12.5px]">
-            {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
-          </p>
+    <section className="bo-panel min-w-0">
+      <div className="bo-panel__head">
+        <div className="grid min-w-0 flex-1 gap-2">
+          <h2 className="bo-panel__title">Items and fulfilment</h2>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="bo-meter bo-meter--lg w-full max-w-[260px]" aria-hidden="true">
+              <i className="bo-meter__booked" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="bo-panel__desc">
+              {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
+            </p>
+          </div>
         </div>
-        <div className="flex-1" />
         {editable ? (
-          <TextButton onClick={toggleAll} disabled={busy}>
+          <Button variant="ghost" onClick={toggleAll} disabled={busy}>
             {allPicked ? "Clear all" : "Select all"}
-          </TextButton>
+          </Button>
         ) : null}
       </div>
 
-      <table className="w-full border-collapse">
-        <tbody>
-          {detail.lines.map((l) => (
-            <LineRow
-              key={l.orderItemId}
-              line={l}
-              currency={m.currency}
-              editable={editable}
-              busy={busy}
-              onToggle={() => toggleLine(l)}
-              onAdjust={() => setAdjusting(l)}
+      {editable ? (
+        <div className="sh-scan">
+          <div className="min-w-0 flex-1">
+            <ScanField
+              accept={(t) => /^\d{8,14}$/.test(t.trim())}
+              onRead={({ raw }) => onScan(raw)}
+              placeholder="Scan a product barcode, or type it"
+              label="Scan a product barcode"
             />
-          ))}
-          <TotalRow label="Subtotal" value={formatMoney(m.shopSubtotal, m.currency)} first />
-          {others > 0 ? (
-            <TotalRow label="Items from other shops" value={formatMoney((others / 100).toFixed(2), m.currency)} />
-          ) : null}
-          {Number(m.discount) > 0 ? (
-            <TotalRow
-              // The total only; a shop is never told which promotion it was.
-              label="Discount"
-              value={`−${formatMoney(m.discount, m.currency)}`}
-            />
-          ) : null}
-          {/* No delivery row. A shop never sees what the customer paid for delivery. */}
-          <tr className="border-border border-t">
-            <td colSpan={3} className="pt-2.5 pr-2 text-sm font-semibold">
-              Total
-            </td>
-            <td className="pt-2.5 text-right text-sm font-semibold whitespace-nowrap tabular-nums">
-              {formatMoney(m.total, m.currency)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+          </div>
+          {scan ? (
+            <p role="status" className="sh-scan__state basis-full">
+              {scan.ok ? <CircleCheck aria-hidden="true" className="text-success" /> : <CircleAlert aria-hidden="true" />}
+              {scan.text}
+            </p>
+          ) : (
+            <p className="basis-full text-sm text-muted-foreground">A scanner types here. It ticks the line when the barcode matches.</p>
+          )}
+        </div>
+      ) : null}
 
-      {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
+      {/* Walking order (099): shelves first, the fridge, the freezer last — cold goods out the least. */}
+      <div className="sh-picklist">
+        {zonesOf(detail.lines).map(({ zone, lines }) => {
+          const Z = ZONE[zone]
+          return (
+            <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
+              <h3 className="sh-zone">
+                <Z.icon aria-hidden="true" />
+                {STORAGE_CLASS_WORDS[zone].toUpperCase()}
+                <span className="sh-zone__hint">· {Z.hint}</span>
+              </h3>
+              <ul>
+                {lines.map((l) => (
+                  <LineRow
+                    key={l.orderItemId}
+                    line={l}
+                    currency={m.currency}
+                    editable={editable}
+                    busy={busy}
+                    scanned={scan?.lineId === l.orderItemId}
+                    onToggle={() => toggleLine(l)}
+                    onAdjust={() => setAdjusting({ line: l })}
+                    onCantFind={() => setAdjusting({ line: l, preset: "unavailable" })}
+                  />
+                ))}
+              </ul>
+            </section>
+          )
+        })}
+      </div>
+
+      <div className="border-t border-border px-5 py-3 max-md:px-4">
+        <TotalRow label="Your items" value={formatMoney(m.shopSubtotal, m.currency)} />
+        {Number(m.discount) > 0 ? (
+          // The total only; a shop is never told which promotion it was.
+          <TotalRow label="Discount" value={`−${formatMoney(m.discount, m.currency)}`} />
+        ) : null}
+        {/* No delivery row. A shop never sees what the customer paid for delivery, nor other shops' items. */}
+        <TotalRow label="Total" value={formatMoney(m.total, m.currency)} strong />
+        {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
+      </div>
 
       {editable ? (
-        <div className="mt-6 flex flex-wrap items-center gap-3.5">
-          <button
-            type="button"
-            onClick={fulfil}
-            aria-disabled={!pickedAny}
-            className={cn(
-              "h-9 rounded-md border-none px-3.5 text-[13.5px] font-medium whitespace-nowrap",
-              pickedAny
-                ? "bg-primary text-primary-foreground cursor-pointer hover:opacity-90"
-                : "bg-muted text-muted-foreground cursor-default",
-            )}
-          >
-            {pickedAny ? `Fulfil ${pickedFull} ${pickedFull === 1 ? "item" : "items"}` : "Fulfil picked items"}
-          </button>
-          <div className="text-muted-foreground text-[12.5px] text-pretty">
+        <div className="bo-panel__foot bo-panel__foot--between">
+          <p className="min-w-0 flex-1 text-sm text-muted-foreground text-pretty">
             {pickedAny
               ? "Marks everything ticked above ready for an Effy driver to collect."
               : "Tick the items you have picked, or use Adjust for part-picked and unavailable lines."}
-          </div>
+          </p>
+          <Button variant={pickedAny ? "default" : "secondary"} onClick={fulfil} aria-disabled={!pickedAny}>
+            {pickedAny ? `Fulfil ${pickedFull} ${pickedFull === 1 ? "item" : "items"}` : "Fulfil picked items"}
+          </Button>
         </div>
       ) : null}
 
       <Shipments detail={detail} />
 
       <AdjustLineDialog
-        line={adjusting}
+        line={adjusting?.line ?? null}
+        preset={adjusting?.preset}
         onClose={() => setAdjusting(null)}
         saving={busy}
         onSave={(mode, units, note) => {
-          const l = adjusting!
+          const l = adjusting!.line
           picks.mutate(
             {
               lines: [{ orderItemId: l.orderItemId, mode, ...(mode === "part" ? { units } : {}), ...(note ? { note } : {}) }],
@@ -173,15 +217,27 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   )
 }
 
+// Walking order
+
+const ZONE: Record<StorageClass, { icon: LucideIcon; hint: string }> = {
+  ambient: { icon: Package, hint: "pick first" },
+  chilled: { icon: Thermometer, hint: "then, straight into the chilled bag" },
+  frozen: { icon: Snowflake, hint: "pick last, straight into the frozen bag" },
+}
+
+/** The order's lines grouped Ambient → Chilled → Frozen, keeping their order within a group; no empty groups. */
+export function zonesOf(lines: readonly OrderLine[]): { zone: StorageClass; lines: OrderLine[] }[] {
+  return STORAGE_CLASSES.map((zone) => ({ zone, lines: lines.filter((l) => (l.storageClass ?? "ambient") === zone) })).filter(
+    (g) => g.lines.length > 0,
+  )
+}
+
 // A line
 
 /**
- * The line's box: 26px, 7px radius. Its four states by fill, border and glyph
- * full ✓ on primary · part – · unavailable × in the error colour · none empty.
- *
- * The design's part-picked amber and picked green are not used: amber is a third UI hue and
- * `--success` may not be text (Principle V). Part-picked reads by its en dash and a foreground border;
- * the status words under the SKU carry every state, so nothing depends on colour.
+ * The line's tick: 44px, four states by fill, border and glyph — picked ✓ on blue · part – on the blue
+ * tint · can't find × dashed in the foreground · not yet empty. The status word beside the code carries
+ * every state too, so nothing depends on colour.
  */
 function PickBox({ mode, onClick, disabled, name }: { mode: PickMode; onClick: () => void; disabled: boolean; name: string }) {
   return (
@@ -193,19 +249,18 @@ function PickBox({ mode, onClick, disabled, name }: { mode: PickMode; onClick: (
       title="Mark this item picked"
       onClick={onClick}
       disabled={disabled}
-      className={cn(
-        "grid size-[26px] shrink-0 place-items-center rounded-[7px] border-[1.5px] p-0 text-[15px] leading-none",
-        !disabled && "hover:border-primary cursor-pointer",
-        disabled && "cursor-default",
-        mode === "full" && "border-primary bg-primary text-primary-foreground",
-        mode === "part" && "border-foreground bg-muted text-foreground",
-        mode === "unavailable" && "border-destructive bg-background text-destructive",
-        mode === "none" && "border-input bg-background",
-      )}
+      className={cn("sh-tick", mode === "full" && "is-on", mode === "part" && "is-part", mode === "unavailable" && "is-off")}
     >
-      {mode === "full" ? "✓" : mode === "part" ? "–" : mode === "unavailable" ? "×" : ""}
+      {mode === "full" ? <Check aria-hidden="true" /> : mode === "part" ? <Minus aria-hidden="true" /> : mode === "unavailable" ? <X aria-hidden="true" /> : null}
     </button>
   )
+}
+
+const STATUS_CLASS: Record<PickMode, string> = {
+  full: "bo-st bo-st--done",
+  part: "bo-st bo-st--moving",
+  unavailable: "bo-st bo-st--problem",
+  none: "text-muted-foreground",
 }
 
 function LineRow({
@@ -213,108 +268,72 @@ function LineRow({
   currency,
   editable,
   busy,
+  scanned,
   onToggle,
   onAdjust,
+  onCantFind,
 }: {
   line: OrderLine
   currency: string
   editable: boolean
   busy: boolean
+  scanned: boolean
   onToggle: () => void
   onAdjust: () => void
+  onCantFind: () => void
 }) {
   const mode = pickModeOf(line)
   return (
-    <tr className={cn("border-border border-b", mode === "unavailable" && "bg-muted")}>
-      <td className="w-[82px] py-[18px] pr-2">
-        <div className="flex items-center gap-3">
-          <PickBox mode={mode} onClick={onToggle} disabled={!editable || busy} name={line.name} />
-          {line.imageUrl ? (
-            <img src={line.imageUrl} alt="" className="border-border size-[34px] shrink-0 rounded-md border object-cover" />
-          ) : (
-            <div className="border-border bg-muted text-muted-foreground grid size-[34px] shrink-0 place-items-center rounded-md border">
-              <ImageOff className="size-3.5" />
-            </div>
-          )}
+    <li className={cn("sh-pick", mode === "full" && "is-done", mode === "unavailable" && "is-short", scanned && "is-scanned")}>
+      <PickBox mode={mode} onClick={onToggle} disabled={!editable || busy} name={line.name} />
+      {line.imageUrl ? (
+        <img src={line.imageUrl} alt="" className="sh-pick__img rounded-md border border-border object-cover" />
+      ) : (
+        <div className="sh-pick__img bo-img">
+          <ImageOff aria-hidden="true" />
         </div>
-      </td>
-      <td className="px-2 py-[18px]">
-        {/* The size sold is part of the name a picker reads: they must never guess it. */}
-        <div className="text-sm font-medium">
-          {line.name}
-          {line.variantLabel ? <span className="text-foreground"> — {line.variantLabel}</span> : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
-          {line.gtin ? <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{line.gtin}</span> : null}
-          <span
-            className={cn(
-              "text-[11.5px] whitespace-nowrap",
-              mode === "full" && "text-foreground font-medium",
-              mode === "part" && "text-foreground font-semibold",
-              mode === "unavailable" && "text-destructive font-medium",
-              mode === "none" && "text-muted-foreground",
-            )}
-          >
-            {pickLabel(line)}
-          </span>
-          {line.refundedQuantity > 0 ? (
-            <span className="text-muted-foreground text-[11.5px] whitespace-nowrap">{line.refundedQuantity} refunded</span>
-          ) : null}
-        </div>
-      </td>
-      <td className="px-2 py-[18px] text-right whitespace-nowrap">
-        <div className="text-muted-foreground text-[13px]">
-          {line.orderedQuantity} × {formatMoney(line.unitPrice, currency)}
-        </div>
-        {editable ? (
-          <TextButton small onClick={onAdjust} disabled={busy}>
-            Adjust
-          </TextButton>
-        ) : null}
-      </td>
-      <td className="w-[110px] py-[18px] pl-2 text-right text-sm font-medium tabular-nums">
-        {formatMoney(line.lineTotal, currency)}
-      </td>
-    </tr>
-  )
-}
-
-function TotalRow({ label, value, first, last }: { label: ReactNode; value: string; first?: boolean; last?: boolean }) {
-  const pad = first ? "pt-5 pb-1" : last ? "pt-[3px] pb-2.5" : "py-[3px]"
-  return (
-    <tr>
-      <td colSpan={3} className={cn("text-muted-foreground pr-2 text-[13px]", pad)}>
-        {label}
-      </td>
-      <td className={cn("text-right text-[13px] whitespace-nowrap tabular-nums", pad)}>{value}</td>
-    </tr>
-  )
-}
-
-function TextButton({
-  children,
-  onClick,
-  disabled,
-  small,
-}: {
-  children: ReactNode
-  onClick: () => void
-  disabled?: boolean
-  small?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "text-muted-foreground hover:text-foreground cursor-pointer border-none bg-transparent p-0 font-medium whitespace-nowrap disabled:cursor-default disabled:opacity-50",
-        small ? "text-[12px]" : "text-[13px]",
       )}
-    >
-      {children}
-    </button>
+      <div className="min-w-0">
+        {/* The size sold is part of the name a picker reads: they must never guess it. */}
+        <div className="sh-pick__name">
+          {line.name}
+          {line.variantLabel ? <span className="text-muted-foreground"> · {line.variantLabel}</span> : null}
+        </div>
+        <div className="sh-pick__meta">
+          <span className="font-mono text-[13px] whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
+          {line.gtin ? <span className="font-mono text-[13px] whitespace-nowrap">{line.gtin}</span> : null}
+          <span className={cn("whitespace-nowrap", STATUS_CLASS[mode])}>{pickLabel(line)}</span>
+          {line.refundedQuantity > 0 ? <span className="whitespace-nowrap">{line.refundedQuantity} refunded</span> : null}
+        </div>
+      </div>
+      <div className="sh-pick__right">
+        <div className="sh-qty">
+          ×&nbsp;{line.orderedQuantity}
+          <small>
+            {formatMoney(line.unitPrice, currency)} · {formatMoney(line.lineTotal, currency)}
+          </small>
+        </div>
+        {editable && mode === "none" ? (
+          <Button variant="outline" size="sm" onClick={onCantFind} disabled={busy}>
+            Can&apos;t find
+          </Button>
+        ) : null}
+        {editable ? (
+          <Button variant="ghost" size="icon" aria-label="Adjust" title="Adjust this line" onClick={onAdjust} disabled={busy}>
+            <Pencil aria-hidden="true" />
+          </Button>
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
+function TotalRow({ label, value, strong }: { label: ReactNode; value: string; strong?: boolean }) {
+  return (
+    <div className={cn("flex items-baseline justify-between gap-4 py-1", strong && "mt-1 border-t border-border pt-2.5 font-semibold")}>
+      <span className={cn(!strong && "text-muted-foreground")}>{label}</span>
+      <span className="whitespace-nowrap tabular-nums">{value}</span>
+    </div>
   )
 }
 
@@ -339,25 +358,23 @@ const REFUND_REASON: Record<string, string> = {
 function RefundedBox({ detail }: { detail: OrderDetail }) {
   const m = detail.money
   return (
-    <div className="border-border mt-3.5 grid gap-2.5 rounded-[var(--radius)] border px-3.5 py-3">
+    <div className="mt-3 grid gap-1 border-t border-border pt-3">
       <div className="flex items-baseline justify-between gap-3">
-        <div className="text-[13px] font-semibold">Refunded</div>
-        <div className="text-destructive text-[13.5px] font-semibold whitespace-nowrap tabular-nums">
-          −{formatMoney(m.refunded, m.currency)}
-        </div>
+        <div className="font-medium">Refunded</div>
+        <div className="font-semibold whitespace-nowrap tabular-nums">−{formatMoney(m.refunded, m.currency)}</div>
       </div>
       {detail.refunds.map((r) => (
-        <div key={r.id} className="border-border flex items-baseline justify-between gap-3 border-t pt-2">
-          <div className="text-muted-foreground text-[12.5px]">
+        <div key={r.id} className="flex items-baseline justify-between gap-3 text-sm">
+          <div className="text-muted-foreground">
             {REFUND_REASON[r.reason] ?? r.reason} · {formatWhen(r.createdAt)} · {REFUND_STATUS[r.status] ?? r.status}
             {r.actorLabel ? ` · ${r.actorLabel}` : ""}
           </div>
-          <div className="text-[12.5px] whitespace-nowrap tabular-nums">{formatMoney(r.amount, m.currency)}</div>
+          <div className="whitespace-nowrap tabular-nums">{formatMoney(r.amount, m.currency)}</div>
         </div>
       ))}
-      <div className="border-border flex items-baseline justify-between gap-3 border-t pt-2">
-        <div className="text-[13px] font-semibold">Net paid</div>
-        <div className="text-[13px] font-semibold whitespace-nowrap tabular-nums">{formatMoney(m.net, m.currency)}</div>
+      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border pt-2 font-semibold">
+        <div>Net paid</div>
+        <div className="whitespace-nowrap tabular-nums">{formatMoney(m.net, m.currency)}</div>
       </div>
     </div>
   )
@@ -366,9 +383,9 @@ function RefundedBox({ detail }: { detail: OrderDetail }) {
 // Shipments
 
 /**
- * The design's "Shipments" block, in Effy's terms: one package, handed to an Effy driver. The row
- * reads carrier · reference (mono), the items in it, and its state · date. No carrier tracking number
- * exists for a shop to show — the reference is the order's own.
+ * The hand-over, in Effy's terms: one package, handed to an Effy driver. It reads who · reference
+ * (mono), the items in it, and its state · time. No carrier tracking number exists for a shop to show —
+ * the reference is the order's own.
  */
 function Shipments({ detail }: { detail: OrderDetail }) {
   const handedOver = detail.status === "ready_for_pickup" || detail.status === "collected" || detail.status === "delivered"
@@ -384,16 +401,16 @@ function Shipments({ detail }: { detail: OrderDetail }) {
         ? `Collected · ${formatWhen(detail.stateChangedAt)}`
         : `Ready for pickup · ${formatWhen(detail.stateChangedAt)}`
   return (
-    <div className="mt-[34px] grid">
-      <div className="text-muted-foreground pb-1 text-[11.5px] font-medium tracking-[.04em] uppercase">Shipments</div>
-      <div className="border-border flex flex-wrap items-baseline justify-between gap-3 border-t py-4">
-        <div className="grid min-w-0 gap-[3px]">
-          <div className="text-[13.5px] font-medium">
-            Effy driver · <span className="font-mono text-[12.5px]">{detail.orderNumber}</span>
+    <div className="border-t border-border px-5 py-4 max-md:px-4">
+      <div className="bo-eyebrow pb-2">Shipments</div>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div className="grid min-w-0 gap-0.5">
+          <div className="font-medium">
+            {deliveredByText(detail.deliveredBy)} · <span className="bo-code">{detail.orderNumber}</span>
           </div>
-          <div className="text-muted-foreground text-[12.5px]">{items || "Nothing picked"}</div>
+          <div className="text-sm text-muted-foreground">{items || "Nothing picked"}</div>
         </div>
-        <div className="text-muted-foreground text-[12.5px] whitespace-nowrap">{meta}</div>
+        <div className="text-sm whitespace-nowrap text-muted-foreground">{meta}</div>
       </div>
     </div>
   )
@@ -401,20 +418,22 @@ function Shipments({ detail }: { detail: OrderDetail }) {
 
 // Dialogs
 
-const AVAILABILITY: { value: Exclude<PickMode, "none">; label: string }[] = [
-  { value: "full", label: "Picked in full" },
-  { value: "part", label: "Part picked" },
-  { value: "unavailable", label: "Unavailable" },
+const AVAILABILITY: { value: Exclude<PickMode, "none">; label: string; description: string }[] = [
+  { value: "full", label: "Picked in full", description: "Every unit went in the bag." },
+  { value: "part", label: "Found some", description: "Say how many went in the bag." },
+  { value: "unavailable", label: "Can't find any", description: "Effy refunds the customer for this line." },
 ]
 
-/** "Adjust this line" — the exception path when a line cannot simply be marked picked. */
+/** "Adjust this line" — the exception path when a line cannot simply be ticked (Packing board 06). */
 function AdjustLineDialog({
   line,
+  preset,
   onClose,
   onSave,
   saving,
 }: {
   line: OrderLine | null
+  preset?: Exclude<PickMode, "none">
   onClose: () => void
   onSave: (mode: Exclude<PickMode, "none">, units: number, note: string) => void
   saving: boolean
@@ -424,19 +443,24 @@ function AdjustLineDialog({
   const [note, setNote] = useState("")
   const [touched, setTouched] = useState(false)
 
-  // Each opening starts from the line's current state.
+  // Each opening starts from the line's current state (or the shortcut that opened it).
   useEffect(() => {
     if (!line) return
     const current = pickModeOf(line)
-    setMode(current === "none" ? "full" : current)
+    setMode(preset ?? (current === "none" ? "full" : current))
     setUnits(current === "part" ? String(line.gatheredQuantity) : "")
     setNote(line.pickNote ?? "")
     setTouched(false)
-  }, [line])
+  }, [line, preset])
 
   const ordered = line?.orderedQuantity ?? 0
   const err = mode === "part" ? unitsError(units, ordered) : null
   const showErr = mode === "part" && touched && !!err
+  const n = Number(units) || 0
+  const step = (d: number) => {
+    setUnits(String(Math.max(0, Math.min(ordered, n + d))))
+    setTouched(true)
+  }
 
   return (
     <DesignSheet
@@ -452,53 +476,55 @@ function AdjustLineDialog({
         onSave(mode, mode === "part" ? Number(units) : 0, note.trim())
       }}
     >
-      <SheetField label="Availability" htmlFor="adjust-mode">
-        <select
-          id="adjust-mode"
-          value={mode}
-          onChange={(e) => setMode(e.target.value as Exclude<PickMode, "none">)}
-          className="border-input bg-background focus:border-ring h-9 cursor-pointer rounded-md border px-2.5 text-[13.5px] outline-none"
-        >
-          {AVAILABILITY.map((a) => (
-            <option key={a.value} value={a.value}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-      </SheetField>
+      {line ? (
+        <p className="font-medium">
+          {line.name}
+          {line.variantLabel ? ` · ${line.variantLabel}` : ""}
+          <span className="block text-sm font-normal text-muted-foreground">
+            {line.orderedQuantity} ordered · <span className="font-mono">{lineCodes(line.variantCode, line.sku)}</span>
+          </span>
+        </p>
+      ) : null}
+      <ChoiceCards label="Availability" value={mode} options={AVAILABILITY} onChange={setMode} />
       {mode === "part" ? (
-        <div className="grid gap-1.5">
-          <label htmlFor="adjust-units" className="text-[13px] font-medium">
+        <div className="grid gap-2">
+          <label htmlFor="adjust-units" className="text-[15px] font-medium">
             Units picked
           </label>
-          <input
-            id="adjust-units"
-            inputMode="numeric"
-            value={units}
-            aria-invalid={showErr}
-            onChange={(e) => {
-              setUnits(e.target.value)
-              setTouched(true)
-            }}
-            className={cn(
-              "bg-background h-9 rounded-md border px-[11px] text-[13.5px] tabular-nums outline-none",
-              showErr ? "border-destructive" : "border-input focus:border-ring",
-            )}
-          />
-          <div className={cn("text-[12px]", showErr ? "text-destructive" : "text-muted-foreground")}>
-            {showErr ? err : `Out of ${ordered} ordered.`}
+          <div className="flex items-center gap-3">
+            <div className="sh-count">
+              <button type="button" aria-label="One fewer" onClick={() => step(-1)} disabled={n <= 0}>
+                <Minus aria-hidden="true" />
+              </button>
+              <Input
+                id="adjust-units"
+                inputMode="numeric"
+                value={units}
+                aria-invalid={showErr}
+                onChange={(e) => {
+                  setUnits(e.target.value)
+                  setTouched(true)
+                }}
+                className="h-full! w-14 rounded-none! border-0! bg-transparent! text-center text-xl! font-semibold tabular-nums shadow-none!"
+              />
+              <button type="button" aria-label="One more" onClick={() => step(1)} disabled={n >= ordered}>
+                <Plus aria-hidden="true" />
+              </button>
+            </div>
+            <span className={cn("text-sm", showErr ? "font-medium text-foreground" : "text-muted-foreground")}>
+              {showErr ? err : `Out of ${ordered} ordered.`}
+            </span>
           </div>
         </div>
       ) : null}
       <SheetField label="Note for the team" htmlFor="adjust-note">
-        <textarea
+        <Textarea
           id="adjust-note"
           rows={3}
           maxLength={500}
           placeholder="Optional — what happened with this line"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="border-input bg-background focus:border-ring resize-y rounded-md border px-[11px] py-[9px] text-[13.5px] leading-normal outline-none"
         />
       </SheetField>
     </DesignSheet>
@@ -506,9 +532,9 @@ function AdjustLineDialog({
 }
 
 /**
- * "Fulfil" — the design's shipment dialog, as Effy's handover: what goes in the package (the picked
- * quantities, as ticked), and a note that the customer is told automatically. Saving marks the order
- * ready for an Effy driver to collect. No carrier or tracking field: a shop never books either.
+ * "Mark ready" — Effy's handover (Packing board 05): what goes in the package (the picked quantities, as
+ * ticked), and a note that the customer is told automatically. Saving marks the order ready for an Effy
+ * driver to collect. No carrier or tracking field: a shop never books either.
  */
 function FulfilDialog({
   detail,
@@ -543,40 +569,38 @@ function FulfilDialog({
       onOpenChange={onOpenChange}
       wide
       title="Ready for collection"
-      description="Check what goes in this package. An Effy driver collects it."
+      description={`Check what goes in this package. ${detail.deliveredBy === "courier" ? "A courier" : "An Effy driver"} collects it.`}
       saveLabel="Mark ready for pickup"
       saving={transition.isPending || picks.isPending}
       canSave={detail.status === "picking" && inParcel.length > 0}
       onSave={() => void save().catch(() => undefined)}
     >
       <div className="grid">
-        <div className="border-border text-muted-foreground border-b pb-2 text-[11.5px] font-medium tracking-[.04em] uppercase">
-          In this parcel
-        </div>
+        <div className="bo-eyebrow border-b border-border pb-2">In this parcel</div>
         {inParcel.map((l) => (
-          <div key={l.orderItemId} className="border-border flex items-center justify-between gap-3 border-b py-2.5">
+          <div key={l.orderItemId} className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-2.5">
             <div className="grid min-w-0 flex-1 gap-0.5">
-              <div className="text-[13.5px] font-medium">
+              <div className="font-medium">
                 {l.name}
-                {l.variantLabel ? ` — ${l.variantLabel}` : ""}
+                {l.variantLabel ? ` · ${l.variantLabel}` : ""}
               </div>
-              <div className="text-muted-foreground font-mono text-[12px]">{lineCodes(l.variantCode, l.sku)}</div>
+              <div className="font-mono text-[13px] text-muted-foreground">{lineCodes(l.variantCode, l.sku)}</div>
             </div>
-            <div className="text-[13px] whitespace-nowrap tabular-nums">
+            <div className="whitespace-nowrap tabular-nums">
               {l.gatheredQuantity} <span className="text-muted-foreground">of {l.orderedQuantity}</span>
             </div>
           </div>
         ))}
       </div>
       {short > 0 ? (
-        <p className="text-muted-foreground text-[12.5px]">
+        <p className="bo-alert bo-alert--muted grid-cols-1! text-sm">
           {short} {short === 1 ? "unit is" : "units are"} not in the package and {short === 1 ? "is" : "are"} recorded
           as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
         </p>
       ) : null}
       <div className="grid gap-0.5">
-        <div className="text-[13.5px] font-medium">The customer is told</div>
-        <div className="text-muted-foreground text-[12.5px]">They get a notification as soon as it&apos;s ready.</div>
+        <div className="font-medium">The customer is told</div>
+        <div className="text-sm text-muted-foreground">They get a notification as soon as it&apos;s ready.</div>
       </div>
     </DesignSheet>
   )

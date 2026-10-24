@@ -1,10 +1,24 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, InitialsAvatar, LoadingArea } from "@effy/design-system/ui";
+import {
+  CalendarDays,
+  CircleAlert,
+  History,
+  Info,
+  MessageSquare,
+  Package,
+  Plus,
+  Printer,
+  ReceiptText,
+  Truck,
+} from "lucide-react";
+
+import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+import { PageHeader } from "@effy/web-kit/patterns";
 
 import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";
@@ -18,25 +32,28 @@ import { PackageStatusPill } from "@effy/web-kit/console";
 import { PaymentPill } from "./components/OrderPill";
 import { PackBags } from "./components/PackBags";
 import { RefundSheet } from "./components/RefundSheet";
-import { CantSupplyDialog, StateActions } from "./components/StateControl";
-import { canDeclareUnfulfillable } from "./model";
+import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl";
+import { canDeclareUnfulfillable, nextTransition } from "./model";
 import {
   formatMoney,
   formatWhen,
   deliveredByText,
   paymentMethodText,
+  pickModeOf,
   refundableQuantity,
   type OrderDetail,
 } from "./orderConsole";
+import { collectionLine } from "./collection";
 import { printPickLists } from "./pickList";
 import { orderDetailQuery } from "./queries";
 
 /**
- * Order detail — the imported design's `isOrderDetail` block, revision 2: the sticky summary
- * bar; a two-column grid (the content column — "Items and fulfilment", then "Internal notes" — beside a
- * narrow column holding only the payment card and the action buttons); then "Customer and delivery"
- * full width beneath. The activity log is a right-side sheet opened from "Activity". Order pagination
- * lives in the app header (`HeaderChrome`), never here.
+ * Order detail — the packing screen (redesign, "05 Packing an order"): the page head (order number,
+ * status, placed · items · who collects); a main column — "Items and fulfilment" (the pick list), "Bags
+ * & labels", "Internal notes" — beside a decision rail (Payment with Refund and "Can't supply it",
+ * then Customer and delivery); and the next step in an action bar pinned to the bottom. The activity
+ * log is a right sheet opened from "Activity". Order pagination lives in the app header
+ * (`HeaderChrome`), never here.
  *
  * Where it departs from the mockup, it is because the platform cannot do the thing, not for taste:
  *  • Capture — Effy captures at payment, so the design's capture button never has an
@@ -47,7 +64,8 @@ import { orderDetailQuery } from "./queries";
  *  • Carrier / tracking / record a return — a shop hands its package to an Effy driver and the
  *  platform has no returns model; "Fulfil" hands the package over instead.
  *  • Customer email, "CUSTOMER SINCE", billing address — never shared with a shop.
- *  • "Cancel order" opens the can't-supply declaration — a shop cannot cancel a customer's order.
+ *  • There is no "Cancel order": a shop cannot cancel a customer's order. "Can't supply it" declares
+ *  that it cannot supply its part, and Effy decides the refund.
  * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if a
  * forbidden control reappears.
  *
@@ -82,187 +100,247 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
     );
   }
   if (isPending) {
-    return (
-      <LoadingArea variant="page" title="Loading order" description="Fetching its items, payment and delivery details." />
-    );
+    return <DetailSkeleton />;
   }
 
   const detail: OrderDetail = data;
   const currency = detail.money.currency;
   const refundable = canRefund && detail.lines.some((l) => refundableQuantity(l) > 0);
+  const units = detail.lines.reduce((n, l) => n + l.orderedQuantity, 0);
+  const toGo = detail.lines.filter((l) => pickModeOf(l) === "none").length;
+  const note = stateNote(detail.status);
 
   return (
-    <div className="grid gap-7">
-      {/* The sticky summary bar. `top-14` clears the 56px header exactly. */}
-      <div className="border-border bg-background sticky top-14 z-[4] flex flex-wrap items-center gap-3 rounded-[var(--radius)] border px-4 py-3">
-        <div className="grid min-w-0 gap-[7px]">
-          <div className="flex flex-wrap items-center gap-2 gap-y-1.5">
-            <span className="text-base font-semibold tracking-[-.02em] tabular-nums">
-              {formatMoney(detail.money.total, currency)}
-            </span>
+    <div className="flex min-w-0 flex-col gap-6 max-md:gap-4">
+      <PageHeader
+        back={{ label: "Orders", link: { to: "/orders" } }}
+        title={
+          <>
+            <span className="font-mono tracking-[-.02em]">{detail.orderNumber}</span>
             <PackageStatusPill view={detail.statusView} />
-            <PaymentPill state={detail.payment.state} />
-            {/* Warning, not destructive. "At risk" means this order is ageing toward a cut-off
-                the design's waiting/at-risk tone. Destructive is reserved for something that has
-                already failed (refunded, can't supply); using it here would make every busy morning
-                look like a page of errors and devalue the colour where it matters. */}
             {detail.atRisk ? (
-              <span className="rounded-full border border-border bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap text-warning">
+              <span className="bo-st bo-st--problem">
+                <CircleAlert aria-hidden="true" />
                 At risk
               </span>
             ) : null}
-          </div>
-          {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
-          <div className="text-muted-foreground text-[12.5px]">
-            {formatWhen(detail.placedAt)} · Online store ·{" "}
-            {/* The package's code: bag 1's. */}
-            <span className="font-mono" aria-label="Package code">
-              {detail.parcels[0]?.code}
+          </>
+        }
+        meta={
+          <>
+            {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
+            <span>
+              <CalendarDays aria-hidden="true" />
+              {formatWhen(detail.placedAt)} · Online store ·{" "}
+              {/* The package's code: bag 1's. */}
+              <span className="font-mono" aria-label="Package code">
+                {detail.parcels[0]?.code}
+              </span>
             </span>
-          </div>
-        </div>
-        <div className="min-w-3 flex-1" />
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setActivityOpen(true)}>
-            Activity
-          </Button>
-          <StateActions detail={detail} />
-        </div>
-      </div>
+            <span>
+              <Package aria-hidden="true" />
+              {units} {units === 1 ? "item" : "items"}
+            </span>
+            <span>
+              <Truck aria-hidden="true" />
+              Goes with {detail.deliveredBy === "courier" ? "a courier" : "an Effy driver"}
+            </span>
+            {detail.readyBy ? (
+              <span>
+                Ready by {formatWhen(detail.readyBy)}
+                {detail.collection ? ` · ${collectionLine(detail.collection)}` : null}
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setActivityOpen(true)}>
+              <History aria-hidden="true" />
+              Activity
+            </Button>
+            <Button variant="outline" onClick={() => printPickList(detail)}>
+              <Printer aria-hidden="true" />
+              Print pick list
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid items-start gap-14 min-[1060px]:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
-        {/* Content column: 52px between sections */}
-        <div className="grid min-w-0 gap-[52px]">
+      {note ? (
+        <div className={cn("bo-alert", detail.status === "unfulfillable" ? "bo-alert--destructive" : "bo-alert--muted")} role="status">
+          <Info aria-hidden="true" />
+          <div className="bo-alert__title">{note}</div>
+        </div>
+      ) : null}
+
+      <div className="bo-detail">
+        <div className="bo-detail__main">
           <ItemsAndFulfilment detail={detail} />
 
           <PackBags detail={detail} />
 
-          <section>
-            <div className="border-border flex items-baseline gap-2.5 border-b pb-3">
-              <h2 className="text-[15px] font-semibold tracking-[-.01em]">Internal notes</h2>
-              <div className="flex-1" />
-              <TextButton onClick={() => setNoteOpen(true)}>Add note</TextButton>
+          <section className="bo-panel">
+            <div className="bo-panel__head">
+              <div className="min-w-0 flex-1">
+                <h2 className="bo-panel__title">Internal notes</h2>
+                <p className="bo-panel__desc">Only your team sees notes. They can&apos;t be edited once added.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setNoteOpen(true)}>
+                <Plus aria-hidden="true" />
+                Add note
+              </Button>
             </div>
-            {detail.notes.length === 0 ? (
-              <div className="text-muted-foreground py-5 text-[13px]">No notes on this order yet.</div>
-            ) : (
-              detail.notes.map((n) => (
-                <div key={n.id} className="border-border grid gap-[5px] border-b py-4">
-                  <div className="text-[13.5px] leading-[1.55] whitespace-pre-line text-pretty">{n.body}</div>
-                  <div className="text-muted-foreground text-[12px]">
-                    {n.authorLabel ? `${n.authorLabel} · ` : ""}
-                    {formatWhen(n.createdAt)}
-                  </div>
-                </div>
-              ))
-            )}
+            <div className="bo-panel__body">
+              {detail.notes.length === 0 ? (
+                <p className="text-muted-foreground">No notes on this order yet.</p>
+              ) : (
+                <ul className="bo-tl">
+                  {detail.notes.map((n) => (
+                    <li key={n.id} className="bo-tl__item">
+                      <span className="bo-tl__mark" aria-hidden="true">
+                        <MessageSquare />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="bo-tl__title">{n.authorLabel || "Your team"}</div>
+                        <div className="bo-tl__note whitespace-pre-line text-pretty">{n.body}</div>
+                      </div>
+                      <time className="bo-tl__time" dateTime={n.createdAt}>
+                        {formatWhen(n.createdAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
 
-        {/* The narrow column: the payment card and the action buttons, nothing else */}
-        <div className="grid min-w-0 gap-7">
-          <div className="border-border grid gap-3 rounded-[var(--radius)] border p-3.5">
-            <div className="flex items-baseline justify-between gap-2.5">
-              <MicroLabel>Payment</MicroLabel>
+        {/* The decision rail: payment and its two money verbs, then who and where. */}
+        <aside className="bo-detail__aside">
+          <section className="bo-panel">
+            <div className="bo-panel__head">
+              <h2 className="bo-panel__title">Payment</h2>
               <PaymentPill state={detail.payment.state} />
             </div>
-            <div className="text-muted-foreground text-[13px]">
-              {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at
-              checkout
+            <div className="bo-panel__body grid gap-3">
+              <dl className="bo-dl bo-dl--tight">
+                <div className="bo-dl__row">
+                  <dt>Your items</dt>
+                  <dd className="tabular-nums">{formatMoney(detail.money.shopSubtotal, currency)}</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Refunded</dt>
+                  <dd className="tabular-nums">{formatMoney(detail.money.refunded, currency)}</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Net</dt>
+                  <dd className="font-semibold tabular-nums">{formatMoney(detail.money.net, currency)}</dd>
+                </div>
+              </dl>
+              <p className="text-sm text-muted-foreground">
+                {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at checkout
+              </p>
             </div>
-            {refundable ? (
-              <div className="grid gap-2">
-                <Button variant="outline" onClick={() => setRefundOpen(true)}>
-                  Refund
-                </Button>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid gap-2">
-            <Button variant="outline" onClick={() => printPickList(detail)}>
-              Print pick list
-            </Button>
-            {/* `destructive-ghost`, the platform's default destructive affordance — not the filled
-                red button. A solid fill here would give the riskiest control on the screen the visual
-                weight of a primary action. The three hand-rolled classes it used to carry were
-                exactly that variant, restated. */}
-            {canDeclareUnfulfillable(detail.status) ? (
-              <Button variant="destructive-ghost" onClick={() => setCancelOpen(true)}>
-                Cancel order
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {/* Customer and delivery — full width, below the grid */}
-      <section>
-        <div className="border-border grid gap-1 border-b pb-3.5">
-          <h2 className="text-[15px] font-semibold tracking-[-.01em]">Customer and delivery</h2>
-          {/* The design's "Customer since {date}" is account history, which a shop is not given. */}
-          <p className="text-muted-foreground text-[12.5px]">
-            {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
-          </p>
-        </div>
-        {detail.courierPickup ? (
-          <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
-        ) : null}
-        <div
-          className="grid gap-10 pt-6"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}
-        >
-          <Block label="Customer">
-            {/* The avatar is seeded on the fulfillment ID, not the name, so the same order shows
-                the same tint here and in the orders list — a name-seeded tint would shift the moment
-                a recipient name is corrected. */}
-            <div className="flex items-center gap-2.5">
-              {detail.delivery.recipientName ? (
-                <InitialsAvatar
-                  name={detail.delivery.recipientName}
-                  seed={detail.id}
-                  className="size-7 shrink-0"
-                />
-              ) : null}
-              <div className="min-w-0">
-                <div className="text-[13.5px] font-medium">{detail.delivery.recipientName || "—"}</div>
-                {detail.delivery.phone ? (
-                  <div className="text-muted-foreground text-[13px]">{detail.delivery.phone}</div>
+            {refundable || canDeclareUnfulfillable(detail.status) ? (
+              <div className="bo-panel__foot grid! justify-stretch!">
+                {refundable ? (
+                  <Button variant="outline" onClick={() => setRefundOpen(true)}>
+                    <ReceiptText aria-hidden="true" />
+                    Refund
+                  </Button>
+                ) : null}
+                {/* A shop cannot cancel a customer's order; it says it can't supply its part. */}
+                {canDeclareUnfulfillable(detail.status) ? (
+                  <Button variant="ghost" onClick={() => setCancelOpen(true)}>
+                    Can&apos;t supply it…
+                  </Button>
                 ) : null}
               </div>
-            </div>
-          </Block>
-          <Block label="Ship to">
-            <div className="text-[13px] leading-[1.6] whitespace-pre-line">{addressText(detail)}</div>
-          </Block>
-          <Block label="Bill to">
-            {/* Named and said to be withheld, not silently missing. */}
-            <div className="text-muted-foreground text-[13px] leading-[1.6]">Held by Effy with the payment.</div>
-          </Block>
-          <div className="grid content-start gap-2">
-            <div className="flex items-baseline gap-2.5">
-              <MicroLabel>Tags</MicroLabel>
-              <TextButton small onClick={() => setTagsOpen(true)}>
-                Edit
-              </TextButton>
-            </div>
-            {detail.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {detail.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="border-border bg-muted rounded-full border px-[9px] py-0.5 text-[12px] whitespace-nowrap"
-                  >
-                    {t}
-                  </span>
-                ))}
+            ) : null}
+          </section>
+
+          <section className="bo-panel">
+            <div className="bo-panel__head">
+              <div className="min-w-0 flex-1">
+                <h2 className="bo-panel__title">Customer and delivery</h2>
+                <p className="bo-panel__desc">
+                  {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
+                </p>
               </div>
-            ) : (
-              <div className="text-muted-foreground text-[13px]">No tags.</div>
-            )}
+            </div>
+            <div className="bo-panel__body">
+              <dl className="bo-dl bo-dl--tight">
+                <div className="bo-dl__row">
+                  <dt>Customer</dt>
+                  <dd>
+                    <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
+                    {detail.delivery.phone ? (
+                      <a href={`tel:${detail.delivery.phone}`} className="text-muted-foreground no-underline hover:underline">
+                        {detail.delivery.phone}
+                      </a>
+                    ) : null}
+                  </dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Ship to</dt>
+                  <dd className="whitespace-pre-line">{addressText(detail)}</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Bill to</dt>
+                  {/* Named and said to be withheld, not silently missing. */}
+                  <dd className="text-muted-foreground">Held by Effy with the payment.</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Tags</dt>
+                  <dd className="flex flex-wrap items-center gap-1.5">
+                    {detail.tags.length > 0 ? (
+                      detail.tags.map((t) => (
+                        <span key={t} className="bo-tag">
+                          {t}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">No tags.</span>
+                    )}
+                    <Button variant="link" className="ml-auto" onClick={() => setTagsOpen(true)}>
+                      Edit
+                    </Button>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            {detail.courierPickup ? (
+              <div className="border-t border-border">
+                <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
+              </div>
+            ) : null}
+          </section>
+        </aside>
+      </div>
+
+      {/* The next step, pinned under the thumb. */}
+      {nextTransition(detail.status) || detail.status === "ready_for_pickup" ? (
+        <div className="sh-actionbar">
+          <div className="sh-actionbar__text">
+            <div className="sh-actionbar__title">
+              {detail.status === "ready_for_pickup"
+                ? "Ready — waiting for collection"
+                : toGo > 0
+                  ? `${toGo} ${toGo === 1 ? "line" : "lines"} to go`
+                  : "Every line is accounted for"}
+            </div>
+            <div className="sh-actionbar__desc">
+              {detail.status === "ready_for_pickup"
+                ? `${detail.deliveredBy === "courier" ? "A courier" : "An Effy driver"} collects it. Reopen picking only if something has to change.`
+                : `When every line is picked and every bag labelled, mark it ready. ${detail.deliveredBy === "courier" ? "A courier" : "The Effy driver"} collects it.`}
+            </div>
+          </div>
+          <div className="sh-actionbar__actions">
+            <StateActions detail={detail} size="lg" />
           </div>
         </div>
-      </section>
+      ) : null}
 
       <OrderActivitySheet fulfillmentId={detail.id} open={activityOpen} onOpenChange={setActivityOpen} />
       <CantSupplyDialog targets={[detail]} open={cancelOpen} onOpenChange={setCancelOpen} />
@@ -279,35 +357,37 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   );
 }
 
-function MicroLabel({ children }: { children: ReactNode }) {
+/** The packing screen while it loads: its head, the pick list and the rail, in their own shapes. */
+function DetailSkeleton() {
   return (
-    <div className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase">
-      {children}
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading order">
+      <div className="grid gap-3">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
+      <div className="bo-detail">
+        <div className="bo-detail__main">
+          <div className="bo-panel">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="sh-pick">
+                <Skeleton className="size-11 rounded-[10px]" />
+                <Skeleton className="sh-pick__img" />
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3.5 w-1/3" />
+                </div>
+                <Skeleton className="h-6 w-10" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bo-detail__aside">
+          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-56 w-full rounded-lg" />
+        </div>
+      </div>
     </div>
-  );
-}
-
-function Block({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid content-start gap-1">
-      <MicroLabel>{label}</MicroLabel>
-      {children}
-    </div>
-  );
-}
-
-function TextButton({ children, onClick, small }: { children: ReactNode; onClick: () => void; small?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "text-muted-foreground hover:text-foreground focus-visible:ring-ring cursor-pointer rounded-sm border-none bg-transparent p-0 font-medium focus-visible:ring-2 focus-visible:outline-none",
-        small ? "text-[12.5px]" : "text-[13px]",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -336,6 +416,7 @@ function printPickList(detail: OrderDetail) {
           variantCode: l.variantCode,
           sku: l.sku,
           quantity: l.orderedQuantity,
+          storageClass: l.storageClass,
         })),
       },
     ],

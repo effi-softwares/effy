@@ -5,8 +5,8 @@ import { X } from "lucide-react";
 
 import { Button, Label, Textarea } from "@effy/design-system/ui";
 
-import { Panel } from "@/components/patterns/Panel";
-import { Pager } from "@/components/patterns/Toolbar";
+import { Panel } from "@effy/web-kit/patterns";
+import { Pager } from "@effy/web-kit/patterns";
 
 import { promotionMutationError } from "../errorText";
 import { chosenCustomersQuery, useAddChosenCustomers, useRemoveChosenCustomer } from "../queries";

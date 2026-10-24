@@ -39,15 +39,11 @@ function Strip({
   icon: React.ReactNode
   children: React.ReactNode
 }) {
-  // Written on the semantic's own `-soft` tint, never as a fill with a label on it. `--warning`
-  // deliberately has no `-foreground` pair and `check-tokens.mjs` enforces that absence.
-  const toneClass =
-    tone === "warning"
-      ? "bg-[var(--warning-soft)] text-[var(--warning)]"
-      : "bg-[var(--brand-soft)] text-[var(--brand-ink)]"
+  // A full-width strip on the muted fill with an icon — never coloured (redesign brief §4). Offline
+  // reads as a problem through its icon and words, not a hue; `tone` only picks the icon's weight.
   return (
     <div
-      className={`flex items-center gap-3 rounded-md px-3 py-2 text-[13px] ${toneClass}`}
+      className={`flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-2.5 text-sm text-foreground ${tone === "warning" ? "font-medium" : ""}`}
       role="status"
     >
       <span aria-hidden className="shrink-0">
@@ -163,7 +159,7 @@ function DismissButton() {
       variant="ghost"
       aria-label="Dismiss"
       onClick={() => dismissInstall()}
-      className="size-8 p-0"
+      className="size-10 p-0"
     >
       <X className="size-4" />
     </Button>

@@ -7,9 +7,9 @@ import { CircleCheck, Hourglass, PackageSearch, PackageX, Route, ShieldAlert, Un
 import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { moment } from "@/lib/format";
 

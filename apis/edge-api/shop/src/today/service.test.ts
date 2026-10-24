@@ -26,6 +26,7 @@ function snapshot(over: Partial<TodaySnapshot> = {}): TodaySnapshot {
     stock: [],
     proposals: [],
     live: [],
+    nextCollection: null,
     ...over,
   };
 }

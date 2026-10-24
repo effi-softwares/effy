@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Panel } from "@/components/patterns/Panel";
+import { Panel } from "@effy/web-kit/patterns";
 
 import { track } from "@/lib/telemetry";
 

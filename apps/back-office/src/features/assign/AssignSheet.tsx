@@ -5,8 +5,8 @@ import { CircleAlert, Search } from "lucide-react";
 
 import { Badge, Button, Input, Skeleton, toast } from "@effy/design-system/ui";
 
-import { ResponsiveSheet } from "@/components/patterns/ResponsiveSheet";
-import { Callout } from "@/components/patterns/States";
+import { ResponsiveSheet } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 
 import { assignErrorLine, driversForQuery, useAssignTo } from "./queries";

@@ -12,6 +12,8 @@
     "./tokens.css": "./src/tokens.css",
     "./storefront.css": "./src/storefront/tokens.css",
     "./backoffice.css": "./src/backoffice/tokens.css",
+    "./backoffice/primitives.css": "./src/backoffice/primitives.css",
+    "./backoffice/patterns.css": "./src/backoffice/patterns.css",
     "./stripe-storefront-appearance": "./stripe/storefront-appearance.ts",
     "./banner-template.svg": "./banner/banner-template.svg"
   },

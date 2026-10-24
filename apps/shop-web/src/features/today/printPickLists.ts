@@ -30,6 +30,7 @@ export async function printAwaitingPickLists(): Promise<{ printed: number; more:
         variantCode: line.variantCode ?? null,
         sku: line.sku,
         quantity: line.quantity,
+        storageClass: line.storageClass,
       })),
     })),
     "Pick lists",

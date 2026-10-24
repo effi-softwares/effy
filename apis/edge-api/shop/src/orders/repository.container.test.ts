@@ -280,9 +280,30 @@ SELECT id FROM p`,
     ]);
     const pick = (await readPickLists(SHOP)).lists.find((l) => l.orderNumber === "EFY-V")!;
     expect(pick.lines.map(({ variantCode: _code, ...l }) => l)).toEqual([
-      { name: "Rice", variantLabel: "1 kg", sku: "R-1K", quantity: 1 },
-      { name: "Rice", variantLabel: "500 g", sku: "R-500", quantity: 2 },
+      { name: "Rice", variantLabel: "1 kg", sku: "R-1K", quantity: 1, storageClass: "ambient" },
+      { name: "Rice", variantLabel: "500 g", sku: "R-500", quantity: 2, storageClass: "ambient" },
     ]);
+  });
+
+  it("099 — every line carries its temperature, and the pick list walks Ambient → Chilled → Frozen", async () => {
+    const { fulfillmentId, orderId } = await order({
+      number: "EFY-T",
+      recipient: "Tess",
+      lines: [
+        { name: "Ice cream", price: 6, qty: 1 },
+        { name: "Bread", price: 4, qty: 1 },
+        { name: "Yoghurt", price: 3, qty: 1 },
+      ],
+    });
+    await pool.query(
+      `UPDATE public.order_item SET storage_class = CASE product_name WHEN 'Ice cream' THEN 'frozen' WHEN 'Yoghurt' THEN 'chilled' ELSE 'ambient' END
+        WHERE order_id = $1`,
+      [orderId],
+    );
+    const d = await readOrder(fulfillmentId, SHOP);
+    expect(Object.fromEntries(d.lines.map((l) => [l.name, l.storageClass]))).toEqual({ "Ice cream": "frozen", Bread: "ambient", Yoghurt: "chilled" });
+    const pick = (await readPickLists(SHOP)).lists.find((l) => l.orderNumber === "EFY-T")!;
+    expect(pick.lines.map((l) => l.name)).toEqual(["Bread", "Yoghurt", "Ice cream"]);
   });
 
   it("refuses another shop's order (indistinguishable from a missing one)", async () => {

@@ -7,13 +7,12 @@ import {
   SHOP_ORDER_TAG_MAX_LENGTH,
 } from "@effy/shared-types"
 
+import { Button, Input, Textarea } from "@effy/design-system/ui"
+
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 
 import { orderEditError } from "../errorText"
 import { useAddOrderNote, useSetOrderTags } from "../queries"
-
-const FIELD =
-  "border-input bg-background focus:border-ring h-9 rounded-md border px-3 text-sm outline-none"
 
 /**
  * "Order tags" — the design's `isOrderTags` sheet: the current tags as removable chips, an "Add a tag"
@@ -67,19 +66,17 @@ export function OrderTagsDialog({
       {draft.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {draft.map((t) => (
-            <span
-              key={t}
-              className="border-border bg-muted inline-flex items-center gap-1.5 rounded-full border py-[3px] pr-1.5 pl-2.5 text-[12.5px] whitespace-nowrap"
-            >
+            <span key={t} className="bo-tag h-9! gap-1 pr-0.5 text-sm!">
               {t}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 aria-label={`Remove ${t}`}
                 onClick={() => setDraft(draft.filter((x) => x !== t))}
-                className="text-muted-foreground hover:bg-background hover:text-foreground grid size-[18px] cursor-pointer place-items-center rounded-full border-none bg-transparent p-0"
               >
-                <X className="size-3" />
-              </button>
+                <X className="size-4" />
+              </Button>
             </span>
           ))}
         </div>
@@ -90,7 +87,7 @@ export function OrderTagsDialog({
         hint={draft.length >= SHOP_ORDER_TAG_MAX ? `An order can carry ${SHOP_ORDER_TAG_MAX} tags.` : undefined}
       >
         <div className="flex gap-2">
-          <input
+          <Input
             id="order-tag"
             placeholder="Fragile"
             maxLength={SHOP_ORDER_TAG_MAX_LENGTH}
@@ -102,16 +99,11 @@ export function OrderTagsDialog({
                 add()
               }
             }}
-            className={`${FIELD} flex-1`}
+            className="flex-1"
           />
-          <button
-            type="button"
-            onClick={add}
-            disabled={!text.trim() || draft.length >= SHOP_ORDER_TAG_MAX}
-            className="border-input bg-background hover:bg-accent h-9 cursor-pointer rounded-md border px-3.5 text-[13.5px] font-medium disabled:opacity-50"
-          >
+          <Button type="button" variant="outline" onClick={add} disabled={!text.trim() || draft.length >= SHOP_ORDER_TAG_MAX}>
             Add
-          </button>
+          </Button>
         </div>
       </SheetField>
     </DesignSheet>
@@ -155,14 +147,13 @@ export function OrderNoteDialog({
       onSave={() => add.mutate(body.trim(), { onSuccess: () => onOpenChange(false) })}
     >
       <SheetField label="Note" htmlFor="order-note">
-        <textarea
+        <Textarea
           id="order-note"
           rows={4}
           maxLength={SHOP_ORDER_NOTE_MAX_LENGTH}
           placeholder="Customer called about the delivery window…"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          className="border-input bg-background focus:border-ring resize-y rounded-md border px-3 py-2.5 text-sm leading-[1.55] outline-none"
         />
       </SheetField>
     </DesignSheet>

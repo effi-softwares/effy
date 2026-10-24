@@ -156,14 +156,14 @@ describe("the Orders list (057 A3)", () => {
     expect(screen.getByRole("button", { name: "Filters 2" })).toBeInTheDocument()
   })
 
-  it("opens the Filters sheet: its selects, the count and Clear all — no Apply button", async () => {
+  it("opens the Filters sheet: its choices, the count and Clear all — no Apply button", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 47 }))
     const { onSearchChange } = wrap({ range: "today", deliveredBy: "courier" })
     await screen.findByRole("table")
     await userEvent.click(screen.getByRole("button", { name: /^Filters/ }))
     const sheet = await screen.findByRole("dialog")
     expect(within(sheet).getByText("Narrow the list down. Changes apply straight away.")).toBeInTheDocument()
-    for (const label of ["Date", "Payment", "Goes with"]) {
+    for (const label of ["Placed", "Payment", "Goes with"]) {
       expect(within(sheet).getByLabelText(label)).toBeInTheDocument()
     }
     expect(within(sheet).getByText("Showing 1–1 of 47")).toBeInTheDocument()
@@ -218,7 +218,8 @@ describe("the Orders list (057 A3)", () => {
   })
 
   /**
-   * The wash and the word are one feature, tested together. A test that asserted only the class
+   * The redesign (2026-10-24): a recent order gets a blue left rule, an unopened one reads bold — the
+   * identity has no green "new" wash and no yellow. The mark and the word are one feature, tested together. A test that asserted only the class
    * would pass over a row that is legible to nobody who cannot see the colour; one that asserted
    * only the word would pass over a row nobody can find. Both, or neither, is the contract.
    */
@@ -226,23 +227,23 @@ describe("the Orders list (057 A3)", () => {
     const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
     const rowOf = (text: string) => table().getByText(text).closest("tr") as HTMLElement
 
-    it("washes a just-arrived order green and says New", async () => {
+    it("marks a just-arrived order with the blue rule and says New", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Fresh Arrival", placedAt: minutesAgo(2), status: "pending" })]),
       )
       wrap()
       await screen.findByRole("table")
-      expect(rowOf("Fresh Arrival").className).toContain("bg-success-soft")
+      expect(rowOf("Fresh Arrival").className).toContain("is-recent")
       expect(table().getByText("New")).toBeInTheDocument()
     })
 
-    it("washes an order nobody has opened yellow once it is no longer new", async () => {
+    it("sets an order nobody has opened in bold once it is no longer new", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Waiting Unseen", placedAt: minutesAgo(45), status: "pending" })]),
       )
       wrap()
       await screen.findByRole("table")
-      expect(rowOf("Waiting Unseen").className).toContain("bg-warning-soft")
+      expect(rowOf("Waiting Unseen").className).toContain("is-unopened")
       expect(table().getByText("Not opened")).toBeInTheDocument()
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
@@ -255,8 +256,8 @@ describe("the Orders list (057 A3)", () => {
       wrap()
       await screen.findByRole("table")
       const row = rowOf("Seen Already").className
-      expect(row).not.toContain("bg-success-soft")
-      expect(row).not.toContain("bg-warning-soft")
+      expect(row).not.toContain("is-recent")
+      expect(row).not.toContain("is-unopened")
       expect(table().getByText("Preparing")).toBeInTheDocument()
       expect(table().queryByText("Not opened")).not.toBeInTheDocument()
     })
@@ -268,7 +269,7 @@ describe("the Orders list (057 A3)", () => {
       )
       wrap()
       await screen.findByRole("table")
-      expect(rowOf("Called Off").className).not.toContain("bg-success-soft")
+      expect(rowOf("Called Off").className).not.toContain("is-recent")
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
 
@@ -281,8 +282,8 @@ describe("the Orders list (057 A3)", () => {
       await screen.findByRole("table")
       await userEvent.click(table().getByRole("checkbox", { name: /Select EFY-/ }))
       const row = rowOf("Fresh Arrival").className
-      expect(row).toContain("bg-accent")
-      expect(row).not.toContain("bg-success-soft")
+      expect(row).toContain("is-selected")
+      expect(row).not.toContain("is-recent")
     })
   })
 

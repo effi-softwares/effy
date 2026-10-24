@@ -12,6 +12,12 @@ export interface HourTotals {
   cantSupply: number;
   cantSupplyUnits: number;
   cancelled: number;
+  /** 099 quality: portions finished (first ready, or can't supply) in the hour, their units, and time to ready. */
+  finishedOrders: number;
+  finishedUnitsOrdered: number;
+  finishedUnitsSupplied: number;
+  readyOrders: number;
+  readySeconds: number;
 }
 
 export interface HourRow extends HourTotals {
@@ -20,7 +26,8 @@ export interface HourRow extends HourTotals {
 
 const SELECT_HOURS = `
 SELECT bucket_start, gross_goods, refunds, refunded_orders, orders, units,
-       cant_supply, cant_supply_units, cancelled
+       cant_supply, cant_supply_units, cancelled,
+       finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds
   FROM public.shop_sales_hour
  WHERE shop_id = $1::uuid
    AND bucket_start >= $2
@@ -38,6 +45,12 @@ interface HourDbRow {
   cant_supply: number;
   cant_supply_units: number;
   cancelled: number;
+  finished_orders: number;
+  finished_units_ordered: number;
+  finished_units_supplied: number;
+  ready_orders: number;
+  /** bigint arrives as a string. */
+  ready_seconds: string;
 }
 
 export async function readHours(shopId: string, from: Date, to: Date): Promise<HourRow[]> {
@@ -52,6 +65,11 @@ export async function readHours(shopId: string, from: Date, to: Date): Promise<H
     cantSupply: r.cant_supply,
     cantSupplyUnits: r.cant_supply_units,
     cancelled: r.cancelled,
+    finishedOrders: r.finished_orders,
+    finishedUnitsOrdered: r.finished_units_ordered,
+    finishedUnitsSupplied: r.finished_units_supplied,
+    readyOrders: r.ready_orders,
+    readySeconds: Number(r.ready_seconds),
   }));
 }
 

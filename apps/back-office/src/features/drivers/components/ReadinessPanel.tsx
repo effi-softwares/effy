@@ -4,9 +4,9 @@ import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react";
 
 import { Skeleton } from "@effy/design-system/ui";
 
-import { Panel } from "@/components/patterns/Panel";
-import { EmptyState } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { Panel } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 
 import { BLOCKED_LABEL, formatDate } from "../model";

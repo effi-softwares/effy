@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
 import { moment } from "@/lib/format";
 
 import { sessionQuery } from "@/features/auth/queries";

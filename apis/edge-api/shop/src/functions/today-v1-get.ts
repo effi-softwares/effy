@@ -7,6 +7,7 @@ import { preamble } from "@effy/edge-shared";
 
 import { authorizeShopManager } from "../staff/repository";
 import { gate, mapTodayError, todayResponse, toTodayDTO } from "../today/handler-support";
+import { collectionsFor, nextCollectionFor } from "../collection/service";
 import { buildAttention, readToday } from "../today/service";
 
 export const handler = async (
@@ -19,7 +20,7 @@ export const handler = async (
 
   try {
     // Refund rows are filtered server-side by the refund's own manager gate.
-    const snapshot = await readToday(g.actor, { canRefund: authorizeShopManager });
+    const snapshot = await readToday(g.actor, { canRefund: authorizeShopManager, nextCollection: nextCollectionFor, collectionsFor });
     return todayResponse(toTodayDTO(snapshot, buildAttention(snapshot)), event, scope);
   } catch (err) {
     return mapTodayError(err, scope);

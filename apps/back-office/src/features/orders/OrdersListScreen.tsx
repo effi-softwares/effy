@@ -10,10 +10,10 @@ import { Button, Skeleton } from "@effy/design-system/ui";
 import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types";
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
 
-import { Kbd } from "@/components/patterns/Kbd";
-import { PageHeader, ViewTabs } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { Facet, Pager, ResetFilters, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
+import { Kbd } from "@effy/web-kit/patterns";
+import { PageHeader, ViewTabs } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { Facet, Pager, ResetFilters, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
 import { moment, money } from "@/lib/format";
 
 import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderListParams, type OrderSummary } from "./model";

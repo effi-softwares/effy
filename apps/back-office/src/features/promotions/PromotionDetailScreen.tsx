@@ -24,9 +24,9 @@ import {
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";

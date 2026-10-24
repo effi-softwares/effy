@@ -45,14 +45,14 @@ export function AttributeField({ attr, value, onChange, error }: AttributeFieldP
     <div className="space-y-2">
       <Label htmlFor={fieldId}>
         {attr.name}
-        {attr.isMandatory ? <span className="ml-0.5 text-destructive">*</span> : null}
+        {attr.isMandatory ? <span className="ml-0.5 text-muted-foreground">*</span> : null}
         {attr.unit ? <span className="ml-1 text-muted-foreground">({attr.unit})</span> : null}
       </Label>
 
       {renderControl(attr, v, onChange, fieldId)}
 
       {attr.helpText ? <p className="text-xs text-muted-foreground">{attr.helpText}</p> : null}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium">{error}</p> : null}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import { useState } from "react";
 
-import { Badge, Button, Input, Label, toast } from "@effy/design-system/ui";
+import { ArrowDown, PackageX } from "lucide-react";
 
-import { DetailSection, Segmented, TableFrame, Td, Th } from "@/components/console/primitives";
+import { Button, Input, Label, toast } from "@effy/design-system/ui";
+
+import { DetailSection, Segmented, Td, Th } from "@/components/console/primitives";
 import { track } from "@/lib/telemetry";
 
 import type { ProductDetail } from "./model";
@@ -79,6 +81,7 @@ export function StockTable({
 
   return (
     <DetailSection
+      flush
       title="Stock"
       subtitle={
         mode === "receive"
@@ -101,16 +104,16 @@ export function StockTable({
         />
       }
     >
-      <div className="grid gap-3 pt-[18px]">
-        <TableFrame>
-          <thead className="bg-muted">
+      <div className="grid">
+        <div className="bo-table-scroll">
+        <table className="bo-table bo-table--plain">
+          <thead>
             <tr>
               <Th>{named ? "Size" : "Item"}</Th>
-              <Th>Effy code</Th>
               <Th align="right">On hand</Th>
               <Th>Status</Th>
               <Th align="right">Low at</Th>
-              <Th width="150px">{mode === "receive" ? "Received" : "Counted"}</Th>
+              <Th width="160px">{mode === "receive" ? "Received" : "Counted"}</Th>
               <Th align="right">After</Th>
               <Th />
             </tr>
@@ -121,12 +124,14 @@ export function StockTable({
               const after = plan.kind === "adjust" || plan.kind === "set" || plan.kind === "start" ? plan.after : null;
               const label = v.label ?? detail.name;
               return (
-                <tr key={v.id} className="border-border border-t align-top">
+                <tr key={v.id} className="align-top">
                   <Td>
                     <span className="font-medium">{label}</span>
-                    {v.state === "inactive" ? <span className="text-muted-foreground block text-[12px]">Off sale</span> : null}
+                    <span className="bo-sub">
+                      <span className="font-mono">{v.code}</span>
+                      {v.state === "inactive" ? " · Off sale" : ""}
+                    </span>
                   </Td>
-                  <Td className="font-mono text-[12.5px]">{v.code}</Td>
                   <Td align="right" className="tabular-nums">
                     {v.stock.tracked ? (v.stock.onHand ?? 0) : "—"}
                   </Td>
@@ -149,10 +154,10 @@ export function StockTable({
                         if (e.key === "Enter") void save();
                       }}
                     />
-                    {plan.kind === "invalid" ? <p className="text-destructive mt-1 text-[11.5px]">Enter {plan.message}</p> : null}
-                    {errors[v.id] ? <p role="alert" className="text-destructive mt-1 text-[11.5px] leading-tight">{errors[v.id]}</p> : null}
+                    {plan.kind === "invalid" ? <p className="mt-1 text-[13px] font-medium">Enter {plan.message}</p> : null}
+                    {errors[v.id] ? <p role="alert" className="mt-1 text-[13px] leading-tight font-medium">{errors[v.id]}</p> : null}
                     {!v.stock.tracked && after !== null ? (
-                      <p className="text-muted-foreground mt-1 text-[11.5px]">Starts counting this size</p>
+                      <p className="mt-1 text-[13px] text-muted-foreground">Starts counting this size</p>
                     ) : null}
                   </Td>
                   <Td align="right" className="font-medium tabular-nums">
@@ -174,9 +179,10 @@ export function StockTable({
               );
             })}
           </tbody>
-        </TableFrame>
+        </table>
+        </div>
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="bo-panel__foot flex-wrap items-end! justify-between!">
           <div className="grid min-w-[260px] flex-1 gap-1.5">
             <Label htmlFor="stock-note">Note (optional)</Label>
             <Input
@@ -217,8 +223,20 @@ export function StockTable({
 
 /** In words, never by colour alone: an empty shelf, a thin one, a healthy one, or not counted. */
 function StockBadge({ stock }: { stock: ProductDetail["variants"][number]["stock"] }) {
-  if (!stock.tracked) return <Badge variant="muted">Not counted</Badge>;
-  if (stock.outOfStock) return <Badge variant="destructive">Out of stock</Badge>;
-  if (stock.low) return <Badge variant="warning">Low</Badge>;
-  return <Badge variant="success">In stock</Badge>;
+  if (!stock.tracked) return <span className="bo-st bo-st--quiet">Not counted</span>;
+  if (stock.outOfStock)
+    return (
+      <span className="bo-st bo-st--problem">
+        <PackageX aria-hidden="true" />
+        Out of stock
+      </span>
+    );
+  if (stock.low)
+    return (
+      <span className="bo-st bo-st--waiting">
+        <ArrowDown aria-hidden="true" />
+        Low
+      </span>
+    );
+  return <span className="bo-st bo-st--done">In stock</span>;
 }

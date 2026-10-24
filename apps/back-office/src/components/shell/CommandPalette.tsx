@@ -20,7 +20,7 @@ import {
   toast,
 } from "@effy/design-system/ui";
 
-import { Kbd } from "@/components/patterns/Kbd";
+import { Kbd } from "@effy/web-kit/patterns";
 import { customerSearchQuery } from "@/features/customers/queries";
 import { ordersListQuery } from "@/features/orders/queries";
 import { lookupLabel } from "@/features/orders/repo";

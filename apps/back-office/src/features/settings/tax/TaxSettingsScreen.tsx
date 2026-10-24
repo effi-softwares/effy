@@ -8,8 +8,8 @@ import { GST_STATUS_WORDS, type GstStatus } from "@effy/shared-types";
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Switch, toast } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
 
 import { getTaxSettings, putTaxSettings } from "./repo";
 

@@ -66,7 +66,7 @@ function wrap(roles: string[]) {
  */
 describe("shop refund control", () => {
   const paymentCard = async () =>
-    (await screen.findByText(/captured at checkout/)).parentElement as HTMLElement
+    (await screen.findByText(/captured at checkout/)).closest("section") as HTMLElement
 
   it("offers refunding to a shop manager, in the Payment card", async () => {
     wrap(["shop_manager"])
@@ -110,7 +110,7 @@ describe("shop refund control", () => {
     const sheet = await screen.findByRole("dialog")
     // The second line — oat milk, $3.00 each.
     await userEvent.click(within(sheet).getAllByRole("button", { name: "max 2" })[1]!)
-    expect(within(sheet).getByText("$6.00", { selector: "div.text-base" })).toBeInTheDocument()
+    expect(within(sheet).getByText("$6.00", { selector: "output" })).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole("button", { name: "Issue refund" }))
 
     await waitFor(() => expect(issueShopRefund).toHaveBeenCalled())

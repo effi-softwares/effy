@@ -16,7 +16,7 @@ import {
   type ShopperSkinDTO,
 } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
+import { Panel } from "@effy/web-kit/patterns";
 import { promotionMutationError } from "@/features/promotions/errorText";
 import { promotionQuery } from "@/features/promotions/queries";
 import { LAYOUT_WORD, SIZE_WORD, SkinPreviewItem } from "@/features/promotion-skins/SkinPreview";

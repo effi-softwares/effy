@@ -2,17 +2,34 @@ import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Loader2, X } from "lucide-react"
-
-import { SHOP_ORDER_TABS, type ShopOrderSort } from "@effy/shared-types"
 import {
-  Button,
-  Checkbox,
-  InitialsAvatar,
-  LoadingArea,
-  toast,
-} from "@effy/design-system/ui"
+  ArrowDown,
+  ArrowUp,
+  BellRing,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Columns3,
+  Download,
+  Inbox,
+  Loader2,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+  Table2,
+  X,
+} from "lucide-react"
+
+import {
+  SHOP_ORDER_DELIVERED_BY,
+  SHOP_ORDER_PAYMENT_STATES,
+  SHOP_ORDER_RANGES,
+  SHOP_ORDER_TABS,
+  type ShopOrderSort,
+} from "@effy/shared-types"
+import { Button, Checkbox, Input, Skeleton, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { Facet, PageHeader } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
@@ -25,10 +42,14 @@ import { BulkActions } from "./components/BulkActions"
 import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
 import { PackageStatusPill } from "@effy/web-kit/console"
 import { paymentTextClass } from "./components/OrderPill"
+import { OrderQueue } from "./components/OrderQueue"
+import { OrderWait } from "./components/OrderWait"
 import {
   activeFilterCount,
+  deliveredByText,
+  DELIVERED_BY_FILTER_LABEL,
+  RANGE_LABEL,
   formatMoney,
-  formatPlacedShort,
   isFiltered,
   orderRowTone,
   PAYMENT_LABEL,
@@ -39,6 +60,7 @@ import {
   type OrderRowTone,
   type OrdersSearch,
 } from "./orderConsole"
+import { runTime } from "./collection"
 import { courierPickupLine } from "./courierPickup"
 import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
@@ -137,246 +159,239 @@ export function OrderListScreen({
     }
   }
 
+  const view = search.view === "queue" ? "queue" : "table"
+
   return (
-    <div className="grid gap-4">
-      {/* The controls: three rows, 22px apart; a rule under the result meta (revision 3) */}
-      <div className="grid gap-[22px]">
-        {/* Row 1 — search, then the page actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            className="gap-[7px]"
-            onClick={() => setFiltersOpen(true)}
-          >
-            Filters
-            {filterCount > 0 ? (
-              <span className="grid h-[17px] min-w-[17px] place-items-center rounded-[5px] bg-brand px-[5px] font-mono text-[11px] font-medium tabular-nums text-primary-foreground">
-                {filterCount}
-              </span>
-            ) : null}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={exporting || total === 0}
-            onClick={() => void exportCsv()}
-          >
-            {exporting ? <Loader2 className="animate-spin" /> : null}
-            Export CSV
-          </Button>
-        </div>
-
-        {/* Row 2 — the status tabs, on their own row.
-            This was A third, hand-rolled copy of the segmented control. The platform had three:
-            `Tabs` in the design system, `Segmented` in the console primitives, and this one — each
-            with its own active treatment. The theme adoption changed the active segment to a solid
-            --brand fill, and a copy nobody remembered would have stayed a raised white chip with a
-            shadow on a flat, shadowless design. It now renders `Segmented`, so there is one control
-            and one place to change it. */}
-        <Segmented
-          ariaLabel="Order status"
-          value={tab}
-          onChange={(t) => update({ tab: t })}
-          options={SHOP_ORDER_TABS.map((t) => ({
-            value: t,
-            label: (
-              <span className="flex items-center gap-1.5">
-                {TAB_LABEL[t]}
-                <span className="font-mono text-[11.5px] tabular-nums opacity-65">
-                  {data ? data.counts[t] : ""}
-                </span>
-              </span>
-            ),
-          }))}
-        />
-
-        {/* Row 3 — the result meta, then the rule that separates the controls from the table */}
-        <div className="border-border flex flex-wrap items-center gap-3 border-b pb-3">
-          <div className="text-muted-foreground text-[13px] whitespace-nowrap tabular-nums" aria-live="polite">
-            {countLabel}
-          </div>
-          {dirty ? (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-muted-foreground hover:bg-accent hover:text-foreground h-[26px] cursor-pointer rounded-md border-none bg-transparent px-[9px] text-[12.5px] font-medium whitespace-nowrap"
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <OrderFiltersSheet
-        open={filtersOpen}
-        onOpenChange={setFiltersOpen}
-        search={search}
-        countLabel={countLabel}
-        onChange={(patch) => update(patch)}
-        onClearAll={() => update({ range: undefined, payment: undefined, deliveredBy: undefined, attention: undefined })}
+    <div className="flex min-w-0 flex-col gap-6 max-md:gap-4">
+      <PageHeader
+        title="Orders"
+        description={
+          view === "queue"
+            ? "Oldest first in every lane. Tap a ticket to open it, or scan a bag label to jump straight to its order."
+            : "Every order with your shop's items. The table is for the counter; the queue is for the packing bench."
+        }
+        actions={
+          <>
+            <Segmented
+              ariaLabel="Show orders as"
+              value={view}
+              onChange={(v) => onSearchChange(validateOrdersSearch({ ...search, view: v === "queue" ? "queue" : undefined } as Record<string, unknown>))}
+              options={[
+                { value: "table", label: <><Table2 aria-hidden="true" />Table</> },
+                { value: "queue", label: <><Columns3 aria-hidden="true" />Queue</> },
+              ]}
+            />
+            <Button variant="outline" disabled={exporting || total === 0} onClick={() => void exportCsv()}>
+              {exporting ? <Loader2 className="animate-spin" /> : <Download aria-hidden="true" />}
+              Export CSV
+            </Button>
+          </>
+        }
       />
 
-      {selected.size > 0 ? (
-        <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
-      ) : null}
-
-      {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <ListLoading />
-      ) : total === 0 ? (
-        <EmptyState
-          filtered={dirty}
-          onReset={clearAll}
-        />
+      {view === "queue" ? (
+        <OrderQueue search={search} now={now} />
       ) : (
         <>
-          {/* The table — always rendered; it scrolls sideways on a narrow viewport rather than
-              being swapped for a stripped-down list (revision 2). ─────────────────────────────── */}
-          <div
-            className={cn(
-              "border-border overflow-x-auto rounded-[var(--radius)] border transition-opacity",
-              isPlaceholderData && "opacity-60",
-            )}
-          >
-            <table className="w-full min-w-[820px] table-fixed border-collapse">
-              <thead>
-                <tr className="bg-muted">
-                  <th className="w-[34px] py-[9px] pl-3.5">
-                    <Checkbox
-                      aria-label="Select all on this page"
-                      className="size-4"
-                      checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
-                      onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.id)) : new Set())}
-                    />
-                  </th>
-                  <SortTh label="Order" sortKey="number" width="11%" search={search} onSort={update} />
-                  <SortTh label="Customer" sortKey="customer" width="19%" search={search} onSort={update} />
-                  <SortTh label="Items" search={search} onSort={update} />
-                  <SortTh label="Placed" sortKey="placed" width="8%" search={search} onSort={update} />
-                  <SortTh label="Fulfilment" width="13%" search={search} onSort={update} />
-                  {/* Wide enough for "Partially refunded", its longest label, on one line. */}
-                  <SortTh label="Payment" width="14%" search={search} onSort={update} />
-                  <SortTh label="Total" sortKey="total" width="11%" align="right" search={search} onSort={update} />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((o) => {
-                  const sel = selected.has(o.id)
-                  const tone = orderRowTone(o, now)
-                  return (
-                    <tr
-                      key={o.id}
-                      onClick={() => onOpenOrder(o.id)}
-                      data-state={sel ? "selected" : undefined}
-                      data-tone={tone ?? undefined}
-                      className={cn(
-                        "border-border hover:bg-accent cursor-pointer border-t",
-                        // The wash is skipped when the row is selected, not layered under it. Two
-                        // background utilities on one element are resolved by stylesheet order, not
-                        // by the order they are written here, so "selected" would win on some builds
-                        // and lose on others — and a selected row the operator cannot see is how a
-                        // bulk action gets applied to rows nobody reviewed.
-                        !sel && tone === "recent" && "bg-success-soft",
-                        !sel && tone === "unopened" && "bg-warning-soft",
-                        sel && "bg-accent",
-                      )}
-                    >
-                      {/* Ticking a row must not also open it. */}
-                      <td className="py-3 pl-3.5" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          aria-label={`Select ${o.orderNumber}`}
-                          className="size-4"
-                          checked={sel}
-                          onCheckedChange={(v) => toggle(o.id, v === true)}
-                        />
-                      </td>
-                      <td className="px-3.5 py-3">
-                        <Link
-                          to="/orders/$fulfillmentId"
-                          params={{ fulfillmentId: o.id }}
-                          search={search}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-muted-foreground hover:text-foreground font-mono text-[12.5px] whitespace-nowrap no-underline"
-                        >
-                          {o.orderNumber}
-                        </Link>
-                      </td>
-                      <td className="px-3.5 py-3">
-                        {/* Wraps rather than overflowing when a flag rides beside the name. */}
-                        {/* An avatar per person (adoption prompt, list pattern). The tint is
-                            Deterministic on the order id, so the same customer keeps the same colour
-                            down the column and across screens — an index-derived tint would re-colour
-                            everyone on every sort and actively mislead. */}
-                        <div className="flex flex-wrap items-center gap-x-[7px] gap-y-[3px]">
-                          {o.customerName ? (
-                            <InitialsAvatar
-                              name={o.customerName}
-                              seed={o.id}
-                              className="size-6 shrink-0"
-                            />
-                          ) : null}
-                          <span className="text-[13.5px] font-medium break-words">{o.customerName || "—"}</span>
-                          <RowFlag row={o} tone={tone} />
-                        </div>
-                        {o.courierPickup ? (
-                          <div className="text-muted-foreground mt-0.5 text-[12px]" data-testid="row-courier-pickup">
-                            {courierPickupLine(o.courierPickup)}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="text-muted-foreground overflow-hidden px-3.5 py-3 text-[13px] text-ellipsis whitespace-nowrap">
-                        {o.itemsSummary}
-                      </td>
-                      <td className="text-muted-foreground px-3.5 py-3 font-mono text-[13px] whitespace-nowrap">
-                        {formatPlacedShort(o.placedAt)}
-                      </td>
-                      <td className="px-3.5 py-3">
-                        {/* Where it really is, past Collected; the shared words. */}
-                        <PackageStatusPill view={o.statusView} showDetail={false} />
-                      </td>
-                      <td className={cn("px-3.5 py-3 text-[12.5px] font-medium whitespace-nowrap", paymentTextClass(o.payment))}>
-                        {PAYMENT_LABEL[o.payment]}
-                      </td>
-                      <td className="px-3.5 py-3 text-right text-[13.5px] font-medium whitespace-nowrap tabular-nums">
-                        {formatMoney(o.total, o.currency)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          {/* The status tabs: saved views with their counts, underlined, kept in the URL. */}
+          <div role="tablist" aria-label="Order status" className="bo-tabs">
+            {SHOP_ORDER_TABS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={t === tab}
+                onClick={() => update({ tab: t })}
+                className={cn("bo-tabs__tab", t === tab && "is-active")}
+              >
+                {TAB_LABEL[t]}
+                {data ? (
+                  <span className={cn("bo-tabs__count", t === "new" && t !== tab && data.counts[t] > 0 && "bo-tabs__count--primary")}>
+                    {data.counts[t]}
+                  </span>
+                ) : null}
+              </button>
+            ))}
           </div>
 
+          {/* Search, the three facets (a laptop or landscape tablet), Filters (a portrait tablet or phone). */}
+          <div className="bo-toolbar">
+            <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
+            <Facet
+              label="Placed"
+              className="max-[1023px]:hidden"
+              anyLabel={RANGE_LABEL.any}
+              value={search.range ?? null}
+              options={SHOP_ORDER_RANGES.filter((r) => r !== "any").map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
+              onChange={(range) => update({ range: range ?? undefined })}
+            />
+            <Facet
+              label="Goes with"
+              className="max-[1023px]:hidden"
+              anyLabel={DELIVERED_BY_FILTER_LABEL.any}
+              value={search.deliveredBy ?? null}
+              options={SHOP_ORDER_DELIVERED_BY.filter((d) => d !== "any").map((d) => ({ value: d, label: DELIVERED_BY_FILTER_LABEL[d] }))}
+              onChange={(deliveredBy) => update({ deliveredBy: deliveredBy ?? undefined })}
+            />
+            <Facet
+              label="Payment"
+              className="max-[1023px]:hidden"
+              value={search.payment ?? null}
+              options={SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))}
+              onChange={(payment) => update({ payment: payment ?? undefined })}
+            />
+            <Button variant="outline" className="min-[1024px]:hidden" onClick={() => setFiltersOpen(true)}>
+              <SlidersHorizontal aria-hidden="true" />
+              Filters
+              {filterCount > 0 ? <span className="bo-tabs__count bo-tabs__count--primary">{filterCount}</span> : null}
+            </Button>
+            {dirty ? (
+              <Button variant="ghost" onClick={clearAll}>
+                Clear filters
+                <X aria-hidden="true" />
+              </Button>
+            ) : null}
+          </div>
+
+          <OrderFiltersSheet
+            open={filtersOpen}
+            onOpenChange={setFiltersOpen}
+            search={search}
+            countLabel={countLabel}
+            onChange={(patch) => update(patch)}
+            onClearAll={() => update({ range: undefined, payment: undefined, deliveredBy: undefined, attention: undefined })}
+          />
+
+          {selected.size > 0 ? (
+            <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
+          ) : null}
+
+          {isError ? (
+            <ErrorState error={error} onRetry={() => void refetch()} />
+          ) : isPending ? (
+            <ListLoading />
+          ) : total === 0 ? (
+            <EmptyState filtered={dirty} onReset={clearAll} />
+          ) : (
+            <div className={cn("bo-table-wrap transition-opacity", isPlaceholderData && "opacity-60")}>
+              <div className="bo-table-scroll">
+                <table className="bo-table bo-rtable min-w-[900px] max-md:min-w-0">
+                  <thead>
+                    <tr>
+                      <th className="is-check">
+                        <Checkbox
+                          aria-label="Select all on this page"
+                          checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
+                          onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.id)) : new Set())}
+                        />
+                      </th>
+                      <SortTh label="Order" sortKey="number" search={search} onSort={update} />
+                      <SortTh label="Customer" sortKey="customer" search={search} onSort={update} />
+                      <SortTh label="Placed" sortKey="placed" search={search} onSort={update} />
+                      <SortTh label="Status" search={search} onSort={update} />
+                      <SortTh label="Goes with" search={search} onSort={update} />
+                      <SortTh label="Payment" search={search} onSort={update} />
+                      <SortTh label="Total" sortKey="total" align="right" search={search} onSort={update} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((o) => {
+                      const sel = selected.has(o.id)
+                      const tone = orderRowTone(o, now)
+                      return (
+                        <tr
+                          key={o.id}
+                          onClick={() => onOpenOrder(o.id)}
+                          data-state={sel ? "selected" : undefined}
+                          data-tone={tone ?? undefined}
+                          className={cn(
+                            "cursor-pointer",
+                            // The tone is skipped on a selected row, not layered under it, so a ticked
+                            // row is never hidden under another highlight.
+                            !sel && tone === "recent" && "is-recent",
+                            !sel && tone === "unopened" && "is-unopened",
+                            sel && "is-selected",
+                          )}
+                        >
+                          {/* Ticking a row must not also open it. */}
+                          <td className="is-check" data-m="check" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              aria-label={`Select ${o.orderNumber}`}
+                              checked={sel}
+                              onCheckedChange={(v) => toggle(o.id, v === true)}
+                            />
+                          </td>
+                          <td data-m="primary">
+                            <Link
+                              to="/orders/$fulfillmentId"
+                              params={{ fulfillmentId: o.id }}
+                              search={search}
+                              onClick={(e) => e.stopPropagation()}
+                              className="bo-code font-mono font-medium text-foreground no-underline hover:underline"
+                            >
+                              {o.orderNumber}
+                            </Link>
+                            <span className="bo-sub max-w-[22ch] truncate">{o.itemsSummary}</span>
+                          </td>
+                          <td data-m="meta">
+                            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-medium break-words">{o.customerName || "—"}</span>
+                              <RowFlag row={o} tone={tone} />
+                            </span>
+                          </td>
+                          <td data-m="meta" className="whitespace-nowrap text-muted-foreground">
+                            <OrderWait row={o} now={now} />
+                          </td>
+                          <td data-m="badge">
+                            {/* Where it really is, past Collected; the shared words. */}
+                            <PackageStatusPill view={o.statusView} showDetail={false} />
+                          </td>
+                          <td data-m="meta">
+                            {deliveredByText(o.deliveredBy)}
+                            {o.courierPickup ? (
+                              <span className="bo-sub" data-testid="row-courier-pickup">
+                                {courierPickupLine(o.courierPickup)}
+                              </span>
+                            ) : o.collection ? (
+                              <span className="bo-sub">{runTime(o.collection)} run</span>
+                            ) : null}
+                          </td>
+                          <td data-m="hide" className={cn("whitespace-nowrap", paymentTextClass(o.payment))}>
+                            {PAYMENT_LABEL[o.payment]}
+                          </td>
+                          <td data-m="trail" className="is-num font-semibold whitespace-nowrap">
+                            {formatMoney(o.total, o.currency)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bo-pager">
+                <span className="tabular-nums" aria-live="polite">
+                  {countLabel}
+                </span>
+                <div className="bo-pager__right">
+                  <span className="tabular-nums whitespace-nowrap">
+                    Page {page} of {pageCount}
+                  </span>
+                  <div className="bo-pager__btns">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => update({ page: page - 1 }, true)}>
+                      <ChevronLeft aria-hidden="true" />
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => update({ page: page + 1 }, true)}>
+                      Next
+                      <ChevronRight aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
-
-      {total > 0 ? (
-        <div className="flex flex-wrap items-center justify-end gap-2.5">
-          <div className="text-muted-foreground text-[12.5px] whitespace-nowrap tabular-nums">
-            Page {page} of {pageCount}
-          </div>
-          <div className="flex gap-1.5">
-            <Button
-              variant="outline"
-              className="h-[30px] px-3 text-[13px] disabled:opacity-45"
-              disabled={page <= 1}
-              onClick={() => update({ page: page - 1 }, true)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              className="h-[30px] px-3 text-[13px] disabled:opacity-45"
-              disabled={page >= pageCount}
-              onClick={() => update({ page: page + 1 }, true)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -405,26 +420,19 @@ function RowFlag({ row, tone }: { row: OrderRow; tone: OrderRowTone | null }) {
   return (
     <>
       {tone === "recent" ? (
-        <span className="border-success text-success flex items-center gap-1 rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
-          <span aria-hidden="true" className="bg-success size-1.5 rounded-full" />
+        <span className="bo-st bo-st--info">
+          <BellRing aria-hidden="true" />
           New
         </span>
       ) : null}
-      {tone === "unopened" ? (
-        <span className="border-warning text-warning rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
-          Not opened
-        </span>
-      ) : null}
+      {tone === "unopened" ? <span className="bo-tag">Not opened</span> : null}
       {row.atRisk ? (
-        <span className="border-destructive text-destructive rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
+        <span className="bo-st bo-st--problem">
+          <CircleAlert aria-hidden="true" />
           At risk
         </span>
       ) : null}
-      {row.unavailableCount > 0 ? (
-        <span className="border-muted-foreground text-muted-foreground rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
-          {row.unavailableCount} short
-        </span>
-      ) : null}
+      {row.unavailableCount > 0 ? <span className="bo-tag">{row.unavailableCount} short</span> : null}
     </>
   )
 }
@@ -450,7 +458,7 @@ function SortTh({
   const dir = search.dir ?? "desc"
   return (
     <th
-      className="p-0"
+      className={cn(align === "right" && "is-num")}
       style={width ? { width } : undefined}
       aria-sort={current ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
@@ -460,18 +468,18 @@ function SortTh({
         // First click on a new column sorts descending; a second click flips it.
         onClick={() => sortKey && onSort({ sort: sortKey, dir: current ? (dir === "asc" ? "desc" : "asc") : "desc" })}
         className={cn(
-          "text-muted-foreground flex w-full items-center gap-[5px] border-none bg-transparent px-3.5 py-[9px] text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase",
+          "flex min-h-11 w-full items-center gap-1 border-none bg-transparent p-0 font-[inherit] text-[inherit] whitespace-nowrap text-muted-foreground",
           align === "right" ? "justify-end" : "justify-start",
-          sortKey ? "hover:text-foreground cursor-pointer" : "cursor-default",
+          sortKey ? "cursor-pointer hover:text-foreground" : "cursor-default",
         )}
       >
         {label}
         {/* The arrow is rendered only for the active column, in the action colour. An arrow on
             every header says every column is sorted; a neutral glyph everywhere is noise in a row
             that is already dense. */}
-        <span className="text-[10px] text-brand" aria-hidden="true">
-          {current ? (dir === "asc" ? "↑" : "↓") : ""}
-        </span>
+        {current ? (
+          dir === "asc" ? <ArrowUp aria-hidden="true" className="size-3.5 text-foreground" /> : <ArrowDown aria-hidden="true" className="size-3.5 text-foreground" />
+        ) : null}
       </button>
     </th>
   )
@@ -492,43 +500,50 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
   }, [text])
 
   return (
-    <div className="relative flex max-w-[340px] flex-[1_1_260px] items-center">
-      <input
+    <label className="bo-toolbar__search">
+      <Search aria-hidden="true" />
+      <Input
         aria-label="Search"
-        placeholder="Search order, customer, SKU…"
+        type="search"
+        placeholder="Order, customer or SKU…"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="border-input bg-background focus:border-ring h-[34px] w-full rounded-md border pr-[30px] pl-[11px] text-[13px] outline-none"
+        className="pr-11!"
       />
       {text ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           aria-label="Clear search"
           onClick={() => {
             setText("")
             onChange("")
           }}
-          className="text-muted-foreground hover:bg-accent absolute right-[5px] grid size-[22px] cursor-pointer place-items-center rounded-[4px] border-none bg-transparent"
+          className="absolute right-1.5"
         >
-          <X className="size-3.5" />
-        </button>
+          <X className="size-4" />
+        </Button>
       ) : null}
-    </div>
+    </label>
   )
 }
 
-/** The design's dashed empty state — with distinct copy for "none yet" and "none match". */
+/** Every empty list says why it is empty and what to do — distinct copy for "none yet" and "none match". */
 function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
   return (
-    <div className="border-border grid justify-items-center gap-2 rounded-[var(--radius)] border border-dashed px-6 py-11 text-center">
-      <div className="text-sm font-semibold">{filtered ? "No orders match these filters" : "No orders yet"}</div>
-      <div className="text-muted-foreground max-w-[340px] text-[13px] leading-[1.55]">
+    <div className="bo-empty">
+      <span className="bo-empty__icon" aria-hidden="true">
+        {filtered ? <SearchX /> : <Inbox />}
+      </span>
+      <h3>{filtered ? "No orders match these filters" : "No orders yet"}</h3>
+      <p>
         {filtered
           ? "Widen the date range, clear the search, or reset everything and start again."
           : "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself."}
-      </div>
+      </p>
       {filtered ? (
-        <Button variant="outline" className="mt-1.5 h-8 px-3.5 text-[13px]" onClick={onReset}>
+        <Button variant="outline" className="mt-2" onClick={onReset}>
           Reset filters
         </Button>
       ) : null}
@@ -536,11 +551,21 @@ function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => v
   )
 }
 
+/** A loading table in the shape of the one it replaces. */
 function ListLoading() {
   return (
-    // The table's own frame, so the region reads as "the table is coming" and keeps its footprint.
-    <div className="border-border rounded-[var(--radius)] border">
-      <LoadingArea title="Loading orders" description="Fetching your latest orders." />
+    <div className="bo-table-wrap" aria-busy="true" aria-label="Loading orders">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
+          <Skeleton className="size-5 rounded" />
+          <div className="grid flex-1 gap-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3.5 w-48" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded-md" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
     </div>
   )
 }

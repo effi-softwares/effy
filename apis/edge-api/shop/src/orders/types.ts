@@ -1,4 +1,4 @@
-import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopParcelLabelDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopOrderCollectionDTO, ShopParcelLabelDTO, StorageClass } from "@effy/shared-types";
 // The order console's routes (`/shop/v1/orders…`) carry the order's money by operator decision; the
 // pick routes (`fulfillments/`) do not, and the two modules stay separate so that rule cannot leak. No
 // request type carries a shop id, and nothing names the payer's address (the address guard reads this directory).
@@ -76,6 +76,8 @@ export interface OrderRow {
   deliveredBy: "effy_driver" | "courier";
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
+  /** The run expected to collect it, when an Effy driver will (099). */
+  collection?: ShopOrderCollectionDTO;
   atRisk: boolean;
   payment: PaymentState;
   total: string;
@@ -111,6 +113,8 @@ export interface OrderLine {
   unitPrice: string;
   lineTotal: string;
   pickNote: string | null;
+  /** Ambient, chilled or frozen as sold (099). */
+  storageClass: StorageClass;
 }
 
 export interface OrderRefund {
@@ -143,6 +147,8 @@ export interface OrderDetail {
   deliveredBy: "effy_driver" | "courier";
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
+  /** The run expected to collect it, when an Effy driver will (099). */
+  collection?: ShopOrderCollectionDTO;
   atRisk: boolean;
   delivery: FulfillmentDelivery;
   parcels: ShopParcelLabelDTO[];

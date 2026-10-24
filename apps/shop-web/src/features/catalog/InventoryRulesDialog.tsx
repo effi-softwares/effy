@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import type { ProductStockDTO } from "@effy/shared-types";
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
   Input,
   Label,
   Switch,
@@ -104,14 +104,14 @@ export function InventoryRulesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{size ? `Inventory rules — ${size}` : "Inventory rules"}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{size ? `Inventory rules — ${size}` : "Inventory rules"}</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             How this product&apos;s stock behaves. Changing a rule here never moves the count.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         <div className="grid gap-5">
           <div className="border-border flex items-start justify-between gap-4 border-b pb-4">
@@ -172,22 +172,22 @@ export function InventoryRulesDialog({
           ) : null}
 
           {failure ? (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm font-medium">
               {stockErrorText(failure)}
             </p>
           ) : null}
         </div>
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
           <Button onClick={() => void save()} disabled={!canSave || pending}>
             {pending ? "Saving…" : "Save rules"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 

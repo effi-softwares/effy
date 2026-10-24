@@ -1,10 +1,10 @@
 import { logger, query } from "@effy/edge-shared";
-import { announceDispatch, announceSlots } from "@effy/edge-shared/live";
+import { announceCollectionShops, announceDispatch, announceSlots } from "@effy/edge-shared/live";
 
 /** What a dispatcher's action or a planning pass changes on other screens. Called after commit; never throws. */
 
 // announceDispatch and announceSlots live in @effy/edge-shared/live.
-export { announceDispatch, announceSlots };
+export { announceCollectionShops, announceDispatch, announceSlots };
 
 /** Read before a reassignment so the losing driver can be told. `null` if unreadable: the action still goes ahead. */
 export async function driverOfRound(roundId: string): Promise<string | null> {

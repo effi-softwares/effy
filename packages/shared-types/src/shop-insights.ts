@@ -7,7 +7,7 @@
 
 import type { WireInt } from "./cart"
 import type { DeliveredBy } from "./delivery-type"
-import type { CourierPickupDTO } from "./shop-order-console"
+import type { CourierPickupDTO, ShopNextCollectionDTO, ShopOrderCollectionDTO, StorageClass } from "./shop-order-console"
 
 // Today: the live snapshot
 
@@ -69,6 +69,8 @@ export interface ShopLiveOrderDTO {
   /** The order's total, as the Orders list shows it; not the basis of Insights' Revenue (this shop's goods only). */
   total: string
   currency: string
+  /** Present only for an Effy-driver package still at the shop (099). */
+  collection?: ShopOrderCollectionDTO
 }
 
 export interface ShopBacklogDTO {
@@ -98,6 +100,8 @@ export interface ShopTodayDTO {
   /** The oldest open item's instant: "Oldest item waiting {age}". Null when nothing waits. */
   oldestWaitingAt: string | null
   live: ShopLiveOrderDTO[]
+  /** The next Effy collection run to reach this shop; null when no collection runs are set up (099). */
+  nextCollection: ShopNextCollectionDTO | null
 }
 
 // Insights: prepared figures
@@ -183,6 +187,16 @@ export interface ShopInsightsDTO {
     ordersTotal: InsightsFigureDTO
   }
   topProducts: InsightsTopProductDTO[]
+  /**
+   * How well the shop fulfils (099), over the portions it finished in the window. Rates are percent
+   * strings to one decimal place with an `abs` change in points; the average is whole seconds with a
+   * `pct` change. Null when the window has nothing to measure.
+   */
+  quality: {
+    foundRate: InsightsFigureDTO | null
+    cantSupplyRate: InsightsFigureDTO | null
+    averageTimeToReady: InsightsFigureDTO | null
+  }
 }
 
 // Team activity
@@ -233,8 +247,8 @@ export interface ShopPickListDTO {
   deliveredBy: DeliveredBy
   /** Present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** `variantLabel` is the size or flavour sold; null with no options. */
-  lines: Array<{ name: string; variantLabel?: string | null; variantCode?: string | null; sku: string | null; quantity: WireInt }>
+  /** `variantLabel` is the size or flavour sold; null with no options. Ambient → Chilled → Frozen (099). */
+  lines: Array<{ name: string; variantLabel?: string | null; variantCode?: string | null; sku: string | null; quantity: WireInt; storageClass: StorageClass }>
 }
 
 /** Every order waiting to be picked, as a printable document. No money: the sheet goes to the shelves. */

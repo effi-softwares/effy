@@ -1,6 +1,5 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-import { useHotkey } from "@tanstack/react-hotkeys";
 import { Check, CirclePlus, Search, X } from "lucide-react";
 
 import { cn } from "@effy/design-system";
@@ -39,7 +38,17 @@ export function SearchBox({
   label: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
-  useHotkey("/", () => ref.current?.focus(), { ignoreInputs: true, preventDefault: true });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      ref.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <label className="bo-toolbar__search">
       <Search aria-hidden="true" />

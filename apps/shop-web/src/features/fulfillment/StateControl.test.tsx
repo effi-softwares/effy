@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,7 +91,7 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   it("sends the chosen reason", async () => {
     const onOpenChange = vi.fn();
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={onOpenChange} />);
-    await userEvent.selectOptions(screen.getByLabelText(/why can't you supply/i), "Items damaged or unusable");
+    await userEvent.click(within(screen.getByRole("radiogroup", { name: /why can't you supply/i })).getByRole("radio", { name: "Items damaged or unusable" }));
     await userEvent.click(screen.getByRole("button", { name: /^can't supply it$/i }));
     await waitFor(() =>
       expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "unfulfillable", reason: "Items damaged or unusable" }),
@@ -102,10 +102,10 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   // A reason is required, here and in the database — "Other" asks for the words.
   it("cannot be declared as Other without saying what happened", async () => {
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
-    await userEvent.selectOptions(screen.getByLabelText(/why can't you supply/i), "Other");
+    await userEvent.click(within(screen.getByRole("radiogroup", { name: /why can't you supply/i })).getByRole("radio", { name: /something else/i }));
     const confirm = screen.getByRole("button", { name: /^can't supply it$/i });
     expect(confirm).toBeDisabled();
-    await userEvent.type(screen.getByLabelText(/say what happened/i), "the chiller failed");
+    await userEvent.type(screen.getByLabelText(/what happened\?/i), "the chiller failed");
     expect(confirm).toBeEnabled();
     await userEvent.click(confirm);
     await waitFor(() =>

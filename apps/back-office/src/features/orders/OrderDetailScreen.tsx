@@ -22,9 +22,9 @@ import { Badge, Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTr
 import { leastAdvanced, type PackageStatusView } from "@effy/shared-types";
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { AssignmentActions } from "@/features/assign/AssignmentActions";

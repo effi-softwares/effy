@@ -7,7 +7,7 @@ import { GST_STATUS_WORDS, type GstStatus } from "@effy/shared-types";
 import { Button, Checkbox, toast } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { EmptyState } from "@/components/patterns/States";
+import { EmptyState } from "@effy/web-kit/patterns";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { canDecideReview } from "./access";

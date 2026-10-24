@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@effy/design-system";
 
-import { PageHeader } from "@/components/patterns/Page";
+import { PageHeader } from "@effy/web-kit/patterns";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageCatalog } from "./access";

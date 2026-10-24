@@ -1,26 +1,7 @@
 import type { ShopBacklogDTO, ShopInsightsDTO } from "@effy/shared-types"
-import { IconChip } from "@effy/design-system/ui"
+import { cn } from "@effy/design-system"
 
 import { deltaText, deltaToneClass, metricLabel, money, RANGE_SUFFIX } from "./model"
-
-/**
- * The design's five KPI chips, in its own order and its own geometric glyphs: ◈ brand, ◫ violet,
- * ◎ teal, ◐ warning, ▤ attention.
- *
- * The last two are not decorative. Cells 4 and 5 ("Awaiting pick", "Unfulfilled units") are the
- * only live operational figures on an analytics screen — work, not results — and the warning and
- * attention tints are what separate them at a glance from the three money figures beside them.
- *
- * Never emoji. These glyphs inherit `currentColor` and render identically everywhere; an emoji
- * would arrive in the operating system's own palette and ignore the theme entirely.
- */
-const CHIPS = [
-  { glyph: "\u25c8", tone: "brand" },
-  { glyph: "\u25eb", tone: "violet" },
-  { glyph: "\u25ce", tone: "teal" },
-  { glyph: "\u25d0", tone: "warning" },
-  { glyph: "\u25a4", tone: "attention" },
-] as const
 
 /**
  * The primary metric strip: one bordered container divided by rules, not tiles. "Awaiting pick" and
@@ -71,31 +52,20 @@ export function MetricStrip({
   // breakpoints the cells wrap, and `border-l` + `first:border-l-0` leaves the leftmost cell of every
   // wrapped row drawing a rule against the container's own edge — the dangling rule the brief warns
   // about. A gap draws only between cells, at every width, with no nth-child arithmetic.
+  // One bordered row of figures, not five cards. The last two are live work, not results — blue.
   return (
-    <dl className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius)] border min-[1240px]:grid-cols-5 sm:grid-cols-3">
-      {cells.map((c, i) => {
-        const chip = CHIPS[i] ?? CHIPS[0]
-        return (
-          <div key={c.label} className="bg-background grid gap-[5px] px-[18px] py-4">
-            <dt className="flex min-w-0 items-center gap-2">
-              <IconChip tone={chip.tone} size="lg">
-                {chip.glyph}
-              </IconChip>
-              <span className="truncate text-[12.5px] font-medium text-muted-foreground">
-                {c.label}
-              </span>
-            </dt>
-            <dd className="truncate text-[25px] font-semibold tracking-[-0.02em] tabular-nums">
-              {c.value}
-            </dd>
-            {/* The glyph still carries the direction (deltaText writes ▲/▼), so the colour is
-                never the only thing saying a figure went down. */}
-            <dd className={`truncate text-xs ${"tone" in c && c.tone ? c.tone : "text-muted-foreground"}`}>
-              {c.note}
-            </dd>
-          </div>
-        )
-      })}
+    <dl className="sh-kpis">
+      {cells.map((c, i) => (
+        <div key={c.label} className={cn("sh-kpi", i >= 3 && "is-live")}>
+          <dt className="sh-kpi__label">
+            {i >= 3 ? <span aria-hidden="true" className="bo-dot bo-dot--busy" /> : null}
+            {c.label}
+          </dt>
+          <dd className="sh-kpi__value">{c.value}</dd>
+          {/* The glyph carries the direction (deltaText writes ▲/▼), so colour never says it alone. */}
+          <dd className={cn("sh-kpi__sub", "tone" in c && c.tone ? c.tone : null)}>{c.note}</dd>
+        </div>
+      ))}
     </dl>
   )
 }

@@ -15,7 +15,7 @@
  * lists" (one per waiting order, one window). No money on a pick list. Its own window keeps the chrome off
  * the paper, and everything interpolated is escaped (product names are operator text).
  */
-import type { DeliveredBy } from "@effy/shared-types"
+import { STORAGE_CLASSES, STORAGE_CLASS_WORDS, type DeliveredBy, type StorageClass } from "@effy/shared-types"
 
 import { deliveredByText, formatWhen } from "./orderConsole"
 import { lineCodes } from "./codes";
@@ -28,18 +28,35 @@ export interface PickListDocument {
   deliveredBy: DeliveredBy
   /** ISO instant, or null when the promise is unknown (the batch read carries the paid time). */
   readyBy: string | null
-  lines: Array<{ name: string; variantLabel?: string | null; variantCode?: string | null; sku: string | null; quantity: number }>
+  lines: Array<{
+    name: string
+    variantLabel?: string | null
+    variantCode?: string | null
+    sku: string | null
+    quantity: number
+    /** Groups the sheet Ambient → Chilled → Frozen, cold last (099). */
+    storageClass: StorageClass
+  }>
 }
 
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!)
 
-/** One document's markup — a checkbox column, the line (with its size), its codes and the quantity to pick. */
+/**
+ * One document's markup — the lines in walking order under Ambient, Chilled and Frozen headings, each
+ * with a checkbox column, the line (with its size), its codes and the quantity to pick.
+ */
 export function renderPickListPage(doc: PickListDocument): string {
-  const rows = doc.lines
+  const row = (l: PickListDocument["lines"][number]) =>
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(lineCodes(l.variantCode, l.sku))}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`
+  const groups = STORAGE_CLASSES.map((zone) => ({ zone, lines: doc.lines.filter((l) => (l.storageClass ?? "ambient") === zone) })).filter(
+    (g) => g.lines.length > 0,
+  )
+  const rows = groups
     .map(
-      (l) =>
-        `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(lineCodes(l.variantCode, l.sku))}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`,
+      (g) =>
+        `<tr><th colspan="4" style="text-align:left;padding:14px 0 4px;font-size:12px;letter-spacing:.04em">${esc(STORAGE_CLASS_WORDS[g.zone].toUpperCase())}</th></tr>` +
+        g.lines.map(row).join(""),
     )
     .join("")
   const ready = doc.readyBy ? ` · ready by ${esc(formatWhen(doc.readyBy))}` : ""

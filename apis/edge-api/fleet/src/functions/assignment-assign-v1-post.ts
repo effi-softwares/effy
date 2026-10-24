@@ -5,7 +5,7 @@ import { json, logger, preamble, problem } from "@effy/edge-shared";
 
 import { isStage, mapAssignmentError } from "../assignments/handler-support";
 import { assignTo } from "../assignments/service";
-import { announceDispatch } from "../lib/live";
+import { announceCollectionShops, announceDispatch } from "../lib/live";
 import { denied, guard } from "../shared/handler-support";
 
 /** Admin/manager. Whether nobody has the package or someone else does. */
@@ -29,6 +29,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     });
     logger.info({ action: "assign", stage: body.stage, packageId }, "dispatch.manual");
     await announceDispatch(result.driverIds);
+    await announceCollectionShops(result.driverIds);
     return json(200, { message: result.message }, scope);
   } catch (err) {
     return mapAssignmentError(err, scope);

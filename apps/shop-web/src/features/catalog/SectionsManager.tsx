@@ -5,11 +5,11 @@ import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
   Input,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
@@ -80,14 +80,14 @@ export function SectionsManager({
   const list = [...(sections.data ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Manage sections</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4 max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>Manage sections</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Sections group your products (like a menu). A product can be in several.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         <div className="flex items-center gap-2">
           <Input
@@ -172,8 +172,8 @@ export function SectionsManager({
           </ul>
         )}
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      </DialogContent>
-    </Dialog>
+        {error ? <p className="text-sm font-medium">{error}</p> : null}
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

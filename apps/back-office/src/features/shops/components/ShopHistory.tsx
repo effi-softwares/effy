@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Panel } from "@/components/patterns/Panel";
-import { Pager } from "@/components/patterns/Toolbar";
+import { Panel } from "@effy/web-kit/patterns";
+import { Pager } from "@effy/web-kit/patterns";
 import { moment } from "@/lib/format";
 
 import { shopHistoryQuery } from "../queries";

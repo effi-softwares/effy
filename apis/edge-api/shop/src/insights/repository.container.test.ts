@@ -485,4 +485,59 @@ SELECT id FROM p`,
       expect(rows.reduce((n, r) => n + Number(r.grossGoods), 0)).toBe(30);
     });
   });
+
+  describe("099 — how well the shop fulfils", () => {
+    /** Moves the portion like the console does: an event per step, the status last (which marks the hour). */
+    async function step(fulfillmentId: string, to: string): Promise<void> {
+      await pool.query(
+        `INSERT INTO public.fulfillment_event (shop_fulfillment_id, event_type, to_status) VALUES ($1, 'state_changed', $2)`,
+        [fulfillmentId, to],
+      );
+      await pool.query(
+        `UPDATE public.shop_fulfillment
+            SET status = $2, unfulfillable_reason = CASE WHEN $2 = 'unfulfillable' THEN 'Out of stock' END
+          WHERE id = $1`,
+        [fulfillmentId, to],
+      );
+    }
+
+    async function picked(p: { fulfillmentId: string; itemId: string }, ordered: number, gathered: number): Promise<void> {
+      await pool.query(
+        `INSERT INTO public.fulfillment_item (shop_fulfillment_id, order_item_id, ordered_quantity, gathered_quantity, unavailable_quantity)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [p.fulfillmentId, p.itemId, ordered, gathered, ordered - gathered],
+      );
+    }
+
+    it("counts each finished portion once, its units supplied, and its time to ready — never a cancelled one", async () => {
+      const a = await paidOrder({ number: "Q-A", qty: 4, minutesAgo: 30 });
+      await picked(a, 4, 3);
+      await step(a.fulfillmentId, "ready_for_pickup");
+      // Reopened and readied again: still one finished portion, timed at its FIRST ready.
+      await step(a.fulfillmentId, "picking");
+      await step(a.fulfillmentId, "ready_for_pickup");
+
+      const b = await paidOrder({ number: "Q-B", qty: 2, minutesAgo: 30 });
+      await picked(b, 2, 0);
+      await step(b.fulfillmentId, "unfulfillable");
+
+      const c = await paidOrder({ number: "Q-C", qty: 5, minutesAgo: 30 });
+      await picked(c, 5, 5);
+      await step(c.fulfillmentId, "ready_for_pickup");
+      await step(c.fulfillmentId, "withdrawn");
+
+      await runRollup();
+      const { from, to } = await currentWindow();
+      const rows = await readHours(SHOP, from, to);
+      const total = (k: "finishedOrders" | "finishedUnitsOrdered" | "finishedUnitsSupplied" | "readyOrders" | "readySeconds") =>
+        rows.reduce((n, r) => n + r[k], 0);
+      expect(total("finishedOrders")).toBe(2);
+      expect(total("finishedUnitsOrdered")).toBe(6);
+      expect(total("finishedUnitsSupplied")).toBe(3);
+      expect(total("readyOrders")).toBe(1);
+      // Paid 30 minutes ago, ready now.
+      expect(total("readySeconds")).toBeGreaterThanOrEqual(29 * 60);
+      expect(total("readySeconds")).toBeLessThanOrEqual(31 * 60);
+    });
+  });
 });

@@ -565,6 +565,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **099-shop-floor-signals** — Shop Floor Signals (next collection per shop and order, pick list in walking order, Availability, quality figures on Insights) — built 2026-10-24; not migrated, deployed or walked
 - **098-product-variants** — Product Variants (up to two options, per-variant price/codes/weight/stock, one margin per product, unit pricing, sizes on every surface; carts from before 098 dropped) — complete in dev (migrated, deployed, walked)
 - **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — complete in dev (migrated, deployed, walked)
 - **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — complete in dev (migrated, deployed, walked)
@@ -641,5 +642,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/098-product-variants/plan.md
+at specs/099-shop-floor-signals/plan.md
 <!-- SPECKIT END -->

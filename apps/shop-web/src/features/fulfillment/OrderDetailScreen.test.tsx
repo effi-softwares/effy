@@ -101,22 +101,23 @@ describe("the summary bar", () => {
 });
 
 describe("layout", () => {
-  it("puts Items and fulfilment, then Bags & labels (096), then Internal notes, in the content column, and Customer and delivery below", async () => {
+  it("puts Items and fulfilment, Bags & labels (096) and Internal notes in the main column, then Payment and Customer and delivery on the rail", async () => {
     open();
     await screen.findByText("Items and fulfilment");
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(titles).toEqual(["Items and fulfilment", "Bags & labels", "Internal notes", "Customer and delivery"]);
+    expect(titles).toEqual(["Items and fulfilment", "Bags & labels", "Internal notes", "Payment", "Customer and delivery"]);
     // The Fulfilment section is gone — merged into Items and fulfilment.
     expect(screen.queryByRole("heading", { name: "Fulfilment" })).not.toBeInTheDocument();
     // The activity log is a sheet, not a section.
     expect(screen.queryByText("Activity log")).not.toBeInTheDocument();
   });
 
-  it("keeps only the payment card and the actions in the narrow column", async () => {
+  it("keeps the payment and its verbs on the rail — and calls the shop's one way out \"Can't supply it\", never \"Cancel order\"", async () => {
     open(orderDetail({ tags: ["fragile"] }));
     expect(await screen.findByText("Visa •••• 4242 · $57.80 captured at checkout")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Print pick list" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel order" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /can't supply it/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
   });
 
   it("shows the four blocks of Customer and delivery, with the second address withheld", async () => {
@@ -135,15 +136,33 @@ describe("layout", () => {
     expect(await screen.findByText("No notes on this order yet.")).toBeInTheDocument();
   });
 
-  it("totals reconcile against a two-shop order, with no tax row", async () => {
+  it("shows this shop's items only on a two-shop order, with no tax row", async () => {
     open();
     await screen.findByText("Items and fulfilment");
-    expect(screen.getByText("Items from other shops")).toBeInTheDocument();
-    expect(screen.getByText("$30.00")).toBeInTheDocument();
+    // A shop never sees other shops' items or what they cost (redesign brief §6).
+    expect(screen.queryByText("Items from other shops")).not.toBeInTheDocument();
+    expect(screen.queryByText("$30.00")).not.toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/);
     // No delivery or shipping amount reaches a shop.
     expect(screen.queryByText("Shipping")).toBeNull();
     expect(screen.queryByText(/delivery fee/i)).toBeNull();
+  });
+});
+
+describe("walking order (099)", () => {
+  it("groups the pick list Ambient → Chilled → Frozen, with no empty group", async () => {
+    open(
+      orderDetail({
+        lines: [
+          line({ orderItemId: "f", name: "Ice cream", storageClass: "frozen" }),
+          line({ orderItemId: "a", name: "Bread", storageClass: "ambient" }),
+        ],
+      }),
+    );
+    const groups = await screen.findAllByRole("region", { name: /^(Ambient|Chilled|Frozen)$/ });
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Ambient", "Frozen"]);
+    expect(within(groups[0]!).getByText("Bread")).toBeInTheDocument();
+    expect(within(groups[1]!).getByText("Ice cream")).toBeInTheDocument();
   });
 });
 
@@ -225,7 +244,7 @@ describe("Adjust this line", () => {
 
   it("validates Units picked: required, at least 1, not more than ordered", async () => {
     const dialog = await openAdjust();
-    await userEvent.selectOptions(within(dialog).getByLabelText("Availability"), "part");
+    await userEvent.click(within(dialog).getByRole("radio", { name: /found some/i }));
     expect(within(dialog).getByText("Out of 3 ordered.")).toBeInTheDocument();
     const units = within(dialog).getByLabelText("Units picked");
 
@@ -243,7 +262,7 @@ describe("Adjust this line", () => {
 
   it("saves a part pick with its note", async () => {
     const dialog = await openAdjust();
-    await userEvent.selectOptions(within(dialog).getByLabelText("Availability"), "part");
+    await userEvent.click(within(dialog).getByRole("radio", { name: /found some/i }));
     await userEvent.type(within(dialog).getByLabelText("Units picked"), "2");
     await userEvent.type(within(dialog).getByLabelText("Note for the team"), "one cracked");
     await userEvent.click(within(dialog).getByRole("button", { name: "Save line" }));
@@ -256,7 +275,7 @@ describe("Adjust this line", () => {
 
   it("saves Unavailable without units", async () => {
     const dialog = await openAdjust();
-    await userEvent.selectOptions(within(dialog).getByLabelText("Availability"), "unavailable");
+    await userEvent.click(within(dialog).getByRole("radio", { name: /can't find any/i }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Save line" }));
     await waitFor(() =>
       expect(setOrderPicks).toHaveBeenCalledWith("f1", { lines: [{ orderItemId: "oi2", mode: "unavailable" }] }),

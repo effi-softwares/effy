@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { toast } from "@effy/design-system/ui"
+import { X } from "lucide-react"
+
+import { Button, Input, toast } from "@effy/design-system/ui"
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
-import { cn } from "@/lib/utils"
 
 import { bulkCandidates, summarise, withTag, type BulkOutcome } from "../bulk"
 import { fulfillmentMutationError } from "../errorText"
@@ -120,11 +121,14 @@ export function BulkActions({
   }
 
   return (
-    <div className="border-border bg-muted flex flex-wrap items-center gap-2.5 rounded-[var(--radius)] border px-3.5 py-2.5">
-      <div className="text-[13px] font-medium whitespace-nowrap tabular-nums">
-        {selected.size} selected
-      </div>
-      <div aria-hidden="true" className="bg-border h-4 w-px" />
+    // The bulk bar floats over the list's foot (Patterns — "bulk bar"), clear of the phone's tab bar.
+    <div
+      role="region"
+      aria-label="Selected orders"
+      className="bo-bulkbar sticky bottom-4 z-20 flex-wrap max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
+    >
+      <div className="whitespace-nowrap tabular-nums">{selected.size} selected</div>
+      <div aria-hidden="true" className="bo-bulkbar__sep" />
       <div className="flex flex-wrap gap-1.5">
         <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
           Start picking
@@ -141,19 +145,15 @@ export function BulkActions({
         <BarButton disabled={running} onClick={() => onExport(chosen)}>
           Export
         </BarButton>
-        <BarButton disabled={running} destructive onClick={() => setCancelOpen(true)}>
+        <BarButton disabled={running} onClick={() => setCancelOpen(true)}>
           Can&apos;t supply
         </BarButton>
       </div>
-      <div className="flex-1" />
-      <button
-        type="button"
-        disabled={running}
-        onClick={onClear}
-        className="text-muted-foreground hover:text-foreground h-7 cursor-pointer rounded-md border-none bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap"
-      >
+      <div aria-hidden="true" className="bo-bulkbar__sep" />
+      <Button type="button" variant="ghost" disabled={running} onClick={onClear}>
         Clear
-      </button>
+        <X aria-hidden="true" />
+      </Button>
 
       <DesignSheet
         open={tagOpen}
@@ -166,7 +166,7 @@ export function BulkActions({
         onSave={() => void addTag()}
       >
         <SheetField label="Add a tag" htmlFor="bulk-tag">
-          <input
+          <Input
             id="bulk-tag"
             autoFocus
             maxLength={32}
@@ -176,7 +176,6 @@ export function BulkActions({
             onKeyDown={(e) => {
               if (e.key === "Enter" && tag.trim()) void addTag()
             }}
-            className="border-input bg-background focus:border-ring h-9 rounded-md border px-3 text-sm outline-none"
           />
         </SheetField>
       </DesignSheet>
@@ -186,29 +185,19 @@ export function BulkActions({
   )
 }
 
-/** The bar's buttons: 28px, outline on the background, 12.5px — the destructive one in red. */
+/** The bar's buttons: the bar's own outline buttons — "Can't supply" says so in words, never in red. */
 function BarButton({
   children,
   onClick,
   disabled,
-  destructive,
 }: {
   children: ReactNode
   onClick: () => void
   disabled?: boolean
-  destructive?: boolean
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "border-input bg-background h-7 cursor-pointer rounded-md border px-2.5 text-[12.5px] font-medium whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50",
-        destructive ? "text-destructive hover:bg-destructive/10" : "hover:bg-accent",
-      )}
-    >
+    <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
       {children}
-    </button>
+    </Button>
   )
 }

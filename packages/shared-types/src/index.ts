@@ -45,3 +45,4 @@ export * from "./media"
 export * from "./run-stage"
 export * from "./brand-mark";
 export * from "./documents";
+export * from "./shop-availability"

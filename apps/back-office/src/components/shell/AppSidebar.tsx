@@ -24,7 +24,7 @@ import {
   useSidebar,
 } from "@effy/design-system/ui";
 
-import { Kbd } from "@/components/patterns/Kbd";
+import { Kbd } from "@effy/web-kit/patterns";
 
 import { NavUser, type NavUserProps } from "./NavUser";
 import { activeKey, linkOf, type NavCountKey, type NavEntry, type NavGroup, type NavLeaf } from "./nav";

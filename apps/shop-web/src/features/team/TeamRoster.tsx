@@ -4,7 +4,7 @@ import { UserPlus } from "lucide-react"
 
 import { isShopManager, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
-  Badge,
+  Skeleton,
   InitialsAvatar,
   Button,
   Input,
@@ -28,6 +28,9 @@ import {
   TableRow,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
+import { PageHeader } from "@effy/web-kit/patterns"
+
+import { DesignSheet } from "@/components/console/DesignSheet"
 
 import { productMutationError } from "@/features/catalog/errorText"
 import { sessionQuery } from "@/features/auth/queries"
@@ -57,21 +60,19 @@ export function TeamRoster() {
   const canManage = session?.status === "signed-in" && isShopManager(session.identity.roles)
 
   return (
-    <div className="flex flex-col gap-[var(--pad)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Who can sign in to this shop, and what they can do.
-          </p>
-        </div>
-        {canManage ? (
-          <Button onClick={() => setInviteOpen(true)}>
-            <UserPlus />
-            Invite
-          </Button>
-        ) : null}
-      </div>
+    <div className="flex flex-col gap-6 max-md:gap-4">
+      <PageHeader
+        title="Team"
+        description="Who can sign in to this shop, and what they can do."
+        actions={
+          canManage ? (
+            <Button onClick={() => setInviteOpen(true)}>
+              <UserPlus aria-hidden="true" />
+              Invite
+            </Button>
+          ) : null
+        }
+      />
 
       {isError ? (
         <ErrorState
@@ -80,9 +81,17 @@ export function TeamRoster() {
           forbiddenMessage="Your account can't see this shop's team."
         />
       ) : isPending ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <div className="bo-table-wrap" aria-busy="true" aria-label="Loading the team">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0">
+              <Skeleton className="size-8 rounded-full" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="ml-auto h-6 w-20 rounded-md" />
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="bo-table-wrap overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -111,6 +120,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
   const changeRole = useChangeRole()
   const deactivate = useDeactivateStaff()
   const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState(false)
 
   const busy = changeRole.isPending || deactivate.isPending
   const role = member.roles.includes("shop_manager") ? "shop_manager" : "shop_staff"
@@ -125,7 +135,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
           <InitialsAvatar
             name={member.name ?? member.email ?? "?"}
             seed={member.staffId}
-            className="size-7 shrink-0"
+            className="size-8 shrink-0"
           />
           {member.name ?? "—"}
         </span>
@@ -143,7 +153,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
               )
             }
           >
-            <SelectTrigger className="w-36" aria-label={`Role for ${member.name ?? member.email}`}>
+            <SelectTrigger className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -158,36 +168,48 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
           ROLE_LABEL[role]
         )}
         {error ? (
-          <span role="alert" className="text-destructive mt-1 block text-xs">
+          <span role="alert" className="mt-1 block text-sm font-medium">
             {error}
           </span>
         ) : null}
       </TableCell>
       <TableCell>
         {/* Status by word, never a hue (Principle V). */}
-        <Badge variant={member.status === "active" ? "success" : "muted"}>
-          {member.status === "active" ? "Active" : "Stood down"}
-        </Badge>
+        {member.status === "active" ? (
+          <span className="bo-st bo-st--done">Active</span>
+        ) : (
+          <span className="bo-st bo-st--quiet">Stood down</span>
+        )}
       </TableCell>
       {canManage ? (
         <TableCell className="text-right">
           {/* Withheld on your own row — a courtesy against locking yourself out. The backend also
               refuses removing the last manager, which is the actual protection. */}
           {member.status === "active" && !member.isSelf ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              disabled={busy}
-              onClick={() =>
-                deactivate.mutate(member.staffId, {
-                  onError: (e) => setError(productMutationError(e)),
-                })
-              }
-            >
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirm(true)}>
               Stand down
             </Button>
           ) : null}
+          <DesignSheet
+            open={confirm}
+            onOpenChange={setConfirm}
+            title={`Stand down ${member.name ?? member.email ?? "this colleague"}?`}
+            description="They can no longer sign in to this shop. You can reinstate them by inviting the same email again."
+            saveLabel="Stand down"
+            destructive
+            saving={deactivate.isPending}
+            onSave={() =>
+              deactivate.mutate(member.staffId, {
+                onSuccess: () => setConfirm(false),
+                onError: (e) => {
+                  setConfirm(false)
+                  setError(productMutationError(e))
+                },
+              })
+            }
+          >
+            {null}
+          </DesignSheet>
         </TableCell>
       ) : null}
     </TableRow>
@@ -265,7 +287,7 @@ function InviteDialog({
             </Select>
           </div>
           {error ? (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm font-medium">
               {error}
             </p>
           ) : null}

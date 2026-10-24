@@ -59,6 +59,7 @@ function toLiveDTO(o: LiveOrder): ShopLiveOrderDTO {
     ...(o.courierPickup ? { courierPickup: o.courierPickup } : {}),
     total: o.total,
     currency: o.currency,
+    ...(o.collection ? { collection: o.collection } : {}),
   };
 }
 
@@ -78,6 +79,7 @@ export function toTodayDTO(s: TodaySnapshot, attention: AttentionView): ShopToda
     attention: attention.items.map(toAttentionDTO),
     attentionMore: attention.more,
     oldestWaitingAt: attention.oldestWaitingAt?.toISOString() ?? null,
+    nextCollection: s.nextCollection,
     live: s.live.map(toLiveDTO),
   };
 }

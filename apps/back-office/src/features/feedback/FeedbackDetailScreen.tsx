@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@/components/patterns/Page"
+import { PageHeader } from "@effy/web-kit/patterns"
 import { useHeaderDetail } from "@/components/shell/SiteHeader"
 import { sessionQuery } from "@/features/auth/queries"
 

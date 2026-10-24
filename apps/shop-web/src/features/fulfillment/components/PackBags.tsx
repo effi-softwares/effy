@@ -1,4 +1,4 @@
-import { Minus, Plus, Printer } from "lucide-react";
+import { Check, Minus, Plus, Printer, RotateCcw, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -111,19 +111,22 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
     setCounts({ ...shown, [z]: Math.max(0, Math.min(50, shown[z] + d)) });
 
   return (
-    <section aria-labelledby="bags-heading">
-      <div className="border-border flex flex-wrap items-baseline gap-2.5 border-b pb-3">
-        <h2 id="bags-heading" className="text-[15px] font-semibold tracking-[-.01em]">
-          Bags &amp; labels
-        </h2>
-        <span className="text-muted-foreground text-[12.5px]">
-          {detail.parcels.length} {detail.parcels.length === 1 ? "bag" : "bags"} · {detail.parcels.length - unprinted.length} printed
-          {packed > 0 ? ` · ${packed} packed` : ""}
-        </span>
+    <section aria-labelledby="bags-heading" className="bo-panel min-w-0">
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 id="bags-heading" className="bo-panel__title">
+            <ShoppingBag aria-hidden="true" />
+            Bags &amp; labels
+          </h2>
+          <p className="bo-panel__desc">
+            {detail.parcels.length} {detail.parcels.length === 1 ? "bag" : "bags"} · {detail.parcels.length - unprinted.length} printed
+            {packed > 0 ? ` · ${packed} packed` : ""}
+          </p>
+        </div>
       </div>
 
       {/* How many bags of each temperature. */}
-      <div className="border-border grid gap-3 border-b py-4">
+      <div className="grid gap-3 border-b border-border px-5 py-4 max-md:px-4">
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {ZONES.map((z) => (
             <div key={z} className="grid gap-1.5">
@@ -131,30 +134,24 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
                 {PARCEL_ZONE_WORDS[z]}
                 {detail.zonesNeeded.includes(z) ? " · needed" : ""}
               </MicroLabel>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
+              <div className="sh-count">
+                <button
+                  type="button"
                   aria-label={`One less ${PARCEL_ZONE_WORDS[z].toLowerCase()} bag`}
                   disabled={left || shown[z] === 0}
                   onClick={() => step(z, -1)}
                 >
-                  <Minus className="size-3.5" />
-                </Button>
-                <span className="w-7 text-center text-[15px] font-semibold tabular-nums" aria-live="polite">
-                  {shown[z]}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
+                  <Minus aria-hidden="true" />
+                </button>
+                <output aria-live="polite">{shown[z]}</output>
+                <button
+                  type="button"
                   aria-label={`One more ${PARCEL_ZONE_WORDS[z].toLowerCase()} bag`}
                   disabled={left || total >= 50}
                   onClick={() => step(z, 1)}
                 >
-                  <Plus className="size-3.5" />
-                </Button>
+                  <Plus aria-hidden="true" />
+                </button>
               </div>
             </div>
           ))}
@@ -162,7 +159,6 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
         {dirty ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              size="sm"
               disabled={declare.isPending || total === 0 || missingZone !== null}
               onClick={() =>
                 declare.mutate(shown, {
@@ -173,21 +169,21 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
             >
               Save {total} {total === 1 ? "bag" : "bags"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setCounts(null)}>
+            <Button variant="ghost" onClick={() => setCounts(null)}>
               Undo
             </Button>
             {missingZone ? (
-              <span className="text-muted-foreground text-[12.5px]">This order needs at least one {missingZone} bag.</span>
+              <span className="text-sm font-medium">This order needs at least one {missingZone} bag.</span>
             ) : anyPrinted ? (
-              <span className="text-muted-foreground text-[12.5px]">Every label will need printing again.</span>
+              <span className="text-sm text-muted-foreground">Every label will need printing again.</span>
             ) : null}
           </div>
         ) : null}
-        {left ? <p className="text-muted-foreground text-[12.5px]">These bags have left the shop, so they can't be changed.</p> : null}
+        {left ? <p className="text-sm text-muted-foreground">These bags have left the shop, so they can't be changed.</p> : null}
       </div>
 
       {/* Print. */}
-      <div className="border-border flex flex-wrap items-center gap-2 border-b py-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4 max-md:px-4">
         <Select
           value={layout}
           onValueChange={(v) => {
@@ -212,52 +208,68 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
             ? `Print ${unprinted.length} new ${unprinted.length === 1 ? "label" : "labels"}`
             : `Print ${detail.parcels.length === 1 ? "label" : `all ${detail.parcels.length} labels`}`}
         </Button>
-        <span className="text-muted-foreground text-[12.5px]">
+        <span className="text-sm text-muted-foreground">
           {printer.kind === "zebra" && layout !== "a4x4" ? `To ${printer.device.name}` : "Through the browser"}
         </span>
-        {printError ? <p className="text-destructive w-full text-[12.5px]">{printError}</p> : null}
+        {printError ? <p role="alert" className="w-full text-sm font-medium">{printError}</p> : null}
       </div>
 
       {/* Scan each label as it goes on its bag. */}
-      <div className="border-border grid gap-2 border-b py-4">
+      <div className="grid gap-2 border-b border-border px-5 py-4 max-md:px-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <MicroLabel>Scan each bag as you pack it{detail.packScanRequired ? " · required" : ""}</MicroLabel>
-          <span className="text-muted-foreground text-[12.5px] tabular-nums" aria-live="polite">
+          <span className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
             Packed {packed} of {detail.parcels.length}
           </span>
         </div>
         <ScanField accept={(t) => TOKEN.test(t)} onRead={onRead} placeholder="Scan a bag label, or type its code" />
         {lastRead ? (
-          <p className="text-[13px] font-medium" role="status">
+          <p className="sh-scan__state" role="status">
             {lastRead}
           </p>
         ) : null}
       </div>
 
       {/* The bags. */}
-      <div className="grid gap-6 py-4 min-[900px]:grid-cols-[minmax(0,1fr)_auto]">
-        <table className="w-full text-[13px]">
+      <div className="grid gap-6 py-2 min-[1280px]:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="bo-table-scroll">
+        <table className="bo-table bo-table--plain">
           <thead>
-            <tr className="text-muted-foreground border-border border-b text-left text-[11.5px] tracking-[.04em] uppercase">
-              <th className="py-2 pr-3 font-medium">Bag</th>
-              <th className="py-2 pr-3 font-medium">Code</th>
-              <th className="py-2 pr-3 font-medium">Zone</th>
-              <th className="py-2 pr-3 font-medium">Label</th>
-              <th className="py-2 pr-3 font-medium">Where</th>
-              <th className="py-2 font-medium" />
+            <tr>
+              <th>Bag</th>
+              <th>Code</th>
+              <th>Label</th>
+              <th>Where</th>
+              <th className="is-actions" />
             </tr>
           </thead>
           <tbody>
             {detail.parcels.map((p) => (
-              <tr key={p.parcelId} className="border-border border-b">
-                <td className="py-2.5 pr-3 tabular-nums">
-                  {p.seq} of {p.of}
+              <tr key={p.parcelId}>
+                <td className="whitespace-nowrap tabular-nums">
+                  {p.seq} of {p.of} · {PARCEL_ZONE_WORDS[p.zone]}
                 </td>
-                <td className="py-2.5 pr-3 font-mono">{p.code}</td>
-                <td className="py-2.5 pr-3">{PARCEL_ZONE_WORDS[p.zone]}</td>
-                <td className="py-2.5 pr-3">{p.printed.current ? "Printed" : p.printed.count > 0 ? "Reprint needed" : "Not printed"}</td>
-                <td className="py-2.5 pr-3">{PARCEL_CUSTODY_WORDS[p.custody]}</td>
-                <td className="py-2.5 text-right whitespace-nowrap">
+                <td className="bo-code">{p.code}</td>
+                <td>
+                  {p.printed.current ? (
+                    <span className="bo-st bo-st--done">
+                      <Check aria-hidden="true" />
+                      Printed
+                    </span>
+                  ) : p.printed.count > 0 ? (
+                    <span className="bo-st bo-st--problem">
+                      <RotateCcw aria-hidden="true" />
+                      Reprint needed
+                    </span>
+                  ) : (
+                    <span className="bo-st bo-st--waiting">
+                      <Printer aria-hidden="true" />
+                      Not printed
+                    </span>
+                  )}
+                </td>
+                <td className="text-muted-foreground">{PARCEL_CUSTODY_WORDS[p.custody]}</td>
+                <td className="is-actions whitespace-nowrap">
                   <Button variant="ghost" size="sm" onClick={() => setPreview(p.parcelId)}>
                     Preview
                   </Button>
@@ -266,7 +278,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
                   </Button>
                   {/* Bag 1 never; once printed, only the last bag (the server refuses anything else). */}
                   {p.seq !== 1 && !left && (!anyPrinted || p.parcelId === last?.parcelId) ? (
-                    <Button variant="destructive-ghost" size="sm" onClick={() => setRemoving(p)}>
+                    <Button variant="ghost" size="sm" onClick={() => setRemoving(p)}>
                       Remove
                     </Button>
                   ) : null}
@@ -275,14 +287,15 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
             ))}
           </tbody>
         </table>
+        </div>
         {previewSvg ? (
-          <figure className="grid justify-items-center gap-1.5">
+          <figure className="grid justify-items-center gap-1.5 px-5 pb-4">
             {/* The label exactly as it prints; the SVG is our own renderer's, black and white. */}
             <div
               className="border-border w-[220px] overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
               dangerouslySetInnerHTML={{ __html: previewSvg }}
             />
-            <figcaption className="text-muted-foreground text-[12px]">Preview</figcaption>
+            <figcaption className="text-sm text-muted-foreground">Preview</figcaption>
           </figure>
         ) : null}
       </div>
@@ -303,7 +316,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
           })
         }
       >
-        <p className="text-[13px]">
+        <p>
           Bag {removing?.seq} ({removing ? PARCEL_ZONE_WORDS[removing.zone].toLowerCase() : ""}) · <span className="font-mono">{removing?.code}</span>
         </p>
       </DesignSheet>

@@ -48,10 +48,10 @@ import {
 } from "@effy/shared-types";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { canManagePromotions } from "@/features/promotions/access";

@@ -1,8 +1,9 @@
 import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { PackagePlus } from "lucide-react";
 
-import { Button, Label, LoadingArea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui";
+import { Button, Label, Skeleton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { DetailSection, SectionAction } from "@/components/console/primitives";
@@ -67,7 +68,7 @@ export function InventorySection({
         }
       >
         {isError ? (
-          <div className="pt-[18px]">
+          <div>
             <ErrorState
               error={error}
               onRetry={() => void refetch()}
@@ -75,15 +76,15 @@ export function InventorySection({
             />
           </div>
         ) : isPending || !stock ? (
-          <div className="pt-[18px]">
-            <LoadingArea variant="sheet" title="Loading stock" description="Fetching this size's count and history." />
+          <div className="grid gap-3" aria-busy="true" aria-label="Loading stock">
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-5 w-1/3" />
           </div>
         ) : stock.tracked ? (
-          <div className="pt-2">
-            <StockHistory movements={data!.movements} />
-          </div>
+          <StockHistory movements={data!.movements} />
         ) : (
-          <p className="text-muted-foreground pt-[18px] text-[13px]">
+          <p className="text-muted-foreground">
             This size is not counted, so nothing is recorded. Enter a number for it in the table above to
             start keeping a count and a history.
           </p>
@@ -126,7 +127,7 @@ export function SizePicker({
     <div className="flex flex-wrap items-center gap-3">
       <Label htmlFor={id}>Size</Label>
       <Select value={variantId} onValueChange={onChange}>
-        <SelectTrigger id={id} className="w-[240px]">
+        <SelectTrigger id={id} className="w-[220px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -160,7 +161,8 @@ export function ReceiveStockButton({
   const tracked = data?.stock.tracked ?? false;
 
   return (
-    <Button size="sm" onClick={onReceive} disabled={loading}>
+    <Button variant="outline" onClick={onReceive} disabled={loading}>
+      <PackagePlus aria-hidden="true" />
       {loading || tracked ? "Receive stock" : "Add stock"}
     </Button>
   );

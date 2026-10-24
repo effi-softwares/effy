@@ -42,7 +42,9 @@ SELECT d.shop_id::text, d.bucket_start, d.marked_at, s.timezone
 const RECOMPUTE = `
 INSERT INTO public.shop_sales_hour AS t (
   shop_id, bucket_start, gross_goods, refunds, refunded_orders, orders, units,
-  cant_supply, cant_supply_units, cancelled, computed_at)
+  cant_supply, cant_supply_units, cancelled,
+  finished_orders, finished_units_ordered, finished_units_supplied, ready_orders, ready_seconds,
+  computed_at)
 SELECT $1::uuid,
        b.bucket_start,
        COALESCE(sales.gross, 0),
@@ -53,6 +55,11 @@ SELECT $1::uuid,
        COALESCE(ev.cant_supply, 0),
        COALESCE(ev.cant_supply_units, 0),
        COALESCE(ev.cancelled, 0),
+       COALESCE(q.finished_orders, 0),
+       COALESCE(q.units_ordered, 0),
+       COALESCE(q.units_supplied, 0),
+       COALESCE(q.ready_orders, 0),
+       COALESCE(q.ready_seconds, 0),
        now()
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
@@ -115,6 +122,39 @@ SELECT $1::uuid,
      WHERE fe.to_status IN ('unfulfillable', 'withdrawn')
        AND public.shop_local_hour(fe.occurred_at, $3) = b.bucket_start
   ) ev ON true
+  LEFT JOIN LATERAL (
+    -- 099 quality: the portions that FINISHED in the bucket — at their first ready_for_pickup or their
+    -- unfulfillable event, whichever came first (reopened picking is not counted twice). A portion the
+    -- customer cancelled never counts. Supplied units are what went in the bag.
+    SELECT COUNT(*)::int                                                         AS finished_orders,
+           COALESCE(SUM(f.ordered), 0)::int                                      AS units_ordered,
+           COALESCE(SUM(f.supplied), 0)::int                                     AS units_supplied,
+           COUNT(*) FILTER (WHERE f.to_status = 'ready_for_pickup')::int         AS ready_orders,
+           COALESCE(SUM(GREATEST(0, EXTRACT(EPOCH FROM (f.occurred_at - f.paid_at))))
+                    FILTER (WHERE f.to_status = 'ready_for_pickup'), 0)::bigint AS ready_seconds
+      FROM (
+        SELECT fe.to_status,
+               fe.occurred_at,
+               COALESCE(o.placed_at, o.created_at) AS paid_at,
+               (SELECT COALESCE(SUM(fi.ordered_quantity), 0)
+                  FROM public.fulfillment_item fi WHERE fi.shop_fulfillment_id = sf.id) AS ordered,
+               (SELECT COALESCE(SUM(fi.gathered_quantity), 0)
+                  FROM public.fulfillment_item fi WHERE fi.shop_fulfillment_id = sf.id) AS supplied
+          FROM public.fulfillment_event fe
+          JOIN public.shop_fulfillment sf ON sf.id = fe.shop_fulfillment_id AND sf.shop_id = $1::uuid
+          JOIN public."order" o ON o.id = sf.order_id
+         WHERE fe.event_type = 'state_changed'
+           AND fe.to_status IN ('ready_for_pickup', 'unfulfillable')
+           AND sf.status <> 'withdrawn'
+           AND public.shop_local_hour(fe.occurred_at, $3) = b.bucket_start
+           AND NOT EXISTS (
+                 SELECT 1 FROM public.fulfillment_event e2
+                  WHERE e2.shop_fulfillment_id = fe.shop_fulfillment_id
+                    AND e2.event_type = 'state_changed'
+                    AND e2.to_status IN ('ready_for_pickup', 'unfulfillable')
+                    AND (e2.occurred_at < fe.occurred_at OR (e2.occurred_at = fe.occurred_at AND e2.id < fe.id)))
+      ) f
+  ) q ON true
 ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   gross_goods       = EXCLUDED.gross_goods,
   refunds           = EXCLUDED.refunds,
@@ -124,6 +164,11 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   cant_supply       = EXCLUDED.cant_supply,
   cant_supply_units = EXCLUDED.cant_supply_units,
   cancelled         = EXCLUDED.cancelled,
+  finished_orders         = EXCLUDED.finished_orders,
+  finished_units_ordered  = EXCLUDED.finished_units_ordered,
+  finished_units_supplied = EXCLUDED.finished_units_supplied,
+  ready_orders            = EXCLUDED.ready_orders,
+  ready_seconds           = EXCLUDED.ready_seconds,
   computed_at       = EXCLUDED.computed_at
 `;
 

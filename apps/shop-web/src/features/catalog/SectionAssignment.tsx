@@ -79,7 +79,7 @@ export function SectionAssignment({ detail }: { detail: ProductDetail }) {
         </Button>
       ) : null}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium">{error}</p> : null}
     </div>
   );
 }

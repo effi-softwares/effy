@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
   Input,
   Label,
 } from "@effy/design-system/ui";
@@ -67,7 +67,7 @@ export function ShopDefaultThresholdControl() {
         </Button>
       </div>
       {setSettings.isError ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm font-medium">
           {stockErrorText(setSettings.error)}
         </p>
       ) : null}
@@ -87,16 +87,16 @@ export function StockSettingsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Stock settings</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4 sm:max-w-md">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>Stock settings</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Shop-wide defaults for tracked products. A product&apos;s own inventory rules override them.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
         <ShopDefaultThresholdControl />
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

@@ -15,6 +15,7 @@ const ROUTES_DIR = join(__dirname, "..", "..", "routes")
 /** Routes that are deliberately not in the nav, each with the reason it is not. */
 const EXEMPT: Record<string, string> = {
   "catalog/new": "reached from the Catalog screen's own 'Add product' action, where the work is",
+  "catalog/availability": "reached from the Catalog screen's 'Availability' button and the palette's 'Take a size off sale'",
   "dev/tokens": "a dev-only page of swatches; router.tsx strips it from production builds",
 }
 

@@ -1,5 +1,13 @@
-import { DELIVERED_BY_WORDS, type CourierPickupDTO, type DeliveredBy, type ShopAttentionItemDTO, type ShopTodayDTO } from "@effy/shared-types"
+import {
+  DELIVERED_BY_WORDS,
+  type CourierPickupDTO,
+  type DeliveredBy,
+  type ShopAttentionItemDTO,
+  type ShopOrderCollectionDTO,
+  type ShopTodayDTO,
+} from "@effy/shared-types"
 
+import { runTime } from "@/features/fulfillment/collection"
 import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 
 /**
@@ -69,12 +77,23 @@ export function cityOf(timezone: string): string {
 
 /** "3 min ago · 4 items · Effy driver": the meta line under a live order; the last part is who takes the package (`DELIVERED_BY_WORDS`). */
 export function liveMeta(
-  o: { paidAt: string; itemCount: number; deliveredBy: DeliveredBy; courierPickup?: CourierPickupDTO },
+  o: {
+    paidAt: string
+    itemCount: number
+    deliveredBy: DeliveredBy
+    courierPickup?: CourierPickupDTO
+    collection?: ShopOrderCollectionDTO
+  },
   now: number,
+  timezone?: string,
 ): string {
   const items = `${o.itemCount} ${o.itemCount === 1 ? "item" : "items"}`
-  // A courier collecting from this shop says so, with when.
-  const who = o.courierPickup ? courierPickupLine(o.courierPickup) : DELIVERED_BY_WORDS[o.deliveredBy]
+  // A courier collecting from this shop says so, with when; an Effy run says which run (099).
+  const who = o.courierPickup
+    ? courierPickupLine(o.courierPickup)
+    : o.collection
+      ? `${DELIVERED_BY_WORDS[o.deliveredBy]} · ${runTime(o.collection, timezone)} run`
+      : DELIVERED_BY_WORDS[o.deliveredBy]
   return `${relativeTime(o.paidAt, now)} · ${items} · ${who}`
 }
 

@@ -182,7 +182,7 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
           </ul>
         )}
 
-        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+        {error ? <p className="text-sm font-medium">{error}</p> : null}
       </div>
     </DetailSection>
   );

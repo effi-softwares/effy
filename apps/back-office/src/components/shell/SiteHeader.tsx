@@ -6,7 +6,7 @@ import { ChevronRight, Menu, PanelLeft, RefreshCw, RefreshCcw, Search, WifiOff }
 import { useSidebar } from "@effy/design-system/ui";
 import { useLiveStatus } from "@effy/web-kit/console";
 
-import { Kbd } from "@/components/patterns/Kbd";
+import { Kbd } from "@effy/web-kit/patterns";
 
 import { activeKey, linkOf, locate, type NavGroup } from "./nav";
 

@@ -1,98 +1,66 @@
 import { createRoute, Outlet } from "@tanstack/react-router";
+import { BarChart3, Boxes, ClipboardList, type LucideIcon } from "lucide-react";
 
 import { SignInScreen } from "@/features/auth/SignInScreen";
 
 import { rootRoute } from "./__root";
 
+/** The three things this console really does — each names a screen as it is (Today, Catalog, Insights). */
+const LINES: readonly { icon: LucideIcon; title: string; body: string }[] = [
+  { icon: ClipboardList, title: "A live order queue", body: "Pick, check and hand over in one pass." },
+  { icon: Boxes, title: "Stock on every size", body: "Counts, low-stock alerts and a one-tap off switch." },
+  { icon: BarChart3, title: "How the shop is doing", body: "Sales, orders and your best sellers." },
+];
+
 /**
- * The adopted design's split sign-in: a flat `--brand` panel beside a 360px form column.
+ * The sign-in split (redesign, "02 Sign in"): the form column on the left with the "e." mark, and a
+ * quiet panel on the right — the wordmark and three true lines. On a phone the form comes first and the
+ * panel follows it.
  *
- * The panel is a flat fill, not a gradient. The whole platform is flat; a gradient here would be
- * the single largest coloured surface in the product and the only one that breaks the rule.
- *
- * It fills with `--primary`, not `--brand`, and that is a correction to the reference. The
- * reference draws `background:var(--brand); color:#fff`. The bug is the hardcoded `#fff`, not the
- * token: the dark brand fill is light, so white on it was measured at 1.90:1 — an unreadable
- * headline across half the screen, on the one page that has to establish trust before a credential
- * is typed. `--primary`/`--primary-foreground` is the pair check-tokens.mjs already holds to 4.5:1
- * in both appearances (6.70:1 light, 7.05:1 dark), so the panel cannot regress without the build
- * failing.
- *
- * --brand and --primary now resolve equal in both appearances (the neutral-grey dark rebase
- * removed the one-step split the navy ground had needed), so today the two spellings would render
- * identically. That is not a reason to switch to `--brand`: what makes this panel safe is the
- * guarded pair, and only --primary has one. If the values ever diverge again, this stays correct.
- *
- * The panel collapses below the form on narrow viewports (`flex-wrap`, form column first in the
- * DOM at narrow widths via `order`). On a phone the form is what the operator came for — a
- * full-height marketing panel above it would push it below the fold.
- *
- * The reference's bottom stat row is deliberately absent. It shows "678 orders last 30 days ·
- * 486 210 kr revenue · 3 locations". A signed-out page has no session and no shop, so it cannot know
- * any of those; rendering them would mean inventing three numbers on the one screen whose entire job
- * is to establish trust before a credential is typed. An empty region is better than a padded one.
+ * No figures anywhere: a signed-out page has no session and no shop, so any number here would be
+ * invented on the one screen whose job is to earn trust before a credential is typed.
  */
 export const authLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth",
   component: () => (
-    <div className="flex min-h-dvh flex-wrap bg-background">
-      <section className="order-2 flex min-w-0 flex-[1_1_440px] flex-col gap-8 bg-primary p-8 text-primary-foreground lg:order-1 lg:p-11">
+    <div className="grid min-h-dvh bg-background lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-10 p-6 sm:p-11">
         <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="grid size-7 place-items-center rounded-lg bg-primary-foreground/20 text-[13px] font-semibold"
-          >
-            E
+          <img src="/icon.svg" alt="" className="size-10 rounded-lg" />
+          <span className="text-[15px] font-semibold">
+            Effy <span className="font-normal text-muted-foreground">Shop</span>
           </span>
-          <span className="text-sm font-semibold tracking-[-.01em]">Effy Shop Console</span>
         </div>
-
-        <div className="grid max-w-[26em] flex-1 content-center gap-6">
-          <h2 className="text-[clamp(26px,4vw,34px)] font-semibold leading-[1.15] tracking-[-.03em]">
-            Every order, every shelf, one console.
-          </h2>
-          {/* Each line names a capability this console actually has. The reference's own three
-              promise margin, restock alerts, "every channel" and payout reconciliation — Effy has no
-              unit cost or margin (057 A2 refused it), no purchasing (A1 deferred it), exactly one
-              sales channel, and no payouts feature at all. Copying them would put four lies on the
-              sign-in page. These three are Today, Catalog/stock and Insights, described as they are. */}
-          <ul className="grid gap-3.5">
-            {[
-              "A live order feed — pick, check and hand over in one pass",
-              "Stock counts and low-stock alerts on every product you track",
-              "Insights on revenue, orders and your best-selling products",
-            ].map((line) => (
-              <li key={line} className="flex items-start gap-3">
-                <span
-                  aria-hidden="true"
-                  className="mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full bg-primary-foreground/20"
-                >
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                  </svg>
-                </span>
-                <span className="text-[13.5px] leading-[1.5] text-primary-foreground/90">{line}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="grid flex-1 place-items-center">
+          <div className="w-full max-w-[400px] [animation:effy-fade_.3s_ease]">
+            <Outlet />
+          </div>
         </div>
-      </section>
-
-      <div className="order-1 grid min-w-0 flex-[1_1_360px] place-items-center p-6 lg:order-2 lg:px-6 lg:py-11">
-        <div className="w-full max-w-[360px] [animation:effy-fade_.3s_ease]">
-          <Outlet />
-        </div>
+        <p className="text-sm text-muted-foreground">
+          For the teams of Effy&apos;s fulfilment shops. Every action is recorded against your account.
+        </p>
       </div>
+
+      <section className="flex min-w-0 flex-col gap-10 border-border bg-muted p-6 sm:p-11 lg:border-l">
+        <p aria-hidden="true" className="text-[56px] leading-none font-bold tracking-[-.06em] max-lg:hidden">
+          effy<span className="text-success">.</span>
+        </p>
+        <ul className="grid flex-1 content-center gap-6">
+          {LINES.map((l) => (
+            <li key={l.title} className="flex items-start gap-4">
+              <span aria-hidden="true" className="bo-icon-tile bo-icon-tile--primary size-11">
+                <l.icon />
+              </span>
+              <span className="grid gap-0.5">
+                <span className="font-medium">{l.title}</span>
+                <span className="text-muted-foreground">{l.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm text-muted-foreground">Effy Shop · works best installed on a tablet</p>
+      </section>
     </div>
   ),
 });

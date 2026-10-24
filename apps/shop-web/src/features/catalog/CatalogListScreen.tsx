@@ -1,36 +1,43 @@
 import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ProductStatus, ShopReviewState } from "@effy/shared-types";
-import { Boxes, ImageOff, Plus, Search, Tags, X } from "lucide-react";
+import {
+  ArrowUpDown,
+  Boxes,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Hourglass,
+  ImageOff,
+  Package,
+  Plus,
+  Search,
+  SearchX,
+  Tags,
+  ToggleRight,
+  X,
+} from "lucide-react";
 
 import {
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
   Input,
-  LoadingArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Skeleton,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+import { Facet, PageHeader, ToolbarSpacer } from "@effy/web-kit/patterns";
 
-import {
-  MicroLabel,
-  Page,
-  Pill,
-  Segmented,
-  StockMeter,
-  TableFrame,
-  Td,
-  Th,
-  Tr,
-  type PillTone,
-} from "@/components/console/primitives";
+import { Page, TableFrame, Td, Th, Tr } from "@/components/console/primitives";
+import { cn } from "@/lib/utils";
 import { track } from "@/lib/telemetry";
 
+import { ProductStatusBadge } from "./components/ProductStatusBadge";
 import { SectionsManager } from "./SectionsManager";
 import { StockSettingsDialog } from "./ShopDefaultThreshold";
 import type { ProductListItem, ProductListParams, ProductSort } from "./model";
@@ -41,12 +48,11 @@ const PAGE_SIZE = 20;
 const ALL = "all";
 
 /**
- * The catalog list, rebuilt to the imported design.
+ * The catalog list (redesign, "06 Catalog").
  *
- * The status filter is a segmented control, not A SELECT. The mockup leads with `catTabs` because
- * "what is live vs. what is a draft" is the question an operator opens this screen asking; burying it
- * as the fourth dropdown in a row of six makes it the hardest filter to reach. The remaining filters
- * stay as selects — they are refinements, not the primary axis.
+ * The status is the list's views (underline tabs), not a dropdown: "what is live vs. what is a draft" is
+ * the question an operator opens this screen asking. The rest are faceted filters — dashed until set —
+ * with the set ones repeated as removable chips.
  *
  * Search is server-side here and client-side on the order queue, deliberately. The catalog is paged
  * and runs to thousands of rows, so filtering one page in the browser would silently search only what
@@ -60,23 +66,6 @@ const STATUS_TABS: readonly { value: ProductStatus | typeof ALL; label: string }
   { value: "unavailable", label: "Unavailable" },
   { value: "archived", label: "Archived" },
 ];
-
-/**
- * The status tints, matching `ProductStatusBadge`. The catalog read carries no stock, so this never says
- * "Low stock"; it shows the lifecycle state it knows.
- */
-function statusPill(status: ProductStatus): PillTone {
-  switch (status) {
-    case "draft":
-      return "brand";
-    case "active":
-      return "success";
-    case "unavailable":
-      return "warning";
-    case "archived":
-      return "muted";
-  }
-}
 
 export function CatalogListScreen() {
   const schema = useQuery(catalogSchemaQuery);
@@ -169,121 +158,151 @@ export function CatalogListScreen() {
       : null,
   ].filter((f): f is { key: string; label: string; clear: () => void } => f !== null);
 
+  const hasFilters = activeFilters.length > 0 || status !== ALL;
+  const from = data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0;
+  const to = data ? (data.page - 1) * data.pageSize + data.items.length : 0;
+
   return (
     <Page>
-      {/* The mockup's top row: the primary axis on the left, the create action on the right. */}
-      <div className="flex flex-wrap items-center gap-4">
-        <Segmented
-          ariaLabel="Filter by status"
-          value={status}
-          onChange={(v) => onFilter(setStatus, v)}
-          options={STATUS_TABS}
-        />
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" className="h-8" onClick={() => setSectionsOpen(true)}>
-          <Tags />
-          Manage sections
-        </Button>
-        <Button variant="outline" size="sm" className="h-8" onClick={() => setStockSettingsOpen(true)}>
-          <Boxes />
-          Stock settings
-        </Button>
-        <Button asChild size="sm" className="h-8">
-          <Link to="/catalog/new">
-            <Plus />
-            New product
-          </Link>
-        </Button>
+      <PageHeader
+        title="Catalog"
+        description="Your shop's products. New products and price changes go to Effy for review; taking a size off sale is immediate."
+        actions={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/catalog/availability">
+                <ToggleRight aria-hidden="true" />
+                Availability
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={() => setSectionsOpen(true)}>
+              <Tags aria-hidden="true" />
+              Manage sections
+            </Button>
+            <Button variant="outline" onClick={() => setStockSettingsOpen(true)}>
+              <Boxes aria-hidden="true" />
+              Stock settings
+            </Button>
+            <Button asChild>
+              <Link to="/catalog/new">
+                <Plus aria-hidden="true" />
+                New product
+              </Link>
+            </Button>
+          </>
+        }
+      />
+
+      {/* The primary axis — what is live and what is not — as saved views. */}
+      <div role="tablist" aria-label="Filter by status" className="bo-tabs">
+        {STATUS_TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={t.value === status}
+            onClick={() => onFilter(setStatus, t.value)}
+            className={cn("bo-tabs__tab", t.value === status && "is-active")}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-          />
+      <div className="bo-toolbar">
+        <label className="bo-toolbar__search">
+          <Search aria-hidden="true" />
           <Input
             aria-label="Search products"
-            placeholder="Search name, SKU, brand…"
+            type="search"
+            placeholder="Name, brand, SKU or barcode…"
             value={q}
             onChange={(e) => onSearch(e.target.value)}
-            className="h-8 w-64 pl-8 text-[13px]"
           />
-        </div>
-
-        <FilterSelect
-          label="Type"
-          value={type}
-          onChange={(v) => onFilter(setType, v)}
-          options={types.map((t) => ({ value: t.id, label: t.name }))}
-          allLabel="All types"
-        />
-        <FilterSelect
+        </label>
+        <Facet
           label="Category"
-          value={category}
-          onChange={(v) => onFilter(setCategory, v)}
+          value={category === ALL ? null : category}
           options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          allLabel="All categories"
+          onChange={(v) => onFilter(setCategory, v ?? ALL)}
+          anyLabel="All categories"
         />
-        <FilterSelect
+        <Facet
           label="Section"
-          value={section}
-          onChange={(v) => onFilter(setSection, v)}
-          options={sectionList.map((s) => ({ value: s.id, label: s.name }))}
-          allLabel="All sections"
+          value={section === ALL ? null : section}
+          options={sectionList.map((x) => ({ value: x.id, label: x.name }))}
+          onChange={(v) => onFilter(setSection, v ?? ALL)}
+          anyLabel="All sections"
+        />
+        <Facet
+          label="Type"
+          value={type === ALL ? null : type}
+          options={types.map((t) => ({ value: t.id, label: t.name }))}
+          onChange={(v) => onFilter(setType, v ?? ALL)}
+          anyLabel="All types"
         />
         {/* "what is Effy still looking at, and what did it send back". */}
-        <FilterSelect
+        <Facet
           label="Review"
-          value={review}
-          onChange={(v) => onFilter(setReview, v as ShopReviewState | typeof ALL)}
+          value={review === ALL ? null : review}
           options={REVIEW_FILTERS.map((f) => ({ value: f.value, label: f.label }))}
-          allLabel="Any review state"
+          onChange={(v) => onFilter(setReview, (v ?? ALL) as ShopReviewState | typeof ALL)}
+          anyLabel="Any review state"
         />
-
-        <Input
-          aria-label="Minimum price"
-          placeholder="Min $"
-          inputMode="decimal"
-          value={priceMin}
-          onChange={(e) => onFilter(setPriceMin, e.target.value)}
-          className="h-8 w-20 text-[13px]"
-        />
-        <Input
-          aria-label="Maximum price"
-          placeholder="Max $"
-          inputMode="decimal"
-          value={priceMax}
-          onChange={(e) => onFilter(setPriceMax, e.target.value)}
-          className="h-8 w-20 text-[13px]"
-        />
-
-        <Select value={sort} onValueChange={(v) => onFilter(setSort, v as ProductSort)}>
-          <SelectTrigger className="h-8 w-40 text-[13px]" aria-label="Sort">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="recent">Most recent</SelectItem>
-            <SelectItem value="name">Name</SelectItem>
-            <SelectItem value="price">Price</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-1.5">
+          <Input
+            aria-label="Minimum price"
+            placeholder="Min $"
+            inputMode="decimal"
+            value={priceMin}
+            onChange={(e) => onFilter(setPriceMin, e.target.value)}
+            className="w-24"
+          />
+          <span aria-hidden="true" className="text-muted-foreground">–</span>
+          <Input
+            aria-label="Maximum price"
+            placeholder="Max $"
+            inputMode="decimal"
+            value={priceMax}
+            onChange={(e) => onFilter(setPriceMax, e.target.value)}
+            className="w-24"
+          />
+        </div>
+        <ToolbarSpacer />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" aria-label="Sort">
+              <ArrowUpDown aria-hidden="true" />
+              {SORT_LABEL[sort]}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup value={sort} onValueChange={(v) => onFilter(setSort, v as ProductSort)}>
+              {(Object.keys(SORT_LABEL) as ProductSort[]).map((k) => (
+                <DropdownMenuRadioItem key={k} value={k}>
+                  {SORT_LABEL[k]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <MicroLabel>Filtered by</MicroLabel>
+        <div className="bo-chipbar items-center">
+          <span className="text-sm whitespace-nowrap text-muted-foreground">Filtered by</span>
           {activeFilters.map((f) => (
-            <button
+            <Button
               key={f.key}
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={f.clear}
               aria-label={`Remove filter ${f.label}`}
-              className="border-border hover:bg-accent focus-visible:ring-ring inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
             >
               {f.label}
-              <X className="size-3" aria-hidden="true" />
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           ))}
         </div>
       ) : null}
@@ -292,65 +311,63 @@ export function CatalogListScreen() {
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
         <CatalogLoading />
+      ) : data.items.length === 0 ? (
+        <div className="bo-empty">
+          <span className="bo-empty__icon" aria-hidden="true">
+            {hasFilters ? <SearchX /> : <Package />}
+          </span>
+          <h3>{hasFilters ? "No products match your filter" : "No products yet"}</h3>
+          <p>
+            {hasFilters
+              ? "Clear a filter, or search for something else."
+              : "Add your first product to get started. Effy reviews it before customers see it."}
+          </p>
+          <Button asChild className="mt-2">
+            <Link to="/catalog/new">
+              <Plus aria-hidden="true" />
+              New product
+            </Link>
+          </Button>
+        </div>
       ) : (
-        <>
-          <TableFrame>
-            <thead>
-              <tr className="bg-muted">
-                <Th>Product</Th>
-                <Th width="15%">Sizes</Th>
-                <Th width="12%">Category</Th>
-                <Th width="14%">Status</Th>
-                <Th width="11%" align="right">
-                  Price
-                </Th>
-                <Th width="16%" align="right">
-                  Inventory
-                </Th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.length === 0 ? (
-                <tr className="border-border border-t">
-                  <td colSpan={6} className="text-muted-foreground px-3.5 py-10 text-center text-sm">
-                    No products match your filter. Add your first product to get started.
-                  </td>
-                </tr>
-              ) : (
-                data.items.map((p) => <ProductRow key={p.id} product={p} />)
-              )}
-            </tbody>
-          </TableFrame>
-
-          <div className="flex items-center justify-between text-[13px]">
-            <span className="text-muted-foreground">
-              <span className="tabular-nums">{data.total}</span> product
-              {data.total === 1 ? "" : "s"} · page{" "}
-              <span className="tabular-nums">{data.page}</span> of{" "}
-              <span className="tabular-nums">{totalPages}</span>
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </>
+        <TableFrame>
+          <thead>
+            <tr>
+              <Th>Product</Th>
+              <Th>Sizes</Th>
+              <Th>Category</Th>
+              <Th>Status</Th>
+              <Th>On the storefront</Th>
+              <Th align="right">Your price</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.map((p) => (
+              <ProductRow key={p.id} product={p} />
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={6} className="p-0!">
+                <div className="bo-pager border-t-0">
+                  <span className="tabular-nums">
+                    {from}–{to} of {data.total} {data.total === 1 ? "product" : "products"} · page {data.page} of {totalPages}
+                  </span>
+                  <div className="bo-pager__btns">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                      <ChevronLeft aria-hidden="true" />
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                      Next
+                      <ChevronRight aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+        </TableFrame>
       )}
 
       <SectionsManager open={sectionsOpen} onOpenChange={setSectionsOpen} />
@@ -359,113 +376,96 @@ export function CatalogListScreen() {
   );
 }
 
+const SORT_LABEL: Record<ProductSort, string> = {
+  recent: "Most recent",
+  name: "Name",
+  price: "Price",
+};
+
+const money = (amount: string, currency: string) => {
+  const n = Number(amount);
+  return Number.isFinite(n) ? new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(n) : "—";
+};
+
 function ProductRow({ product }: { product: ProductListItem }) {
-  // The list dto carries no stock count (054 keeps inventory off the catalog read), so the mockup's
-  // per-row inventory meter has nothing to draw from here. Rather than invent a figure — which is the
-  // "fixture agreed with the code instead of with the world" defect this codebase keeps recording
-  // the column states what IS known: whether the product is purchasable at all. The real meter lives
-  // on the product's Inventory tab, where the count actually is.
+  const navigate = useNavigate();
+  // The list carries no stock count (054 keeps inventory off the catalog read), so this column says
+  // what IS known — whether the product can be bought at all — rather than inventing a figure. The
+  // real count is on the product's Inventory tab.
   const available = product.status === "active";
   const chip = reviewChip(product.reviewState);
+  const sentBack = product.reviewState === "sent_back" || product.reviewState === "live_change_sent_back";
+  const price = product.shopPriceAmount ?? product.priceAmount;
 
   return (
-    <Tr interactive>
+    <Tr interactive onClick={() => void navigate({ to: "/catalog/$productId", params: { productId: product.id } })}>
       <Td>
         <div className="flex min-w-0 items-center gap-3">
           {product.primaryImageUrl ? (
-            <img
-              src={product.primaryImageUrl}
-              alt=""
-              className="size-8 shrink-0 rounded-[7px] border border-border object-cover"
-            />
+            <img src={product.primaryImageUrl} alt="" className="size-12 shrink-0 rounded-lg border border-border object-cover" />
           ) : (
-            // The design's image placeholder: a --brand-soft tile at the 7px small-tile radius,
-            // not a bordered grey box. It reads as "an image belongs here" rather than as an empty
-            // cell, which is what the bordered version looked like beside rows that had photos.
-            <div className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-brand-soft text-brand">
-              <ImageOff className="size-3.5" />
+            <div className="bo-img size-12 rounded-lg">
+              <ImageOff aria-hidden="true" />
             </div>
           )}
-          {/* The mockup's Product cell is one line. The brand is kept as a muted second line
-              anyway: it is the field an operator scans to tell two similar products apart, and the
-              mockup's own sample data simply has no brands in it. Its type column is genuinely gone
-              Category answers the same question for scanning, and the mockup drops it. */}
           <div className="min-w-0">
             <Link
               to="/catalog/$productId"
               params={{ productId: product.id }}
-              className="block truncate font-medium hover:underline"
+              onClick={(e) => e.stopPropagation()}
+              className="block truncate font-medium text-foreground no-underline hover:underline"
             >
               {product.name}
             </Link>
-            {product.brand ? (
-              <div className="text-muted-foreground truncate text-xs">{product.brand}</div>
-            ) : null}
+            {product.brand ? <span className="bo-sub truncate">{product.brand}</span> : null}
           </div>
         </div>
       </Td>
       {/* Stock codes are each size's; the list says how many sizes the product is sold in. */}
-      <Td className="text-muted-foreground truncate text-[12.5px]">
+      <Td className="whitespace-nowrap text-muted-foreground">
         {product.variantCount === 1 ? "One size" : `${product.variantCount} sizes`}
       </Td>
-      <Td className="text-muted-foreground text-[13px]">{product.categoryName}</Td>
+      <Td className="text-muted-foreground">{product.categoryName}</Td>
       <Td>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Pill variant={statusPill(product.status)}>{product.status}</Pill>
-          {chip ? <Pill variant={chip.tone}>{chip.label}</Pill> : null}
+          <ProductStatusBadge status={product.status} />
+          {chip ? (
+            <span className={cn("bo-st", sentBack ? "bo-st--problem" : "bo-st--moving")}>
+              {sentBack ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
+              {chip.label}
+            </span>
+          ) : null}
         </div>
       </Td>
-      <Td align="right" className="font-medium tabular-nums">
-        {product.priceVaries ? "From " : ""}
-        {product.currency} {product.shopPriceAmount ?? product.priceAmount}
+      <Td>
+        <span className="flex items-center gap-2 whitespace-nowrap">
+          <span aria-hidden="true" className={cn("bo-dot", available ? "bo-dot--on" : "bo-dot--off")} />
+          {available ? "Buyable" : "Not buyable"}
+        </span>
       </Td>
-      <Td align="right">
-        <StockMeter
-          onHand={available ? 1 : 0}
-          max={1}
-          label={available ? "Buyable" : "Not buyable"}
-          urgent={!available}
-        />
+      <Td align="right" className="font-semibold whitespace-nowrap tabular-nums">
+        {product.priceVaries ? "From " : ""}
+        {money(price, product.currency)}
       </Td>
     </Tr>
   );
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-  allLabel,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  allLabel: string;
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 w-36 text-[13px]" aria-label={`Filter by ${label.toLowerCase()}`}>
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>{allLabel}</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
+/** A loading table in the shape of the one it replaces. */
 function CatalogLoading() {
   return (
-    // The table's own frame, so the region reads as "the table is coming" and keeps its footprint.
-    <div className="border-border rounded-[var(--radius)] border">
-      <LoadingArea title="Loading products" description="Fetching your catalog." />
+    <div className="bo-table-wrap" aria-busy="true" aria-label="Loading products">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
+          <Skeleton className="size-12 rounded-lg" />
+          <div className="grid flex-1 gap-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3.5 w-28" />
+          </div>
+          <Skeleton className="h-6 w-20 rounded-md" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
     </div>
   );
 }

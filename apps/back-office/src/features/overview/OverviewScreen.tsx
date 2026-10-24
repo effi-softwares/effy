@@ -23,11 +23,11 @@ import { Badge, Button, Skeleton } from "@effy/design-system/ui";
 import { leastAdvanced, type DispatchWindowDTO, type DeliverySlotDTO } from "@effy/shared-types";
 import { PackageStatusPill } from "@effy/web-kit/console";
 
-import { Kbd } from "@/components/patterns/Kbd";
-import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
-import { DotWord, Meter, StatusWord } from "@/components/patterns/StatusWord";
+import { Kbd } from "@effy/web-kit/patterns";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
+import { DotWord, Meter, StatusWord } from "@effy/web-kit/patterns";
 import { displayName, initialsOf } from "@/components/shell/identity";
 import { sessionQuery } from "@/features/auth/queries";
 import { deliverabilityListQuery } from "@/features/deliverability/queries";

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { Switch, toast } from "@effy/design-system/ui"
+import { Button, Input, Switch, toast } from "@effy/design-system/ui"
 
-import { DesignSheet, SheetField, SheetToggleRow } from "@/components/console/DesignSheet"
+import { ChoiceCards } from "@/components/console/ChoiceCards"
+
+import { DesignSheet, SheetToggleRow } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
 
 import { fulfillmentMutationError } from "../errorText"
@@ -104,20 +106,20 @@ export function RefundSheet({
           return (
             <div
               key={l.orderItemId}
-              className="border-border flex flex-wrap items-center justify-between gap-3 border-b py-2.5"
+              className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border py-3"
             >
               <div className="grid min-w-0 flex-1 gap-0.5">
-                <div className="text-[13.5px] font-medium">
+                <div className="font-medium">
                   {l.name}
-                  {l.variantLabel ? ` — ${l.variantLabel}` : ""}
+                  {l.variantLabel ? ` · ${l.variantLabel}` : ""}
                 </div>
-                <div className="text-muted-foreground font-mono text-[12px]">
+                <div className="text-sm text-muted-foreground">
                   {lineCodes(l.variantCode, l.sku)} · {formatMoney(l.unitPrice, detail.currency)} each
                   {l.refundedQuantity > 0 ? ` · ${l.refundedQuantity} already refunded` : ""}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   aria-label={`Quantity to refund for ${l.name}`}
                   inputMode="numeric"
                   disabled={max === 0}
@@ -126,17 +128,18 @@ export function RefundSheet({
                   onChange={(e) =>
                     setQuantities((q) => ({ ...q, [l.orderItemId]: e.target.value.replace(/\D/g, "") }))
                   }
-                  className="border-input bg-background focus:border-ring h-8 w-14 rounded-md border px-2 text-right text-[13px] outline-none disabled:opacity-50"
+                  className="w-16 text-right tabular-nums"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   disabled={max === 0}
                   onClick={() => setQuantities((q) => ({ ...q, [l.orderItemId]: String(max) }))}
-                  className="text-muted-foreground hover:bg-accent hover:text-foreground h-8 cursor-pointer rounded-[5px] border-none bg-transparent px-2 text-[12px] whitespace-nowrap disabled:opacity-50"
                 >
                   {max === 0 ? "refunded" : `max ${max}`}
-                </button>
-                <div className="w-[74px] text-right text-[13px] whitespace-nowrap tabular-nums">
+                </Button>
+                <div className="w-[80px] text-right whitespace-nowrap tabular-nums">
                   {formatMoney(((Math.round(Number(l.unitPrice) * 100) * n) / 100).toFixed(2), detail.currency)}
                 </div>
               </div>
@@ -145,18 +148,16 @@ export function RefundSheet({
         })}
       </div>
 
-      <SheetField label="Reason" htmlFor="refund-reason">
-        <select
-          id="refund-reason"
-          value={reason}
-          onChange={(e) => setReason(e.target.value as Reason)}
-          className="border-input bg-background focus:border-ring h-9 cursor-pointer rounded-md border px-2.5 text-sm outline-none"
-        >
-          {/* Effy's vocabulary — the business needs to tell these apart for its own reporting. */}
-          <option value="item_not_supplied">We couldn&apos;t supply it</option>
-          <option value="item_unusable">It arrived unusable</option>
-        </select>
-      </SheetField>
+      {/* Effy's vocabulary — the business needs to tell these apart for its own reporting. */}
+      <ChoiceCards
+        label="Reason"
+        value={reason}
+        options={[
+          { value: "item_not_supplied", label: "We couldn't supply it" },
+          { value: "item_unusable", label: "It arrived unusable" },
+        ]}
+        onChange={(v) => setReason(v as Reason)}
+      />
 
       {/* Off by default, and the default is the honest one — a shop refunding an unusable item has
           nothing to put back. Honoured by the server since 057 A3 (it used to be ignored). */}
@@ -166,12 +167,13 @@ export function RefundSheet({
         control={<Switch checked={restock} onCheckedChange={setRestock} aria-label="Return items to stock" />}
       />
 
-      <div className="border-border flex items-baseline justify-between border-t pt-3">
-        <div className="text-sm font-semibold">Refund total</div>
-        <div className="text-base font-semibold tabular-nums">
+      <div className="flex items-baseline justify-between border-t border-border pt-3">
+        <div className="font-semibold">Refund total</div>
+        <output className="text-[22px] leading-7 font-semibold tracking-[-.02em] tabular-nums">
           {formatMoney((totalCents / 100).toFixed(2), detail.currency)}
-        </div>
+        </output>
       </div>
+      <p className="text-sm text-muted-foreground">A preview — Effy prices the refund when it is issued.</p>
     </DesignSheet>
   )
 }

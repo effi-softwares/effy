@@ -5,9 +5,9 @@ import { Download } from "lucide-react";
 
 import { Button, Input, Label } from "@effy/design-system/ui";
 
-import { Panel } from "@/components/patterns/Panel";
-import { StatusWord } from "@/components/patterns/StatusWord";
-import { Pager } from "@/components/patterns/Toolbar";
+import { Panel } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
+import { Pager } from "@effy/web-kit/patterns";
 
 import { promotionMutationError } from "../errorText";
 import { codesQuery, useGenerateCodes } from "../queries";

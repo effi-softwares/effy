@@ -1,13 +1,9 @@
 import { useNavigate } from "@tanstack/react-router"
 
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  toast,
-} from "@effy/design-system/ui"
+import { BarChart3, ChevronRight, Download, Inbox, PackagePlus, Plus, Printer, type LucideIcon } from "lucide-react"
+
+import { toast } from "@effy/design-system/ui"
+import { ResponsiveSheet } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -47,13 +43,13 @@ export function QuickActionsSheet({
 
   const groups: Array<{
     label: string
-    items: Array<{ glyph: string; title: string; description: string; run: () => void }>
+    items: Array<{ icon: LucideIcon; title: string; description: string; run: () => void }>
   }> = [
     {
       label: "Create",
       items: [
         {
-          glyph: "◻",
+          icon: Plus,
           title: "New product",
           description: "Four steps: details, pricing, inventory, visibility.",
           run: () => {
@@ -68,7 +64,7 @@ export function QuickActionsSheet({
       label: "Fulfilment",
       items: [
         {
-          glyph: "⎙",
+          icon: Printer,
           title: "Print pick lists",
           description: `${awaitingPick} ${awaitingPick === 1 ? "order is" : "orders are"} waiting to be picked.`,
           run: () => {
@@ -78,7 +74,7 @@ export function QuickActionsSheet({
           },
         },
         {
-          glyph: "↓",
+          icon: PackagePlus,
           title: "Receive stock",
           description: "Count units into a product and its variants.",
           run: () => {
@@ -89,7 +85,7 @@ export function QuickActionsSheet({
           },
         },
         {
-          glyph: "!",
+          icon: Inbox,
           title: "Open the attention queue",
           description: "Flagged and high-risk orders, oldest first.",
           run: () => {
@@ -105,7 +101,7 @@ export function QuickActionsSheet({
       label: "Customers and reporting",
       items: [
         {
-          glyph: "↧",
+          icon: Download,
           title: "Export orders",
           description: "CSV of everything matching the current filters.",
           run: () => {
@@ -118,7 +114,7 @@ export function QuickActionsSheet({
           },
         },
         {
-          glyph: "◫",
+          icon: BarChart3,
           title: "Open insights",
           description: "Revenue, volume, conversion and top products.",
           run: () => {
@@ -132,50 +128,23 @@ export function QuickActionsSheet({
   ]
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 rounded-none sm:max-w-[440px]">
-        <SheetHeader className="border-border gap-1 border-b px-5 pt-[18px] pb-3.5 pr-12">
-          <SheetTitle className="text-[15.5px] tracking-[-.015em]">Quick actions</SheetTitle>
-          <SheetDescription className="text-[13px] leading-[1.55]">
-            Everything you start from here.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="overflow-y-auto px-5 py-4">
-          {groups.map((group) => (
-            <section key={group.label} className="mb-5 last:mb-0">
-              <h3 className="text-muted-foreground mb-1 text-[11.5px] font-medium tracking-wide uppercase">
-                {group.label}
-              </h3>
-              {group.items.map((item) => (
-                <button
-                  key={item.title}
-                  type="button"
-                  onClick={item.run}
-                  className="hover:bg-accent flex w-full items-center gap-3 border-t px-1 py-3 text-left"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="bg-muted text-muted-foreground grid size-[26px] shrink-0 place-items-center rounded-md font-mono text-xs"
-                  >
-                    {item.glyph}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] font-medium">{item.title}</span>
-                    <span className="text-muted-foreground block text-[12.5px]">
-                      {item.description}
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className="text-muted-foreground">
-                    ›
-                  </span>
-                </button>
-              ))}
-            </section>
+    <ResponsiveSheet open={open} onOpenChange={onOpenChange} title="Quick actions" description="Everything you start from here.">
+      {groups.map((group) => (
+        <section key={group.label} className="grid gap-1">
+          <h3 className="bo-eyebrow px-2 pt-1">{group.label}</h3>
+          {group.items.map((item) => (
+            <button key={item.title} type="button" onClick={item.run} className="bo-cmd-item h-auto! min-h-14 py-2">
+              <item.icon aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{item.title}</span>
+                <span className="block text-sm text-muted-foreground">{item.description}</span>
+              </span>
+              <ChevronRight aria-hidden="true" />
+            </button>
           ))}
-        </div>
-      </SheetContent>
-    </Sheet>
+        </section>
+      ))}
+    </ResponsiveSheet>
   )
 }
 

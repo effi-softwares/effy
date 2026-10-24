@@ -3,65 +3,26 @@ import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * The shop console's layout vocabulary, transcribed from the imported Claude Design mockup
- * ("Effy Shop Console.dc.html", project 951bb710).
+ * The shop console's small layout helpers, drawn in the back-office identity ("Effy Shop Console
+ * Redesign", 2026-10-24). They are thin names over the shared pattern classes
+ * (`@effy/design-system/backoffice/patterns.css`, sized for touch by `styles/touch.css`), kept so the
+ * screens that already speak them did not each have to be rewritten to change how they look. New
+ * screens use `@effy/web-kit/patterns` (PageHeader, Panel, DetailRows, StatusWord…) directly.
  *
- * Why these exist rather than inline classes per screen. The mockup expresses its design as exact
- * pixel values repeated on every screen — `padding:9px 14px` on a `th`, `font-size:13.5px` on a `td`,
- * `padding:11px 0;border-bottom` on a detail row. Copied by hand into six screens those numbers drift
- * within a week, and the drift is invisible in review because every individual value looks plausible.
- * Named once, a change is one edit and a divergence is a diff.
- *
- * And they are the place the colour law is enforced. Under the monochrome constitution that meant
- * refusing the design's `TONES` map: its amber was a third UI hue, and its `--success` under text
- * measured 4.00:1. Both objections were real, and both are now gone — the platform-wide theme
- * adoption brings a `--warning` token and re-tunes `--success` to #0d8043, which clears 4.5:1 on
- * white and on its own tint. So the design's five tones are adopted as authored.
- *
- * What did not change: a tone never carries meaning alone. Every pill still keeps its words, so the
- * console survives greyscale, a colour-blind operator, and a shop floor in bright light. The hue is
- * how you find the row at a glance; the word is how you know what it says.
+ * The colour law holds: a tone never carries meaning alone. Every pill keeps its words — in progress →
+ * blue · done → green · waiting → outline · problem → black with an icon · inert → grey.
  */
 
 // Page scaffolding
 
-/** The mockup's `main`: one grid, `gap: var(--pad)`, content aligned to the top. */
+/** A page: its sections stacked 24px apart (16 on a phone). */
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("grid content-start gap-[var(--pad)]", className)}>{children}</div>
+  return <div className={cn("flex min-w-0 flex-col gap-6 max-md:gap-4", className)}>{children}</div>
 }
 
 /**
- * A section: a hairline-underlined header with an optional right-aligned action, then rows.
- *
- * The action is a text button, never a bordered one. The mockup uses a bare muted-foreground link
- * that darkens on hover, so a page of six sections does not read as a page of twelve buttons.
- */
-export function Section({
-  title,
-  action,
-  children,
-  className,
-}: {
-  title: ReactNode
-  action?: ReactNode
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <section className={cn("grid gap-0", className)}>
-      <div className="border-border flex items-baseline justify-between gap-3 border-b pb-2.5">
-        <h2 className="text-[13.5px] font-semibold">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-/**
- * An open page section: a bold title, a one-line muted subtitle, its action right-aligned on the same
- * row, one hairline, then the content. Unlike `Section` (a row-list with a rule under every row), for
- * fields laid out in a grid.
+ * A titled panel: flat, one hairline, a title with one muted line and its action on the right, then
+ * the content. Never a metric tile.
  */
 export function DetailSection({
   title,
@@ -69,31 +30,31 @@ export function DetailSection({
   action,
   children,
   className,
+  flush = false,
 }: {
   title: ReactNode
   subtitle: ReactNode
   action?: ReactNode
   children: ReactNode
   className?: string
+  /** The body is a table or list that runs to the panel's edges. */
+  flush?: boolean
 }) {
   return (
-    <section className={cn("grid min-w-0", className)}>
-      <div className="border-border flex items-start justify-between gap-4 border-b pb-[11px]">
-        <div className="grid min-w-0 gap-[3px]">
-          <h2 className="text-sm font-semibold tracking-[-.01em]">{title}</h2>
-          <p className="text-muted-foreground text-[12.5px] leading-[1.5]">{subtitle}</p>
+    <section className={cn("bo-panel min-w-0", className)}>
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 className="bo-panel__title">{title}</h2>
+          <p className="bo-panel__desc">{subtitle}</p>
         </div>
         {action}
       </div>
-      {children}
+      {flush ? children : <div className="bo-panel__body">{children}</div>}
     </section>
   )
 }
 
-/**
- * The responsive field grid under a `DetailSection` — auto-fit columns, so the content fills the page
- * width instead of hugging a narrow measure. `min` is the narrowest a column may get.
- */
+/** A responsive grid of fields inside a panel — auto-fit columns; `min` is the narrowest a column may get. */
 export function FieldGrid({
   children,
   min = 210,
@@ -105,7 +66,7 @@ export function FieldGrid({
 }) {
   return (
     <div
-      className={cn("grid gap-x-8 gap-y-[18px] pt-[18px]", className)}
+      className={cn("grid gap-x-8 gap-y-5", className)}
       style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))` }}
     >
       {children}
@@ -114,9 +75,8 @@ export function FieldGrid({
 }
 
 /**
- * One stacked field: an uppercase micro-label above its value. `wide` spans every column and caps the
- * value at a readable measure (descriptions); `size` picks the value scale — `body` for prose,
- * `figure` for counts (15px), `display` for money (19px).
+ * One stacked field: a muted label above its value. `wide` spans every column and caps the value at a
+ * readable measure; `size` picks the value scale — `body`, `figure` (counts) or `display` (money).
  */
 export function Field({
   label,
@@ -134,13 +94,13 @@ export function Field({
   emphasis?: boolean
 }) {
   return (
-    <div className={cn("grid min-w-0 content-start gap-[5px]", wide && "col-span-full")}>
+    <div className={cn("grid min-w-0 content-start gap-1", wide && "col-span-full")}>
       <MicroLabel className="whitespace-normal">{label}</MicroLabel>
       <div
         className={cn(
-          size === "body" && "text-[13.5px] leading-[1.55]",
-          size === "figure" && "text-[15px] font-semibold tracking-[-.01em] tabular-nums",
-          size === "display" && "text-[19px] font-semibold tracking-[-.02em] tabular-nums",
+          size === "body" && "text-[15px] leading-[22px]",
+          size === "figure" && "text-base font-semibold tabular-nums",
+          size === "display" && "text-[22px] leading-7 font-semibold tracking-[-.02em] tabular-nums",
           wide && "max-w-[68ch]",
           mono && "font-mono",
           emphasis && "font-semibold",
@@ -152,7 +112,7 @@ export function Field({
   )
 }
 
-/** The section-header action (`Edit`, `Manage`, `See all`). `onClick` is required so a control that does nothing is a build error. */
+/** A panel's own action (`Edit`, `Manage`). `onClick` is required so a control that does nothing is a build error. */
 export function SectionAction({
   children,
   onClick,
@@ -167,90 +127,52 @@ export function SectionAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring cursor-pointer rounded-sm bg-transparent p-0 text-[13px] font-medium whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+      data-slot="button"
+      data-variant="ghost"
+      data-size="sm"
+      className="inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>
   )
 }
 
-/** An uppercase micro-label — the mockup's `11.5px / 500 /.04em` rail and column heading. */
+/** A field or column label: 13px, muted, sentence case. */
 export function MicroLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div
-      className={cn(
-        "text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase",
-        className,
-      )}
-    >
-      {children}
-    </div>
+    <div className={cn("text-[13px] font-medium whitespace-nowrap text-muted-foreground", className)}>{children}</div>
   )
 }
 
-// Detail rows
-
-/**
- * One label/value row: label left and muted, value right-aligned.
- *
- * `mono` exists because SKUs, references and ids are compared character by character. The mockup
- * sets Geist Mono on exactly those values and nothing else.
- */
-export function DetailRow({
-  label,
-  value,
-  mono,
-  emphasis,
-}: {
-  label: ReactNode
-  value: ReactNode
-  mono?: boolean
-  emphasis?: boolean
-}) {
-  return (
-    <div className="border-border flex items-baseline justify-between gap-5 border-b py-[11px]">
-      <div className="text-muted-foreground shrink-0 text-[13px]">{label}</div>
-      <div
-        className={cn(
-          "max-w-[52ch] text-right text-[13.5px] leading-[1.55]",
-          mono && "font-mono",
-          emphasis && "font-semibold",
-        )}
-      >
-        {value}
-      </div>
-    </div>
-  )
-}
-
-/** A right-rail row: a top hairline instead of a bottom one, so the rail reads as a list not a table. */
+/** A label/value row in a narrow rail. */
 export function RailRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
-    <div className="border-border flex items-baseline justify-between border-t py-2.5">
-      <span className="text-muted-foreground text-[13px]">{label}</span>
-      <span className="text-[13.5px] font-medium tabular-nums">{value}</span>
-    </div>
-  )
-}
-
-/**
- * The mockup's stat cell — a micro-label over a 16px semibold figure.
- *
- * Not a card. Principle V / doctrine-2 bans metric cards on operational screens, and the mockup
- * agrees: its pricing block is a bare grid of these, separated by one hairline underneath.
- */
-export function StatCell({ label, value }: { label: ReactNode; value: ReactNode }) {
-  return (
-    <div className="grid gap-1 py-3.5">
-      <MicroLabel>{label}</MicroLabel>
-      <div className="text-base font-semibold tabular-nums">{value}</div>
+    <div className="flex items-baseline justify-between gap-4 border-b border-border py-3 last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
     </div>
   )
 }
 
 // Pills
 
-/** A status pill in the design's five tones. `quiet | strong | outline` are aliases; `strong` means "needs a human", i.e. `warning`. */
+export type PillTone = "brand" | "success" | "warning" | "destructive" | "muted"
+
+/** The five tones as status words. `quiet | strong | outline` are aliases. */
+const PILL_CLASS: Record<PillTone, string> = {
+  brand: "bo-st--moving",
+  success: "bo-st--done",
+  warning: "bo-st--waiting",
+  destructive: "bo-st--problem",
+  muted: "bo-st--muted",
+}
+
+const PILL_ALIAS: Record<string, PillTone | undefined> = {
+  quiet: "muted",
+  strong: "warning",
+  outline: "warning",
+}
+
 export function Pill({
   children,
   variant = "quiet",
@@ -259,47 +181,22 @@ export function Pill({
   variant?: PillTone | "quiet" | "strong" | "outline"
 }) {
   const tone = PILL_ALIAS[variant] ?? (variant as PillTone)
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap",
-        PILL_TONE[tone],
-      )}
-    >
-      {children}
-    </span>
-  )
-}
-
-export type PillTone = "brand" | "success" | "warning" | "destructive" | "muted"
-
-/** The closed mapping. A sixth entry is how a palette becomes decoration — see `badge.tsx`. */
-const PILL_TONE: Record<PillTone, string> = {
-  brand: "border-brand-mid bg-brand-soft text-brand-ink",
-  success: "border-border bg-success-soft text-success",
-  warning: "border-border bg-warning-soft text-warning",
-  destructive: "border-border bg-destructive-soft text-destructive",
-  muted: "border-border bg-muted text-muted-foreground",
-}
-
-const PILL_ALIAS: Record<string, PillTone | undefined> = {
-  quiet: "muted",
-  strong: "warning",
-  outline: "muted",
+  return <span className={cn("bo-st", PILL_CLASS[tone])}>{children}</span>
 }
 
 // Tables
 
-/** The mockup's table shell: one hairline border, rounded, horizontally scrollable. */
-export function TableFrame({ children }: { children: ReactNode }) {
+/** A table in its hairline frame, scrolling sideways only when it must. */
+export function TableFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="border-border overflow-x-auto rounded-[var(--radius)] border">
-      <table className="w-full border-collapse">{children}</table>
+    <div className={cn("bo-table-wrap", className)}>
+      <div className="bo-table-scroll">
+        <table className="bo-table">{children}</table>
+      </div>
     </div>
   )
 }
 
-/** The header row sits on `--muted`, which is what separates it from the body without a border. */
 export function Th({
   children,
   align = "left",
@@ -310,13 +207,7 @@ export function Th({
   width?: string
 }) {
   return (
-    <th
-      style={width ? { width } : undefined}
-      className={cn(
-        "text-muted-foreground px-3.5 py-2.5 text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase",
-        align === "right" ? "text-right" : "text-left",
-      )}
-    >
+    <th style={width ? { width } : undefined} className={cn(align === "right" && "is-num")}>
       {children}
     </th>
   )
@@ -331,20 +222,10 @@ export function Td({
   align?: "left" | "right"
   className?: string
 }) {
-  return (
-    <td
-      className={cn(
-        "px-3.5 py-2.5 text-[13.5px]",
-        align === "right" ? "text-right" : "text-left",
-        className,
-      )}
-    >
-      {children}
-    </td>
-  )
+  return <td className={cn(align === "right" && "is-num", className)}>{children}</td>
 }
 
-/** A body row. `interactive` adds the mockup's hover fill for rows that navigate. */
+/** A body row; `interactive` marks rows that open something. */
 export function Tr({
   children,
   interactive,
@@ -355,78 +236,15 @@ export function Tr({
   onClick?: () => void
 }) {
   return (
-    <tr
-      onClick={onClick}
-      className={cn(
-        "border-border border-t",
-        interactive && "hover:bg-accent cursor-pointer transition-colors",
-      )}
-    >
+    <tr onClick={onClick} className={cn(interactive && "cursor-pointer")}>
       {children}
     </tr>
   )
 }
 
-// Stock meter
-
-/**
- * The inventory bar: destructive at zero, warning when low, muted otherwise. The label beside it carries
- * the meaning in words (a bar is not readable by a screen reader). With no `max` (no threshold) the bar
- * renders empty.
- */
-export function StockMeter({
-  onHand,
-  max,
-  label,
-  urgent,
-}: {
-  onHand: number
-  max: number
-  label: ReactNode
-  urgent?: boolean
-}) {
-  const pct = max > 0 ? Math.max(0, Math.min(100, (onHand / max) * 100)) : 0
-  // Empty is a different statement from low, and the design separates them: an empty shelf cannot
-  // be sold from at all (destructive), a low one still can (warning). Collapsing both into "urgent"
-  // is what the monochrome version had to do, and it cost the operator the one distinction that
-  // decides whether to reorder today or this week.
-  const empty = onHand <= 0
-  return (
-    <div className="flex items-center justify-end gap-2.5">
-      <div className="h-[5px] w-14 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full",
-            empty ? "bg-destructive" : urgent ? "bg-warning" : "bg-muted-foreground",
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div
-        className={cn(
-          "w-[62px] text-right text-[13px] tabular-nums",
-          empty
-            ? "text-destructive font-semibold"
-            : urgent
-              ? "text-warning font-semibold"
-              : "text-muted-foreground",
-        )}
-      >
-        {label}
-      </div>
-    </div>
-  )
-}
-
 // Segmented control
 
-/**
- * The design's segmented control: a 3px-padded `--muted` trough with a solid `--brand` active segment.
- *
- * It matches `Tabs` in the design system exactly, on purpose. This one exists because the catalog's
- * filter strip is a plain controlled value rather than a Radix tab set with panels; if the two ever
- * look different, the console has two segmented controls and the operator has to learn both.
- */
+/** Two or three exclusive views of one thing (Table / Queue): a muted trough, the active one raised. */
 export function Segmented<T extends string>({
   value,
   onChange,
@@ -439,7 +257,7 @@ export function Segmented<T extends string>({
   ariaLabel: string
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="bg-muted flex flex-wrap gap-0.5 rounded-lg p-[3px]">
+    <div role="tablist" aria-label={ariaLabel} className="bo-seg">
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -449,12 +267,7 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={cn(
-              "focus-visible:ring-ring h-7 cursor-pointer rounded-md border-none px-[11px] text-[13px] focus-visible:ring-2 focus-visible:outline-none",
-              active
-                ? "bg-brand text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground bg-transparent font-normal",
-            )}
+            className={cn(active && "is-active")}
           >
             {o.label}
           </button>
@@ -464,7 +277,11 @@ export function Segmented<T extends string>({
   )
 }
 
-/** The 1px × 12px rule the mockup puts between metadata items. */
+/** The dot between metadata items. */
 export function MetaDivider() {
-  return <span aria-hidden="true" className="bg-border h-3 w-px shrink-0" />
+  return (
+    <span aria-hidden="true" className="text-muted-foreground">
+      ·
+    </span>
+  )
 }

@@ -1,14 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 
 import type { TeamActivityEntryDTO } from "@effy/shared-types"
-import {
-  LoadingArea,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@effy/design-system/ui"
+import { cn } from "@effy/design-system"
+import { Skeleton } from "@effy/design-system/ui"
+import { ResponsiveSheet } from "@effy/web-kit/patterns"
+import { Check, CircleAlert, Dot } from "lucide-react"
 
 import { relativeTime } from "./model"
 import { teamActivityQuery } from "./queries"
@@ -28,51 +24,54 @@ export function TeamActivitySheet({
   const now = Date.now()
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 rounded-none sm:max-w-[440px]">
-        <SheetHeader className="border-border gap-1 border-b px-5 pt-[18px] pb-3.5 pr-12">
-          <SheetTitle className="text-[15.5px] tracking-[-.015em]">Team activity</SheetTitle>
-          <SheetDescription className="text-[13px] leading-[1.55]">
-            Everything the team has done, newest first.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="overflow-y-auto px-5 py-2">
-          {activity.isPending ? (
-            <LoadingArea variant="sheet" title="Loading team activity" description="Fetching what your team has done today." />
-          ) : activity.data && activity.data.entries.length > 0 ? (
-            <ul className="grid gap-0.5">
-              {activity.data.entries.map((entry) => (
-                <li key={entry.id} className="flex items-start gap-[11px] border-t py-3">
-                  <span
-                    aria-hidden="true"
-                    className={
-                      entry.tone === "problem"
-                        ? "bg-destructive mt-[7px] size-[5px] shrink-0 rounded-full"
-                        : entry.tone === "done"
-                          ? "bg-success mt-[7px] size-[5px] shrink-0 rounded-full"
-                          : "bg-muted-foreground mt-[7px] size-[5px] shrink-0 rounded-full"
-                    }
-                  />
-                  <span className="grid min-w-0 flex-1 gap-[3px]">
-                    <span className="text-[13.5px] leading-[1.5] text-pretty">
-                      {describe(entry)}
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                      {relativeTime(entry.at, now)} · {who(entry.actor)}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground py-6 text-sm">
-              Nothing has been recorded in the last two weeks.
-            </p>
-          )}
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Team activity"
+      description="Everything the team has done, newest first."
+    >
+      {activity.isPending ? (
+        <div className="grid gap-4" aria-busy="true" aria-label="Loading team activity">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="size-5 rounded-full" />
+              <div className="grid flex-1 gap-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3.5 w-1/3" />
+              </div>
+            </div>
+          ))}
         </div>
-      </SheetContent>
-    </Sheet>
+      ) : activity.data && activity.data.entries.length > 0 ? (
+        <ul className="bo-tl">
+          {activity.data.entries.map((entry) => {
+            const Mark = entry.tone === "problem" ? CircleAlert : entry.tone === "done" ? Check : Dot
+            return (
+              <li key={entry.id} className="bo-tl__item">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "bo-tl__mark",
+                    entry.tone === "problem" && "bo-tl__mark--problem",
+                    entry.tone === "done" && "bo-tl__mark--done",
+                  )}
+                >
+                  <Mark />
+                </span>
+                <span className="min-w-0">
+                  <span className="bo-tl__title block text-pretty">{describe(entry)}</span>
+                  <span className="bo-tl__body block">
+                    {relativeTime(entry.at, now)} · {who(entry.actor)}
+                  </span>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="py-6 text-muted-foreground">Nothing has been recorded in the last two weeks.</p>
+      )}
+    </ResponsiveSheet>
   )
 }
 

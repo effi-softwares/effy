@@ -1,10 +1,11 @@
-/* The back-office's look for the platform's shared shadcn primitives (@effy/design-system/ui).
+/* The back-office identity's look for the platform's shared shadcn primitives (@effy/design-system/ui),
+ * worn by both internal consoles: back-office as is, shop-web with its touch layer on top
+ * (apps/shop-web/src/styles/touch.css).
  *
- * ⚠ THE PRIMITIVES ARE NOT FORKED. shop-web renders the same components in the console identity, so
- * their source is left alone; this file restyles them for back-office only, keyed on the `data-slot`
- * / `data-variant` / `data-size` attributes every primitive already emits. Values are the redesign's
- * (docs/reference-screens/Effy Back-Office Redesign/01 Foundations and shell): 6px controls, 8px
- * panels, 32 / 36 / 40 / 48px heights, Geist 14px, flat panels with a hairline, shadow only on
+ * ⚠ THE PRIMITIVES ARE NOT FORKED. Their source is left alone; this file restyles them, keyed on the
+ * `data-slot` / `data-variant` / `data-size` attributes every primitive already emits. Values are the
+ * redesign's (docs/reference-screens/Effy Back-Office Redesign/01 Foundations and shell): 6px controls,
+ * 8px panels, 32 / 36 / 40 / 48px heights, Geist 14px, flat panels with a hairline, shadow only on
  * floating layers, and the motion board's timings.
  *
  * ⚠ UNLAYERED ON PURPOSE. Tailwind puts every utility (the primitives' cva classes included) in

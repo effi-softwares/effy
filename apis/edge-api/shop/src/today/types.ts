@@ -1,4 +1,4 @@
-import type { CourierPickupDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, ShopNextCollectionDTO, ShopOrderCollectionDTO } from "@effy/shared-types";
 // Today answers "what needs me, now", counted from live rows on each read; it owns no state. No request
 // type carries a shop id.
 
@@ -39,6 +39,8 @@ export interface LiveOrder {
   courierPickup?: CourierPickupDTO;
   total: string;
   currency: string;
+  /** The run expected to collect it, when an Effy driver will (099). */
+  collection?: ShopOrderCollectionDTO;
 }
 
 /** Derived for this shop's own short lines. */
@@ -56,6 +58,7 @@ export interface TodaySnapshot {
   stock: StockAttention[];
   proposals: ProposedRefund[];
   live: LiveOrder[];
+  nextCollection: ShopNextCollectionDTO | null;
 }
 
 /** A discriminated union: each kind resolves somewhere different with different facts. */

@@ -5,6 +5,7 @@ import { appIndexRoute, appRoute, managerRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { catalogNewRoute } from "./routes/catalog.new";
+import { catalogAvailabilityRoute } from "./routes/catalog.availability";
 import { catalogProductRoute } from "./routes/catalog.$productId";
 import { devTokensRoute } from "./routes/dev.tokens";
 import { insightsRoute } from "./routes/insights";
@@ -23,6 +24,7 @@ const routeTree = rootRoute.addChildren([
     catalogRoute,
     // Before the $productId route: "new" would otherwise be captured as a product id and answer 404.
     catalogNewRoute,
+    catalogAvailabilityRoute,
     catalogProductRoute,
     ordersRoute,
     ordersDetailRoute,

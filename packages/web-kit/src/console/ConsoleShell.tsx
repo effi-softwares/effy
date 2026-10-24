@@ -129,12 +129,13 @@ export function ConsoleShell<TRole extends string>({
           subtitle={headerSubtitle}
           breadcrumb={headerBreadcrumb}
         />
-        {/* The fixed bottom nav overlays the scroll region, so its height (56px + the safe area) is
-            reserved below 1100px, or the last rows and the pagination sit under it. */}
+        {/* The fixed bottom nav overlays the scroll region, so its height (up to 64px + the safe area)
+            and 40px of room are reserved below 1100px, or the last rows and the pagination sit under
+            it. At and above 1100px the surface's own bottom padding applies. */}
         <div
           className={cn(
             contentClassName,
-            "pb-[calc(56px+env(safe-area-inset-bottom))] min-[1100px]:pb-0"
+            "max-[1099px]:pb-[calc(104px+env(safe-area-inset-bottom))]"
           )}
         >
           {children}

@@ -16,7 +16,6 @@ export function BarChart({
   basis,
   buckets,
   valueOf,
-  series,
 }: {
   title: string
   subtitle: string
@@ -25,34 +24,35 @@ export function BarChart({
   basis: ComparisonBasis
   buckets: readonly InsightsBucketDTO[]
   valueOf: (b: InsightsBucketDTO) => number
-  /** `primary` is money (brand), `secondary` is volume (violet). Fixed by the design, not per call. */
+  /** Which figure this is — money or volume. Both draw in the action blue. */
   series: "primary" | "secondary"
 }) {
-  const latestFill = series === "primary" ? "bg-brand" : "bg-violet"
-  const restFill = series === "primary" ? "bg-brand-mid" : "bg-violet-mid"
+  // Both series are bars in the action blue (chart series 1); the current bucket is solid and the
+  // earlier ones the lighter blue, so "now" reads at a glance.
+  const latestFill = "bg-primary"
+  const restFill = "bg-brand-mid"
   const heights = barHeights(buckets.map(valueOf))
 
   return (
-    <section className="min-w-0">
-      <header className="flex flex-wrap items-baseline gap-3 border-b pb-3">
-        <div className="grid gap-[3px]">
-          <h2 className="text-sm font-semibold">{title}</h2>
-          {/* nowrap so the twin headers sit at the same height, as the brief requires. */}
-          <p className="text-muted-foreground text-[12.5px] whitespace-nowrap">{subtitle}</p>
+    <section className="bo-panel min-w-0">
+      <header className="bo-panel__head items-start!">
+        <div className="grid gap-0.5">
+          <h2 className="bo-panel__title">{title}</h2>
+          {/* nowrap so the twin headers sit at the same height. */}
+          <p className="bo-panel__desc whitespace-nowrap">{subtitle}</p>
         </div>
-        <div className="flex-1" />
-        <div className="grid gap-[3px] text-right">
-          <p className="text-[15px] font-semibold tabular-nums whitespace-nowrap">{total}</p>
-          <p className={`text-[11.5px] whitespace-nowrap ${deltaToneClass(figure)}`}>
+        <div className="grid gap-0.5 text-right">
+          <p className="text-[22px] leading-7 font-semibold tracking-[-.02em] tabular-nums whitespace-nowrap">{total}</p>
+          <p className={`text-[13px] whitespace-nowrap ${deltaToneClass(figure)}`}>
             {deltaText(figure, basis)}
           </p>
         </div>
       </header>
 
       {buckets.length === 0 ? (
-        <p className="text-muted-foreground py-10 text-sm">No sales in this window.</p>
+        <p className="px-5 py-10 text-muted-foreground">No sales in this window.</p>
       ) : (
-        <div className="flex h-[170px] items-end gap-1 pt-5">
+        <div className="flex h-[200px] items-end gap-1 px-5 pt-5 pb-4">
           {buckets.map((b, i) => (
             <div
               key={b.start}
@@ -65,7 +65,7 @@ export function BarChart({
                 style={{ height: `${heights[i]}%` }}
                 title={`${b.label}${b.partial ? " (partial)" : ""}`}
               />
-              <span className="text-muted-foreground font-mono text-[10px] whitespace-nowrap">
+              <span className="text-[11px] whitespace-nowrap text-muted-foreground tabular-nums">
                 {b.label}
               </span>
             </div>

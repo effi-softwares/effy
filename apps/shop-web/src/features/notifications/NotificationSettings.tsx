@@ -1,8 +1,10 @@
-import { BellOff, Share } from "lucide-react"
+import { Bell, BellOff, Share } from "lucide-react"
 
 import { Button, Switch } from "@effy/design-system/ui"
 
-import { DetailSection, Page } from "@/components/console/primitives"
+import { PageHeader } from "@effy/web-kit/patterns"
+
+import { Page } from "@/components/console/primitives"
 
 import { useNotifications } from "./useNotifications"
 
@@ -18,22 +20,24 @@ export function NotificationSettingsScreen() {
 
   return (
     <Page>
-      <DetailSection
+      <PageHeader
         title="Notifications"
-        subtitle="Be told when a new order arrives, or when something needs your attention — even with the console closed."
-        action={
+        description="Be told when a new order arrives, or when something needs your attention — even with the console closed."
+        actions={
           n.status === "on" ? (
-            <Button variant="outline" size="sm" disabled={n.busy} onClick={() => void n.disable()}>
+            <Button variant="outline" disabled={n.busy} onClick={() => void n.disable()}>
+              <BellOff aria-hidden="true" />
               Turn off on this device
             </Button>
           ) : null
         }
-      >
-        <div className="grid gap-4 pt-4">
+      />
+      <section className="bo-panel max-w-3xl">
+        <div className="bo-panel__body">
           <StateBlock state={n} />
-          {n.status === "on" && <TypeToggles state={n} />}
         </div>
-      </DetailSection>
+        {n.status === "on" ? <TypeToggles state={n} /> : null}
+      </section>
     </Page>
   )
 }
@@ -41,7 +45,7 @@ export function NotificationSettingsScreen() {
 type State = ReturnType<typeof useNotifications>
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-muted-foreground max-w-[70ch] text-[13px] leading-[1.6]">{children}</p>
+  return <p className="max-w-[70ch] text-muted-foreground">{children}</p>
 }
 
 function StateBlock({ state }: { state: State }) {
@@ -79,14 +83,12 @@ function StateBlock({ state }: { state: State }) {
       // any browser. A switch that silently does nothing teaches the operator the console is
       // broken; naming the situation is the only honest option, and the only path back.
       return (
-        <div className="bg-[var(--warning-soft)] text-[var(--warning)] flex items-start gap-3 rounded-md px-3 py-2.5 text-[13px]">
-          <BellOff aria-hidden className="mt-0.5 size-4 shrink-0" />
-          <div className="grid gap-1">
-            <span className="font-medium">Notifications are blocked in your browser.</span>
-            <span className="opacity-90">
-              The console cannot turn them back on for you. Allow notifications for this site in your
-              browser&apos;s settings, then return here.
-            </span>
+        <div role="status" className="bo-alert bo-alert--destructive">
+          <BellOff aria-hidden="true" />
+          <div className="bo-alert__title">Notifications are blocked in your browser.</div>
+          <div className="bo-alert__description">
+            The console cannot turn them back on for you. Allow notifications for this site in your browser&apos;s
+            settings, then return here.
           </div>
         </div>
       )
@@ -103,12 +105,11 @@ function StateBlock({ state }: { state: State }) {
           </Note>
           <Note>You can turn any of these off individually once they are on.</Note>
           {state.hint && (
-            <p className="text-[var(--warning)] max-w-[70ch] text-[13px] leading-[1.6]">
-              {state.hint}
-            </p>
+            <p className="max-w-[70ch] font-medium">{state.hint}</p>
           )}
           <div>
-            <Button disabled={state.busy} onClick={() => void state.enable()}>
+            <Button size="lg" disabled={state.busy} onClick={() => void state.enable()}>
+              <Bell aria-hidden="true" />
               Turn on notifications
             </Button>
           </div>
@@ -116,22 +117,24 @@ function StateBlock({ state }: { state: State }) {
       )
 
     case "on":
-      return <Note>This device is receiving notifications for this shop.</Note>
+      return (
+        <p className="flex items-center gap-2 font-medium">
+          <span aria-hidden="true" className="bo-dot bo-dot--on" />
+          This device is receiving notifications for this shop.
+        </p>
+      )
   }
 }
 
 function TypeToggles({ state }: { state: State }) {
   if (state.availableTypes.length === 0) return null
   return (
-    <div className="grid">
+    <div className="border-t border-border">
       {state.availableTypes.map((t) => {
         const muted = state.mutedTypes.includes(t.type)
         return (
-          <div
-            key={t.type}
-            className="border-border flex items-center justify-between gap-5 border-b py-[11px]"
-          >
-            <label htmlFor={`notif-${t.type}`} className="text-[13.5px]">
+          <div key={t.type} className="sh-toggle-row">
+            <label htmlFor={`notif-${t.type}`} className="sh-toggle-row__text font-medium">
               {/* The label comes from the server, not from a list in this file. It is notification
                   copy, and copy lives in one catalogue — a console-local list would be a second
                   source for the wording the operator sees in the banner itself. */}

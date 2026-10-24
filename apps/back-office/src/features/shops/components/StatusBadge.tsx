@@ -1,6 +1,6 @@
 import type { ShopLifecycleStatus, ShopStaffStatus } from "@effy/shared-types";
 
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { StatusWord } from "@effy/web-kit/patterns";
 
 // A shop's or an operator's status as a word in the closed tones: active → done (green), suspended →
 // waiting (outline), disabled → inert (grey).

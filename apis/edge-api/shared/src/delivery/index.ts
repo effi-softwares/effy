@@ -18,3 +18,4 @@ export * from "./round-stage";
 export * from "./vehicle-check";
 export * from "./hub-checkin";
 export * from "./hub-sort";
+export * from "./shop-collection";

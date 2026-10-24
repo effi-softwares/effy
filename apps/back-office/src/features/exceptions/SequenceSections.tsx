@@ -16,9 +16,9 @@ import {
 } from "@effy/design-system/ui";
 import { HOLD_REASON_WORDS, VEHICLE_CHECK_WORDS, type DeliveryExceptionListDTO, type HeldPackageDTO, type VehicleCheckItem } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { clockAt, moment } from "@/lib/format";
 
 import { useClearVehicleCheck, useResolveHold } from "./queries";

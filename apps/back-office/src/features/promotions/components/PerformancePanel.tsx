@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { Panel } from "@/components/patterns/Panel";
+import { Panel } from "@effy/web-kit/patterns";
 
 import { performanceQuery } from "../queries";
 

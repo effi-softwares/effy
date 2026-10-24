@@ -1,7 +1,7 @@
 import type { ReviewVariantDTO } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
-import { StatusWord, type StatusTone } from "@/components/patterns/StatusWord";
+import { Panel } from "@effy/web-kit/patterns";
+import { StatusWord, type StatusTone } from "@effy/web-kit/patterns";
 
 import { previewCustomerPrice, type MarginEntry } from "./model";
 

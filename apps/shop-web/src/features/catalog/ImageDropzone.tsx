@@ -220,7 +220,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
         </button>
       )}
 
-      {error ? <p className="shrink-0 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="shrink-0 text-sm font-medium">{error}</p> : null}
     </div>
   );
 }

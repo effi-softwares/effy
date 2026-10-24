@@ -4,8 +4,9 @@
 
 import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
 
+import { collectionsFor } from "../collection/service";
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
-import { STATUS_WORD, parcelCustodyOf, type PackageStatusView, type ParcelZone, type ShopLabelCommonDTO } from "@effy/shared-types";
+import { STATUS_WORD, parcelCustodyOf, type PackageStatusView, type ParcelZone, type ShopLabelCommonDTO, type ShopOrderCollectionDTO, type StorageClass } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
@@ -205,9 +206,18 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
   }
 
   const ids = page.rows.map((r) => r.id);
-  const [statuses, pickups] = await Promise.all([shopStatuses(ids), courierPickups(shopId, ids)]);
+  const [statuses, pickups, collections] = await Promise.all([
+    shopStatuses(ids),
+    courierPickups(shopId, ids),
+    collectionsFor(shopId, ids),
+  ]);
   return {
-    items: page.rows.map((r) => ({ ...toRow(r), ...pickupOf(pickups, r.id), statusView: statuses.get(r.id) ?? fallbackView() })),
+    items: page.rows.map((r) => ({
+      ...toRow(r),
+      ...pickupOf(pickups, r.id),
+      ...collectionOf(collections, r.id),
+      statusView: statuses.get(r.id) ?? fallbackView(),
+    })),
     // Past the last page there are no rows for the window function, so the total falls back to the tab's count.
     total: page.rows[0] ? Number(page.rows[0].full_count) : byTab[q.tab],
     page: q.page,
@@ -293,6 +303,7 @@ interface LineRecord {
   gtin: string | null;
   pick_note: string | null;
   storage_key: string | null;
+  storage_class: StorageClass;
   ordered_quantity: number;
   gathered_quantity: number | null;
   unavailable_quantity: number | null;
@@ -314,6 +325,8 @@ SELECT oi.id AS order_item_id,
        oi.sku,
        oi.gtin,
        pm.storage_key,
+       -- Ambient, chilled or frozen as sold: the pick list's walking order (099).
+       oi.storage_class,
        oi.quantity AS ordered_quantity,
        fi.gathered_quantity,
        fi.unavailable_quantity,
@@ -449,10 +462,15 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   const refunded = cents(row.refunded);
 
   // Never a driver's name.
-  const [statuses, pickups] = await Promise.all([shopStatuses([fulfillmentId]), courierPickups(shopId, [fulfillmentId])]);
+  const [statuses, pickups, collections] = await Promise.all([
+    shopStatuses([fulfillmentId]),
+    courierPickups(shopId, [fulfillmentId]),
+    collectionsFor(shopId, [fulfillmentId]),
+  ]);
   const statusView = statuses.get(fulfillmentId) ?? fallbackView();
   return {
     ...pickupOf(pickups, fulfillmentId),
+    ...collectionOf(collections, fulfillmentId),
     id: row.id,
     orderId: row.order_id,
     orderNumber: row.order_number,
@@ -543,6 +561,7 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
     unavailableQuantity: r.unavailable_quantity ?? 0,
     refundedQuantity: Number(r.refunded_quantity ?? 0),
     pickNote: r.pick_note,
+    storageClass: r.storage_class,
     unitPrice: money(r.unit_price_amount),
     lineTotal: money(r.line_subtotal_amount),
   };
@@ -840,3 +859,9 @@ function money(amount: string | null): string {
 }
 
 export const __test = { cents, fromCents, money, likePattern };
+
+/** `{ collection }` when an Effy driver will collect the package, else nothing (099). */
+function collectionOf(m: Map<string, ShopOrderCollectionDTO>, id: string): { collection?: ShopOrderCollectionDTO } {
+  const c = m.get(id);
+  return c ? { collection: c } : {};
+}

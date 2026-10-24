@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Box, CupSoda, type LucideIcon, Package, SprayCan, UtensilsCrossed } from "lucide-react";
+import {
+  ArrowLeft,
+  Box,
+  Check,
+  CircleAlert,
+  CupSoda,
+  Image as ImageIcon,
+  type LucideIcon,
+  Package,
+  SprayCan,
+  UtensilsCrossed,
+} from "lucide-react";
 
 import type { GstStatus, CreateProductRequest } from "@effy/shared-types";
 import { GST_STATUS_WORDS } from "@effy/shared-types";
 import {
   Button,
+  Skeleton,
   Input,
   Label,
   Progress,
@@ -18,8 +30,9 @@ import {
   Textarea,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+import { PageHeader } from "@effy/web-kit/patterns";
 
-import { MicroLabel, Page } from "@/components/console/primitives";
+import { Page } from "@/components/console/primitives";
 
 import { meQuery } from "@/features/shop-identity/queries";
 import { sessionQuery } from "@/features/auth/queries";
@@ -233,7 +246,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       {schema.isError ? (
         <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
       ) : schema.isPending ? (
-        <p className="text-muted-foreground text-sm">Loading catalog…</p>
+        <div className="grid gap-3" aria-busy="true" aria-label="Loading catalog"><Skeleton className="h-14 w-full rounded-lg" /><Skeleton className="h-14 w-full rounded-lg" /><Skeleton className="h-14 w-2/3 rounded-lg" /></div>
       ) : step === 0 ? (
         <TypeStep
           types={schema.data.productTypes}
@@ -280,144 +293,146 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
     "Check it over. Nothing is sent to Effy until you press Submit for review. It goes on sale once Effy approves it.",
   ] as const;
 
+  const last = step === STEP_TITLES.length - 1;
+
   return (
-    <Page className="gap-6">
-      {/* The imported design's wizard is a page, not a dialog: two columns, the form on the left and
-          a progress rail with a live preview on the right. A modal cannot show the preview, and it
-          cannot show which steps remain without stealing room from the form. */}
-      <div className="grid items-start gap-9 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="grid min-w-0 gap-6">
-          <div className="grid gap-[5px]">
-            <MicroLabel>
-              Step {step + 1} of {STEP_TITLES.length}
-            </MicroLabel>
-            <h2 className="text-[18px] font-semibold tracking-[-.02em]">{STEP_TITLES[step]}</h2>
-            <p className="text-muted-foreground max-w-[60ch] text-[13.5px] leading-[1.6]">
-              {STEP_HINTS[step]}
-            </p>
-          </div>
+    <Page>
+      {/* A page, not a dialog: the steps across the top, the form beside a live preview of how the
+          product will look on the storefront, and the next step pinned under the thumb. */}
+      <PageHeader
+        title={STEP_TITLES[step]}
+        description={STEP_HINTS[step]}
+        meta={
+          <span>
+            Step {step + 1} of {STEP_TITLES.length} · your draft saves as you go
+          </span>
+        }
+        actions={
+          <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
+            Discard draft
+          </Button>
+        }
+      />
 
-          <div className="bg-border h-px" />
+      <nav aria-label="Steps" className="bo-tabs">
+        {STEP_TITLES.map((label, i) => {
+          const done = i < step;
+          const active = i === step;
+          // Only a completed step is reachable. Jumping forward over an unvalidated form is exactly
+          // what `canAdvance` exists to prevent, and freely clickable steps would route around it.
+          const reachable = i <= step;
+          return (
+            <button
+              key={label}
+              type="button"
+              disabled={!reachable || busy}
+              onClick={() => goToStep(i)}
+              aria-current={active ? "step" : undefined}
+              className={cn("bo-tabs__tab disabled:cursor-default", active && "is-active")}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "bo-tabs__count",
+                  done && "bo-tabs__count--primary",
+                )}
+              >
+                {done ? <Check className="size-3.5" /> : i + 1}
+              </span>
+              {label}
+              <span className="sr-only">{done ? " (done)" : active ? " (now)" : ""}</span>
+            </button>
+          );
+        })}
+      </nav>
 
-          <div className="min-h-[280px]">{body}</div>
+      <div className="bo-detail">
+        <section className="bo-panel bo-detail__main">
+          <div className="bo-panel__body min-h-[280px]">{body}</div>
+        </section>
 
-          <div className="border-border flex items-center justify-between gap-2 border-t pt-4">
-            <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
-              Discard
-            </Button>
-            <div className="flex gap-2">
-              {step > 0 ? (
-                <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
-                  Back
-                </Button>
-              ) : null}
-              {step < STEP_TITLES.length - 1 ? (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    // The sizes step says what is missing instead of greying Next out with no reason.
-                    if (step === 2 && !canAdvance) setVariantsAttempted(true);
-                    else goToStep(step + 1);
-                  }}
-                  disabled={!canAdvance && step !== 2}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button type="button" onClick={() => void publish()} disabled={busy}>
-                  {busy ? "Submitting…" : "Submit for review"}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <aside className="grid min-w-0 gap-[22px]">
-          <div className="grid gap-3">
-            <MicroLabel>Progress</MicroLabel>
-            {STEP_TITLES.map((label, i) => {
-              const done = i < step;
-              const active = i === step;
-              // Only a completed step is clickable. Jumping forward into Review over an unvalidated
-              // Basics form is exactly what `canAdvance` exists to prevent, and a freely clickable
-              // rail would route straight around it.
-              const reachable = i <= step;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  disabled={!reachable || busy}
-                  onClick={() => goToStep(i)}
-                  aria-current={active ? "step" : undefined}
-                  className="border-border flex w-full items-center gap-2.5 border-b pb-3 text-left enabled:cursor-pointer disabled:cursor-default"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={
-                      "border-border grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-medium " +
-                      (done || active
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-muted-foreground")
-                    }
-                  >
-                    {done ? "\u2713" : i + 1}
-                  </span>
-                  <span
-                    className={
-                      "min-w-0 flex-1 text-[13px] " +
-                      (active ? "text-foreground font-medium" : "text-muted-foreground")
-                    }
-                  >
-                    {label}
-                  </span>
-                  <span className="text-muted-foreground text-xs whitespace-nowrap">
-                    {done ? "Done" : active ? "Now" : ""}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* The live preview. It shows only what the operator has actually entered — an empty
-              draft reads "Untitled product", never invented sample text. */}
-          <div className="grid gap-3">
-            <MicroLabel>Preview</MicroLabel>
-            <div className="flex items-center gap-3">
-              {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt=""
-                  className="border-border size-11 shrink-0 rounded-md border object-cover"
-                />
-              ) : (
-                <div className="size-11 shrink-0 rounded-[7px] bg-brand-soft" />
-              )}
-              <div className="grid min-w-0 gap-[3px]">
-                <div className="truncate text-[13.5px] font-medium">
-                  {draft.name.trim() || "Untitled product"}
-                </div>
-                <div className="text-muted-foreground truncate text-xs">
-                  {draft.variantSet.variants.length === 1 ? "One variant" : `${draft.variantSet.variants.length} variants`}
-                </div>
+        {/* The live preview. It shows only what the operator has entered — an empty draft reads
+            "Untitled product", never invented sample text. */}
+        <aside className="bo-detail__aside">
+          <section className="bo-panel">
+            <div className="bo-panel__head">
+              <div className="min-w-0 flex-1">
+                <h2 className="bo-panel__title">How shoppers see it</h2>
+                <p className="bo-panel__desc">Sold under Effy&apos;s name. Shoppers never see which shop supplies it.</p>
               </div>
             </div>
-            <div className="border-border flex justify-between gap-4 border-t pt-2.5 text-[13px]">
-              <span className="text-muted-foreground">Price</span>
-              <span className="font-medium tabular-nums">{previewPrice(draft)}</span>
+            <div className="bo-panel__body grid gap-3">
+              {previewUrl ? (
+                <img src={previewUrl} alt="" className="aspect-square w-full rounded-lg border border-border object-cover" />
+              ) : (
+                <div className="bo-img aspect-square w-full rounded-lg">
+                  <ImageIcon aria-hidden="true" />
+                </div>
+              )}
+              <div className="grid gap-0.5">
+                {draft.brand?.trim() ? <div className="text-sm text-muted-foreground">{draft.brand}</div> : null}
+                <div className="text-lg font-semibold">{draft.name.trim() || "Untitled product"}</div>
+              </div>
+              <dl className="bo-dl bo-dl--tight">
+                <div className="bo-dl__row">
+                  <dt>Sold as</dt>
+                  <dd>{draft.variantSet.variants.length === 1 ? "One size" : `${draft.variantSet.variants.length} sizes`}</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Your price</dt>
+                  <dd className="tabular-nums">{previewPrice(draft)}</dd>
+                </div>
+                <div className="bo-dl__row">
+                  <dt>Type</dt>
+                  <dd>{selectedType?.name ?? "—"}</dd>
+                </div>
+              </dl>
+              <p className="text-sm text-muted-foreground">Customers&apos; price is set by Effy when approved.</p>
             </div>
-            <div className="flex justify-between gap-4 text-[13px]">
-              <span className="text-muted-foreground">Type</span>
-              <span className="font-medium">{selectedType?.name ?? "—"}</span>
-            </div>
-          </div>
+          </section>
         </aside>
       </div>
 
       {formError ? (
-        <p role="alert" className="text-destructive text-sm">
-          {formError}
-        </p>
+        <div role="alert" className="bo-alert bo-alert--destructive">
+          <CircleAlert aria-hidden="true" />
+          <div className="bo-alert__title">{formError}</div>
+        </div>
       ) : null}
+
+      <div className="sh-actionbar">
+        <div className="sh-actionbar__text">
+          <div className="sh-actionbar__title">{last ? "Ready to send to Effy" : `Next: ${STEP_TITLES[step + 1]}`}</div>
+          <div className="sh-actionbar__desc">
+            {last ? "It goes on sale once Effy approves it." : "Your draft saves as you go."}
+          </div>
+        </div>
+        <div className="sh-actionbar__actions">
+          {step > 0 ? (
+            <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
+              <ArrowLeft aria-hidden="true" />
+              Back
+            </Button>
+          ) : null}
+          {!last ? (
+            <Button
+              type="button"
+              onClick={() => {
+                // The sizes step says what is missing instead of greying Next out with no reason.
+                if (step === 2 && !canAdvance) setVariantsAttempted(true);
+                else goToStep(step + 1);
+              }}
+              disabled={!canAdvance && step !== 2}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => void publish()} disabled={busy}>
+              {busy ? "Submitting…" : "Submit for review"}
+            </Button>
+          )}
+        </div>
+      </div>
     </Page>
   );
 }
@@ -479,15 +494,10 @@ function TypeStep({
               onClick={() => onSelect(t.id)}
               aria-pressed={selected}
               className={cn(
-                "flex h-full min-h-28 flex-col items-center justify-center gap-3 rounded-lg border p-4 text-center transition-colors",
-                // Flat tint tokens, not alpha. `bg-primary/5` and `border-primary/60` composite
-                // the action colour onto whatever is behind them and produce values that exist in no
-                // palette — and they land differently in light and dark, where the ground is navy
-                // rather than white. --brand-soft and --brand-mid are those roles, authored for both
-                // appearances and contrast-checked.
-                "hover:border-brand-mid hover:bg-accent",
-                "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-muted",
-                selected ? "border-brand bg-brand-soft" : "border-border",
+                // A choice is a full-width card, ringed in blue when chosen (Foundations).
+                "flex h-full min-h-32 flex-col items-center justify-center gap-3 rounded-lg border bg-background p-4 text-center transition-colors",
+                "hover:bg-[var(--row-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                selected ? "border-primary ring-1 ring-primary" : "border-border",
               )}
             >
               <span
@@ -503,7 +513,7 @@ function TypeStep({
               <span className="min-w-0">
                 <span className="block font-medium leading-tight">{t.name}</span>
                 {t.description ? (
-                  <span className="mt-1 block text-xs text-muted-foreground">{t.description}</span>
+                  <span className="mt-1 block text-sm text-muted-foreground">{t.description}</span>
                 ) : null}
               </span>
             </button>
@@ -527,7 +537,7 @@ function BasicsStep({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="p-name">
-          Name<span className="ml-0.5 text-destructive">*</span>
+          Name<span className="ml-0.5 text-muted-foreground">*</span>
         </Label>
         <Input
           id="p-name"
@@ -538,7 +548,7 @@ function BasicsStep({
 
       <div className="space-y-2">
         <Label htmlFor="p-category">
-          Category<span className="ml-0.5 text-destructive">*</span>
+          Category<span className="ml-0.5 text-muted-foreground">*</span>
         </Label>
         <Select
           value={draft.primaryCategoryId ?? ""}
@@ -569,7 +579,7 @@ function BasicsStep({
       {/* Every product is taxable or GST-free; it decides what a customer's tax invoice says. */}
       <div className="space-y-2">
         <Label htmlFor="p-gst">
-          GST<span className="ml-0.5 text-destructive">*</span>
+          GST<span className="ml-0.5 text-muted-foreground">*</span>
         </Label>
         <Select value={draft.gstStatus} onValueChange={(v) => onField({ gstStatus: v as GstStatus })}>
           <SelectTrigger id="p-gst" aria-describedby="p-gst-help">
@@ -588,7 +598,7 @@ function BasicsStep({
 
       <div className="space-y-2">
         <Label htmlFor="p-short">
-          Short description<span className="ml-0.5 text-destructive">*</span>
+          Short description<span className="ml-0.5 text-muted-foreground">*</span>
         </Label>
         <Textarea
           id="p-short"

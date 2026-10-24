@@ -10,7 +10,7 @@ import {
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
-import { Callout } from "@/components/patterns/States";
+import { Callout } from "@effy/web-kit/patterns";
 
 import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText";
 import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";

@@ -7,8 +7,8 @@ import { CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "luci
 import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { sessionQuery } from "@/features/auth/queries";

@@ -9,9 +9,9 @@ import { cn } from "@effy/design-system";
 import { Button, Checkbox, Input, Label, Skeleton, Switch, Textarea } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
-import { Callout } from "@/components/patterns/States";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries";

@@ -22,51 +22,46 @@ export function TopProducts({
   currency: string
 }) {
   return (
-    <section className="max-w-[760px]">
-      <header className="flex flex-wrap items-baseline gap-3 border-b pb-3">
-        <div className="grid gap-[3px]">
-          <h2 className="text-sm font-semibold">Top products</h2>
-          <p className="text-muted-foreground text-[12.5px]">By revenue, {RANGE_PERIOD[range]}</p>
+    <section className="bo-panel min-w-0">
+      <header className="bo-panel__head">
+        <div className="grid gap-0.5">
+          <h2 className="bo-panel__title">Top products</h2>
+          <p className="bo-panel__desc">By revenue, {RANGE_PERIOD[range]}</p>
         </div>
-        <div className="flex-1" />
-        <Link
-          to="/catalog"
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium no-underline"
-        >
+        <Link to="/catalog" className="text-sm font-medium text-foreground no-underline hover:underline">
           Catalog →
         </Link>
       </header>
 
       {products.length === 0 ? (
-        <p className="text-muted-foreground py-8 text-sm">Nothing sold in this window yet.</p>
+        <p className="px-5 py-8 text-muted-foreground">Nothing sold in this window yet.</p>
       ) : (
-        <table className="w-full border-collapse">
+        <table className="bo-table">
           <tbody>
             {products.map((p) => (
-              <tr key={p.productId} className="hover:bg-accent border-b">
-                <td className="w-[38px] py-3.5 pr-2">
+              <tr key={p.productId}>
+                <td className="w-[64px]">
                   {p.thumbnailUrl ? (
                     <img
                       src={p.thumbnailUrl}
                       alt=""
-                      className="size-[30px] rounded-[7px] border border-border object-cover"
+                      className="size-10 rounded-md border border-border object-cover"
                     />
                   ) : (
-                    // The design's --brand-soft placeholder tile, not a bordered grey square.
-                    <div className="size-[30px] rounded-[7px] bg-brand-soft" />
+                    <div className="bo-img size-10" />
                   )}
                 </td>
-                <td className="px-2 py-3.5">
+                <td>
                   <Link
                     to="/catalog/$productId"
                     params={{ productId: p.productId }}
-                    className="block truncate text-[13.5px] font-medium no-underline"
+                    className="block truncate font-medium text-foreground no-underline hover:underline"
                   >
                     {p.name}
                   </Link>
-                  <span className="text-muted-foreground font-mono text-xs">{p.sku ?? "—"}</span>
+                  <span className="bo-sub font-mono">{p.sku ?? "—"}</span>
                 </td>
-                <td className="w-[34%] px-2 py-3.5">
+                <td className="w-[34%]">
                   <div className="flex items-center gap-2.5">
                     {/* The shared Progress primitive, on the brand tone — this bar measures a
                         share of revenue, which is money, and money is the first chart series too.
@@ -79,12 +74,12 @@ export function TopProducts({
                       value={Math.round(p.share * 100)}
                       label={`${p.name}: share of revenue`}
                     />
-                    <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
+                    <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
                       {p.units} units
                     </span>
                   </div>
                 </td>
-                <td className="w-[100px] py-3.5 pl-2 text-right text-[13.5px] font-medium tabular-nums whitespace-nowrap">
+                <td className="is-num w-[110px] font-semibold whitespace-nowrap">
                   {money(p.revenue, currency)}
                 </td>
               </tr>

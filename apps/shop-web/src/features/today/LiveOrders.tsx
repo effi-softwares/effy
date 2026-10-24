@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router"
 
 import type { ShopLiveOrderDTO } from "@effy/shared-types"
-import { Spinner } from "@effy/design-system/ui"
+import { BellRing } from "lucide-react"
+
+import { cn } from "@effy/design-system"
 
 import { formatMoney } from "@/features/fulfillment/orderConsole"
 
@@ -16,83 +18,61 @@ import { isNewArrival, liveMeta } from "./model"
  * committed and fanned it out, so that state is unrepresentable — and the rule the design was
  * working around ("never send a row to a different order's id") holds by construction here.
  *
- * The `New` badge and the newest row now use `--success-soft`, as the design draws them. Both were
- * monochrome because the old `--success` measured 4.00:1 and could not legally carry text; the
- * adopted #0d8043 clears 4.5:1 on white and on its own tint, so the word may sit on the colour.
- *
- * The dot stays. The word "New" still appears, so the row reads as new in greyscale and to a
- * screen reader — the tint is what makes it findable, not what makes it legible.
+ * A new arrival tints blue for 600 ms (the motion board's highlight) and carries a blue "New" badge
+ * for its first minute — attention is blue in this identity, green only ever means done. The word
+ * is always there, so the row reads as new in greyscale and to a screen reader.
  */
 export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[]; now: number }) {
   return (
-    <section className="bg-background overflow-hidden rounded-[var(--radius)] border">
-      <header className="flex items-center gap-3 border-b px-[18px] py-4">
-        <div className="grid min-w-0 gap-[3px]">
-          <div className="flex items-center gap-2">
-            {/* The design's spinner, not a pulsing dot. "Anything that updates on its own carries
-                the spinner" — a dot that fades in and out reads as decoration, while a turning ring
-                reads as work in flight, which is the actual claim this header is making. It is
-                exempt from the reduced-motion flattening by `data-effy-spinner` (see spinner.tsx):
-                slowed, never stopped, because it IS the signal. */}
-            <Spinner />
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Live orders</h2>
-          </div>
-          <p className="text-muted-foreground text-[12.5px]">Updating as orders arrive</p>
+    <section className="bo-panel min-w-0">
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 className="bo-panel__title">Live orders</h2>
+          <p className="bo-panel__desc">Updating as orders arrive</p>
         </div>
-        <div className="flex-1" />
-        <Link
-          to="/orders"
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium no-underline"
-        >
+        <Link to="/orders" className="text-sm font-medium text-foreground no-underline hover:underline">
           All orders →
         </Link>
-      </header>
+      </div>
 
       {orders.length === 0 ? (
-        <p className="text-muted-foreground px-[18px] py-6 text-sm">
-          No orders yet today. New ones appear here as they are paid.
-        </p>
+        <p className="px-5 py-6 text-muted-foreground">No orders yet today. New ones appear here as they are paid.</p>
       ) : (
         <ul>
-          {orders.map((o, i) => (
-            <li key={o.fulfillmentId}>
-              <Link
-                to="/orders/$fulfillmentId"
-                params={{ fulfillmentId: o.fulfillmentId }}
-                className={
-                  "hover:bg-accent flex w-full items-center gap-3 border-b px-[18px] py-[14px] text-left no-underline" +
-                  (i === 0 && isNewArrival(o.paidAt, now) ? " bg-success-soft" : "")
-                }
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground font-mono text-[12.5px]">
-                      {o.orderNumber}
+          {orders.map((o) => {
+            const fresh = isNewArrival(o.paidAt, now)
+            return (
+              <li key={o.fulfillmentId} className="border-b border-border">
+                <Link
+                  to="/orders/$fulfillmentId"
+                  params={{ fulfillmentId: o.fulfillmentId }}
+                  className={cn(
+                    "flex min-h-[72px] w-full items-center gap-4 px-5 py-3 text-left no-underline hover:bg-[var(--row-hover)] max-md:px-4",
+                    fresh && "bo-flash",
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="bo-code font-medium">{o.orderNumber}</span>
+                      <span className="font-medium">{o.customerName}</span>
+                      {fresh ? (
+                        <span className="bo-st bo-st--info">
+                          <BellRing aria-hidden="true" />
+                          New
+                        </span>
+                      ) : null}
                     </span>
-                    <span className="text-[13.5px] font-medium">{o.customerName}</span>
-                    {isNewArrival(o.paidAt, now) ? (
-                      <span className="flex items-center gap-1.5 rounded-full border border-border bg-success-soft px-[7px] py-px text-[11px] font-medium text-success">
-                        <span aria-hidden="true" className="size-1.5 rounded-full bg-success" />
-                        New
-                      </span>
-                    ) : null}
+                    <span className="bo-sub truncate">{liveMeta(o, now)}</span>
                   </span>
-                  <span className="text-muted-foreground mt-1 block truncate text-xs">
-                    {liveMeta(o, now)}
-                  </span>
-                </span>
-                <span className="text-[13.5px] font-medium tabular-nums whitespace-nowrap">
-                  {formatMoney(o.total, o.currency)}
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <span className="font-semibold whitespace-nowrap tabular-nums">{formatMoney(o.total, o.currency)}</span>
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       )}
 
-      <p className="text-muted-foreground px-[18px] py-[13px] text-[12.5px]">
-        Showing the five most recent orders
-      </p>
+      <p className="px-5 py-3 text-sm text-muted-foreground max-md:px-4">Showing the five most recent orders</p>
     </section>
   )
 }

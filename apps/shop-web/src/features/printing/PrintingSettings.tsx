@@ -2,7 +2,10 @@ import { useEffect, useState } from "react"
 
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 
-import { DetailSection, Page } from "@/components/console/primitives"
+import { PageHeader } from "@effy/web-kit/patterns"
+import { Printer, RefreshCw } from "lucide-react"
+
+import { Page } from "@/components/console/primitives"
 
 import { LABEL_LAYOUTS, type LabelLayout, type PrinterDpi } from "@/features/fulfillment/labels/render"
 import {
@@ -48,8 +51,9 @@ export function PrintingSettingsScreen() {
 
   return (
     <Page>
-      <DetailSection title="Printing" subtitle="How this computer prints bag labels. Every shop computer keeps its own setting.">
-        <div className="grid gap-6 pt-4">
+      <PageHeader title="Printing" description="How this computer prints bag labels. Every shop computer keeps its own setting." />
+      <section className="bo-panel max-w-3xl">
+        <div>
           <Row label="Printer" hint="Labels go straight to a Zebra label printer when Zebra Browser Print is running on this computer.">
             <Select
               value={value}
@@ -59,7 +63,7 @@ export function PrintingSettingsScreen() {
                 if (device) save({ kind: "zebra", dpi: choice.dpi, device })
               }}
             >
-              <SelectTrigger aria-label="Printer" className="w-[300px]">
+              <SelectTrigger aria-label="Printer" className="w-[280px] max-w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -76,12 +80,13 @@ export function PrintingSettingsScreen() {
                   : null}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={look} disabled={zebras === "looking"}>
+            <Button variant="outline" onClick={look} disabled={zebras === "looking"}>
+              <RefreshCw aria-hidden="true" className={zebras === "looking" ? "animate-spin" : undefined} />
               {zebras === "looking" ? "Looking…" : "Look again"}
             </Button>
           </Row>
           {zebras === null ? (
-            <p className="text-muted-foreground max-w-[70ch] text-[13px] leading-[1.6]">
+            <p className="border-b border-border px-5 py-4 text-sm text-muted-foreground">
               No Zebra Browser Print on this computer. To print straight to a Zebra label printer, install Zebra Browser Print
               from Zebra's website, start it, then open{" "}
               <a className="text-primary underline" href={BROWSER_PRINT_URL} target="_blank" rel="noreferrer">
@@ -111,7 +116,7 @@ export function PrintingSettingsScreen() {
                 rememberLayout(v as LabelLayout)
               }}
             >
-              <SelectTrigger aria-label="Label size" className="w-[300px]">
+              <SelectTrigger aria-label="Label size" className="w-[280px] max-w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,22 +137,25 @@ export function PrintingSettingsScreen() {
                 void printTestLabel(choice, layout).then((r) => setResult(r.ok ? "Test label sent." : r.detail))
               }}
             >
+              <Printer aria-hidden="true" />
               Print a test label
             </Button>
-            {result ? <span className="text-[13px]">{result}</span> : null}
+            {result ? <span role="status" className="text-sm font-medium">{result}</span> : null}
           </Row>
         </div>
-      </DetailSection>
+      </section>
     </Page>
   )
 }
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="border-border grid gap-2 border-b pb-5">
-      <div className="text-[13.5px] font-medium">{label}</div>
+    <div className="grid gap-x-6 gap-y-2 border-b border-border px-5 py-4 last:border-b-0 min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-center max-md:px-4">
+      <div className="grid gap-0.5">
+        <div className="font-medium">{label}</div>
+        <p className="text-sm text-muted-foreground">{hint}</p>
+      </div>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
-      <p className="text-muted-foreground text-[12.5px]">{hint}</p>
     </div>
   )
 }

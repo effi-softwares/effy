@@ -7,7 +7,7 @@ import { CalendarClock, PackageX, Truck, UserX } from "lucide-react";
 import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
+import { PageHeader } from "@effy/web-kit/patterns";
 import { AssignmentActions } from "@/features/assign/AssignmentActions";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 

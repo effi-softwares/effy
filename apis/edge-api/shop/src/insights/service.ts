@@ -12,7 +12,7 @@ import { addLocalDays, bucketsFor, localParts, planFor } from "./window";
 
 export const TOP_PRODUCT_LIMIT = 5;
 
-interface Totals {
+export interface Totals {
   gross: number;
   refunds: number;
   refundedOrders: number;
@@ -21,6 +21,11 @@ interface Totals {
   cantSupply: number;
   cantSupplyUnits: number;
   cancelled: number;
+  finishedOrders: number;
+  finishedUnitsOrdered: number;
+  finishedUnitsSupplied: number;
+  readyOrders: number;
+  readySeconds: number;
 }
 
 const ZERO: Totals = {
@@ -32,6 +37,11 @@ const ZERO: Totals = {
   cantSupply: 0,
   cantSupplyUnits: 0,
   cancelled: 0,
+  finishedOrders: 0,
+  finishedUnitsOrdered: 0,
+  finishedUnitsSupplied: 0,
+  readyOrders: 0,
+  readySeconds: 0,
 };
 
 function sum(rows: readonly HourRow[]): Totals {
@@ -45,6 +55,11 @@ function sum(rows: readonly HourRow[]): Totals {
       cantSupply: t.cantSupply + r.cantSupply,
       cantSupplyUnits: t.cantSupplyUnits + r.cantSupplyUnits,
       cancelled: t.cancelled + r.cancelled,
+      finishedOrders: t.finishedOrders + r.finishedOrders,
+      finishedUnitsOrdered: t.finishedUnitsOrdered + r.finishedUnitsOrdered,
+      finishedUnitsSupplied: t.finishedUnitsSupplied + r.finishedUnitsSupplied,
+      readyOrders: t.readyOrders + r.readyOrders,
+      readySeconds: t.readySeconds + r.readySeconds,
     }),
     { ...ZERO },
   );
@@ -76,6 +91,34 @@ function figure(current: number, previous: number, kind: "pct" | "abs", asMoney 
     value: fmt(current),
     previous: fmt(previous),
     change: { kind: "abs", amount: String(Math.round(current - previous)) },
+  };
+}
+
+/** A rate in percent to one place, compared in percentage points; null when there is nothing to measure. */
+function rateFigure(num: number, den: number, prevNum: number, prevDen: number): InsightsFigureDTO | null {
+  if (den <= 0) return null;
+  const now = Math.min(100, (num / den) * 100);
+  if (prevDen <= 0) return { value: now.toFixed(1), previous: null, change: { kind: "none", amount: null } };
+  const before = Math.min(100, (prevNum / prevDen) * 100);
+  return { value: now.toFixed(1), previous: before.toFixed(1), change: { kind: "abs", amount: (now - before).toFixed(1) } };
+}
+
+/**
+ * How well the shop fulfils (099), over the portions it finished in the window: found rate (units
+ * supplied of units ordered), can't-supply rate (portions it could not supply of portions finished),
+ * and the average time from payment to ready, in whole seconds. Customer cancellations never count.
+ */
+export function qualityOf(current: Totals, previous: Totals): ShopInsightsDTO["quality"] {
+  const avg = (t: Totals) => (t.readyOrders > 0 ? t.readySeconds / t.readyOrders : 0);
+  return {
+    foundRate: rateFigure(current.finishedUnitsSupplied, current.finishedUnitsOrdered, previous.finishedUnitsSupplied, previous.finishedUnitsOrdered),
+    cantSupplyRate: rateFigure(current.cantSupply, current.finishedOrders, previous.cantSupply, previous.finishedOrders),
+    averageTimeToReady:
+      current.readyOrders > 0
+        ? previous.readyOrders > 0
+          ? figure(avg(current), avg(previous), "pct")
+          : { value: String(Math.round(avg(current))), previous: null, change: { kind: "none", amount: null } }
+        : null,
   };
 }
 
@@ -188,6 +231,7 @@ export async function readInsights(
       revenueTotal: figure(revenueOf(current), revenueOf(previous), "pct", true),
       ordersTotal: figure(current.orders, previous.orders, "abs"),
     },
+    quality: qualityOf(current, previous),
     topProducts: topRows.map((r, i) => ({
       productId: r.productId,
       name: r.name,

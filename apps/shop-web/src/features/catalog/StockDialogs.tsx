@@ -4,12 +4,12 @@ import type { OperatorStockReason, ProductStockDTO } from "@effy/shared-types";
 import { OPERATOR_STOCK_REASONS } from "@effy/shared-types";
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
   Input,
   Label,
   Select,
@@ -38,7 +38,7 @@ const REASON_LABELS: Record<OperatorStockReason, string> = {
 /** The server's own words, keyed off structure — never a generic sentence (053's lesson). */
 function Refusal({ error }: { error: unknown }) {
   return (
-    <p role="alert" className="text-destructive text-sm">
+    <p role="alert" className="text-sm font-medium">
       {stockErrorText(error)}
     </p>
   );
@@ -110,14 +110,14 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeL
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{titled("Receive stock", sizeLabel)}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{titled("Receive stock", sizeLabel)}</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Add counted units to the shelf. Nothing else about the product changes.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         <div className="grid gap-4">
           {sizeControl}
@@ -157,16 +157,16 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeL
           {adjust.isError ? <Refusal error={adjust.error} /> : null}
         </div>
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={adjust.isPending}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!valid || adjust.isPending}>
             {adjust.isPending ? "Adding…" : "Add to stock"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 
@@ -209,15 +209,15 @@ export function StartTrackingDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{titled("Add stock", sizeLabel)}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{titled("Add stock", sizeLabel)}</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             This isn&apos;t counted yet. Enter how many you have and Effy starts keeping
             count from there.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         <div className="grid gap-4">
           {sizeControl}
@@ -250,7 +250,7 @@ export function StartTrackingDialog({
           {setTracking.isError ? <Refusal error={setTracking.error} /> : null}
         </div>
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -261,9 +261,9 @@ export function StartTrackingDialog({
           <Button onClick={submit} disabled={!valid || setTracking.isPending}>
             {setTracking.isPending ? "Adding…" : "Add stock"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
 
@@ -318,14 +318,14 @@ export function AdjustStockDialog({ variantId, stock, open, onOpenChange, sizeLa
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{titled("Adjust stock", sizeLabel)}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent className="max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{titled("Adjust stock", sizeLabel)}</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Correct the counted quantity. Every change is recorded with who made it and why.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         <div className="grid gap-4">
           {sizeControl}
@@ -399,15 +399,15 @@ export function AdjustStockDialog({ variantId, stock, open, onOpenChange, sizeLa
           {failure ? <Refusal error={failure} /> : null}
         </div>
 
-        <DialogFooter>
+        <ResponsiveModalFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={parsed === null || pending}>
             {pending ? "Saving…" : "Save adjustment"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

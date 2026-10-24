@@ -59,6 +59,7 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
         currency: "AUD",
       },
     ],
+    nextCollection: null,
     ...over,
   }
 }

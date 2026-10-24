@@ -32,16 +32,9 @@ export function SignInScreen({ next }: { next?: string }) {
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-1.5">
-        {/* The design's small brand-coloured eyebrow above the heading. It is the form column's only
-            use of the action colour, which is what ties it to the panel beside it. */}
-        <p className="text-[11.5px] font-semibold uppercase tracking-[.06em] text-brand">
-          Shop console
-        </p>
-        <h1 className="text-2xl font-semibold tracking-[-.02em]">Sign in</h1>
-        <p className="text-sm text-muted-foreground">
-          Enter your work email below to access your shop.
-        </p>
+      <div className="grid gap-2">
+        <h1 className="text-[30px] leading-9 font-semibold tracking-[-.025em] max-md:text-2xl">Sign in to Effy Shop</h1>
+        <p className="text-muted-foreground">We&apos;ll email you a 6-digit code to access your shop. There&apos;s no password.</p>
       </div>
 
       {/* The shared card supplies the whole OTP flow — email step, six-digit step, refusals. It is
@@ -56,8 +49,8 @@ export function SignInScreen({ next }: { next?: string }) {
         onSignInFailed={(reason) => track({ name: "shop_auth_sign_in_failed", reason })}
       />
 
-      <p className="text-muted-foreground text-xs">
-        Effy staff only. Access is granted by your shop manager.
+      <p className="text-sm text-muted-foreground">
+        No account? Your manager or Effy adds you — there&apos;s no sign-up.
       </p>
     </div>
   );

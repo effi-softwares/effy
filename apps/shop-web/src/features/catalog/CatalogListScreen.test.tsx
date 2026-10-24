@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ import type { CatalogSchema, ProductList } from "./model";
 // column-render test, so a plain anchor stand-in is enough.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
+  useNavigate: () => () => {},
 }));
 
 vi.mock("@/features/auth/queries", () => ({
@@ -77,12 +78,12 @@ describe("CatalogListScreen columns", () => {
     // tells two similar products apart; the mockup's own sample data just has no brands in it.
     expect(screen.getByText("Effy Roastery")).toBeInTheDocument();
     expect(screen.getByText("Coffee")).toBeInTheDocument();
-    expect(screen.getByText("AUD 4.50")).toBeInTheDocument();
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("$4.50")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Live")).toBeInTheDocument();
     expect(screen.getByText("One size")).toBeInTheDocument(); // Codes are each size's
-    // Matched across elements: the count is its own <span> so the figure is tabular-nums.
+    // What is on screen, and of how many.
     expect(
-      screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1 product ·"))[0],
+      screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1–1 of 1 product ·"))[0],
     ).toBeInTheDocument();
   });
 
@@ -92,6 +93,6 @@ describe("CatalogListScreen columns", () => {
 
     wrap(<CatalogListScreen />);
 
-    expect(await screen.findByText(/no products match your filter/i)).toBeInTheDocument();
+    expect(await screen.findByText("No products yet")).toBeInTheDocument();
   });
 });

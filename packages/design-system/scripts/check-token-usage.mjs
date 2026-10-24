@@ -104,12 +104,16 @@ function scan(label, file, declared, known, roots) {
 
 const everyToken = new Set([...consoleDeclared, ...storefrontDeclared, ...backofficeDeclared]);
 const ok = [
+  // The shared kit renders under either console identity, so it may use only the console names.
   scan("console", "tokens.css", consoleDeclared, consoleDeclared, [
-    "apps/shop-web/src",
     "packages/web-kit/src",
     "packages/design-system/src/ui",
   ]),
-  scan("back-office", "backoffice/tokens.css", backofficeDeclared, everyToken, ["apps/back-office/src"]),
+  // Both internal consoles wear the back-office identity (shop-web since its 2026-10-24 redesign).
+  scan("back-office", "backoffice/tokens.css", backofficeDeclared, everyToken, [
+    "apps/back-office/src",
+    "apps/shop-web/src",
+  ]),
   scan("storefront", "storefront/tokens.css", storefrontDeclared, everyToken, [
     "apps/customer-web/app",
     "apps/customer-web/components",

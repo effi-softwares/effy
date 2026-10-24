@@ -2,7 +2,7 @@
 // (in the driver service) governs what may be done early. Overlapping invocations are safe: a pass
 // takes a transaction-scoped advisory lock, and `round_package_open_uq` keeps packages exclusive. Uses
 // `ScheduledHandler` and `logger`, not `preamble`, which needs an HTTP `requestContext`.
-import { announceDispatch } from "../lib/live";
+import { announceCollectionShops, announceDispatch } from "../lib/live";
 import type { ScheduledHandler } from "aws-lambda";
 
 import { logger, query } from "@effy/edge-shared";
@@ -41,7 +41,11 @@ export const handler: ScheduledHandler = async (_event, context) => {
 
   // Announced after commit and only if something changed: the pass runs all day.
   const changed = passChangedAnything(outcome);
-  if (changed) await announceDispatch(outcome.driverIds);
+  if (changed) {
+    await announceDispatch(outcome.driverIds);
+    // The shops whose next collection gained or lost its driver (099).
+    await announceCollectionShops(outcome.driverIds);
+  }
 
   // An overdue step is time passing, not a write: announced once when it crosses its threshold.
   try {

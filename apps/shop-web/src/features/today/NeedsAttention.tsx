@@ -1,7 +1,10 @@
 import { Link } from "@tanstack/react-router"
 
 import type { ShopAttentionItemDTO } from "@effy/shared-types"
-import { Button, IconChip } from "@effy/design-system/ui"
+import { ArrowDown, ChevronRight, ClipboardList, PackageX, ReceiptText, type LucideIcon } from "lucide-react"
+
+import { cn } from "@effy/design-system"
+import { Button } from "@effy/design-system/ui"
 
 import { TodayEmptyState } from "./EmptyState"
 import { track } from "@/lib/telemetry"
@@ -16,14 +19,10 @@ import { attentionHref, attentionRow, formatAge } from "./model"
  * should not have to do — and a generic "View" makes them work out what they are supposed to do when
  * they get there.
  *
- * Urgency is a dot, and it now carries the design's three tones. Under the monochrome
- * constitution only `--destructive` was available, so "waiting" had to read as plain foreground and
- * looked identical to "nothing urgent". The adopted palette supplies `--warning`, which is exactly
- * the missing middle: destructive = a shelf is empty right now, warning = something is waiting and
- * ageing, muted = noted, not urgent.
- *
- * The dot is never the only signal. Every row states its situation in words and ends in a specific
- * verb, so the card reads identically in greyscale and to a screen reader.
+ * Urgency is the icon tile: an empty shelf is the foreground (black with its icon — the identity has no
+ * red), orders waiting to be picked are blue, everything else is grey. The tile is never the only
+ * signal: every row states its situation in words and ends in a specific verb, so the panel reads
+ * identically in greyscale and to a screen reader.
  */
 export function NeedsAttention({
   items,
@@ -39,88 +38,83 @@ export function NeedsAttention({
   const openCount = items.length + more
 
   return (
-    <section className="bg-background overflow-hidden rounded-[var(--radius)] border">
-      <header className="flex items-center gap-3 border-b px-[18px] py-4">
-        <IconChip tone="warning" size="lg" className="mt-0.5">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M8 4.5v4" />
-            <path d="M8 11.2h.01" />
-            <path d="M8 1.8 14.6 13.4H1.4Z" strokeLinejoin="round" />
-          </svg>
-        </IconChip>
-        <div className="grid min-w-0 gap-[3px]">
-          <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Needs attention</h2>
-          <p className="text-muted-foreground text-[12.5px]">
-            {oldestWaitingAt
-              ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}`
-              : "Nothing is waiting"}
+    <section className="bo-panel min-w-0">
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 className="bo-panel__title">
+            Needs attention
+            {openCount > 0 ? <span className="bo-tabs__count bo-tabs__count--primary">{openCount}</span> : null}
+          </h2>
+          <p className="bo-panel__desc">
+            {oldestWaitingAt ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}` : "Nothing is waiting"}
           </p>
         </div>
-        <div className="flex-1" />
-        {openCount > 0 ? (
-          // The design's own warning-soft-on-warning badge, restored. Mono digits so the count does
-          // not jitter sideways as it changes width — it updates live.
-          <span className="grid h-[22px] min-w-[22px] place-items-center rounded-md bg-warning-soft px-[7px] font-mono text-xs font-semibold tabular-nums text-warning">
-            {openCount}
-          </span>
-        ) : null}
-      </header>
+      </div>
 
       {items.length === 0 ? (
-        <div className="p-[18px]">
+        <div className="bo-panel__body">
           <TodayEmptyState />
         </div>
       ) : (
         <ul>
           {items.map((item) => (
-            <li key={keyOf(item)}>
+            <li key={keyOf(item)} className="border-b border-border">
               <AttentionRow item={item} now={now} />
             </li>
           ))}
         </ul>
       )}
 
-      <footer className="flex items-center gap-3 px-[18px] py-[13px]">
-        <p className="text-muted-foreground text-[12.5px]">
+      <div className="bo-panel__foot bo-panel__foot--between">
+        <p className="text-sm text-muted-foreground">
           {more > 0 ? `Cleared items drop off automatically · ${more} more` : "Cleared items drop off automatically"}
         </p>
-        <div className="flex-1" />
         <Link
           to="/orders"
           search={{ attention: "at_risk", sort: "placed", dir: "asc" }}
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium no-underline"
+          className="text-sm font-medium text-foreground no-underline hover:underline"
         >
           Open queue →
         </Link>
-      </footer>
+      </div>
     </section>
   )
 }
 
+const ROW_ICON: Record<ShopAttentionItemDTO["kind"], LucideIcon> = {
+  awaiting_pick: ClipboardList,
+  out_of_stock: PackageX,
+  low_stock: ArrowDown,
+  refund_proposed: ReceiptText,
+}
+
+/**
+ * One item: its icon in a tile (a problem is the foreground — black with its icon, never red; waiting
+ * work is blue), what it is in words, and the one verb that resolves it.
+ */
 function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }) {
   const row = attentionRow(item, now)
+  const Icon = ROW_ICON[item.kind]
   return (
-    <div className="hover:bg-accent flex flex-wrap items-center gap-3 border-b px-[18px] py-[15px]">
+    <div className="bo-attn flex-wrap">
       <span
         aria-hidden="true"
-        className={
-          row.tone === "problem"
-            ? "bg-destructive size-[7px] shrink-0 rounded-full"
-            : row.tone === "waiting"
-              ? "bg-warning size-[7px] shrink-0 rounded-full"
-              : "bg-muted-foreground size-[7px] shrink-0 rounded-full"
-        }
-      />
-      <div className="min-w-[140px] flex-1">
-        <p className="text-[13.5px] font-medium text-pretty">{row.title}</p>
-        <p className="text-muted-foreground mt-[3px] text-[12.5px]">{row.detail}</p>
+        className={cn(
+          "bo-icon-tile",
+          row.tone === "problem" && "bo-icon-tile--problem",
+          item.kind === "awaiting_pick" && "bo-icon-tile--primary",
+        )}
+      >
+        <Icon />
+      </span>
+      <div className="bo-attn__text min-w-[160px]">
+        <p className="bo-attn__title text-pretty">{row.title}</p>
+        <p className="bo-attn__desc">{row.detail}</p>
       </div>
-      <Button asChild variant="outline" size="compact">
-        <Link
-          to={attentionHref(item)}
-          onClick={() => track({ name: "today_attention_acted", kind: item.kind })}
-        >
+      <Button asChild variant="outline" size="sm">
+        <Link to={attentionHref(item)} onClick={() => track({ name: "today_attention_acted", kind: item.kind })}>
           {row.action}
+          <ChevronRight aria-hidden="true" />
         </Link>
       </Button>
     </div>

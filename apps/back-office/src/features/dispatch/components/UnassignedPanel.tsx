@@ -2,8 +2,8 @@ import { Clock, UserX } from "lucide-react";
 
 import type { UnassignedWorkDTO } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
-import { EmptyState } from "@/components/patterns/States";
+import { Panel } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
 
 import { describeReasons, waitingFor } from "../model";
 

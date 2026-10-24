@@ -1,5 +1,7 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceCollectionShops } from "@effy/edge-shared/live";
+
 import { announceDuty } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, ProblemType, unavailable } from "@effy/edge-shared";
@@ -34,6 +36,8 @@ export const handler = async (
       body.acknowledgeHeldPackages === true,
     );
     await announceDuty();
+    // The shops on this driver's collection rounds: "on the way" follows duty (099).
+    await announceCollectionShops([guard.driver.id]);
     return json(200, result, guard.scope);
   } catch (err) {
     if (err instanceof HoldingPackagesError) {

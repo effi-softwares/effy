@@ -9,10 +9,10 @@ import { cn } from "@effy/design-system";
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { EmptyState } from "@/components/patterns/States";
-import { StatusWord } from "@/components/patterns/StatusWord";
-import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
+import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { shopListQuery } from "@/features/shops/queries";

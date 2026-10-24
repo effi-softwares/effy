@@ -400,6 +400,17 @@ functions:
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
   # Today (live, counted on every read) and Insights (prepared rollups): one payload cannot claim two freshnesses.
+  availabilityV1:
+    handler: src/functions/availability-v1-get.handler
+    description: Availability — every size the shop sells, its stock and its on-sale state — 099
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/availability
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   todayV1:
     handler: src/functions/today-v1-get.handler
     description: Today — live pick backlog, needs-attention list and the five most recent orders — 058

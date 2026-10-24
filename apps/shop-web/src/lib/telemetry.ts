@@ -31,6 +31,10 @@ export type ShopAnalyticsEvent =
   | { name: "product_review_withdrawn"; productId: string }
   | { name: "catalog_search" }
   | { name: "catalog_filter_applied" }
+  // 099 — Availability and the next collection. No product, size or shop in them.
+  | { name: "availability_viewed" }
+  | { name: "availability_toggled"; onSale: boolean }
+  | { name: "collection_panel_viewed"; driver: string }
   // Fulfilment — docs/telemetry/fulfillment-events.md is the cross-surface source of truth,
   // so shop-mobile adopts these exact names when its telemetry lands.
   //

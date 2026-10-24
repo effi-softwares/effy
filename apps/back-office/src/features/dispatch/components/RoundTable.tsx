@@ -5,8 +5,8 @@ import { Clock, Truck } from "lucide-react";
 
 import type { DispatchRoundSummaryDTO } from "@effy/shared-types";
 
-import { Panel } from "@/components/patterns/Panel";
-import { StatusWord } from "@/components/patterns/StatusWord";
+import { Panel } from "@effy/web-kit/patterns";
+import { StatusWord } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
 
 import { momentText, roundLabel, roundOpenState } from "../model";

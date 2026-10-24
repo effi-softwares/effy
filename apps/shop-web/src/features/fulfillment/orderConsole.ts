@@ -53,6 +53,8 @@ export interface OrdersSearch {
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
   page?: number
+  /** How the list is shown: the table (default, for the counter) or the queue's lanes (the packing bench). Not sent to the server. */
+  view?: "queue"
 }
 
 function pick<T extends string>(raw: unknown, allowed: readonly T[]): T | undefined {
@@ -87,12 +89,14 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (raw.dir === "asc") out.dir = "asc"
   const page = typeof raw.page === "number" ? raw.page : Number(raw.page)
   if (Number.isInteger(page) && page > 1) out.page = page
+  if (raw.view === "queue") out.view = "queue"
   return out
 }
 
-/** The API query for a search. Only non-default keys are sent, so equal lists share a cache entry. */
+/** The API query for a search. Only non-default keys are sent, so equal lists share a cache entry; the view is the screen's, never the server's. */
 export function toListQuery(s: OrdersSearch): ShopOrderListQuery {
-  return validateOrdersSearch(s as Record<string, unknown>)
+  const { view: _view, ...query } = validateOrdersSearch(s as Record<string, unknown>)
+  return query
 }
 
 /** Whether anything narrows the list beyond the tab — what separates "no orders yet" from "no match". */

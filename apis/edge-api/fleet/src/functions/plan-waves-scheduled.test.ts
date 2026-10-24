@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 const runPass = vi.hoisted(() => vi.fn());
 const announceDispatch = vi.hoisted(() => vi.fn());
+const announceCollectionShops = vi.hoisted(() => vi.fn());
 vi.mock("../planner/service", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("../planner/service");
   return { passChangedAnything: actual.passChangedAnything, runPass };
 });
-vi.mock("../lib/live", () => ({ announceDispatch }));
+vi.mock("../lib/live", () => ({ announceDispatch, announceCollectionShops }));
 vi.mock("../dispatch/custody", () => ({ maxCustodyHours: async () => 0 }));
 vi.mock("../sequence/service", () => ({ overdueCrossedSince: async () => 0 }));
 
@@ -98,6 +99,8 @@ describe("planWavesScheduled — invoked the way AWS invokes it", () => {
     );
     await invoke();
     expect(announceDispatch).toHaveBeenCalledWith(["d1"]);
+    // 099: the shops on those drivers' collection rounds hear too.
+    expect(announceCollectionShops).toHaveBeenCalledWith(["d1"]);
   });
 
   it("announces when work was only released, or only the reasons changed", async () => {

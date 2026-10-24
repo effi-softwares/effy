@@ -1,11 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useStore } from "@tanstack/react-store";
+import { Search } from "lucide-react";
 
-import { ConsoleShell, LiveProvider, LiveStatus } from "@effy/web-kit/console";
+import { Button } from "@effy/design-system/ui";
+
+import { ConsoleShell, LiveProvider } from "@effy/web-kit/console";
 
 import { HeaderBreadcrumbs } from "@/components/console/HeaderBreadcrumbs";
 import { HeaderChrome } from "@/components/console/HeaderChrome";
+import { CommandPalette } from "@/components/console/CommandPalette";
+import { HeaderLive } from "@/components/console/HeaderLive";
+import { NewOrderAlert } from "@/components/console/NewOrderAlert";
+import { ScanButton } from "@/components/console/ScanButton";
+import { SoundChip } from "@/components/console/SoundChip";
 import { PwaBanners } from "@/components/console/PwaBanners";
 import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation";
 import { getLiveDescriptor } from "@/features/live/repo";
@@ -19,7 +28,8 @@ import { TodayScreen } from "@/features/today/TodayScreen";
 import { useNavBadges } from "@/features/today/useNavBadges";
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen";
 import { meQuery } from "@/features/shop-identity/queries";
-import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
+import { setScanOpen } from "@/lib/console-store";
+import { setCommandPaletteOpen, setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -54,6 +64,12 @@ export const managerRoute = createRoute({
 function AppShell() {
   const sidebarOpen = useStore(uiStore, (s) => s.sidebarOpen);
   const theme = useStore(uiStore, (s) => s.theme);
+  const paletteOpen = useStore(uiStore, (s) => s.commandPaletteOpen);
+  // ⌘K / Ctrl+K from anywhere, even from inside a field (Foundations — "Search and commands").
+  useHotkey("Mod+K", () => setCommandPaletteOpen(!uiStore.state.commandPaletteOpen), {
+    ignoreInputs: false,
+    preventDefault: true,
+  });
   const { data } = useQuery(sessionQuery);
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -82,17 +98,27 @@ function AppShell() {
         brand={{ name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
         surfaceLabel="Effy Shop"
         sidebarWidth="14rem"
-        // The page gutter is `--pad` (24px), not the shell's default `p-4` (16px). The design sets
-        // one page padding and uses it for the header, the content and the section rhythm alike; at
-        // 16px the console's tables sat tighter to the rail than the header above them, which reads as
-        // a misalignment rather than as a deliberate density.
-        contentClassName="flex w-full flex-1 flex-col gap-[var(--pad)] p-[var(--pad)]"
+        // The page gutter is the identity's `--pad` (32 desktop / 24 tablet / 16 phone), with the
+        // redesign's 40px of room under the last section.
+        contentClassName="flex w-full flex-1 flex-col gap-6 px-[var(--pad)] pt-[var(--pad)] pb-10 max-md:gap-4"
         headerBreadcrumb={<HeaderBreadcrumbs />}
         headerSubtitle={subtitle}
         headerActions={
           <>
-            <LiveStatus />
             <HeaderChrome />
+            <HeaderLive />
+            <SoundChip />
+            <ScanButton />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Search or jump to…"
+              title="Search or jump to… (⌘K)"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <Search aria-hidden="true" />
+            </Button>
           </>
         }
         nav={NAV}
@@ -111,8 +137,15 @@ function AppShell() {
         {/* Offline / update-ready / install, one at a time, above the screen they qualify.
             Inside the shell so every protected screen carries them; nothing renders when all three
             are quiet, so an operator who never installs sees no change at all. */}
+        <NewOrderAlert />
         <PwaBanners />
         <Outlet />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          roles={identity?.roles ?? []}
+          onScan={() => setScanOpen(true)}
+        />
       </ConsoleShell>
     </LiveProvider>
   );

@@ -7,7 +7,7 @@ import type { DispatchWindowDTO } from "@effy/shared-types";
 import { Badge, Skeleton } from "@effy/design-system/ui";
 import { PackageStatusPill } from "@effy/web-kit/console";
 
-import { Panel } from "@/components/patterns/Panel";
+import { Panel } from "@effy/web-kit/patterns";
 
 import { dispatchWindowsQuery } from "../queries";
 

@@ -1,4 +1,4 @@
-import { collectionRunFor, endOfLocalDay, localDateParts, nextRunInstant, withTransaction, type Queryable } from "@effy/edge-shared";
+import { dueRun, endOfLocalDay, localDateParts, nextRunInstant, withTransaction, type Queryable } from "@effy/edge-shared";
 import { nonDeliveryDates } from "@effy/edge-shared/delivery";
 
 import { planWave } from "./assign";
@@ -162,16 +162,12 @@ async function planCollection(
   return { ...done, outcome: { ...done.outcome, collectLate } };
 }
 
-/** The run an Effy parcel with a window is due on; null means the next run. Used by the dispatch day view too. */
-export function dueRun(
-  p: { deliveredBy: "effy" | "courier"; windowStart: Date | null },
-  runs: Awaited<ReturnType<typeof loadSchedule>>["runs"],
-  settings: Pick<PlannerSettings, "hubTurnaroundMin">,
-  calendar: { noWeekdays: readonly number[]; noDates: ReadonlySet<string> },
-): Date | null {
-  if (p.deliveredBy !== "effy" || p.windowStart === null) return null;
-  return collectionRunFor(p.windowStart, runs, settings.hubTurnaroundMin, calendar);
-}
+/**
+ * The run an Effy parcel with a window is due on; null means the next run. The rule lives in
+ * `@effy/edge-shared` (`dueRun`) because the shop service tells shops the same run; re-exported here
+ * for the dispatch day view.
+ */
+export { dueRun };
 
 export function isoDateOf(at: Date, offsetDays = 0): string {
   const { year, month, day } = localDateParts(at);

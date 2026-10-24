@@ -5,7 +5,7 @@ import { json, logger, preamble, problem } from "@effy/edge-shared";
 
 import { isStage, mapAssignmentError } from "../assignments/handler-support";
 import { unassign } from "../assignments/service";
-import { announceDispatch } from "../lib/live";
+import { announceCollectionShops, announceDispatch } from "../lib/live";
 import { denied, guard } from "../shared/handler-support";
 
 /** Hands a package back to auto-assign. */
@@ -22,6 +22,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     const result = await unassign({ packageId, stage: body.stage, expectedAssignmentId: body.expectedAssignmentId, actorSub: g.sub });
     logger.info({ action: "unassign", stage: body.stage, packageId }, "dispatch.manual");
     await announceDispatch(result.driverIds);
+    await announceCollectionShops(result.driverIds);
     return json(200, { message: result.message }, scope);
   } catch (err) {
     return mapAssignmentError(err, scope);

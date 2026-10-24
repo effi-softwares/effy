@@ -1,9 +1,11 @@
-import { Loader2 } from "lucide-react";
+import { ListChecks, Loader2, PackageCheck } from "lucide-react";
 import { useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { Button, toast } from "@effy/design-system/ui";
+import { Button, Input, toast } from "@effy/design-system/ui";
+
+import { ChoiceCards } from "@/components/console/ChoiceCards";
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet";
 import { track } from "@/lib/telemetry";
@@ -30,7 +32,14 @@ const ACTION_LABEL: Record<Exclude<RequestableTransition, "unfulfillable">, stri
  *  operator cannot double-apply it. `collected` offers nothing.
  *  2. A 409 is a reload, never a retry: the mutation invalidates and this control re-derives.
  */
-export function StateActions({ detail }: { detail: { id: string; status: FulfillmentStatus } }) {
+export function StateActions({
+  detail,
+  size = "default",
+}: {
+  detail: { id: string; status: FulfillmentStatus };
+  /** `lg` in the packing screen's action bar (52px targets). */
+  size?: "default" | "lg";
+}) {
   const transition = useTransitionFulfillment(detail.id);
   const advance = nextTransition(detail.status);
 
@@ -40,7 +49,7 @@ export function StateActions({ detail }: { detail: { id: string; status: Fulfill
       {detail.status === "ready_for_pickup" ? (
         <Button
           variant="outline"
-          className="h-8 px-[11px] text-[13px]"
+          size={size}
           disabled={transition.isPending}
           onClick={() => transition.mutate({ to: "picking", from: detail.status })}
         >
@@ -50,11 +59,11 @@ export function StateActions({ detail }: { detail: { id: string; status: Fulfill
 
       {advance && advance !== "unfulfillable" ? (
         <Button
-          className="h-8 px-[13px] text-[13px]"
+          size={size}
           disabled={transition.isPending}
           onClick={() => transition.mutate({ to: advance, from: detail.status })}
         >
-          {transition.isPending ? <Loader2 className="animate-spin" /> : null}
+          {transition.isPending ? <Loader2 className="animate-spin" /> : advance === "picking" ? <ListChecks aria-hidden="true" /> : <PackageCheck aria-hidden="true" />}
           {ACTION_LABEL[advance]}
         </Button>
       ) : null}
@@ -99,6 +108,14 @@ const REASONS = [
   "Shop can't open or trade",
   "Other",
 ] as const;
+
+/** How each reason reads on its card; the value sent is the reason itself. */
+const REASON_WORDS: Record<(typeof REASONS)[number], string> = {
+  "Out of stock": "Out of stock",
+  "Items damaged or unusable": "Items damaged or unusable",
+  "Shop can't open or trade": "The shop can't open or trade",
+  Other: "Something else — say what happened",
+};
 
 /**
  * Declaring orders unsuppliable — the design's "Cancel order" / "Cancel selected
@@ -172,13 +189,13 @@ export function CantSupplyDialog({
     <DesignSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={single ? "Can't supply this order?" : "Can't supply the selected orders?"}
+      title={single ? `Can't supply ${targets[0]?.orderNumber ?? "this order"}?` : "Can't supply the selected orders?"}
       description={
         single
           ? "It leaves your queue and Effy refunds the customer for your items. It can't be undone."
           : "Each order leaves your queue and Effy refunds every customer for your items. It can't be undone."
       }
-      cancelLabel={single ? "Keep order" : "Keep orders"}
+      cancelLabel={single ? "Keep the order" : "Keep the orders"}
       saveLabel={single ? "Can't supply it" : `Can't supply ${eligible.length}`}
       destructive
       canSave={reason !== "" && eligible.length > 0}
@@ -188,12 +205,12 @@ export function CantSupplyDialog({
       {!single ? (
         <div className="grid">
           {eligible.map((t) => (
-            <div key={t.id} className="border-border border-b py-2 font-mono text-[12.5px]">
+            <div key={t.id} className="bo-code border-b border-border py-2.5">
               {t.orderNumber}
             </div>
           ))}
           {excluded > 0 ? (
-            <p className="text-muted-foreground pt-2 text-[12.5px]">
+            <p className="pt-2 text-sm text-muted-foreground">
               {excluded} selected order{excluded === 1 ? " has" : "s have"} already left your hands and{" "}
               {excluded === 1 ? "is" : "are"} left out.
             </p>
@@ -201,30 +218,20 @@ export function CantSupplyDialog({
         </div>
       ) : null}
 
-      <SheetField label="Reason" htmlFor="unfulfillable-reason">
-        <select
-          id="unfulfillable-reason"
-          aria-label="Why can't you supply it?"
-          value={choice}
-          onChange={(e) => setChoice(e.target.value as (typeof REASONS)[number])}
-          className="border-input bg-background focus:border-ring h-9 cursor-pointer rounded-md border px-2.5 text-sm outline-none"
-        >
-          {REASONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      </SheetField>
+      <ChoiceCards
+        label="Why can't you supply it?"
+        value={choice}
+        options={REASONS.map((r) => ({ value: r, label: REASON_WORDS[r] }))}
+        onChange={setChoice}
+      />
       {choice === "Other" ? (
-        <SheetField label="Say what happened" htmlFor="unfulfillable-other">
-          <input
+        <SheetField label="What happened?" htmlFor="unfulfillable-other">
+          <Input
             id="unfulfillable-other"
             autoFocus
             value={other}
             onChange={(e) => setOther(e.target.value)}
             placeholder="e.g. the chiller failed overnight"
-            className="border-input bg-background focus:border-ring h-9 rounded-md border px-3 text-sm outline-none"
           />
         </SheetField>
       ) : null}

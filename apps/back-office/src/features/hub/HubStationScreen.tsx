@@ -8,9 +8,9 @@ import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 import { ScanField } from "@effy/web-kit/scanner";
 
-import { PageHeader } from "@/components/patterns/Page";
-import { Panel } from "@/components/patterns/Panel";
-import { EmptyState } from "@/components/patterns/States";
+import { PageHeader } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns";
+import { EmptyState } from "@effy/web-kit/patterns";
 import { track } from "@/lib/telemetry";
 
 import { hubExpectedQuery, useHubCheckin } from "./queries";

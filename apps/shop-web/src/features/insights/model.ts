@@ -41,7 +41,7 @@ export const GRAIN_LABEL: Record<"hour" | "day" | "week", string> = {
   week: "By week",
 }
 
-const BASIS_LABEL: Record<ComparisonBasis, string> = {
+export const BASIS_LABEL: Record<ComparisonBasis, string> = {
   same_weekday_last_week: "vs last week",
   previous_7_days: "vs previous week",
   previous_30_days: "vs previous 30 days",

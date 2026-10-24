@@ -7,7 +7,7 @@ import type { PointsSettingsDTO } from "@effy/shared-types";
 import { Button, Input, Label, toast } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Panel } from "@/components/patterns/Panel";
+import { Panel } from "@effy/web-kit/patterns";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canEditPointsSettings } from "../access";
