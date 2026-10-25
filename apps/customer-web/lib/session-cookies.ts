@@ -3,7 +3,7 @@ import { siteUrl } from "@/lib/config"
 /**
  * The three cookies that are a customer's session, and nothing else about it.
  *
- * Written only by the server (`app/api/session`, `proxy.ts`), always `HttpOnly`: page JavaScript can
+ * Written only by the server (`startSessionAction`, `proxy.ts`), always `HttpOnly`: page JavaScript can
  * never read a token. Shared by the request proxy and the server modules, so it imports nothing that
  * only one of them can load.
  */

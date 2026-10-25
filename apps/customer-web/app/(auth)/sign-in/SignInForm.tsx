@@ -113,7 +113,6 @@ export function SignInForm() {
       if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
       // `replace`: the sign-in page must not stay in the back history.
       router.replace(next)
-      router.refresh()
       return true
     },
     [next, router],

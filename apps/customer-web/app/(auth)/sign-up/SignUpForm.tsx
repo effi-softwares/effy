@@ -106,7 +106,6 @@ export function SignUpForm() {
     void mergeSavedAfterSignIn()
     if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
     router.replace(next)
-    router.refresh()
   }, [next, route, router])
 
   const submitCode = useCallback(

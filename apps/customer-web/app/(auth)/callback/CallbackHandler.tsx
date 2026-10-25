@@ -62,7 +62,6 @@ export function CallbackHandler() {
           capture({ name: "deferred_sign_in_resumed", props: { route: "google" } })
         }
         router.replace(next)
-        router.refresh()
       }
 
       if (payload.event === "signInWithRedirect_failure") {

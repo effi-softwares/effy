@@ -367,7 +367,7 @@ per-audience** (constitution v1.7.0, amended by 011):
 
 ⚠ **THE CUSTOMER STOREFRONT'S SESSION IS THREE `HttpOnly` COOKIES, SET ONLY BY ITS OWN SERVER (084).**
 The browser signs in with Cognito through Amplify (confined to `app/(auth)`, working in the tab's
-`sessionStorage`) and hands the tokens to `POST /api/session` once; nothing token-shaped stays in the
+`sessionStorage`) and hands the tokens to the `startSessionAction` Server Action once; nothing token-shaped stays in the
 browser. ONE read (`getSession`, `lib/session.ts` — verifies the id token), ONE refresher (`proxy.ts`),
 sign-out revokes the refresh token. ⚠ There is **no Amplify on the server** and no
 `@aws-amplify/adapter-nextjs`: its token check gave the pool's key download 1.5s and silently treated a

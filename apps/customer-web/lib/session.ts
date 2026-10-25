@@ -15,7 +15,7 @@ import { SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
  *
  * How a session exists at all:
  *  1. the browser signs in with Cognito directly (`app/(auth)`);
- *  2. it hands the tokens to `POST /api/session` once, which verifies them and stores them in
+ *  2. it hands the tokens to `startSessionAction` (`app/(auth)/_lib/session-actions.ts`) once, which verifies them and stores them in
  *  `HttpOnly` cookies — from then on no page script can read them;
  *  3. `proxy.ts` swaps expired tokens for fresh ones before a request is rendered;
  *  4. `getSession` below verifies the id token and says who the customer is.

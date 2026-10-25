@@ -1,8 +1,10 @@
 "use client"
 
+import { startSessionAction } from "./session-actions"
+
 /**
  * Hands the tokens Cognito just issued to the server and keeps none: the browser's copy is removed before
- * the request is sent. `true` means the server has the session; the screens navigate only then.
+ * the action is called. `true` means the server has the session; the screens navigate only then.
  */
 const PREFIX = "CognitoIdentityServiceProvider."
 
@@ -10,13 +12,9 @@ export async function handOverSession(): Promise<boolean> {
   const stored = takeStoredTokens()
   if (!stored) return false
   try {
-    const res = await fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(stored),
-    })
-    if (!res.ok) console.warn(`[auth] session hand-over refused: ${res.status}`)
-    return res.ok
+    const result = await startSessionAction(stored)
+    if (result !== "started") console.warn(`[auth] session hand-over ${result}`)
+    return result === "started"
   } catch {
     console.warn("[auth] session hand-over failed: network")
     return false
