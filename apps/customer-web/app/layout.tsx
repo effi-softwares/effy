@@ -24,7 +24,7 @@ import { TelemetryBootClient } from "@/app/_components/TelemetryBootClient"
        is exactly wrong. The SDK is configured in app/(auth)/layout.tsx and nowhere else.
 
     Both rules are machine-enforced — (1) by `cacheComponents` (a build error) and (2) by
-    .dependency-cruiser.cjs (a build failure). They are written out here because a guard tells
+    scripts/dependency-cruiser.cjs (a build failure). They are written out here because a guard tells
     you that you broke a rule, never why the rule exists.                                       */
 
 // The typeface: Geist, through `next/font/local` (./fonts.ts) from the files committed in

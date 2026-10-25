@@ -39,7 +39,7 @@ They would download ~30–45 KB of authentication machinery in order to look at 
 
 Guest pages read session state **server-side** (`lib/session.ts`), where bundle size is irrelevant.
 
-**Guarded by** `.dependency-cruiser.cjs` — and it checks **reachability**, not direct imports, because a
+**Guarded by** `scripts/dependency-cruiser.cjs` — and it checks **reachability**, not direct imports, because a
 real leak runs `page → component → aws-amplify` and never straight into a page. The guard has been
 deliberately broken that way and confirmed to catch it.
 
