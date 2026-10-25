@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { createQueryClient, wireGlobalErrorReporting } from "@effy/web-kit";
+import { createQueryClient, trackInputModality, wireGlobalErrorReporting } from "@effy/web-kit";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
@@ -27,6 +27,8 @@ try {
   configureAmplify();
   initTelemetry();
   wireGlobalErrorReporting(reportError);
+  // Focus rings for keyboard navigation only, never after a click or tap.
+  trackInputModality();
   applyTheme(uiStore.state.theme);
 
   // The console becomes installable and offline-survivable. Both no-op where unsupported, and

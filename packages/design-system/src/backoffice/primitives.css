@@ -327,3 +327,16 @@
 @media (max-width: 400px) {
   [data-slot="otp-cell"] { width: 44px; height: 48px; }
 }
+
+/* ---------- Focus rings: keyboard navigation only ----------
+   2026-10-25, operator: no ring on what was clicked or tapped. `<html data-input>` is written by
+   @effy/web-kit's `trackInputModality` — "pointer" after a click or tap, "keyboard" after Tab or an
+   arrow key. While a pointer is driving, no control draws a ring (outline, or the ring utilities'
+   box-shadow); the first navigation key brings every ring back, so keyboard users always see where
+   they are (WCAG 2.4.7). Text fields keep their focus state — it says where typing will go. */
+html[data-input="pointer"] :focus-visible:not(input, textarea, select, [contenteditable="true"]) {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 transparent;
+  --tw-ring-offset-shadow: 0 0 transparent;
+  --tw-inset-ring-shadow: 0 0 transparent;
+}

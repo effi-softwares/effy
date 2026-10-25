@@ -389,9 +389,6 @@
 .bo-iconbtn:hover { background: var(--accent); }
 .bo-iconbtn:disabled { opacity: 0.4; cursor: not-allowed; background: none; }
 .bo-iconbtn > svg { width: 18px; height: 18px; }
-/* The account menu's avatar, last in the header's right corner. */
-.bo-account { margin-left: 2px; border-radius: var(--radius-lg); }
-.bo-account[data-state="open"] { background: var(--accent); }
 .bo-topbar-search {
   display: inline-flex;
   align-items: center;
@@ -447,3 +444,51 @@
 .bo-shell input:focus-visible,
 .bo-shell textarea:focus-visible,
 .bo-shell [role="combobox"]:focus-visible { outline: none; }
+
+/* ---------- The account menu ----------
+   UNLAYERED, like the sidebar rules: they restyle the dropdown item, whose own utilities would beat a
+   components-layer rule. */
+/* The account menu's avatar, last in the header's right corner: a 36px disc in a 44px target. */
+.bo-account { margin-left: 2px; border-radius: 999px; }
+.bo-account:hover,
+.bo-account[data-state="open"] { background: none; }
+.bo-account:hover .bo-account-avatar,
+.bo-account[data-state="open"] .bo-account-avatar { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--border); }
+.bo-account-avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary-muted);
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: box-shadow var(--dur-fast) ease;
+}
+
+/* Appearance in the account menu: three icons in one row; the current one sits in a filled well. */
+.bo-theme-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  margin: 4px 6px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+.bo-theme-switch__opt {
+  justify-content: center;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--muted-foreground);
+}
+.bo-theme-switch__opt > svg { width: 16px; height: 16px; color: inherit !important; }
+.bo-theme-switch__opt[data-current="true"] {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}

@@ -1,4 +1,4 @@
-import { Check, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
 import {
@@ -17,8 +17,8 @@ import { displayName, initialsOf } from "./staff-nav";
 /**
  * The account and appearance menu, behind the avatar in the header's right corner (2026-10-25: moved
  * out of the sidebar footer — it is used a few times a day, so it takes no rail space). Appearance
- * lives here: Light / Dark / System. A surface adds its own entries (back-office: its staff record,
- * keyboard shortcuts) through `items`.
+ * lives here: Light / Dark / System, as three icons. A surface adds its own entries (back-office: its
+ * staff record, keyboard shortcuts) through `items`.
  */
 export interface StaffUserMenuProps {
   email: string;
@@ -56,7 +56,7 @@ export function StaffUserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="bo-iconbtn bo-account" aria-label={`Account and appearance — ${name}`}>
-          <span aria-hidden="true" className="bo-avatar">
+          <span aria-hidden="true" className="bo-account-avatar">
             {initialsOf(name)}
           </span>
         </button>
@@ -64,7 +64,7 @@ export function StaffUserMenu({
       <DropdownMenuContent className="w-[280px]" side="bottom" align="end" sideOffset={8}>
         <DropdownMenuLabel className="p-0 font-normal text-foreground">
           <div className="flex items-center gap-3 px-2 py-2">
-            <span aria-hidden="true" className="bo-avatar">
+            <span aria-hidden="true" className="bo-account-avatar">
               {initialsOf(name)}
             </span>
             <div className="min-w-0">
@@ -86,19 +86,27 @@ export function StaffUserMenu({
             <DropdownMenuSeparator />
           </>
         ) : null}
-        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-        {MODES.map(({ value, label, Icon }) => (
-          <DropdownMenuItem
-            key={value}
-            role="menuitemradio"
-            aria-checked={theme === value}
-            onSelect={() => onSetTheme(value)}
-          >
-            <Icon aria-hidden={true} />
-            {label}
-            {theme === value ? <Check aria-hidden="true" className="ml-auto size-4 text-foreground!" /> : null}
-          </DropdownMenuItem>
-        ))}
+        {/* Appearance as three icons in one row — the current one filled. Each stays a menu item (arrow
+            keys reach it, Enter picks it) and keeps the menu open, so the change is seen in place. */}
+        <div role="group" aria-label="Appearance" className="bo-theme-switch">
+          {MODES.map(({ value, label, Icon }) => (
+            <DropdownMenuItem
+              key={value}
+              role="menuitemradio"
+              aria-checked={theme === value}
+              aria-label={`${label} appearance`}
+              title={label}
+              data-current={theme === value ? "true" : undefined}
+              className="bo-theme-switch__opt"
+              onSelect={(event) => {
+                event.preventDefault();
+                onSetTheme(value);
+              }}
+            >
+              <Icon aria-hidden={true} />
+            </DropdownMenuItem>
+          ))}
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={signingOut} onSelect={onSignOut}>
           <LogOut aria-hidden="true" />

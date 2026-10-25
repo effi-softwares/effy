@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { wireGlobalErrorReporting } from "@effy/web-kit";
+import { trackInputModality, wireGlobalErrorReporting } from "@effy/web-kit";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
@@ -24,6 +24,8 @@ try {
   configureAmplify();
   initTelemetry();
   wireGlobalErrorReporting(reportError);
+  // Focus rings for keyboard navigation only, never after a click or tap.
+  trackInputModality();
   applyTheme(uiStore.state.theme);
 
   const queryClient = createQueryClient();
