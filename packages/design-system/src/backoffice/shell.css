@@ -6,6 +6,11 @@
  * Sizes: rows 40 · sub-rows 36 · brand and account 52 · header 64 (`--header-h`) · header buttons and
  * search 44. Search is in the header only. Folded, the rail is 96px and labelled — icon over word, 64px targets. */
 
+html,
+html * {
+  overscroll-behavior-x: none;
+}
+
 /* ---------- Sidebar ---------- */
 .bo-shell [data-slot="sidebar-container"] {
   transition-duration: var(--dur-emphasised);
