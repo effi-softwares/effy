@@ -23,18 +23,6 @@ export async function handOverSession(): Promise<boolean> {
   }
 }
 
-/**
- * Leaves the auth pages for `next` once the session is the server's: waits for the sign-in's own work
- * (the cart and saved merges write this browser's storage), then loads the page in full. Not
- * `router.replace` + `router.refresh`: on mobile Chrome that left the shopper on the code step,
- * signed in, until a manual reload. A full load also renders every island as signed in.
- */
-export async function enterSignedIn(next: string, work: Promise<unknown>[] = []): Promise<void> {
-  await Promise.allSettled(work)
-  // `replace`: the sign-in page must not stay in the back history.
-  window.location.replace(next)
-}
-
 /** Read the three tokens the SDK stored for this tab, and remove everything it stored. */
 function takeStoredTokens(): { idToken: string; accessToken: string; refreshToken: string } | null {
   const store = window.sessionStorage

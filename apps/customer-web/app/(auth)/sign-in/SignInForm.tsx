@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState, useTransition } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { LogIn, ShoppingCart } from "lucide-react"
 
@@ -20,7 +20,7 @@ import {
   signInWithPassword,
   submitOtpCode,
 } from "../_lib/auth-actions"
-import { enterSignedIn, HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
+import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
 import { useStepHistory } from "../_lib/step-history"
 import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
@@ -61,6 +61,7 @@ const FIELDS = {
 } satisfies Record<string, FieldConfig>
 
 export function SignInForm() {
+  const router = useRouter()
   const params = useSearchParams()
 
   // Where they were heading (validated: it arrives in a URL).
@@ -105,12 +106,17 @@ export function SignInForm() {
         return false
       }
       capture({ name: "sign_in_completed", props: { route } })
+      // Fold this browser's cart into the account cart (union with maximum quantity). Not awaited; the cart page reconciles anyway.
+      void mergeCartAfterSignIn()
+      // And the saved list.
+      void mergeSavedAfterSignIn()
       if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
-      // Fold this browser's cart and saved list into the account's (union with maximum quantity).
-      await enterSignedIn(next, [mergeCartAfterSignIn(), mergeSavedAfterSignIn()])
+      // `replace`: the sign-in page must not stay in the back history.
+      router.replace(next)
+      router.refresh()
       return true
     },
-    [next],
+    [next, router],
   )
 
   /** A wrong code on attempt 1 or 2 re-issues the challenge without an exception; the result is classified, never assumed. */

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState, useTransition } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { LogIn, ShoppingCart } from "lucide-react"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
@@ -19,7 +19,7 @@ import {
   signUpWithPassword,
 } from "../_lib/auth-actions"
 import { seedCredentialRoute } from "../_lib/seed-actions"
-import { enterSignedIn, HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
+import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
 import { useStepHistory } from "../_lib/step-history"
 import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
@@ -67,6 +67,7 @@ const FIELDS = {
 } satisfies Record<string, FieldConfig>
 
 export function SignUpForm() {
+  const router = useRouter()
   const params = useSearchParams()
   const next = safeNextTarget(params.get("next"))
 
@@ -98,12 +99,15 @@ export function SignUpForm() {
     })
   }
 
-  const finish = useCallback(async () => {
+  const finish = useCallback(() => {
     capture({ name: "sign_up_completed", props: { route } })
+    // Merge the guest basket on sign-up as on sign-in (union with maximum, fire-and-forget).
+    void mergeCartAfterSignIn()
+    void mergeSavedAfterSignIn()
     if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
-    // Merge the guest basket on sign-up as on sign-in (union with maximum).
-    await enterSignedIn(next, [mergeCartAfterSignIn(), mergeSavedAfterSignIn()])
-  }, [next, route])
+    router.replace(next)
+    router.refresh()
+  }, [next, route, router])
 
   const submitCode = useCallback(
     async (code: string): Promise<CodeOutcome> => {
