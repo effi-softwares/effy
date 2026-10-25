@@ -52,7 +52,7 @@ function DrawerContent({
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(
-          "group/drawer-content bg-background fixed z-50 flex h-auto flex-col",
+          "group/drawer-content bg-background fixed z-50 flex h-auto flex-col overflow-y-auto overscroll-contain",
           "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-sheet data-[vaul-drawer-direction=bottom]:border-t",
           "data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=top]:rounded-b-sheet data-[vaul-drawer-direction=top]:border-b",
           "data-[vaul-drawer-direction=right]:inset-y-2 data-[vaul-drawer-direction=right]:right-2 data-[vaul-drawer-direction=right]:w-3/4 data-[vaul-drawer-direction=right]:rounded-lg data-[vaul-drawer-direction=right]:border data-[vaul-drawer-direction=right]:shadow-lg data-[vaul-drawer-direction=right]:after:hidden data-[vaul-drawer-direction=right]:sm:max-w-sm data-[vaul-drawer-direction=right]:[--initial-transform:calc(100%+0.5rem)]",
