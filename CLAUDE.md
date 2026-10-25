@@ -435,9 +435,21 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   `#0b8577`→`#0a7d70` (4.08:1), `--ring` light `#8eadee`→`#7993ca` (2.24:1 — failed even the 3:1 UI
   bar). Dark passes unchanged at every pair. ⚠ The sign-in panel fills with `--primary`, **not**
   `--brand`: the reference's `background:var(--brand); color:#fff` measures **2.62:1 in dark**.
-- **Radius: a four-step scale** read off the design's own declarations, not its `--radius` literal —
-  **sm 4 (checkboxes) / md 6 (inputs, nav, in-row) / lg 8 (buttons, icon chips) / xl 10
-  (containers)**. Pills (badges, status chips, progress) are `rounded-full`, a shape not a step.
+- **Radius (the consoles):** **sm 4 (menu rows) / md 6 (buttons, inputs, selects, badges, checkboxes) /
+  lg 8 (cards, dialogs, panels)**. Avatars, switches, radios, dots and progress are `rounded-full`.
+  ⚠ **The console look lives IN the shared components** (`@effy/design-system/ui`, 2026-10-25) — one
+  button definition (sizes `default` 44 / `sm` 40 / `icon` 44), one badge, one input. The console stylesheet (`src/console.css`, after the tokens) only
+  restyles what customer-web also renders (dialog, drawer, OTP cells), the toasts, and the `ef-*` patterns (one set for both consoles; no `bo-`/`sh-` split)
+  and shell. A rule in `@layer components` cannot restyle a component: its own classes always win.
+- ⚠ **WHERE A CONSOLE STYLE GOES (back-office + shop-web) — one rule, no exceptions:**
+  1. **Both consoles use it** (or a shared `@effy/web-kit` component does) → it MUST go in
+     `packages/design-system/src/console.css`. Every common style lives there and nowhere else.
+  2. **Only one console uses it, in two or more places** → that app's own file:
+     `apps/back-office/src/styles.css` or `apps/shop-web/src/styles.css`.
+  3. **Used in one place only** → no CSS class at all: write Tailwind classes inline in that JSX.
+  Shared classes in `console.css` are `ef-*`. Classes in an app's `styles.css` have **no prefix** (`ticket`,
+  `link`); where a bare name would clash, prefix it `bo-` (back-office) or `sh-` (shop-web). A variant of a shared class (`ef-meter--lg`, `ef-st--done`) stays
+  beside it in `console.css` even if one app uses it. When a class's usage changes, move it to match.
 - **NO GRADIENTS. Flat fills only.** Cards are **bordered, never shadowed**; the only shadows are on
   floating layers (dialog, popover, sheet, select, dropdown, chart tooltip).
 - **Type: Geist / Geist Mono.** ⚠ NOT self-hosted (no woff2 to commit) — loaded from Google Fonts by
@@ -452,8 +464,8 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   `check-no-jade.sh`.
 - **Guards** (`pnpm --filter @effy/design-system test`): `check-tokens.mjs` (key-set parity, the
   four-step radius scale, **WCAG AA on every pair incl. each solid against its own `-soft` tint**,
-  the no-`-foreground` rule), `check-component-shape.mjs` (controls never pills, badge always is,
-  containers ≥ buttons ≥ controls), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
+  the no-`-foreground` rule), `check-component-shape.mjs` (controls and badges never pills,
+  cards one step above controls, surfaces ≥ their rows), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
   a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
   for an unknown utility** and the element renders as nothing with no error anywhere.
 - **Mobile**: the shop Compose theme regenerates from `tokens.css` and takes the cobalt accent and the

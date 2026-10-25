@@ -24,8 +24,8 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        // A 3px-padded `--muted` trough, so the active segment sits in a track.
-        "inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground",
+        // A `--muted` trough, so the active segment sits in a track.
+        "inline-flex h-12 w-fit items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground dark:bg-[#18181b]",
         className,
       )}
       {...props}
@@ -41,8 +41,8 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        // The active segment is a solid `--brand` fill with white text at 600, not a raised white chip.
-        "inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-[color,background-color] outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-brand data-[state=active]:font-semibold data-[state=active]:text-primary-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4",
+        // The active segment is a raised chip on the trough; the others sit at 70%.
+        "group/tab inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent px-4 text-[15px] font-medium text-foreground opacity-70 [transition:background-color_var(--dur-standard)_var(--ease-move),opacity_var(--dur-fast)_ease] outline-none hover:opacity-100 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:opacity-100 data-[state=active]:shadow-xs dark:data-[state=active]:bg-[#27272a] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
         className,
       )}
       {...props}
@@ -63,12 +63,15 @@ function TabsContent({
   )
 }
 
-/** The count inside a segment: monospace at.65 opacity, so one rule works on active and inactive segments. */
+/** The count inside a segment: a grey tag, inverted on the active segment. */
 function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="tabs-count"
-      className={cn("font-mono text-[12px] tabular-nums opacity-65", className)}
+      className={cn(
+        "inline-flex h-[18px] items-center rounded-sm bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background",
+        className,
+      )}
       {...props}
     />
   )

@@ -88,13 +88,13 @@ export function VehiclesListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Vehicle views">
+        <nav className="ef-tabs" aria-label="Vehicle views">
           {VIEWS.map((v) => (
             <button
               key={v.key}
               type="button"
               aria-current={v.key === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              className={cn("ef-tabs__tab", v.key === view && "is-active")}
               onClick={() => reset(setView)(v.key)}
             >
               {v.label}
@@ -143,7 +143,7 @@ export function VehiclesListScreen() {
       {query.isError ? (
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -159,9 +159,9 @@ export function VehiclesListScreen() {
           }
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Plate</th>
@@ -203,13 +203,13 @@ function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
   return (
     <tr>
       <td data-m="primary">
-        <Link to="/vehicles/$vehicleId" params={{ vehicleId: v.id }} className="bo-link bo-code">
+        <Link to="/vehicles/$vehicleId" params={{ vehicleId: v.id }} className="link ef-code">
           {v.registrationPlate}
         </Link>
       </td>
       <td data-m="meta">
         {v.make} {v.model}
-        <div className="bo-sub">{BODY_TYPE_LABEL[v.bodyType]}</div>
+        <div className="ef-sub">{BODY_TYPE_LABEL[v.bodyType]}</div>
       </td>
       <td data-m="meta" data-label="Carries">
         {refrigerationLabel(v.canCarryChilled, v.canCarryFrozen)}
@@ -219,7 +219,7 @@ function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
       </td>
       <td data-m="trail">
         {v.currentHolderDriverId ? (
-          <Link to="/drivers/$driverId" params={{ driverId: v.currentHolderDriverId }} className="bo-link">
+          <Link to="/drivers/$driverId" params={{ driverId: v.currentHolderDriverId }} className="link">
             {v.currentHolderName}
           </Link>
         ) : (
@@ -229,7 +229,7 @@ function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
       <td data-m="badge">
         <StatusWord tone={vehicleStatusTone(v.status)}>{STATUS_LABEL[v.status]}</StatusWord>
         {issues.length > 0 ? (
-          <span className="bo-sub mt-1 flex items-center gap-1 font-medium text-foreground">
+          <span className="ef-sub mt-1 flex items-center gap-1 font-medium text-foreground">
             <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
             {issues.map((i) => COMPLIANCE_LABEL[i]).join(" · ")}
           </span>

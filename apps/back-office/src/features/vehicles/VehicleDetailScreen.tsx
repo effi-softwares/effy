@@ -61,7 +61,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         back={{ label: "All vehicles", link: { to: "/vehicles" } }}
         title={
           <span className="flex flex-wrap items-center gap-3">
-            <span className="bo-code">{v.registrationPlate}</span>
+            <span className="ef-code">{v.registrationPlate}</span>
             <StatusWord tone={vehicleStatusTone(v.status)}>{STATUS_LABEL[v.status]}</StatusWord>
           </span>
         }
@@ -89,11 +89,11 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs defaultValue="details">
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Vehicle sections">
                   <TabsTrigger value="details">
                     <Gauge aria-hidden="true" />
@@ -113,7 +113,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                 </TabsList>
               </div>
             </div>
-            <TabsContent value="details" className="bo-tabpanel">
+            <TabsContent value="details" className="ef-tabpanel">
               <Panel title="Details" icon={<Truck aria-hidden="true" />}>
                 <DetailRows
                   rows={[
@@ -143,13 +143,13 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
               </Panel>
             </TabsContent>
             {canManage ? (
-              <TabsContent value="edit" className="bo-tabpanel">
+              <TabsContent value="edit" className="ef-tabpanel">
                 <Panel title="Edit details" icon={<Pencil aria-hidden="true" />}>
                   <VehicleEditForm vehicle={v} />
                 </Panel>
               </TabsContent>
             ) : null}
-            <TabsContent value="history" className="bo-tabpanel">
+            <TabsContent value="history" className="ef-tabpanel">
               <Panel
                 title="Handover history"
                 icon={<History aria-hidden="true" />}
@@ -161,7 +161,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
           </Tabs>
         </div>
 
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <Panel title="Who has it" icon={<UserRound aria-hidden="true" />}>
             {canManage ? (
               <HoldingControl vehicle={v} />
@@ -180,7 +180,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                   value: (
                     <>
                       {formatDate(v.registrationExpiresOn)}
-                      {regDays ? <div className="bo-sub">{regDays}</div> : null}
+                      {regDays ? <div className="ef-sub">{regDays}</div> : null}
                     </>
                   ),
                 },
@@ -190,7 +190,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                     <>
                       {v.insurancePolicyReference ?? dash}
                       {v.insuranceExpiresOn ? (
-                        <div className="bo-sub">Expires {formatDate(v.insuranceExpiresOn)}</div>
+                        <div className="ef-sub">Expires {formatDate(v.insuranceExpiresOn)}</div>
                       ) : null}
                     </>
                   ),
@@ -202,7 +202,7 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
           {canManage ? (
             <Panel title="Status">
               <div className="space-y-3">
-                <p className="bo-sub">
+                <p className="ef-sub">
                   Off the road is temporary — in the workshop, or awaiting repair. Retired is for good.
                 </p>
                 <VehicleStatusControl vehicle={v} />

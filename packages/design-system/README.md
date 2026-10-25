@@ -8,9 +8,20 @@ TypeScript source and CSS (each consumer's bundler transpiles).
 
 | File (export) | Used by | Identity |
 |---|---|---|
-| `src/tokens.css` (`./tokens.css`) | shop-web; mobile layout scale | The console: cobalt `--brand`/`--primary` as the one action colour, neutral greys, near-black dark base, three bounded hues (`--accent2`, `--violet`, `--teal`), four states with `-soft` tints, radius 4/6/8/10, Geist |
+| `src/tokens.css` (`./tokens.css`) | no web app — the email tokens, the mobile layout scale and the token guards read it | The console: cobalt `--brand`/`--primary` as the one action colour, neutral greys, near-black dark base, three bounded hues (`--accent2`, `--violet`, `--teal`), four states with `-soft` tints, radius 4/6/8/10, Geist |
 | `src/storefront/tokens.css` (`./storefront.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
-| `src/backoffice/tokens.css` (`./backoffice.css`) | back-office | The storefront identity, declaring every console token name so the shared primitives resolve |
+| `src/console.css` (`./console.css`) | back-office, shop-web | The consoles' tokens and @theme, then their shared styles (dialogs, toasts, `ef-*` patterns for both consoles, the shell) |
+
+### Where a console style goes
+
+Back-office and shop-web share one look. For any style:
+
+1. **Both consoles use it**, or a shared `@effy/web-kit` component does → `src/console.css`. All common styles live here.
+2. **Only one console uses it, in two or more places** → that app's `src/styles.css`
+   (`apps/back-office/src/styles.css`, `apps/shop-web/src/styles.css`).
+3. **Used in one place** → no class: inline Tailwind in that JSX.
+
+Shared classes in `console.css` use the `ef-` prefix; an app's own classes have no prefix, or `bo-` / `sh-` where a bare name would clash. A variant of a shared class stays next to it in `console.css`.
 
 Consumers import one of them after Tailwind:
 

@@ -53,7 +53,7 @@ export function ColourField({
       {!HEX.test(shown) ? (
         <p className="text-xs text-destructive">Six hexadecimal digits after #, like #1d4ed8.</p>
       ) : hint ? (
-        <p className="bo-sub">{hint}</p>
+        <p className="ef-sub">{hint}</p>
       ) : null}
     </div>
   )

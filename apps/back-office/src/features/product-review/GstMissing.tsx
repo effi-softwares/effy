@@ -73,9 +73,9 @@ export function GstMissing() {
           </Button>
         </div>
       ) : null}
-      <div className="bo-table-wrap">
-        <div className="bo-table-scroll">
-          <table className="bo-table" aria-label="Products with no GST status">
+      <div className="ef-table-wrap">
+        <div className="ef-table-scroll">
+          <table className="ef-table" aria-label="Products with no GST status">
             <thead>
               <tr>
                 {canDecide ? (

@@ -45,7 +45,7 @@ export function PrintingSettingsScreen() {
         title="Printing"
         description="Choose how this computer prints bag labels; each computer keeps its own setting."
       />
-      <section className="bo-panel max-w-3xl">
+      <section className="ef-panel max-w-3xl">
         <div>
           <Row
             label="Printer"

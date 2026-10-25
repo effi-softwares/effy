@@ -59,9 +59,9 @@ export function OrderTable({
   }
 
   return (
-    <div className={cn("bo-table-wrap transition-opacity", stale && "opacity-60")}>
-      <div className="bo-table-scroll">
-        <table className="bo-table bo-rtable min-w-[900px] max-md:min-w-0">
+    <div className={cn("ef-table-wrap transition-opacity", stale && "opacity-60")}>
+      <div className="ef-table-scroll">
+        <table className="ef-table ef-rtable min-w-[900px] max-md:min-w-0">
           <thead>
             <tr>
               <th className="is-check">
@@ -110,11 +110,11 @@ export function OrderTable({
                       params={{ fulfillmentId: o.id }}
                       search={search}
                       onClick={(e) => e.stopPropagation()}
-                      className="bo-code font-mono font-medium text-foreground no-underline hover:underline"
+                      className="ef-code font-mono font-medium text-foreground no-underline hover:underline"
                     >
                       {o.orderNumber}
                     </Link>
-                    <span className="bo-sub max-w-[22ch] truncate">{o.itemsSummary}</span>
+                    <span className="ef-sub max-w-[22ch] truncate">{o.itemsSummary}</span>
                   </td>
                   <td data-m="meta">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -131,11 +131,11 @@ export function OrderTable({
                   <td data-m="meta">
                     {deliveredByText(o.deliveredBy)}
                     {o.courierPickup ? (
-                      <span className="bo-sub" data-testid="row-courier-pickup">
+                      <span className="ef-sub" data-testid="row-courier-pickup">
                         {courierPickupLine(o.courierPickup)}
                       </span>
                     ) : o.collection ? (
-                      <span className="bo-sub">{runTime(o.collection)} run</span>
+                      <span className="ef-sub">{runTime(o.collection)} run</span>
                     ) : null}
                   </td>
                   <td data-m="hide" className={cn("whitespace-nowrap", paymentTextClass(o.payment))}>
@@ -150,15 +150,15 @@ export function OrderTable({
           </tbody>
         </table>
       </div>
-      <div className="bo-pager">
+      <div className="ef-pager">
         <span className="tabular-nums" aria-live="polite">
           {countLabel}
         </span>
-        <div className="bo-pager__right">
+        <div className="ef-pager__right">
           <span className="tabular-nums whitespace-nowrap">
             Page {page} of {pageCount}
           </span>
-          <div className="bo-pager__btns">
+          <div className="ef-pager__btns">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => update({ page: page - 1 }, true)}>
               <ChevronLeft aria-hidden="true" />
               Previous
@@ -183,19 +183,19 @@ function RowFlag({ row, tone }: { row: OrderRow; tone: OrderRowTone | null }) {
   return (
     <>
       {tone === "recent" ? (
-        <span className="bo-st bo-st--info">
+        <span className="ef-st ef-st--info">
           <BellRing aria-hidden="true" />
           New
         </span>
       ) : null}
-      {tone === "unopened" ? <span className="bo-tag">Not opened</span> : null}
+      {tone === "unopened" ? <span className="ef-tag">Not opened</span> : null}
       {row.atRisk ? (
-        <span className="bo-st bo-st--problem">
+        <span className="ef-st ef-st--problem">
           <CircleAlert aria-hidden="true" />
           At risk
         </span>
       ) : null}
-      {row.unavailableCount > 0 ? <span className="bo-tag">{row.unavailableCount} short</span> : null}
+      {row.unavailableCount > 0 ? <span className="ef-tag">{row.unavailableCount} short</span> : null}
     </>
   )
 }

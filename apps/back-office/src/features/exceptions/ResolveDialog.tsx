@@ -80,7 +80,7 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
                   role="radio"
                   aria-checked={outcome === o}
                   onClick={() => setOutcome(o)}
-                  className={cn("bo-choice-card flex-col gap-0.5! text-left", outcome === o && "is-checked")}
+                  className={cn("ef-choice-card flex-col gap-0.5! text-left", outcome === o && "is-checked")}
                 >
                   <span className="text-sm font-medium">{OUTCOME_WORDS[o].label}</span>
                   <span className="text-xs text-muted-foreground">{OUTCOME_WORDS[o].hint}</span>

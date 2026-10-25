@@ -154,8 +154,11 @@ export function OverviewScreen() {
             title="Needs attention"
             description="Each count opens the list it comes from. They update live — nothing here refreshes on a timer."
             actions={
-              <span className="bo-tag">
-                <span className="bo-live-dot" aria-hidden="true" />
+              <span className="ef-tag">
+                <span
+                  className="size-1.5 animate-[effy-pulse_2s_ease-in-out_infinite] rounded-full bg-success"
+                  aria-hidden="true"
+                />
                 Live
               </span>
             }
@@ -163,15 +166,15 @@ export function OverviewScreen() {
           >
             <div>
               {attention.map((a) => (
-                <Link key={a.title} {...a.link} className="bo-attn">
-                  <span className={`bo-icon-tile${a.tile ? ` bo-icon-tile--${a.tile}` : ""}`}>
+                <Link key={a.title} {...a.link} className="ef-attn">
+                  <span className={`ef-icon-tile${a.tile ? ` ef-icon-tile--${a.tile}` : ""}`}>
                     <a.icon aria-hidden="true" />
                   </span>
-                  <span className="bo-attn__text">
-                    <span className="bo-attn__title">{a.title}</span>
-                    <span className="bo-attn__desc block">{a.desc}</span>
+                  <span className="ef-attn__text">
+                    <span className="ef-attn__title">{a.title}</span>
+                    <span className="ef-attn__desc block">{a.desc}</span>
                   </span>
-                  <span className="bo-attn__n">
+                  <span className="min-w-10 text-right text-[22px] leading-[28px] font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-[18px]">
                     {a.n === undefined ? <Skeleton className="ml-auto h-6 w-8" /> : a.n}
                   </span>
                   <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -188,7 +191,7 @@ export function OverviewScreen() {
           <Panel title="Shortcuts" flush>
             <ul className="space-y-1 px-5 py-2">
               <li>
-                <button type="button" className="bo-cmd-item" onClick={() => setCommandPaletteOpen(true)}>
+                <button type="button" className="ef-cmd-item" onClick={() => setCommandPaletteOpen(true)}>
                   <Search aria-hidden="true" />
                   Find an order or customer
                   <Kbd className="ml-auto">⌘K</Kbd>
@@ -196,7 +199,7 @@ export function OverviewScreen() {
               </li>
               {SHORTCUTS.map((s) => (
                 <li key={s.label}>
-                  <Link {...s.link} className="bo-cmd-item">
+                  <Link {...s.link} className="ef-cmd-item">
                     <s.icon aria-hidden="true" />
                     {s.label}
                     <Kbd className="ml-auto">{s.keys}</Kbd>

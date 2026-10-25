@@ -121,15 +121,15 @@ function PackageRow({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="bo-icon-tile" aria-hidden="true">
+          <span className="ef-icon-tile" aria-hidden="true">
             <Store />
           </span>
           <div className="min-w-0">
             <div className="font-semibold">{pkg.shopName}</div>
-            <div className="bo-sub">
+            <div className="ef-sub">
               {pkg.packageCode ? (
                 <>
-                  <span className="bo-code" aria-label="Package code">
+                  <span className="ef-code" aria-label="Package code">
                     {pkg.packageCode}
                   </span>{" "}
                   ·{" "}
@@ -166,19 +166,19 @@ function PackageRow({
       {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
         <div className="grid gap-4 md:grid-cols-2">
           {promise ? (
-            <dl className="bo-dl bo-dl--tight">
-              <div className="bo-dl__row">
+            <dl className="ef-dl ef-dl--tight">
+              <div className="ef-dl__row">
                 <dt>Promised</dt>
                 <dd className="tabular-nums">{promise}</dd>
               </div>
               {pkg.handoverDueOn && !pkg.handoff ? (
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Hand over by</dt>
                   <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
                 </div>
               ) : null}
               {flags.length > 0 ? (
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Note</dt>
                   <dd className="flex flex-wrap gap-x-3">
                     {flags.map((f) => (
@@ -195,12 +195,12 @@ function PackageRow({
           )}
           {pkg.handovers && pkg.handovers.length > 0 ? (
             <div>
-              <div className="bo-eyebrow mb-2">Hand-overs</div>
-              <ol className="bo-tl" aria-label="Hand-overs">
+              <div className="ef-eyebrow mb-2">Hand-overs</div>
+              <ol className="ef-tl" aria-label="Hand-overs">
                 {pkg.handovers.map((h, i) => (
-                  <li key={i} className="bo-tl__item pb-2.5">
+                  <li key={i} className="ef-tl__item pb-2.5">
                     <span
-                      className={`bo-tl__mark ${h.step === "deliver" ? "bo-tl__mark--done" : "bo-tl__mark--primary"}`}
+                      className={`ef-tl__mark ${h.step === "deliver" ? "ef-tl__mark--done" : "ef-tl__mark--primary"}`}
                       aria-hidden="true"
                     >
                       <StepIcon step={h.step} />
@@ -209,18 +209,18 @@ function PackageRow({
                       <div className="text-sm font-medium">
                         {HANDOVER_STEP_WORDS[h.step]}
                         {h.parcelCode && bags.length > 1 ? (
-                          <span className="bo-sub"> · {bagWord(bags, h.parcelCode)}</span>
+                          <span className="ef-sub"> · {bagWord(bags, h.parcelCode)}</span>
                         ) : null}
                       </div>
-                      <div className="bo-tl__body">
-                        {byWords(h)} · <span className="bo-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
+                      <div className="ef-tl__body">
+                        {byWords(h)} · <span className="ef-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
                         <span className="sr-only">
                           {" "}
                           {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {byWords(h)}
                         </span>
                       </div>
                     </div>
-                    <span className="bo-tl__time">{clockAt(h.at)}</span>
+                    <span className="ef-tl__time">{clockAt(h.at)}</span>
                   </li>
                 ))}
               </ol>
@@ -319,8 +319,8 @@ function PackageRow({
 function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
   return (
     <div>
-      <div className="bo-eyebrow mb-2">Bags</div>
-      <table className="bo-table bo-table--compact bo-table--plain rounded-lg border border-border" aria-label="Bags">
+      <div className="ef-eyebrow mb-2">Bags</div>
+      <table className="ef-table ef-table--compact ef-table--plain rounded-lg border border-border" aria-label="Bags">
         <thead>
           <tr>
             <th>Bag</th>

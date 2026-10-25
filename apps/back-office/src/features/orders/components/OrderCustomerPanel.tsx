@@ -22,12 +22,12 @@ export function OrderCustomerPanel({ order }: { order: OrderDetail }) {
     >
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <span className="bo-avatar bo-avatar--lg bo-avatar--blue" aria-hidden="true">
+          <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
             {initialsOf(order.customerName ?? order.customerEmail)}
           </span>
           <div className="min-w-0">
             <div className="truncate font-semibold">{order.customerName ?? order.customerEmail}</div>
-            {order.customerName ? <div className="bo-sub truncate">{order.customerEmail}</div> : null}
+            {order.customerName ? <div className="ef-sub truncate">{order.customerEmail}</div> : null}
           </div>
         </div>
         <OrderCustomerPoints

@@ -41,7 +41,7 @@ export function TargetPicker({
 
   return (
     <div className="space-y-4">
-      <div role="group" aria-label="Applies to" className="bo-seg">
+      <div role="group" aria-label="Applies to" className="ef-seg">
         {(["products", "categories", "brands"] as const).map((a) => (
           <button
             key={a}
@@ -166,7 +166,7 @@ function Chips({
   disabled: boolean
   empty: string
 }) {
-  if (items.length === 0) return <p className="bo-sub">{empty}</p>
+  if (items.length === 0) return <p className="ef-sub">{empty}</p>
   return (
     <ul className="flex flex-wrap gap-2">
       {items.map((i) => (

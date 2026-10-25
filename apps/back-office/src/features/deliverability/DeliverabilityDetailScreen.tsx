@@ -41,15 +41,15 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
         }
       />
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Panel
             title="History"
             description="Every send to this address the platform heard back about, newest first."
             flush
           >
-            <div className="bo-table-scroll">
-              <table className="bo-table">
+            <div className="ef-table-scroll">
+              <table className="ef-table">
                 <thead>
                   <tr>
                     <th>When</th>
@@ -83,9 +83,9 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
             </div>
           </Panel>
         </div>
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <Panel title="Address">
-            <dl className="bo-dl bo-dl--tight">
+            <dl className="ef-dl ef-dl--tight">
               <Row label="State">
                 <StateLabel state={data.state} />
               </Row>
@@ -139,7 +139,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="bo-dl__row">
+    <div className="ef-dl__row">
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>

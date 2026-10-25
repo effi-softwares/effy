@@ -4,8 +4,7 @@ import { Slot } from "radix-ui"
 
 import { cn } from "../cn"
 
-// The status pill: `rounded-full`, while every control is squared (a lozenge around a word is a shape,
-// not a radius step). The status mapping is closed:
+// The status tag: 6px corners, like the controls. The status mapping is closed:
 //
 //  in-progress / active → brand
 //  positive / complete → success
@@ -16,21 +15,23 @@ import { cn } from "../cn"
 // Anything else is `muted`. Every tone is a solid foreground on its own `-soft` tint, contrast-checked
 // by check-tokens.mjs.
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-[color,box-shadow] [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:border-ring aria-invalid:border-destructive",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2.25 py-0.75 text-[12.5px] leading-[16px] font-semibold transition-[color,box-shadow] [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:border-ring aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         // In progress. `default` and `brand` are the same tone.
-        default: "border-brand-mid bg-brand-soft text-brand-ink",
-        brand: "border-brand-mid bg-brand-soft text-brand-ink",
-        success: "border-border bg-success-soft text-success",
-        warning: "border-border bg-warning-soft text-warning",
-        destructive: "border-border bg-destructive-soft text-destructive",
+        default: "bg-brand-soft text-primary",
+        brand: "bg-brand-soft text-primary",
+        success: "bg-success-soft text-success",
+        // Waiting: an outlined tag.
+        warning: "border-input bg-background text-foreground",
+        // Failed: the foreground as a fill (black, white in dark).
+        destructive: "bg-foreground text-background",
         // Inert: the default for anything that does not map. `secondary` is an alias.
-        muted: "border-border bg-muted text-muted-foreground",
-        secondary: "border-border bg-muted text-muted-foreground",
-        // A pill with no tint, for where the surrounding row already carries the meaning.
-        outline: "border-border bg-transparent text-foreground",
+        muted: "bg-secondary text-secondary-foreground",
+        secondary: "bg-secondary text-secondary-foreground",
+        // No tint, for where the surrounding row already carries the meaning.
+        outline: "border-border bg-transparent font-medium text-foreground",
       },
     },
     defaultVariants: {

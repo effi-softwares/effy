@@ -86,9 +86,7 @@ function InventoryRulesForm({
       <div className="grid gap-5">
         <div className="border-border flex items-start justify-between gap-4 border-b pb-4">
           <div className="grid gap-1">
-            <Label htmlFor="rules-tracked" className="text-[13.5px] font-medium">
-              Track stock
-            </Label>
+            <Label htmlFor="rules-tracked">Track stock</Label>
             <p className="text-muted-foreground text-[12.5px]">
               Deduct units on every paid order, and stop selling at zero.
             </p>

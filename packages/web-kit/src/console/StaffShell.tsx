@@ -9,7 +9,7 @@ import type { DefaultTabs, StaffNavGroup } from "./staff-nav";
 /**
  * The authenticated frame BOTH consoles render inside — back-office and shop-web are one shell, one
  * scale, one theme. shadcn sidebar-07 dressed as the redesign's "Foundations and shell" boards; styles
- * in @effy/design-system/backoffice/shell.css. Everything that differs is a prop. Wired by hand; no DI.
+ * in @effy/design-system/console.css. Everything that differs is a prop. Wired by hand; no DI.
  *
  * Breakpoints: ≥1024 the 256px sidebar (folds to the 96px labelled rail with ⌘B, remembered per
  * person); 768–1023 always the rail, whatever was remembered; <768 the sidebar is a sheet behind the
@@ -81,7 +81,7 @@ export function StaffShell({
       open={tablet ? tabletOpen : sidebarOpen}
       onOpenChange={tablet ? setTabletOpen : onSidebarOpenChange}
       mobileBreakpoint={768}
-      className="bo-shell"
+      className="ef-shell"
     >
       <StaffSidebar
         brand={brand}
@@ -101,7 +101,7 @@ export function StaffShell({
             account={userMenu}
             detail={headerDetail}
           />
-          <main className="bo-content">{children}</main>
+          <main className="flex w-full min-w-0 flex-col gap-6 px-(--pad) pt-(--pad) pb-10 max-md:gap-4 max-md:pb-8">{children}</main>
         </HeaderDetailProvider>
       </SidebarInset>
       {overlays}

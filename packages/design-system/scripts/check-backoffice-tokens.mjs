@@ -1,4 +1,4 @@
-// Guard for the back-office identity (src/backoffice/tokens.css). It renders the console's shared
+// Guard for the back-office identity (src/console.css). It renders the console's shared
 // primitives, so it is held to:
 //  1. every --color-* the console file declares is declared here too (or Tailwind emits no rule);
 //  2.:root and.dark carry the same colour keys;
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const raw = readFileSync(resolve(here, "../src/backoffice/tokens.css"), "utf8");
+const raw = readFileSync(resolve(here, "../src/console.css"), "utf8");
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
 const consoleCss = readFileSync(resolve(here, "../src/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 

@@ -60,7 +60,7 @@ nothing else either. That symmetry is the point (constitution Principle II).
   nothing else — the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
   never the shadcn block's cookie.
 - **Dashboard chrome is `<StaffShell>` from `@effy/web-kit/console`** — the consoles' ONE shell,
-  shared with shop-web (same frame, scale and theme; styles in `@effy/design-system/backoffice/shell.css`
+  shared with shop-web (same frame, scale and theme; styles in `@effy/design-system/console.css`
   and `touch.css`). `components/shell/AppShell.tsx` only supplies this surface's nav, counts, account
   menu entries and dialogs. To add a nav destination: add an entry to `components/shell/nav.ts` (set
   `requiredRole` to role-gate it), then add its route. A hidden nav item is **not** a gate: add the matching backend check too.
@@ -94,3 +94,8 @@ Every backend failure is parsed to a `DomainError` (`@effy/api-client`) with a `
 render human-readable states keyed on `kind` — **never** the raw `detail`/stack/token:
 - `forbidden` → access-denied · `unavailable` → degraded + retry · `unauthenticated` → session
   recovery / sign-in.
+
+## Styles
+
+`src/styles.css` holds only classes this app uses in two or more places. A style both consoles use goes in
+`packages/design-system/src/console.css`; a style used once is inline Tailwind in its JSX. Classes here have no prefix (`bo-` only where a bare name would clash); shared ones in `console.css` are `ef-*`.

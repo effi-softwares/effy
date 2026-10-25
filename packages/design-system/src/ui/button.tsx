@@ -4,50 +4,26 @@ import { Slot } from "radix-ui"
 
 import { cn } from "../cn"
 
-// The platform button: `rounded-lg` (8px), between the 6px control step and the 10px container step, so
-// a button sits visibly on its card; never a pill (check-component-shape.mjs). Disabled lowers opacity
-// rather than changing colour. No shadows.
+// The consoles' button: 6px corners, 15px text, one height per size (44 default, 40 small, 44 square).
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-[15px] leading-[20px] font-medium whitespace-nowrap transition-[background-color,color,border-color,box-shadow] duration-(--dur-fast) ease-[ease] outline-none focus-visible:border-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4.5",
   {
     variants: {
       variant: {
-        // Primary: the one action colour.
-        default: "bg-primary text-primary-foreground font-semibold hover:opacity-90",
-        // Secondary: a hairline box on the ground (named `outline`).
-        outline:
-          "border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground",
-        // A quiet filled button: the soft tint instead of a border.
-        secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
-        // Ghost: no chrome until hovered, muted text at rest so a row of them does not read as links.
-        ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        destructive:
-          "bg-destructive text-destructive-foreground font-semibold hover:opacity-90",
-        // The default destructive affordance. The filled `destructive` is for confirmation dialogs,
-        // where destroying something is the primary action.
-        "destructive-ghost":
-          "bg-transparent text-destructive hover:bg-destructive-soft",
-        link: "text-brand underline-offset-4 hover:underline hover:text-brand-ink",
+        default: "bg-primary text-primary-foreground shadow-xs hover:bg-[#1a46c4] dark:hover:bg-[color-mix(in_srgb,var(--primary)_70%,#1d4ed8)]",
+        outline: "border border-input bg-background text-foreground shadow-xs hover:bg-accent hover:text-accent-foreground dark:hover:bg-[#2f2f33]",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-[#e9e9ec] dark:hover:bg-[#2f2f33]",
+        ghost: "text-foreground hover:bg-accent hover:text-accent-foreground dark:hover:bg-[#2f2f33]",
+        destructive: "bg-destructive text-destructive-foreground hover:opacity-88",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        // Heights from the design: 34px button, 32px in-header, 30px in-row.
-        default: "h-[34px] px-3.5 has-[>svg]:px-3",
-        xs: "h-6 gap-1 px-2 text-[11.5px] has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        // In-header secondary.
-        sm: "h-8 gap-1.5 px-3 has-[>svg]:px-2.5",
-        // In-row control (table row actions, segmented tabs).
-        compact: "h-[30px] gap-1.5 px-2.5 text-[13px] has-[>svg]:px-2",
-        lg: "h-10 px-6 has-[>svg]:px-4",
-        // The storefront's tall CTA (customer-web).
-        xl: "h-12 px-8 text-base has-[>svg]:px-6",
-        icon: "size-[34px]",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
-        // 30px square: the console header's icon buttons, on one rhythm.
-        "icon-sm": "size-[30px]",
-        "icon-compact": "size-[30px] [&_svg:not([class*='size-'])]:size-3.5",
-        "icon-lg": "size-10",
+        default: "h-11 px-4.5 has-[>svg]:px-4",
+        sm: "h-10 gap-1.5 px-3.5 text-[14px]/[20px] [&_svg:not([class*='size-'])]:size-4",
+        icon: "size-11",
       },
     },
+    compoundVariants: [{ variant: "link", class: "h-auto p-0 has-[>svg]:p-0" }],
     defaultVariants: {
       variant: "default",
       size: "default",

@@ -20,13 +20,7 @@ const ACTION_LABEL: Record<Exclude<RequestableTransition, "unfulfillable">, stri
   ready_for_pickup: "Mark ready for pickup",
 }
 
-export function StateActions({
-  detail,
-  size = "default",
-}: {
-  detail: { id: string; status: FulfillmentStatus }
-  size?: "default" | "lg"
-}) {
+export function StateActions({ detail }: { detail: { id: string; status: FulfillmentStatus } }) {
   const transition = useTransitionFulfillment(detail.id)
   const advance = nextTransition(detail.status)
 
@@ -35,7 +29,6 @@ export function StateActions({
       {detail.status === "ready_for_pickup" ? (
         <Button
           variant="outline"
-          size={size}
           disabled={transition.isPending}
           onClick={() => transition.mutate({ to: "picking", from: detail.status })}
         >
@@ -44,11 +37,7 @@ export function StateActions({
       ) : null}
 
       {advance && advance !== "unfulfillable" ? (
-        <Button
-          size={size}
-          disabled={transition.isPending}
-          onClick={() => transition.mutate({ to: advance, from: detail.status })}
-        >
+        <Button disabled={transition.isPending} onClick={() => transition.mutate({ to: advance, from: detail.status })}>
           {transition.isPending ? (
             <Loader2 className="animate-spin" />
           ) : advance === "picking" ? (
@@ -170,7 +159,7 @@ export function CantSupplyDialog({
       {!single ? (
         <div className="grid">
           {eligible.map((t) => (
-            <div key={t.id} className="bo-code border-b border-border py-2.5">
+            <div key={t.id} className="ef-code border-b border-border py-2.5">
               {t.orderNumber}
             </div>
           ))}

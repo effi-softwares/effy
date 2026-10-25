@@ -94,18 +94,18 @@ export function DriversListScreen() {
       <DutyPanel />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Driver views">
+        <nav className="ef-tabs" aria-label="Driver views">
           {VIEWS.map((v) => (
             <button
               key={v.key}
               type="button"
               aria-current={v.key === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              className={cn("ef-tabs__tab", v.key === view && "is-active")}
               onClick={() => resetPaging(setView)(v.key)}
             >
               {v.label}
               {v.key === "readiness" && blockedCount ? (
-                <span className={cn("bo-tabs__count", view !== "readiness" && "bo-tabs__count--primary")}>
+                <span className={cn("ef-tabs__count", view !== "readiness" && "ef-tabs__count--primary")}>
                   {blockedCount}
                 </span>
               ) : null}
@@ -146,7 +146,7 @@ export function DriversListScreen() {
       ) : isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -162,9 +162,9 @@ export function DriversListScreen() {
           }
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Driver</th>
@@ -205,15 +205,15 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
     <tr>
       <td data-m="primary">
         <div className="flex items-center gap-3">
-          <span className="bo-avatar bo-avatar--sq max-md:hidden" aria-hidden="true">
+          <span className="avatar avatar--sq max-md:hidden" aria-hidden="true">
             {initialsOf(d.name)}
           </span>
           <div className="min-w-0">
-            <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="bo-link">
+            <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="link">
               {d.name}
             </Link>
             {blocked ? (
-              <span className="bo-sub flex items-center gap-1 font-medium text-foreground">
+              <span className="ef-sub flex items-center gap-1 font-medium text-foreground">
                 <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
                 {blocked}
               </span>

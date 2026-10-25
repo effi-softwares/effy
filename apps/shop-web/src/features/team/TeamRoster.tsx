@@ -71,7 +71,7 @@ export function TeamRoster() {
           forbiddenMessage="Your account can't see this shop's team."
         />
       ) : isPending ? (
-        <div className="bo-table-wrap" aria-busy="true" aria-label="Loading the team">
+        <div className="ef-table-wrap" aria-busy="true" aria-label="Loading the team">
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0">
               <Skeleton className="size-8 rounded-full" />
@@ -81,7 +81,7 @@ export function TeamRoster() {
           ))}
         </div>
       ) : (
-        <div className="bo-table-wrap overflow-x-auto">
+        <div className="ef-table-wrap overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -158,9 +158,9 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
       </TableCell>
       <TableCell>
         {member.status === "active" ? (
-          <span className="bo-st bo-st--done">Active</span>
+          <span className="ef-st ef-st--done">Active</span>
         ) : (
-          <span className="bo-st bo-st--quiet">Stood down</span>
+          <span className="ef-st ef-st--quiet">Stood down</span>
         )}
       </TableCell>
       {canManage ? (

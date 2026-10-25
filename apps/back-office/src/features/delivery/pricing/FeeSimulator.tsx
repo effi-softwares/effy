@@ -99,9 +99,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                 disabled={!slotId}
                 onCheckedChange={(v) => setToday(v === true)}
               />
-              <Label htmlFor="sim-today" className="font-normal">
-                The window is today
-              </Label>
+              <Label htmlFor="sim-today">The window is today</Label>
             </div>
           </div>
         ) : null}

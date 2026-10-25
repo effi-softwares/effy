@@ -192,7 +192,7 @@ function ItemSelection({
             checked={Boolean(selected[l.orderItemId])}
             onCheckedChange={(on) => onToggle(l.orderItemId, on ? 1 : 0)}
           />
-          <Label htmlFor={`line-${l.orderItemId}`} className="flex-1 font-normal">
+          <Label htmlFor={`line-${l.orderItemId}`} className="flex-1">
             {l.productName}
             {l.variantLabel ? <span className="text-muted-foreground"> — {l.variantLabel}</span> : null}
             <span className="ml-2 text-muted-foreground">

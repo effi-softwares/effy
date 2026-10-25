@@ -61,7 +61,7 @@ export function DeliveryScreen() {
   return (
     <>
       <PageHeader title={page.title} description={page.description} />
-      <div className="bo-settings">
+      <div className="settings">
         {tab === "pricing" ? (
           <PricingPanel canManage={canManage} />
         ) : tab === "slots" ? (
@@ -213,7 +213,7 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
         footerBetween
         footer={
           <>
-            <span className="bo-sub" role="status">
+            <span className="ef-sub" role="status">
               {note ?? "The prep buffer is how long a shop needs before a collection run."}
             </span>
             {canManage ? (

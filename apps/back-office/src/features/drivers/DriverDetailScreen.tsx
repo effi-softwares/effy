@@ -63,7 +63,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         back={{ label: "All drivers", link: { to: "/drivers" } }}
         title={
           <span className="flex items-center gap-3">
-            <span className="bo-avatar bo-avatar--lg bo-avatar--blue" aria-hidden="true">
+            <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
               {initialsOf(d.name)}
             </span>
             <span className="min-w-0">
@@ -90,7 +90,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             {d.vehicle.plate ? (
               <span>
                 <Truck aria-hidden="true" />
-                <span className="bo-code">{d.vehicle.plate}</span>
+                <span className="ef-code">{d.vehicle.plate}</span>
                 {d.vehicle.type ? ` · ${d.vehicle.type}` : ""}
               </span>
             ) : null}
@@ -120,11 +120,11 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs defaultValue="profile">
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Driver sections">
                   <TabsTrigger value="profile">
                     <UserRound aria-hidden="true" />
@@ -143,7 +143,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
               </div>
             </div>
 
-            <TabsContent value="profile" className="bo-tabpanel">
+            <TabsContent value="profile" className="ef-tabpanel">
               <Panel title="Identity and contact" icon={<IdCard aria-hidden="true" />}>
                 <DetailRows
                   rows={[
@@ -153,7 +153,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                       value: (
                         <>
                           {d.workEmail}
-                          <div className="bo-sub">The sign-in identity. It cannot be changed here.</div>
+                          <div className="ef-sub">The sign-in identity. It cannot be changed here.</div>
                         </>
                       ),
                     },
@@ -178,14 +178,14 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                         <>
                           {d.vehicle.type}
                           {d.vehicle.plate ? ` · ${d.vehicle.plate}` : ""}
-                          <div className="bo-sub">Issued from the vehicle's record</div>
+                          <div className="ef-sub">Issued from the vehicle's record</div>
                         </>
                       ) : (
                         <>
                           {dash}
-                          <div className="bo-sub">
+                          <div className="ef-sub">
                             Issue one from a{" "}
-                            <Link to="/vehicles" className="bo-link">
+                            <Link to="/vehicles" className="link">
                               vehicle's record
                             </Link>
                             .
@@ -195,7 +195,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                     },
                     {
                       label: "Registration plate",
-                      value: d.vehicle.plate ? <span className="bo-code">{d.vehicle.plate}</span> : dash,
+                      value: d.vehicle.plate ? <span className="ef-code">{d.vehicle.plate}</span> : dash,
                     },
                     { label: "Licence", value: d.credentials.licenceReference ?? dash },
                     { label: "Licence class", value: d.credentials.licenceClass ?? dash },
@@ -204,7 +204,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                       value: d.credentials.licenceExpiresOn ? (
                         <>
                           {formatDate(d.credentials.licenceExpiresOn)}
-                          {expiry ? <div className="bo-sub">{expiry}</div> : null}
+                          {expiry ? <div className="ef-sub">{expiry}</div> : null}
                         </>
                       ) : (
                         dash
@@ -215,7 +215,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
               </Panel>
             </TabsContent>
 
-            <TabsContent value="clearances" className="bo-tabpanel">
+            <TabsContent value="clearances" className="ef-tabpanel">
               <Panel
                 title="Cleared for"
                 icon={<BadgeCheck aria-hidden="true" />}
@@ -225,7 +225,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
               </Panel>
             </TabsContent>
 
-            <TabsContent value="history" className="bo-tabpanel">
+            <TabsContent value="history" className="ef-tabpanel">
               <Panel
                 title="Change history"
                 icon={<History aria-hidden="true" />}
@@ -237,12 +237,12 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           </Tabs>
         </div>
 
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <Panel title="Employment">
             <div className="space-y-4">
               <div>
                 <StatusWord tone={statusTone(d.status)}>{STATUS_LABEL[d.status]}</StatusWord>
-                <p className="bo-sub mt-1.5">{STATUS_MEANING[d.status]}</p>
+                <p className="ef-sub mt-1.5">{STATUS_MEANING[d.status]}</p>
               </div>
               <DetailRows
                 tight
@@ -259,7 +259,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
           <Panel title="Today">
             <div className="space-y-3">
               {onDuty ? <StatusWord tone="moving">On duty</StatusWord> : <StatusWord tone="quiet">Off duty</StatusWord>}
-              <p className="bo-sub">
+              <p className="ef-sub">
                 {onDuty
                   ? "Signed in to the driver app and taking work."
                   : "Not on duty. Work is offered once they start a shift."}

@@ -31,7 +31,11 @@ export function OrderQueue({ search, now }: { search: OrdersSearch; now: number 
   return (
     <div className="flex flex-col gap-4">
       <CollectionStrip now={now} />
-      <div className="sh-lanes" role="list" aria-label="Order queue">
+      <div
+        className="grid grid-cols-4 items-start gap-4 max-lg:-mx-(--pad) max-lg:snap-x max-lg:snap-mandatory max-lg:grid-cols-[repeat(4,minmax(300px,1fr))] max-lg:scroll-px-(--pad) max-lg:overflow-x-auto max-lg:px-(--pad) max-lg:pb-1 max-lg:[scrollbar-width:none] max-md:grid-cols-[repeat(4,86%)] max-md:gap-3"
+        role="list"
+        aria-label="Order queue"
+      >
         {LANES.map((lane) => (
           <Lane key={lane.tab} lane={lane} q={search.q} now={now} />
         ))}
@@ -63,29 +67,31 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
   const quiet = lane.tab === "collected"
 
   return (
-    <section className="sh-lane" role="listitem" aria-label={lane.title}>
-      <h2 className="sh-lane__head">
+    <section className="flex min-w-0 flex-col gap-2.5 max-lg:snap-start" role="listitem" aria-label={lane.title}>
+      <h2 className="flex h-10 items-center gap-2 text-[15px] font-semibold">
         {lane.title}
         {list.data ? (
-          <span className={cn("bo-tabs__count", lane.tab === "new" && total > 0 && "bo-tabs__count--primary")}>
+          <span className={cn("ef-tabs__count", lane.tab === "new" && total > 0 && "ef-tabs__count--primary")}>
             {total}
           </span>
         ) : null}
-        {lane.hint ? <span className="sh-lane__hint">{lane.hint}</span> : null}
+        {lane.hint ? <span className="ml-auto text-[13px] font-normal text-muted-foreground">{lane.hint}</span> : null}
       </h2>
 
       {list.isError ? (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : list.isPending ? (
         Array.from({ length: 2 }, (_, i) => (
-          <div key={i} className="sh-ticket" aria-busy="true">
+          <div key={i} className="ticket" aria-busy="true">
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-4 w-44" />
             <Skeleton className="h-11 w-full" />
           </div>
         ))
       ) : rows.length === 0 ? (
-        <p className="sh-lane__empty">{EMPTY[lane.tab] ?? "Nothing here"}</p>
+        <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-[14px] text-muted-foreground">
+          {EMPTY[lane.tab] ?? "Nothing here"}
+        </p>
       ) : (
         <>
           {rows.map((row) =>
@@ -146,12 +152,12 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
   }
 
   return (
-    <article className={cn("sh-ticket", row.atRisk ? "is-late" : tone === "recent" && "is-new")}>
-      <div className="sh-ticket__top">
+    <article className={cn("ticket", row.atRisk ? "is-late" : tone === "recent" && "is-new")}>
+      <div className="ticket__top">
         <Link
           to="/orders/$fulfillmentId"
           params={{ fulfillmentId: row.id }}
-          className="sh-ticket__code text-foreground no-underline hover:underline"
+          className="ticket__code text-foreground no-underline hover:underline"
         >
           {row.orderNumber}
         </Link>
@@ -159,7 +165,7 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
           {row.status === "ready_for_pickup" ? (
             <ReadyWord />
           ) : tone === "recent" && row.status === "pending" ? (
-            <span className="bo-st bo-st--info">
+            <span className="ef-st ef-st--info">
               <BellRing aria-hidden="true" />
               New
             </span>
@@ -168,7 +174,7 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
           )}
         </span>
       </div>
-      <p className="sh-ticket__meta">
+      <p className="ticket__meta">
         {itemsLine(row)}
         {tone === "unopened" ? " · not opened yet" : null}
         {row.unavailableCount > 0 ? ` · ${row.unavailableCount} short` : null}
@@ -176,26 +182,24 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
 
       {row.status === "picking" ? (
         <>
-          <div className="sh-ticket__progress">
-            <div className="bo-meter" role="img" aria-label={`${row.gatheredCount} of ${row.itemCount} picked`}>
+          <div className="flex items-center gap-2.5 text-[13px] tabular-nums text-muted-foreground [&_.ef-meter]:flex-auto">
+            <div className="ef-meter" role="img" aria-label={`${row.gatheredCount} of ${row.itemCount} picked`}>
               <i
-                className="bo-meter__booked"
+                className="ef-meter__booked"
                 style={{ width: `${row.itemCount > 0 ? (row.gatheredCount / row.itemCount) * 100 : 0}%` }}
               />
             </div>
             {row.gatheredCount} of {row.itemCount}
           </div>
-          <Button variant="outline" size="lg" onClick={open}>
+          <Button variant="outline" onClick={open}>
             Continue
           </Button>
         </>
       ) : row.status === "pending" ? (
         // Opening the order IS the acknowledgement; nobody has yet.
-        <Button size="lg" onClick={open}>
-          Open order
-        </Button>
+        <Button onClick={open}>Open order</Button>
       ) : row.status === "received" ? (
-        <Button size="lg" disabled={starting} onClick={() => void startPicking()}>
+        <Button disabled={starting} onClick={() => void startPicking()}>
           {starting ? <Loader2 className="animate-spin" /> : null}
           Start picking
         </Button>
@@ -209,20 +213,22 @@ function QuietTicket({ row }: { row: OrderRow }) {
     <Link
       to="/orders/$fulfillmentId"
       params={{ fulfillmentId: row.id }}
-      className="sh-ticket is-quiet hover:bg-[var(--row-hover)]"
+      className="ticket is-quiet hover:bg-[var(--row-hover)]"
     >
-      <span className="sh-ticket__top">
-        <span className="sh-ticket__code">{row.orderNumber}</span>
-        <span className="sh-ticket__time">{formatPlacedShort(row.placedAt)}</span>
+      <span className="ticket__top">
+        <span className="ticket__code">{row.orderNumber}</span>
+        <span className="ml-auto text-[14px] tabular-nums text-muted-foreground">
+          {formatPlacedShort(row.placedAt)}
+        </span>
       </span>
-      <span className="sh-ticket__meta">{itemsLine(row)}</span>
+      <span className="ticket__meta">{itemsLine(row)}</span>
     </Link>
   )
 }
 
 function ReadyWord() {
   return (
-    <span className="bo-st bo-st--moving">
+    <span className="ef-st ef-st--moving">
       <PackageCheck aria-hidden="true" />
       Ready
     </span>

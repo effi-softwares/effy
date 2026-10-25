@@ -129,3 +129,8 @@ This surface defines **no theme of its own**. Brand, dark mode, and neutral surf
 jade accent all come from `@effy/design-system` (`tokens.css`). Sizing is the shadcn/Tailwind
 default (16px root, no fluid scaling). `src/theme-tokens.test.ts` fails the build if a colour
 literal, a `@theme` block, or a local `font-size: clamp()` appears in `styles.css`.
+
+## Styles
+
+`src/styles.css` holds only classes this app uses in two or more places. A style both consoles use goes in
+`packages/design-system/src/console.css`; a style used once is inline Tailwind in its JSX. Classes here have no prefix (`sh-` only where a bare name would clash); shared ones in `console.css` are `ef-*`.

@@ -29,9 +29,9 @@ if (storefrontDeclared.size < 15) {
 }
 
 // back-office imports its own @theme (held to every console name by check-backoffice-tokens.mjs) with its own roles.
-const backofficeDeclared = declaredIn("../src/backoffice/tokens.css");
+const backofficeDeclared = declaredIn("../src/console.css");
 if (backofficeDeclared.size < consoleDeclared.size) {
-  console.error("check-token-usage: FAILED — backoffice/tokens.css declares fewer --color-* vars than tokens.css");
+  console.error("check-token-usage: FAILED — console.css declares fewer --color-* vars than tokens.css");
   process.exit(1);
 }
 
@@ -110,7 +110,7 @@ const ok = [
     "packages/design-system/src/ui",
   ]),
   // Both internal consoles wear the back-office identity (shop-web since its 2026-10-24 redesign).
-  scan("back-office", "backoffice/tokens.css", backofficeDeclared, everyToken, [
+  scan("back-office", "console.css", backofficeDeclared, everyToken, [
     "apps/back-office/src",
     "apps/shop-web/src",
   ]),

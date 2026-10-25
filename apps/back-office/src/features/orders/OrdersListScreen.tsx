@@ -199,7 +199,7 @@ export function OrdersListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap space-y-0 p-4">
+        <div className="ef-table-wrap space-y-0 p-4">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="mb-3 h-10" />
           ))}
@@ -229,9 +229,9 @@ export function OrdersListScreen() {
           }
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Order</th>
@@ -287,10 +287,10 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
   return (
     <tr className={cn(focused && "is-selected")} aria-selected={focused || undefined}>
       <td data-m="primary">
-        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="bo-link bo-code">
+        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link ef-code">
           {o.orderNumber}
         </Link>
-        <span className="bo-sub md:hidden">{o.customerEmail}</span>
+        <span className="ef-sub md:hidden">{o.customerEmail}</span>
       </td>
       <td data-m="hide" className="is-muted whitespace-nowrap">
         {moment(o.placedAt)}
@@ -301,7 +301,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
       <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
       <td data-m="meta">
         <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
-        {o.promise && o.promise !== "window" ? <span className="bo-sub">{PROMISE_LABEL[o.promise]}</span> : null}
+        {o.promise && o.promise !== "window" ? <span className="ef-sub">{PROMISE_LABEL[o.promise]}</span> : null}
       </td>
       <td data-m="hide">
         <DriverCell order={o} />
@@ -312,7 +312,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
         ) : (
           <span className="text-muted-foreground">Complete</span>
         )}
-        <span className="bo-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
+        <span className="ef-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
       </td>
       <td data-m="trail" className="is-num font-medium">
         {money(o.grandTotalAmount, o.currency)}
@@ -332,7 +332,7 @@ function DriverCell({ order }: { order: OrderSummary }) {
         <span className="text-muted-foreground">—</span>
       ) : null}
       {order.needsDriver ? (
-        <span className="bo-tag">
+        <span className="ef-tag">
           <UserX aria-hidden="true" />
           Needs a driver
         </span>

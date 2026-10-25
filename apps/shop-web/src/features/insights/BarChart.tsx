@@ -25,11 +25,11 @@ export function BarChart({
   const heights = barHeights(buckets.map(valueOf))
 
   return (
-    <section className="bo-panel min-w-0">
-      <header className="bo-panel__head items-start!">
+    <section className="ef-panel min-w-0">
+      <header className="ef-panel__head items-start!">
         <div className="grid gap-0.5">
-          <h2 className="bo-panel__title">{title}</h2>
-          <p className="bo-panel__desc whitespace-nowrap">{subtitle}</p>
+          <h2 className="ef-panel__title">{title}</h2>
+          <p className="ef-panel__desc whitespace-nowrap">{subtitle}</p>
         </div>
         <div className="grid gap-0.5 text-right">
           <p className="text-[22px] leading-7 font-semibold tracking-[-.02em] tabular-nums whitespace-nowrap">

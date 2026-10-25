@@ -6,7 +6,7 @@ export function SkinUsage({ skin }: { skin: AdminSkinDTO }) {
   return (
     <Panel title="Where it's used">
       {usage.placements === 0 && usage.defaultOf.length === 0 ? (
-        <p className="bo-sub">Nowhere yet. Choose it on a display group's page.</p>
+        <p className="ef-sub">Nowhere yet. Choose it on a display group's page.</p>
       ) : (
         <ul className="space-y-1.5 text-sm" data-testid="skin-usage">
           {usage.defaultOf.map((g) => (

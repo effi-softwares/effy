@@ -25,8 +25,8 @@ export function PerformancePanel({ promotionId }: { promotionId: string }) {
       description={data.budgetLeft ? `$${data.budgetLeft} of its budget left.` : "Paid orders only."}
       flush
     >
-      <div className="bo-table-scroll">
-        <table className="bo-table">
+      <div className="ef-table-scroll">
+        <table className="ef-table">
           <thead>
             <tr>
               <th />

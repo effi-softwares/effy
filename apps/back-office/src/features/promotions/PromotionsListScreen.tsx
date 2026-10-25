@@ -130,17 +130,17 @@ export function PromotionsListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Promotion views">
+        <nav className="ef-tabs" aria-label="Promotion views">
           {views.map((v) => (
             <button
               key={v}
               type="button"
               aria-current={v === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v === view && "is-active")}
+              className={cn("ef-tabs__tab", v === view && "is-active")}
               onClick={() => reset(setView)(v)}
             >
               {v === "all" ? "All" : STATE_WORD[v]}
-              {countOf(v) !== undefined ? <span className="bo-tabs__count">{countOf(v)}</span> : null}
+              {countOf(v) !== undefined ? <span className="ef-tabs__count">{countOf(v)}</span> : null}
             </button>
           ))}
         </nav>
@@ -185,7 +185,7 @@ export function PromotionsListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -200,9 +200,9 @@ export function PromotionsListScreen() {
           }
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Promotion</th>
@@ -218,11 +218,11 @@ export function PromotionsListScreen() {
                 {data.items.map((p) => (
                   <tr key={p.id}>
                     <td data-m="primary">
-                      <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="bo-link">
+                      <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="link">
                         {p.name}
                       </Link>
-                      <div className="bo-sub">
-                        {p.codeSummary ? <span className="bo-code">{p.codeSummary}</span> : "Automatic"}
+                      <div className="ef-sub">
+                        {p.codeSummary ? <span className="ef-code">{p.codeSummary}</span> : "Automatic"}
                       </div>
                     </td>
                     <td data-m="meta">{p.gives}</td>
@@ -255,7 +255,7 @@ export function PromotionsListScreen() {
           />
         </div>
       )}
-      <p className="bo-sub">
+      <p className="ef-sub">
         Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored.
         Customer service can read every promotion; changing one needs a manager or an administrator.
       </p>

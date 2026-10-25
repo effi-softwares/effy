@@ -50,7 +50,7 @@ export function InsightsScreen() {
         description={dto ? windowSubtitle(dto, now) : "\u00a0"}
         actions={
           <>
-            <div className="bo-seg" role="group" aria-label="Range">
+            <div className="ef-seg" role="group" aria-label="Range">
               {RANGES.map((r) => (
                 <button
                   key={r.value}
@@ -122,7 +122,7 @@ export function InsightsScreen() {
           <TopProducts products={dto.topProducts} range={dto.range} currency={dto.currency} />
 
           <section className="grid gap-3">
-            <h2 className="bo-section-title">Behind the numbers</h2>
+            <h2 className="ef-section-title">Behind the numbers</h2>
             <SecondaryStrip dto={dto} backlog={today.data?.backlog} />
           </section>
         </>

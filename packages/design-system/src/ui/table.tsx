@@ -12,7 +12,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-[15px] leading-[1.42857] tabular-nums", className)}
         {...props}
       />
     </div>
@@ -23,7 +23,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("bg-muted [&_tr]:border-b [&_tr]:border-border", className)}
+      className={cn("bg-card [&_tr]:border-b [&_tr]:border-border", className)}
       {...props}
     />
   )
@@ -58,7 +58,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
       data-slot="table-row"
       className={cn(
         // `--accent` on hover, not a translucent overlay that would compound with a tinted row.
-        "border-b border-border transition-colors hover:bg-accent data-[state=selected]:bg-brand-soft",
+        "border-b border-border transition-colors hover:bg-(--row-hover) data-[state=selected]:bg-(--row-selected)",
         className
       )}
       {...props}
@@ -77,7 +77,7 @@ function TableHead({
       data-slot="table-head"
       data-numeric={numeric ? "" : undefined}
       className={cn(
-        "h-9 whitespace-nowrap px-3 align-middle text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-11 whitespace-nowrap bg-card px-3 first:pl-4 last:pr-4 align-middle text-[13.5px] font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         numeric ? "text-right" : "text-left",
         className
       )}
@@ -139,7 +139,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "whitespace-nowrap px-3 py-(--rowpad) align-middle text-[13.5px] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "whitespace-nowrap px-3 py-3.5 first:pl-4 last:pr-4 align-middle text-[15px] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         numeric && "text-right font-mono tabular-nums",
         mono && !numeric && "font-mono",
         className

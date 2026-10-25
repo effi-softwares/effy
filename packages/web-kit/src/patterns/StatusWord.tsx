@@ -14,7 +14,7 @@ export type StatusTone = "moving" | "done" | "waiting" | "problem" | "muted" | "
 
 export function StatusWord({ tone, icon: Icon, children }: { tone: StatusTone; icon?: LucideIcon; children: ReactNode }) {
   return (
-    <span className={cn("bo-st", `bo-st--${tone}`)}>
+    <span className={cn("ef-st", `ef-st--${tone}`)}>
       {Icon ? <Icon aria-hidden="true" /> : null}
       {children}
     </span>
@@ -25,7 +25,7 @@ export function StatusWord({ tone, icon: Icon, children }: { tone: StatusTone; i
 export function DotWord({ tone, children }: { tone: "on" | "busy" | "off" | "alert"; children: ReactNode }) {
   return (
     <span className="flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground">
-      <span aria-hidden="true" className={cn("bo-dot", `bo-dot--${tone}`)} />
+      <span aria-hidden="true" className={cn("ef-dot", `ef-dot--${tone}`)} />
       {children}
     </span>
   );
@@ -36,13 +36,13 @@ export function Meter({ booked, held = 0, label, limit }: { booked: number; held
   const pct = (n: number) => `${Math.max(0, Math.min(100, n))}%`;
   return (
     <div>
-      <div className="bo-progress-label">
+      <div className="ef-progress-label">
         <span>{label}</span>
         <span>{limit}</span>
       </div>
-      <div className="bo-meter" role="img" aria-label={`${label}, ${limit}`}>
-        <i className="bo-meter__booked" style={{ width: pct(booked) }} />
-        {held > 0 ? <i className="bo-meter__held" style={{ width: pct(held) }} /> : null}
+      <div className="ef-meter" role="img" aria-label={`${label}, ${limit}`}>
+        <i className="ef-meter__booked" style={{ width: pct(booked) }} />
+        {held > 0 ? <i className="ef-meter__held" style={{ width: pct(held) }} /> : null}
       </div>
     </div>
   );

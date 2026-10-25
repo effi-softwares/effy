@@ -14,7 +14,7 @@ export function OrderSearchBox({ value, onChange }: { value: string; onChange: (
   }, [text])
 
   return (
-    <label className="bo-toolbar__search">
+    <label className="ef-toolbar__search">
       <Search aria-hidden="true" />
       <Input
         aria-label="Search"
@@ -28,7 +28,7 @@ export function OrderSearchBox({ value, onChange }: { value: string; onChange: (
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon"
           aria-label="Clear search"
           onClick={() => {
             setText("")

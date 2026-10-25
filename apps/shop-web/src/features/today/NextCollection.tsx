@@ -21,14 +21,14 @@ export function NextCollection({
   loading: boolean
 }) {
   return (
-    <section className="bo-panel min-w-0" aria-labelledby="next-collection">
-      <div className="bo-panel__head">
-        <h2 id="next-collection" className="bo-panel__title">
+    <section className="ef-panel min-w-0" aria-labelledby="next-collection">
+      <div className="ef-panel__head">
+        <h2 id="next-collection" className="ef-panel__title">
           <Truck aria-hidden="true" />
           Next collection
         </h2>
       </div>
-      <div className="bo-panel__body grid gap-3">
+      <div className="ef-panel__body grid gap-3">
         {loading ? (
           <>
             <Skeleton className="h-7 w-32" />
@@ -59,7 +59,7 @@ function Body({ next, timezone, now }: { next: ShopNextCollectionDTO; timezone: 
       </p>
       {due > 0 ? (
         <div>
-          <div className="bo-progress-label">
+          <div className="ef-progress-label">
             <span>
               {next.due.ready} ready · {next.due.picking} still picking
             </span>
@@ -67,8 +67,8 @@ function Body({ next, timezone, now }: { next: ShopNextCollectionDTO; timezone: 
               {next.due.ready} of {due}
             </span>
           </div>
-          <div className="bo-meter bo-meter--lg" role="img" aria-label={`${next.due.ready} of ${due} ready`}>
-            <i className="bo-meter__booked" style={{ width: `${(next.due.ready / due) * 100}%` }} />
+          <div className="ef-meter ef-meter--lg" role="img" aria-label={`${next.due.ready} of ${due} ready`}>
+            <i className="ef-meter__booked" style={{ width: `${(next.due.ready / due) * 100}%` }} />
           </div>
         </div>
       ) : (
@@ -83,8 +83,8 @@ function Body({ next, timezone, now }: { next: ShopNextCollectionDTO; timezone: 
         <span
           aria-hidden="true"
           className={cn(
-            "bo-dot",
-            driver === "on_the_way" ? "bo-dot--busy" : driver === "collected" ? "bo-dot--on" : "bo-dot--off",
+            "ef-dot",
+            driver === "on_the_way" ? "ef-dot--busy" : driver === "collected" ? "ef-dot--on" : "ef-dot--off",
           )}
         />
         {DRIVER_WORDS[driver]}

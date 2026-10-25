@@ -29,21 +29,21 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className={cn("bo-panel", className)}>
+    <section className={cn("ef-panel", className)}>
       {title ? (
-        <div className="bo-panel__head">
+        <div className="ef-panel__head">
           <div className="min-w-0 flex-1">
-            <h2 className="bo-panel__title">
+            <h2 className="ef-panel__title">
               {icon}
               {title}
             </h2>
-            {description ? <p className="bo-panel__desc">{description}</p> : null}
+            {description ? <p className="ef-panel__desc">{description}</p> : null}
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
       ) : null}
-      {flush ? children : <div className="bo-panel__body">{children}</div>}
-      {footer ? <div className={cn("bo-panel__foot", footerBetween && "bo-panel__foot--between")}>{footer}</div> : null}
+      {flush ? children : <div className="ef-panel__body">{children}</div>}
+      {footer ? <div className={cn("ef-panel__foot", footerBetween && "ef-panel__foot--between")}>{footer}</div> : null}
     </section>
   );
 }
@@ -57,9 +57,9 @@ export function DetailRows({
   tight?: boolean;
 }) {
   return (
-    <dl className={cn("bo-dl", tight && "bo-dl--tight")}>
+    <dl className={cn("ef-dl", tight && "ef-dl--tight")}>
       {rows.map((r, i) => (
-        <div key={r.key ?? i} className="bo-dl__row">
+        <div key={r.key ?? i} className="ef-dl__row">
           <dt>{r.label}</dt>
           <dd>{r.value}</dd>
         </div>

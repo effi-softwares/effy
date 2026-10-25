@@ -163,7 +163,7 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
               {p.choices.map((c) => (
                 <div key={c.kind} className="flex items-start gap-2 text-sm">
                   <RadioGroupItem id={`comp-${c.kind}`} value={c.kind} />
-                  <Label htmlFor={`comp-${c.kind}`} className="font-normal">
+                  <Label htmlFor={`comp-${c.kind}`}>
                     {choiceText(c)}
                     {c.default ? <span className="text-muted-foreground"> (recommended)</span> : null}
                     {c.lastResort ? <span className="text-muted-foreground"> (last resort)</span> : null}

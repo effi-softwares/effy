@@ -49,8 +49,8 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
       {detail.unitBasis ? (
         <p className="px-5 pt-3 text-sm text-muted-foreground">Unit pricing: {UNIT_BASIS_LABELS[detail.unitBasis]}</p>
       ) : null}
-      <div className="bo-table-scroll">
-        <table className="bo-table bo-table--plain">
+      <div className="ef-table-scroll">
+        <table className="ef-table ef-table--plain">
           <thead>
             <tr>
               <th>{hasOptions ? "Size" : "Item"}</th>
@@ -72,7 +72,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                 <tr key={v.id}>
                   <td>
                     <span className="font-medium">{v.label ?? detail.name}</span>
-                    <span className="bo-sub">
+                    <span className="ef-sub">
                       {v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit} · ` : ""}
                       <span className="font-mono">{v.code}</span>
                     </span>
@@ -80,7 +80,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                   <td className="is-num">
                     {formatMoney(v.shopPriceAmount, detail.currency)}
                     {v.shopCompareAtAmount ? (
-                      <span className="bo-sub line-through">{formatMoney(v.shopCompareAtAmount, detail.currency)}</span>
+                      <span className="ef-sub line-through">{formatMoney(v.shopCompareAtAmount, detail.currency)}</span>
                     ) : null}
                   </td>
                   <td className="is-num">
@@ -89,17 +89,17 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                     ) : (
                       <span className="text-muted-foreground">Set when approved</span>
                     )}
-                    {unit ? <span className="bo-sub">{unitPriceText(unit)}</span> : null}
+                    {unit ? <span className="ef-sub">{unitPriceText(unit)}</span> : null}
                   </td>
-                  <td className="bo-code">{v.sku ?? "—"}</td>
-                  <td className="bo-code">{v.gtin ?? "—"}</td>
+                  <td className="ef-code">{v.sku ?? "—"}</td>
+                  <td className="ef-code">{v.gtin ?? "—"}</td>
                   <td className="is-num whitespace-nowrap">
-                    {v.weightGrams} g{v.weightIsAssumed ? <span className="bo-sub">assumed</span> : null}
+                    {v.weightGrams} g{v.weightIsAssumed ? <span className="ef-sub">assumed</span> : null}
                   </td>
                   <td className="is-num">
                     {v.stock.tracked ? (
                       v.stock.outOfStock ? (
-                        <span className="bo-st bo-st--problem">
+                        <span className="ef-st ef-st--problem">
                           <PackageX aria-hidden="true" />0
                         </span>
                       ) : (
@@ -119,9 +119,9 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                         onCheckedChange={(on) => void change(v, on ? "active" : "inactive")}
                       />
                     ) : v.state === "active" ? (
-                      <span className="bo-st bo-st--done">On sale</span>
+                      <span className="ef-st ef-st--done">On sale</span>
                     ) : (
-                      <span className="bo-st bo-st--quiet">Off sale</span>
+                      <span className="ef-st ef-st--quiet">Off sale</span>
                     )}
                   </td>
                   {hasOptions ? (

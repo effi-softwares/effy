@@ -149,7 +149,7 @@ export function OtpSignInCard({
                 autoFocus
                 required
                 aria-invalid={formError ? true : undefined}
-                className="h-11! text-[15px]"
+                className="h-11!"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -160,7 +160,7 @@ export function OtpSignInCard({
         {error}
         <emailForm.Subscribe selector={(st) => st.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Sending…" : "Send code"}
             </Button>
           )}
@@ -220,7 +220,7 @@ export function OtpSignInCard({
         </otpForm.Field>
         <otpForm.Subscribe selector={(st) => st.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Verifying…" : "Verify & sign in"}
             </Button>
           )}

@@ -48,7 +48,7 @@ export function DashboardOverview({
             <Card key={i}>
               <CardHeader className="pb-2">
                 <CardDescription>{s.label}</CardDescription>
-                <CardTitle className="text-3xl font-semibold tabular-nums">{s.value}</CardTitle>
+                <CardTitle className="tabular-nums">{s.value}</CardTitle>
               </CardHeader>
               {s.hint ? (
                 <CardContent className="text-muted-foreground text-sm">{s.hint}</CardContent>

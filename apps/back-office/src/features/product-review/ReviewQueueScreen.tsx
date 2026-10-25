@@ -72,7 +72,7 @@ export function ReviewQueueScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Review views">
+        <nav className="ef-tabs" aria-label="Review views">
           {(
             [
               { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
@@ -84,12 +84,12 @@ export function ReviewQueueScreen() {
               key={v.key}
               type="button"
               aria-current={v.key === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              className={cn("ef-tabs__tab", v.key === view && "is-active")}
               onClick={() => setView(v.key)}
             >
               {v.label}
               {v.count !== undefined ? (
-                <span className={cn("bo-tabs__count", v.key !== view && "bo-tabs__count--primary")}>{v.count}</span>
+                <span className={cn("ef-tabs__count", v.key !== view && "ef-tabs__count--primary")}>{v.count}</span>
               ) : null}
             </button>
           ))}
@@ -110,7 +110,7 @@ export function ReviewQueueScreen() {
               options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
             <ToolbarSpacer />
-            <div role="group" aria-label="Kind" className="bo-seg">
+            <div role="group" aria-label="Kind" className="ef-seg">
               {([null, "new_product", "change"] as const).map((k) => (
                 <button
                   key={k ?? "all"}
@@ -134,7 +134,7 @@ export function ReviewQueueScreen() {
       ) : queue.isError ? (
         <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
       ) : queue.isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -145,9 +145,9 @@ export function ReviewQueueScreen() {
           description="Every product and change a shop has submitted has been decided."
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Product</th>
@@ -161,10 +161,10 @@ export function ReviewQueueScreen() {
                 {queue.data.items.map((i) => (
                   <tr key={`${i.kind}-${i.productId}`}>
                     <td data-m="primary">
-                      <Link to="/product-review/$productId" params={{ productId: i.productId }} className="bo-link">
+                      <Link to="/product-review/$productId" params={{ productId: i.productId }} className="link">
                         {i.productName}
                       </Link>
-                      <div className="bo-sub md:hidden">{i.shopName}</div>
+                      <div className="ef-sub md:hidden">{i.shopName}</div>
                     </td>
                     <td data-m="meta" className="is-muted max-md:hidden">
                       {i.shopName}
@@ -175,7 +175,7 @@ export function ReviewQueueScreen() {
                     <td data-m="trail" className="tabular-nums">
                       {waitingLabel(i.waitingHours)}
                       {i.waitingHours >= 24 ? (
-                        <span className="bo-sub ml-2 font-medium text-foreground">Over a day</span>
+                        <span className="ef-sub ml-2 font-medium text-foreground">Over a day</span>
                       ) : null}
                     </td>
                     <td className="text-right max-md:hidden">
@@ -233,9 +233,9 @@ function MarginNotSet() {
       <p className="text-sm text-muted-foreground">
         These are on sale at the shop's own price. Setting a margin changes what customers pay straight away.
       </p>
-      <div className="bo-table-wrap">
-        <div className="bo-table-scroll">
-          <table className="bo-table">
+      <div className="ef-table-wrap">
+        <div className="ef-table-scroll">
+          <table className="ef-table">
             <thead>
               <tr>
                 <th>Product</th>

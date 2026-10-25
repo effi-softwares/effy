@@ -25,7 +25,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
       icon={<Truck aria-hidden="true" />}
       description="Collection runs bring parcels from shops to the hub; delivery rounds take them to customers."
       actions={
-        <div className="bo-seg" role="group" aria-label="Work">
+        <div className="ef-seg" role="group" aria-label="Work">
           {(["all", "collection", "delivery"] as const).map((k) => (
             <button
               key={k}
@@ -44,8 +44,8 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
       {shown.length === 0 ? (
         <p className="px-5 py-6 text-sm text-muted-foreground">No driver is holding a round.</p>
       ) : (
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-rtable bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-rtable ef-table--plain">
             <thead>
               <tr>
                 <th>Driver</th>
@@ -67,13 +67,13 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                   <tr key={r.round.id}>
                     <td data-m="primary">
                       <div className="flex items-center gap-2">
-                        <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
+                        <span className="avatar avatar--sq" aria-hidden="true">
                           {initialsOf(r.driverName)}
                         </span>
                         <Link
                           to="/orders/assignments/rounds/$roundId"
                           params={{ roundId: r.round.id }}
-                          className="bo-link"
+                          className="link"
                         >
                           {r.driverName}
                         </Link>
@@ -83,14 +83,14 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                     <td data-m="full" className="min-w-40">
                       {total > 0 ? (
                         <>
-                          <div className="bo-progress-label">
+                          <div className="ef-progress-label">
                             <span>
                               {done} of {total} stops
                             </span>
                             <span>{pct}%</span>
                           </div>
-                          <div className="bo-meter">
-                            <i className="bo-meter__booked" style={{ width: `${pct}%` }} />
+                          <div className="ef-meter">
+                            <i className="ef-meter__booked" style={{ width: `${pct}%` }} />
                           </div>
                         </>
                       ) : (
@@ -120,7 +120,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                           {r.stageLabel ?? r.round.status.replace("_", " ")}
                         </StatusWord>
                         {r.isLate ? (
-                          <span className="bo-late">
+                          <span className="late">
                             <Clock aria-hidden="true" />
                             Late
                           </span>

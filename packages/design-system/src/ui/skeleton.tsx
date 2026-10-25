@@ -7,7 +7,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("rounded-md bg-muted [animation:effy-pulse_1.6s_ease-in-out_infinite]", className)}
+      className={cn("rounded-md bg-muted [animation:effy-pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]", className)}
       {...props}
     />
   )

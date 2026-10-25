@@ -25,8 +25,8 @@ export function NotificationSettingsScreen() {
           ) : null
         }
       />
-      <section className="bo-panel max-w-3xl">
-        <div className="bo-panel__body">
+      <section className="ef-panel max-w-3xl">
+        <div className="ef-panel__body">
           <StateBlock state={n} />
         </div>
         {n.status === "on" ? <TypeToggles state={n} /> : null}
@@ -65,10 +65,10 @@ function StateBlock({ state }: { state: State }) {
 
     case "blocked":
       return (
-        <div role="status" className="bo-alert bo-alert--destructive">
+        <div role="status" className="ef-alert ef-alert--destructive">
           <BellOff aria-hidden="true" />
-          <div className="bo-alert__title">Notifications are blocked in your browser.</div>
-          <div className="bo-alert__description">
+          <div className="ef-alert__title">Notifications are blocked in your browser.</div>
+          <div className="ef-alert__description">
             The console cannot turn them back on for you. Allow notifications for this site in your browser&apos;s
             settings, then return here.
           </div>
@@ -85,7 +85,7 @@ function StateBlock({ state }: { state: State }) {
           <Note>You can turn any of these off individually once they are on.</Note>
           {state.hint && <p className="max-w-[70ch] font-medium">{state.hint}</p>}
           <div>
-            <Button size="lg" disabled={state.busy} onClick={() => void state.enable()}>
+            <Button disabled={state.busy} onClick={() => void state.enable()}>
               <Bell aria-hidden="true" />
               Turn on notifications
             </Button>
@@ -96,7 +96,7 @@ function StateBlock({ state }: { state: State }) {
     case "on":
       return (
         <p className="flex items-center gap-2 font-medium">
-          <span aria-hidden="true" className="bo-dot bo-dot--on" />
+          <span aria-hidden="true" className="ef-dot ef-dot--on" />
           This device is receiving notifications for this shop.
         </p>
       )
@@ -110,8 +110,11 @@ function TypeToggles({ state }: { state: State }) {
       {state.availableTypes.map((t) => {
         const muted = state.mutedTypes.includes(t.type)
         return (
-          <div key={t.type} className="sh-toggle-row">
-            <label htmlFor={`notif-${t.type}`} className="sh-toggle-row__text font-medium">
+          <div
+            key={t.type}
+            className="flex min-h-18 items-center gap-4 border-b border-b-border px-5 py-3 last:border-b-0"
+          >
+            <label htmlFor={`notif-${t.type}`} className="min-w-0 flex-auto font-medium">
               {t.label}
             </label>
             <Switch

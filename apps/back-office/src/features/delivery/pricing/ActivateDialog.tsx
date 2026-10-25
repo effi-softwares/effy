@@ -57,7 +57,7 @@ export function ActivateDialog({
         {zeroFloor ? (
           <div className="flex items-start gap-2">
             <Checkbox id="confirm-zero" checked={confirmZero} onCheckedChange={(v) => setConfirmZero(v === true)} />
-            <Label htmlFor="confirm-zero" className="font-normal leading-snug">
+            <Label htmlFor="confirm-zero" className="leading-snug">
               The minimum fee is $0.00. I understand delivery can then be free without the free-delivery amount.
             </Label>
           </div>

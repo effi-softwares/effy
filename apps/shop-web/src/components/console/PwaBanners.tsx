@@ -122,7 +122,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
 
 function DismissButton() {
   return (
-    <Button size="sm" variant="ghost" aria-label="Dismiss" onClick={() => dismissInstall()} className="size-10 p-0">
+    <Button size="icon" variant="ghost" aria-label="Dismiss" onClick={() => dismissInstall()}>
       <X className="size-4" />
     </Button>
   )

@@ -94,7 +94,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <span className="font-mono tracking-[-.02em]">{detail.orderNumber}</span>
             <PackageStatusPill view={detail.statusView} />
             {detail.atRisk ? (
-              <span className="bo-st bo-st--problem">
+              <span className="ef-st ef-st--problem">
                 <CircleAlert aria-hidden="true" />
                 At risk
               </span>
@@ -142,46 +142,46 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
 
       {note ? (
         <div
-          className={cn("bo-alert", detail.status === "unfulfillable" ? "bo-alert--destructive" : "bo-alert--muted")}
+          className={cn("ef-alert", detail.status === "unfulfillable" ? "ef-alert--destructive" : "ef-alert--muted")}
           role="status"
         >
           <Info aria-hidden="true" />
-          <div className="bo-alert__title">{note}</div>
+          <div className="ef-alert__title">{note}</div>
         </div>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <ItemsAndFulfilment detail={detail} />
 
           <PackBags detail={detail} />
 
-          <section className="bo-panel">
-            <div className="bo-panel__head">
+          <section className="ef-panel">
+            <div className="ef-panel__head">
               <div className="min-w-0 flex-1">
-                <h2 className="bo-panel__title">Internal notes</h2>
-                <p className="bo-panel__desc">Only your team sees notes. They can&apos;t be edited once added.</p>
+                <h2 className="ef-panel__title">Internal notes</h2>
+                <p className="ef-panel__desc">Only your team sees notes. They can&apos;t be edited once added.</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setNoteOpen(true)}>
                 <Plus aria-hidden="true" />
                 Add note
               </Button>
             </div>
-            <div className="bo-panel__body">
+            <div className="ef-panel__body">
               {detail.notes.length === 0 ? (
                 <p className="text-muted-foreground">No notes on this order yet.</p>
               ) : (
-                <ul className="bo-tl">
+                <ul className="ef-tl">
                   {detail.notes.map((n) => (
-                    <li key={n.id} className="bo-tl__item">
-                      <span className="bo-tl__mark" aria-hidden="true">
+                    <li key={n.id} className="ef-tl__item">
+                      <span className="ef-tl__mark" aria-hidden="true">
                         <MessageSquare />
                       </span>
                       <div className="min-w-0">
-                        <div className="bo-tl__title">{n.authorLabel || "Your team"}</div>
-                        <div className="bo-tl__note whitespace-pre-line text-pretty">{n.body}</div>
+                        <div className="ef-tl__title">{n.authorLabel || "Your team"}</div>
+                        <div className="ef-tl__note whitespace-pre-line text-pretty">{n.body}</div>
                       </div>
-                      <time className="bo-tl__time" dateTime={n.createdAt}>
+                      <time className="ef-tl__time" dateTime={n.createdAt}>
                         {formatWhen(n.createdAt)}
                       </time>
                     </li>
@@ -192,23 +192,23 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           </section>
         </div>
 
-        <aside className="bo-detail__aside">
-          <section className="bo-panel">
-            <div className="bo-panel__head">
-              <h2 className="bo-panel__title">Payment</h2>
+        <aside className="ef-detail__aside">
+          <section className="ef-panel">
+            <div className="ef-panel__head">
+              <h2 className="ef-panel__title">Payment</h2>
               <PaymentPill state={detail.payment.state} />
             </div>
-            <div className="bo-panel__body grid gap-3">
-              <dl className="bo-dl bo-dl--tight">
-                <div className="bo-dl__row">
+            <div className="ef-panel__body grid gap-3">
+              <dl className="ef-dl ef-dl--tight">
+                <div className="ef-dl__row">
                   <dt>Your items</dt>
                   <dd className="tabular-nums">{formatMoney(detail.money.shopSubtotal, currency)}</dd>
                 </div>
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Refunded</dt>
                   <dd className="tabular-nums">{formatMoney(detail.money.refunded, currency)}</dd>
                 </div>
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Net</dt>
                   <dd className="font-semibold tabular-nums">{formatMoney(detail.money.net, currency)}</dd>
                 </div>
@@ -219,7 +219,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
               </p>
             </div>
             {refundable || canDeclareUnfulfillable(detail.status) ? (
-              <div className="bo-panel__foot grid! justify-stretch!">
+              <div className="ef-panel__foot grid! justify-stretch!">
                 {refundable ? (
                   <Button variant="outline" onClick={() => setRefundOpen(true)}>
                     <ReceiptText aria-hidden="true" />
@@ -235,18 +235,18 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             ) : null}
           </section>
 
-          <section className="bo-panel">
-            <div className="bo-panel__head">
+          <section className="ef-panel">
+            <div className="ef-panel__head">
               <div className="min-w-0 flex-1">
-                <h2 className="bo-panel__title">Customer and delivery</h2>
-                <p className="bo-panel__desc">
+                <h2 className="ef-panel__title">Customer and delivery</h2>
+                <p className="ef-panel__desc">
                   {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
                 </p>
               </div>
             </div>
-            <div className="bo-panel__body">
-              <dl className="bo-dl bo-dl--tight">
-                <div className="bo-dl__row">
+            <div className="ef-panel__body">
+              <dl className="ef-dl ef-dl--tight">
+                <div className="ef-dl__row">
                   <dt>Customer</dt>
                   <dd>
                     <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
@@ -260,20 +260,20 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                     ) : null}
                   </dd>
                 </div>
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Ship to</dt>
                   <dd className="whitespace-pre-line">{addressText(detail)}</dd>
                 </div>
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Bill to</dt>
                   <dd className="text-muted-foreground">Held by Effy with the payment.</dd>
                 </div>
-                <div className="bo-dl__row">
+                <div className="ef-dl__row">
                   <dt>Tags</dt>
                   <dd className="flex flex-wrap items-center gap-1.5">
                     {detail.tags.length > 0 ? (
                       detail.tags.map((t) => (
-                        <span key={t} className="bo-tag">
+                        <span key={t} className="ef-tag">
                           {t}
                         </span>
                       ))
@@ -297,23 +297,23 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       </div>
 
       {nextTransition(detail.status) || detail.status === "ready_for_pickup" ? (
-        <div className="sh-actionbar">
-          <div className="sh-actionbar__text">
-            <div className="sh-actionbar__title">
+        <div className="actionbar">
+          <div className="actionbar__text">
+            <div className="actionbar__title">
               {detail.status === "ready_for_pickup"
                 ? "Ready — waiting for collection"
                 : toGo > 0
                   ? `${toGo} ${toGo === 1 ? "line" : "lines"} to go`
                   : "Every line is accounted for"}
             </div>
-            <div className="sh-actionbar__desc">
+            <div className="actionbar__desc">
               {detail.status === "ready_for_pickup"
                 ? `${detail.deliveredBy === "courier" ? "A courier" : "An Effy driver"} collects it. Reopen picking only if something has to change.`
                 : `When every line is picked and every bag labelled, mark it ready. ${detail.deliveredBy === "courier" ? "A courier" : "The Effy driver"} collects it.`}
             </div>
           </div>
-          <div className="sh-actionbar__actions">
-            <StateActions detail={detail} size="lg" />
+          <div className="actionbar__actions">
+            <StateActions detail={detail} />
           </div>
         </div>
       ) : null}
@@ -347,13 +347,13 @@ function DetailSkeleton() {
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-4 w-96 max-w-full" />
       </div>
-      <div className="bo-detail">
-        <div className="bo-detail__main">
-          <div className="bo-panel">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
+          <div className="ef-panel">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="sh-pick">
+              <div key={i} className="pick">
                 <Skeleton className="size-11 rounded-[10px]" />
-                <Skeleton className="sh-pick__img" />
+                <Skeleton className="pick__img" />
                 <div className="grid gap-2">
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="h-3.5 w-1/3" />
@@ -363,7 +363,7 @@ function DetailSkeleton() {
             ))}
           </div>
         </div>
-        <div className="bo-detail__aside">
+        <div className="ef-detail__aside">
           <Skeleton className="h-48 w-full rounded-lg" />
           <Skeleton className="h-56 w-full rounded-lg" />
         </div>

@@ -44,14 +44,14 @@ export function ReadinessPanel() {
           <ul className="divide-y divide-border">
             {data.blocked.map((b) => (
               <li key={b.driverId} className="flex items-center gap-3 px-5 py-3">
-                <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
+                <span className="avatar avatar--sq" aria-hidden="true">
                   {initialsOf(b.driverName)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <Link to="/drivers/$driverId" params={{ driverId: b.driverId }} className="bo-link">
+                  <Link to="/drivers/$driverId" params={{ driverId: b.driverId }} className="link">
                     {b.driverName}
                   </Link>
-                  <span className="bo-sub">{b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}</span>
+                  <span className="ef-sub">{b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}</span>
                 </div>
               </li>
             ))}
@@ -72,10 +72,10 @@ export function ReadinessPanel() {
             {data.expiring.map((e) => (
               <li key={`${e.driverId}:${e.kind}`} className="flex items-center gap-3 px-5 py-3">
                 <div className="min-w-0 flex-1">
-                  <Link to="/drivers/$driverId" params={{ driverId: e.driverId }} className="bo-link">
+                  <Link to="/drivers/$driverId" params={{ driverId: e.driverId }} className="link">
                     {e.driverName}
                   </Link>
-                  <span className="bo-sub">{e.kind === "licence" ? "Driving licence" : "Vehicle registration"}</span>
+                  <span className="ef-sub">{e.kind === "licence" ? "Driving licence" : "Vehicle registration"}</span>
                 </div>
                 {e.expired ? (
                   <StatusWord tone="problem" icon={CircleAlert}>

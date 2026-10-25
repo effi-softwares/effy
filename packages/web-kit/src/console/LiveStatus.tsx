@@ -46,7 +46,7 @@ export function LiveStatus() {
       <Button
         type="button"
         variant="ghost"
-        size="icon-xs"
+        size="icon"
         aria-label="Refresh now"
         onClick={live.refresh}
       >

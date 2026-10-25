@@ -99,7 +99,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                   stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined}
                 />
                 {chip ? (
-                  <span className={cn("bo-st", chip.tone === "warning" ? "bo-st--problem" : "bo-st--moving")}>
+                  <span className={cn("ef-st", chip.tone === "warning" ? "ef-st--problem" : "ef-st--moving")}>
                     {chip.tone === "warning" ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
                     {chip.label}
                   </span>
@@ -113,7 +113,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                 <span>{sizes.length === 1 ? "One size" : `${sizes.length} sizes`}</span>
                 {sizes.length === 1 && sizes[0]?.code ? (
                   <span>
-                    Effy code <span className="bo-code">{sizes[0].code}</span>
+                    Effy code <span className="ef-code">{sizes[0].code}</span>
                   </span>
                 ) : null}
                 <span className="font-medium text-foreground tabular-nums">
@@ -136,10 +136,10 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
       <ReviewPanel detail={detail} />
 
       {detail.missingMandatoryAttributes.length > 0 ? (
-        <div role="status" className="bo-alert bo-alert--destructive">
+        <div role="status" className="ef-alert ef-alert--destructive">
           <CircleAlert aria-hidden="true" />
-          <div className="bo-alert__title">Missing required details</div>
-          <div className="bo-alert__description">
+          <div className="ef-alert__title">Missing required details</div>
+          <div className="ef-alert__description">
             This product&apos;s type now requires attributes it doesn&apos;t have:{" "}
             {detail.missingMandatoryAttributes.join(", ")}. It stays visible — add them under Details → Attributes to
             keep it complete.
@@ -148,8 +148,8 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
       ) : null}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)} className="gap-6">
-        <div className="bo-tabsbar">
-          <div className="bo-tabsbar__list">
+        <div className="ef-tabsbar">
+          <div className="ef-tabsbar__list">
             <TabsList>
               {TABS.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>
@@ -161,7 +161,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </div>
         </div>
 
-        <TabsContent value="details" className="bo-tabpanel">
+        <TabsContent value="details" className="ef-tabpanel">
           <VariantsSection detail={detail} onEdit={edit("sizes")} />
 
           <DetailSection
@@ -203,15 +203,15 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </DetailSection>
         </TabsContent>
 
-        <TabsContent value="inventory" className="bo-tabpanel">
+        <TabsContent value="inventory" className="ef-tabpanel">
           <InventorySection detail={detail} variantId={stockVariantId} onVariantChange={setStockVariant} />
         </TabsContent>
 
-        <TabsContent value="media" className="bo-tabpanel">
+        <TabsContent value="media" className="ef-tabpanel">
           <MediaGallery detail={working} />
         </TabsContent>
 
-        <TabsContent value="visibility" className="bo-tabpanel">
+        <TabsContent value="visibility" className="ef-tabpanel">
           <DetailSection
             title="Visibility and placement"
             subtitle="Whether shoppers can see this product, and where it is filed."
@@ -276,7 +276,7 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
       className="size-24 shrink-0 rounded-lg border border-border object-cover max-md:size-20"
     />
   ) : (
-    <div className="bo-img size-24 rounded-lg max-md:size-20">
+    <div className="ef-img size-24 rounded-lg max-md:size-20">
       <ImageOff aria-hidden="true" />
     </div>
   )

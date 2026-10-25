@@ -31,7 +31,7 @@ type Section = "packages" | "items" | "payment" | "refunds" | "history"
 function AddressBlock({ title, address }: { title: string; address: Record<string, unknown> | null }) {
   return (
     <div className="space-y-1">
-      <div className="bo-eyebrow">{title}</div>
+      <div className="ef-eyebrow">{title}</div>
       <address className="text-sm not-italic">
         {addressLines(address).map((line) => (
           <div key={line}>{line}</div>
@@ -116,7 +116,7 @@ export function OrderDetailScreen({
         back={{ label: "Orders", link: { to: "/orders" } }}
         title={
           <>
-            <span className="bo-code text-2xl font-semibold">{order.orderNumber}</span>
+            <span className="ef-code text-2xl font-semibold">{order.orderNumber}</span>
             {status ? <PackageStatusPill view={status} showDetail={false} icons /> : null}
             <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>
               {deliveryTypeText(order.deliveryType)}
@@ -172,11 +172,11 @@ export function OrderDetailScreen({
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Order sections">
                   <TabsTrigger value="packages">
                     <Package aria-hidden="true" />
@@ -210,7 +210,7 @@ export function OrderDetailScreen({
               <span className="text-xs text-muted-foreground max-md:hidden">Live — updates as packages move</span>
             </div>
 
-            <TabsContent value="packages" className="bo-tabpanel">
+            <TabsContent value="packages" className="ef-tabpanel">
               <Panel
                 title={
                   <>
@@ -251,15 +251,15 @@ export function OrderDetailScreen({
               </Panel>
             </TabsContent>
 
-            <TabsContent value="items" className="bo-tabpanel">
+            <TabsContent value="items" className="ef-tabpanel">
               <OrderItemsPanel order={order} />
             </TabsContent>
 
-            <TabsContent value="payment" className="bo-tabpanel">
+            <TabsContent value="payment" className="ef-tabpanel">
               <OrderPaymentPanel order={order} />
             </TabsContent>
 
-            <TabsContent value="refunds" className="bo-tabpanel">
+            <TabsContent value="refunds" className="ef-tabpanel">
               <Panel
                 title="Refunds"
                 icon={<ReceiptText aria-hidden="true" />}
@@ -273,13 +273,13 @@ export function OrderDetailScreen({
               </Panel>
             </TabsContent>
 
-            <TabsContent value="history" className="bo-tabpanel">
+            <TabsContent value="history" className="ef-tabpanel">
               <OrderHistoryPanel history={order.history} />
             </TabsContent>
           </Tabs>
         </div>
 
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <OrderCustomerPanel order={order} />
 
           <DeliveryTypeSection
@@ -312,12 +312,12 @@ function DetailSkeleton() {
         <Skeleton className="h-8 w-72" />
         <Skeleton className="h-4 w-96 max-w-full" />
       </div>
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Skeleton className="h-9 w-96 max-w-full" />
           <Skeleton className="h-64" />
         </div>
-        <div className="bo-detail__aside">
+        <div className="ef-detail__aside">
           <Skeleton className="h-40" />
           <Skeleton className="h-64" />
         </div>

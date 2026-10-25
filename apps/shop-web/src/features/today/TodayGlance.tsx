@@ -39,20 +39,20 @@ export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }
   ]
 
   return (
-    <section className="bo-panel min-w-0">
-      <div className="bo-panel__head">
+    <section className="ef-panel min-w-0">
+      <div className="ef-panel__head">
         <div className="min-w-0 flex-1">
-          <h2 className="bo-panel__title">Today at a glance</h2>
-          <p className="bo-panel__desc">Your goods only, since midnight.</p>
+          <h2 className="ef-panel__title">Today at a glance</h2>
+          <p className="ef-panel__desc">Your goods only, since midnight.</p>
         </div>
         <Link to="/insights" className="text-sm font-medium text-foreground no-underline hover:underline">
           Full insights →
         </Link>
       </div>
-      <div className="bo-panel__body py-1!">
-        <dl className="bo-dl bo-dl--tight">
+      <div className="ef-panel__body py-1!">
+        <dl className="ef-dl ef-dl--tight">
           {rows.map((r) => (
-            <div key={r.label} className="bo-dl__row items-baseline">
+            <div key={r.label} className="ef-dl__row items-baseline">
               <dt>{r.label}</dt>
               <dd className="min-w-0">
                 {r.value === null ? (
@@ -60,7 +60,7 @@ export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }
                 ) : (
                   <span className={cn("font-semibold tabular-nums", r.live && "text-primary")}>{r.value}</span>
                 )}
-                {r.note ? <span className="bo-sub">{r.note}</span> : null}
+                {r.note ? <span className="ef-sub">{r.note}</span> : null}
               </dd>
             </div>
           ))}

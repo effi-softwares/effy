@@ -82,9 +82,7 @@ function renderControl(
             {attr.allowedValues.map((o) => (
               <div key={o.value} className="flex items-center gap-2">
                 <RadioGroupItem id={`${fieldId}-${o.value}`} value={o.value} />
-                <Label htmlFor={`${fieldId}-${o.value}`} className="font-normal">
-                  {o.label}
-                </Label>
+                <Label htmlFor={`${fieldId}-${o.value}`}>{o.label}</Label>
               </div>
             ))}
           </RadioGroup>
@@ -122,9 +120,7 @@ function renderControl(
                     onChange({ options: [...set] })
                   }}
                 />
-                <Label htmlFor={`${fieldId}-${o.value}`} className="font-normal">
-                  {o.label}
-                </Label>
+                <Label htmlFor={`${fieldId}-${o.value}`}>{o.label}</Label>
               </div>
             )
           })}

@@ -81,7 +81,7 @@ function ClassicStandIn({ className }: { className?: string }) {
     >
       <Palette aria-hidden="true" className="size-5 text-muted-foreground" />
       <div className="text-sm font-medium">Classic</div>
-      <div className="bo-sub max-w-60">
+      <div className="ef-sub max-w-60">
         Drawn as this place always looked — colours and icons chosen by the website.
       </div>
     </div>
@@ -144,7 +144,7 @@ export function SkinPreview({
             </option>
           ))}
         </select>
-        <div role="group" aria-label="Preview width" className="bo-seg">
+        <div role="group" aria-label="Preview width" className="ef-seg">
           {(["phone", "desktop"] as const).map((w) => (
             <button
               key={w}
@@ -158,7 +158,7 @@ export function SkinPreview({
           ))}
         </div>
         {sizes.length > 1 ? (
-          <div role="group" aria-label="Preview size" className="bo-seg">
+          <div role="group" aria-label="Preview size" className="ef-seg">
             {sizes.map((s) => (
               <button
                 key={s}

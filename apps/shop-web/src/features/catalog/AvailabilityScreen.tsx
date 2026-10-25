@@ -48,7 +48,7 @@ export function AvailabilityScreen() {
         description="Switch products off sale instantly when you run out, with no review needed."
       />
 
-      <div role="tablist" aria-label="Show" className="bo-tabs">
+      <div role="tablist" aria-label="Show" className="ef-tabs">
         {VIEWS.map((v) => (
           <button
             key={v.key}
@@ -56,17 +56,17 @@ export function AvailabilityScreen() {
             role="tab"
             aria-selected={v.key === filter}
             onClick={() => setFilter(v.key)}
-            className={cn("bo-tabs__tab", v.key === filter && "is-active")}
+            className={cn("ef-tabs__tab", v.key === filter && "is-active")}
           >
             {v.label}
             {data ? (
               <span
                 className={cn(
-                  "bo-tabs__count",
+                  "ef-tabs__count",
                   v.key === "out_of_stock" &&
                     v.key !== filter &&
                     data.counts.outOfStock > 0 &&
-                    "bo-tabs__count--primary",
+                    "ef-tabs__count--primary",
                 )}
               >
                 {data.counts[v.count]}
@@ -76,8 +76,8 @@ export function AvailabilityScreen() {
         ))}
       </div>
 
-      <div className="bo-toolbar">
-        <label className="bo-toolbar__search">
+      <div className="ef-toolbar">
+        <label className="ef-toolbar__search">
           <Search aria-hidden="true" />
           <Input
             aria-label="Search sizes"
@@ -92,7 +92,7 @@ export function AvailabilityScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap" aria-busy="true" aria-label="Loading sizes">
+        <div className="ef-table-wrap" aria-busy="true" aria-label="Loading sizes">
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
               <Skeleton className="size-12 rounded-lg" />
@@ -105,8 +105,8 @@ export function AvailabilityScreen() {
           ))}
         </div>
       ) : data.items.length === 0 ? (
-        <div className="bo-empty">
-          <span className="bo-empty__icon" aria-hidden="true">
+        <div className="ef-empty">
+          <span className="ef-empty__icon" aria-hidden="true">
             {q ? <SearchX /> : <ToggleRight />}
           </span>
           <h3>
@@ -122,7 +122,7 @@ export function AvailabilityScreen() {
         </div>
       ) : (
         <>
-          <ul className={cn("bo-table-wrap transition-opacity", isPlaceholderData && "opacity-60")}>
+          <ul className={cn("ef-table-wrap transition-opacity", isPlaceholderData && "opacity-60")}>
             {data.items.map((row) => (
               <SizeRow key={row.variantId} row={row} />
             ))}
@@ -161,21 +161,21 @@ export function AvailabilityScreen() {
 function StockWord({ row }: { row: ShopAvailabilityRowDTO }) {
   if (!row.onSale)
     return (
-      <span className="bo-st bo-st--quiet">
+      <span className="ef-st ef-st--quiet">
         <CircleSlash aria-hidden="true" />
         Off sale
       </span>
     )
   if (row.stock.outOfStock)
     return (
-      <span className="bo-st bo-st--problem">
+      <span className="ef-st ef-st--problem">
         <CircleAlert aria-hidden="true" />
         Out of stock
       </span>
     )
   if (row.stock.low)
     return (
-      <span className="bo-st bo-st--waiting">
+      <span className="ef-st ef-st--waiting">
         <ArrowDown aria-hidden="true" />
         Low stock
       </span>
@@ -192,7 +192,7 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
       {row.imageUrl ? (
         <img src={row.imageUrl} alt="" className="size-12 shrink-0 rounded-lg border border-border object-cover" />
       ) : (
-        <div className="bo-img size-12 rounded-lg">
+        <div className="ef-img size-12 rounded-lg">
           <ImageOff aria-hidden="true" />
         </div>
       )}

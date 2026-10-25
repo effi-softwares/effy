@@ -116,10 +116,10 @@ export function BulkActions({
     <div
       role="region"
       aria-label="Selected orders"
-      className="bo-bulkbar sticky bottom-4 z-20 flex-wrap max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
+      className="ef-bulkbar sticky bottom-4 z-20 flex-wrap max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
     >
       <div className="whitespace-nowrap tabular-nums">{selected.size} selected</div>
-      <div aria-hidden="true" className="bo-bulkbar__sep" />
+      <div aria-hidden="true" className="ef-bulkbar__sep" />
       <div className="flex flex-wrap gap-1.5">
         <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
           Start picking
@@ -140,7 +140,7 @@ export function BulkActions({
           Can&apos;t supply
         </BarButton>
       </div>
-      <div aria-hidden="true" className="bo-bulkbar__sep" />
+      <div aria-hidden="true" className="ef-bulkbar__sep" />
       <Button type="button" variant="ghost" disabled={running} onClick={onClear}>
         Clear
         <X aria-hidden="true" />

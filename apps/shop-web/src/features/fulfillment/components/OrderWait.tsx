@@ -20,7 +20,10 @@ export function OrderWait({ row, now }: { row: Pick<OrderRow, "placedAt" | "stat
   }
   const fresh = now - placed < 15 * 60_000
   return (
-    <time dateTime={row.placedAt} className={cn("sh-wait", row.atRisk ? "sh-wait--late" : fresh && "sh-wait--new")}>
+    <time
+      dateTime={row.placedAt}
+      className={cn("ef-st", row.atRisk ? "ef-st--problem" : fresh ? "ef-st--info" : "ef-st--muted")}
+    >
       {row.atRisk ? (
         <Clock aria-hidden="true" />
       ) : fresh ? (

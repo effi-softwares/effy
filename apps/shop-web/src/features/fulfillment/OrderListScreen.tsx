@@ -163,7 +163,7 @@ export function OrderListScreen({
         <OrderQueue search={search} now={now} />
       ) : (
         <>
-          <div role="tablist" aria-label="Order status" className="bo-tabs">
+          <div role="tablist" aria-label="Order status" className="ef-tabs">
             {SHOP_ORDER_TABS.map((t) => (
               <button
                 key={t}
@@ -171,14 +171,14 @@ export function OrderListScreen({
                 role="tab"
                 aria-selected={t === tab}
                 onClick={() => update({ tab: t })}
-                className={cn("bo-tabs__tab", t === tab && "is-active")}
+                className={cn("ef-tabs__tab", t === tab && "is-active")}
               >
                 {TAB_LABEL[t]}
                 {data ? (
                   <span
                     className={cn(
-                      "bo-tabs__count",
-                      t === "new" && t !== tab && data.counts[t] > 0 && "bo-tabs__count--primary",
+                      "ef-tabs__count",
+                      t === "new" && t !== tab && data.counts[t] > 0 && "ef-tabs__count--primary",
                     )}
                   >
                     {data.counts[t]}
@@ -188,7 +188,7 @@ export function OrderListScreen({
             ))}
           </div>
 
-          <div className="bo-toolbar">
+          <div className="ef-toolbar">
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
               label="Placed"
@@ -219,7 +219,7 @@ export function OrderListScreen({
             <Button variant="outline" className="min-[1024px]:hidden" onClick={() => setFiltersOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               Filters
-              {filterCount > 0 ? <span className="bo-tabs__count bo-tabs__count--primary">{filterCount}</span> : null}
+              {filterCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{filterCount}</span> : null}
             </Button>
             {dirty ? (
               <Button variant="ghost" onClick={clearAll}>
@@ -278,8 +278,8 @@ export function OrderListScreen({
 
 function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
   return (
-    <div className="bo-empty">
-      <span className="bo-empty__icon" aria-hidden="true">
+    <div className="ef-empty">
+      <span className="ef-empty__icon" aria-hidden="true">
         {filtered ? <SearchX /> : <Inbox />}
       </span>
       <h3>{filtered ? "No orders match these filters" : "No orders yet"}</h3>
@@ -299,7 +299,7 @@ function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => v
 
 function ListLoading() {
   return (
-    <div className="bo-table-wrap" aria-busy="true" aria-label="Loading orders">
+    <div className="ef-table-wrap" aria-busy="true" aria-label="Loading orders">
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
           <Skeleton className="size-5 rounded" />

@@ -25,21 +25,21 @@ export function NeedsAttention({
   const openCount = items.length + more
 
   return (
-    <section className="bo-panel min-w-0">
-      <div className="bo-panel__head">
+    <section className="ef-panel min-w-0">
+      <div className="ef-panel__head">
         <div className="min-w-0 flex-1">
-          <h2 className="bo-panel__title">
+          <h2 className="ef-panel__title">
             Needs attention
-            {openCount > 0 ? <span className="bo-tabs__count bo-tabs__count--primary">{openCount}</span> : null}
+            {openCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{openCount}</span> : null}
           </h2>
-          <p className="bo-panel__desc">
+          <p className="ef-panel__desc">
             {oldestWaitingAt ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}` : "Nothing is waiting"}
           </p>
         </div>
       </div>
 
       {items.length === 0 ? (
-        <div className="bo-panel__body">
+        <div className="ef-panel__body">
           <TodayEmptyState />
         </div>
       ) : (
@@ -52,7 +52,7 @@ export function NeedsAttention({
         </ul>
       )}
 
-      <div className="bo-panel__foot bo-panel__foot--between">
+      <div className="ef-panel__foot ef-panel__foot--between">
         <p className="text-sm text-muted-foreground">
           {more > 0 ? `Cleared items drop off automatically · ${more} more` : "Cleared items drop off automatically"}
         </p>
@@ -79,20 +79,20 @@ function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }
   const row = attentionRow(item, now)
   const Icon = ROW_ICON[item.kind]
   return (
-    <div className="bo-attn flex-wrap">
+    <div className="ef-attn flex-wrap">
       <span
         aria-hidden="true"
         className={cn(
-          "bo-icon-tile",
-          row.tone === "problem" && "bo-icon-tile--problem",
-          item.kind === "awaiting_pick" && "bo-icon-tile--primary",
+          "ef-icon-tile",
+          row.tone === "problem" && "ef-icon-tile--problem",
+          item.kind === "awaiting_pick" && "ef-icon-tile--primary",
         )}
       >
         <Icon />
       </span>
-      <div className="bo-attn__text min-w-[160px]">
-        <p className="bo-attn__title text-pretty">{row.title}</p>
-        <p className="bo-attn__desc">{row.detail}</p>
+      <div className="ef-attn__text min-w-[160px]">
+        <p className="ef-attn__title text-pretty">{row.title}</p>
+        <p className="ef-attn__desc">{row.detail}</p>
       </div>
       <Button asChild variant="outline" size="sm">
         <Link to={attentionHref(item)} onClick={() => track({ name: "today_attention_acted", kind: item.kind })}>

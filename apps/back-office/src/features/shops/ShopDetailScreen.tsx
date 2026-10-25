@@ -83,7 +83,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         }
         meta={
           <>
-            <span className="bo-code">{shop.code}</span>
+            <span className="ef-code">{shop.code}</span>
             <span>
               <Users aria-hidden="true" />
               {shop.users.length} {shop.users.length === 1 ? "operator" : "operators"}
@@ -112,11 +112,11 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         }
       />
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs defaultValue="overview">
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Shop sections">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="team">
@@ -132,7 +132,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               </div>
             </div>
 
-            <TabsContent value="overview" className="bo-tabpanel">
+            <TabsContent value="overview" className="ef-tabpanel">
               <Panel
                 title="Details"
                 description="The address is for drivers only and is never shown to customers."
@@ -146,7 +146,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               >
                 <DetailRows
                   rows={[
-                    { label: "Code", value: <span className="bo-code">{shop.code}</span> },
+                    { label: "Code", value: <span className="ef-code">{shop.code}</span> },
                     {
                       label: "Address",
                       value: address ?? (
@@ -165,14 +165,14 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 <Panel
                   title="Label scanning"
                   description="How packages left this shop — scanned at collection, or recorded without a scan."
-                  actions={<span className="bo-sub">Last {scanning.sinceDays} days</span>}
+                  actions={<span className="ef-sub">Last {scanning.sinceDays} days</span>}
                 >
                   <div className="space-y-3">
                     {scanTotal === 0 ? (
                       <p className="text-sm text-muted-foreground">{labelScanningText(scanning)}</p>
                     ) : (
                       <>
-                        <div className="bo-progress-label">
+                        <div className="ef-progress-label">
                           <span>
                             {scanning.scanned} scanned · {scanning.notScanned} not scanned
                           </span>
@@ -180,15 +180,15 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                             {Math.round((scanning.scanned / scanTotal) * 100)}%
                           </span>
                         </div>
-                        <div className="bo-meter">
+                        <div className="ef-meter">
                           <i
-                            className="bo-meter__booked"
+                            className="ef-meter__booked"
                             style={{ width: `${(scanning.scanned / scanTotal) * 100}%` }}
                           />
                         </div>
                       </>
                     )}
-                    <p className="bo-sub">
+                    <p className="ef-sub">
                       Not scanned means the driver typed the code or recorded the hand-over by hand. A falling rate
                       usually means labels aren't being printed.
                     </p>
@@ -200,7 +200,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                 <label className="flex items-start justify-between gap-4">
                   <span className="space-y-1">
                     <span className="block text-sm font-medium">Require pack scanning</span>
-                    <span className="bo-sub block">
+                    <span className="ef-sub block">
                       Every bag's label must be scanned as it is packed. Printing every label is always required.
                     </span>
                   </span>
@@ -258,23 +258,23 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
               ) : null}
             </TabsContent>
 
-            <TabsContent value="team" className="bo-tabpanel">
+            <TabsContent value="team" className="ef-tabpanel">
               <ShopRoster shop={shop} canManage={canManage} onAdd={() => setAddUserOpen(true)} />
             </TabsContent>
 
-            <TabsContent value="stock" className="bo-tabpanel">
+            <TabsContent value="stock" className="ef-tabpanel">
               <Panel title="Stock" description="Products at or below their low-stock threshold, out of stock first.">
                 <ShopStockPanel shopId={shop.id} canManage={canManage} />
               </Panel>
             </TabsContent>
 
-            <TabsContent value="activity" className="bo-tabpanel">
+            <TabsContent value="activity" className="ef-tabpanel">
               <ShopHistory shopId={shop.id} />
             </TabsContent>
           </Tabs>
         </div>
 
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <Panel title="At a glance">
             <DetailRows
               tight
@@ -330,7 +330,7 @@ function DangerRow({
     <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{title}</div>
-        <p className="bo-sub">{body}</p>
+        <p className="ef-sub">{body}</p>
       </div>
       <Button variant="outline" size="sm" onClick={onClick}>
         {action}

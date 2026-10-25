@@ -179,11 +179,11 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs defaultValue="overview">
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Promotion sections">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="groups">
@@ -210,21 +210,21 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 </TabsList>
               </div>
             </div>
-            <TabsContent value="overview" className="bo-tabpanel">
+            <TabsContent value="overview" className="ef-tabpanel">
               <PerformancePanel promotionId={p.id} />
               <Overview p={p} />
             </TabsContent>
             {p.audience === "chosen" ? (
-              <TabsContent value="customers" className="bo-tabpanel">
+              <TabsContent value="customers" className="ef-tabpanel">
                 <ChosenCustomers promotionId={p.id} canManage={canManage} />
               </TabsContent>
             ) : null}
             {p.trigger === "code" ? (
-              <TabsContent value="codes" className="bo-tabpanel">
+              <TabsContent value="codes" className="ef-tabpanel">
                 <CodesPanel promotionId={p.id} canManage={canManage} />
               </TabsContent>
             ) : null}
-            <TabsContent value="groups" className="bo-tabpanel">
+            <TabsContent value="groups" className="ef-tabpanel">
               <Panel
                 title="Shown in"
                 description="Each group is a place the customer website and app show promotions, in the group's order."
@@ -239,36 +239,36 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                     {p.groups.map((g) => (
                       <li key={g.id} className="flex items-center justify-between gap-3 px-5 py-3">
                         <div>
-                          <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="bo-link">
+                          <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="link">
                             {g.name}
                           </Link>
-                          <div className="bo-sub font-mono">{g.key}</div>
+                          <div className="ef-sub font-mono">{g.key}</div>
                         </div>
-                        <span className="bo-sub">Position {g.position + 1}</span>
+                        <span className="ef-sub">Position {g.position + 1}</span>
                       </li>
                     ))}
                   </ul>
                 )}
               </Panel>
             </TabsContent>
-            <TabsContent value="pictures" className="bo-tabpanel">
+            <TabsContent value="pictures" className="ef-tabpanel">
               <PicturesSection promotion={p} canManage={canManage} />
             </TabsContent>
-            <TabsContent value="history" className="bo-tabpanel">
+            <TabsContent value="history" className="ef-tabpanel">
               <History promoId={promoId} />
             </TabsContent>
           </Tabs>
         </div>
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <Panel title="What shoppers read">
             <div className="space-y-2">
-              {p.label ? <div className="bo-sub font-semibold uppercase tracking-wide">{p.label}</div> : null}
+              {p.label ? <div className="ef-sub font-semibold uppercase tracking-wide">{p.label}</div> : null}
               <div className="text-base font-semibold">
                 {p.headline ?? <span className="text-muted-foreground">No headline — not shown in groups</span>}
               </div>
-              {p.supportingLine ? <p className="bo-sub">{p.supportingLine}</p> : null}
-              {p.sharedCode ? <div className="bo-code">{p.sharedCode}</div> : null}
-              {p.terms ? <p className="bo-sub">{p.terms}</p> : null}
+              {p.supportingLine ? <p className="ef-sub">{p.supportingLine}</p> : null}
+              {p.sharedCode ? <div className="ef-code">{p.sharedCode}</div> : null}
+              {p.terms ? <p className="ef-sub">{p.terms}</p> : null}
             </div>
           </Panel>
           <Panel title="Attribution">
@@ -341,7 +341,7 @@ function Overview({ p }: { p: Promotion }) {
                 p.trigger === "code" ? (
                   <>
                     With the code{" "}
-                    <span className="bo-code">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span>
+                    <span className="ef-code">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span>
                   </>
                 ) : (
                   "Automatically"
@@ -419,9 +419,9 @@ function History({ promoId }: { promoId: string }) {
                 <div className="text-sm font-medium">
                   {e.action.replace(/^promo(tion|_code)\./, "").replace(/_/g, " ")}
                 </div>
-                <div className="bo-sub font-mono">{e.actorSub}</div>
+                <div className="ef-sub font-mono">{e.actorSub}</div>
               </div>
-              <span className="bo-sub whitespace-nowrap">{formatTime(e.createdAt)}</span>
+              <span className="ef-sub whitespace-nowrap">{formatTime(e.createdAt)}</span>
             </li>
           ))}
         </ul>

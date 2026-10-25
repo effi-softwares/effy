@@ -225,7 +225,7 @@ export function CommandPalette({
         ) : (
           sections.map((section) => (
             <div key={section.label} role="group" aria-label={section.label} className="pt-1">
-              <div className="bo-eyebrow px-2 py-1.5">{section.label}</div>
+              <div className="ef-eyebrow px-2 py-1.5">{section.label}</div>
               {section.items.map((item) => {
                 index += 1
                 const i = index
@@ -239,7 +239,7 @@ export function CommandPalette({
                     data-index={i}
                     onMouseMove={() => setFocus(i)}
                     onClick={item.run}
-                    className={cn("bo-cmd-item", i === focus && "is-focus")}
+                    className={cn("ef-cmd-item", i === focus && "is-focus")}
                   >
                     <item.icon aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">

@@ -220,34 +220,32 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
 
       <StepTabs step={step} disabled={busy} onStep={goToStep} />
 
-      <div className="bo-detail">
-        <section className="bo-panel bo-detail__main">
-          <div className="bo-panel__body min-h-[280px]">
+      <div className="ef-detail">
+        <section className="ef-panel ef-detail__main">
+          <div className="ef-panel__body min-h-[280px]">
             <div className="flex h-full flex-col gap-4">{stepBody()}</div>
           </div>
         </section>
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <ShopperPreview draft={draft} type={selectedType} imageUrl={imageUrl} />
         </aside>
       </div>
 
       {formError ? (
-        <div role="alert" className="bo-alert bo-alert--destructive">
+        <div role="alert" className="ef-alert ef-alert--destructive">
           <CircleAlert aria-hidden="true" />
-          <div className="bo-alert__title">{formError}</div>
+          <div className="ef-alert__title">{formError}</div>
         </div>
       ) : null}
 
-      <div className="sh-actionbar">
-        <div className="sh-actionbar__text">
-          <div className="sh-actionbar__title">
-            {last ? "Ready to send to Effy" : `Next: ${STEPS[step + 1]!.title}`}
-          </div>
-          <div className="sh-actionbar__desc">
+      <div className="actionbar">
+        <div className="actionbar__text">
+          <div className="actionbar__title">{last ? "Ready to send to Effy" : `Next: ${STEPS[step + 1]!.title}`}</div>
+          <div className="actionbar__desc">
             {last ? "It goes on sale once Effy approves it." : "Your draft saves as you go."}
           </div>
         </div>
-        <div className="sh-actionbar__actions">
+        <div className="actionbar__actions">
           {step > 0 ? (
             <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
               <ArrowLeft aria-hidden="true" />

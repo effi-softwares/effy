@@ -82,7 +82,7 @@ export function AdjustLineDialog({
             Units picked
           </label>
           <div className="flex items-center gap-3">
-            <div className="sh-count">
+            <div className="stepper">
               <button type="button" aria-label="One fewer" onClick={() => step(-1)} disabled={n <= 0}>
                 <Minus aria-hidden="true" />
               </button>

@@ -2,26 +2,22 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-const appCss =
-  readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8") +
-  readFileSync(resolve(process.cwd(), "src/styles/touch.css"), "utf8")
+const appCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8")
 const tokensCss = readFileSync(
-  resolve(process.cwd(), "../../packages/design-system/src/backoffice/tokens.css"),
+  resolve(process.cwd(), "../../packages/design-system/src/console.css"),
   "utf8",
 ).toLowerCase()
 
 const appCssCode = appCss.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase()
 
 describe("shop-web inherits the design system and defines no theme of its own", () => {
-  it("imports the back-office identity and its shared primitive and pattern styles", () => {
-    expect(appCssCode).toContain('@import "@effy/design-system/backoffice.css"')
-    expect(appCssCode).toContain('@import "@effy/design-system/backoffice/primitives.css"')
-    expect(appCssCode).toContain('@import "@effy/design-system/backoffice/patterns.css"')
+  it("imports the back-office identity, which carries the shared console styles", () => {
+    expect(appCssCode).toContain('@import "@effy/design-system/console.css"')
   })
 
   it("imports exactly one identity file", () => {
     expect(appCssCode).not.toContain('@import "@effy/design-system/tokens.css"')
-    expect(appCssCode.match(/@import "@effy\/design-system\/backoffice\.css"/g)).toHaveLength(1)
+    expect(appCssCode.match(/@import "@effy\/design-system\/console\.css"/g)).toHaveLength(1)
   })
 
   // An app-local copy would escape check-tokens.mjs entirely.

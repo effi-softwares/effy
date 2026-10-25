@@ -104,7 +104,7 @@ export function PointsSettingsPanel() {
         >
           <div>
             {FIELDS.map((f) => (
-              <div key={f.key} className="bo-switch-row">
+              <div key={f.key} className="ef-switch-row">
                 <div className="min-w-0">
                   <Label htmlFor={`ps-${f.key}`}>{f.label}</Label>
                   <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>
@@ -131,17 +131,17 @@ export function PointsSettingsPanel() {
         {(s.history ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No changes yet.</p>
         ) : (
-          <ol className="bo-tl">
+          <ol className="ef-tl">
             {(s.history ?? []).map((h, i) => (
-              <li key={i} className="bo-tl__item">
-                <span className="bo-tl__mark" aria-hidden="true" />
+              <li key={i} className="ef-tl__item">
+                <span className="ef-tl__mark" aria-hidden="true" />
                 <div>
-                  <div className="bo-tl__title">{FIELDS.find((f) => f.key === h.field)?.label ?? h.field}</div>
-                  <div className="bo-tl__body tabular-nums">
+                  <div className="ef-tl__title">{FIELDS.find((f) => f.key === h.field)?.label ?? h.field}</div>
+                  <div className="ef-tl__body tabular-nums">
                     {h.oldValue} → {h.newValue}
                   </div>
                 </div>
-                <span className="bo-tl__time">{when(h.changedAt)}</span>
+                <span className="ef-tl__time">{when(h.changedAt)}</span>
               </li>
             ))}
           </ol>

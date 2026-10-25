@@ -125,7 +125,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || i === 0}
                     onClick={() => move(i, -1)}
                     aria-label="Move earlier"
@@ -136,7 +135,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || i === media.length - 1}
                     onClick={() => move(i, 1)}
                     aria-label="Move later"
@@ -147,7 +145,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || m.isPrimary}
                     onClick={() => setPrimary(m.id)}
                     aria-label="Set as primary"
@@ -158,7 +155,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy}
                     onClick={() => del(m.id)}
                     aria-label="Delete image"

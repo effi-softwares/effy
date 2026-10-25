@@ -89,7 +89,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
             Generate codes
           </Button>
           {note ? (
-            <span role="status" className="bo-sub">
+            <span role="status" className="ef-sub">
               {note}
             </span>
           ) : null}
@@ -100,7 +100,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
           <ul className="divide-y divide-border">
             {list.data.items.map((c) => (
               <li key={c.code} className="flex items-center justify-between gap-3 px-5 py-2 text-sm">
-                <span className="bo-code">{c.code}</span>
+                <span className="ef-code">{c.code}</span>
                 <StatusWord tone={STATE[c.state].tone}>{STATE[c.state].word}</StatusWord>
               </li>
             ))}

@@ -56,9 +56,7 @@ export function SectionAssignment({ detail }: { detail: ProductDetail }) {
                   checked={checked.has(s.id)}
                   onCheckedChange={(v) => toggle(s.id, v === true)}
                 />
-                <Label htmlFor={`sec-${s.id}`} className="font-normal">
-                  {s.name}
-                </Label>
+                <Label htmlFor={`sec-${s.id}`}>{s.name}</Label>
               </div>
             ))}
         </div>

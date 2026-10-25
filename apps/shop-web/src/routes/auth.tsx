@@ -40,7 +40,7 @@ export const authLayoutRoute = createRoute({
         <ul className="grid flex-1 content-center gap-6">
           {LINES.map((l) => (
             <li key={l.title} className="flex items-start gap-4">
-              <span aria-hidden="true" className="bo-icon-tile bo-icon-tile--primary size-11">
+              <span aria-hidden="true" className="ef-icon-tile ef-icon-tile--primary size-11">
                 <l.icon />
               </span>
               <span className="grid gap-0.5">

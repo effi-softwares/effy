@@ -81,8 +81,8 @@ export function DutyPanel() {
       {data.onDuty.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No drivers are on duty.</p>
       ) : (
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-rtable bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-rtable ef-table--plain">
             <thead>
               <tr>
                 <th>Driver</th>
@@ -102,8 +102,8 @@ export function DutyPanel() {
                   <tr key={d.sessionId}>
                     <td data-m="primary">
                       <div className="flex items-center gap-2">
-                        <span aria-hidden="true" className={`bo-dot ${round ? "bo-dot--busy" : "bo-dot--on"}`} />
-                        <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="bo-link">
+                        <span aria-hidden="true" className={`ef-dot ${round ? "ef-dot--busy" : "ef-dot--on"}`} />
+                        <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="link">
                           {d.driverName}
                         </Link>
                       </div>
@@ -132,7 +132,7 @@ export function DutyPanel() {
                             : "Finish time unknown"}
                       </span>
                       {d.overdue ? (
-                        <span className="bo-late mt-0.5 flex">
+                        <span className="late mt-0.5 flex">
                           <Clock aria-hidden="true" />
                           Shift running long
                         </span>

@@ -27,19 +27,32 @@ export function PageHeader({
 }) {
   const inHeader = useHeaderBack(back);
   return (
-    <div className="bo-page-head">
-      <div className="bo-page-head__text">
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
         {back && !inHeader ? (
-          <Link {...back.link} className="bo-back">
+          <Link
+            {...back.link}
+            className="-mt-2.5 -mb-1.5 inline-flex min-h-11 w-fit items-center gap-1.5 text-[15px] text-muted-foreground no-underline hover:text-foreground [&_svg]:size-4"
+          >
             <ArrowLeft aria-hidden="true" />
             {back.label}
           </Link>
         ) : null}
-        <h1>{title}</h1>
-        {description ? <p>{description}</p> : null}
-        {meta ? <div className="bo-meta">{meta}</div> : null}
+        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[26px] leading-[32px] font-semibold tracking-[-0.02em] max-md:text-[22px] max-md:leading-[28px]">
+          {title}
+        </h1>
+        {description ? (
+          <p className="max-w-[72ch] text-[15px] leading-[22px] text-pretty text-muted-foreground">{description}</p>
+        ) : null}
+        {meta ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px] text-muted-foreground [&_svg]:size-3.5 [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5">
+            {meta}
+          </div>
+        ) : null}
       </div>
-      {actions ? <div className="bo-page-head__actions">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2 max-md:w-full max-md:[&>[data-slot=button]]:grow">{actions}</div>
+      ) : null}
     </div>
   );
 }
@@ -60,17 +73,17 @@ export interface ViewTab {
 
 export function ViewTabs({ views, active, label }: { views: readonly ViewTab[]; active: string; label: string }) {
   return (
-    <nav className="bo-tabs" aria-label={label}>
+    <nav className="ef-tabs" aria-label={label}>
       {views.map((v) => (
         <Link
           key={v.key}
           {...v.link}
-          className={cn("bo-tabs__tab", v.key === active && "is-active")}
+          className={cn("ef-tabs__tab", v.key === active && "is-active")}
           aria-current={v.key === active ? "page" : undefined}
         >
           {v.label}
           {typeof v.count === "number" ? (
-            <span className={cn("bo-tabs__count", v.attention && v.key !== active && "bo-tabs__count--primary")}>{v.count}</span>
+            <span className={cn("ef-tabs__count", v.attention && v.key !== active && "ef-tabs__count--primary")}>{v.count}</span>
           ) : null}
         </Link>
       ))}

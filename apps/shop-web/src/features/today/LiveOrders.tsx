@@ -11,11 +11,11 @@ import { isNewArrival, liveMeta } from "./model"
 
 export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[]; now: number }) {
   return (
-    <section className="bo-panel min-w-0">
-      <div className="bo-panel__head">
+    <section className="ef-panel min-w-0">
+      <div className="ef-panel__head">
         <div className="min-w-0 flex-1">
-          <h2 className="bo-panel__title">Live orders</h2>
-          <p className="bo-panel__desc">Updating as orders arrive</p>
+          <h2 className="ef-panel__title">Live orders</h2>
+          <p className="ef-panel__desc">Updating as orders arrive</p>
         </div>
         <Link to="/orders" className="text-sm font-medium text-foreground no-underline hover:underline">
           All orders →
@@ -35,21 +35,21 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
                   params={{ fulfillmentId: o.fulfillmentId }}
                   className={cn(
                     "flex min-h-18 w-full items-center gap-4 px-5 py-3 text-left no-underline hover:bg-row-hover max-md:px-4",
-                    fresh && "bo-flash",
+                    fresh && "animate-[sh-flash_var(--dur-highlight)_ease-out]",
                   )}
                 >
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="bo-code font-medium">{o.orderNumber}</span>
+                      <span className="ef-code font-medium">{o.orderNumber}</span>
                       <span className="font-medium">{o.customerName}</span>
                       {fresh ? (
-                        <span className="bo-st bo-st--info">
+                        <span className="ef-st ef-st--info">
                           <BellRing aria-hidden="true" />
                           New
                         </span>
                       ) : null}
                     </span>
-                    <span className="bo-sub truncate">{liveMeta(o, now)}</span>
+                    <span className="ef-sub truncate">{liveMeta(o, now)}</span>
                   </span>
                   <span className="font-semibold whitespace-nowrap tabular-nums">
                     {formatMoney(o.total, o.currency)}

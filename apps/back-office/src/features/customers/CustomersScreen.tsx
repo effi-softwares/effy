@@ -86,17 +86,17 @@ function CustomerSearch() {
           </p>
           {recent.length > 0 ? (
             <>
-              <h2 id="recent-h" className="bo-eyebrow">
+              <h2 id="recent-h" className="ef-eyebrow">
                 Your recent customers
               </h2>
-              <ul className="bo-panel divide-y divide-border">
+              <ul className="ef-panel divide-y divide-border">
                 {recent.map((r) => (
                   <li key={r.id}>
-                    <Link to="/customers/$customerId" params={{ customerId: r.id }} className="bo-attn">
+                    <Link to="/customers/$customerId" params={{ customerId: r.id }} className="ef-attn">
                       <History aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="bo-attn__text">
-                        <span className="bo-attn__title">{r.name || r.email}</span>
-                        <span className="bo-attn__desc block">
+                      <span className="ef-attn__text">
+                        <span className="ef-attn__title">{r.name || r.email}</span>
+                        <span className="ef-attn__desc block">
                           {r.email} · {formatPoints(r.points)} points
                         </span>
                       </span>
@@ -112,7 +112,7 @@ function CustomerSearch() {
       ) : search.isError ? (
         <ErrorState error={search.error} onRetry={() => void search.refetch()} />
       ) : search.isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -127,9 +127,9 @@ function CustomerSearch() {
           <p className="text-sm text-muted-foreground">
             {search.data.length} {search.data.length === 1 ? "customer matches" : "customers match"} “{query}”
           </p>
-          <div className="bo-table-wrap">
-            <div className="bo-table-scroll">
-              <table className="bo-table bo-rtable">
+          <div className="ef-table-wrap">
+            <div className="ef-table-scroll">
+              <table className="ef-table ef-rtable">
                 <thead>
                   <tr>
                     <th>Customer</th>
@@ -143,13 +143,13 @@ function CustomerSearch() {
                     <tr key={c.id}>
                       <td data-m="primary">
                         <div className="flex items-center gap-3">
-                          <span className="bo-avatar bo-avatar--blue" aria-hidden="true">
+                          <span className="avatar avatar--blue" aria-hidden="true">
                             {initialsOf(c.name || c.email)}
                           </span>
                           <Link
                             to="/customers/$customerId"
                             params={{ customerId: c.id }}
-                            className="bo-link"
+                            className="link"
                             onClick={() =>
                               remember({ id: c.id, name: c.name, email: c.email, points: Number(c.points) })
                             }

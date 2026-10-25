@@ -120,8 +120,8 @@ export function LookPanel({
           so {reset.length === 1 ? "it wears" : "they wear"} the default now.
         </p>
       ) : null}
-      <p className="bo-sub mt-3">
-        <Link to="/promotions/skins" className="bo-link">
+      <p className="ef-sub mt-3">
+        <Link to="/promotions/skins" className="link">
           Manage skins
         </Link>
       </p>

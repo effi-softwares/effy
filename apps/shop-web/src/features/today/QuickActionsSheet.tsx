@@ -115,9 +115,9 @@ export function QuickActionsSheet({
     >
       {groups.map((group) => (
         <section key={group.label} className="grid gap-1">
-          <h3 className="bo-eyebrow px-2 pt-1">{group.label}</h3>
+          <h3 className="ef-eyebrow px-2 pt-1">{group.label}</h3>
           {group.items.map((item) => (
-            <button key={item.title} type="button" onClick={item.run} className="bo-cmd-item h-auto! min-h-14 py-2">
+            <button key={item.title} type="button" onClick={item.run} className="ef-cmd-item h-auto! min-h-14 py-2">
               <item.icon aria-hidden="true" />
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">{item.title}</span>

@@ -22,15 +22,15 @@ export function DetailSection({
   flush?: boolean
 }) {
   return (
-    <section className={cn("bo-panel min-w-0", className)}>
-      <div className="bo-panel__head">
+    <section className={cn("ef-panel min-w-0", className)}>
+      <div className="ef-panel__head">
         <div className="min-w-0 flex-1">
-          <h2 className="bo-panel__title">{title}</h2>
-          <p className="bo-panel__desc">{subtitle}</p>
+          <h2 className="ef-panel__title">{title}</h2>
+          <p className="ef-panel__desc">{subtitle}</p>
         </div>
         {action}
       </div>
-      {flush ? children : <div className="bo-panel__body">{children}</div>}
+      {flush ? children : <div className="ef-panel__body">{children}</div>}
     </section>
   )
 }
@@ -67,9 +67,9 @@ export function MicroLabel({ children, className }: { children: ReactNode; class
 
 export function TableFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("bo-table-wrap", className)}>
-      <div className="bo-table-scroll">
-        <table className="bo-table">{children}</table>
+    <div className={cn("ef-table-wrap", className)}>
+      <div className="ef-table-scroll">
+        <table className="ef-table">{children}</table>
       </div>
     </div>
   )
@@ -131,7 +131,7 @@ export function Segmented<T extends string>({
   ariaLabel: string
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="bo-seg">
+    <div role="tablist" aria-label={ariaLabel} className="ef-seg">
       {options.map((o) => {
         const active = o.value === value
         return (

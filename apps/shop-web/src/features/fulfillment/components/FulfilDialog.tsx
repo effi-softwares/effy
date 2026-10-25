@@ -42,7 +42,7 @@ export function FulfilDialog({
       onSave={() => void save().catch(() => undefined)}
     >
       <div className="grid">
-        <div className="bo-eyebrow border-b border-border pb-2">In this parcel</div>
+        <div className="ef-eyebrow border-b border-border pb-2">In this parcel</div>
         {inParcel.map((l) => (
           <div
             key={l.orderItemId}
@@ -62,7 +62,7 @@ export function FulfilDialog({
         ))}
       </div>
       {short > 0 ? (
-        <p className="bo-alert bo-alert--muted grid-cols-1! text-sm">
+        <p className="ef-alert ef-alert--muted grid-cols-1! text-sm">
           {short} {short === 1 ? "unit is" : "units are"} not in the package and {short === 1 ? "is" : "are"} recorded
           as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
         </p>

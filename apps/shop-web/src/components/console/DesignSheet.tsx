@@ -183,7 +183,7 @@ export function SheetToggleRow({
   control: ReactNode
 }) {
   return (
-    <div className="bo-switch-row">
+    <div className="ef-switch-row">
       <div className="grid gap-0.5">
         <div className="text-[15px] font-medium">{title}</div>
         <div className="text-sm text-muted-foreground">{detail}</div>

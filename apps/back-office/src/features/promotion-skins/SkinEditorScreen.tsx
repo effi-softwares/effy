@@ -167,8 +167,8 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <fieldset className="bo-detail__main min-w-0 space-y-4" disabled={!canManage}>
+      <div className="ef-detail">
+        <fieldset className="ef-detail__main min-w-0 space-y-4" disabled={!canManage}>
           <Panel title="Name and layout">
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -180,7 +180,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   placeholder="Winter — photo"
                   className="max-w-md"
                 />
-                <p className="bo-sub">For staff only. Pick it by this name when placing a promotion.</p>
+                <p className="ef-sub">For staff only. Pick it by this name when placing a promotion.</p>
               </div>
               <div className="space-y-1.5">
                 <span className="text-sm font-medium">Layout</span>
@@ -202,7 +202,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                       )}
                     >
                       <div className="font-medium">{LAYOUT_WORD[l]}</div>
-                      <div className="bo-sub">
+                      <div className="ef-sub">
                         Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(",")} places
                       </div>
                     </button>
@@ -237,7 +237,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   }
                 />
               ) : (
-                <p className="bo-sub self-center">This layout always shows the promotion's picture when it has one.</p>
+                <p className="ef-sub self-center">This layout always shows the promotion's picture when it has one.</p>
               )}
               {showsPicture && wordsOverPicture(layout) ? (
                 <>
@@ -420,7 +420,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                         patch("button", { ...s.button, words: e.target.value.trim() ? e.target.value : AUTO })
                       }
                     />
-                    <p className="bo-sub">With a code the button copies it; without one it opens the offer.</p>
+                    <p className="ef-sub">With a code the button copies it; without one it opens the offer.</p>
                   </div>
                   {s.button.style === "filled" ? (
                     <ColourField
@@ -615,7 +615,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
           </Panel>
         </fieldset>
 
-        <aside className="bo-detail__aside space-y-4">
+        <aside className="ef-detail__aside space-y-4">
           <Panel title="Preview" description="Exactly as the website draws it.">
             <SkinPreview layout={layout} settings={s} />
           </Panel>

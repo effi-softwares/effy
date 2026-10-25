@@ -25,7 +25,7 @@ export function ChoiceCards<T extends string>({
       </div>
       <RadioGroup aria-labelledby={id} value={value} onValueChange={(v) => onChange(v as T)} className="grid gap-2">
         {options.map((o) => (
-          <label key={o.value} className={cn("bo-choice-card", o.value === value && "is-checked")}>
+          <label key={o.value} className={cn("ef-choice-card", o.value === value && "is-checked")}>
             <RadioGroupItem value={o.value} />
             <span className="grid gap-0.5">
               <span className="font-medium">{o.label}</span>

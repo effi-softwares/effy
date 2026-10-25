@@ -39,7 +39,7 @@ import {
 
 /**
  * The consoles' sidebar — shadcn sidebar-07 (`collapsible="icon"`), dressed as the redesign's
- * "Sidebar — expanded" / "Sidebar — icon rail" boards (styles: @effy/design-system/backoffice/shell.css).
+ * "Sidebar — expanded" / "Sidebar — icon rail" boards (styles: @effy/design-system/console.css).
  *
  * 256px expanded; folded (⌘B, or always at 768–1023) a 96px labelled rail — icon over word; below 768
  * the same content in a left sheet opened from the header's menu button.
@@ -65,21 +65,21 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
   }, [pathname, tab, setOpenMobile]);
 
   return (
-    <Sidebar collapsible="icon" className="bo-sidebar">
+    <Sidebar collapsible="icon" className="ef-sidebar">
       {isMobile && openMobile ? (
-        <button type="button" className="bo-iconbtn bo-sheet-close" aria-label="Close menu" onClick={() => setOpenMobile(false)}>
+        <button type="button" className="ef-iconbtn absolute top-3 left-[calc(100%+10px)] z-1 bg-background! shadow-md" aria-label="Close menu" onClick={() => setOpenMobile(false)}>
           <X aria-hidden="true" />
         </button>
       ) : null}
-      <SidebarHeader className="bo-sb-head">
+      <SidebarHeader className="ef-sb-head">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild tooltip={`${brand.name} ${brand.surface}`} className="bo-sb-btn bo-sb-brand">
+            <SidebarMenuButton size="lg" asChild tooltip={`${brand.name} ${brand.surface}`} className="ef-sb-btn ef-sb-brand">
               <Link to="/">
-                <span aria-hidden="true" className="bo-logo">
+                <span aria-hidden="true" className="ef-logo">
                   e<b>.</b>
                 </span>
-                <span className="bo-sb-label grid min-w-0 flex-1 leading-tight">
+                <span className="ef-sb-label grid min-w-0 flex-1 leading-tight">
                   <strong className="truncate text-sm font-semibold">{brand.name}</strong>
                   <span className="truncate text-xs text-muted-foreground">{brand.surface}</span>
                 </span>
@@ -95,20 +95,20 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
         data-more-below={more.below ? "true" : undefined}
       >
         {groups.map((group, index) => (
-          <SidebarGroup key={group.label} className="bo-sb-group">
+          <SidebarGroup key={group.label} className="ef-sb-group">
             {/* In the folded rail a 1px rule replaces the group labels. */}
-            {index > 0 ? <div aria-hidden="true" className="bo-sb-rule" /> : null}
-            <SidebarGroupLabel className="bo-sb-grouplabel">{group.label}</SidebarGroupLabel>
-            <SidebarMenu className="bo-sb-menu">
+            {index > 0 ? <div aria-hidden="true" className="ef-sb-rule" /> : null}
+            <SidebarGroupLabel className="ef-sb-grouplabel">{group.label}</SidebarGroupLabel>
+            <SidebarMenu className="ef-sb-menu">
               {group.items.map((item) =>
                 item.subs && item.subs.length > 0 ? (
                   <NavGroupItem key={item.key} item={item} active={active} counts={counts} />
                 ) : (
                   <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton asChild isActive={active === item.key} tooltip={item.label} className="bo-sb-btn">
+                    <SidebarMenuButton asChild isActive={active === item.key} tooltip={item.label} className="ef-sb-btn">
                       <Link {...staffLinkOf(item)} aria-current={active === item.key ? "page" : undefined}>
                         <item.icon aria-hidden="true" />
-                        <span className="bo-sb-label">{item.label}</span>
+                        <span className="ef-sb-label">{item.label}</span>
                         <CountBadge n={item.count ? counts[item.count] : undefined} strong={item.countTone === "strong"} />
                       </Link>
                     </SidebarMenuButton>
@@ -124,7 +124,7 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
       {more.below ? (
         <button
           type="button"
-          className="bo-sb-more"
+          className="ef-sb-more"
           aria-label="Show more of the menu"
           onClick={() => scroller.current?.scrollBy({ top: scroller.current.clientHeight * 0.75, behavior: "smooth" })}
         >
@@ -205,14 +205,14 @@ function NavGroupItem({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton isActive={holdsActive} className="bo-sb-btn" aria-label={`${item.label}: ${subs.length} pages`}>
+            <SidebarMenuButton isActive={holdsActive} className="ef-sb-btn" aria-label={`${item.label}: ${subs.length} pages`}>
               <item.icon aria-hidden="true" />
-              <span className="bo-sb-label">{item.label}</span>
-              <ChevronRight aria-hidden="true" className="bo-sb-flyhint" />
+              <span className="ef-sb-label">{item.label}</span>
+              <ChevronRight aria-hidden="true" className="ef-sb-flyhint" />
               <CountBadge n={total} strong={strong} />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" sideOffset={8} className="bo-sb-flyout">
+          <DropdownMenuContent side="right" align="start" sideOffset={8} className="ef-sb-flyout">
             <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
             {subs.map((sub) => {
               const n = sub.count ? counts[sub.count] : undefined;
@@ -222,7 +222,7 @@ function NavGroupItem({
                   <Link {...staffLinkOf(sub)} aria-current={here ? "page" : undefined}>
                     <span className="min-w-0 flex-1 truncate">{sub.label}</span>
                     {typeof n === "number" && n > 0 ? (
-                      <span className={cn("bo-count", sub.countTone === "strong" && "is-strong")}>{n}</span>
+                      <span className={cn("ef-count", sub.countTone === "strong" && "is-strong")}>{n}</span>
                     ) : null}
                     {here ? <Check aria-hidden="true" className="size-4" /> : null}
                   </Link>
@@ -246,20 +246,20 @@ function NavGroupItem({
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={item.label} className="bo-sb-btn" data-open={open ? "true" : "false"}>
+          <SidebarMenuButton tooltip={item.label} className="ef-sb-btn" data-open={open ? "true" : "false"}>
             <item.icon aria-hidden="true" />
-            <span className="bo-sb-label">{item.label}</span>
+            <span className="ef-sb-label">{item.label}</span>
             {!open ? <CountBadge n={total} strong={strong} /> : null}
-            <ChevronRight aria-hidden="true" className="bo-sb-chev" />
+            <ChevronRight aria-hidden="true" className="ef-sb-chev" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
-        <CollapsibleContent className={cn("bo-sb-collapse", animate && "is-animated")}>
-          <SidebarMenuSub className="bo-sb-sub">
+        <CollapsibleContent className={cn("ef-sb-collapse", animate && "is-animated")}>
+          <SidebarMenuSub className="ef-sb-sub">
             {subs.map((sub) => (
               <SidebarMenuSubItem key={sub.key}>
-                <SidebarMenuSubButton asChild isActive={active === sub.key} className="bo-sb-subbtn">
+                <SidebarMenuSubButton asChild isActive={active === sub.key} className="ef-sb-subbtn">
                   <Link {...staffLinkOf(sub)} aria-current={active === sub.key ? "page" : undefined}>
-                    <span className="bo-sb-label">{sub.label}</span>
+                    <span className="ef-sb-label">{sub.label}</span>
                     <CountBadge n={sub.count ? counts[sub.count] : undefined} strong={sub.countTone === "strong"} small />
                   </Link>
                 </SidebarMenuSubButton>
@@ -290,12 +290,12 @@ function CountBadge({ n, strong = false, small = false }: { n: number | undefine
   if (typeof n !== "number" || n <= 0) return null;
   return (
     <>
-      <span className={cn("bo-count", strong && "is-strong", small && "is-small")} aria-label={`${n} need attention`}>
-        <span key={n} className="bo-count__n">
+      <span className={cn("ef-count", strong && "is-strong", small && "is-small")} aria-label={`${n} need attention`}>
+        <span key={n} className="ef-count__n">
           {n}
         </span>
       </span>
-      <span aria-hidden="true" className={cn("bo-count-dot", strong && "is-strong")} />
+      <span aria-hidden="true" className={cn("ef-count-dot", strong && "is-strong")} />
     </>
   );
 }

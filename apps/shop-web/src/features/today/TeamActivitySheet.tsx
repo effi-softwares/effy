@@ -33,24 +33,24 @@ export function TeamActivitySheet({ open, onOpenChange }: { open: boolean; onOpe
           ))}
         </div>
       ) : activity.data && activity.data.entries.length > 0 ? (
-        <ul className="bo-tl">
+        <ul className="ef-tl">
           {activity.data.entries.map((entry) => {
             const Mark = entry.tone === "problem" ? CircleAlert : entry.tone === "done" ? Check : Dot
             return (
-              <li key={entry.id} className="bo-tl__item">
+              <li key={entry.id} className="ef-tl__item">
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "bo-tl__mark",
-                    entry.tone === "problem" && "bo-tl__mark--problem",
-                    entry.tone === "done" && "bo-tl__mark--done",
+                    "ef-tl__mark",
+                    entry.tone === "problem" && "ef-tl__mark--problem",
+                    entry.tone === "done" && "ef-tl__mark--done",
                   )}
                 >
                   <Mark />
                 </span>
                 <span className="min-w-0">
-                  <span className="bo-tl__title block text-pretty">{describe(entry)}</span>
-                  <span className="bo-tl__body block">
+                  <span className="ef-tl__title block text-pretty">{describe(entry)}</span>
+                  <span className="ef-tl__body block">
                     {relativeTime(entry.at, now)} · {who(entry.actor)}
                   </span>
                 </span>

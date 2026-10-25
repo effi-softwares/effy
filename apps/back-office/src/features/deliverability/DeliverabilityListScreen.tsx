@@ -51,20 +51,20 @@ export function DeliverabilityListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Deliverability views">
+        <nav className="ef-tabs" aria-label="Deliverability views">
           {VIEWS.map((v) => (
             <button
               key={v.key}
               type="button"
               aria-current={v.key === state ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === state && "is-active")}
+              className={cn("ef-tabs__tab", v.key === state && "is-active")}
               onClick={() => {
                 setState(v.key)
                 setPage(0)
               }}
             >
               {v.label}
-              {v.key === state && data ? <span className="bo-tabs__count">{data.total}</span> : null}
+              {v.key === state && data ? <span className="ef-tabs__count">{data.total}</span> : null}
             </button>
           ))}
         </nav>
@@ -84,7 +84,7 @@ export function DeliverabilityListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
         </div>
@@ -95,9 +95,9 @@ export function DeliverabilityListScreen() {
           description="Every address the platform has emailed is reachable."
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Address</th>
@@ -111,7 +111,7 @@ export function DeliverabilityListScreen() {
                 {data.items.map((r) => (
                   <tr key={r.address}>
                     <td data-m="primary">
-                      <Link to="/deliverability/$address" params={{ address: r.address }} className="bo-link">
+                      <Link to="/deliverability/$address" params={{ address: r.address }} className="link">
                         {r.address}
                       </Link>
                     </td>
@@ -122,7 +122,7 @@ export function DeliverabilityListScreen() {
                       {r.subject ? (
                         <>
                           {r.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
-                          <span className="bo-sub">({r.subject.kind.replace("_", " ")})</span>
+                          <span className="ef-sub">({r.subject.kind.replace("_", " ")})</span>
                         </>
                       ) : (
                         <span className="text-muted-foreground">—</span>

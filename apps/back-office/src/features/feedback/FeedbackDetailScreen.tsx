@@ -24,7 +24,7 @@ export function FeedbackDetailScreen({ referenceCode }: { referenceCode: string 
       ) : isPending ? (
         <Skeleton className="h-96" />
       ) : (
-        <section className="bo-panel flex flex-col">
+        <section className="ef-panel flex flex-col">
           <FeedbackPanel detail={data} mayReply={canReplyFeedback(roles)} />
         </section>
       )}

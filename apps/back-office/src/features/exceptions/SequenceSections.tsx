@@ -51,8 +51,8 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
           Every open run is loaded, and every finished collection is checked in.
         </p>
       ) : (
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-rtable bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-rtable ef-table--plain">
             <thead>
               <tr>
                 <th>Driver</th>
@@ -65,7 +65,7 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
               {overdue.map((o) => (
                 <tr key={o.roundId}>
                   <td data-m="primary">
-                    <Link to="/orders/assignments/rounds/$roundId" params={{ roundId: o.roundId }} className="bo-link">
+                    <Link to="/orders/assignments/rounds/$roundId" params={{ roundId: o.roundId }} className="link">
                       {o.driverName}
                     </Link>
                   </td>
@@ -74,7 +74,7 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
                     {o.kind === "delivery" ? "Loading the van" : "Hub check-in"}
                   </td>
                   <td data-m="trail" className="is-num">
-                    <span className="bo-late">
+                    <span className="late">
                       <Clock aria-hidden="true" />
                       {o.minutes} min
                     </span>
@@ -107,8 +107,8 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
       {held.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No driver has left a package behind.</p>
       ) : (
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-rtable bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-rtable ef-table--plain">
             <thead>
               <tr>
                 <th>Order</th>
@@ -126,8 +126,8 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
               {held.map((h) => (
                 <tr key={h.holdId}>
                   <td data-m="primary">
-                    <span className="bo-code font-medium">{h.orderNumber}</span>
-                    <span className="bo-sub">
+                    <span className="ef-code font-medium">{h.orderNumber}</span>
+                    <span className="ef-sub">
                       {h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}
                     </span>
                   </td>
@@ -137,7 +137,7 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                   </td>
                   <td data-m="meta" data-label="Reason">
                     {HOLD_REASON_WORDS[h.reason] ?? h.reason}
-                    {h.note ? <span className="bo-sub">{h.note}</span> : null}
+                    {h.note ? <span className="ef-sub">{h.note}</span> : null}
                   </td>
                   <td data-m="hide">{h.driverName}</td>
                   <td data-m="hide" className="is-muted whitespace-nowrap">
@@ -224,8 +224,8 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
       {checks.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">No vehicle check found a problem today.</p>
       ) : (
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-rtable bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-rtable ef-table--plain">
             <thead>
               <tr>
                 <th>Driver</th>

@@ -57,9 +57,9 @@ export function PromotionGroupsScreen() {
           description="Create one for each place promotions are shown."
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Group</th>
@@ -71,10 +71,10 @@ export function PromotionGroupsScreen() {
                 {data.map((g) => (
                   <tr key={g.id}>
                     <td data-m="primary">
-                      <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="bo-link">
+                      <Link to="/promotions/groups/$groupId" params={{ groupId: g.id }} className="link">
                         {g.name}
                       </Link>
-                      {g.description ? <div className="bo-sub">{g.description}</div> : null}
+                      {g.description ? <div className="ef-sub">{g.description}</div> : null}
                     </td>
                     <td data-m="meta" className="font-mono text-xs">
                       {g.key}
@@ -149,7 +149,7 @@ function CreateGroupDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 setKey(slug(e.target.value))
               }}
             />
-            <p className="bo-sub">Lower-case letters, numbers and dashes. It can't be changed later.</p>
+            <p className="ef-sub">Lower-case letters, numbers and dashes. It can't be changed later.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="group-desc">Where it's shown (optional)</Label>
