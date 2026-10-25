@@ -488,7 +488,7 @@ html * { @apply overscroll-x-none; }
     .ef-detail { @apply grid-cols-[minmax(0,1fr)_340px]; }
   }
   @media (max-width: 1279px) {
-    .ef-detail__aside.is-first { @apply order-[-1]; }
+    .ef-detail__aside.is-first { @apply -order-1; }
   }
   @media (max-width: 767px) {
     .ef-detail,
