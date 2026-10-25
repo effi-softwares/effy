@@ -42,7 +42,7 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
   as round as the controls inside them.
 - `check-token-usage.mjs`: every colour utility names a declared token (Tailwind emits nothing for an
   unknown one).
-- `check-banner-canvas.mjs`, `check-banner-template.mjs`: the promotional banner canvas and its template.
+- `check-banner-canvas.mjs`: the promotional banner canvas.
 
 ## Exports
 
@@ -52,7 +52,6 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 | `@effy/design-system/ui` | The shared shadcn/ui primitives (`src/ui/`) |
 | `@effy/design-system/hooks/use-mobile` | The mobile breakpoint hook |
 | `@effy/design-system/stripe-storefront-appearance` | The payment element's appearance (generated) |
-| `@effy/design-system/banner-template.svg` | The operator's banner template (generated) |
 
 To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming app (its
 `components.json` aliases `ui` to this package), then export it from `src/ui/index.ts`.
