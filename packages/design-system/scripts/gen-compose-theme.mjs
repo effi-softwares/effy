@@ -75,6 +75,7 @@ const COLOR_TOKENS = [
   ["popoverForeground", "popover-foreground"],
   ["primary", "primary"],
   ["primaryForeground", "primary-foreground"],
+  ["primaryFill", "primary-fill"], // the button blue: white type on it in both appearances
   ["secondary", "secondary"],
   ["secondaryForeground", "secondary-foreground"],
   ["muted", "muted"],
@@ -83,6 +84,7 @@ const COLOR_TOKENS = [
   ["accentForeground", "accent-foreground"],
   ["destructive", "destructive"],
   ["destructiveForeground", "destructive-foreground"],
+  ["destructiveFill", "destructive-fill"],
   // No Material 3 slot maps to these; screens read them from EffyColor.
   ["success", "success"],
   ["disabled", "disabled"],
@@ -94,6 +96,7 @@ const COLOR_TOKENS = [
   ["primaryMuted", "primary-muted"], // the light-blue search field, selection, info
   ["brand", "brand"], // Effy green: Sale, savings, "Delivered by Effy", paid. Never an action.
   ["brandForeground", "brand-foreground"],
+  ["brandFill", "brand-fill"], // the green a white tick or label sits on
   ["brandMuted", "brand-muted"],
   ["scrim", "scrim"], // sheet backdrop, with its alpha
 ];
@@ -109,7 +112,7 @@ const ALIASES = {
 // Authored token -> Material 3 ColorScheme slot. Reuse is deliberate: Material components get a
 // complete scheme from the CSS rather than library defaults.
 const M3_MAP = [
-  ["primary", "primary"],
+  ["primaryFill", "primary"],
   ["primaryForeground", "onPrimary"],
   ["primaryMuted", "primaryContainer"],
   ["primary", "onPrimaryContainer"],
@@ -128,7 +131,7 @@ const M3_MAP = [
   ["cardForeground", "onSurface"],
   ["muted", "surfaceVariant"],
   ["mutedForeground", "onSurfaceVariant"],
-  ["primary", "surfaceTint"],
+  ["primaryFill", "surfaceTint"],
   ["foreground", "inverseSurface"],
   ["background", "inverseOnSurface"],
   ["destructive", "error"],
@@ -145,7 +148,7 @@ const M3_MAP = [
   ["popover", "surfaceContainerHighest"],
   ["background", "surfaceContainerLow"],
   ["background", "surfaceContainerLowest"],
-  ["primary", "primaryFixed"],
+  ["primaryFill", "primaryFixed"],
   ["ring", "primaryFixedDim"],
   ["primaryForeground", "onPrimaryFixed"],
   ["primaryForeground", "onPrimaryFixedVariant"],
@@ -204,7 +207,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The raw Effy storefront tokens, light and dark. Colour is rationed: black, white, zinc, Effy blue
  * (primary, every action) and Effy green (brand: Sale, savings, "Delivered by Effy", paid; never an
- * action). No red: destructive is the text colour.
+ * action). Rose for problems (destructive); a filled control (*Fill) carries white type in both appearances.
  */
 object EffyColor {
 ${colorObject("Light", light)}

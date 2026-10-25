@@ -32,7 +32,7 @@ export function MarginField({
               onClick={() => onChange({ ...value, kind })}
               className={
                 "h-9 px-3 text-sm first:rounded-l-md last:rounded-r-md " +
-                (value.kind === kind ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")
+                (value.kind === kind ? "bg-primary-fill text-primary-foreground" : "bg-background hover:bg-muted")
               }
             >
               {kind === "percent" ? "Percent" : "Amount"}

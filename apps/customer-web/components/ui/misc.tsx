@@ -97,7 +97,7 @@ export function Progress({
       aria-valuenow={pct}
       className={clsx("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
     >
-      <div className={clsx("h-full rounded-full", tone === "brand" ? "bg-brand" : "bg-primary")} style={{ width: `${pct}%` }} />
+      <div className={clsx("h-full rounded-full", tone === "brand" ? "bg-brand-fill" : "bg-primary-fill")} style={{ width: `${pct}%` }} />
     </div>
   )
 }

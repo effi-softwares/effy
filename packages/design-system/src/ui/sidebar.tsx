@@ -581,7 +581,7 @@ function SidebarMenuBadge({
       className={cn(
         "pointer-events-none absolute right-1 flex h-5 min-w-5 select-none items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tabular-nums",
         "bg-accent2-soft text-accent2",
-        "peer-data-[active=true]/menu-button:bg-primary peer-data-[active=true]/menu-button:text-primary-foreground",
+        "peer-data-[active=true]/menu-button:bg-primary-fill peer-data-[active=true]/menu-button:text-primary-foreground",
         "peer-data-[size=sm]/menu-button:top-1 peer-data-[size=default]/menu-button:top-2 peer-data-[size=lg]/menu-button:top-3",
         "group-data-[collapsible=icon]:hidden",
         className

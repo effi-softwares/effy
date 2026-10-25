@@ -385,9 +385,12 @@ pool is structurally rejected by services scoped to another.
 ⚠ **ONE THEME FOR EVERY APP (constitution v4.0.0, 2026-10-25).** `packages/design-system/src/tokens.css` is the
 only token file: customer-web imports it, the consoles import it through `console.css`, and the customer and driver
 apps, the emails and the Stripe card fields are generated from it. Every colour is a **Tailwind palette value** (zinc,
-blue, green; violet / orange / pink / red only in the `--promo-*` set). `--primary` is blue-700 `#1d4ed8` (the one
-action colour), `--brand` is green-700 `#15803d` (savings, "Delivered by Effy", done), problems are the foreground (no
-red). One guard: `check-tokens.mjs`. The two-identity history below (console vs storefront) is superseded.
+blue, emerald, rose, orange; violet / pink / red only in the `--promo-*` set). ⚠ **(2026-10-25, operator) EACH COLOUR IS
+A FILL AND A TEXT SHADE**: `--primary-fill` blue-600 `#2563eb`, `--brand-fill` emerald-600 `#059669`, `--destructive-fill`
+rose-500 `#f43f5e` carry a **white label in BOTH appearances** (`bg-*-fill text-*-foreground`, held to 3:1 by the
+operator's choice); `--primary` / `--brand` / `--destructive` are the readable text shade (dark: blue-400, emerald-500
+`#10b981`, rose-400). Orange (`--accent2`) is attention only. Problems are rose. Mobile: Material `primary` is the fill,
+`EffyRoles.brandFill` the green under a white tick. One guard: `check-tokens.mjs`. The two-identity history below (console vs storefront) is superseded.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
 reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it —

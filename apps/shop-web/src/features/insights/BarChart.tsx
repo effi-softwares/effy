@@ -20,7 +20,7 @@ export function BarChart({
   valueOf: (b: InsightsBucketDTO) => number
   series: "primary" | "secondary"
 }) {
-  const latestFill = "bg-primary"
+  const latestFill = "bg-primary-fill"
   const restFill = "bg-primary/30"
   const heights = barHeights(buckets.map(valueOf))
 

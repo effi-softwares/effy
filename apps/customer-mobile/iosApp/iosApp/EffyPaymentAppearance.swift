@@ -11,7 +11,7 @@ enum EffyPaymentAppearance {
     static func make() -> PaymentSheet.Appearance {
         EffyFonts.registerOnce()
         var a = PaymentSheet.Appearance()
-        a.colors.primary = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.3765, green: 0.6471, blue: 0.9804, alpha: 1) : UIColor(red: 0.1137, green: 0.3059, blue: 0.8471, alpha: 1) }
+        a.colors.primary = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.1451, green: 0.3882, blue: 0.9216, alpha: 1) : UIColor(red: 0.1451, green: 0.3882, blue: 0.9216, alpha: 1) }
         a.colors.background = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) : UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1) }
         a.colors.componentBackground = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) : UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1) }
         a.colors.componentBorder = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.2471, green: 0.2471, blue: 0.2745, alpha: 1) : UIColor(red: 0.8941, green: 0.8941, blue: 0.9059, alpha: 1) }
@@ -21,7 +21,7 @@ enum EffyPaymentAppearance {
         a.colors.componentText = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9804, green: 0.9804, blue: 0.9804, alpha: 1) : UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) }
         a.colors.componentPlaceholderText = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.6314, green: 0.6314, blue: 0.6667, alpha: 1) : UIColor(red: 0.3216, green: 0.3216, blue: 0.3569, alpha: 1) }
         a.colors.icon = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.6314, green: 0.6314, blue: 0.6667, alpha: 1) : UIColor(red: 0.3216, green: 0.3216, blue: 0.3569, alpha: 1) }
-        a.colors.danger = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9804, green: 0.9804, blue: 0.9804, alpha: 1) : UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) }
+        a.colors.danger = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9843, green: 0.4431, blue: 0.5216, alpha: 1) : UIColor(red: 0.7451, green: 0.0706, blue: 0.2353, alpha: 1) }
         a.cornerRadius = 6
         a.borderWidth = 1
         a.shadow = .disabled

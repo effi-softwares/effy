@@ -33,7 +33,7 @@ function Loader({
         style={{ width: u(16), height: u(16) }}
       />
       <span
-        className="bg-primary absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
+        className="bg-primary-fill absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
         style={{ width: u(12), height: u(12) }}
       />
       <span

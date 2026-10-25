@@ -4,7 +4,7 @@
   <mj-text font-size="16px" line-height="24px" font-weight="400" color="#09090b" padding="0" align="left" css-class="e-ink" />
   <mj-section background-color="#ffffff" css-class="e-bg-canvas" padding="0" />
   <mj-column padding="0" />
-  <mj-button background-color="#1d4ed8" color="#ffffff" border-radius="8px"
+  <mj-button background-color="#2563eb" color="#ffffff" border-radius="8px"
              font-size="16px" line-height="20px" font-weight="600" inner-padding="14px 28px" align="left" css-class="e-btn-bg" />
   <mj-divider border-width="1px" border-style="solid" border-color="#e4e4e7" padding="0" css-class="e-rule" />
 
@@ -46,19 +46,19 @@
       .e-muted a,
       .e-muted h1 { color: #a1a1aa !important; }
       .e-rule p { border-top-color: #27272a !important; }
-      .e-btn-bg td { background-color: #60a5fa !important; }
+      .e-btn-bg td { background-color: #2563eb !important; }
       .e-btn-fg,
       .e-btn-fg div,
       .e-btn-fg p,
       .e-btn-fg span,
       .e-btn-fg a,
-      .e-btn-fg h1 { color: #09090b !important; }
+      .e-btn-fg h1 { color: #ffffff !important; }
       .e-error,
       .e-error div,
       .e-error p,
       .e-error span,
       .e-error a,
-      .e-error h1 { color: #fafafa !important; }
+      .e-error h1 { color: #fb7185 !important; }
   }
 </mj-style>
 
@@ -86,19 +86,19 @@
     [data-ogsc] .e-muted h1 { color: #a1a1aa !important; }
     [data-ogsc] .e-rule p { border-top-color: #27272a !important; }
     [data-ogsc] .e-btn-bg td,
-    [data-ogsb] .e-btn-bg td { background-color: #60a5fa !important; }
+    [data-ogsb] .e-btn-bg td { background-color: #2563eb !important; }
     [data-ogsc] .e-btn-fg,
     [data-ogsc] .e-btn-fg div,
     [data-ogsc] .e-btn-fg p,
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
-    [data-ogsc] .e-btn-fg h1 { color: #09090b !important; }
+    [data-ogsc] .e-btn-fg h1 { color: #ffffff !important; }
     [data-ogsc] .e-error,
     [data-ogsc] .e-error div,
     [data-ogsc] .e-error p,
     [data-ogsc] .e-error span,
     [data-ogsc] .e-error a,
-    [data-ogsc] .e-error h1 { color: #fafafa !important; }
+    [data-ogsc] .e-error h1 { color: #fb7185 !important; }
 </mj-style>
 
 <mj-raw>

@@ -229,7 +229,7 @@ fun EffySaleBadge(modifier: Modifier = Modifier, text: String = "Sale") {
     Box(
         modifier = modifier
             .clip(EffyStorefrontShape.small)
-            .background(EffyRoles.brand)
+            .background(EffyRoles.brandFill)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brandForeground)
@@ -332,6 +332,6 @@ fun EffySuccessTick(modifier: Modifier = Modifier, size: Dp = 72.dp) {
 fun EffyProgressBar(fraction: Float, modifier: Modifier = Modifier) {
     val shown by androidx.compose.animation.core.animateFloatAsState(fraction.coerceIn(0f, 1f), label = "progress")
     Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(EffySurface.tint)) {
-        Box(Modifier.fillMaxWidth(shown).fillMaxHeight().clip(CircleShape).background(EffyRoles.brand))
+        Box(Modifier.fillMaxWidth(shown).fillMaxHeight().clip(CircleShape).background(EffyRoles.brandFill))
     }
 }

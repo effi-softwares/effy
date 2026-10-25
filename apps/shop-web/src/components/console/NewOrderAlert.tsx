@@ -54,7 +54,7 @@ export function NewOrderAlert() {
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-primary py-4 pr-4 pl-5 text-primary-foreground"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-primary-fill py-4 pr-4 pl-5 text-primary-foreground"
     >
       <span
         className="grid size-11 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-6"

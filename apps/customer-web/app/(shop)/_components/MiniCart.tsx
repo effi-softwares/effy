@@ -69,7 +69,7 @@ export function MiniCart() {
         }}
         onPointerEnter={want}
         onFocus={want}
-        className="ml-1 inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary pr-1 pl-3 text-sm font-medium whitespace-nowrap text-primary-foreground tabular-nums hover:bg-primary/90"
+        className="ml-1 inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary-fill pr-1 pl-3 text-sm font-medium whitespace-nowrap text-primary-foreground tabular-nums hover:bg-primary-fill/90"
       >
         {/* The name is built from what is shown, plus hidden words — not an aria-label. A label
             that rewords the visible "$72.70 15" fails WCAG 2.5.3: a voice user saying what they

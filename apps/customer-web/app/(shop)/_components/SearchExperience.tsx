@@ -426,7 +426,7 @@ export function SearchExperience({
               <SlidersHorizontal aria-hidden="true" />
               Filters
               {activeCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-2 text-xs text-primary-foreground">
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary-fill px-2 text-xs text-primary-foreground">
                   {activeCount}
                 </span>
               )}

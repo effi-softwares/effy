@@ -1,10 +1,10 @@
 import { clsx } from "clsx"
 
 const variants = {
-  default: "bg-primary text-primary-foreground",
+  default: "bg-primary-fill text-primary-foreground",
   secondary: "bg-secondary text-secondary-foreground",
   outline: "border-border text-foreground",
-  brand: "bg-brand text-brand-foreground",
+  brand: "bg-brand-fill text-brand-foreground",
   "brand-muted": "bg-brand-muted text-brand",
   "primary-muted": "bg-primary-muted text-primary",
   dark: "bg-foreground text-background",

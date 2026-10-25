@@ -66,7 +66,7 @@ export function CardAdd({
     <div
       role="group"
       aria-label={`Quantity of ${product.name}`}
-      className="relative z-10 inline-flex h-8 shrink-0 items-center overflow-hidden rounded-md bg-primary text-primary-foreground shadow-xs"
+      className="relative z-10 inline-flex h-8 shrink-0 items-center overflow-hidden rounded-md bg-primary-fill text-primary-foreground shadow-xs"
     >
       <button
         type="button"

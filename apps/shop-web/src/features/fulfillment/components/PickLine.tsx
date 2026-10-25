@@ -29,7 +29,7 @@ function PickBox({
       disabled={disabled}
       className={cn(
         "grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-input bg-background p-0 text-primary-foreground transition-[background-color,border-color] duration-(--dur-fast) ease-[ease] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-6",
-        mode === "full" && "border-primary bg-primary",
+        mode === "full" && "border-primary bg-primary-fill",
         mode === "part" && "border-primary bg-primary-muted text-primary",
         mode === "unavailable" && "border-dashed text-foreground",
       )}

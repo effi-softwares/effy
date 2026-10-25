@@ -116,7 +116,7 @@ fun DriverSwipeToConfirm(
                     .padding(Inset)
                     .size(Thumb)
                     .clip(EffyStorefrontShape.control)
-                    .background(if (!enabled) scheme.outline else if (committed) EffyRoles.brand else scheme.primary)
+                    .background(if (!enabled) scheme.outline else if (committed) EffyRoles.brandFill else scheme.primary)
                     .draggable(
                         enabled = enabled && !committed,
                         orientation = Orientation.Horizontal,

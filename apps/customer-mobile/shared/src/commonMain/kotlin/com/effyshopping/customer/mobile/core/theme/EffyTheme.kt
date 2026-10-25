@@ -49,7 +49,8 @@ fun EffyTheme(dark: Boolean, content: @Composable () -> Unit) {
  *
  * - [brand] Effy green: the wordmark's full stop, Sale, savings, "Delivered by Effy", paid, progress.
  *  never an action (buttons, links and selection are `colorScheme.primary`).
- * - [brandMuted] the green tint a brand word sits on; [brandForeground] ink ON the green.
+ * - [brandMuted] the green tint a brand word sits on; [brandFill] the green a white tick or label sits on
+ *  ([brandForeground]), in both appearances.
  * - [primaryMuted] the blue tint: a selected tile, an info panel.
  * - [scrim] the backdrop behind a sheet.
  * - [promoGround] / [promoBlue] the grounds of promotional panels, which carry white type: they are the
@@ -60,6 +61,7 @@ object EffyRoles {
     val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)
     val brandForeground: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandForeground, EffyColor.Dark.brandForeground)
     val brandMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandMuted, EffyColor.Dark.brandMuted)
+    val brandFill: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandFill, EffyColor.Dark.brandFill)
     val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
     val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
     val promoGround: Color get() = EffyColor.Light.brand

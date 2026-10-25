@@ -32,7 +32,7 @@ const ROLE_MAP = {
   ink: { light: "foreground", dark: "foreground" },
   mutedInk: { light: "muted-foreground", dark: "muted-foreground" },
   hairline: { light: "border", dark: "border" },
-  actionFill: { light: "primary", dark: "primary" },
+  actionFill: { light: "primary-fill", dark: "primary-fill" },
   actionLabel: { light: "primary-foreground", dark: "primary-foreground" },
   codeSurface: { light: "accent", dark: "secondary" },
   error: { light: "destructive", dark: "destructive" },

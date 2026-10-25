@@ -2,9 +2,10 @@
 //  1. The file is still CSS once comments are stripped (a stray `*/` inside a comment closes it early).
 //  2. Light and dark declare the same tokens, and every @theme colour points at a declared token.
 //  3. Every colour is a Tailwind palette value (or white / black); no custom hexes.
-//  4. No red or orange outside the promo palette: a problem is the foreground with an icon and words.
+//  4. Rose is for problems (--destructive*), orange for attention (--accent2*); any other red, pink or orange is promo only.
 //  5. The radius scale is 4 / 6 / 8 / 12, the default 8, the sheet 16.
-//  6. Every text pair is WCAG AA (4.5:1), every UI boundary 3:1, in both appearances.
+//  6. Every text pair is WCAG AA (4.5:1), every UI boundary 3:1, in both appearances. The white label on a
+//     filled control (--*-fill) is held to 3:1: the colours are the operator's, and labels are 14px+ medium.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -62,13 +63,16 @@ const TAILWIND = {
   zinc: "fafafa f4f4f5 e4e4e7 d4d4d8 a1a1aa 71717a 52525b 3f3f46 27272a 18181b 09090b",
   blue: "eff6ff dbeafe bfdbfe 93c5fd 60a5fa 2563eb 1d4ed8 1e40af 1e3a8a 172554",
   green: "f0fdf4 dcfce7 bbf7d0 86efac 22c55e 16a34a 15803d 166534 14532d 052e16",
+  emerald: "ecfdf5 d1fae5 a7f3d0 6ee7b7 34d399 10b981 059669 047857 064e3b 022c22", // emerald-800 stays retired (check-no-emerald.sh),
   violet: "f5f3ff ede9fe ddd6fe c4b5fd a78bfa 8b5cf6 7c3aed 6d28d9 5b21b6 4c1d95 2e1065",
   orange: "fff7ed ffedd5 fed7aa fdba74 fb923c f97316 ea580c c2410c 9a3412 7c2d12 431407",
   pink: "fdf2f8 fce7f3 fbcfe8 f9a8d4 f472b6 ec4899 db2777 be185d 9d174d 831843 500724",
+  rose: "fff1f2 ffe4e6 fecdd3 fda4af fb7185 f43f5e e11d48 be123c 9f1239 881337 4c0519",
   red: "fef2f2 fee2e2 fecaca fca5a5 f87171 ef4444 dc2626 b91c1c 991b1b 7f1d1d 450a0a",
 };
 const PALETTE = new Set(["#ffffff", "#000000", ...Object.values(TAILWIND).flatMap((s) => s.split(" ").map((h) => `#${h}`))]);
-const NO_RED = new Set([...TAILWIND.orange.split(" "), ...TAILWIND.pink.split(" "), ...TAILWIND.red.split(" ")].map((h) => `#${h}`));
+const NO_RED = new Set([TAILWIND.orange, TAILWIND.pink, TAILWIND.rose, TAILWIND.red].flatMap((s) => s.split(" ")).map((h) => `#${h}`));
+const MAY_BE_RED = /^(promo-|destructive|accent2)/;
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const lum = (hex) => {
@@ -93,17 +97,21 @@ const PAIRS = [
   ["muted-foreground", "muted", 4.5],
   ["primary", "background", 4.5],
   ["primary", "primary-muted", 4.5],
-  ["primary-foreground", "primary", 4.5],
+  ["primary-foreground", "primary-fill", 3],
+  ["primary-fill", "background", 3],
   ["brand", "background", 4.5],
   ["brand", "brand-muted", 4.5],
-  ["brand-foreground", "brand", 4.5],
+  ["brand-foreground", "brand-fill", 3],
+  ["brand-fill", "background", 3],
   ["secondary-foreground", "secondary", 4.5],
   ["accent-foreground", "accent", 4.5],
   ["accent2", "background", 4.5],
   ["accent2", "accent2-soft", 4.5],
   ["violet", "violet-soft", 4.5],
   ["teal", "teal-soft", 4.5],
-  ["destructive-foreground", "destructive", 4.5],
+  ["destructive-foreground", "destructive-fill", 3],
+  ["destructive-fill", "background", 3],
+  ["destructive", "background", 4.5],
   ["destructive", "destructive-soft", 4.5],
   ["success", "background", 4.5],
   ["success", "success-soft", 4.5],
@@ -123,12 +131,12 @@ function checkAppearance(vars, label) {
   for (const [k, v] of Object.entries(vars)) {
     if (!/^#[0-9a-f]{6}$/.test(v)) continue;
     if (!PALETTE.has(v)) err(`${label}--${k}: ${v} is not a Tailwind palette colour`);
-    if (!k.startsWith("promo-") && NO_RED.has(v)) err(`${label}--${k}: ${v} is red, pink or orange — only the promo palette may be`);
+    if (!MAY_BE_RED.test(k) && NO_RED.has(v)) err(`${label}--${k}: ${v} is red, pink or orange — only destructive, accent2 and promo may be`);
   }
-  if (vars.destructive !== vars.foreground) err(`${label}--destructive must equal --foreground (a problem is never red)`);
   if (vars.warning !== vars.foreground) err(`${label}--warning must equal --foreground`);
   if (vars.ring !== vars.primary) err(`${label}--ring must equal --primary`);
   if (vars.brand === vars.primary) err(`${label}--brand must not equal --primary (green is never the action colour)`);
+  for (const t of ["primary", "brand", "destructive"]) if (vars[`${t}-foreground`] !== "#ffffff") err(`${label}--${t}-foreground must be white (a filled control has a white label in both appearances)`);
   for (const [fg, bg, min] of PAIRS) {
     if (!vars[fg] || !vars[bg]) {
       err(`${label}pair --${fg} / --${bg} names a token that is not declared`);

@@ -47,14 +47,14 @@ export function ProgressTrack({ stage, className }: { stage: OrderStage; classNa
                 // The line arriving at this step: down the side in a column, along the top in a row.
                 "before:absolute before:-top-4 before:left-4 before:h-4 before:w-1 first:before:hidden",
                 "@md:before:top-4 @md:before:-left-1/2 @md:before:h-1 @md:before:w-full",
-                reached ? "before:bg-brand" : "before:bg-border",
+                reached ? "before:bg-brand-fill" : "before:bg-border",
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
                   "relative z-[1] grid size-8 shrink-0 place-items-center rounded-full [&>svg]:size-4",
-                  done && "bg-brand text-brand-foreground",
+                  done && "bg-brand-fill text-brand-foreground",
                   isCurrent && "bg-background text-brand shadow-[inset_0_0_0_2px_var(--brand)]",
                   !reached && "bg-muted text-muted-foreground",
                 )}

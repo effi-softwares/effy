@@ -11,12 +11,12 @@ export type StripeAppearance = {
 export const storefrontPaymentAppearance: StripeAppearance = {
   theme: "stripe",
   variables: {
-      "colorPrimary": "#1d4ed8",
+      "colorPrimary": "#2563eb",
       "colorBackground": "#ffffff",
       "colorText": "#09090b",
       "colorTextSecondary": "#52525b",
       "colorTextPlaceholder": "#52525b",
-      "colorDanger": "#09090b",
+      "colorDanger": "#be123c",
       "colorIcon": "#52525b",
       "borderRadius": "6px",
       "fontFamily": "\"Geist\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
@@ -31,13 +31,13 @@ export const storefrontPaymentAppearance: StripeAppearance = {
           "boxShadow": "0 1px 2px rgba(0, 0, 0, 0.05)"
       },
       ".Input:focus": {
-          "border": "1px solid #1d4ed8",
-          "boxShadow": "0 0 0 3px #1d4ed833",
+          "border": "1px solid #2563eb",
+          "boxShadow": "0 0 0 3px #2563eb33",
           "outline": "none"
       },
       ".Input--invalid": {
-          "border": "1px solid #09090b",
-          "boxShadow": "0 0 0 3px #09090b1a"
+          "border": "1px solid #be123c",
+          "boxShadow": "0 0 0 3px #be123c1a"
       },
       ".Label": {
           "fontWeight": "500",
@@ -50,16 +50,16 @@ export const storefrontPaymentAppearance: StripeAppearance = {
           "boxShadow": "0 1px 2px rgba(0, 0, 0, 0.05)"
       },
       ".Tab:focus": {
-          "border": "1px solid #1d4ed8",
-          "boxShadow": "0 0 0 3px #1d4ed833",
+          "border": "1px solid #2563eb",
+          "boxShadow": "0 0 0 3px #2563eb33",
           "outline": "none"
       },
       ".Tab--selected": {
-          "border": "1px solid #1d4ed8",
-          "boxShadow": "0 0 0 1px #1d4ed8"
+          "border": "1px solid #2563eb",
+          "boxShadow": "0 0 0 1px #2563eb"
       },
       ".Error": {
-          "color": "#09090b",
+          "color": "#be123c",
           "fontSize": "13px",
           "fontWeight": "500"
       }

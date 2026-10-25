@@ -22,7 +22,7 @@ export function CheckoutSteps() {
             {i > 0 && <span aria-hidden="true" className="h-px w-6 bg-border max-sm:w-3" />}
             <span
               className={`grid size-6 place-items-center rounded-full border text-xs font-medium ${
-                here ? "border-foreground bg-foreground text-background" : done ? "border-brand bg-brand text-brand-foreground" : "text-muted-foreground"
+                here ? "border-foreground bg-foreground text-background" : done ? "border-brand bg-brand-fill text-brand-foreground" : "text-muted-foreground"
               }`}
             >
               {done ? <Check aria-hidden="true" className="size-4" /> : n}

@@ -13,7 +13,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
  */
 object EffyPaymentAppearance {
     private val Light = PaymentSheet.Colors(
-        primary = Color(0xFF1D4ED8.toInt()),
+        primary = Color(0xFF2563EB.toInt()), // the pay button: white type in both appearances
         surface = Color(0xFFFFFFFF.toInt()),
         component = Color(0xFFFFFFFF.toInt()),
         componentBorder = Color(0xFFE4E4E7.toInt()),
@@ -23,11 +23,11 @@ object EffyPaymentAppearance {
         subtitle = Color(0xFF52525B.toInt()),
         placeholderText = Color(0xFF52525B.toInt()),
         appBarIcon = Color(0xFF52525B.toInt()),
-        error = Color(0xFF09090B.toInt()),
+        error = Color(0xFFBE123C.toInt()),
     )
 
     private val Dark = PaymentSheet.Colors(
-        primary = Color(0xFF60A5FA.toInt()),
+        primary = Color(0xFF2563EB.toInt()), // the pay button: white type in both appearances
         surface = Color(0xFF09090B.toInt()),
         component = Color(0xFF09090B.toInt()),
         componentBorder = Color(0xFF3F3F46.toInt()),
@@ -37,7 +37,7 @@ object EffyPaymentAppearance {
         subtitle = Color(0xFFA1A1AA.toInt()),
         placeholderText = Color(0xFFA1A1AA.toInt()),
         appBarIcon = Color(0xFFA1A1AA.toInt()),
-        error = Color(0xFFFAFAFA.toInt()),
+        error = Color(0xFFFB7185.toInt()),
     )
 
     /**

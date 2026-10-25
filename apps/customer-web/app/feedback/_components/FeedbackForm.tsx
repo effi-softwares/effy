@@ -132,7 +132,7 @@ export function FeedbackForm({
               key={n}
               className={`cursor-pointer rounded-md border px-4 py-2 text-sm transition-colors ${
                 rating === String(n)
-                  ? "border-primary bg-primary text-primary-foreground"
+                  ? "border-primary bg-primary-fill text-primary-foreground"
                   : "border-input hover:border-ring"
               }`}
             >

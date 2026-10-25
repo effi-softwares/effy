@@ -12,11 +12,11 @@ export const EMAIL_TOKENS = {
       "ink": "#09090b",
       "mutedInk": "#52525b",
       "hairline": "#e4e4e7",
-      "actionFill": "#1d4ed8",
+      "actionFill": "#2563eb",
       "actionLabel": "#ffffff",
       "codeSurface": "#f4f4f5",
-      "error": "#09090b",
-      "success": "#15803d"
+      "error": "#be123c",
+      "success": "#047857"
   },
   dark: {
       "pageGround": "#18181b",
@@ -24,11 +24,11 @@ export const EMAIL_TOKENS = {
       "ink": "#fafafa",
       "mutedInk": "#a1a1aa",
       "hairline": "#27272a",
-      "actionFill": "#60a5fa",
-      "actionLabel": "#09090b",
+      "actionFill": "#2563eb",
+      "actionLabel": "#ffffff",
       "codeSurface": "#27272a",
-      "error": "#fafafa",
-      "success": "#22c55e"
+      "error": "#fb7185",
+      "success": "#10b981"
   },
   radiusSm: "8px",
 } as const;

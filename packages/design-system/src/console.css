@@ -57,6 +57,17 @@
     @apply bg-background font-sans text-base leading-6 text-pretty text-foreground;
     -webkit-tap-highlight-color: transparent;
   }
+  /* Everything clickable shows the pointer; anything disabled shows not-allowed. :where() keeps it at zero
+     specificity, so a component's own cursor utility still wins. */
+  :where(a[href], button, summary, select, label[for], [role="button"], [role="link"], [role="tab"], [role="menuitem"],
+    [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="checkbox"], [role="radio"], [role="switch"],
+    input:is([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="range"], [type="color"])) {
+    @apply cursor-pointer;
+  }
+  :where(button, select, input, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"],
+    [role="radio"], [role="switch"]):is(:disabled, [aria-disabled="true"], [data-disabled]) {
+    @apply cursor-not-allowed;
+  }
   th,
   td,
   output,
@@ -217,10 +228,10 @@ html * { @apply overscroll-x-none; }
   .ef-st--moving { @apply bg-primary-muted text-primary; }
   .ef-st--done { @apply bg-success-soft text-success; }
   .ef-st--problem { @apply bg-foreground text-background; }
-  .ef-st--info { @apply bg-primary text-primary-foreground; }
+  .ef-st--info { @apply bg-primary-fill text-primary-foreground; }
   .ef-dot { @apply inline-block size-2 flex-none rounded-full bg-muted-foreground; }
   .ef-dot--on { @apply bg-success; }
-  .ef-dot--busy { @apply bg-primary; }
+  .ef-dot--busy { @apply bg-primary-fill; }
   .ef-dot--off { @apply bg-input; }
   .ef-dot--alert { @apply bg-foreground; }
   .ef-tag { @apply inline-flex h-6 items-center gap-1 rounded-sm border border-solid border-border bg-background px-2 py-0 text-xs font-medium whitespace-nowrap text-muted-foreground; }
@@ -287,7 +298,7 @@ html * { @apply overscroll-x-none; }
   .ef-code { @apply font-mono text-sm tracking-[-0.01em] whitespace-nowrap; }
   .ef-meter { @apply flex h-2 min-w-16 overflow-hidden rounded-full bg-muted; }
   .ef-meter > i { @apply block h-full; }
-  .ef-meter__booked { @apply bg-primary; }
+  .ef-meter__booked { @apply bg-primary-fill; }
   .ef-meter__held { @apply bg-[color-mix(in_srgb,var(--primary)_40%,var(--muted))]; }
   .ef-meter__over { @apply bg-foreground; }
   .ef-meter__done { @apply bg-success; }
@@ -510,7 +521,7 @@ html * { @apply overscroll-x-none; }
 .ef-sb-flyout [data-slot="dropdown-menu-item"][data-active="true"] { @apply bg-accent font-medium; }
 [data-collapsible="icon"] .ef-count { @apply hidden; }
 [data-collapsible="icon"] .ef-count-dot {
-  @apply absolute top-2 right-[calc(50%-18px)] block size-2 rounded-full bg-primary;
+  @apply absolute top-2 right-[calc(50%-18px)] block size-2 rounded-full bg-primary-fill;
   box-shadow: 0 0 0 2px var(--sidebar);
 }
 [data-collapsible="icon"] .ef-count-dot.is-strong { @apply bg-foreground; }

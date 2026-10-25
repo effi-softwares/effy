@@ -88,7 +88,7 @@ export function MenuCarousel({ children }: { children: React.ReactNode }) {
             {slides.map((_, i) => (
               <span
                 key={i}
-                className={`size-2 rounded-full ${i === current ? "bg-primary" : "bg-primary/25"}`}
+                className={`size-2 rounded-full ${i === current ? "bg-primary-fill" : "bg-primary/25"}`}
               />
             ))}
           </div>

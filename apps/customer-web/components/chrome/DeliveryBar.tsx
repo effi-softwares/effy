@@ -77,7 +77,7 @@ function Dot({ muted = false }: { muted?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`size-2 shrink-0 rounded-full ${muted ? "bg-muted-foreground" : "bg-brand"}`}
+      className={`size-2 shrink-0 rounded-full ${muted ? "bg-muted-foreground" : "bg-brand-fill"}`}
     />
   )
 }

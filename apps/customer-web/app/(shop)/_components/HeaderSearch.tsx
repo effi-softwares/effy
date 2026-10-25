@@ -16,7 +16,7 @@ const shell =
 const field =
   "h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm [&::-webkit-search-cancel-button]:hidden"
 const submit =
-  "inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
+  "inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary-fill px-3 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary-fill/90"
 
 /* Recent searches: this device's own, kept on this device */
 

@@ -7,10 +7,10 @@ import { cn } from "../cn"
 type Tone = "brand" | "success" | "warning" | "destructive" | "violet" | "teal" | "muted"
 
 const FILL: Record<Tone, string> = {
-  brand: "bg-primary",
+  brand: "bg-primary-fill",
   success: "bg-success",
   warning: "bg-warning",
-  destructive: "bg-destructive",
+  destructive: "bg-destructive-fill",
   violet: "bg-violet",
   teal: "bg-teal",
   muted: "bg-muted-foreground",

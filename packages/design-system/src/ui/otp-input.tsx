@@ -35,7 +35,7 @@ function OtpInput({
       data-variant="plain"
       className={cn(
         // Squared, 36px: the same base as `input.tsx`, minus the `file:` affordances.
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary-fill selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
         // Tabular figures and a little tracking: codes are read back digit by digit.
         "font-mono tracking-[0.35em]",
         // No focus halo, as in `input.tsx`. The `cells` variant keeps its own per-cell indicator.

@@ -57,7 +57,7 @@ export function TypeStep({ types, selectedId, onSelect }: Props) {
               <span
                 className={cn(
                   "flex size-12 shrink-0 items-center justify-center rounded-lg transition-colors",
-                  selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                  selected ? "bg-primary-fill text-primary-foreground" : "bg-muted text-muted-foreground",
                 )}
               >
                 <Icon className="size-6" />

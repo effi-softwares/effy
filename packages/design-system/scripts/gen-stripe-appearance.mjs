@@ -16,7 +16,7 @@ const SWIFT_OUT = resolve(here, "../../../apps/customer-mobile/iosApp/iosApp/Eff
 
 // The tokens the provider's Appearance consumes; nothing else reaches the payment form.
 const NEEDED = [
-  "background", "foreground", "muted-foreground", "primary", "border", "input", "ring", "destructive",
+  "background", "foreground", "muted-foreground", "primary", "primary-fill", "border", "input", "ring", "destructive",
 ];
 
 function parseBlock(css, selector) {
@@ -93,7 +93,7 @@ export const storefrontPaymentAppearance: StripeAppearance = {
 
 const argb = (hex) => `0xFF${hex.slice(1).toUpperCase()}`;
 const ktColors = (name, t) => `    private val ${name} = PaymentSheet.Colors(
-        primary = Color(${argb(t.primary)}.toInt()),
+        primary = Color(${argb(t["primary-fill"])}.toInt()), // the pay button: white type in both appearances
         surface = Color(${argb(t.background)}.toInt()),
         component = Color(${argb(t.background)}.toInt()),
         componentBorder = Color(${argb(t.input)}.toInt()),
@@ -167,7 +167,7 @@ enum EffyPaymentAppearance {
     static func make() -> PaymentSheet.Appearance {
         EffyFonts.registerOnce()
         var a = PaymentSheet.Appearance()
-        a.colors.primary = ${uiColor("primary")}
+        a.colors.primary = ${uiColor("primary-fill")}
         a.colors.background = ${uiColor("background")}
         a.colors.componentBackground = ${uiColor("background")}
         a.colors.componentBorder = ${uiColor("input")}

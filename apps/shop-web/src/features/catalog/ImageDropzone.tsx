@@ -103,7 +103,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
             {uploading ? (
               <div className="absolute inset-x-0 bottom-0 h-2 bg-black/10">
                 <div
-                  className="h-full bg-primary transition-all"
+                  className="h-full bg-primary-fill transition-all"
                   style={{ width: `${progress}%` }}
                   role="progressbar"
                   aria-valuenow={progress ?? 0}
@@ -161,7 +161,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           <span
             className={cn(
               "flex size-16 items-center justify-center rounded-full transition-colors",
-              dragging ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+              dragging ? "bg-primary-fill text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
             <ImageUp className="size-8" />

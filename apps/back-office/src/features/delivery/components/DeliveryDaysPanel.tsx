@@ -162,7 +162,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
                     "min-h-9 rounded-md border px-3 text-sm font-medium transition-colors " +
                     "disabled:opacity-50 " +
                     (pressed
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-primary bg-primary-fill text-primary-foreground"
                       : "border-border bg-background hover:bg-muted")
                   }
                 >

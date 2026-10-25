@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The raw Effy storefront tokens, light and dark. Colour is rationed: black, white, zinc, Effy blue
  * (primary, every action) and Effy green (brand: Sale, savings, "Delivered by Effy", paid; never an
- * action). No red: destructive is the text colour.
+ * action). Rose for problems (destructive); a filled control (*Fill) carries white type in both appearances.
  */
 object EffyColor {
     object Light {
@@ -20,27 +20,30 @@ object EffyColor {
         val cardForeground = Color(0xFF09090B)
         val popover = Color(0xFFFFFFFF)
         val popoverForeground = Color(0xFF09090B)
-        val primary = Color(0xFF1D4ED8)
+        val primary = Color(0xFF2563EB)
         val primaryForeground = Color(0xFFFFFFFF)
+        val primaryFill = Color(0xFF2563EB)
         val secondary = Color(0xFFF4F4F5)
         val secondaryForeground = Color(0xFF18181B)
         val muted = Color(0xFFF4F4F5)
         val mutedForeground = Color(0xFF52525B)
         val accent = Color(0xFFF4F4F5)
         val accentForeground = Color(0xFF18181B)
-        val destructive = Color(0xFF09090B)
+        val destructive = Color(0xFFBE123C)
         val destructiveForeground = Color(0xFFFFFFFF)
-        val success = Color(0xFF15803D)
+        val destructiveFill = Color(0xFFF43F5E)
+        val success = Color(0xFF047857)
         val disabled = Color(0xFFF4F4F5)
         val disabledForeground = Color(0xFF52525B)
         val placeholder = Color(0xFF52525B)
         val border = Color(0xFFE4E4E7)
         val input = Color(0xFFE4E4E7)
-        val ring = Color(0xFF1D4ED8)
+        val ring = Color(0xFF2563EB)
         val primaryMuted = Color(0xFFEFF6FF)
-        val brand = Color(0xFF15803D)
+        val brand = Color(0xFF047857)
         val brandForeground = Color(0xFFFFFFFF)
-        val brandMuted = Color(0xFFF0FDF4)
+        val brandFill = Color(0xFF059669)
+        val brandMuted = Color(0xFFECFDF5)
         val scrim = Color(0x8009090B)
     }
 
@@ -52,16 +55,18 @@ object EffyColor {
         val popover = Color(0xFF18181B)
         val popoverForeground = Color(0xFFFAFAFA)
         val primary = Color(0xFF60A5FA)
-        val primaryForeground = Color(0xFF09090B)
+        val primaryForeground = Color(0xFFFFFFFF)
+        val primaryFill = Color(0xFF2563EB)
         val secondary = Color(0xFF27272A)
         val secondaryForeground = Color(0xFFFAFAFA)
         val muted = Color(0xFF27272A)
         val mutedForeground = Color(0xFFA1A1AA)
         val accent = Color(0xFF27272A)
         val accentForeground = Color(0xFFFAFAFA)
-        val destructive = Color(0xFFFAFAFA)
-        val destructiveForeground = Color(0xFF09090B)
-        val success = Color(0xFF22C55E)
+        val destructive = Color(0xFFFB7185)
+        val destructiveForeground = Color(0xFFFFFFFF)
+        val destructiveFill = Color(0xFFF43F5E)
+        val success = Color(0xFF10B981)
         val disabled = Color(0xFF27272A)
         val disabledForeground = Color(0xFFA1A1AA)
         val placeholder = Color(0xFFA1A1AA)
@@ -69,15 +74,16 @@ object EffyColor {
         val input = Color(0xFF3F3F46)
         val ring = Color(0xFF60A5FA)
         val primaryMuted = Color(0xFF172554)
-        val brand = Color(0xFF22C55E)
-        val brandForeground = Color(0xFF09090B)
-        val brandMuted = Color(0xFF052E16)
+        val brand = Color(0xFF10B981)
+        val brandForeground = Color(0xFFFFFFFF)
+        val brandFill = Color(0xFF059669)
+        val brandMuted = Color(0xFF022C22)
         val scrim = Color(0x99000000)
     }
 }
 
 val EffyLightColorScheme: ColorScheme = lightColorScheme(
-    primary = EffyColor.Light.primary,
+    primary = EffyColor.Light.primaryFill,
     onPrimary = EffyColor.Light.primaryForeground,
     primaryContainer = EffyColor.Light.primaryMuted,
     onPrimaryContainer = EffyColor.Light.primary,
@@ -96,7 +102,7 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
     onSurface = EffyColor.Light.cardForeground,
     surfaceVariant = EffyColor.Light.muted,
     onSurfaceVariant = EffyColor.Light.mutedForeground,
-    surfaceTint = EffyColor.Light.primary,
+    surfaceTint = EffyColor.Light.primaryFill,
     inverseSurface = EffyColor.Light.foreground,
     inverseOnSurface = EffyColor.Light.background,
     error = EffyColor.Light.destructive,
@@ -113,7 +119,7 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
     surfaceContainerHighest = EffyColor.Light.popover,
     surfaceContainerLow = EffyColor.Light.background,
     surfaceContainerLowest = EffyColor.Light.background,
-    primaryFixed = EffyColor.Light.primary,
+    primaryFixed = EffyColor.Light.primaryFill,
     primaryFixedDim = EffyColor.Light.ring,
     onPrimaryFixed = EffyColor.Light.primaryForeground,
     onPrimaryFixedVariant = EffyColor.Light.primaryForeground,
@@ -128,7 +134,7 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
 )
 
 val EffyDarkColorScheme: ColorScheme = darkColorScheme(
-    primary = EffyColor.Dark.primary,
+    primary = EffyColor.Dark.primaryFill,
     onPrimary = EffyColor.Dark.primaryForeground,
     primaryContainer = EffyColor.Dark.primaryMuted,
     onPrimaryContainer = EffyColor.Dark.primary,
@@ -147,7 +153,7 @@ val EffyDarkColorScheme: ColorScheme = darkColorScheme(
     onSurface = EffyColor.Dark.cardForeground,
     surfaceVariant = EffyColor.Dark.muted,
     onSurfaceVariant = EffyColor.Dark.mutedForeground,
-    surfaceTint = EffyColor.Dark.primary,
+    surfaceTint = EffyColor.Dark.primaryFill,
     inverseSurface = EffyColor.Dark.foreground,
     inverseOnSurface = EffyColor.Dark.background,
     error = EffyColor.Dark.destructive,
@@ -164,7 +170,7 @@ val EffyDarkColorScheme: ColorScheme = darkColorScheme(
     surfaceContainerHighest = EffyColor.Dark.popover,
     surfaceContainerLow = EffyColor.Dark.background,
     surfaceContainerLowest = EffyColor.Dark.background,
-    primaryFixed = EffyColor.Dark.primary,
+    primaryFixed = EffyColor.Dark.primaryFill,
     primaryFixedDim = EffyColor.Dark.ring,
     onPrimaryFixed = EffyColor.Dark.primaryForeground,
     onPrimaryFixedVariant = EffyColor.Dark.primaryForeground,

@@ -89,7 +89,7 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
         {progress != null ? (
           <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
             <div
-              className="bg-primary h-full transition-all"
+              className="bg-primary-fill h-full transition-all"
               style={{ width: `${progress}%` }}
               role="progressbar"
               aria-valuenow={progress}

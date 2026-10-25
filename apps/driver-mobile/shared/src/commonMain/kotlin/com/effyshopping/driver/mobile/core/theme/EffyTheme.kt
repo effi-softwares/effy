@@ -59,6 +59,7 @@ object EffyRoles {
     val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)
     val brandForeground: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandForeground, EffyColor.Dark.brandForeground)
     val brandMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandMuted, EffyColor.Dark.brandMuted)
+    val brandFill: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandFill, EffyColor.Dark.brandFill)
     val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
     val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
 

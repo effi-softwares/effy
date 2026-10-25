@@ -130,7 +130,7 @@ export default function FilterControls({
 /** The category list reads as radios: the chosen one fills its dot blue. */
 function radio(on: boolean): string {
   return on
-    ? "font-medium [&_[data-dot]]:border-primary [&_[data-dot]]:bg-primary [&_[data-dot]]:shadow-[inset_0_0_0_3px_var(--background)]"
+    ? "font-medium [&_[data-dot]]:border-primary [&_[data-dot]]:bg-primary-fill [&_[data-dot]]:shadow-[inset_0_0_0_3px_var(--background)]"
     : "hover:text-foreground"
 }
 

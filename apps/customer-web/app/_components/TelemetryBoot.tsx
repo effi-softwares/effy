@@ -52,7 +52,7 @@ export function TelemetryBoot() {
           <button
             type="button"
             onClick={() => choose("granted")}
-            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            className="rounded-md bg-primary-fill px-3 py-2 text-sm font-medium text-primary-foreground"
           >
             Accept
           </button>

@@ -111,7 +111,7 @@ function Row({
             selected ? "border-primary" : "border-input",
           )}
         >
-          <span className={cn("size-3 rounded-full", selected && "bg-primary")} />
+          <span className={cn("size-3 rounded-full", selected && "bg-primary-fill")} />
         </span>
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
           {icon}

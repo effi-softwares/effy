@@ -412,7 +412,7 @@ private fun CameraBox(
             }
             if (ok) {
                 Box(
-                    Modifier.align(Alignment.Center).size(64.dp).clip(CircleShape).background(EffyRoles.brand),
+                    Modifier.align(Alignment.Center).size(64.dp).clip(CircleShape).background(EffyRoles.brandFill),
                     contentAlignment = Alignment.Center,
                 ) { DriverIcon(Res.drawable.lucide_check, size = 32.dp, tint = EffyRoles.brandForeground) }
             }
@@ -546,7 +546,7 @@ private fun ItemRow(item: ScanItem, done: Boolean, method: HandMethod?, last: Bo
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (done) {
-                Box(Modifier.size(28.dp).clip(CircleShape).background(EffyRoles.brand), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(28.dp).clip(CircleShape).background(EffyRoles.brandFill), contentAlignment = Alignment.Center) {
                     DriverIcon(Res.drawable.lucide_check, size = 16.dp, tint = EffyRoles.brandForeground)
                 }
             } else {
@@ -650,7 +650,7 @@ private fun AutoCompleteBar(count: Int, verb: String, working: Boolean, onUndo: 
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(36.dp).clip(CircleShape).background(EffyRoles.brand), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(36.dp).clip(CircleShape).background(EffyRoles.brandFill), contentAlignment = Alignment.Center) {
                 DriverIcon(Res.drawable.lucide_check, size = 20.dp, tint = EffyRoles.brandForeground)
             }
             Column(Modifier.weight(1f)) {
