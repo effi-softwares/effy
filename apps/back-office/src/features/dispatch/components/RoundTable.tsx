@@ -80,7 +80,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                       </div>
                     </td>
                     <td data-m="meta">{roundLabel(r.round.kind)}</td>
-                    <td data-m="full" className="min-w-[160px]">
+                    <td data-m="full" className="min-w-40">
                       {total > 0 ? (
                         <>
                           <div className="bo-progress-label">
