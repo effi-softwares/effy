@@ -1,12 +1,9 @@
-// Verifies every committed Compose theme is exactly the generator's output, comparing contents (not `git diff`).
-
 import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-// Every file the generator writes must be listed here, or it is unguarded.
 const targets = [
   resolve(here, "../compose/EffyTokens.kt"),
   resolve(here, "../compose-driver/EffyTokens.kt"),
@@ -16,7 +13,6 @@ const targets = [
   resolve(here, "../compose-driver/EffyTypography.kt"),
   resolve(here, "../compose/EffyStorefrontShape.kt"),
   resolve(here, "../compose-driver/EffyStorefrontShape.kt"),
-  // The payment provider's Appearance: the one screen where a third party draws inside ours.
   resolve(here, "../stripe/storefront-appearance.ts"),
   resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt"),
   resolve(here, "../../../apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift"),
@@ -25,7 +21,6 @@ const before = new Map(
   targets.map((target) => [target, existsSync(target) ? readFileSync(target, "utf8") : null]),
 );
 
-// Every generator whose output is listed above must run here, or its files are compared against themselves.
 for (const generator of ["gen-compose-theme.mjs", "gen-stripe-appearance.mjs"]) {
   const generated = spawnSync(process.execPath, [resolve(here, generator)], { stdio: "inherit" });
   if (generated.status !== 0) process.exit(generated.status ?? 1);
@@ -41,7 +36,6 @@ if (drifted.length > 0) {
   process.exit(1);
 }
 
-// The customer app wears the storefront identity: a colour the storefront file does not declare would be faithfully generated, so it is checked here.
 {
   const customer = readFileSync(resolve(here, "../compose/EffyTokens.kt"), "utf8");
   const storefront = readFileSync(resolve(here, "../src/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");

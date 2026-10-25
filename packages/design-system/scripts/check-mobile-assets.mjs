@@ -1,6 +1,3 @@
-// Fails, naming the surface, when an app's copy of the shared mobile assets is stale (differs), missing,
-// or orphaned (an asset the source does not declare, which breaks nothing and is never noticed).
-
 import { existsSync } from "node:fs";
 import { APPS, isStale, orphansFor, sourceFiles } from "./sync-mobile-assets.mjs";
 

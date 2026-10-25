@@ -1,7 +1,3 @@
-// Generates the payment provider's Appearance for both customer surfaces (web, Android, iOS) from
-// src/tokens.css, so the card fields cannot keep old colours after a token change. The output
-// is committed and guarded by tokens:check. Node stdlib only.
-
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -9,12 +5,10 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const CSS = resolve(here, "../src/tokens.css");
 const WEB_OUT = resolve(here, "../stripe/storefront-appearance.ts");
-// Android-only: srcDir'd into `shared/androidMain`, never commonMain (it would break the iOS build).
 const KT_OUT = resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt");
 const KT_PKG = "com.effyshopping.customer.mobile.design.payment";
 const SWIFT_OUT = resolve(here, "../../../apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift");
 
-// The tokens the provider's Appearance consumes; nothing else reaches the payment form.
 const NEEDED = [
   "background", "foreground", "muted-foreground", "primary", "primary-fill", "border", "input", "ring", "destructive",
 ];
@@ -41,10 +35,8 @@ function radiusPx(css, name) {
 
 const css = readFileSync(CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const light = parseBlock(css, ":root");
-// The mobile app's dark appearance; the website is light only.
 const dark = parseBlock(css, ".dark");
 const shopRadius = radiusPx(css, "--radius-md");
-// The storefront fields' focus ring: the border in --ring and a 3px wash of it at 20%.
 const ringWash = (hex) => `0 0 0 3px ${hex}33`;
 
 const variables = {
@@ -153,7 +145,6 @@ const uiColorStatic = (hex) => {
   const [r, g, b] = rgb(hex);
   return `UIColor(red: ${r}, green: ${g}, blue: ${b}, alpha: 1)`;
 };
-// A dynamic colour: the dark value when the window is dark (the app sets it to the shopper's choice).
 const uiColor = (key) =>
   `UIColor { $0.userInterfaceStyle == .dark ? ${uiColorStatic(dark[key])} : ${uiColorStatic(light[key])} }`;
 const swiftBody = `${banner}

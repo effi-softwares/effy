@@ -38,8 +38,8 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 
 - `check-tokens.mjs`: the one theme — light/dark key parity, every colour a Tailwind palette value, no
   red or orange outside the promo palette, the radius scale, and WCAG AA on every text pair.
-- `check-component-shape.mjs`: controls are never pills, badges always are, containers are at least
-  as round as the controls inside them.
+- `check-component-shape.mjs`: controls and badges are never pills, containers are at least as round
+  as the controls inside them.
 - `check-token-usage.mjs`: every colour utility names a declared token (Tailwind emits nothing for an
   unknown one).
 - `check-banner-canvas.mjs`: the promotional banner canvas.
@@ -57,6 +57,9 @@ To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming a
 `components.json` aliases `ui` to this package), then export it from `src/ui/index.ts`.
 
 ## Mobile themes
+
+How the theme is generated, and how to change a colour: [THEMING.md](THEMING.md). Every script
+in `scripts/` is described in [scripts/README.md](scripts/README.md).
 
 `scripts/gen-compose-theme.mjs` generates the Compose theme for each KMP app (customer, driver):
 colours, Geist type and `EffyStorefrontShape` from `src/tokens.css` (light and dark), and the

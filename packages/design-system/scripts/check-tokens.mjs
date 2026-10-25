@@ -1,12 +1,3 @@
-// Token guard for src/tokens.css, the one theme every web and mobile app uses.
-//  1. The file is still CSS once comments are stripped (a stray `*/` inside a comment closes it early).
-//  2. Light and dark declare the same tokens, and every @theme colour points at a declared token.
-//  3. Every colour is a Tailwind palette value (or white / black); no custom hexes.
-//  4. Rose is for problems (--destructive*), orange for attention (--accent2*); any other red, pink or orange is promo only.
-//  5. The radius scale is 4 / 6 / 8 / 12, the default 8, the sheet 16.
-//  6. Every text pair is WCAG AA (4.5:1), every UI boundary 3:1, in both appearances. The white label on a
-//     filled control (--*-fill) is held to 3:1: the colours are the operator's, and labels are 14px+ medium.
-
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -63,7 +54,7 @@ const TAILWIND = {
   zinc: "fafafa f4f4f5 e4e4e7 d4d4d8 a1a1aa 71717a 52525b 3f3f46 27272a 18181b 09090b",
   blue: "eff6ff dbeafe bfdbfe 93c5fd 60a5fa 2563eb 1d4ed8 1e40af 1e3a8a 172554",
   green: "f0fdf4 dcfce7 bbf7d0 86efac 22c55e 16a34a 15803d 166534 14532d 052e16",
-  emerald: "ecfdf5 d1fae5 a7f3d0 6ee7b7 34d399 10b981 059669 047857 064e3b 022c22", // emerald-800 stays retired (check-no-emerald.sh),
+  emerald: "ecfdf5 d1fae5 a7f3d0 6ee7b7 34d399 10b981 059669 047857 064e3b 022c22",
   violet: "f5f3ff ede9fe ddd6fe c4b5fd a78bfa 8b5cf6 7c3aed 6d28d9 5b21b6 4c1d95 2e1065",
   orange: "fff7ed ffedd5 fed7aa fdba74 fb923c f97316 ea580c c2410c 9a3412 7c2d12 431407",
   pink: "fdf2f8 fce7f3 fbcfe8 f9a8d4 f472b6 ec4899 db2777 be185d 9d174d 831843 500724",

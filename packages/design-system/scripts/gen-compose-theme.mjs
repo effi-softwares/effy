@@ -1,11 +1,3 @@
-// Generates the mobile apps' Compose theme from the CSS tokens: colours, type and shapes from
-// src/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
-// from src/tokens.css. The output is committed; `tokens:check` regenerates it and fails on any
-// difference. Node stdlib only.
-//
-// Every Material 3 slot maps to an authored token through the fixed table below, so no library default
-// leaks a second palette into the app.
-
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -13,10 +5,8 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const CONSOLE_CSS = resolve(here, "../src/tokens.css");
 const STOREFRONT_CSS = resolve(here, "../src/tokens.css");
-// An asset constraint, not a style token, so it lives beside the shared types.
 const BANNER_CANVAS = JSON.parse(readFileSync(resolve(here, "../../shared-types/src/banner-canvas.json"), "utf8"));
 
-// One committed copy per KMP app, each in its own package.
 const TARGETS = [
   {
     out: resolve(here, "../compose/EffyTokens.kt"),
@@ -36,23 +26,18 @@ const TARGETS = [
   },
 ];
 
-// The layout vocabulary's package: shared mobile-kit components cannot import an app's own package.
 const SHARED_PKG = "com.effyshopping.mobile.design";
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** Parse a `:root { … }` or `.dark { … }` block into { cssVarName: "#rrggbb" }. */
 function parseBlock(css, selector) {
-  // The first top-level `selector { … }`.
   const re = new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m");
   const body = css.match(re);
   if (!body) throw new Error(`gen-compose-theme: no '${selector}' block in tokens.css`);
   const out = {};
   for (const line of body[1].split("\n")) {
-    // --name: #hex; (non-colour values and calc/var are ignored)
     const m = line.match(/^\s*--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/);
     if (m) out[m[1]] = m[2].toLowerCase();
-    // `--scrim` is rgba; carried as "#aarrggbb" (alpha first, as Compose wants).
     const r = line.match(/^\s*--([\w-]+)\s*:\s*rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)\s*;/);
     if (r) {
       const hex = (n) => Number(n).toString(16).padStart(2, "0");
@@ -62,10 +47,8 @@ function parseBlock(css, selector) {
   return out;
 }
 
-/** "#0fb57e" -> "0xFF0FB57E" (opaque argb for Compose Color). */
 const argb = (hex) => (hex.length === 9 ? `0x${hex.slice(1).toUpperCase()}` : `0xFF${hex.slice(1).toUpperCase()}`);
 
-// The tokens surfaced to Compose, in a stable order: camelCase Kotlin name -> CSS var name.
 const COLOR_TOKENS = [
   ["background", "background"],
   ["foreground", "foreground"],
@@ -75,7 +58,7 @@ const COLOR_TOKENS = [
   ["popoverForeground", "popover-foreground"],
   ["primary", "primary"],
   ["primaryForeground", "primary-foreground"],
-  ["primaryFill", "primary-fill"], // the button blue: white type on it in both appearances
+  ["primaryFill", "primary-fill"],
   ["secondary", "secondary"],
   ["secondaryForeground", "secondary-foreground"],
   ["muted", "muted"],
@@ -85,7 +68,6 @@ const COLOR_TOKENS = [
   ["destructive", "destructive"],
   ["destructiveForeground", "destructive-foreground"],
   ["destructiveFill", "destructive-fill"],
-  // No Material 3 slot maps to these; screens read them from EffyColor.
   ["success", "success"],
   ["disabled", "disabled"],
   ["disabledForeground", "disabled-foreground"],
@@ -93,24 +75,21 @@ const COLOR_TOKENS = [
   ["border", "border"],
   ["input", "input"],
   ["ring", "ring"],
-  ["primaryMuted", "primary-muted"], // the light-blue search field, selection, info
-  ["brand", "brand"], // Effy green: Sale, savings, "Delivered by Effy", paid. Never an action.
+  ["primaryMuted", "primary-muted"],
+  ["brand", "brand"],
   ["brandForeground", "brand-foreground"],
-  ["brandFill", "brand-fill"], // the green a white tick or label sits on
+  ["brandFill", "brand-fill"],
   ["brandMuted", "brand-muted"],
-  ["scrim", "scrim"], // sheet backdrop, with its alpha
+  ["scrim", "scrim"],
 ];
 
-// Console names the app's code reads that the storefront file calls differently.
 const ALIASES = {
-  success: "brand", // "paid", "delivered", savings are said in Effy green
+  success: "brand",
   disabled: "muted",
   "disabled-foreground": "muted-foreground",
   placeholder: "muted-foreground",
 };
 
-// Authored token -> Material 3 ColorScheme slot. Reuse is deliberate: Material components get a
-// complete scheme from the CSS rather than library defaults.
 const M3_MAP = [
   ["primaryFill", "primary"],
   ["primaryForeground", "onPrimary"],
@@ -180,13 +159,11 @@ const banner = (sourceName) => `// GENERATED FROM packages/design-system/${sourc
 // Regenerate: pnpm --filter @effy/design-system tokens:gen`;
 
 function generate(target) {
-  // Comments are stripped first: prose naming a selector would otherwise be matched as the block.
   const css = stripComments(readFileSync(CONSOLE_CSS, "utf8"));
   const colorCss = stripComments(readFileSync(STOREFRONT_CSS, "utf8"));
   const light = parseBlock(colorCss, ":root");
   const dark = parseBlock(colorCss, ".dark");
 
-  // Radii: rem -> dp at the 16px root, so web px == these dp. A pill is RoundedCornerShape(50%).
   const radiusRem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
     if (!m) throw new Error(`gen-compose-theme: no ${name} in tokens.css`);
@@ -274,14 +251,6 @@ object EffyBanner {
   console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors) + ${target.sharedOut} (radius sm/md/default ${radiusSmDp}/${radiusMdDp}/${radiusDefaultDp}.dp)`);
 }
 
-/**
- * The type scale, bound to Geist. Sizes map the design's steps onto Material 3's slots:
- *  display L/M/S — 36 thank-you · 34 large title (tab roots) · 30 product price
- *  headline L/M/S — 32 auth title · 24 page / arrival · 20 section
- *  title L/M/S — 20 sheet / empty-state title · 17 app-bar title · 16 row title
- *  body — 16 default · 14 secondary · 12 meta
- *  label — 16 buttons · 14 chips · 12 badges / tab labels
- */
 function typography(target) {
   return `${banner("src/tokens.css")}
 package ${target.pkg}
@@ -353,7 +322,6 @@ private fun effyTextStyle(
 `;
 }
 
-/** The storefront's own corner radii. */
 function shape(target, css) {
   const rem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));

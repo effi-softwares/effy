@@ -1,11 +1,3 @@
-// Component shape guard. A class string is not type-checked, so the consoles' shape rules are asserted
-// here:
-//  1. Nothing that holds words is a pill: buttons, inputs, selects, textareas, OTP fields and badges
-//  never carry `rounded-full` (genuinely circular things — avatars, switches, radios, dots — are not
-//  checked).
-//  2. Buttons and badges share the control step (6px, `rounded-md`); the card is the container step
-//  (8px, `rounded-lg`); an overlay surface is never sharper than the rows it holds.
-
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -15,14 +7,12 @@ const ui = (name) => readFileSync(resolve(here, "../src/ui/", name), "utf8");
 
 const errors = [];
 
-/** Strips comments, so prose cannot trip the guard. */
 function code(name) {
   return ui(name)
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
-// 1. Nothing that holds words is a pill
 const SQUARED = ["button.tsx", "input.tsx", "select.tsx", "textarea.tsx", "otp-input.tsx", "badge.tsx"];
 for (const name of SQUARED) {
   if (/rounded-full/.test(code(name))) {
@@ -30,7 +20,6 @@ for (const name of SQUARED) {
   }
 }
 
-// 2. One control step, one container step, checked as a rank so it survives a rescale.
 const RANK = { none: 0, sm: 1, md: 2, lg: 3, xl: 4, "2xl": 5, "3xl": 6 };
 const radii = (name) => [...code(name).matchAll(/rounded-(none|sm|md|lg|xl|2xl|3xl)\b/g)].map((m) => RANK[m[1]]);
 const maxRadius = (name) => (radii(name).length ? Math.max(...radii(name)) : null);

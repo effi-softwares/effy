@@ -1,8 +1,3 @@
-// Token reference guard. Tailwind emits no rule at all for a colour utility whose `--color-*` is not
-// in `@theme`, so a mistyped or renamed token renders as nothing with no error. This scans the web
-// surfaces for utilities built on the platform's own token names and asserts each resolves (Tailwind's
-// palette and arbitrary values are ignored).
-
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -10,7 +5,6 @@ import { dirname, join, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../../..");
 
-// The declared vocabulary: every `--color-*` in tokens.css's @theme.
 function declaredIn(file) {
   const css = readFileSync(resolve(here, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   return new Set([...css.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
@@ -31,7 +25,6 @@ const RE = new RegExp(
   "g",
 );
 
-// Tailwind's own names.
 const BUILTIN = new Set([
   "white", "black", "transparent", "current", "inherit", "none", "auto",
   "solid", "dashed", "dotted", "double", "hidden", "px", "0", "full",
@@ -57,7 +50,6 @@ function walk(dir, files) {
   }
 }
 
-// `declared` is the surface's @theme; `known` is every name in any identity, so another identity's name is caught.
 function scan(label, file, declared, known, roots) {
   const files = [];
   for (const r of roots) walk(resolve(root, r), files);
@@ -67,7 +59,7 @@ function scan(label, file, declared, known, roots) {
     for (const m of src.matchAll(RE)) {
       const name = m[2];
       if (BUILTIN.has(name)) continue;
-      if (/^\d/.test(name)) continue; // ring-2, border-4, text-3xl handled above
+      if (/^\d/.test(name)) continue;
       const head = name.split("-")[0];
       const ours = [...known].some((d) => d === head || d.startsWith(head + "-"));
       if (!ours) continue;
@@ -89,7 +81,6 @@ function scan(label, file, declared, known, roots) {
   return true;
 }
 
-// One theme for every app: each surface may use any declared token, and nothing else.
 const ok = [
   scan("shared components", "tokens.css", declared, declared, ["packages/web-kit/src", "packages/design-system/src/ui"]),
   scan("consoles", "tokens.css", declared, declared, ["apps/back-office/src", "apps/shop-web/src"]),

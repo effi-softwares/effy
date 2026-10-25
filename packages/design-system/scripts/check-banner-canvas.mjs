@@ -1,4 +1,3 @@
-// Asserts the promotional banner canvas constants are coherent: each mistake would show only as a bad banner on a phone.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -13,24 +12,19 @@ const check = (ok, message) => {
 
 const { width, height, aspectRatio, maxBytes, maxRenderWidthDp, textZone } = canvas;
 
-// The canvas
 check(Number.isInteger(width) && width > 0, `width must be a positive integer, got ${width}`);
 check(Number.isInteger(height) && height > 0, `height must be a positive integer, got ${height}`);
 
-// The render box is locked to `aspectRatio` and artwork to width/height: if they disagree, artwork stretches.
 check(
   Math.abs(width / height - aspectRatio) < 1e-9,
   `aspectRatio ${aspectRatio} disagrees with ${width}/${height} = ${width / height}. ` +
     "Artwork would be stretched at every window width.",
 );
 
-// 2:1; anything markedly taller crowds a screen whose job is showing products.
 check(aspectRatio >= 1.5, `aspectRatio ${aspectRatio} is too tall for a Home banner (FR-017's 50% cap)`);
 
-// Density headroom: a ~370dp render at 3× is ~1110 px; below that the banner renders soft.
 check(width >= 1110, `width ${width} is below the 3×-density floor (~1110px) and will render soft`);
 
-// The text zone
 const { insetLeftPct, insetBottomPct, widthPct, heightPct } = textZone;
 for (const [name, value] of Object.entries(textZone)) {
   if (name.startsWith("$")) continue;
@@ -45,11 +39,9 @@ check(
   `textZone runs off the top edge: ${insetBottomPct}% + ${heightPct}% = ${insetBottomPct + heightPct}%`,
 );
 
-// The zone must hold a headline, a terms line and a code chip.
 check(widthPct >= 40, `textZone is only ${widthPct}% wide — too narrow for a headline plus a code`);
 check(heightPct >= 30, `textZone is only ${heightPct}% tall — too short for three lines of copy`);
 
-// Render and file bounds: below a phone's width the bound would clamp on a phone.
 check(
   maxRenderWidthDp >= 420,
   `maxRenderWidthDp ${maxRenderWidthDp} is narrower than a large phone; the bound would apply on phones`,

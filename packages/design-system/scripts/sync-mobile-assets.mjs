@@ -1,7 +1,3 @@
-// Syncs the shared mobile assets (icons and Geist) into each KMP app. Compose resources must sit inside
-// the consuming module, so each app holds committed copies and `mobile-assets:check` fails on drift.
-// Never hand-edit an app's composeResources/{drawable,font}: edit mobile-assets/ and re-run this.
-
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +5,6 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const SOURCE = resolve(here, "../mobile-assets");
 
-/** The apps that consume the shared assets. */
 export const APPS = [
   { name: "customer-mobile", root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
   { name: "driver-mobile", root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
@@ -17,7 +12,6 @@ export const APPS = [
 
 const KINDS = ["drawable", "font"];
 
-/** Every (kind, file) pair the source declares. */
 export function sourceFiles() {
   const out = [];
   for (const kind of KINDS) {
@@ -30,7 +24,6 @@ export function sourceFiles() {
   return out;
 }
 
-/** Files present in an app's composeResources that the shared source does not declare. */
 export function orphansFor(app, declared) {
   const known = new Set(declared.map((f) => `${f.kind}/${f.name}`));
   const out = [];
@@ -39,7 +32,6 @@ export function orphansFor(app, declared) {
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       if (!statSync(join(dir, name)).isFile()) continue;
-      // compose-multiplatform.xml is the KMP template's own placeholder, owned by the app.
       if (name === "compose-multiplatform.xml") continue;
       if (!known.has(`${kind}/${name}`)) out.push({ kind, name });
     }
@@ -77,7 +69,6 @@ function sync() {
   );
 }
 
-// Only sync when run directly; the check imports the helpers above.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   sync();
 }
