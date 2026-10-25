@@ -116,7 +116,7 @@ function PackageRow({
   return (
     <div
       id={`package-${pkg.fulfillmentId}`}
-      className={`space-y-4 px-5 py-4 ${lit ? "bg-brand-soft/40" : ""}`}
+      className={`space-y-4 px-5 py-4 ${lit ? "bg-primary-muted/40" : ""}`}
       data-highlighted={lit || undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -336,7 +336,7 @@ function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlig
               key={b.parcelId}
               id={`parcel-${b.parcelId}`}
               className={
-                b.parcelId === highlightParcelId ? "bg-brand-soft font-medium" : b.voided ? "text-muted-foreground" : ""
+                b.parcelId === highlightParcelId ? "bg-primary-muted font-medium" : b.voided ? "text-muted-foreground" : ""
               }
               aria-current={b.parcelId === highlightParcelId ? "true" : undefined}
             >

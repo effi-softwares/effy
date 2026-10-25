@@ -43,8 +43,8 @@ describe("shop-web inherits the design system and defines no theme of its own", 
   it("resolves the cobalt action colour from the shared source, lifting (not inverting) in dark", () => {
     expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/) // light
     expect(tokensCss).toMatch(/--primary:\s*#60a5fa/) // dark — brighter, same hue
-    expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/)
-    expect(tokensCss).toMatch(/--brand:\s*#60a5fa/)
+    expect(tokensCss).toMatch(/--brand:\s*#15803d/)
+    expect(tokensCss).toMatch(/--brand:\s*#22c55e/)
   })
 
   it("has no red and no orange: problems are the foreground, attention is blue", () => {
@@ -52,7 +52,7 @@ describe("shop-web inherits the design system and defines no theme of its own", 
       [...tokensCss.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "g"))].map((m) => m[1])
     expect(val("destructive")).toEqual(val("foreground"))
     expect(val("warning")).toEqual(val("foreground"))
-    expect(val("accent2")).toEqual(val("brand"))
+    expect(val("accent2")).toEqual(val("primary"))
   })
 
   // Charts carry hues, and never as text-on-fill.

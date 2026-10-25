@@ -465,10 +465,10 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 // The nav item: 32px, 6px radius, 13.5px. Inactive: muted label, `--accent` hover. Active: a
-// `--brand-soft` ground with `--brand-ink` at 600, a tint rather than a fill so it never competes with
+// `--primary-muted` ground with `--primary` at 600, a tint rather than a fill so it never competes with
 // the primary button.
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-muted-foreground outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground data-[active=true]:bg-brand-soft data-[active=true]:font-semibold data-[active=true]:text-brand-ink [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-muted-foreground outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground data-[active=true]:bg-primary-muted data-[active=true]:font-semibold data-[active=true]:text-primary [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
@@ -581,7 +581,7 @@ function SidebarMenuBadge({
       className={cn(
         "pointer-events-none absolute right-1 flex h-5 min-w-5 select-none items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tabular-nums",
         "bg-accent2-soft text-accent2",
-        "peer-data-[active=true]/menu-button:bg-brand peer-data-[active=true]/menu-button:text-primary-foreground",
+        "peer-data-[active=true]/menu-button:bg-primary peer-data-[active=true]/menu-button:text-primary-foreground",
         "peer-data-[size=sm]/menu-button:top-1 peer-data-[size=default]/menu-button:top-2 peer-data-[size=lg]/menu-button:top-3",
         "group-data-[collapsible=icon]:hidden",
         className

@@ -1,4 +1,4 @@
-// GENERATED FROM packages/design-system/src/customer-web/tokens.css — DO NOT EDIT.
+// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
 package com.effyshopping.driver.mobile.design
 
@@ -25,22 +25,22 @@ object EffyColor {
         val secondary = Color(0xFFF4F4F5)
         val secondaryForeground = Color(0xFF18181B)
         val muted = Color(0xFFF4F4F5)
-        val mutedForeground = Color(0xFF68686F)
+        val mutedForeground = Color(0xFF52525B)
         val accent = Color(0xFFF4F4F5)
         val accentForeground = Color(0xFF18181B)
         val destructive = Color(0xFF09090B)
         val destructiveForeground = Color(0xFFFFFFFF)
-        val success = Color(0xFF0D7A40)
+        val success = Color(0xFF15803D)
         val disabled = Color(0xFFF4F4F5)
-        val disabledForeground = Color(0xFF68686F)
-        val placeholder = Color(0xFF68686F)
+        val disabledForeground = Color(0xFF52525B)
+        val placeholder = Color(0xFF52525B)
         val border = Color(0xFFE4E4E7)
         val input = Color(0xFFE4E4E7)
         val ring = Color(0xFF1D4ED8)
-        val primaryMuted = Color(0xFFEFF4FF)
-        val brand = Color(0xFF0D7A40)
+        val primaryMuted = Color(0xFFEFF6FF)
+        val brand = Color(0xFF15803D)
         val brandForeground = Color(0xFFFFFFFF)
-        val brandMuted = Color(0xFFEBF6EF)
+        val brandMuted = Color(0xFFF0FDF4)
         val scrim = Color(0x8009090B)
     }
 
@@ -61,7 +61,7 @@ object EffyColor {
         val accentForeground = Color(0xFFFAFAFA)
         val destructive = Color(0xFFFAFAFA)
         val destructiveForeground = Color(0xFF09090B)
-        val success = Color(0xFF4CD97B)
+        val success = Color(0xFF22C55E)
         val disabled = Color(0xFF27272A)
         val disabledForeground = Color(0xFFA1A1AA)
         val placeholder = Color(0xFFA1A1AA)
@@ -69,7 +69,7 @@ object EffyColor {
         val input = Color(0xFF3F3F46)
         val ring = Color(0xFF60A5FA)
         val primaryMuted = Color(0xFF172554)
-        val brand = Color(0xFF4CD97B)
+        val brand = Color(0xFF22C55E)
         val brandForeground = Color(0xFF09090B)
         val brandMuted = Color(0xFF052E16)
         val scrim = Color(0x99000000)

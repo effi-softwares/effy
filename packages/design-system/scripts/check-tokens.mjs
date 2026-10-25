@@ -1,265 +1,157 @@
-// Token guard for src/tokens.css (Node stdlib only), run as `tokens:test`. It asserts:
-//  1. every colour var exists in both:root (light) and.dark;
-//  2. the radius scale, which web and mobile EffyRadius share;
-//  3. WCAG 2.1 AA on every text pair in both appearances, and the UI thresholds for fills and the ring.
+// Token guard for src/tokens.css, the one theme every web and mobile app uses.
+//  1. The file is still CSS once comments are stripped (a stray `*/` inside a comment closes it early).
+//  2. Light and dark declare the same tokens, and every @theme colour points at a declared token.
+//  3. Every colour is a Tailwind palette value (or white / black); no custom hexes.
+//  4. No red or orange outside the promo palette: a problem is the foreground with an icon and words.
+//  5. The radius scale is 4 / 6 / 8 / 12, the default 8, the sheet 16.
+//  6. Every text pair is WCAG AA (4.5:1), every UI boundary 3:1, in both appearances.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-
-// A list of one on purpose: a future per-surface token layer adds an entry and inherits every rule.
-const TARGETS = [{ label: "tokens.css", path: "../src/tokens.css" }];
-
+const raw = readFileSync(resolve(here, "../src/tokens.css"), "utf8");
+const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
 const errors = [];
-for (const target of TARGETS) checkFile(target);
+const err = (m) => errors.push(m);
+
+{
+  let buf = "";
+  let depth = 0;
+  const check = (text, kind) => {
+    const body = text.replace(/\s+/g, " ").trim();
+    if (!body) return;
+    const ok =
+      /^@/.test(body) ||
+      (kind === "decl" && /^[\w-]+\s*:\s*.+$/.test(body)) ||
+      (kind === "block" && /^[\w.:[\]()&*>+~#="'\-\s,%]+$/.test(body));
+    if (!ok) err(`not CSS after comment-stripping (a comment closed early?): "${body.slice(0, 70)}"`);
+  };
+  for (const ch of css) {
+    if (ch === "{") (check(buf, "block"), (buf = ""), depth++);
+    else if (ch === "}") (check(buf, "decl"), (buf = ""), depth--);
+    else if (ch === ";") (check(buf, "decl"), (buf = ""));
+    else buf += ch;
+  }
+  if (depth !== 0) err(`unbalanced braces after comment-stripping (depth ${depth})`);
+}
+
+if (/data-theme|prefers-color-scheme/.test(css)) err("theme switching is the .dark class only — found data-theme or a colour-scheme query");
+
+function block(selector) {
+  const body = css.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`))?.[1];
+  if (!body) {
+    console.error(`check-tokens: FAILED — no ${selector} block`);
+    process.exit(1);
+  }
+  const vars = {};
+  for (const m of body.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) vars[m[1]] = m[2].trim().toLowerCase();
+  return vars;
+}
+const light = block(":root");
+const dark = block("\\.dark");
+
+for (const k of Object.keys(light)) if (!(k in dark)) err(`.dark: missing --${k}`);
+for (const k of Object.keys(dark)) if (!(k in light)) err(`:root: missing --${k}`);
+for (const m of css.matchAll(/--color-([\w-]+)\s*:\s*var\(--([\w-]+)\)/g)) {
+  if (!(m[2] in light)) err(`--color-${m[1]} points at --${m[2]}, which :root does not declare`);
+}
+
+const TAILWIND = {
+  zinc: "fafafa f4f4f5 e4e4e7 d4d4d8 a1a1aa 71717a 52525b 3f3f46 27272a 18181b 09090b",
+  blue: "eff6ff dbeafe bfdbfe 93c5fd 60a5fa 2563eb 1d4ed8 1e40af 1e3a8a 172554",
+  green: "f0fdf4 dcfce7 bbf7d0 86efac 22c55e 16a34a 15803d 166534 14532d 052e16",
+  violet: "f5f3ff ede9fe ddd6fe c4b5fd a78bfa 8b5cf6 7c3aed 6d28d9 5b21b6 4c1d95 2e1065",
+  orange: "fff7ed ffedd5 fed7aa fdba74 fb923c f97316 ea580c c2410c 9a3412 7c2d12 431407",
+  pink: "fdf2f8 fce7f3 fbcfe8 f9a8d4 f472b6 ec4899 db2777 be185d 9d174d 831843 500724",
+  red: "fef2f2 fee2e2 fecaca fca5a5 f87171 ef4444 dc2626 b91c1c 991b1b 7f1d1d 450a0a",
+};
+const PALETTE = new Set(["#ffffff", "#000000", ...Object.values(TAILWIND).flatMap((s) => s.split(" ").map((h) => `#${h}`))]);
+const NO_RED = new Set([...TAILWIND.orange.split(" "), ...TAILWIND.pink.split(" "), ...TAILWIND.red.split(" ")].map((h) => `#${h}`));
+
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const lum = (hex) => {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const ratio = (a, b) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+const PAIRS = [
+  ["foreground", "background", 4.5],
+  ["card-foreground", "card", 4.5],
+  ["popover-foreground", "popover", 4.5],
+  ["foreground", "muted", 4.5],
+  ["muted-foreground", "background", 4.5],
+  ["muted-foreground", "card", 4.5],
+  ["muted-foreground", "muted", 4.5],
+  ["primary", "background", 4.5],
+  ["primary", "primary-muted", 4.5],
+  ["primary-foreground", "primary", 4.5],
+  ["brand", "background", 4.5],
+  ["brand", "brand-muted", 4.5],
+  ["brand-foreground", "brand", 4.5],
+  ["secondary-foreground", "secondary", 4.5],
+  ["accent-foreground", "accent", 4.5],
+  ["accent2", "background", 4.5],
+  ["accent2", "accent2-soft", 4.5],
+  ["violet", "violet-soft", 4.5],
+  ["teal", "teal-soft", 4.5],
+  ["destructive-foreground", "destructive", 4.5],
+  ["destructive", "destructive-soft", 4.5],
+  ["success", "background", 4.5],
+  ["success", "success-soft", 4.5],
+  ["warning", "background", 4.5],
+  ["warning", "warning-soft", 4.5],
+  ["sidebar-foreground", "sidebar", 4.5],
+  ["sidebar-muted", "sidebar", 4.5],
+  ["sidebar-primary-foreground", "sidebar-primary", 4.5],
+  ["sidebar-accent-foreground", "sidebar-accent", 4.5],
+  ["foreground", "row-selected", 4.5],
+  ["ring", "background", 3],
+  ["disabled-foreground", "disabled", 3],
+  ["placeholder", "background", 3],
+];
+
+function checkAppearance(vars, label) {
+  for (const [k, v] of Object.entries(vars)) {
+    if (!/^#[0-9a-f]{6}$/.test(v)) continue;
+    if (!PALETTE.has(v)) err(`${label}--${k}: ${v} is not a Tailwind palette colour`);
+    if (!k.startsWith("promo-") && NO_RED.has(v)) err(`${label}--${k}: ${v} is red, pink or orange — only the promo palette may be`);
+  }
+  if (vars.destructive !== vars.foreground) err(`${label}--destructive must equal --foreground (a problem is never red)`);
+  if (vars.warning !== vars.foreground) err(`${label}--warning must equal --foreground`);
+  if (vars.ring !== vars.primary) err(`${label}--ring must equal --primary`);
+  if (vars.brand === vars.primary) err(`${label}--brand must not equal --primary (green is never the action colour)`);
+  for (const [fg, bg, min] of PAIRS) {
+    if (!vars[fg] || !vars[bg]) {
+      err(`${label}pair --${fg} / --${bg} names a token that is not declared`);
+      continue;
+    }
+    const r = ratio(vars[fg], vars[bg]);
+    if (r < min) err(`${label}--${fg} on --${bg} is ${r.toFixed(2)}:1, below ${min}:1`);
+  }
+}
+checkAppearance(light, "");
+checkAppearance(dark, ".dark: ");
+
+const remPx = (name) => {
+  const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
+  return m ? Math.round(parseFloat(m[1]) * 16) : null;
+};
+const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 12, "--radius-sheet": 16, "--radius": 8 };
+for (const [name, px] of Object.entries(RADII)) if (remPx(name) !== px) err(`${name} must be ${px}px, got ${remPx(name)}px`);
 
 if (errors.length) {
   console.error("check-tokens: FAILED\n  - " + errors.join("\n  - "));
   process.exit(1);
 }
 console.log(
-  `check-tokens: OK — ${TARGETS.length} token files \u00d7 2 appearances, all pairs pass WCAG AA`,
+  `check-tokens: OK — one theme, ${Object.keys(light).length} tokens × light + dark, all Tailwind palette colours, every pair at AA`,
 );
-
-function checkFile({ label, path }) {
-// Comments are stripped before parsing: prose naming a selector would otherwise be matched as the block.
-const css = readFileSync(resolve(here, path), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-const err = (m) => errors.push(`[${label}] ${m}`);
-
-/** Parse a `:root { … }` / `.dark { … }` block into { name: "#rrggbb" }. */
-function parseBlock(selector) {
-  const re = new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m");
-  const body = css.match(re);
-  if (!body) throw new Error(`check-tokens: no '${selector}' block in tokens.css`);
-  const out = {};
-  for (const line of body[1].split("\n")) {
-    const m = line.match(/^\s*--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/);
-    if (m) out[m[1]] = m[2].toLowerCase();
-  }
-  return out;
-}
-
-// 0) The residue after stripping comments must still be CSS. A `*/` inside a comment (e.g. a glob like
-// `--chart-` + `*/`) closes it early and turns the rest into stylesheet source, which every parser here
-// would miss and only a production build would catch. Outside comments the file is only at-rules,
-// selectors, braces and declarations; statements are scanned, since a declaration may wrap.
-{
-  let buf = "";
-  let depth = 0;
-  const check = (raw, kind) => {
-    const body = raw.replace(/\s+/g, " ").trim();
-    if (!body) return;
-    const ok =
-      /^@/.test(body) || // at-rule (@font-face, @theme inline, @keyframes, @media, @custom-variant)
-      (kind === "decl" && /^[\w-]+\s*:\s*.+$/.test(body)) || // declaration, incl. --custom-property
-      (kind === "block" && /^[\w.:[\]()&*>+~#="'\-\s,%]+$/.test(body)); // selector / keyframe offset
-    if (ok) return;
-    err(
-      `not CSS after comment-stripping — a comment almost certainly closed early (an asterisk ` +
-        `followed by a slash inside one): "${body.slice(0, 70)}"`,
-    );
-  };
-  for (const ch of css) {
-    if (ch === "{") {
-      check(buf, "block");
-      buf = "";
-      depth++;
-    } else if (ch === "}") {
-      check(buf, "decl");
-      buf = "";
-      depth--;
-      if (depth < 0) {
-        err("unbalanced braces after comment-stripping (a closing brace with no opener)");
-        break;
-      }
-    } else if (ch === ";") {
-      check(buf, "decl");
-      buf = "";
-    } else {
-      buf += ch;
-    }
-  }
-  if (depth !== 0) err(`unbalanced braces after comment-stripping (depth ${depth})`);
-  if (buf.trim()) check(buf, "decl");
-}
-
-const light = parseBlock(":root");
-const dark = parseBlock(".dark");
-
-// 1) The same key set in both appearances.
-for (const k of Object.keys(light)) if (!(k in dark)) err(`--${k} missing from .dark`);
-for (const k of Object.keys(dark)) if (!(k in light)) err(`--${k} missing from :root`);
-
-// 2) Radius parity with mobile EffyRadius (px at a 16px root).
-const remPx = (name) => {
-  const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
-  return m ? Math.round(parseFloat(m[1]) * 16) : null;
-};
-// The four-step scale: 4px checkboxes, 6px controls, 8px buttons and icon chips, 10px containers.
-const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 12 };
-for (const [step, px] of Object.entries(RADII)) {
-  if (remPx(step) !== px) err(`${step} must be ${px}px, got ${remPx(step)}px`);
-}
-if (remPx("--radius") !== 8) err(`--radius must be 0.5rem (8px, the container step), got ${remPx("--radius")}px`);
-
-// 3) WCAG 2.1 contrast.
-const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-const luminance = (hex) => {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-};
-const ratio = (a, b) => {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
-
-// [foreground, background, minimum]. Text pairs (including labels on fills) hold 4.5:1. UI pairs hold
-// 3:1 (WCAG 1.4.11): disabled controls (exempt in WCAG, held anyway), placeholders. Borders are not
-// tested: a 3:1 border would be a slab on every surface.
-const TEXT = 4.5;
-const UI = 3;
-const PAIRS = [
-  ["foreground", "background", TEXT],
-  ["card-foreground", "card", TEXT],
-  ["popover-foreground", "popover", TEXT],
-  ["primary-foreground", "primary", TEXT],
-  ["secondary-foreground", "secondary", TEXT],
-  ["muted-foreground", "muted", TEXT],
-  ["accent-foreground", "accent", TEXT],
-  ["destructive-foreground", "destructive", TEXT],
-  ["sidebar-foreground", "sidebar", TEXT],
-  ["sidebar-primary-foreground", "sidebar-primary", TEXT],
-  ["sidebar-accent-foreground", "sidebar-accent", TEXT],
-  // The focus ring is a non-text UI component: 3:1.
-  ["ring", "background", UI],
-  ["disabled-foreground", "disabled", UI],
-  ["placeholder", "background", UI],
-
-  // Every tinted surface against the solid written on it: a `-soft` ground is where a palette fails
-  // while looking harmonious.
-  ["brand", "background", TEXT], // link, eyebrow label, "label →" ghost link
-  ["brand-ink", "brand-soft", TEXT], // active nav item, in-progress status pill
-  ["primary-foreground", "brand", TEXT], // the label on a primary button
-  ["accent2", "background", TEXT], // unread count, cut-off chip, the notification dot itself
-  ["accent2", "accent2-soft", TEXT],
-  ["violet", "violet-soft", TEXT], // avatar tint 2
-  ["teal", "teal-soft", TEXT], // avatar tint 3
-  ["destructive", "destructive-soft", TEXT], // failed / refunded pill
-  ["warning", "warning-soft", TEXT], // awaiting / at-risk pill
-  ["warning", "background", TEXT],
-  // Success clears 4.5:1 as text on white and on its tint, but still gets no -foreground pair (below).
-  ["success", "success-soft", TEXT],
-  ["success", "background", TEXT],
-];
-
-// Success is never a fill with a label on it: it has no `--success-foreground`, so there is nothing to put
-// text on it with.
-const SEMANTIC_NON_TEXT = ["success", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
-
-// The data-visualisation palette is for charts only: present in both appearances, and never given a
-// -foreground pair (SEMANTIC_NON_TEXT), so it cannot become a UI accent.
-const CHART_TOKENS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
-for (const name of CHART_TOKENS) {
-  if (!(name in light)) err(`--${name} missing from :root (chart palette must exist in both appearances)`);
-  if (!(name in dark)) err(`--${name} missing from .dark (chart palette must exist in both appearances)`);
-}
-
-for (const [appName, set] of [
-  ["light", light],
-  ["dark", dark],
-]) {
-  for (const [fg, bg, min] of PAIRS) {
-    if (!(fg in set) || !(bg in set)) {
-      err(`[${appName}] pair --${fg}/--${bg}: a var is missing`);
-      continue;
-    }
-    const r = ratio(set[fg], set[bg]);
-    if (r < min) {
-      err(`[${appName}] --${fg} on --${bg} = ${r.toFixed(2)}:1 (needs ${min}:1)`);
-    }
-  }
-}
-
-// 3b) Every ratio written in a comment must match the recomputed one: hand-maintained figures rot when a
-// value moves. Two forms: "N:1 on --token" / "N:1 on the ground", and a bare "N:1" on a *-foreground
-// declaration, meaning on the surface it is the foreground of.
-{
-  const SOLO = {
-    foreground: "background",
-    "card-foreground": "card",
-    "popover-foreground": "popover",
-    "accent-foreground": "accent",
-    "secondary-foreground": "secondary",
-    "primary-foreground": "primary",
-    "sidebar-foreground": "sidebar",
-    "disabled-foreground": "disabled",
-  };
-  for (const [appName, selector, set] of [
-    ["light", ":root", light],
-    ["dark", ".dark", dark],
-  ]) {
-    const block = css.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m"));
-    if (!block) continue;
-    // The original text: the annotations live in the comments.
-    const raw = readFileSync(resolve(here, path), "utf8");
-    const rb = raw.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([\\s\\S]*?)\\n\\}`, "m"));
-    if (!rb) continue;
-    for (const line of rb[1].split("\n")) {
-      const decl = line.match(/--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6});\s*\/\*(.*?)\*\//);
-      if (!decl) continue;
-      const [, name, value, note] = decl;
-      const claims = [];
-      for (const m of note.matchAll(/([\d.]+):1 on (?:the ground|--([\w-]+))/g)) {
-        claims.push([m[1], m[2] ?? "background"]);
-      }
-      const solo = note.match(/^\s*([\d.]+):1\s*$/);
-      if (solo && SOLO[name]) claims.push([solo[1], SOLO[name]]);
-      for (const [claimed, bgName] of claims) {
-        const bg = set[bgName];
-        if (!bg) {
-          err(`[${appName}] --${name} cites --${bgName}, which is not declared`);
-          continue;
-        }
-        const actual = ratio(value.toLowerCase(), bg).toFixed(2);
-        if (actual !== claimed) {
-          err(
-            `[${appName}] --${name} comment claims ${claimed}:1 on --${bgName}, actual ${actual}:1 ` +
-              `— fix the comment, not the check`,
-          );
-        }
-      }
-    }
-  }
-}
-
-// 4) The monospace stack must stay monospace: codes are dictated, read back and compared digit by
-// digit, and proportional digits make 1/l, 0/O and 5/S ambiguous. Nothing else would fail.
-const MONO_HINTS = ["mono", "consol", "menlo", "courier", "sfmono"];
-const monoDecl = css.match(/--font-mono\s*:\s*([^;]+);/);
-if (monoDecl) {
-  const value = monoDecl[1].toLowerCase();
-  if (!MONO_HINTS.some((hint) => value.includes(hint))) {
-    err(
-      `--font-mono is declared as "${monoDecl[1].trim()}", which does not look monospace. ` +
-        `OtpInput's cell variant sets each character position in tabular monospace so a code that ` +
-        `is read aloud, dictated or compared against an email is unambiguous (1/l, 0/O, 5/S). ` +
-        `Keep --font-mono monospace (packages/design-system/src/ui/otp-input.tsx).`,
-    );
-  }
-}
-
-// 5) Non-text semantic colours must not acquire a foreground pair (SEMANTIC_NON_TEXT).
-for (const name of SEMANTIC_NON_TEXT) {
-  if (`${name}-foreground` in light || `${name}-foreground` in dark) {
-    err(
-      `--${name}-foreground exists: --${name} is a NON-TEXT indicator only (constitution v1.11.0). ` +
-        `If text must sit on it, re-tune --${name} to clear 4.5:1 first and add the pair to PAIRS.`,
-    );
-  }
-}
-
-}

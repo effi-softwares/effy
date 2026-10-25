@@ -8,8 +8,7 @@ TypeScript source and CSS (each consumer's bundler transpiles).
 
 | File (export) | Used by | Identity |
 |---|---|---|
-| `src/tokens.css` (`./tokens.css`) | back-office and shop-web (through `console.css`); the email kit; the mobile layout scale | The console theme: every colour, size, shadow and timing token, light and dark, and the `@theme` mapping. The one source of console tokens. |
-| `src/customer-web/tokens.css` (`./customer-web.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
+| `src/tokens.css` (`./tokens.css`) | every app: customer-web, back-office and shop-web (through `console.css`), the customer and driver apps, emails, Stripe card fields | The one theme: every colour (Tailwind palette values only), size, shadow and timing token, light and dark, and the `@theme` mapping |
 | `src/console.css` (`./console.css`) | back-office, shop-web | Imports `tokens.css`, then the consoles' shared styles (dialogs, toasts, `ef-*` patterns, the shell). No tokens of its own. |
 
 ### Where a console style goes
@@ -37,9 +36,8 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 
 `pnpm --filter @effy/design-system test` runs:
 
-- `check-tokens.mjs`, `check-storefront-tokens.mjs`, `check-backoffice-tokens.mjs`: key-set parity
-  between appearances, the radius scale, WCAG AA on every text pair, and every ratio written in a
-  comment matching the recomputed one.
+- `check-tokens.mjs`: the one theme — light/dark key parity, every colour a Tailwind palette value, no
+  red or orange outside the promo palette, the radius scale, and WCAG AA on every text pair.
 - `check-component-shape.mjs`: controls are never pills, badges always are, containers are at least
   as round as the controls inside them.
 - `check-token-usage.mjs`: every colour utility names a declared token (Tailwind emits nothing for an
@@ -62,7 +60,7 @@ To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming a
 ## Mobile themes
 
 `scripts/gen-compose-theme.mjs` generates the Compose theme for each KMP app (customer, driver):
-colours, Geist type and `EffyStorefrontShape` from `src/customer-web/tokens.css` (light and dark), and the
+colours, Geist type and `EffyStorefrontShape` from `src/tokens.css` (light and dark), and the
 layout scale (`EffyRadius`, `EffySpacing`) from `src/tokens.css`. `scripts/gen-stripe-appearance.mjs`
 themes the customer payment element on the web, Android and iOS (the iOS half is written to
 `apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift`) from the storefront file.

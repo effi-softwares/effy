@@ -6,7 +6,7 @@ import { cn } from "../cn"
 
 // The status tag: 6px corners, like the controls. The status mapping is closed:
 //
-//  in-progress / active → brand
+//  in-progress / active → primary
 //  positive / complete → success
 //  waiting / at-risk → warning
 //  failed / refunded → destructive
@@ -20,8 +20,8 @@ const badgeVariants = cva(
     variants: {
       variant: {
         // In progress. `default` and `brand` are the same tone.
-        default: "bg-brand-soft text-primary",
-        brand: "bg-brand-soft text-primary",
+        default: "bg-primary-muted text-primary",
+        brand: "bg-primary-muted text-primary",
         success: "bg-success-soft text-success",
         // Waiting: an outlined tag.
         warning: "border-input bg-background text-foreground",

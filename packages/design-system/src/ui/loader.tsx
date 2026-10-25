@@ -4,7 +4,7 @@ import { cn } from "../cn"
 
 /**
  * The loader for large regions (a page, a table, a drawer body): an `--accent2` sun, a `--brand` planet
- * orbiting once a second and a moon orbiting it twice as fast (`--brand-mid` light, `--muted-foreground`
+ * orbiting once a second and a moon orbiting it twice as fast (`--primary` at 30% light, `--muted-foreground`
  * dark). Decorative, so `--accent2` carries no meaning here. Regions use this rather than a skeleton,
  * which would draw a layout the data may not have. Flat discs, every size a ratio of 70px, and
  * `data-effy-loader` slows it under reduced motion instead of freezing it.
@@ -33,12 +33,12 @@ function Loader({
         style={{ width: u(16), height: u(16) }}
       />
       <span
-        className="bg-brand absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
+        className="bg-primary absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
         style={{ width: u(12), height: u(12) }}
       />
       <span
         data-effy-loader-moon=""
-        className="bg-brand-mid dark:bg-muted-foreground absolute inset-x-0 m-auto rounded-full [animation:effy-spin_0.5s_linear_infinite]"
+        className="bg-primary/30 dark:bg-muted-foreground absolute inset-x-0 m-auto rounded-full [animation:effy-spin_0.5s_linear_infinite]"
         style={{
           width: u(8),
           height: u(8),

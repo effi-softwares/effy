@@ -13,17 +13,17 @@ describe("back-office identity tokens", () => {
     expect(stylesCss).not.toContain("customer-web.css")
   })
 
-  it("uses Effy blue as the single action colour, lifted in dark", () => {
+  it("uses Effy blue as the single action colour, lifted in dark, and Effy green as the brand", () => {
     expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/)
-    expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/)
     expect(tokensCss).toMatch(/--ring:\s*#1d4ed8/)
     expect(tokensCss).toMatch(/--primary:\s*#60a5fa/)
-    expect(tokensCss).toMatch(/--brand:\s*#60a5fa/)
+    expect(tokensCss).toMatch(/--brand:\s*#15803d/)
+    expect(tokensCss).toMatch(/--brand:\s*#22c55e/)
   })
 
   it("says done in green, and keeps green off every fill with a label on it", () => {
-    expect(tokensCss).toMatch(/--success:\s*#0d7a40/)
-    expect(tokensCss).toMatch(/--success:\s*#4cd97b/)
+    expect(tokensCss).toMatch(/--success:\s*#15803d/)
+    expect(tokensCss).toMatch(/--success:\s*#22c55e/)
     expect(tokensCss).not.toContain("--success-foreground")
     expect(tokensCss).not.toContain("--warning-foreground")
   })

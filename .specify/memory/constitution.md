@@ -1,6 +1,25 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.6.0 → 4.0.0
+Bump rationale: MAJOR — Principle V's "one palette, one file — per identity" (two identities) is redefined
+as ONE identity for every surface; the console identity's values are replaced.
+
+Trigger: on 2026-10-25 the operator asked for one theme for all web and mobile apps, using the customer
+website and app's colours, with every colour a Tailwind / shadcn palette value.
+
+What changed in the text:
+  - Principle V: "One palette, one file — per identity" and "The storefront identity" become "One palette,
+    one file (v4.0.0)": one tokens.css for every surface; Tailwind palette values only; blue-700 is the
+    action colour, green-700 the brand; no red in the UI, the promo palette the one exception.
+  - Principle V: the shop-app mobile bullet is replaced by "Mobile reads the same file" (default radius 8).
+  - Principle V: the General Sans fallback note is removed (the font is gone).
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged.
+  ✅ CLAUDE.md (Design system section) and packages/design-system/README.md — updated.
+
+--- previous report ---
 Version change: 3.5.0 → 3.6.0
 Bump rationale: MINOR — a bounded exception added to Principle V; no principle removed, no plan invalidated.
 
@@ -796,54 +815,41 @@ One design-system package drives every surface.
 - The full token set — both ramps, the brand hue, the three bounded hues, the four state semantics, the
   **Geist / Geist Mono** typefaces, and the spacing + radius scales — comes from the design-system
   package (`packages/design-system/src/tokens.css`, the SSOT), **never hardcoded per surface** and
-  **never restated in a second file**. ⚠ General Sans is retained as the *second* name in `--font-sans`
-  because Geist is not self-hosted; that is a fallback, not a second typeface.
-- **One palette, one file — per identity.** A surface MUST NOT carry a scoped token layer that
-  restates a palette. Two files declaring one palette is the two-sources-for-one-fact shape this
-  repository has shipped repeated defects through. The platform has **two identities** (below), each
-  declared exactly once, **both inside the design-system package**; a token file under `apps/` is
-  still a defect.
-- **THE STOREFRONT IDENTITY (v3.3.0, feature 084; v3.5.0, feature 092).** The customer website, the
-  customer mobile app (087) and **the driver mobile app (092)** carry this identity, declared in
-  `packages/design-system/src/storefront/tokens.css`. Everything above this bullet describes the
-  **console identity** (shop console, back-office and the shop mobile app), which is unchanged. ⚠ The
-  driver app takes the storefront's colours, type, icons and dark palette for a WORK tool: it follows its
-  own canvas for layout (lists, sections, detail rows, one hero on Today), not the storefront's card
-  rule below. The storefront differs, deliberately:
-  - **Five values, rationed**: black (`--foreground`), white (`--background`), zinc greys, **Effy
-    blue `#1d4ed8`** (`--primary` — the ONLY action colour: buttons, links, selection, focus, points,
-    courier) and **Effy green `#0d7a40`** (`--brand` — the wordmark's full stop, Sale, savings,
-    "Delivered by Effy", paid, progress). `--brand` and `--primary` are therefore **different** values
-    here. Green is never an action. No third hue.
-  - **No red.** `--destructive` is the foreground black; an error or destructive action is said with
-    an icon and its wording, never with a hue.
-  - **The website is light only; the mobile app has a dark appearance too (v3.4.0).** The storefront
-    file's `.dark` block is read only by the mobile theme generator; the website sets no dark class, has
-    no `dark:` variant, and the file carries no data-theme selector or colour-scheme query. The dark
-    block keeps the five values and AA on every pair (check-storefront-tokens.mjs).
-  - **Cards are white, bordered, and carry the hairline `shadow-xs`**; card layouts ARE the pattern —
-    a product, an address, a delivery section is a discrete choosable object. The no-card doctrine
-    below continues to bind the consoles.
-  - **Radius**: sm 4 · md 6 (buttons, inputs) · lg 8 (cards, dialogs, image wells) · xl 12 (hero).
-  - **Geist / Geist Mono, self-hosted** from files in the design-system package; no third-party font
-    request on a public page.
-  - **WCAG AA still binds every text pair.** The one recorded deviation is the reference's own: field
-    borders are a hairline (already the border exception), so every field MUST have a visible label
-    and a focus ring at 3:1 or better.
-  - Enforced by `check-storefront-tokens.mjs`, `check-token-usage.mjs` (which scans the storefront
-    against ITS `@theme`) and `scripts/check-no-storefront-red.sh`.
+  **never restated in a second file**.
+- **One palette, one file (v4.0.0).** The platform has **ONE identity**, declared exactly once in
+  `packages/design-system/src/tokens.css` and used by every surface: the customer website, the customer
+  and driver mobile apps, the shop console and back-office (through `console.css`), the transactional
+  emails and the Stripe card fields. A surface MUST NOT carry a scoped token layer, and a token file
+  under `apps/` is a defect. The values are the former storefront identity's, now everyone's:
+  - **Tailwind palette values only.** Every colour is a Tailwind / shadcn palette value (zinc, blue,
+    green, and for promotions violet, orange, pink, red), written as its hex so the generators and the
+    contrast guard can read it. No custom hexes.
+  - **Effy blue `#1d4ed8` (blue-700) is `--primary`**, the ONLY action colour: buttons, links,
+    selection, focus. **Effy green `#15803d` (green-700) is `--brand`**: the wordmark's full stop,
+    savings, "Delivered by Effy", done. `--brand` and `--primary` are different values; green is never
+    an action. Black, white and zinc greys complete the UI.
+  - **No red in the UI.** `--destructive` and `--warning` are the foreground; a problem is said with an
+    icon and its wording. The **promo palette** (`--promo-green/-blue/-purple/-orange/-rose/-red`) is
+    the one place red, pink and orange appear, for promotional grounds with white type.
+  - **The website is light only**; it sets no dark class. The consoles and the mobile apps have light
+    and dark (below). There is one `.dark` block.
+  - **Cards**: on the customer surfaces cards are white, bordered and carry `shadow-xs`; the no-card
+    doctrine below binds the consoles.
+  - **Radius**: sm 4 · md 6 (controls, badges) · lg 8 (cards, dialogs) · xl 12 · sheet 16.
+  - **Geist / Geist Mono**, self-hosted for the website, loaded by the consoles.
+  - **WCAG AA binds every text pair** in both appearances; field borders are a hairline, so every field
+    MUST have a visible label and a focus ring at 3:1 or better.
+  - Enforced by `check-tokens.mjs` (one theme, Tailwind palette only, no red outside the promo palette,
+    AA on every pair), `check-token-usage.mjs` and `scripts/check-no-storefront-red.sh`.
 - **RETIRED, and swept out of live source**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0),
   Jade `#0FB57E` / fill `#047857` (v1.10.0), and — as of this amendment — **the monochrome neutral
   ramp with its inverting accent and its two-semantic-colour bound** (v1.11.0–v1.13.0, features 026 and
   041). The first two are swept by `scripts/check-no-emerald.sh` and `scripts/check-no-jade.sh`; ⚠ a
   retired hex named **in a comment** is still a hit, because the sweeps do not strip comments.
-- **The shop app takes the accent and the ground, not the hues.** Its Compose theme regenerates from
-  `tokens.css` and takes cobalt and the neutral-grey ground (the customer and driver apps read the
-  storefront file). `--accent2`, `--violet`, `--teal`,
-  `--warning` and the `--brand-*` family are **web-only by design** and are not surfaced to mobile.
-  ⚠ Mobile takes **three** radius steps (sm 4 / md 6 / default 10), not the web scale's four — the
-  generator emits no `lg 8`. Drift between the two is caught by `tokens:check`.
-- Dark mode is REQUIRED on every surface of the console identity AND on the customer and driver mobile
+- **Mobile reads the same file.** The customer and driver apps' Compose themes regenerate from
+  `tokens.css`; mobile takes **three** radius steps (sm 4 / md 6 / default 8). Drift is caught by
+  `tokens:check`.
+- Dark mode is REQUIRED on the consoles AND on the customer and driver mobile
   apps, and MUST be user-selectable (Light / Dark / Follow-System). The customer website is light only (above).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
@@ -1017,4 +1023,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.6.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-21
+**Version**: 4.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-25

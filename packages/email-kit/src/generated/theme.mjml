@@ -11,9 +11,9 @@
   <mj-class name="wordmark" font-size="22px" line-height="28px" font-weight="600" letter-spacing="-0.01em" color="#09090b" />
   <mj-class name="h1" font-size="24px" line-height="32px" font-weight="600" letter-spacing="-0.01em" color="#09090b" />
   <mj-class name="body" font-size="16px" line-height="24px" font-weight="400" color="#09090b" />
-  <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#68686f" />
-  <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#68686f" />
-  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#68686f" />
+  <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#52525b" />
+  <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#52525b" />
+  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#52525b" />
   <mj-class name="code" font-size="36px" line-height="44px" font-weight="500" letter-spacing="0.15em" color="#09090b" />
 </mj-attributes>
 
@@ -30,7 +30,7 @@
   /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
      NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
-      .e-bg-page { background-color: #111113 !important; }
+      .e-bg-page { background-color: #18181b !important; }
       .e-bg-canvas { background-color: #09090b !important; }
       .e-bg-code { background-color: #27272a !important; }
       .e-ink,
@@ -67,7 +67,7 @@
      Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
      (DARK_RULES) so they cannot drift. */
     [data-ogsc] .e-bg-page,
-    [data-ogsb] .e-bg-page { background-color: #111113 !important; }
+    [data-ogsb] .e-bg-page { background-color: #18181b !important; }
     [data-ogsc] .e-bg-canvas,
     [data-ogsb] .e-bg-canvas { background-color: #09090b !important; }
     [data-ogsc] .e-bg-code,

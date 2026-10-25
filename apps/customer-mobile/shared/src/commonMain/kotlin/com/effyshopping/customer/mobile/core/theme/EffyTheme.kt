@@ -18,7 +18,7 @@ val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
  * The app's theme: the storefront identity, light and dark. Colours, type and shapes come only from files
- * generated from `packages/design-system/src/customer-web/tokens.css` (`:root` for light, `.dark` for dark),
+ * generated from `packages/design-system/src/tokens.css` (`:root` for light, `.dark` for dark),
  * guarded by `tokens:check`; never hardcode a colour. [dark] comes from the shopper's [AppearanceMode].
  *
  * Material 3's shape slots are overridden so no library radius leaks in: extraSmall 4 (checkboxes) ·

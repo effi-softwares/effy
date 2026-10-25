@@ -116,7 +116,7 @@ function TableSortHead({
       >
         {children}
         {direction ? (
-          <span aria-hidden="true" className="text-xs leading-none text-brand">
+          <span aria-hidden="true" className="text-xs leading-none text-primary">
             {direction === "asc" ? "\u25b2" : "\u25bc"}
           </span>
         ) : null}

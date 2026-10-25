@@ -3,16 +3,7 @@
 
 @source "../../../packages/design-system/src/ui";
 
-@import "@effy/design-system/customer-web.css";
-
-:root {
-  --promo-green: #15803d;
-  --promo-blue: #2563eb;
-  --promo-purple: #7c3aed;
-  --promo-orange: #c2410c;
-  --promo-rose: #db2777;
-  --promo-red: #dc2626;
-}
+@import "@effy/design-system/tokens.css";
 
 @utility container {
   width: 100%;

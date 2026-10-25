@@ -1,5 +1,5 @@
 // Generates the mobile apps' Compose theme from the CSS tokens: colours, type and shapes from
-// src/customer-web/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
+// src/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
 // from src/tokens.css. The output is committed; `tokens:check` regenerates it and fails on any
 // difference. Node stdlib only.
 //
@@ -12,7 +12,7 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CONSOLE_CSS = resolve(here, "../src/tokens.css");
-const STOREFRONT_CSS = resolve(here, "../src/customer-web/tokens.css");
+const STOREFRONT_CSS = resolve(here, "../src/tokens.css");
 // An asset constraint, not a style token, so it lives beside the shared types.
 const BANNER_CANVAS = JSON.parse(readFileSync(resolve(here, "../../shared-types/src/banner-canvas.json"), "utf8"));
 
@@ -193,7 +193,7 @@ function generate(target) {
   const radiusSmDp = radiusRem("--radius-sm");
   const radiusMdDp = radiusRem("--radius-md");
 
-  const out = `${banner("src/customer-web/tokens.css")}
+  const out = `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.ColorScheme
@@ -280,7 +280,7 @@ object EffyBanner {
  *  label — 16 buttons · 14 chips · 12 badges / tab labels
  */
 function typography(target) {
-  return `${banner("src/customer-web/tokens.css")}
+  return `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.Typography
@@ -354,10 +354,10 @@ private fun effyTextStyle(
 function shape(target, css) {
   const rem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
-    if (!m) throw new Error(`gen-compose-theme: no ${name} in customer-web/tokens.css`);
+    if (!m) throw new Error(`gen-compose-theme: no ${name} in tokens.css`);
     return Math.round(parseFloat(m[1]) * 16);
   };
-  return `${banner("src/customer-web/tokens.css")}
+  return `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.foundation.shape.RoundedCornerShape

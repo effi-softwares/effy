@@ -44,11 +44,11 @@ if (drifted.length > 0) {
 // The customer app wears the storefront identity: a colour the storefront file does not declare would be faithfully generated, so it is checked here.
 {
   const customer = readFileSync(resolve(here, "../compose/EffyTokens.kt"), "utf8");
-  const storefront = readFileSync(resolve(here, "../src/customer-web/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const storefront = readFileSync(resolve(here, "../src/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const declared = new Set([...storefront.matchAll(/#([0-9a-fA-F]{6})\b/g)].map((m) => m[1].toUpperCase()));
   const problems = [];
   for (const m of customer.matchAll(/Color\(0x([0-9A-F]{2})([0-9A-F]{6})\)/g)) {
-    if (m[1] === "FF" && !declared.has(m[2])) problems.push(`#${m[2]} is not declared in customer-web/tokens.css`);
+    if (m[1] === "FF" && !declared.has(m[2])) problems.push(`#${m[2]} is not declared in tokens.css`);
   }
   if (problems.length > 0) {
     console.error("tokens:check: the customer app's theme left the storefront identity:");

@@ -9,7 +9,7 @@ import { cn } from "../cn"
 
 /** The five-entry palette, in fixed order. Adding a sixth changes every existing person's colour. */
 const TINTS = [
-  "bg-brand-soft text-brand",
+  "bg-primary-muted text-primary",
   "bg-violet-soft text-violet",
   "bg-teal-soft text-teal",
   "bg-accent2-soft text-accent2",

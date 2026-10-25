@@ -20,7 +20,7 @@ function Spinner({
       aria-hidden="true"
       style={{ width: size, height: size }}
       className={cn(
-        "inline-block shrink-0 rounded-full border-2 border-brand-mid border-t-brand [animation:effy-spin_0.9s_linear_infinite]",
+        "inline-block shrink-0 rounded-full border-2 border-primary/30 border-t-primary [animation:effy-spin_0.9s_linear_infinite]",
         className
       )}
       {...props}

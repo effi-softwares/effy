@@ -16,22 +16,9 @@ function declaredIn(file) {
   return new Set([...css.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
 }
 
-const consoleDeclared = declaredIn("../src/tokens.css");
-if (consoleDeclared.size < 20) {
-  console.error("check-token-usage: FAILED — only " + consoleDeclared.size + " --color-* vars parsed; the guard is not reading tokens.css");
-  process.exit(1);
-}
-// customer-web imports the storefront @theme instead, where a console name emits no rule.
-const storefrontDeclared = declaredIn("../src/customer-web/tokens.css");
-if (storefrontDeclared.size < 15) {
-  console.error("check-token-usage: FAILED — only " + storefrontDeclared.size + " --color-* vars parsed from customer-web/tokens.css");
-  process.exit(1);
-}
-
-// back-office imports its own @theme (held to every console name by check-backoffice-tokens.mjs) with its own roles.
-const backofficeDeclared = declaredIn("../src/tokens.css");
-if (backofficeDeclared.size < consoleDeclared.size) {
-  console.error("check-token-usage: FAILED — console.css declares fewer --color-* vars than tokens.css");
+const declared = declaredIn("../src/tokens.css");
+if (declared.size < 40) {
+  console.error("check-token-usage: FAILED — only " + declared.size + " --color-* vars parsed; the guard is not reading tokens.css");
   process.exit(1);
 }
 
@@ -102,21 +89,10 @@ function scan(label, file, declared, known, roots) {
   return true;
 }
 
-const everyToken = new Set([...consoleDeclared, ...storefrontDeclared, ...backofficeDeclared]);
+// One theme for every app: each surface may use any declared token, and nothing else.
 const ok = [
-  // The shared kit renders under either console identity, so it may use only the console names.
-  scan("console", "tokens.css", consoleDeclared, consoleDeclared, [
-    "packages/web-kit/src",
-    "packages/design-system/src/ui",
-  ]),
-  // Both internal consoles wear the back-office identity (shop-web since its 2026-10-24 redesign).
-  scan("back-office", "console.css", backofficeDeclared, everyToken, [
-    "apps/back-office/src",
-    "apps/shop-web/src",
-  ]),
-  scan("storefront", "customer-web/tokens.css", storefrontDeclared, everyToken, [
-    "apps/customer-web/app",
-    "apps/customer-web/components",
-  ]),
+  scan("shared components", "tokens.css", declared, declared, ["packages/web-kit/src", "packages/design-system/src/ui"]),
+  scan("consoles", "tokens.css", declared, declared, ["apps/back-office/src", "apps/shop-web/src"]),
+  scan("customer-web", "tokens.css", declared, declared, ["apps/customer-web/app", "apps/customer-web/components"]),
 ];
 if (ok.includes(false)) process.exit(1);

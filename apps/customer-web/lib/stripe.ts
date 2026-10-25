@@ -19,7 +19,7 @@ export function getStripe(): Promise<Stripe | null> {
 }
 
 /**
- * The Elements options for the payment step. The appearance is generated from `customer-web/tokens.css`
+ * The Elements options for the payment step. The appearance is generated from `tokens.css`
  * (guarded by `tokens:check`), never typed out here. Light only: the storefront has no dark appearance.
  * Elements reads `appearance` once, when the group is created.
  */

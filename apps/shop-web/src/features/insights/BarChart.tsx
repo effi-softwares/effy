@@ -21,7 +21,7 @@ export function BarChart({
   series: "primary" | "secondary"
 }) {
   const latestFill = "bg-primary"
-  const restFill = "bg-brand-mid"
+  const restFill = "bg-primary/30"
   const heights = barHeights(buckets.map(valueOf))
 
   return (

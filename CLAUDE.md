@@ -382,6 +382,12 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
+⚠ **ONE THEME FOR EVERY APP (constitution v4.0.0, 2026-10-25).** `packages/design-system/src/tokens.css` is the
+only token file: customer-web imports it, the consoles import it through `console.css`, and the customer and driver
+apps, the emails and the Stripe card fields are generated from it. Every colour is a **Tailwind palette value** (zinc,
+blue, green; violet / orange / pink / red only in the `--promo-*` set). `--primary` is blue-700 `#1d4ed8` (the one
+action colour), `--brand` is green-700 `#15803d` (savings, "Delivered by Effy", done), problems are the foreground (no
+red). One guard: `check-tokens.mjs`. The two-identity history below (console vs storefront) is superseded.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
 reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it —
@@ -471,7 +477,7 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
 - **Mobile**: the shop Compose theme regenerates from `tokens.css` and takes the cobalt accent and the
   neutral-grey ground; ⚠ the new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`) are
   **web-only** for it. ⚠ **THE DRIVER APP WEARS THE STOREFRONT IDENTITY (092, constitution v3.5.0)** — like
-  the customer app below: generated from `customer-web/tokens.css`, Geist, Lucide, blue actions, green only for
+  the customer app below: generated from `tokens.css`, Geist, Lucide, blue actions, green only for
   done, problems black with an icon (no red), light and dark; its kit is `apps/driver-mobile/.../core/presentation/`
   and `scripts/driver-guard.sh` holds it. Mobile must still feel native (iOS HIG / Android
   Material); fat-finger targets + micro-animations are requirements. Design refs: Uber / Bolt /
@@ -479,10 +485,10 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
 - ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: Geist (bundled
   TTFs), Lucide icons, Effy blue for actions, Effy green for savings / "Delivered by Effy", no red. ⚠ **It
   has LIGHT AND DARK (constitution v3.4.0)**: the dark palette is the `.dark` block of
-  `customer-web/tokens.css`, read ONLY by the mobile generator — the website stays light only and sets no
+  `tokens.css`, read ONLY by the mobile generator — the website stays light only and sets no
   dark class. The shopper picks Match my phone / Light / Dark in Account → Appearance (stored on the
   device, `AppearanceMode`); colour roles without an M3 slot are read through `EffyRoles` (which follows
-  the appearance), and promo panels with white type use the fixed `promoGround` / `promoBlue`. `gen-compose-theme.mjs` has a **per-target source** (customer → `customer-web/tokens.css`,
+  the appearance), and promo panels with white type use the fixed `promoGround` / `promoBlue`. `gen-compose-theme.mjs` has a **per-target source** (customer → `tokens.css`,
   shop/driver → `tokens.css`) and `tokens:check` fails an undeclared hex in the customer theme. Its UI is the customer kit in `apps/customer-mobile/.../core/presentation/`
   (customer-local, never mobile-kit), drawn from the design canvas
   `docs/reference-screens/Effy Customer Mobile/`. ⚠ **No centred dialogs and no drop-down menus** —
