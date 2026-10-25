@@ -8,9 +8,9 @@ TypeScript source and CSS (each consumer's bundler transpiles).
 
 | File (export) | Used by | Identity |
 |---|---|---|
-| `src/tokens.css` (`./tokens.css`) | no web app — the email tokens, the mobile layout scale and the token guards read it | The console: cobalt `--brand`/`--primary` as the one action colour, neutral greys, near-black dark base, three bounded hues (`--accent2`, `--violet`, `--teal`), four states with `-soft` tints, radius 4/6/8/10, Geist |
-| `src/storefront/tokens.css` (`./storefront.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
-| `src/console.css` (`./console.css`) | back-office, shop-web | The consoles' tokens and @theme, then their shared styles (dialogs, toasts, `ef-*` patterns for both consoles, the shell) |
+| `src/tokens.css` (`./tokens.css`) | back-office and shop-web (through `console.css`); the email kit; the mobile layout scale | The console theme: every colour, size, shadow and timing token, light and dark, and the `@theme` mapping. The one source of console tokens. |
+| `src/customer-web/tokens.css` (`./customer-web.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
+| `src/console.css` (`./console.css`) | back-office, shop-web | Imports `tokens.css`, then the consoles' shared styles (dialogs, toasts, `ef-*` patterns, the shell). No tokens of its own. |
 
 ### Where a console style goes
 
@@ -62,7 +62,7 @@ To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming a
 ## Mobile themes
 
 `scripts/gen-compose-theme.mjs` generates the Compose theme for each KMP app (customer, driver):
-colours, Geist type and `EffyStorefrontShape` from `src/storefront/tokens.css` (light and dark), and the
+colours, Geist type and `EffyStorefrontShape` from `src/customer-web/tokens.css` (light and dark), and the
 layout scale (`EffyRadius`, `EffySpacing`) from `src/tokens.css`. `scripts/gen-stripe-appearance.mjs`
 themes the customer payment element on the web, Android and iOS (the iOS half is written to
 `apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift`) from the storefront file.

@@ -3,7 +3,7 @@
 
 @source "../../../packages/design-system/src/ui";
 
-@import "@effy/design-system/storefront.css";
+@import "@effy/design-system/customer-web.css";
 
 :root {
   --promo-green: #15803d;

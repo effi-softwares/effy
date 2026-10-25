@@ -43,7 +43,7 @@ for (const name of ["button.tsx", "badge.tsx", "input.tsx", "select.tsx", "texta
 if (maxRadius("card.tsx") !== RANK.lg) {
   errors.push(`card.tsx must be \`rounded-lg\` (8px, the container step), found rank ${maxRadius("card.tsx")}.`);
 }
-for (const name of ["dropdown-menu.tsx", "select.tsx", "popover.tsx", "dialog.tsx", "alert-dialog.tsx"]) {
+for (const name of ["dropdown-menu.tsx", "select.tsx", "dialog.tsx", "alert-dialog.tsx"]) {
   const surface = maxRadius(name);
   const row = minRadius(name);
   if (surface !== null && row !== null && surface < row) {

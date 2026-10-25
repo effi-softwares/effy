@@ -20,7 +20,7 @@ if [ -n "$hits" ]; then
 fi
 # The customer mobile app wears the storefront identity too. Its colours come only from the
 # generated storefront theme (packages/design-system/compose/EffyTokens.kt, which tokens:check holds to
-# storefront/tokens.css); a red-dominant colour literal anywhere in its Kotlin is a defect.
+# customer-web/tokens.css); a red-dominant colour literal anywhere in its Kotlin is a defect.
 mobile_red="$(grep -rnoE 'Color\(0x[0-9A-Fa-f]{8}\)' apps/customer-mobile/shared/src packages/design-system/compose \
   --include='*.kt' 2>/dev/null | python3 -c '
 import sys

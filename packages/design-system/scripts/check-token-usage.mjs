@@ -22,14 +22,14 @@ if (consoleDeclared.size < 20) {
   process.exit(1);
 }
 // customer-web imports the storefront @theme instead, where a console name emits no rule.
-const storefrontDeclared = declaredIn("../src/storefront/tokens.css");
+const storefrontDeclared = declaredIn("../src/customer-web/tokens.css");
 if (storefrontDeclared.size < 15) {
-  console.error("check-token-usage: FAILED — only " + storefrontDeclared.size + " --color-* vars parsed from storefront/tokens.css");
+  console.error("check-token-usage: FAILED — only " + storefrontDeclared.size + " --color-* vars parsed from customer-web/tokens.css");
   process.exit(1);
 }
 
 // back-office imports its own @theme (held to every console name by check-backoffice-tokens.mjs) with its own roles.
-const backofficeDeclared = declaredIn("../src/console.css");
+const backofficeDeclared = declaredIn("../src/tokens.css");
 if (backofficeDeclared.size < consoleDeclared.size) {
   console.error("check-token-usage: FAILED — console.css declares fewer --color-* vars than tokens.css");
   process.exit(1);
@@ -114,7 +114,7 @@ const ok = [
     "apps/back-office/src",
     "apps/shop-web/src",
   ]),
-  scan("storefront", "storefront/tokens.css", storefrontDeclared, everyToken, [
+  scan("storefront", "customer-web/tokens.css", storefrontDeclared, everyToken, [
     "apps/customer-web/app",
     "apps/customer-web/components",
   ]),

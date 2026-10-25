@@ -12,9 +12,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const raw = readFileSync(resolve(here, "../src/console.css"), "utf8");
+const raw = readFileSync(resolve(here, "../src/tokens.css"), "utf8");
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
-const consoleCss = readFileSync(resolve(here, "../src/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 const fail = [];
 
@@ -35,9 +34,6 @@ const dark = block("\\.dark");
 // 1. The console vocabulary resolves here.
 const declared = (src) => new Set([...src.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
 const ours = declared(css);
-for (const name of declared(consoleCss)) {
-  if (!ours.has(name)) fail.push(`@theme declares no --color-${name}, which the console file (and so a shared primitive) uses`);
-}
 for (const name of ours) {
   if (!(name in light)) fail.push(`--color-${name} points at --${name}, which :root does not declare`);
 }

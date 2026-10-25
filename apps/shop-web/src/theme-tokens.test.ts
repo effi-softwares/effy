@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 const appCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8")
 const tokensCss = readFileSync(
-  resolve(process.cwd(), "../../packages/design-system/src/console.css"),
+  resolve(process.cwd(), "../../packages/design-system/src/tokens.css"),
   "utf8",
 ).toLowerCase()
 

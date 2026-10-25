@@ -1,4 +1,4 @@
-// Guard for the storefront identity (src/storefront/tokens.css), a second identity with its own rules:
+// Guard for the storefront identity (src/customer-web/tokens.css), a second identity with its own rules:
 //  1. the key set is exactly the storefront's;
 //  2. one `:root` block (the website) and one `.dark` block (the mobile app) with the same keys, and no
 //  data-theme selector or colour-scheme query, so the web cannot switch to dark;
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const raw = readFileSync(resolve(here, "../src/storefront/tokens.css"), "utf8");
+const raw = readFileSync(resolve(here, "../src/customer-web/tokens.css"), "utf8");
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
 const fail = [];
 

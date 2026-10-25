@@ -20,7 +20,7 @@ val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
  * The driver app's theme (092, constitution v3.5.0): the storefront identity, generated from
- * `packages/design-system/src/storefront/tokens.css` — Effy blue for the next action, Effy green for
+ * `packages/design-system/src/customer-web/tokens.css` — Effy blue for the next action, Effy green for
  * done, a problem is black with an icon (no red, no orange), Geist, light and dark.
  */
 @Composable

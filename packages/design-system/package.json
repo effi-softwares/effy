@@ -10,7 +10,7 @@
     "./ui": "./src/ui/index.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./tokens.css": "./src/tokens.css",
-    "./storefront.css": "./src/storefront/tokens.css",
+    "./customer-web.css": "./src/customer-web/tokens.css",
     "./console.css": "./src/console.css",
     "./stripe-storefront-appearance": "./stripe/storefront-appearance.ts",
     "./banner-template.svg": "./banner/banner-template.svg"
@@ -35,7 +35,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
     "radix-ui": "^1.6.2",
-    "recharts": "^2.15.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2"

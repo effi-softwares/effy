@@ -7,27 +7,27 @@
 
 export const EMAIL_TOKENS = {
   light: {
-      "pageGround": "#edf2fd",
+      "pageGround": "#f4f4f5",
       "canvas": "#ffffff",
-      "ink": "#0b1220",
-      "mutedInk": "#5c6b86",
-      "hairline": "#e1e8f3",
+      "ink": "#09090b",
+      "mutedInk": "#68686f",
+      "hairline": "#e4e4e7",
       "actionFill": "#1d4ed8",
       "actionLabel": "#ffffff",
-      "codeSurface": "#edf2fd",
-      "error": "#cf2b1f",
-      "success": "#0d8043"
+      "codeSurface": "#f4f4f5",
+      "error": "#09090b",
+      "success": "#0d7a40"
   },
   dark: {
-      "pageGround": "#111111",
-      "canvas": "#151515",
+      "pageGround": "#111113",
+      "canvas": "#09090b",
       "ink": "#fafafa",
-      "mutedInk": "#a3a3a3",
-      "hairline": "#2a2a2a",
+      "mutedInk": "#a1a1aa",
+      "hairline": "#27272a",
       "actionFill": "#60a5fa",
-      "actionLabel": "#111111",
-      "codeSurface": "#212121",
-      "error": "#f87171",
+      "actionLabel": "#09090b",
+      "codeSurface": "#27272a",
+      "error": "#fafafa",
       "success": "#4cd97b"
   },
   radiusSm: "8px",

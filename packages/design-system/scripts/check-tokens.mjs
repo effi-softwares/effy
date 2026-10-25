@@ -98,11 +98,11 @@ const remPx = (name) => {
   return m ? Math.round(parseFloat(m[1]) * 16) : null;
 };
 // The four-step scale: 4px checkboxes, 6px controls, 8px buttons and icon chips, 10px containers.
-const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 10 };
+const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 12 };
 for (const [step, px] of Object.entries(RADII)) {
   if (remPx(step) !== px) err(`${step} must be ${px}px, got ${remPx(step)}px`);
 }
-if (remPx("--radius") !== 10) err(`--radius must be 0.625rem (10px, the container step), got ${remPx("--radius")}px`);
+if (remPx("--radius") !== 8) err(`--radius must be 0.5rem (8px, the container step), got ${remPx("--radius")}px`);
 
 // 3) WCAG 2.1 contrast.
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-const raw = readFileSync(resolve(process.cwd(), "../../packages/design-system/src/console.css"), "utf8")
+const raw = readFileSync(resolve(process.cwd(), "../../packages/design-system/src/tokens.css"), "utf8")
 const tokensCss = raw.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase()
 const stylesCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
 
@@ -10,7 +10,7 @@ describe("back-office identity tokens", () => {
   it("is the identity the app imports — and the only one", () => {
     expect(stylesCss).toContain('@import "@effy/design-system/console.css"')
     expect(stylesCss).not.toContain('@import "@effy/design-system/tokens.css"')
-    expect(stylesCss).not.toContain("storefront.css")
+    expect(stylesCss).not.toContain("customer-web.css")
   })
 
   it("uses Effy blue as the single action colour, lifted in dark", () => {
