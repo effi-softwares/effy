@@ -108,9 +108,10 @@ export function CodeStep({
     }
     setPending(true)
     setResendNote(null)
+    let outcome: CodeOutcome | undefined
     try {
       capture({ name: "auth_code_submitted", props: { flow, attempt: attempts + 1, lengthOk: true } })
-      const outcome = await onSubmit(code)
+      outcome = await onSubmit(code)
       if (outcome !== "accepted" && outcome !== "failed") {
         capture({
           name: "auth_code_rejected",
@@ -136,7 +137,7 @@ export function CodeStep({
       }
       // "accepted" and "stale" are the caller's to act on.
     } finally {
-      setPending(false)
+      if (outcome !== "accepted") setPending(false)
     }
   }
 
