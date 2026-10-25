@@ -63,7 +63,7 @@ export function TaxSettingsScreen() {
 
   return (
     <>
-      <PageHeader title="Tax" description="What every customer's tax invoice says about Effy, and whether invoices are on." />
+      <PageHeader title="Tax" description="The business details printed on customer tax invoices, and whether invoices are issued." />
       <div className="space-y-6">
         <Panel title="Effy's tax details" description="Printed on every tax invoice and adjustment note. Enter them exactly as registered with the ABR.">
           <div className="grid max-w-xl gap-4">

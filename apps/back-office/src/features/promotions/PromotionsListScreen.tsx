@@ -83,7 +83,7 @@ export function PromotionsListScreen() {
     <>
       <PageHeader
         title="Promotions"
-        description="Every offer Effy runs — automatic or by code — who it is for, when it runs, and where shoppers see it."
+        description="All discounts and offers, applied automatically or by code, with their status and schedule."
         actions={
           <>
             <Button variant="outline" asChild>

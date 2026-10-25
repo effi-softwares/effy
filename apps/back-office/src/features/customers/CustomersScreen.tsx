@@ -69,7 +69,7 @@ function CustomerSearch() {
     <div className="flex max-w-[1040px] flex-col gap-6">
       <PageHeader
         title="Customers"
-        description="Find a customer to see and change their points. Search by order number or email — there is deliberately no list of everyone."
+        description="Find a customer by order number or email to view and adjust their points."
         actions={
           <Button variant="outline" asChild>
             <Link to="/customers" search={{ tab: "settings" }}>
@@ -189,7 +189,7 @@ function PointsSettingsPage() {
       <PageHeader
         back={{ label: "Customers", link: { to: "/customers" } }}
         title="Points settings"
-        description="How points are earned, what they are worth, how long they last, and how many support can credit at once."
+        description="How customers earn points, what they are worth, and when they expire."
       />
       <PointsSettingsPanel />
     </div>

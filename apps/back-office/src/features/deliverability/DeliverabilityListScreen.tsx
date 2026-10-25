@@ -62,7 +62,7 @@ export function DeliverabilityListScreen() {
     <>
       <PageHeader
         title="Email deliverability"
-        description="Addresses the platform cannot reach. Someone listed as undeliverable receives no sign-in codes — and for driver, shop and back-office staff an emailed code is the only credential."
+        description="Email addresses that are bouncing or rejected, which can stop people receiving sign-in codes."
       />
 
       <div className="space-y-3">

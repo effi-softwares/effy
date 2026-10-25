@@ -69,10 +69,10 @@ export const STATE_LABEL: Record<EmailDeliveryState, string> = {
  * and useless to whoever is on the phone.
  */
 export const STATE_MEANING: Record<EmailDeliveryState, string> = {
-  reachable: "Messages are being delivered.",
-  soft_failing: "Recent messages could not be delivered. This often clears on its own.",
+  reachable: "Emails to this address are being delivered normally, with no problems recorded.",
+  soft_failing: "Recent emails to this address bounced; this often clears up on its own.",
   undeliverable:
-    "Messages are permanently rejected. This person receives NO sign-in codes — for driver, shop and back-office that means they cannot sign in at all.",
+    "Emails are permanently rejected, so this person cannot receive sign-in codes.",
   complained:
-    "A message was reported as spam. Recorded for context; it does NOT bar them from signing in.",
+    "An email was reported as spam; this does not stop them signing in.",
 };

@@ -256,7 +256,7 @@ function Editor({ current }: { current: Promotion | null }) {
       <PageHeader
         back={{ label: current ? current.name : "Promotions", link: current ? { to: "/promotions/$promoId", params: { promoId: current.id } } : { to: "/promotions" } }}
         title={current ? "Edit promotion" : "Create promotion"}
-        description="What it gives, who it is for, when it runs, how often it can be used, and what shoppers read."
+        description="Set the offer, who can use it, when it runs, and its limits."
       />
       {used ? (
         <Callout tone="info" title="This promotion has been used.">

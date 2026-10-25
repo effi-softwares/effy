@@ -29,7 +29,7 @@ export function PromotionGroupsScreen() {
       <PageHeader
         back={{ label: "Promotions", link: { to: "/promotions" } }}
         title="Display groups"
-        description="Where promotions are shown. The customer website and app ask for each group by its key and show its promotions in order."
+        description="The places on the website and app where promotions are shown, and their order."
         actions={
           canManage ? (
             <Button onClick={() => setCreating(true)}>

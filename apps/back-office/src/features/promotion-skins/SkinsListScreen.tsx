@@ -28,7 +28,7 @@ export function SkinsListScreen() {
       <PageHeader
         back={{ label: "Promotions", link: { to: "/promotions" } }}
         title="Skins"
-        description="How a promotion looks. Choose a skin for each place it is shown on a display group's page; a group's default is used otherwise."
+        description="Reusable designs that control how promotions look wherever they are shown to customers."
         actions={
           canManage ? (
             <Button asChild>

@@ -51,7 +51,7 @@ export function PrintingSettingsScreen() {
 
   return (
     <Page>
-      <PageHeader title="Printing" description="How this computer prints bag labels. Every shop computer keeps its own setting." />
+      <PageHeader title="Printing" description="Choose how this computer prints bag labels; each computer keeps its own setting." />
       <section className="bo-panel max-w-3xl">
         <div>
           <Row label="Printer" hint="Labels go straight to a Zebra label printer when Zebra Browser Print is running on this computer.">

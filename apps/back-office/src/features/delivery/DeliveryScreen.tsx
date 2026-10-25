@@ -28,19 +28,19 @@ const TABS: readonly string[] = ["coverage", "courier", "pricing", "slots", "day
 const PAGES: Record<string, { title: string; description: string }> = {
   pricing: {
     title: "Pricing",
-    description: "What delivery costs. One fee per order, worked out from one plan — base, distance, weight, and a surcharge for a window today.",
+    description: "How the delivery fee is calculated from base, distance, weight and same-day surcharge.",
   },
   slots: {
     title: "Delivery windows",
-    description: "The daily windows a customer chooses from: their hours, their cut-off, and how many orders each can take.",
+    description: "The daily delivery windows customers choose from, with their hours, cut-offs and capacity.",
   },
   days: {
     title: "Days, runs and closures",
-    description: "Which days Effy delivers, the collection runs that bring parcels to the hub, and the dates it is closed.",
+    description: "Delivery days, collection runs from shops to the hub, and dates Effy is closed.",
   },
   settings: {
     title: "Hub and timings",
-    description: "Where every distance is measured from, and how long a shop needs before a collection run.",
+    description: "The hub's location and how much preparation time shops need before each collection run.",
   },
 };
 

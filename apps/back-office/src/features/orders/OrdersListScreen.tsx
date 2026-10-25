@@ -127,7 +127,7 @@ export function OrdersListScreen() {
     <>
       <PageHeader
         title="Orders"
-        description="Every paid order, where it is, and who has it. A view is a saved filter — its link opens the same list for anyone."
+        description="Every paid order with its current status, delivery details and who is handling it."
         actions={
           <>
             <Button variant="outline" asChild>

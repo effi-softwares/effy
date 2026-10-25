@@ -55,7 +55,7 @@ export function ShopsListScreen() {
     <>
       <PageHeader
         title="Shops"
-        description="The fulfilment shops behind Effy and their operators. Customers never see a shop."
+        description="The fulfilment shops that pack Effy orders, and the operators who run them."
         actions={
           canManage ? (
             <Button onClick={() => setCreateOpen(true)}>

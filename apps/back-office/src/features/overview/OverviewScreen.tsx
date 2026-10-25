@@ -150,7 +150,7 @@ export function OverviewScreen() {
     <>
       <PageHeader
         title={first ? `${greeting()}, ${first}` : greeting()}
-        description={`${dateLine.format(new Date())} · Melbourne time. What needs a person right now, and how today's deliveries are going.`}
+        description={`${dateLine.format(new Date())} · What needs attention now, and how today's deliveries are going.`}
         actions={
           <>
             <Button variant="outline" onClick={() => setCommandPaletteOpen(true)}>

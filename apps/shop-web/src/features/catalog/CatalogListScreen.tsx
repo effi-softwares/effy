@@ -166,7 +166,7 @@ export function CatalogListScreen() {
     <Page>
       <PageHeader
         title="Catalog"
-        description="Your shop's products. New products and price changes go to Effy for review; taking a size off sale is immediate."
+        description="Your shop's products, prices and stock; new products and price changes need Effy's approval."
         actions={
           <>
             <Button asChild variant="outline">

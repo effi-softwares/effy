@@ -167,8 +167,8 @@ export function OrderListScreen({
         title="Orders"
         description={
           view === "queue"
-            ? "Oldest first in every lane. Tap a ticket to open it, or scan a bag label to jump straight to its order."
-            : "Every order with your shop's items. The table is for the counter; the queue is for the packing bench."
+            ? "Orders to pick and pack, oldest first; scan a bag label to open its order."
+            : "Every order containing your shop's items, with where each one is up to."
         }
         actions={
           <>

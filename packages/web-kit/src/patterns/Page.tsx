@@ -5,10 +5,12 @@ import { ArrowLeft } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 
+import { useHeaderBack, type HeaderBack } from "../console/StaffHeader";
+
 /**
  * A page's head (Patterns board): title 24/32 semibold (20 on a phone), one muted line saying what
- * the page is for, actions on the right that go full width on a phone. An optional back link sits
- * above the title on a record page.
+ * the page is for, actions on the right that go full width on a phone. A record page's back link goes
+ * in the console header, before the breadcrumb; outside a console it sits above the title.
  */
 export function PageHeader({
   title,
@@ -20,13 +22,14 @@ export function PageHeader({
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  back?: { label: string; link: LinkProps };
+  back?: HeaderBack;
   meta?: ReactNode;
 }) {
+  const inHeader = useHeaderBack(back);
   return (
     <div className="bo-page-head">
       <div className="bo-page-head__text">
-        {back ? (
+        {back && !inHeader ? (
           <Link {...back.link} className="bo-back">
             <ArrowLeft aria-hidden="true" />
             {back.label}

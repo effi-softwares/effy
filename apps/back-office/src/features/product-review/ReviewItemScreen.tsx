@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { ArrowLeft, Store } from "lucide-react";
+import { Store } from "lucide-react";
 
 import type { ReviewImageDTO, ReviewItemDetailDTO } from "@effy/shared-types";
 import {
@@ -30,7 +30,7 @@ import { PageHeader } from "@effy/web-kit/patterns";
 import { DetailRows, Panel } from "@effy/web-kit/patterns";
 import { StatusWord } from "@effy/web-kit/patterns";
 
-import { useHeaderDetail } from "@effy/web-kit/console";
+import { useHeaderBack, useHeaderDetail } from "@effy/web-kit/console";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { track } from "@/lib/telemetry";
 
@@ -53,14 +53,11 @@ import { reviewItemQuery, useApprove, useSendBack } from "./queries";
  */
 export function ReviewItemScreen({ productId }: { productId: string }) {
   const item = useQuery(reviewItemQuery(productId));
+  // The loaded page's header carries its own; until then, the way back is still in the header.
+  useHeaderBack(item.isSuccess ? null : BACK);
 
   if (item.isError) {
-    return (
-      <div className="space-y-4">
-        <BackLink />
-        <ErrorState error={item.error} onRetry={() => void item.refetch()} />
-      </div>
-    );
+    return <ErrorState error={item.error} onRetry={() => void item.refetch()} />;
   }
   if (item.isPending) {
     return (
@@ -74,14 +71,7 @@ export function ReviewItemScreen({ productId }: { productId: string }) {
   return <ReviewItem key={item.data.version} item={item.data} onChanged={() => void item.refetch()} />;
 }
 
-function BackLink() {
-  return (
-    <Link to="/product-review" className="bo-back">
-      <ArrowLeft aria-hidden="true" />
-      Product review
-    </Link>
-  );
-}
+const BACK = { label: "Product review", link: { to: "/product-review" } } as const;
 
 function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged: () => void }) {
   const navigate = useNavigate();
@@ -133,7 +123,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
   return (
     <>
       <PageHeader
-        back={{ label: "Product review", link: { to: "/product-review" } }}
+        back={BACK}
         title={
           <span className="flex flex-wrap items-center gap-3">
             {item.productName}

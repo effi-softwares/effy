@@ -1,7 +1,7 @@
 /** `@effy/web-kit/console`: the operator consoles' SPA chrome, apart from the runtime so customer-web can skip it. */
 export { StaffShell, type StaffShellProps } from "./StaffShell";
 export { StaffSidebar, type StaffSidebarProps } from "./StaffSidebar";
-export { StaffHeader, HeaderDetailProvider, useHeaderDetail, type StaffHeaderProps } from "./StaffHeader";
+export { StaffHeader, HeaderDetailProvider, useHeaderBack, useHeaderDetail, type HeaderBack, type StaffHeaderProps } from "./StaffHeader";
 export { StaffUserMenu, type StaffUserMenuProps } from "./StaffUserMenu";
 export {
   visibleStaffGroups,

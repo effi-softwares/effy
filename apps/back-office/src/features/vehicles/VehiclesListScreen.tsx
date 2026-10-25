@@ -74,7 +74,7 @@ export function VehiclesListScreen() {
     <>
       <PageHeader
         title="Vehicles"
-        description="Every vehicle Effy runs, whoever owns it — what it carries, what is roadworthy, and who has it right now."
+        description="The vans and cars drivers use, their capacity, roadworthiness, and who has each one."
         actions={canManage ? <CreateVehicleDialog /> : undefined}
       />
 

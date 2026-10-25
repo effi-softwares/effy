@@ -22,7 +22,7 @@ export function NotificationSettingsScreen() {
     <Page>
       <PageHeader
         title="Notifications"
-        description="Be told when a new order arrives, or when something needs your attention — even with the console closed."
+        description="Get alerts on this device for new orders and urgent issues, even when closed."
         actions={
           n.status === "on" ? (
             <Button variant="outline" disabled={n.busy} onClick={() => void n.disable()}>

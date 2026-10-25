@@ -45,7 +45,7 @@ export function ExceptionsScreen() {
     <>
       <PageHeader
         title="Delivery exceptions"
-        description="Deliveries a driver could not complete. Each one has a customer still waiting, so nothing here resolves itself."
+        description="Deliveries a driver could not complete that need someone to decide what happens next."
         actions={
           <Button variant="outline" asChild>
             <Link to="/orders/assignments">

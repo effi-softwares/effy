@@ -81,7 +81,7 @@ export function SkinEditorScreen({ skinId }: { skinId?: string }) {
 function ClassicScreen({ skin }: { skin: AdminSkinDTO }) {
   return (
     <>
-      <PageHeader back={{ label: "Skins", link: { to: "/promotions/skins" } }} title={skin.name} description="Built in. Each place is drawn as it always looked — the website and app choose its colours and icons." />
+      <PageHeader back={{ label: "Skins", link: { to: "/promotions/skins" } }} title={skin.name} description="The built-in look, where the website and app choose the colours and icons." />
       <Usage skin={skin} />
     </>
   );
@@ -162,7 +162,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
       <PageHeader
         back={{ label: "Skins", link: { to: "/promotions/skins" } }}
         title={current ? current.name : "New skin"}
-        description="Choose a layout, then make every part of it your own. Words must stay readable on what they sit on."
+        description="Pick a layout and set its colours, text and pictures for how promotions look."
         actions={
           canManage ? (
             <>

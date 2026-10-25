@@ -60,7 +60,7 @@ export function ReviewQueueScreen() {
     <>
       <PageHeader
         title="Product review"
-        description="New products and changes from shops. A product is not on sale, and a change is not visible to customers, until it is approved here."
+        description="Approve or send back new products and changes that shops submit before they go live."
         actions={
           first ? (
             <Button asChild>

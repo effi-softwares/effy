@@ -83,7 +83,7 @@ export function FeedbackListScreen() {
     <>
       <PageHeader
         title="Customer feedback"
-        description="What shoppers have told us — bugs, ideas, complaints and compliments. Open one to read it in full, add an internal note, change its status, or reply."
+        description="Bugs, ideas, complaints and compliments sent by customers, ready to read and answer."
       />
 
       <div className="space-y-3">

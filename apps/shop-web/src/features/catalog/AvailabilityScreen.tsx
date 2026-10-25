@@ -51,7 +51,7 @@ export function AvailabilityScreen() {
       <PageHeader
         back={{ label: "Catalog", link: { to: "/catalog" } }}
         title="Availability"
-        description="Run out mid-shift? Switch a size off here in one tap. It leaves the storefront straight away and needs no review."
+        description="Switch products off sale instantly when you run out, with no review needed."
       />
 
       <div role="tablist" aria-label="Show" className="bo-tabs">

@@ -36,7 +36,7 @@ export function CatalogSchemaScreen() {
 
   return (
     <>
-      <PageHeader title="Catalogue schema" description="The schema that drives every product: types, their attributes, and the category taxonomy." />
+      <PageHeader title="Catalogue schema" description="Product types, the details each one asks for, and the category tree customers browse." />
       <div className="space-y-4">
         <nav className="bo-tabs" aria-label="Schema views">
           {views.map((v) => (

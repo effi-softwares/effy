@@ -37,7 +37,7 @@ export function HandoverReportScreen() {
     <>
       <PageHeader
         title="Hand-over report"
-        description="How bags changed hands — scanned, typed or by hand — and what went wrong."
+        description="Every bag hand-over between shops, drivers and the hub, and how it was recorded."
         actions={
           <div className="flex flex-wrap items-end gap-2">
             <label className="space-y-1 text-sm">

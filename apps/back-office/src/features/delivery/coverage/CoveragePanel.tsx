@@ -123,7 +123,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
     <>
       <PageHeader
         title="Where Effy delivers"
-        description="An address in a postcode on this list is Delivered by Effy. Groups only organise the list — they change nothing a customer sees or pays, and no shop setting changes it either."
+        description="The postcodes Effy's own drivers deliver to, organised into optional groups."
         actions={
           canManage ? (
             <Button onClick={() => setAddOpen(true)}>
@@ -409,7 +409,7 @@ export function CourierPage({ canManage }: { canManage: boolean }) {
     <>
       <PageHeader
         title="Courier delivery"
-        description="Where an address that is not on Effy's list is offered courier delivery, what the shopper is told, and the courier services the business uses."
+        description="Courier delivery for addresses outside Effy's area, its fees, and the courier services used."
       />
       {coverage.isError ? (
         <ErrorState error={coverage.error} onRetry={() => void coverage.refetch()} />

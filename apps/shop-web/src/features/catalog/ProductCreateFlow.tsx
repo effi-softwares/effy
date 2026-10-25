@@ -285,12 +285,12 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
   );
 
   const STEP_HINTS = [
-    "Pick what kind of product this is. The type decides which details you are asked for next.",
-    "The essentials a shopper sees.",
-    "What the product is sold as. One price for one form — or add an option such as Size and price each size.",
-    "One photograph. It is what the product looks like everywhere on the storefront.",
-    "The details this product type asks for. Required ones are marked.",
-    "Check it over. Nothing is sent to Effy until you press Submit for review. It goes on sale once Effy approves it.",
+    "Choose the kind of product, which decides the details you fill in next.",
+    "The name, description and category shoppers see when they find this product.",
+    "Set the price, or add options such as size and price each one.",
+    "Add one photo, used for this product everywhere customers see it.",
+    "Fill in the details this product type needs; required ones are marked.",
+    "Check everything, then submit; it goes on sale once Effy approves it.",
   ] as const;
 
   const last = step === STEP_TITLES.length - 1;

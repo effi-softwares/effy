@@ -84,7 +84,7 @@ export function DriversListScreen() {
     <>
       <PageHeader
         title="Drivers"
-        description="Everyone Effy employs to move packages — who they are, whether they can work, and what has gone wrong out on the road."
+        description="Effy's drivers, whether they are cleared to work, and any incidents on the road."
         actions={canManage ? <CreateDriverDialog /> : undefined}
       />
 

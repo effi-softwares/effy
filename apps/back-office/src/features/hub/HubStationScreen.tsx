@@ -54,7 +54,7 @@ export function HubStationScreen() {
 
   return (
     <>
-      <PageHeader title="Hub station" description="Scan each bag as it comes off a collection run. The screen says where it goes." />
+      <PageHeader title="Hub station" description="Scan bags arriving from collection runs to check them in and see where each goes." />
 
       <div className="space-y-6">
         <section aria-label="Scan" className="space-y-4">

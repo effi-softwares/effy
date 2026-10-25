@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronRight, Menu, PanelLeft, RefreshCcw, RefreshCw, Search, WifiOff } from "lucide-react";
+import { Link, useLocation, type LinkProps } from "@tanstack/react-router";
+import { ArrowLeft, ChevronRight, Menu, PanelLeft, RefreshCcw, RefreshCw, Search, WifiOff } from "lucide-react";
 
 import { useSidebar } from "@effy/design-system/ui";
 
@@ -10,8 +10,8 @@ import { Kbd } from "../patterns/Kbd";
 import { staffActiveKey, staffLinkOf, staffLocate, type DefaultTabs, type StaffNavGroup } from "./staff-nav";
 
 /**
- * The consoles' header (sidebar-07's SiteHeader, board "Header"): the rail trigger, a hairline, where
- * you are (section › page › record), then the surface's own controls, the live status and the ⌘K
+ * The consoles' header (sidebar-07's SiteHeader, board "Header"): the rail trigger, a hairline, a
+ * record page's back link, where you are (section › page › record), then the surface's own controls, the live status and the ⌘K
  * search. Below 768px: a menu button, the page's own title and a search icon.
  */
 export interface StaffHeaderProps {
@@ -32,7 +32,9 @@ export interface StaffHeaderProps {
 export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPrompt, actions, account, detail: detailProp }: StaffHeaderProps) {
   const { pathname, search } = useLocation();
   const { toggleSidebar, setOpenMobile } = useSidebar();
-  const fromPage = useContext(DetailContext)?.detail ?? null;
+  const ctx = useContext(DetailContext);
+  const fromPage = ctx?.detail ?? null;
+  const back = ctx?.back ?? null;
   const detail = detailProp ?? fromPage;
   const tab = typeof (search as { tab?: unknown }).tab === "string" ? (search as { tab: string }).tab : undefined;
   const where = staffLocate(groups, staffActiveKey(groups, { pathname, tab, query: search as Record<string, unknown> }, defaultTabs));
@@ -59,6 +61,11 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
       </button>
       <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border max-md:hidden" />
 
+      {back ? (
+        <Link {...back.link} className="bo-iconbtn" aria-label={`Back to ${back.label}`} title={`Back to ${back.label}`}>
+          <ArrowLeft aria-hidden="true" />
+        </Link>
+      ) : null}
       <nav aria-label="Breadcrumb" className="bo-crumbs max-md:hidden">
         {where && section && page ? (
           <>
@@ -145,13 +152,27 @@ function LivePill() {
   );
 }
 
-/* ---------- The record a page is showing, for the breadcrumb's last crumb ---------- */
+/* ---------- The record a page is showing, and where its back link goes ---------- */
 
-const DetailContext = createContext<{ detail: string | null; setDetail: (d: string | null) => void } | null>(null);
+/** A record page's way back to its list ("Shops"), shown before the breadcrumb. */
+export interface HeaderBack {
+  label: string;
+  link: LinkProps;
+}
+
+interface HeaderPage {
+  detail: string | null;
+  setDetail: (d: string | null) => void;
+  back: HeaderBack | null;
+  setBack: (b: HeaderBack | null) => void;
+}
+
+const DetailContext = createContext<HeaderPage | null>(null);
 
 export function HeaderDetailProvider({ children }: { children: ReactNode }) {
   const [detail, setDetail] = useState<string | null>(null);
-  return <DetailContext.Provider value={{ detail, setDetail }}>{children}</DetailContext.Provider>;
+  const [back, setBack] = useState<HeaderBack | null>(null);
+  return <DetailContext.Provider value={{ detail, setDetail, back, setBack }}>{children}</DetailContext.Provider>;
 }
 
 /**
@@ -166,4 +187,23 @@ export function useHeaderDetail(label: string | null | undefined): void {
     setDetail(label ?? null);
     return () => setDetail(null);
   }, [label, setDetail]);
+}
+
+/**
+ * A record page puts its back link in the header, before the breadcrumb. Cleared when the page
+ * unmounts. Returns false outside a console shell, where the caller shows the link itself.
+ *
+ * Keyed on the link's content, not its identity: callers pass a fresh object every render. Passing
+ * nothing sets nothing, so a parent without a link never clears its child's.
+ */
+export function useHeaderBack(back: HeaderBack | null | undefined): boolean {
+  const ctx = useContext(DetailContext);
+  const setBack = ctx?.setBack;
+  const key = back ? JSON.stringify(back) : null;
+  useEffect(() => {
+    if (!setBack || !key) return;
+    setBack(JSON.parse(key) as HeaderBack);
+    return () => setBack(null);
+  }, [key, setBack]);
+  return Boolean(setBack);
 }

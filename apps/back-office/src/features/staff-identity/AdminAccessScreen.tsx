@@ -60,7 +60,7 @@ export function AdminAccessScreen() {
     <>
       <PageHeader
         title="Admin and access"
-        description="Who you are to the platform, and what each back-office role can do. Access is decided by the backend, not the interface — a hidden button is a courtesy, never the gate."
+        description="Your back-office account, your role, and what each staff role is allowed to do."
       />
       <Tabs defaultValue="you">
         <div className="bo-tabsbar">

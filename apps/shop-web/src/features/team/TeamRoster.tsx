@@ -63,7 +63,7 @@ export function TeamRoster() {
     <div className="flex flex-col gap-6 max-md:gap-4">
       <PageHeader
         title="Team"
-        description="Who can sign in to this shop, and what they can do."
+        description="The people who can sign in to this shop console, and what each can do."
         actions={
           canManage ? (
             <Button onClick={() => setInviteOpen(true)}>

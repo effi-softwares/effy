@@ -52,7 +52,7 @@ export function CourierScreen() {
     <>
       <PageHeader
         title="Courier parcels"
-        description="Parcels a courier takes to customers outside Effy's area. Open an order to book its consignment and record each step."
+        description="Parcels going to customers by courier, ready to book, track and record each step."
         actions={
           <Button variant="outline" asChild>
             <Link to="/delivery" search={{ tab: "coverage" }}>

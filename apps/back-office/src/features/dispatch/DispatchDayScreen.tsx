@@ -33,7 +33,7 @@ export function DispatchDayScreen() {
     <>
       <PageHeader
         title="Dispatch"
-        description="Who has what, when each round opens, and anything that needs a driver. Auto-assign runs every 5 minutes — you step in only where it can't."
+        description="Today's collection and delivery rounds, who is assigned, and work still needing a driver."
       />
 
       {isError ? (

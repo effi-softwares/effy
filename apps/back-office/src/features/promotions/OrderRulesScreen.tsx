@@ -40,7 +40,7 @@ export function OrderRulesScreen() {
       <PageHeader
         back={{ label: "Promotion codes", link: { to: "/promotions" } }}
         title="Order rules"
-        description="The minimum a shopper must spend to check out, and the limits a single cart may hold."
+        description="The minimum spend needed to check out and the limits on a single cart."
       />
 
       <OrderRulesForm
