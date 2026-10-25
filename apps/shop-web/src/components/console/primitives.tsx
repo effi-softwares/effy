@@ -52,7 +52,7 @@ export function SectionAction({
       data-slot="button"
       data-variant="ghost"
       data-size="sm"
-      className="inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>

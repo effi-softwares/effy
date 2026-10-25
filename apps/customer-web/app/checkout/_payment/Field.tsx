@@ -52,8 +52,8 @@ export function Field({
           "transition-[color,box-shadow]",
           // The focus indicator is the border, and only the border.
           error
-            ? "border-destructive ring-[3px] ring-destructive/10"
-            : "border-input focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20",
+            ? "border-destructive"
+            : "border-input focus-within:border-ring",
         )}
       >
         {children}

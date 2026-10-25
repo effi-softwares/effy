@@ -25,11 +25,6 @@
     border-color var(--dur-fast) ease,
     box-shadow var(--dur-fast) ease;
 }
-[data-slot="button"]:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  box-shadow: none;
-}
 [data-slot="button"][data-size="default"] { height: 36px; padding: 0 16px; }
 [data-slot="button"][data-size="default"]:has(> svg) { padding: 0 14px; }
 [data-slot="button"][data-size="sm"] { height: 32px; padding: 0 12px; gap: 6px; font-size: 13px; }
@@ -121,9 +116,7 @@
 [data-slot="input"]:focus-visible,
 [data-slot="textarea"]:focus-visible,
 [data-slot="select-trigger"]:focus-visible {
-  outline: none;
   border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent);
 }
 [data-slot="input"][aria-invalid="true"],
 [data-slot="textarea"][aria-invalid="true"] {
@@ -326,17 +319,4 @@
 [data-slot="otp-cell"]:not([data-filled]) { border-color: var(--muted-foreground); }
 @media (max-width: 400px) {
   [data-slot="otp-cell"] { width: 44px; height: 48px; }
-}
-
-/* ---------- Focus rings: keyboard navigation only ----------
-   2026-10-25, operator: no ring on what was clicked or tapped. `<html data-input>` is written by
-   @effy/web-kit's `trackInputModality` — "pointer" after a click or tap, "keyboard" after Tab or an
-   arrow key. While a pointer is driving, no control draws a ring (outline, or the ring utilities'
-   box-shadow); the first navigation key brings every ring back, so keyboard users always see where
-   they are (WCAG 2.4.7). Text fields keep their focus state — it says where typing will go. */
-html[data-input="pointer"] :focus-visible:not(input, textarea, select, [contenteditable="true"]) {
-  outline: none !important;
-  --tw-ring-shadow: 0 0 transparent;
-  --tw-ring-offset-shadow: 0 0 transparent;
-  --tw-inset-ring-shadow: 0 0 transparent;
 }

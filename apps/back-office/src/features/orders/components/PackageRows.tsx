@@ -116,7 +116,7 @@ function PackageRow({
   return (
     <div
       id={`package-${pkg.fulfillmentId}`}
-      className={`space-y-4 px-5 py-4 ${lit ? "bg-brand-soft/40 ring-2 ring-inset ring-ring" : ""}`}
+      className={`space-y-4 px-5 py-4 ${lit ? "bg-brand-soft/40" : ""}`}
       data-highlighted={lit || undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">

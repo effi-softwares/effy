@@ -76,7 +76,7 @@ export function AddressPicker({
   return (
     <div>
       {!expanded ? (
-        <div className="flex items-start justify-between gap-4 rounded-md border border-primary bg-primary-muted/40 p-4 ring-1 ring-primary">
+        <div className="flex items-start justify-between gap-4 rounded-md border border-primary bg-primary-muted/40 p-4">
           <AddressSummary address={selected} showCoverage={showCoverage} />
           <button
             type="button"
@@ -91,7 +91,7 @@ export function AddressPicker({
           <ul className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Saved addresses">
             {addresses.map((a) => (
               <li key={a.id}>
-                <label className="flex h-full cursor-pointer items-start gap-3 rounded-md border p-4 shadow-xs hover:bg-accent has-checked:border-primary has-checked:ring-1 has-checked:ring-primary">
+                <label className="flex h-full cursor-pointer items-start gap-3 rounded-md border p-4 shadow-xs hover:bg-accent has-checked:border-primary">
                   <input
                     type="radio"
                     name={`${idPrefix}-address`}

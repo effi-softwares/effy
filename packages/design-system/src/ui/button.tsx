@@ -8,7 +8,7 @@ import { cn } from "../cn"
 // a button sits visibly on its card; never a pill (check-component-shape.mjs). Disabled lowers opacity
 // rather than changing colour. No shadows.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-muted disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -22,11 +22,11 @@ const buttonVariants = cva(
         // Ghost: no chrome until hovered, muted text at rest so a row of them does not read as links.
         ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         destructive:
-          "bg-destructive text-destructive-foreground font-semibold hover:opacity-90 focus-visible:ring-destructive/30",
+          "bg-destructive text-destructive-foreground font-semibold hover:opacity-90",
         // The default destructive affordance. The filled `destructive` is for confirmation dialogs,
         // where destroying something is the primary action.
         "destructive-ghost":
-          "bg-transparent text-destructive hover:bg-destructive-soft focus-visible:ring-destructive/30",
+          "bg-transparent text-destructive hover:bg-destructive-soft",
         link: "text-brand underline-offset-4 hover:underline hover:text-brand-ink",
       },
       size: {

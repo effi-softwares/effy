@@ -95,7 +95,7 @@ function Row({
         "rounded-lg bg-card shadow-xs transition-shadow",
         // Selection reads as a doubled border rather than a fill, so it looks the same in either
         // appearance — the monochrome accent inverts, a fill would not (Principle V).
-        selected ? "border border-primary ring-1 ring-primary" : "border border-input",
+        selected ? "border border-primary" : "border border-input",
       )}
     >
       <button

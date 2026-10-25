@@ -36,7 +36,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                   rounded="rounded-full"
                   fallbackLabel={category.name.charAt(0).toUpperCase()}
                   sizes="112px"
-                  className="w-[4.5rem] ring-ring transition-shadow group-hover:ring-2 sm:w-24"
+                  className="w-[4.5rem] transition-shadow sm:w-24"
                 />
                 {/* The name is the caption + a hidden count, not an aria-label: a label that drops the
                     fallback letter on screen fails WCAG 2.5.3 (label in name). */}

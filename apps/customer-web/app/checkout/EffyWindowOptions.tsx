@@ -76,11 +76,11 @@ export function EffyWindowOptions({
   }
 
   const optionClass = (selected: boolean, closed = false) =>
-    "flex min-h-14 cursor-pointer flex-col justify-center rounded-md border px-3 py-2 text-sm shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring " +
+    "flex min-h-14 cursor-pointer flex-col justify-center rounded-md border px-3 py-2 text-sm shadow-xs " +
     (closed
       ? "cursor-not-allowed border-dashed bg-muted text-muted-foreground shadow-none"
       : selected
-        ? "border-primary bg-primary-muted ring-1 ring-primary"
+        ? "border-primary bg-primary-muted"
         : "hover:bg-accent")
 
   /** One window as a radio row. The radio is visually hidden but is the control; the label is the hit area. */

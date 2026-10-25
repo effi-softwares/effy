@@ -67,7 +67,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-none;
   }
   body {
     @apply bg-background text-foreground text-sm;
@@ -76,12 +76,6 @@
   [role="button"]:not(:disabled),
   summary {
     cursor: pointer;
-  }
-  /* One focus treatment everywhere: the blue ring, offset so it reads on white and on blue. Field
-     borders are a hairline by design, so the ring is what makes focus visible. */
-  :focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
   }
   html {
     @apply font-sans;

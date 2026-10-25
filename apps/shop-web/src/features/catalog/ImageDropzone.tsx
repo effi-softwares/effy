@@ -153,7 +153,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           aria-label="Add primary image — click to browse, drag and drop, or paste"
           className={cn(
             "flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "",
             "disabled:cursor-not-allowed disabled:opacity-60",
             dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30",
           )}

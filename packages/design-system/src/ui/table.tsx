@@ -110,7 +110,7 @@ function TableSortHead({
         type="button"
         onClick={onSort}
         className={cn(
-          "flex h-9 w-full items-center gap-1 px-3 text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-muted",
+          "flex h-9 w-full items-center gap-1 px-3 text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground transition-colors outline-none hover:text-foreground",
           numeric ? "justify-end" : "justify-start"
         )}
       >

@@ -16,7 +16,7 @@ import { cn } from "../cn"
 // Anything else is `muted`. Every tone is a solid foreground on its own `-soft` tint, contrast-checked
 // by check-tokens.mjs.
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-[color,box-shadow] [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-muted aria-invalid:border-destructive",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-[color,box-shadow] [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:border-ring aria-invalid:border-destructive",
   {
     variants: {
       variant: {

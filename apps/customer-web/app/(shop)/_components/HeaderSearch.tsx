@@ -12,7 +12,7 @@ import { clsx } from "clsx"
 const PLACEHOLDER = "Search groceries and essentials…"
 
 const shell =
-  "flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background pr-1 pl-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20"
+  "flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background pr-1 pl-3 shadow-xs focus-within:border-ring"
 const field =
   "h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm [&::-webkit-search-cancel-button]:hidden"
 const submit =

@@ -198,12 +198,12 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                       }}
                       className={cn(
                         "rounded-lg border p-3 text-left text-sm",
-                        layout === l ? "border-primary ring-1 ring-primary" : "border-border hover:bg-accent",
+                        layout === l ? "border-primary" : "border-border hover:bg-accent",
                       )}
                     >
                       <div className="font-medium">{LAYOUT_WORD[l]}</div>
                       <div className="bo-sub">
-                        Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(", ")} places
+                        Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(",")} places
                       </div>
                     </button>
                   ))}

@@ -295,7 +295,7 @@ html * {
 }
 /* No square behind a rail item: hovering lifts it from muted to full ink, and the page on screen is
    the action colour with a heavier label. (The primitive's hover and active fills are utilities; these
-   unlayered rules beat them.) The focus ring stays, so the keyboard still sees where it is. */
+   unlayered rules beat them.) */
 [data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand),
 [data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand):hover,
 [data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand):active,
@@ -443,12 +443,6 @@ html * {
   .bo-content { gap: 16px; padding-bottom: 32px; }
 }
 }
-
-/* Every focus is visible: the blue ring, offset. */
-.bo-shell :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.bo-shell input:focus-visible,
-.bo-shell textarea:focus-visible,
-.bo-shell [role="combobox"]:focus-visible { outline: none; }
 
 /* ---------- The account menu ----------
    UNLAYERED, like the sidebar rules: they restyle the dropdown item, whose own utilities would beat a

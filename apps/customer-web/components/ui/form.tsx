@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
  * Text is 16px on phones so iOS does not zoom the page on focus, 14px from `md`.
  */
 const control =
-  "w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/10 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+  "w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return <input data-slot="input" className={cn(control, "h-10 md:h-9", className)} {...props} />

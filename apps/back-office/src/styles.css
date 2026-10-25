@@ -11,6 +11,7 @@
 @layer base {
   * {
     border-color: var(--color-border);
+    outline: none;
   }
   html {
     -webkit-font-smoothing: antialiased;

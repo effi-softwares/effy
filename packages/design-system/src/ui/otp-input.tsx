@@ -105,8 +105,6 @@ function OtpCells({
         data-variant="cells"
         className={cn(
           "absolute inset-0 z-10 h-full w-full rounded-md bg-transparent text-transparent caret-transparent outline-none",
-          // The focus indicator is on the cells.
-          "focus-visible:outline-none",
           // Selection stays visible, or select-all would look like an empty field.
           "selection:bg-primary/20",
           // An over-length value is shown as plain text: six cells would make it look like a valid code.
@@ -184,7 +182,7 @@ function Cell({
         // The active position, revealed only while the field actually has focus.
         active &&
           !invalid &&
-          "group-focus-within:border-foreground group-focus-within:ring-2 group-focus-within:ring-ring group-focus-within:ring-offset-2 group-focus-within:ring-offset-background"
+          "group-focus-within:border-foreground"
       )}
     >
       {char ?? ""}

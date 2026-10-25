@@ -51,7 +51,6 @@ export function Stepper({
                 aria-current={active ? "step" : undefined}
                 className={cn(
                   "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left",
-                  "focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   selectable && "hover:bg-accent cursor-pointer",
                   !selectable && "cursor-default",
                 )}
@@ -62,7 +61,7 @@ export function Stepper({
                     "flex size-6 shrink-0 items-center justify-center rounded-full text-xs tabular-nums transition-colors",
                     done && "bg-primary text-primary-foreground",
                     active && "bg-primary text-primary-foreground font-semibold",
-                    !done && !active && "text-muted-foreground ring-border ring-1 ring-inset",
+                    !done && !active && "text-muted-foreground border border-border",
                   )}
                 >
                   {done ? <Check className="size-3.5" /> : i + 1}

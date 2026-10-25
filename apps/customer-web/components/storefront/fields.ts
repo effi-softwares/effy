@@ -13,7 +13,7 @@
 // fields dropped the halo (operator direction). `bg-card` (not the shared Input's transparent) is
 // deliberate: the storefront page surface is white `--card`, so a field reads as inset on it.
 export const input =
-  "h-10 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/10 disabled:opacity-50 md:h-9 md:text-sm"
+  "h-10 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive disabled:opacity-50 md:h-9 md:text-sm"
 
 export const select =
-  "h-10 rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive md:h-9 md:text-sm"
+  "h-10 rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive md:h-9 md:text-sm"
