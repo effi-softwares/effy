@@ -1,39 +1,28 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useForm } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
+import { useForm } from "@tanstack/react-form"
+import { useQuery } from "@tanstack/react-query"
 
-import { Button, Input, Label, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Button, Input, Label, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { Panel } from "@effy/web-kit/patterns";
+import { PageHeader, Panel } from "@effy/web-kit/patterns"
 
-import { sessionQuery } from "@/features/auth/queries";
+import { sessionQuery } from "@/features/auth/queries"
 
-import { canManagePromotions } from "./access";
-import { promotionMutationError } from "./errorText";
-import { orderPolicyQuery, useUpdateOrderPolicy } from "./queries";
+import { canManagePromotions } from "./access"
+import { promotionMutationError } from "./errorText"
+import { orderPolicyQuery, useUpdateOrderPolicy } from "./queries"
 
-/**
- * The order rules — the minimum spend, and the two ceilings every cart is checked against.
- *
- * There is exactly one of these, enforced by the schema. So this is a form over a singleton, not a
- * register: a PUT that means the same thing however many times it is sent.
- *
- * The ceilings are bounded to what the schema allows (a line quantity must stay inside `cart_item`'s
- * own check). Setting a rule the tables would reject is not a policy an operator can express — it is a
- * cart that starts failing for shoppers at a number nobody chose.
- */
 export function OrderRulesScreen() {
-  const { data: session } = useQuery(sessionQuery);
-  const roles = session?.status === "signed-in" ? session.identity.roles : [];
-  const canManage = canManagePromotions(roles);
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  const canManage = canManagePromotions(roles)
 
-  const { data: policy, error, isPending, isError, refetch } = useQuery(orderPolicyQuery());
+  const { data: policy, error, isPending, isError, refetch } = useQuery(orderPolicyQuery())
 
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
-  if (isPending) return <Skeleton className="h-60" aria-busy="true" />;
+  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
+  if (isPending) return <Skeleton className="h-60" aria-busy="true" />
 
   return (
     <>
@@ -55,7 +44,7 @@ export function OrderRulesScreen() {
         updatedBy={policy.updatedBy}
       />
     </>
-  );
+  )
 }
 
 function OrderRulesForm({
@@ -64,38 +53,38 @@ function OrderRulesForm({
   updatedAt,
   updatedBy,
 }: {
-  canManage: boolean;
-  initial: { minimumSubtotalAmount: string; maxLineQuantity: string; maxDistinctItems: string };
-  updatedAt: string;
-  updatedBy: string | null;
+  canManage: boolean
+  initial: { minimumSubtotalAmount: string; maxLineQuantity: string; maxDistinctItems: string }
+  updatedAt: string
+  updatedBy: string | null
 }) {
-  const updatePolicy = useUpdateOrderPolicy();
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const updatePolicy = useUpdateOrderPolicy()
+  const [formError, setFormError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
   const form = useForm({
     defaultValues: initial,
     onSubmit: async ({ value }) => {
-      setFormError(null);
-      setSaved(false);
+      setFormError(null)
+      setSaved(false)
       try {
         await updatePolicy.mutateAsync({
           minimumSubtotalAmount: value.minimumSubtotalAmount.trim() || "0.00",
           maxLineQuantity: Number(value.maxLineQuantity),
           maxDistinctItems: Number(value.maxDistinctItems),
-        });
-        setSaved(true);
+        })
+        setSaved(true)
       } catch (err) {
-        setFormError(promotionMutationError(err));
+        setFormError(promotionMutationError(err))
       }
     },
-  });
+  })
 
   return (
     <form
       onSubmit={(e) => {
-        e.preventDefault();
-        void form.handleSubmit();
+        e.preventDefault()
+        void form.handleSubmit()
       }}
       className="max-w-2xl"
       noValidate
@@ -108,7 +97,12 @@ function OrderRulesForm({
           <>
             <span className="bo-sub">
               Last updated {formatTime(updatedAt)}
-              {updatedBy ? <> · by <span className="font-mono">{updatedBy}</span></> : null}
+              {updatedBy ? (
+                <>
+                  {" "}
+                  · by <span className="font-mono">{updatedBy}</span>
+                </>
+              ) : null}
             </span>
             {canManage ? (
               <form.Subscribe selector={(s) => s.isSubmitting}>
@@ -124,84 +118,91 @@ function OrderRulesForm({
           </>
         }
       >
-      <div className="space-y-6">
-      <form.Field name="minimumSubtotalAmount">
-        {(field) => (
-          <div className="space-y-2">
-            <Label htmlFor="policy-minimum">Minimum spend</Label>
-            <Input
-              id="policy-minimum"
-              inputMode="decimal"
-              placeholder="0.00"
-              disabled={!canManage}
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-            <p className="text-xs text-muted-foreground">
-              0.00 turns the minimum off entirely — the cart then shows nothing about it at all.
+        <div className="space-y-6">
+          <form.Field name="minimumSubtotalAmount">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="policy-minimum">Minimum spend</Label>
+                <Input
+                  id="policy-minimum"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  disabled={!canManage}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+                <p className="text-xs text-muted-foreground">
+                  0.00 turns the minimum off entirely — the cart then shows nothing about it at all.
+                </p>
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="maxLineQuantity">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="policy-max-line">Most of any one item</Label>
+                <Input
+                  id="policy-max-line"
+                  type="number"
+                  min={1}
+                  max={99}
+                  disabled={!canManage}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+                <p className="text-xs text-muted-foreground">Between 1 and 99.</p>
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="maxDistinctItems">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="policy-max-distinct">Most different items</Label>
+                <Input
+                  id="policy-max-distinct"
+                  type="number"
+                  min={1}
+                  max={500}
+                  disabled={!canManage}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+                <p className="text-xs text-muted-foreground">Between 1 and 500.</p>
+              </div>
+            )}
+          </form.Field>
+
+          {formError ? (
+            <p role="alert" className="text-sm font-medium">
+              {formError}
             </p>
-          </div>
-        )}
-      </form.Field>
-
-      <form.Field name="maxLineQuantity">
-        {(field) => (
-          <div className="space-y-2">
-            <Label htmlFor="policy-max-line">Most of any one item</Label>
-            <Input
-              id="policy-max-line"
-              type="number"
-              min={1}
-              max={99}
-              disabled={!canManage}
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-            <p className="text-xs text-muted-foreground">Between 1 and 99.</p>
-          </div>
-        )}
-      </form.Field>
-
-      <form.Field name="maxDistinctItems">
-        {(field) => (
-          <div className="space-y-2">
-            <Label htmlFor="policy-max-distinct">Most different items</Label>
-            <Input
-              id="policy-max-distinct"
-              type="number"
-              min={1}
-              max={500}
-              disabled={!canManage}
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-            <p className="text-xs text-muted-foreground">Between 1 and 500.</p>
-          </div>
-        )}
-      </form.Field>
-
-      {formError ? (
-        <p role="alert" className="text-sm font-medium">
-          {formError}
-        </p>
-      ) : null}
-      {saved && !formError ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Saved.
-        </p>
-      ) : null}
-      </div>
+          ) : null}
+          {saved && !formError ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              Saved.
+            </p>
+          ) : null}
+        </div>
       </Panel>
     </form>
-  );
+  )
 }
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(iso)
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Australia/Melbourne" });
+    : d.toLocaleString("en-AU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "Australia/Melbourne",
+      })
 }

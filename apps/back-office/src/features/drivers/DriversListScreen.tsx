@@ -1,61 +1,61 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 
-import { CircleAlert, UserX } from "lucide-react";
+import { CircleAlert, UserX } from "lucide-react"
 
-import { cn } from "@effy/design-system";
-import { Checkbox, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
-import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types";
+import { cn } from "@effy/design-system"
+import { Checkbox, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
+import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { DotWord, StatusWord } from "@effy/web-kit/patterns";
-import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import {
+  PageHeader,
+  EmptyState,
+  DotWord,
+  StatusWord,
+  Facet,
+  Pager,
+  SearchBox,
+  Toolbar,
+  ToolbarSpacer,
+} from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
-import { CreateDriverDialog } from "./components/CreateDriverDialog";
-import { DutyPanel } from "./components/DutyPanel";
-import { ReadinessPanel } from "./components/ReadinessPanel";
-import { canManageDrivers } from "./access";
-import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model";
-import { driversListQuery, readinessQuery, zonesQuery } from "./queries";
-
-/** The driver register: a table, no metric tiles. An expired licence is an ordinary fact, said in words, not an error state. */
+import { CreateDriverDialog } from "./components/CreateDriverDialog"
+import { DutyPanel } from "./components/DutyPanel"
+import { ReadinessPanel } from "./components/ReadinessPanel"
+import { canManageDrivers } from "./access"
+import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model"
+import { driversListQuery, readinessQuery, zonesQuery } from "./queries"
 
 function blockedSummary(d: AdminDriverListItem): string | null {
-  if (d.blockedReasons.length === 0) return null;
-  return d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ");
+  if (d.blockedReasons.length === 0) return null
+  return d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ")
 }
 
-type View = "all" | "active" | "suspended" | "offboarded" | "readiness";
+type View = "all" | "active" | "suspended" | "offboarded" | "readiness"
 const VIEWS: readonly { key: View; label: string }[] = [
   { key: "all", label: "All employed" },
   { key: "active", label: "Active" },
   { key: "suspended", label: "Suspended" },
   { key: "offboarded", label: "Offboarded" },
   { key: "readiness", label: "Readiness" },
-];
+]
 
-/**
- * Drivers (056; redesign, board "Drivers"): who is on duty now, then the register — by employment
- * status, searchable, filterable by zone — and Readiness: who cannot be given work, what to renew,
- * and work nobody can cover.
- */
 export function DriversListScreen() {
-  const roles = useSessionRoles();
-  const canManage = canManageDrivers(roles);
+  const roles = useSessionRoles()
+  const canManage = canManageDrivers(roles)
 
-  const [view, setView] = useState<View>("all");
-  const [search, setSearch] = useState("");
-  const [zoneId, setZoneId] = useState<string | null>(null);
-  const [includeOffboarded, setIncludeOffboarded] = useState(false);
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [view, setView] = useState<View>("all")
+  const [search, setSearch] = useState("")
+  const [zoneId, setZoneId] = useState<string | null>(null)
+  const [includeOffboarded, setIncludeOffboarded] = useState(false)
+  const [cursors, setCursors] = useState<string[]>([])
 
-  const status = view === "all" || view === "readiness" ? "" : (view as DriverEmploymentStatus);
+  const status = view === "all" || view === "readiness" ? "" : (view as DriverEmploymentStatus)
   const params: DriverListParams = useMemo(
     () => ({
       q: search.trim() || undefined,
@@ -66,18 +66,21 @@ export function DriversListScreen() {
       cursor: cursors[cursors.length - 1],
     }),
     [search, status, zoneId, includeOffboarded, view, cursors],
-  );
+  )
 
-  const { data, error, isPending, isError, refetch } = useQuery({ ...driversListQuery(params), enabled: view !== "readiness" });
-  const zones = useQuery(zonesQuery());
-  const readiness = useQuery(readinessQuery());
-  const blockedCount = readiness.data?.blocked.length;
+  const { data, error, isPending, isError, refetch } = useQuery({
+    ...driversListQuery(params),
+    enabled: view !== "readiness",
+  })
+  const zones = useQuery(zonesQuery())
+  const readiness = useQuery(readinessQuery())
+  const blockedCount = readiness.data?.blocked.length
 
   function resetPaging<T>(set: (v: T) => void) {
     return (v: T) => {
-      set(v);
-      setCursors([]);
-    };
+      set(v)
+      setCursors([])
+    }
   }
 
   return (
@@ -102,14 +105,21 @@ export function DriversListScreen() {
             >
               {v.label}
               {v.key === "readiness" && blockedCount ? (
-                <span className={cn("bo-tabs__count", view !== "readiness" && "bo-tabs__count--primary")}>{blockedCount}</span>
+                <span className={cn("bo-tabs__count", view !== "readiness" && "bo-tabs__count--primary")}>
+                  {blockedCount}
+                </span>
               ) : null}
             </button>
           ))}
         </nav>
         {view !== "readiness" ? (
           <Toolbar>
-            <SearchBox label="Search drivers" placeholder="Search by name or work email…" value={search} onChange={resetPaging(setSearch)} />
+            <SearchBox
+              label="Search drivers"
+              placeholder="Search by name or work email…"
+              value={search}
+              onChange={resetPaging(setSearch)}
+            />
             <Facet
               label="Zone"
               anyLabel="Any zone"
@@ -120,7 +130,10 @@ export function DriversListScreen() {
             <ToolbarSpacer />
             {view === "all" ? (
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={includeOffboarded} onCheckedChange={(v) => resetPaging(setIncludeOffboarded)(v === true)} />
+                <Checkbox
+                  checked={includeOffboarded}
+                  onCheckedChange={(v) => resetPaging(setIncludeOffboarded)(v === true)}
+                />
                 Include people who have left
               </label>
             ) : null}
@@ -142,7 +155,11 @@ export function DriversListScreen() {
         <EmptyState
           icon={UserX}
           title={search || zoneId || view !== "all" ? "No drivers match your filter." : "No drivers yet."}
-          description={search || zoneId || view !== "all" ? undefined : "Add the first one to give them a sign-in for the driver app."}
+          description={
+            search || zoneId || view !== "all"
+              ? undefined
+              : "Add the first one to give them a sign-in for the driver app."
+          }
         />
       ) : (
         <div className="bo-table-wrap">
@@ -164,8 +181,6 @@ export function DriversListScreen() {
               </tbody>
             </table>
           </div>
-          {/* nextCursor is consumed. 053 shipped a console that ignored its own, silently capping it
-              at the newest 25 rows. Rendered only when there is somewhere to go. */}
           {cursors.length > 0 || data.nextCursor ? (
             <Pager
               summary={`${data.items.length} driver${data.items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
@@ -178,14 +193,14 @@ export function DriversListScreen() {
         </div>
       )}
     </>
-  );
+  )
 }
 
 function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
-  const blocked = blockedSummary(d);
-  const c = d.capabilitySummary;
-  const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver";
-  const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`;
+  const blocked = blockedSummary(d)
+  const c = d.capabilitySummary
+  const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver"
+  const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`
   return (
     <tr>
       <td data-m="primary">
@@ -197,8 +212,6 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
             <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="bo-link">
               {d.name}
             </Link>
-            {/* A driver who cannot receive work says so here, on the register, before an
-                order is affected. */}
             {blocked ? (
               <span className="bo-sub flex items-center gap-1 font-medium text-foreground">
                 <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
@@ -224,8 +237,10 @@ function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
         {d.dutyState === "on_duty" ? <DotWord tone="busy">On duty</DotWord> : <DotWord tone="off">Off duty</DotWord>}
       </td>
       <td data-m="badge">
-        <StatusWord tone={d.status === "active" ? "done" : d.status === "suspended" ? "problem" : "quiet"}>{STATUS_LABEL[d.status]}</StatusWord>
+        <StatusWord tone={d.status === "active" ? "done" : d.status === "suspended" ? "problem" : "quiet"}>
+          {STATUS_LABEL[d.status]}
+        </StatusWord>
       </td>
     </tr>
-  );
+  )
 }

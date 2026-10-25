@@ -1,18 +1,4 @@
-import type {
-  ComparisonBasis,
-  InsightsFigureDTO,
-  InsightsRange,
-  ShopInsightsDTO,
-} from "@effy/shared-types"
-
-/**
- * Insights' copy.
- *
- * The client formats; it never subtracts. Every comparison arrives computed, with the
- * basis it was computed against, so these functions turn `{ kind: "pct", amount: "9.0" }` into
- * "+9% vs previous week" and nothing more. The moment this file starts doing arithmetic on two
- * figures, the screen has a second opinion about the shop's revenue.
- */
+import type { ComparisonBasis, InsightsFigureDTO, InsightsRange, ShopInsightsDTO } from "@effy/shared-types"
 
 export const RANGE_TITLE: Record<InsightsRange, string> = {
   today: "Today",
@@ -20,21 +6,18 @@ export const RANGE_TITLE: Record<InsightsRange, string> = {
   "30d": "Last 30 days",
 }
 
-/** "today" / "last 7 days" / "last 30 days" — a real period label, never the chart's bucket label. */
 export const RANGE_PERIOD: Record<InsightsRange, string> = {
   today: "today",
   "7d": "last 7 days",
   "30d": "last 30 days",
 }
 
-/** What a metric label says about its own window: "Revenue, 7 days". */
-export const RANGE_SUFFIX: Record<InsightsRange, string> = {
+const RANGE_SUFFIX: Record<InsightsRange, string> = {
   today: "today",
   "7d": "7 days",
   "30d": "30 days",
 }
 
-/** The bucket a chart is drawn in — "By hour" / "By day" / "By week". */
 export const GRAIN_LABEL: Record<"hour" | "day" | "week", string> = {
   hour: "By hour",
   day: "By day",
@@ -51,14 +34,6 @@ export function metricLabel(name: string, range: InsightsRange): string {
   return range === "today" ? `${name} today` : `${name}, ${RANGE_SUFFIX[range]}`
 }
 
-/**
- * "+9% vs previous week" / "−2 vs last week" / "Nothing to compare yet".
- *
- * The sign and the arrow carry the direction, not a colour. The imported design coloured these
- * green and red; green fails the platform's text-contrast bar (it is a non-text indicator only) and
- * red is the error colour — a quieter week is not an error. Rendered in greyscale, "▼ 3%" still says
- * exactly what it means.
- */
 export function deltaText(figure: InsightsFigureDTO, basis: ComparisonBasis): string {
   const { kind, amount } = figure.change
   if (kind === "none" || amount === null) return "Nothing to compare yet"
@@ -70,20 +45,6 @@ export function deltaText(figure: InsightsFigureDTO, basis: ComparisonBasis): st
   return `${arrow} ${body} ${BASIS_LABEL[basis]}`
 }
 
-/**
- * The colour a delta is written in.
- *
- * The adopted design tones its deltas, and this restores that: up is `--success`, down is
- * `--destructive`, and a figure with nothing to compare against stays muted. Monochrome had to put
- * the whole statement in the ▲/▼ glyph.
- *
- * It lives here, not in the three components that render a delta. The metric strip, the chart
- * headers and the glance strip all show one, and three copies of a sign test is exactly how one of
- * them ends up calling a drop green.
- *
- * The glyph still carries the direction. `deltaText` writes ▲/▼ regardless, so a red figure is
- * never the only thing saying "this went down".
- */
 export function deltaToneClass(figure: InsightsFigureDTO): string {
   const { kind, amount } = figure.change
   if (kind === "none" || amount === null) return "text-muted-foreground"
@@ -93,7 +54,6 @@ export function deltaToneClass(figure: InsightsFigureDTO): string {
   return "text-muted-foreground"
 }
 
-/** "26 August – 1 September · compared with the previous week · updated a moment ago". */
 export function windowSubtitle(dto: ShopInsightsDTO, now: number): string {
   const fmt = (iso: string) =>
     new Intl.DateTimeFormat("en-AU", {
@@ -102,10 +62,7 @@ export function windowSubtitle(dto: ShopInsightsDTO, now: number): string {
       timeZone: dto.timezone,
     }).format(new Date(iso))
 
-  const window =
-    dto.range === "today"
-      ? fmt(dto.window.from)
-      : `${fmt(dto.window.from)} – ${fmt(dto.window.to)}`
+  const window = dto.range === "today" ? fmt(dto.window.from) : `${fmt(dto.window.from)} – ${fmt(dto.window.to)}`
 
   const compared =
     dto.comparison.basis === "same_weekday_last_week"
@@ -117,12 +74,6 @@ export function windowSubtitle(dto: ShopInsightsDTO, now: number): string {
   return `${window} · ${compared} · ${freshness(dto.computedAt, now)}`
 }
 
-/**
- * "updated a moment ago" / "updated 4 minutes ago" / "not updated yet".
- *
- * Null is not "JUST NOW". A shop whose rollups have never run shows zeros, and the difference
- * between "nothing sold" and "we have not measured yet" is exactly what this phrase carries.
- */
 export function freshness(computedAt: string | null, now: number): string {
   if (computedAt === null) return "not updated yet"
   const minutes = Math.floor(Math.max(0, now - new Date(computedAt).getTime()) / 60_000)
@@ -133,7 +84,6 @@ export function freshness(computedAt: string | null, now: number): string {
   return `updated ${hours} ${hours === 1 ? "hour" : "hours"} ago`
 }
 
-/** Money for display, from the server's decimal string. */
 export function money(amount: string, currency = "AUD"): string {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
@@ -142,7 +92,6 @@ export function money(amount: string, currency = "AUD"): string {
   }).format(Number(amount))
 }
 
-/** Bar heights as percentages of the tallest bar, so an empty window draws nothing rather than NaN. */
 export function barHeights(values: readonly number[]): number[] {
   const max = Math.max(0, ...values)
   if (max <= 0) return values.map(() => 0)

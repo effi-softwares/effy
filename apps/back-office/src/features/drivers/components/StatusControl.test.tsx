@@ -1,23 +1,23 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import type { ReactNode } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { AdminDriverProfile } from "@effy/shared-types";
+import type { AdminDriverProfile } from "@effy/shared-types"
 
-const setDriverStatus = vi.hoisted(() => vi.fn());
+const setDriverStatus = vi.hoisted(() => vi.fn())
 
 vi.mock("../repo", () => ({
   setDriverStatus,
   getDriver: vi.fn(),
   listDrivers: vi.fn(),
   listZones: vi.fn().mockResolvedValue([]),
-}));
+}))
 
-vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }));
+vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }))
 
-const { StatusControl } = await import("./StatusControl");
+const { StatusControl } = await import("./StatusControl")
 
 const DRIVER: AdminDriverProfile = {
   id: "d-1",
@@ -42,78 +42,73 @@ const DRIVER: AdminDriverProfile = {
   blockedReasons: [],
   accountState: "ok",
   updatedAt: "2026-08-30T00:00:00.000000Z",
-};
+}
 
 function renderControl(driver: AdminDriverProfile = DRIVER) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  );
-  return render(<StatusControl driver={driver} />, { wrapper });
+  )
+  return render(<StatusControl driver={driver} />, { wrapper })
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-});
+  vi.clearAllMocks()
+})
 
 describe("StatusControl — the employment lifecycle", () => {
   it("offers suspend and offboard for an active driver, and no restore", async () => {
-    renderControl();
-    expect(screen.getByRole("button", { name: "Suspend…" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Offboard…" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Restore…" })).not.toBeInTheDocument();
-  });
+    renderControl()
+    expect(screen.getByRole("button", { name: "Suspend…" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Offboard…" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Restore…" })).not.toBeInTheDocument()
+  })
 
   it("offers restore for a suspended driver (FR-018)", () => {
-    renderControl({ ...DRIVER, status: "suspended" });
-    expect(screen.getByRole("button", { name: "Restore…" })).toBeInTheDocument();
-  });
+    renderControl({ ...DRIVER, status: "suspended" })
+    expect(screen.getByRole("button", { name: "Restore…" })).toBeInTheDocument()
+  })
 
   it("⚠ offboarded is TERMINAL — no control brings them back, and the screen says why", () => {
-    renderControl({ ...DRIVER, status: "offboarded" });
-    expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/permanently closed/)).toBeInTheDocument();
-  });
+    renderControl({ ...DRIVER, status: "offboarded" })
+    expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/permanently closed/)).toBeInTheDocument()
+  })
 
   it("⚠ tells the truth about timing on every stand-down", async () => {
-    // Two things are true at once and an operator will assume only the first. Implying a stood-down
-    // driver has been cleared of their work when they have not is the exact failure this feature
-    // exists to prevent.
-    const user = userEvent.setup();
-    renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend…" }));
-    expect(await screen.findByText(/lose access straight away/)).toBeInTheDocument();
-    expect(screen.getByText(/goes back to the pool on the next assignment round/)).toBeInTheDocument();
-    expect(screen.getByText(/already picked up stays with them/)).toBeInTheDocument();
-  });
+    const user = userEvent.setup()
+    renderControl()
+    await user.click(screen.getByRole("button", { name: "Suspend…" }))
+    expect(await screen.findByText(/lose access straight away/)).toBeInTheDocument()
+    expect(screen.getByText(/goes back to the pool on the next assignment round/)).toBeInTheDocument()
+    expect(screen.getByText(/already picked up stays with them/)).toBeInTheDocument()
+  })
 
   it("requires a reason before the confirm button becomes usable (FR-016)", async () => {
-    const user = userEvent.setup();
-    renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend…" }));
+    const user = userEvent.setup()
+    renderControl()
+    await user.click(screen.getByRole("button", { name: "Suspend…" }))
     // The trigger reads "Suspend…"; the dialog's confirm reads "Suspend".
-    const confirm = await screen.findByRole("button", { name: "Suspend" });
-    const buttons = screen.getAllByRole("button", { name: "Suspend" });
-    expect(buttons[buttons.length - 1]).toBeDisabled();
-    await user.type(screen.getByLabelText("Reason"), "on leave");
-    await waitFor(() =>
-      expect(screen.getAllByRole("button", { name: "Suspend" }).at(-1)).toBeEnabled(),
-    );
-    expect(confirm).toBeTruthy();
-  });
+    const confirm = await screen.findByRole("button", { name: "Suspend" })
+    const buttons = screen.getAllByRole("button", { name: "Suspend" })
+    expect(buttons[buttons.length - 1]).toBeDisabled()
+    await user.type(screen.getByLabelText("Reason"), "on leave")
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Suspend" }).at(-1)).toBeEnabled())
+    expect(confirm).toBeTruthy()
+  })
 
   it("sends the status and reason, and nothing else", async () => {
-    const user = userEvent.setup();
-    setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" });
-    renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend…" }));
-    await user.type(screen.getByLabelText("Reason"), "on leave");
-    await user.click(screen.getAllByRole("button", { name: "Suspend" }).at(-1)!);
+    const user = userEvent.setup()
+    setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" })
+    renderControl()
+    await user.click(screen.getByRole("button", { name: "Suspend…" }))
+    await user.type(screen.getByLabelText("Reason"), "on leave")
+    await user.click(screen.getAllByRole("button", { name: "Suspend" }).at(-1)!)
     await waitFor(() =>
       expect(setDriverStatus).toHaveBeenCalledWith("d-1", {
         status: "suspended",
         reason: "on leave",
       }),
-    );
-  });
-});
+    )
+  })
+})

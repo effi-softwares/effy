@@ -1,38 +1,31 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import type { StockMovementDTO } from "@effy/shared-types";
-import { Minus, Plus } from "lucide-react";
+import type { StockMovementDTO } from "@effy/shared-types"
+import { Minus, Plus } from "lucide-react"
 
-import { Skeleton } from "@effy/design-system/ui";
-import { ResponsiveSheet } from "@effy/web-kit/patterns";
+import { Skeleton } from "@effy/design-system/ui"
+import { ResponsiveSheet } from "@effy/web-kit/patterns"
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
-import { ProductStatusBadge } from "./components/ProductStatusBadge";
+import { ProductStatusBadge } from "./components/ProductStatusBadge"
 
-import type { ProductDetail } from "./model";
-import { actorLabel, stockChangeTitle } from "./stockMovementText";
-import { variantStockQuery } from "./stockQueries";
+import type { ProductDetail } from "./model"
+import { actorLabel, stockChangeTitle } from "./stockMovementText"
+import { variantStockQuery } from "./stockQueries"
 
-/**
- * The product's Activity sheet, opened from the header: a full-height scrollable log, so every entry
- * shows. The entries are `stock_movement` rows, the only per-product audit trail. No "Last 30 days" block:
- * there is no per-product sales history; it shows the product's lifecycle facts instead.
- */
 export function ProductActivitySheet({
   detail,
   variantId,
   open,
   onOpenChange,
 }: {
-  detail: ProductDetail;
-  /** The size whose stock changes are listed (the one the Inventory tab shows). */
-  variantId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  detail: ProductDetail
+  variantId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }) {
-  // Shares the Inventory tab's cache entry rather than issuing a second read (Principle VI).
-  const stock = useQuery(variantStockQuery(variantId));
+  const stock = useQuery(variantStockQuery(variantId))
 
   return (
     <ResponsiveSheet
@@ -61,7 +54,11 @@ export function ProductActivitySheet({
           <div className="bo-dl__row">
             <dt>Updated</dt>
             <dd>
-              {new Date(detail.updatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+              {new Date(detail.updatedAt).toLocaleDateString(undefined, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
             </dd>
           </div>
         </dl>
@@ -90,21 +87,16 @@ export function ProductActivitySheet({
         )}
       </section>
     </ResponsiveSheet>
-  );
+  )
 }
 
-/**
- * One change-log entry on the timeline: what happened, and "<when> · <who>". A reduction's mark is the
- * foreground with a minus, an increase a plain plus — and the signed count in the title says which, so
- * the mark is never the only thing telling them apart.
- */
 function ChangeLogEntry({ movement }: { movement: StockMovementDTO }) {
-  const who = actorLabel(movement);
+  const who = actorLabel(movement)
   const when = new Date(movement.createdAt).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
-  });
-  const down = movement.quantityDelta < 0;
+  })
+  const down = movement.quantityDelta < 0
   return (
     <li className="bo-tl__item">
       <span aria-hidden="true" className={cn("bo-tl__mark", down && "bo-tl__mark--problem")}>
@@ -115,5 +107,5 @@ function ChangeLogEntry({ movement }: { movement: StockMovementDTO }) {
         <span className="bo-tl__body block">{who && who !== "—" ? `${when} · ${who}` : when}</span>
       </span>
     </li>
-  );
+  )
 }

@@ -1,15 +1,11 @@
 import { setAudioReady } from "./console-store"
 
-/**
- * The new-order chime: two short tones made with the Web Audio API, so there is no sound file to
- * ship or cache. Browsers refuse to play sound until the page has had a tap or a key press; `unlock`
- * is called on the first one, and the header says "Tap to turn sound on" until then.
- */
 let ctx: AudioContext | null = null
 
 function context(): AudioContext | null {
   if (typeof window === "undefined") return null
-  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  const Ctor =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctor) return null
   if (!ctx) {
     ctx = new Ctor()
@@ -18,7 +14,6 @@ function context(): AudioContext | null {
   return ctx
 }
 
-/** Resume audio after a person's gesture. Safe to call often. */
 export function unlockAudio(): void {
   const c = context()
   if (!c) return
@@ -26,10 +21,12 @@ export function unlockAudio(): void {
     setAudioReady(true)
     return
   }
-  void c.resume().then(() => setAudioReady(c.state === "running")).catch(() => setAudioReady(false))
+  void c
+    .resume()
+    .then(() => setAudioReady(c.state === "running"))
+    .catch(() => setAudioReady(false))
 }
 
-/** Unlock on the first tap or key press anywhere on the page. Returns the clean-up. */
 export function unlockOnFirstGesture(): () => void {
   const onGesture = () => unlockAudio()
   window.addEventListener("pointerdown", onGesture, { once: false, passive: true })
@@ -40,7 +37,6 @@ export function unlockOnFirstGesture(): () => void {
   }
 }
 
-/** Two rising tones, about half a second. Does nothing while the browser has sound muted. */
 export function playChime(): void {
   const c = context()
   if (!c || c.state !== "running") return

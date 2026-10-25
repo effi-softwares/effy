@@ -59,8 +59,6 @@ function activity(over: Partial<ShopTeamActivityDTO> = {}): ShopTeamActivityDTO 
 }
 
 beforeEach(() => {
-  // Cleared first: these counts are per-test, and Testing Library unmounts the previous test's tree
-  // around this one.
   vi.clearAllMocks()
   getTeamActivity.mockResolvedValue(activity())
 })
@@ -71,7 +69,6 @@ describe("Team activity (US5)", () => {
 
     expect(await screen.findByText("Team activity")).toBeInTheDocument()
     expect(screen.getByText("Everything the team has done, newest first.")).toBeInTheDocument()
-    // Awaited: the sheet's chrome renders immediately, its entries after the read resolves.
     expect(await screen.findByText("finished picking EFY-4415")).toBeInTheDocument()
     expect(screen.getByText("added 12 × Stoneware mug (received)")).toBeInTheDocument()
     expect(screen.getByText("issued a refund of 5.40 on EFY-4413")).toBeInTheDocument()
@@ -93,14 +90,11 @@ describe("Team activity (US5)", () => {
   it("says so plainly when there is nothing to show", async () => {
     getTeamActivity.mockResolvedValue({ entries: [] })
     wrap(<TeamActivitySheet open onOpenChange={() => {}} />)
-    expect(
-      await screen.findByText("Nothing has been recorded in the last two weeks."),
-    ).toBeInTheDocument()
+    expect(await screen.findByText("Nothing has been recorded in the last two weeks.")).toBeInTheDocument()
   })
 
   it("⚠ fetches nothing until the sheet is opened", () => {
     wrap(<TeamActivitySheet open={false} onOpenChange={() => {}} />)
-    // Two weeks of audit rows is not a page-load cost for a sheet most operators never open.
     expect(getTeamActivity).not.toHaveBeenCalled()
   })
 })

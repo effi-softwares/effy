@@ -1,8 +1,3 @@
-/**
- * Printing labels through the browser: one SVG per page at the label's exact size, margin 0, no scaling,
- * and no trailing page break (it prints a blank page). On A4, four labels on a 2 × 2 grid of A6 quarters.
- * Its own window keeps the console's chrome off the paper; returns 0 when the window was blocked.
- */
 import { GEOMETRY, type LabelLayout } from "./render"
 
 const PAGE: Record<LabelLayout, string> = {
@@ -11,13 +6,15 @@ const PAGE: Record<LabelLayout, string> = {
   roll62: "size: 62mm 100mm; margin: 0",
 }
 
-/** The whole printable document for these label SVGs. */
 export function printDocument(svgs: readonly string[], layout: LabelLayout): string {
   const g = GEOMETRY[layout]
   const pages: string[] = []
   if (layout === "a4x4") {
     for (let i = 0; i < svgs.length; i += 4) {
-      const four = svgs.slice(i, i + 4).map((s) => `<div class="cell">${s}</div>`).join("")
+      const four = svgs
+        .slice(i, i + 4)
+        .map((s) => `<div class="cell">${s}</div>`)
+        .join("")
       pages.push(`<div class="page sheet">${four}</div>`)
     }
   } else {
@@ -26,8 +23,6 @@ export function printDocument(svgs: readonly string[], layout: LabelLayout): str
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>Bag labels</title><style>` +
     `@page{${PAGE[layout]}}html,body{margin:0;padding:0;background:#fff}` +
-    // A label exactly the page's height spilled its footer onto a second page in Chrome (rounding):
-    // the page box is fixed at the label's size, a hair shorter, and nothing can overflow it.
     `.page{break-after:page;page-break-after:always;overflow:hidden;width:${g.widthMm}mm;height:${g.heightMm - 0.5}mm}` +
     `.page:last-child{break-after:auto;page-break-after:auto}` +
     `.page svg{display:block;width:100%;height:100%}` +
@@ -37,7 +32,6 @@ export function printDocument(svgs: readonly string[], layout: LabelLayout): str
   )
 }
 
-/** Open the print window. Returns how many labels were sent, or 0 when the browser blocked it. */
 export function printBrowser(svgs: readonly string[], layout: LabelLayout): number {
   if (svgs.length === 0) return 0
   const w = window.open("", "_blank", "width=720,height=900")

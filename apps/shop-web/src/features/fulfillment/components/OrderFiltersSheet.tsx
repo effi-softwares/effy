@@ -6,12 +6,6 @@ import { ChoiceCards } from "@/components/console/ChoiceCards"
 
 import { DELIVERED_BY_FILTER_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../orderConsole"
 
-/**
- * The Orders list's filters on a portrait tablet or a phone (Orders board 09): a right sheet (a drawer on a
- * phone) of choice cards — the whole card is the target. Selections apply at once (they write the URL);
- * the footer clears them or closes the sheet with the count. Placed; Goes with (Effy driver / Courier);
- * Payment (the states a paid order can be in). No Fulfilment choice: the status tabs do that.
- */
 export function OrderFiltersSheet({
   open,
   onOpenChange,
@@ -57,7 +51,10 @@ export function OrderFiltersSheet({
       <ChoiceCards
         label="Payment"
         value={search.payment ?? "any"}
-        options={[{ value: "any", label: "Any" }, ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))]}
+        options={[
+          { value: "any", label: "Any" },
+          ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
+        ]}
         onChange={(v) => onChange({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
       />
       <p className="text-sm text-muted-foreground tabular-nums" aria-live="polite">

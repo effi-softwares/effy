@@ -27,18 +27,6 @@ const RANGES: Array<{ value: InsightsRange; label: string }> = [
   { value: "30d", label: "30 days" },
 ]
 
-/**
- * Insights — how the shop is doing.
- *
- * Everything here responds to one control. One range, one window, one comparison basis, applied to
- * every figure and both charts at once. The alternative — per-card date pickers — produces a screen
- * where two numbers beside each other quietly describe different weeks.
- *
- * Two sources, deliberately. The analytics come from the rollups (`insightsQuery`); "Awaiting pick"
- * and "Unfulfilled units" come from `todayQuery`, the same cache entry Today renders from. Those two
- * are live work, and a figure about work in progress that is a minute stale is a figure that sends
- * someone to a shelf for an order already packed.
- */
 export function InsightsScreen() {
   const [range, setRange] = useState<InsightsRange>("today")
   const insights = useQuery(insightsQuery(range))
@@ -47,8 +35,6 @@ export function InsightsScreen() {
 
   useEffect(() => {
     track({ name: "insights_viewed", range })
-    // Re-fires on a range change too: which windows operators actually look at is the question this
-    // event exists to answer.
   }, [range])
 
   const dto = insights.data
@@ -64,7 +50,6 @@ export function InsightsScreen() {
         description={dto ? windowSubtitle(dto, now) : "\u00a0"}
         actions={
           <>
-            {/* One range for the whole page. */}
             <div className="bo-seg" role="group" aria-label="Range">
               {RANGES.map((r) => (
                 <button

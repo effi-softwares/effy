@@ -1,37 +1,28 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import {
-  PARCEL_MISSING_REASON_WORDS,
-  READ_OUTCOME_WORDS,
-  type HandoverMixDTO,
-} from "@effy/shared-types";
-import { Input, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO } from "@effy/shared-types"
+import { Input, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { DetailRows, Panel } from "@effy/web-kit/patterns";
+import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
 
-import { handoverReportQuery } from "./queries";
+import { handoverReportQuery } from "./queries"
 
-const melbourneDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(d);
+const melbourneDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(d)
 
-const SURFACE_WORDS = { driver_app: "Driver app", shop_web: "Shop console", back_office: "Back-office" } as const;
-const ACTOR_WORDS = { driver: "Drivers", shop_staff: "Shop staff", admin_staff: "Hub staff" } as const;
+const SURFACE_WORDS = { driver_app: "Driver app", shop_web: "Shop console", back_office: "Back-office" } as const
+const ACTOR_WORDS = { driver: "Drivers", shop_staff: "Shop staff", admin_staff: "Hub staff" } as const
 
-const total = (m: HandoverMixDTO) => m.scan + m.typed + m.manual;
-const pct = (n: number, of: number) => (of === 0 ? "—" : `${Math.round((n / of) * 100)}%`);
+const total = (m: HandoverMixDTO) => m.scan + m.typed + m.manual
+const pct = (n: number, of: number) => (of === 0 ? "—" : `${Math.round((n / of) * 100)}%`)
 
-/**
- * How bags were handed over, and what went wrong. Shops and drivers whose bags are most often not scanned
- * come first: those are the labels, printers and habits to fix. The per-1,000 figure is a row, not a tile.
- */
 export function HandoverReportScreen() {
-  const today = melbourneDay(new Date());
-  const [from, setFrom] = useState(melbourneDay(new Date(Date.now() - 6 * 86_400_000)));
-  const [to, setTo] = useState(today);
-  const { data, error, isError, isPending, refetch } = useQuery(handoverReportQuery(from, to));
+  const today = melbourneDay(new Date())
+  const [from, setFrom] = useState(melbourneDay(new Date(Date.now() - 6 * 86_400_000)))
+  const [to, setTo] = useState(today)
+  const { data, error, isError, isPending, refetch } = useQuery(handoverReportQuery(from, to))
 
   return (
     <>
@@ -42,11 +33,24 @@ export function HandoverReportScreen() {
           <div className="flex flex-wrap items-end gap-2">
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">From</span>
-              <Input type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} className="w-40" />
+              <Input
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => e.target.value && setFrom(e.target.value)}
+                className="w-40"
+              />
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">To</span>
-              <Input type="date" value={to} min={from} max={today} onChange={(e) => e.target.value && setTo(e.target.value)} className="w-40" />
+              <Input
+                type="date"
+                value={to}
+                min={from}
+                max={today}
+                onChange={(e) => e.target.value && setTo(e.target.value)}
+                className="w-40"
+              />
             </label>
           </div>
         }
@@ -66,23 +70,45 @@ export function HandoverReportScreen() {
                   label: "Scanned",
                   value: `${data.overall.scan} (${pct(data.overall.scan, total(data.overall))}) · typed ${data.overall.typed} · by hand ${data.overall.manual}`,
                 },
-                { label: "Exceptions per 1,000 hand-overs", value: data.exceptionsPer1000 === null ? "—" : data.exceptionsPer1000 },
-                { label: "Exceptions", value: `${data.exceptions} — refused reads (not repeats) and bags declared missing` },
+                {
+                  label: "Exceptions per 1,000 hand-overs",
+                  value: data.exceptionsPer1000 === null ? "—" : data.exceptionsPer1000,
+                },
+                {
+                  label: "Exceptions",
+                  value: `${data.exceptions} — refused reads (not repeats) and bags declared missing`,
+                },
                 { label: "Phone and server disagreed", value: data.disagreements },
               ]}
             />
           </Panel>
 
           <Panel title="By who handed over" flush>
-            <MixTable rows={data.byActor.map((r) => ({ key: r.actor, name: ACTOR_WORDS[r.actor], ...r }))} label="By who handed over" first="Who" />
+            <MixTable
+              rows={data.byActor.map((r) => ({ key: r.actor, name: ACTOR_WORDS[r.actor], ...r }))}
+              label="By who handed over"
+              first="Who"
+            />
           </Panel>
 
-          <Panel title="By shop" description="Least scanned first — a shop low here is usually printing labels badly." flush>
-            <MixTable rows={data.byShop.map((r) => ({ key: r.shopId, name: r.shopName, ...r }))} label="By shop" first="Shop" />
+          <Panel
+            title="By shop"
+            description="Least scanned first — a shop low here is usually printing labels badly."
+            flush
+          >
+            <MixTable
+              rows={data.byShop.map((r) => ({ key: r.shopId, name: r.shopName, ...r }))}
+              label="By shop"
+              first="Shop"
+            />
           </Panel>
 
           <Panel title="By driver" description="Least scanned first." flush>
-            <MixTable rows={data.byDriver.map((r) => ({ key: r.driverId, name: r.driverName, ...r }))} label="By driver" first="Driver" />
+            <MixTable
+              rows={data.byDriver.map((r) => ({ key: r.driverId, name: r.driverName, ...r }))}
+              label="By driver"
+              first="Driver"
+            />
           </Panel>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -136,11 +162,19 @@ export function HandoverReportScreen() {
         </div>
       )}
     </>
-  );
+  )
 }
 
-function MixTable({ rows, label, first }: { rows: Array<HandoverMixDTO & { key: string; name: string }>; label: string; first: string }) {
-  if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted-foreground">No hand-overs in this period.</p>;
+function MixTable({
+  rows,
+  label,
+  first,
+}: {
+  rows: Array<HandoverMixDTO & { key: string; name: string }>
+  label: string
+  first: string
+}) {
+  if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted-foreground">No hand-overs in this period.</p>
   return (
     <table className="bo-table bo-table--compact bo-table--plain" aria-label={label}>
       <thead>
@@ -164,5 +198,5 @@ function MixTable({ rows, label, first }: { rows: Array<HandoverMixDTO & { key: 
         ))}
       </tbody>
     </table>
-  );
+  )
 }

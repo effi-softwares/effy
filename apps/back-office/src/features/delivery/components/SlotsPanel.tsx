@@ -1,55 +1,44 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import type { ColumnDef } from "@tanstack/react-table"
+import { Plus } from "lucide-react"
 
-import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO } from "@effy/shared-types";
+import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO } from "@effy/shared-types"
 import {
-  Badge, Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from "@effy/design-system/ui"
+import { DataTable, ErrorState } from "@effy/web-kit/console"
 
-import { Callout } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns"
 
-import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText";
-import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";
+import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText"
+import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries"
 
-/**
- * Same-day delivery slots.
- *
- * Live on save. There is no draft: a slot created here is offered at the next checkout, and one
- * switched off stops being offered at once. The copy under the heading says so, because the screen
- * looks like configuration and behaves like a storefront control.
- *
- * A table, not cards (Principle V), and no metric tiles above it: the limit and what is booked
- * against it are columns on the row they describe.
- *
- * There is no delete. A slot is switched off, because placed orders reference it.
- *
- * One column per day a customer can be offered: today, then the Effy delivery days after it
- * (the service works them out with the function checkout uses, so a closed day is skipped here
- * exactly as it is there). Each cell is that window's bookings on that day — a full Thursday says
- * nothing about Friday. Still one table: the days are columns on the row they describe.
- *
- * No limit is the default. A slot takes every order until its cutoff unless an operator types a
- * limit; `capacity: null` is that state. The dialog asks with a checkbox, unticked by default, and
- * the number field exists only while it is ticked.
- */
 export function SlotsPanel({ canManage }: { canManage: boolean }) {
-  const grid = useQuery(slotGridQuery());
-  const slots = { ...grid, data: grid.data?.items };
-  const days: DeliverySlotDayDTO[] = grid.data?.days ?? [];
-  const patch = usePatchSlot();
-  const [editing, setEditing] = useState<DeliverySlotDTO | "new" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const grid = useQuery(slotGridQuery())
+  const slots = { ...grid, data: grid.data?.items }
+  const days: DeliverySlotDayDTO[] = grid.data?.days ?? []
+  const patch = usePatchSlot()
+  const [editing, setEditing] = useState<DeliverySlotDTO | "new" | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function setStatus(slot: DeliverySlotDTO, status: "active" | "disabled") {
-    setError(null);
+    setError(null)
     try {
-      await patch.mutateAsync({ slotId: slot.id, body: { status } });
+      await patch.mutateAsync({ slotId: slot.id, body: { status } })
     } catch (err) {
-      setError(deliveryMutationError(err));
+      setError(deliveryMutationError(err))
     }
   }
 
@@ -84,24 +73,24 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
     ...days.map(
       (day, i): ColumnDef<DeliverySlotDTO> => ({
         id: `load-${i}`,
-        header: day.isToday ? (day.nonDelivery ? "Booked today (no delivery)" : "Booked today") : formatDeliveryDay(day.date),
+        header: day.isToday
+          ? day.nonDelivery
+            ? "Booked today (no delivery)"
+            : "Booked today"
+          : formatDeliveryDay(day.date),
         cell: ({ row }) => {
-          const s = row.original;
-          const load = s.load?.[i];
-          const booked = load?.booked ?? (day.isToday ? s.bookedToday : 0);
-          const over = load?.overCapacity ?? (day.isToday ? s.overCapacityToday : 0);
-          const full = s.capacity !== null && booked >= s.capacity;
+          const s = row.original
+          const load = s.load?.[i]
+          const booked = load?.booked ?? (day.isToday ? s.bookedToday : 0)
+          const over = load?.overCapacity ?? (day.isToday ? s.overCapacityToday : 0)
+          const full = s.capacity !== null && booked >= s.capacity
           return (
             <span className="tabular-nums">
               {booked}
               {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
-              {over > 0 ? (
-                // Said in words, and never by colour alone. A late payer was honoured above the
-                // slot's capacity — the operator needs to know the evening is one over.
-                <span className="ml-2 text-warning">{over} over capacity</span>
-              ) : null}
+              {over > 0 ? <span className="ml-2 text-warning">{over} over capacity</span> : null}
             </span>
-          );
+          )
         },
       }),
     ),
@@ -121,13 +110,22 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
                 <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
                   Edit
                 </Button>
-                {/* The Any time window is how a day with no time is sold: it is never switched off. */}
                 {row.original.anyTime ? null : row.original.status === "active" ? (
-                  <Button variant="ghost" size="sm" disabled={patch.isPending} onClick={() => void setStatus(row.original, "disabled")}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={patch.isPending}
+                    onClick={() => void setStatus(row.original, "disabled")}
+                  >
                     Switch off
                   </Button>
                 ) : (
-                  <Button variant="ghost" size="sm" disabled={patch.isPending} onClick={() => void setStatus(row.original, "active")}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={patch.isPending}
+                    onClick={() => void setStatus(row.original, "active")}
+                  >
                     Switch on
                   </Button>
                 )}
@@ -136,19 +134,19 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           } satisfies ColumnDef<DeliverySlotDTO>,
         ]
       : []),
-  ];
+  ]
 
-  const anyActive = (slots.data ?? []).some((s) => s.status === "active");
+  const anyActive = (slots.data ?? []).some((s) => s.status === "active")
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          The delivery windows a customer can choose — today, or on one of the next delivery days (Australia/Melbourne). A window is
-          offered until its “order by” time and while a collection run can still bring the goods to the
-          hub before it starts. A window has no limit on deliveries unless you set one. Changes apply to the next checkout; orders
-          already placed keep the window they were sold. Each day has its own count: the columns show
-          how many deliveries are booked into each window today and on the delivery days after it.
+          The delivery windows a customer can choose — today, or on one of the next delivery days (Australia/Melbourne).
+          A window is offered until its “order by” time and while a collection run can still bring the goods to the hub
+          before it starts. A window has no limit on deliveries unless you set one. Changes apply to the next checkout;
+          orders already placed keep the window they were sold. Each day has its own count: the columns show how many
+          deliveries are booked into each window today and on the delivery days after it.
         </p>
         {canManage ? (
           <Button onClick={() => setEditing("new")}>
@@ -166,7 +164,11 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
         <>
           {!anyActive ? (
             // The one consequence an operator must not discover from a customer.
-            <Callout tone="destructive" role="status" title="No window is active, so Effy delivery is not being offered to anyone." />
+            <Callout
+              tone="destructive"
+              role="status"
+              title="No window is active, so Effy delivery is not being offered to anyone."
+            />
           ) : null}
           {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
         </>
@@ -175,46 +177,50 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
 
       {editing ? <SlotDialog slot={editing === "new" ? null : editing} onClose={() => setEditing(null)} /> : null}
     </section>
-  );
+  )
 }
 
 function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: () => void }) {
-  const create = useCreateSlot();
-  const patch = usePatchSlot();
-  const [startTime, setStartTime] = useState(slot?.startTime ?? "");
-  const [endTime, setEndTime] = useState(slot?.endTime ?? "");
-  const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "");
-  const [limited, setLimited] = useState(slot?.capacity != null);
-  const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
-  const pending = create.isPending || patch.isPending;
+  const create = useCreateSlot()
+  const patch = usePatchSlot()
+  const [startTime, setStartTime] = useState(slot?.startTime ?? "")
+  const [endTime, setEndTime] = useState(slot?.endTime ?? "")
+  const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "")
+  const [limited, setLimited] = useState(slot?.capacity != null)
+  const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "")
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
+  const pending = create.isPending || patch.isPending
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErrors({});
-    setError(null);
+    e.preventDefault()
+    setErrors({})
+    setError(null)
     const body = {
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       cutoffTime: cutoffTime.trim(),
-      // Unticked is "no limit", sent as null — on an edit that is what removes a limit. Ticked
-      // with nothing typed is sent as 0, so the service refuses it on the field.
       capacity: limited ? Number(capacity) : null,
-    };
+    }
     try {
-      if (slot) await patch.mutateAsync({ slotId: slot.id, body });
-      else await create.mutateAsync(body);
-      onClose();
+      if (slot) await patch.mutateAsync({ slotId: slot.id, body })
+      else await create.mutateAsync(body)
+      onClose()
     } catch (err) {
-      const named = fieldErrors(err);
-      setErrors(named);
-      // A refusal that named its fields is shown ON them; the summary line is for everything else.
-      if (Object.keys(named).length === 0) setError(deliveryMutationError(err, SLOT_DUPLICATE));
+      const named = fieldErrors(err)
+      setErrors(named)
+      if (Object.keys(named).length === 0) setError(deliveryMutationError(err, SLOT_DUPLICATE))
     }
   }
 
-  const field = (id: string, label: string, value: string, set: (v: string) => void, placeholder: string, extra?: object) => (
+  const field = (
+    id: string,
+    label: string,
+    value: string,
+    set: (v: string) => void,
+    placeholder: string,
+    extra?: object,
+  ) => (
     <div className="space-y-2">
       <Label htmlFor={`slot-${id}`}>{label}</Label>
       <Input
@@ -232,7 +238,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
         </p>
       ) : null}
     </div>
-  );
+  )
 
   return (
     <Dialog open onOpenChange={(o) => (o ? undefined : onClose())}>
@@ -240,7 +246,10 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
         <DialogHeader>
           <DialogTitle>{slot ? "Edit window" : "New delivery window"}</DialogTitle>
           <DialogDescription>
-            Times are Melbourne time, 24-hour. {slot ? "Orders already placed keep the window they were sold." : "It is offered at checkout as soon as you save."}
+            Times are Melbourne time, 24-hour.{" "}
+            {slot
+              ? "Orders already placed keep the window they were sold."
+              : "It is offered at checkout as soon as you save."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4" noValidate>
@@ -266,15 +275,15 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
           </div>
           {slot?.anyTime ? (
             <p className="text-sm text-muted-foreground">
-              This is the Any time window. Customers who choose a day without a time, or “Standard”, are delivered
-              in it: its hours are when those deliveries go out, and its limit is how many such orders a day takes. It
+              This is the Any time window. Customers who choose a day without a time, or “Standard”, are delivered in
+              it: its hours are when those deliveries go out, and its limit is how many such orders a day takes. It
               cannot be switched off and never carries a surcharge.
             </p>
           ) : null}
           {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
-              {slot.bookedToday} deliveries are already booked today. They keep their place; the window
-              takes no more until it is below this number.
+              {slot.bookedToday} deliveries are already booked today. They keep their place; the window takes no more
+              until it is below this number.
             </p>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -289,5 +298,5 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

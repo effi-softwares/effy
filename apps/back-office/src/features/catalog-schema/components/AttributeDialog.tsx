@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useForm } from "@tanstack/react-form";
-import { Plus, Trash2, X } from "lucide-react";
+import { useForm } from "@tanstack/react-form"
+import { Plus, Trash2, X } from "lucide-react"
 
-import type { AttributeDataType, AttributeValidationDTO } from "@effy/shared-types";
-import { ATTRIBUTE_DATA_TYPES } from "@effy/shared-types";
+import { type AttributeDataType, type AttributeValidationDTO, ATTRIBUTE_DATA_TYPES } from "@effy/shared-types"
 import {
   Button,
   Dialog,
@@ -20,23 +19,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { catalogMutationError } from "../errorText";
-import type { AttributeDefinition } from "../model";
-import { useCreateAttribute, useDeleteAllowedValue, useUpdateAttribute } from "../queries";
+import { catalogMutationError } from "../errorText"
+import type { AttributeDefinition } from "../model"
+import { useCreateAttribute, useDeleteAllowedValue, useUpdateAttribute } from "../queries"
 
-// Create or edit a reusable attribute definition. On create the `key` and `dataType` are set once
-// (UpdateAttributeDefinitionRequest carries neither — the data type drives the value column, so it
-// is immutable). The allowed-values editor is only shown for the select data types: existing values
-// are removed via the dedicated DELETE endpoint (blocked 409 if a product uses one, FR-006), while
-// newly-added values ride the PATCH/POST body.
-export interface AttributeDialogProps {
-  attribute?: AttributeDefinition;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface AttributeDialogProps {
+  attribute?: AttributeDefinition
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 const DATA_TYPE_LABELS: Record<AttributeDataType, string> = {
@@ -46,37 +40,31 @@ const DATA_TYPE_LABELS: Record<AttributeDataType, string> = {
   boolean: "Yes / no",
   single_select: "Single select",
   multi_select: "Multi select",
-};
-
-interface NewValue {
-  value: string;
-  label: string;
 }
 
-function buildValidation(
-  min: string,
-  max: string,
-  maxLength: string,
-): AttributeValidationDTO | null {
-  const v: AttributeValidationDTO = {};
-  if (min.trim() !== "") v.min = Number(min);
-  if (max.trim() !== "") v.max = Number(max);
-  if (maxLength.trim() !== "") v.maxLength = Number(maxLength);
-  return Object.keys(v).length > 0 ? v : null;
+interface NewValue {
+  value: string
+  label: string
+}
+
+function buildValidation(min: string, max: string, maxLength: string): AttributeValidationDTO | null {
+  const v: AttributeValidationDTO = {}
+  if (min.trim() !== "") v.min = Number(min)
+  if (max.trim() !== "") v.max = Number(max)
+  if (maxLength.trim() !== "") v.maxLength = Number(maxLength)
+  return Object.keys(v).length > 0 ? v : null
 }
 
 export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDialogProps) {
-  const isEdit = Boolean(attribute);
-  const createAttribute = useCreateAttribute();
-  const updateAttribute = useUpdateAttribute(attribute?.id ?? "");
-  const deleteAllowedValue = useDeleteAllowedValue(attribute?.id ?? "");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [dataType, setDataType] = useState<AttributeDataType>(
-    attribute?.dataType ?? "short_text",
-  );
-  const [newValues, setNewValues] = useState<NewValue[]>([]);
+  const isEdit = Boolean(attribute)
+  const createAttribute = useCreateAttribute()
+  const updateAttribute = useUpdateAttribute(attribute?.id ?? "")
+  const deleteAllowedValue = useDeleteAllowedValue(attribute?.id ?? "")
+  const [formError, setFormError] = useState<string | null>(null)
+  const [dataType, setDataType] = useState<AttributeDataType>(attribute?.dataType ?? "short_text")
+  const [newValues, setNewValues] = useState<NewValue[]>([])
 
-  const isSelect = dataType === "single_select" || dataType === "multi_select";
+  const isSelect = dataType === "single_select" || dataType === "multi_select"
 
   const form = useForm({
     defaultValues: {
@@ -86,12 +74,11 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
       helpText: attribute?.helpText ?? "",
       min: attribute?.validation?.min != null ? String(attribute.validation.min) : "",
       max: attribute?.validation?.max != null ? String(attribute.validation.max) : "",
-      maxLength:
-        attribute?.validation?.maxLength != null ? String(attribute.validation.maxLength) : "",
+      maxLength: attribute?.validation?.maxLength != null ? String(attribute.validation.maxLength) : "",
     },
     onSubmit: async ({ value }) => {
-      setFormError(null);
-      const validation = buildValidation(value.min, value.max, value.maxLength);
+      setFormError(null)
+      const validation = buildValidation(value.min, value.max, value.maxLength)
       const allowedValues = isSelect
         ? newValues
             .filter((v) => v.value.trim())
@@ -100,7 +87,7 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
               label: v.label.trim() || v.value.trim(),
               displayOrder: (attribute?.allowedValues.length ?? 0) + i,
             }))
-        : undefined;
+        : undefined
       try {
         if (attribute) {
           await updateAttribute.mutateAsync({
@@ -109,7 +96,7 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
             helpText: value.helpText.trim() || null,
             validation,
             ...(allowedValues && allowedValues.length > 0 ? { allowedValues } : {}),
-          });
+          })
         } else {
           const created = await createAttribute.mutateAsync({
             key: value.key.trim(),
@@ -119,27 +106,26 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
             helpText: value.helpText.trim() || null,
             validation,
             ...(allowedValues ? { allowedValues } : {}),
-          });
-          track({ name: "schema_attribute_created", attributeId: created.id });
+          })
+          track({ name: "schema_attribute_created", attributeId: created.id })
         }
-        form.reset();
-        setNewValues([]);
-        onOpenChange(false);
+        form.reset()
+        setNewValues([])
+        onOpenChange(false)
       } catch (err) {
-        setFormError(catalogMutationError(err, "An attribute with that key already exists."));
+        setFormError(catalogMutationError(err, "An attribute with that key already exists."))
       }
     },
-  });
+  })
 
   function addNewValue() {
-    setNewValues((prev) => [...prev, { value: "", label: "" }]);
+    setNewValues((prev) => [...prev, { value: "", label: "" }])
   }
 
   function removeExistingValue(valueId: string) {
     deleteAllowedValue.mutate(valueId, {
-      onError: (err) =>
-        setFormError(catalogMutationError(err, "That value is in use and can't be removed.")),
-    });
+      onError: (err) => setFormError(catalogMutationError(err, "That value is in use and can't be removed.")),
+    })
   }
 
   return (
@@ -155,8 +141,8 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
         </DialogHeader>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
+            e.preventDefault()
+            void form.handleSubmit()
           }}
           className="max-h-[70vh] space-y-4 overflow-y-auto"
           noValidate
@@ -187,17 +173,9 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
             <div className="space-y-2">
               <Label htmlFor="attr-data-type">Data type</Label>
               {isEdit ? (
-                <Input
-                  id="attr-data-type"
-                  value={DATA_TYPE_LABELS[dataType]}
-                  disabled
-                  readOnly
-                />
+                <Input id="attr-data-type" value={DATA_TYPE_LABELS[dataType]} disabled readOnly />
               ) : (
-                <Select
-                  value={dataType}
-                  onValueChange={(v) => setDataType(v as AttributeDataType)}
-                >
+                <Select value={dataType} onValueChange={(v) => setDataType(v as AttributeDataType)}>
                   <SelectTrigger id="attr-data-type">
                     <SelectValue />
                   </SelectTrigger>
@@ -313,15 +291,10 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
               {attribute && attribute.allowedValues.length > 0 ? (
                 <ul className="divide-y rounded-md border">
                   {attribute.allowedValues.map((v) => (
-                    <li
-                      key={v.id}
-                      className="flex items-center justify-between px-3 py-2 text-sm"
-                    >
+                    <li key={v.id} className="flex items-center justify-between px-3 py-2 text-sm">
                       <span>
                         {v.label}
-                        <span className="ml-2 font-mono text-xs text-muted-foreground">
-                          {v.value}
-                        </span>
+                        <span className="ml-2 font-mono text-xs text-muted-foreground">{v.value}</span>
                       </span>
                       <Button
                         type="button"
@@ -343,18 +316,14 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
                     placeholder="value"
                     value={nv.value}
                     onChange={(e) =>
-                      setNewValues((prev) =>
-                        prev.map((p, j) => (j === i ? { ...p, value: e.target.value } : p)),
-                      )
+                      setNewValues((prev) => prev.map((p, j) => (j === i ? { ...p, value: e.target.value } : p)))
                     }
                   />
                   <Input
                     placeholder="label"
                     value={nv.label}
                     onChange={(e) =>
-                      setNewValues((prev) =>
-                        prev.map((p, j) => (j === i ? { ...p, label: e.target.value } : p)),
-                      )
+                      setNewValues((prev) => prev.map((p, j) => (j === i ? { ...p, label: e.target.value } : p)))
                     }
                   />
                   <Button
@@ -387,5 +356,5 @@ export function AttributeDialog({ attribute, open, onOpenChange }: AttributeDial
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

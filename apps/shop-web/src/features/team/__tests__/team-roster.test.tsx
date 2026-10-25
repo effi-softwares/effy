@@ -40,14 +40,6 @@ function wrap(roles: string[], team: ShopTeamMemberDTO[]) {
   )
 }
 
-/**
- * The roster is readable by everyone; the actions are manager-only.
- *
- * This is not the security boundary. The backend re-checks `shop_manager` against the platform
- * record on every write and refuses regardless of what renders. What these pin is that a `shop_staff`
- * operator is not shown controls that would only ever refuse — and, just as importantly, that they are
- * still shown the list, because knowing who you work with is not privileged.
- */
 describe("team roster visibility", () => {
   it("shows the roster to a shop_staff operator", async () => {
     wrap(["shop_staff"], [member()])
@@ -78,11 +70,6 @@ describe("team roster visibility", () => {
     expect(screen.getByRole("button", { name: /stand down/i })).toBeInTheDocument()
   })
 
-  /**
-   * A courtesy against locking yourself out, not the protection. The backend refuses removing the
-   * last manager whoever asks — which is the case this cannot cover, since a manager standing down a
-   * different sole manager is still a lockout.
-   */
   it("withholds stand-down on the manager's own row", async () => {
     wrap(["shop_manager"], [member({ isSelf: true, roles: ["shop_manager"] })])
     await screen.findByText("Maya Oyelaran")

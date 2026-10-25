@@ -12,14 +12,6 @@ import {
 
 import { cn } from "@/lib/utils"
 
-/**
- * Every order and product overlay, one shape (redesign, "Patterns — Overlays"): the responsive dialog —
- * a centred dialog from 768px, a bottom drawer below it. A title and one sentence, a scrolling body, and
- * a footer. On a phone the primary action comes first and full width.
- *
- * No corner close button: it closes from its footer's cancel button, Escape or the scrim. Focus lands
- * on the first field, never on the destructive button.
- */
 export function DesignSheet({
   open,
   onOpenChange,
@@ -39,16 +31,13 @@ export function DesignSheet({
   onOpenChange: (open: boolean) => void
   title: ReactNode
   description: ReactNode
-  /** 620px — for sheets that list order lines (refund). */
   wide?: boolean
   cancelLabel?: string
   saveLabel: string
   onSave: () => void
   canSave?: boolean
   saving?: boolean
-  /** A destructive confirm — the foreground fill (black / white), never red. */
   destructive?: boolean
-  /** Inline failure copy, shown above the footer. */
   error?: string | null
   children: ReactNode
 }) {
@@ -162,7 +151,6 @@ function SheetBody({
   )
 }
 
-/** A form field in a sheet: a 15px label above its control, an optional hint below. */
 export function SheetField({
   label,
   htmlFor,
@@ -185,7 +173,6 @@ export function SheetField({
   )
 }
 
-/** A labelled toggle row: title + muted line on the left, the switch on the right. */
 export function SheetToggleRow({
   title,
   detail,

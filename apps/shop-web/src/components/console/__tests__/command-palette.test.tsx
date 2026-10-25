@@ -33,7 +33,6 @@ describe("search and commands", () => {
   it("lists the pages this role may open, and never Management for staff", () => {
     wrap(<CommandPalette open onOpenChange={() => {}} roles={["shop_staff"]} onScan={() => {}} />)
     const pages = screen.getByRole("group", { name: "Go to" })
-    // Every page in the menu, sub-pages included (Orders' are All orders · Awaiting pick · Queue).
     expect(within(pages).getByText("All orders")).toBeInTheDocument()
     expect(within(pages).getByText("Queue")).toBeInTheDocument()
     expect(within(pages).queryByText("Management")).not.toBeInTheDocument()

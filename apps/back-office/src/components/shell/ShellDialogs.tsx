@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
 import {
   Badge,
@@ -10,29 +10,30 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
   Skeleton,
-} from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+} from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { Kbd } from "@effy/web-kit/patterns";
-import { meQuery } from "@/features/staff-identity/queries";
+import { Kbd } from "@effy/web-kit/patterns"
+import { meQuery } from "@/features/staff-identity/queries"
 
-import { CHORDS } from "./chords";
-import { displayName, roleLabel } from "./identity";
+import { CHORDS } from "./chords"
+import { displayName, roleLabel } from "./identity"
 
-/** Keyboard shortcuts — the "?" key and the account menu open it. */
 export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const rows: { keys: string[]; what: string }[] = [
     { keys: ["⌘", "K"], what: "Search and commands" },
     { keys: ["⌘", "B"], what: "Fold or open the sidebar" },
     { keys: ["?"], what: "This list" },
     ...CHORDS.map((c) => ({ keys: c.keys.map(String), what: `Go to ${chordTarget[c.navKey] ?? c.navKey}` })),
-  ];
+  ]
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent className="sm:max-w-md">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>Keyboard shortcuts</ResponsiveModalTitle>
-          <ResponsiveModalDescription>They work anywhere except while you are typing in a field.</ResponsiveModalDescription>
+          <ResponsiveModalDescription>
+            They work anywhere except while you are typing in a field.
+          </ResponsiveModalDescription>
         </ResponsiveModalHeader>
         <dl className="divide-y divide-border">
           {rows.map((r) => (
@@ -48,7 +49,7 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         </dl>
       </ResponsiveModalContent>
     </ResponsiveModal>
-  );
+  )
 }
 
 const chordTarget: Record<string, string> = {
@@ -58,20 +59,18 @@ const chordTarget: Record<string, string> = {
   exceptions: "Exceptions",
   customers: "Customers",
   review: "Product review",
-};
+}
 
-/**
- * "Your back-office record" — what the platform holds about the person signed in, read from the
- * staff record (GET /admin/v1/me), which is what every access decision is made from.
- */
 export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const me = useQuery({ ...meQuery, enabled: open });
+  const me = useQuery({ ...meQuery, enabled: open })
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent className="sm:max-w-md">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>Your back-office record</ResponsiveModalTitle>
-          <ResponsiveModalDescription>What you can do is decided from this record, on the server.</ResponsiveModalDescription>
+          <ResponsiveModalDescription>
+            What you can do is decided from this record, on the server.
+          </ResponsiveModalDescription>
         </ResponsiveModalHeader>
         {me.isPending ? (
           <div className="space-y-2" aria-busy="true">
@@ -86,7 +85,11 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
             <Row k="Name">{displayName(me.data.email)}</Row>
             <Row k="Email">{me.data.email}</Row>
             <Row k="Role">
-              {roleLabel(me.data.roles) ? <Badge variant="brand">{roleLabel(me.data.roles)}</Badge> : "No role — you can sign in but not act"}
+              {roleLabel(me.data.roles) ? (
+                <Badge variant="brand">{roleLabel(me.data.roles)}</Badge>
+              ) : (
+                "No role — you can sign in but not act"
+              )}
             </Row>
             <Row k="Status">
               <Badge variant={me.data.status === "active" ? "success" : "secondary"}>
@@ -100,7 +103,7 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
         )}
       </ResponsiveModalContent>
     </ResponsiveModal>
-  );
+  )
 }
 
 function Row({ k, children }: { k: string; children: ReactNode }) {
@@ -109,5 +112,5 @@ function Row({ k, children }: { k: string; children: ReactNode }) {
       <dt className="text-muted-foreground">{k}</dt>
       <dd className="min-w-0">{children}</dd>
     </div>
-  );
+  )
 }

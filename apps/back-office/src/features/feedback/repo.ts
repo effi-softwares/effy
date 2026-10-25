@@ -1,5 +1,3 @@
-// Data layer for the feedback console slice. Screens never touch the api client directly
-// (Principle VI). Every endpoint lives under the admin cold-path service behind the shared gateway.
 import { api } from "@/lib/api"
 
 import type { FeedbackDetailDTO, FeedbackListDTO, FeedbackListParams } from "./model"
@@ -27,22 +25,13 @@ export async function getFeedback(referenceCode: string): Promise<FeedbackDetail
 }
 
 export async function setFeedbackStatus(referenceCode: string, status: string): Promise<FeedbackDetailDTO> {
-  return api.post<FeedbackDetailDTO>(
-    `/admin/v1/feedback/${encodeURIComponent(referenceCode)}/status`,
-    { status },
-  )
+  return api.post<FeedbackDetailDTO>(`/admin/v1/feedback/${encodeURIComponent(referenceCode)}/status`, { status })
 }
 
 export async function addFeedbackNote(referenceCode: string, body: string): Promise<FeedbackDetailDTO> {
-  return api.post<FeedbackDetailDTO>(
-    `/admin/v1/feedback/${encodeURIComponent(referenceCode)}/notes`,
-    { body },
-  )
+  return api.post<FeedbackDetailDTO>(`/admin/v1/feedback/${encodeURIComponent(referenceCode)}/notes`, { body })
 }
 
 export async function replyToFeedback(referenceCode: string, body: string): Promise<FeedbackDetailDTO> {
-  return api.post<FeedbackDetailDTO>(
-    `/admin/v1/feedback/${encodeURIComponent(referenceCode)}/reply`,
-    { body },
-  )
+  return api.post<FeedbackDetailDTO>(`/admin/v1/feedback/${encodeURIComponent(referenceCode)}/reply`, { body })
 }

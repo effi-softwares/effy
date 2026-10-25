@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import type {
   HoldingIssueRequest,
@@ -6,59 +6,50 @@ import type {
   VehicleCreateRequest,
   VehicleStatusRequest,
   VehicleUpdateRequest,
-} from "@effy/shared-types";
+} from "@effy/shared-types"
 
-import type { VehicleListParams } from "./model";
-import * as repo from "./repo";
+import type { VehicleListParams } from "./model"
+import * as repo from "./repo"
 
-// Server state lives only in the TanStack Query cache (Principle VI) — never hand-cached in
-// component state. Mutations invalidate rather than patch.
-
-export const vehicleKeys = {
+const vehicleKeys = {
   all: ["vehicles"] as const,
   list: (p: VehicleListParams) => ["vehicles", "list", p] as const,
   detail: (id: string) => ["vehicles", "detail", id] as const,
-};
+}
 
 export const vehiclesListQuery = (p: VehicleListParams) =>
-  queryOptions({ queryKey: vehicleKeys.list(p), queryFn: () => repo.listVehicles(p) });
+  queryOptions({ queryKey: vehicleKeys.list(p), queryFn: () => repo.listVehicles(p) })
 
 export const vehicleDetailQuery = (id: string) =>
-  queryOptions({ queryKey: vehicleKeys.detail(id), queryFn: () => repo.getVehicle(id) });
-
-// Mutations
-//
-// Each invalidates `vehicleKeys.all` and the driver keys. Issuing a vehicle changes what a driver
-// holds and can change whether they are blocked from work — two screens read that, and a stale one
-// would show a driver as unable to work seconds after the operator fixed it.
+  queryOptions({ queryKey: vehicleKeys.detail(id), queryFn: () => repo.getVehicle(id) })
 
 function useFleetMutation<TArgs, TResult>(fn: (a: TArgs) => Promise<TResult>) {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: vehicleKeys.all });
-      void qc.invalidateQueries({ queryKey: ["drivers"] });
+      void qc.invalidateQueries({ queryKey: vehicleKeys.all })
+      void qc.invalidateQueries({ queryKey: ["drivers"] })
     },
-  });
+  })
 }
 
 export function useCreateVehicle() {
-  return useFleetMutation((body: VehicleCreateRequest) => repo.createVehicle(body));
+  return useFleetMutation((body: VehicleCreateRequest) => repo.createVehicle(body))
 }
 
 export function useUpdateVehicle(vehicleId: string) {
-  return useFleetMutation((body: VehicleUpdateRequest) => repo.updateVehicle(vehicleId, body));
+  return useFleetMutation((body: VehicleUpdateRequest) => repo.updateVehicle(vehicleId, body))
 }
 
 export function useSetVehicleStatus(vehicleId: string) {
-  return useFleetMutation((body: VehicleStatusRequest) => repo.setVehicleStatus(vehicleId, body));
+  return useFleetMutation((body: VehicleStatusRequest) => repo.setVehicleStatus(vehicleId, body))
 }
 
 export function useIssueVehicle(vehicleId: string) {
-  return useFleetMutation((body: HoldingIssueRequest) => repo.issueVehicle(vehicleId, body));
+  return useFleetMutation((body: HoldingIssueRequest) => repo.issueVehicle(vehicleId, body))
 }
 
 export function useReturnVehicle(vehicleId: string) {
-  return useFleetMutation((body: HoldingReturnRequest) => repo.returnVehicle(vehicleId, body));
+  return useFleetMutation((body: HoldingReturnRequest) => repo.returnVehicle(vehicleId, body))
 }

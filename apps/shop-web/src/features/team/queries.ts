@@ -23,8 +23,6 @@ export function useInviteStaff() {
   return useMutation({
     mutationFn: (body: InviteShopStaffRequest) => api.post<void>("/shop/v1/team/invite", body),
     onSuccess: (_r, body) => {
-      // The role only. Never the invitee's email or name — this is the one event that would
-      // otherwise carry a colleague's identity into product analytics.
       track({ name: "shop_staff_invited", role: body.role })
       invalidate()
     },

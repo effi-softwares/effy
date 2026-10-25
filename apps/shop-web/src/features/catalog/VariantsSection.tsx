@@ -1,47 +1,37 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { PackageX } from "lucide-react";
+import { PackageX } from "lucide-react"
 
-import { Button, Switch } from "@effy/design-system/ui";
-import { UNIT_BASIS_LABELS, unitPrice, unitPriceText, type ShopVariantDTO } from "@effy/shared-types";
+import { Button, Switch } from "@effy/design-system/ui"
+import { UNIT_BASIS_LABELS, unitPrice, unitPriceText, type ShopVariantDTO } from "@effy/shared-types"
 
-import { DesignSheet } from "@/components/console/DesignSheet";
-import { DetailSection, SectionAction } from "@/components/console/primitives";
-import { track } from "@/lib/telemetry";
+import { DesignSheet } from "@/components/console/DesignSheet"
+import { DetailSection, SectionAction } from "@/components/console/primitives"
+import { track } from "@/lib/telemetry"
 
-import { formatMoney } from "./detailFormat";
-import { productMutationError } from "./errorText";
-import type { ProductDetail } from "./model";
-import { useSetVariantState } from "./queries";
-import { isApproved } from "./review";
+import { formatMoney } from "./detailFormat"
+import { productMutationError } from "./errorText"
+import type { ProductDetail } from "./model"
+import { useSetVariantState } from "./queries"
+import { isApproved } from "./review"
 
-/**
- * Sizes and prices — every variant the product is sold as, one row each.
- *
- * The prices here are the live ones. A pending change is shown by the review panel above, and the
- * sizes editor opens on it; this table answers "what is on sale right now, at what price".
- *
- * On / off sale is immediate. Taking a size off sale never waits on Effy's review — the row's switch
- * does it at once, and the server keeps at least one size on sale. Removing a size is confirmed in a
- * dialog first (never the browser's own confirm).
- */
 export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onEdit: () => void }) {
-  const approved = isApproved(detail);
-  const setState = useSetVariantState(detail.id);
-  const [error, setError] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<ShopVariantDTO | null>(null);
-  const live = detail.variants.filter((v) => v.state !== "removed");
-  const removed = detail.variants.filter((v) => v.state === "removed");
-  const hasOptions = detail.options.length > 0;
-  const activeCount = live.filter((v) => v.state === "active").length;
+  const approved = isApproved(detail)
+  const setState = useSetVariantState(detail.id)
+  const [error, setError] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<ShopVariantDTO | null>(null)
+  const live = detail.variants.filter((v) => v.state !== "removed")
+  const removed = detail.variants.filter((v) => v.state === "removed")
+  const hasOptions = detail.options.length > 0
+  const activeCount = live.filter((v) => v.state === "active").length
 
   async function change(v: ShopVariantDTO, state: ShopVariantDTO["state"]) {
-    setError(null);
+    setError(null)
     try {
-      await setState.mutateAsync({ variantId: v.id, state });
-      track({ name: "product_variant_state_changed", productId: detail.id, state });
+      await setState.mutateAsync({ variantId: v.id, state })
+      track({ name: "product_variant_state_changed", productId: detail.id, state })
     } catch (err) {
-      setError(productMutationError(err));
+      setError(productMutationError(err))
     }
   }
 
@@ -76,8 +66,8 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
           </thead>
           <tbody>
             {live.map((v) => {
-              const unit = unitPrice(v.customerPriceAmount, v.packQuantity, v.packUnit, detail.unitBasis);
-              const last = v.state === "active" && activeCount <= 1;
+              const unit = unitPrice(v.customerPriceAmount, v.packQuantity, v.packUnit, detail.unitBasis)
+              const last = v.state === "active" && activeCount <= 1
               return (
                 <tr key={v.id}>
                   <td>
@@ -94,7 +84,6 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                     ) : null}
                   </td>
                   <td className="is-num">
-                    {/* Both prices, never the margin: before approval there is no customer price. */}
                     {approved && v.customerPriceAmount ? (
                       formatMoney(v.customerPriceAmount, detail.currency)
                     ) : (
@@ -149,7 +138,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                     </td>
                   ) : null}
                 </tr>
-              );
+              )
             })}
           </tbody>
         </table>
@@ -178,12 +167,12 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
         destructive
         saving={setState.isPending}
         onSave={() => {
-          if (!removing) return;
-          void change(removing, "removed").then(() => setRemoving(null));
+          if (!removing) return
+          void change(removing, "removed").then(() => setRemoving(null))
         }}
       >
         <p className="text-sm text-muted-foreground">To sell it again later, add it back as a new size.</p>
       </DesignSheet>
     </DetailSection>
-  );
+  )
 }

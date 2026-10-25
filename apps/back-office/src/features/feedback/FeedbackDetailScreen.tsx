@@ -1,17 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { Skeleton } from "@effy/design-system/ui"
-import { ErrorState } from "@effy/web-kit/console"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
 import { PageHeader } from "@effy/web-kit/patterns"
-import { useHeaderDetail } from "@effy/web-kit/console"
 import { sessionQuery } from "@/features/auth/queries"
 
 import { canReplyFeedback } from "./access"
 import { FeedbackPanel } from "./FeedbackPanel"
 import { feedbackDetailQuery } from "./queries"
 
-/** One feedback submission as its own page (redesign, board "Feedback — one submission"). */
 export function FeedbackDetailScreen({ referenceCode }: { referenceCode: string }) {
   const { data, isPending, isError, error, refetch } = useQuery(feedbackDetailQuery(referenceCode))
   const { data: session } = useQuery(sessionQuery)

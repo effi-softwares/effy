@@ -1,29 +1,26 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { render, screen, within } from "@testing-library/react"
+import type { ReactNode } from "react"
+import { describe, expect, it, vi } from "vitest"
 
-import type { CatalogSchema, ProductList } from "./model";
+import type { CatalogSchema, ProductList } from "./model"
 
-// Keep the create flow's session/identity reads off the network; the list screen itself needs neither.
-// The name column links to the detail route; without a RouterProvider a real <Link> throws. This is a
-// column-render test, so a plain anchor stand-in is enough.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
   useNavigate: () => () => {},
-}));
+}))
 
 vi.mock("@/features/auth/queries", () => ({
   sessionQuery: { queryKey: ["auth", "session"], queryFn: async () => ({ status: "signed-out" }) },
-}));
+}))
 vi.mock("@/features/shop-identity/queries", () => ({
   meQuery: { queryKey: ["shop", "me"], queryFn: async () => ({ shop: null }) },
-}));
-vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }));
+}))
+vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }))
 
-const getCatalogSchema = vi.hoisted(() => vi.fn());
-const listProducts = vi.hoisted(() => vi.fn());
-const listSections = vi.hoisted(() => vi.fn(async () => []));
+const getCatalogSchema = vi.hoisted(() => vi.fn())
+const listProducts = vi.hoisted(() => vi.fn())
+const listSections = vi.hoisted(() => vi.fn(async () => []))
 vi.mock("./repo", () => ({
   getCatalogSchema,
   listProducts,
@@ -31,11 +28,11 @@ vi.mock("./repo", () => ({
   getProduct: vi.fn(),
   createProduct: vi.fn(),
   uploadProductMedia: vi.fn(),
-}));
+}))
 
-import { CatalogListScreen } from "./CatalogListScreen";
+import { CatalogListScreen } from "./CatalogListScreen"
 
-const SCHEMA: CatalogSchema = { productTypes: [], categories: [] };
+const SCHEMA: CatalogSchema = { productTypes: [], categories: [] }
 
 const ONE_PAGE: ProductList = {
   items: [
@@ -57,42 +54,38 @@ const ONE_PAGE: ProductList = {
   total: 1,
   page: 1,
   pageSize: 20,
-};
+}
 
 function wrap(children: ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
 describe("CatalogListScreen columns", () => {
   it("renders name/type/category/price/status/sizes from the paged response", async () => {
-    getCatalogSchema.mockResolvedValue(SCHEMA);
-    listProducts.mockResolvedValue(ONE_PAGE);
+    getCatalogSchema.mockResolvedValue(SCHEMA)
+    listProducts.mockResolvedValue(ONE_PAGE)
 
-    wrap(<CatalogListScreen />);
+    wrap(<CatalogListScreen />)
 
-    expect(await screen.findByText("Flat White")).toBeInTheDocument();
-    // Follows the imported design's SIX-column table: Product / SKU / Category / Status /
-    // Price / Inventory. The Type column is gone — Category answers the same scanning question and
-    // the mockup drops it. Brand survives as the Product cell's muted second line, because it is what
-    // tells two similar products apart; the mockup's own sample data just has no brands in it.
-    expect(screen.getByText("Effy Roastery")).toBeInTheDocument();
-    expect(screen.getByText("Coffee")).toBeInTheDocument();
-    expect(screen.getByText("$4.50")).toBeInTheDocument();
-    expect(within(screen.getByRole("table")).getByText("Live")).toBeInTheDocument();
-    expect(screen.getByText("One size")).toBeInTheDocument(); // Codes are each size's
+    expect(await screen.findByText("Flat White")).toBeInTheDocument()
+    expect(screen.getByText("Effy Roastery")).toBeInTheDocument()
+    expect(screen.getByText("Coffee")).toBeInTheDocument()
+    expect(screen.getByText("$4.50")).toBeInTheDocument()
+    expect(within(screen.getByRole("table")).getByText("Live")).toBeInTheDocument()
+    expect(screen.getByText("One size")).toBeInTheDocument() // Codes are each size's
     // What is on screen, and of how many.
     expect(
       screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1–1 of 1 product ·"))[0],
-    ).toBeInTheDocument();
-  });
+    ).toBeInTheDocument()
+  })
 
   it("shows the empty state when the shop has no products", async () => {
-    getCatalogSchema.mockResolvedValue(SCHEMA);
-    listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    getCatalogSchema.mockResolvedValue(SCHEMA)
+    listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 })
 
-    wrap(<CatalogListScreen />);
+    wrap(<CatalogListScreen />)
 
-    expect(await screen.findByText("No products yet")).toBeInTheDocument();
-  });
-});
+    expect(await screen.findByText("No products yet")).toBeInTheDocument()
+  })
+})

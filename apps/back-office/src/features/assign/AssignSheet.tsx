@@ -1,30 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
 
-import { CircleAlert, Search } from "lucide-react";
+import { CircleAlert, Search } from "lucide-react"
 
-import { Badge, Button, Input, Skeleton, toast } from "@effy/design-system/ui";
+import { Badge, Button, Input, Skeleton, toast } from "@effy/design-system/ui"
 
-import { ResponsiveSheet } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
+import { ResponsiveSheet, Callout } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
 
-import { assignErrorLine, driversForQuery, useAssignTo } from "./queries";
-import type { DriverFit, Stage } from "./repo";
+import { assignErrorLine, driversForQuery, useAssignTo } from "./queries"
+import type { DriverFit, Stage } from "./repo"
 
-/**
- * "Assign to…" — pick a driver for one package.
- *
- * Drivers come in three groups, already sorted by the server:
- *  · Fine — pick and done.
- *  · Concern — not cleared for the area, or the round may run late. A person may decide; picking
- *  one asks once ("Assign anyway?").
- *  · Can't take it — off duty, no licence, no vehicle, van can't carry it, van full. Shown greyed
- *  with the reason, so "why isn't Ben in the list?" is never a question. The server refuses them
- *  too; greying is a courtesy.
- *
- * Every outcome is one line in a toast. A move is just "Assign to…" on a package someone already has.
- */
 export function AssignSheet({
   open,
   onOpenChange,
@@ -33,47 +19,47 @@ export function AssignSheet({
   expectedAssignmentId,
   title,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  packageId: string;
-  stage: Stage;
-  expectedAssignmentId: string | null;
-  title: string;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  packageId: string
+  stage: Stage
+  expectedAssignmentId: string | null
+  title: string
 }) {
-  const [search, setSearch] = useState("");
-  const [confirming, setConfirming] = useState<{ driver: DriverFit; line: string } | null>(null);
-  const drivers = useQuery({ ...driversForQuery(packageId, stage), enabled: open });
-  const assign = useAssignTo(packageId);
+  const [search, setSearch] = useState("")
+  const [confirming, setConfirming] = useState<{ driver: DriverFit; line: string } | null>(null)
+  const drivers = useQuery({ ...driversForQuery(packageId, stage), enabled: open })
+  const assign = useAssignTo(packageId)
 
   const pick = (driver: DriverFit, acceptConcerns = false) => {
     assign.mutate(
       { stage, driverId: driver.driverId, expectedAssignmentId, acceptConcerns },
       {
         onSuccess: (res) => {
-          toast(res.message);
-          setConfirming(null);
-          onOpenChange(false);
+          toast(res.message)
+          setConfirming(null)
+          onOpenChange(false)
         },
         onError: (err) => {
-          const { line, needsConfirm } = assignErrorLine(err);
-          if (needsConfirm) setConfirming({ driver, line });
+          const { line, needsConfirm } = assignErrorLine(err)
+          if (needsConfirm) setConfirming({ driver, line })
           else {
-            toast(line);
-            setConfirming(null);
+            toast(line)
+            setConfirming(null)
           }
         },
       },
-    );
-  };
+    )
+  }
 
-  const shown = (drivers.data ?? []).filter((d) => d.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const shown = (drivers.data ?? []).filter((d) => d.name.toLowerCase().includes(search.trim().toLowerCase()))
   const groups: Array<{ fit: DriverFit["fit"]; title: string }> = [
     { fit: "fine", title: "Can take it" },
     { fit: "concern", title: "Can take it, with a concern" },
     { fit: "cannot", title: "Can't take it" },
-  ];
+  ]
 
-  const tone: Record<DriverFit["fit"], string> = { fine: "bo-avatar--green", concern: "bo-avatar--blue", cannot: "" };
+  const tone: Record<DriverFit["fit"], string> = { fine: "bo-avatar--green", concern: "bo-avatar--blue", cannot: "" }
 
   return (
     <ResponsiveSheet
@@ -90,7 +76,13 @@ export function AssignSheet({
       <label className="relative flex items-center">
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 size-4 text-muted-foreground" />
         <span className="sr-only">Search drivers</span>
-        <Input className="pl-[34px]!" placeholder="Search drivers" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
+        <Input
+          className="pl-[34px]!"
+          placeholder="Search drivers"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
+        />
       </label>
 
       {confirming ? (
@@ -119,8 +111,8 @@ export function AssignSheet({
       ) : null}
       {drivers.isError ? <Callout tone="destructive" title={assignErrorLine(drivers.error).line} /> : null}
       {groups.map(({ fit, title: heading }) => {
-        const list = shown.filter((d) => d.fit === fit);
-        if (list.length === 0) return null;
+        const list = shown.filter((d) => d.fit === fit)
+        if (list.length === 0) return null
         return (
           <section key={fit} aria-label={heading} className="space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -151,11 +143,12 @@ export function AssignSheet({
               ))}
             </ul>
           </section>
-        );
+        )
       })}
       <p className="text-xs text-muted-foreground">
-        The server decides who can take it. Drivers who can't stay listed with the reason, so "why isn't Ben here?" never needs asking.
+        The server decides who can take it. Drivers who can't stay listed with the reason, so "why isn't Ben here?"
+        never needs asking.
       </p>
     </ResponsiveSheet>
-  );
+  )
 }

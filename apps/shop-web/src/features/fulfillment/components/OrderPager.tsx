@@ -7,11 +7,6 @@ import { cn } from "@/lib/utils"
 import type { OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
 
-/**
- * The order pagination in the header, on order detail only: "{n} of {total}", previous, next. It reads the
- * list's own cached query (and the neighbouring page at an edge); at the list's ends the arrows are inert.
- * With no list behind it and not on the first page, it renders nothing.
- */
 export function OrderPager({
   fulfillmentId,
   search,

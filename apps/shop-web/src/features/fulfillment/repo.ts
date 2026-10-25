@@ -2,145 +2,90 @@ import type {
   LabelReadDTO,
   ShopRefundRequest,
   FulfillmentDetailDTO,
-  FulfillmentQueueDTO,
   ShopOrderActivityDTO,
   ShopOrderDetailDTO,
   ShopOrderListDTO,
   ShopOrderListQuery,
   ShopOrderPicksRequest,
   TransitionRequest,
-} from "@effy/shared-types";
+} from "@effy/shared-types"
 
-import { api } from "@/lib/api";
+import { api } from "@/lib/api"
 
-import type { FulfillmentDetail, FulfillmentQueue, FulfillmentQueueState } from "./model";
+import type { FulfillmentDetail } from "./model"
 
-// The data layer for shop-web fulfillment. The only file in this slice that imports the api
-// client — screens read through `queries.ts` and never touch transport (Principle VI).
-//
-// Nothing here sends a shop identifier. The caller's shop is resolved server-side from their
-// `shop_staff` record, so cross-shop access is un-representable on the wire. A
-// portion that is missing OR another shop's returns the same uniform 403 — there is no 404 to
-// distinguish them, by design, so no client-side ownership check exists or is needed.
-
-/** The queue. `active` = pending|received|picking; `completed` = ready_for_pickup|collected. */
-export async function listFulfillments(state: FulfillmentQueueState): Promise<FulfillmentQueue> {
-  return api.get<FulfillmentQueueDTO>(`/shop/v1/fulfillments?state=${state}`);
+export async function transitionFulfillment(id: string, body: TransitionRequest): Promise<FulfillmentDetail> {
+  return api.post<FulfillmentDetailDTO>(`/shop/v1/fulfillments/${id}/status`, body)
 }
 
-/**
- * The pick screen.
- *
- * This read has a side effect by contract: a `pending` portion transitions to `received`
- * opening it IS the acknowledgement. That is why the queue is invalidated after a detail
- * read lands rather than being left to the poll.
- */
-export async function getFulfillment(id: string): Promise<FulfillmentDetail> {
-  return api.get<FulfillmentDetailDTO>(`/shop/v1/fulfillments/${id}`);
-}
-
-/**
- * Advance or reverse the portion. Only `picking` and `ready_for_pickup` are requestable.
- * An illegal transition from the current state is a 409 — the portion moved under us.
- */
-export async function transitionFulfillment(
-  id: string,
-  body: TransitionRequest,
-): Promise<FulfillmentDetail> {
-  return api.post<FulfillmentDetailDTO>(`/shop/v1/fulfillments/${id}/status`, body);
-}
-
-/**
- * Refund part of this shop's portion of an order.
- *
- * It settles through the platform's one refund state machine — the same one back-office uses. The
- * shop service only decides who may ask (an active manager, for their own shop's lines).
- *
- * It sends lines and quantities, never an amount. The server prices the refund from the receipt and
- * refuses a client-supplied amount, so the two can never disagree about what was covered.
- */
 export async function issueShopRefund(
   orderId: string,
   body: ShopRefundRequest,
 ): Promise<{ refundId: string; status: string; amount: string }> {
-  return api.post(`/shop/v1/orders/${orderId}/refunds`, body);
+  return api.post(`/shop/v1/orders/${orderId}/refunds`, body)
 }
 
-// 057 Amendment A3 — the order console (`/shop/v1/orders…`)
-//
-// A sibling of the pick routes above, read by shop-web's Orders list and order detail. These carry the
-// order's money by operator decision; the pick routes still do not, and shop-mobile still reads
-// only those. Same rule as everything above: no shop identifier is ever sent.
-
-/** The list. Search, filters, sort and paging are server-side, so the tab counts cover every state. */
 export async function listOrders(q: ShopOrderListQuery): Promise<ShopOrderListDTO> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams()
   for (const [k, v] of Object.entries(q)) {
-    if (v !== undefined && v !== "") params.set(k, String(v));
+    if (v !== undefined && v !== "") params.set(k, String(v))
   }
-  const qs = params.toString();
-  return api.get<ShopOrderListDTO>(`/shop/v1/orders${qs ? `?${qs}` : ""}`);
+  const qs = params.toString()
+  return api.get<ShopOrderListDTO>(`/shop/v1/orders${qs ? `?${qs}` : ""}`)
 }
 
-/** One order. Like the pick read, opening it acknowledges a `pending` portion. */
 export async function getOrder(id: string): Promise<ShopOrderDetailDTO> {
-  return api.get<ShopOrderDetailDTO>(`/shop/v1/orders/${id}`);
+  return api.get<ShopOrderDetailDTO>(`/shop/v1/orders/${id}`)
 }
 
-/** The full history, for the Activity sheet — fetched only when the sheet opens. */
 export async function getOrderActivity(id: string): Promise<ShopOrderActivityDTO> {
-  return api.get<ShopOrderActivityDTO>(`/shop/v1/orders/${id}/activity`);
+  return api.get<ShopOrderActivityDTO>(`/shop/v1/orders/${id}/activity`)
 }
 
-/** Replace the tag set. Absolute, so a retried save lands the same result. */
 export async function setOrderTags(id: string, tags: string[]): Promise<ShopOrderDetailDTO> {
-  return api.put<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/tags`, { tags });
+  return api.put<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/tags`, { tags })
 }
 
-/** Add an internal note. Append-only — there is no edit or delete. */
 export async function addOrderNote(id: string, body: string): Promise<ShopOrderDetailDTO> {
-  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/notes`, { body });
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/notes`, { body })
 }
 
-/**
- * Item-level picking (A3 revision 2): one line for a tick or an Adjust, every line for Select all.
- * Ticking a received order starts picking server-side — the tick is the start.
- */
-/** The courier collected this parcel from the shop. Booked pickups only; a repeat is the same answer. */
 export async function courierHandover(id: string): Promise<FulfillmentDetail> {
-  return api.post<FulfillmentDetail>(`/shop/v1/fulfillments/${id}/courier-handover`, {});
+  return api.post<FulfillmentDetail>(`/shop/v1/fulfillments/${id}/courier-handover`, {})
 }
 
 export async function setOrderPicks(id: string, body: ShopOrderPicksRequest): Promise<ShopOrderDetailDTO> {
-  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body);
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body)
 }
 
-// Bags
-
-/** Set how many bags of each zone were packed. A cold zone the lines need must have a bag. */
 export async function declareParcels(
   id: string,
   counts: { ambient: number; chilled: number; frozen: number },
 ): Promise<ShopOrderDetailDTO> {
-  return api.put<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels`, { changeId: crypto.randomUUID(), ...counts });
+  return api.put<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels`, {
+    changeId: crypto.randomUUID(),
+    ...counts,
+  })
 }
 
-/** Remove one bag. Bag 1 never; once labels are printed, only the last (409 otherwise). */
 export async function voidParcel(id: string, parcelId: string): Promise<ShopOrderDetailDTO> {
-  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/${parcelId}/void`, { changeId: crypto.randomUUID() });
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/${parcelId}/void`, {
+    changeId: crypto.randomUUID(),
+  })
 }
 
-/** Record that these bags' labels were sent to a printer — called only after they were. */
 export async function recordParcelPrints(body: {
-  changeId: string;
-  parcelIds: string[];
-  layout: "a6" | "a4x4" | "roll62";
-  path: "browser" | "zpl";
+  changeId: string
+  parcelIds: string[]
+  layout: "a6" | "a4x4" | "roll62"
+  path: "browser" | "zpl"
 }): Promise<{ recorded: number }> {
-  return api.post<{ recorded: number }>(`/shop/v1/fulfillments/parcels/prints`, body);
+  return api.post<{ recorded: number }>(`/shop/v1/fulfillments/parcels/prints`, body)
 }
 
-/** Confirm bags as they are packed, by their labels' reads. */
 export async function packScanParcels(id: string, reads: LabelReadDTO[]): Promise<ShopOrderDetailDTO> {
-  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/pack-scans`, { changeId: crypto.randomUUID(), reads });
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/pack-scans`, {
+    changeId: crypto.randomUUID(),
+    reads,
+  })
 }

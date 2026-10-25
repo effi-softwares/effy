@@ -1,49 +1,55 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import type { ColumnDef } from "@tanstack/react-table"
+import { Plus } from "lucide-react"
 
-import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types";
-import { Badge, Button, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types"
+import { Badge, Button, Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { DataTable, ErrorState } from "@effy/web-kit/console"
 
-import { plansQuery } from "../queries";
-import { ActivateDialog } from "./ActivateDialog";
-import { FeeSimulator } from "./FeeSimulator";
-import { PlanEditor } from "./PlanEditor";
+import { plansQuery } from "../queries"
+import { ActivateDialog } from "./ActivateDialog"
+import { FeeSimulator } from "./FeeSimulator"
+import { PlanEditor } from "./PlanEditor"
 
-/**
- * Delivery pricing: the fee plans for "Delivered by Effy" and the courier fee table. The state is a pill
- * (active → brand, draft and retired → muted); what a draft lacks is a column. An active plan opens
- * read-only: changing prices means copying it to a draft and activating that, so what was charged on any
- * day can be read back.
- */
 export function PricingPanel({ canManage }: { canManage: boolean }) {
-  const [kind, setKind] = useState<FeePlanKind>("effy");
-  const plans = useQuery(plansQuery(kind));
-  const [editing, setEditing] = useState<{ plan: FeePlanDTO | null; copy: boolean } | null>(null);
-  const [activating, setActivating] = useState<FeePlanDTO | null>(null);
+  const [kind, setKind] = useState<FeePlanKind>("effy")
+  const plans = useQuery(plansQuery(kind))
+  const [editing, setEditing] = useState<{ plan: FeePlanDTO | null; copy: boolean } | null>(null)
+  const [activating, setActivating] = useState<FeePlanDTO | null>(null)
 
-  const active = plans.data?.find((p) => p.state === "active") ?? null;
+  const active = plans.data?.find((p) => p.state === "active") ?? null
 
   const columns: ColumnDef<FeePlanDTO>[] = [
-    { accessorKey: "name", header: "Plan", cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    {
+      accessorKey: "name",
+      header: "Plan",
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
     {
       accessorKey: "state",
       header: "State",
       cell: ({ row }) =>
-        row.original.state === "active" ? <Badge>Active</Badge>
-        : row.original.state === "draft" ? <Badge variant="secondary">Draft</Badge>
-        : <Badge variant="outline">Retired</Badge>,
+        row.original.state === "active" ? (
+          <Badge>Active</Badge>
+        ) : row.original.state === "draft" ? (
+          <Badge variant="secondary">Draft</Badge>
+        ) : (
+          <Badge variant="outline">Retired</Badge>
+        ),
     },
     {
       id: "gaps",
       header: "Ready",
       cell: ({ row }) => {
-        if (row.original.state !== "draft") return null;
-        const n = row.original.gaps.filter((g) => g.blocking).length;
-        return n === 0 ? <span className="text-muted-foreground">Ready to activate</span> : <span className="text-warning">{n} to fix</span>;
+        if (row.original.state !== "draft") return null
+        const n = row.original.gaps.filter((g) => g.blocking).length
+        return n === 0 ? (
+          <span className="text-muted-foreground">Ready to activate</span>
+        ) : (
+          <span className="text-warning">{n} to fix</span>
+        )
       },
     },
     {
@@ -52,7 +58,11 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
       cell: ({ row }) =>
         row.original.activatedAt ? (
           <span className="text-muted-foreground">
-            {new Date(row.original.activatedAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+            {new Date(row.original.activatedAt).toLocaleDateString("en-AU", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </span>
         ) : null,
     },
@@ -60,23 +70,27 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
       id: "actions",
       header: "",
       cell: ({ row }) => {
-        const p = row.original;
+        const p = row.original
         return (
           <div className="flex justify-end gap-1">
             <Button variant="ghost" size="sm" onClick={() => setEditing({ plan: p, copy: false })}>
               {p.state === "draft" && canManage ? "Edit" : "Open"}
             </Button>
             {canManage ? (
-              <Button variant="ghost" size="sm" onClick={() => setEditing({ plan: p, copy: true })}>Copy to new draft</Button>
+              <Button variant="ghost" size="sm" onClick={() => setEditing({ plan: p, copy: true })}>
+                Copy to new draft
+              </Button>
             ) : null}
             {canManage && p.state === "draft" ? (
-              <Button variant="outline" size="sm" onClick={() => setActivating(p)}>Activate</Button>
+              <Button variant="outline" size="sm" onClick={() => setActivating(p)}>
+                Activate
+              </Button>
             ) : null}
           </div>
-        );
+        )
       },
     },
-  ];
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,7 +120,11 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
         ) : (
           <>
             {kind === "courier" && !active ? <p className="text-sm">No courier table is active.</p> : null}
-            <DataTable columns={columns} data={plans.data} emptyMessage={kind === "courier" ? "No courier tables yet." : "No fee plans yet."} />
+            <DataTable
+              columns={columns}
+              data={plans.data}
+              emptyMessage={kind === "courier" ? "No courier tables yet." : "No fee plans yet."}
+            />
           </>
         )}
       </section>
@@ -127,5 +145,5 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
       ) : null}
       {activating ? <ActivateDialog plan={activating} retiring={active} onClose={() => setActivating(null)} /> : null}
     </div>
-  );
+  )
 }

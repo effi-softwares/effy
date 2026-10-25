@@ -1,16 +1,13 @@
-import { createRoute, Outlet } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router"
 
-import { SignInScreen } from "@/features/auth/SignInScreen";
+import { SignInScreen } from "@/features/auth/SignInScreen"
 
-import { rootRoute } from "./__root";
+import { rootRoute } from "./__root"
 
-// Public auth area — centered layout hosting the sign-in / verify flow.
 export const authLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth",
-  // The sign-in page draws its own two-column frame (redesign, board "Sign in — work email").
-  component: () => <Outlet />,
-});
+})
 
 export const signInRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
@@ -19,9 +16,9 @@ export const signInRoute = createRoute({
     next: typeof search.next === "string" ? search.next : undefined,
   }),
   component: SignInRouteComponent,
-});
+})
 
 function SignInRouteComponent() {
-  const { next } = signInRoute.useSearch();
-  return <SignInScreen next={next} />;
+  const { next } = signInRoute.useSearch()
+  return <SignInScreen next={next} />
 }

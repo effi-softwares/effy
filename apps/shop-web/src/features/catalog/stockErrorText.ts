@@ -1,43 +1,36 @@
-import { isDomainError } from "@effy/api-client";
+import { isDomainError } from "@effy/api-client"
 
-/**
- * Console copy for a stock refusal. Never the server's `detail` (free prose that can leak internals), and
- * never a generic "Something went wrong": keyed off structure (`kind`, `status`, the problem's `field`
- * names), each mapped to our own copy.
- */
 export function stockErrorText(err: unknown): string {
-  if (!isDomainError(err)) return "Something went wrong. Please try again.";
+  if (!isDomainError(err)) return "Something went wrong. Please try again."
 
-  const field = err.fields?.[0]?.field;
+  const field = err.fields?.[0]?.field
   if (err.status === 400 || err.status === 422) {
     switch (field) {
       case "onHand":
-        return "Enter a whole number of units, zero or more.";
+        return "Enter a whole number of units, zero or more."
       case "delta":
-        return "Enter a whole number to add or remove. It cannot be zero.";
+        return "Enter a whole number to add or remove. It cannot be zero."
       case "threshold":
       case "defaultThreshold":
-        return "Enter a whole number, or leave it blank to use the shop default.";
+        return "Enter a whole number, or leave it blank to use the shop default."
       case "reason":
-        return "Choose a reason for this change.";
+        return "Choose a reason for this change."
       case "tracked":
-        return "Choose whether to track stock for this product.";
+        return "Choose whether to track stock for this product."
       default:
-        return "Please check the values and try again.";
+        return "Please check the values and try again."
     }
   }
 
   if (err.status === 409) {
-    return "Stock is not being tracked for this product. Turn tracking on first.";
+    return "Stock is not being tracked for this product. Turn tracking on first."
   }
   if (err.kind === "forbidden") {
-    // Covers "another shop's product" too — the server answers both with the same 403 so the route
-    // cannot be used to discover which product ids exist. The copy must not out-guess it.
-    return "You don't have permission to change stock for this product.";
+    return "You don't have permission to change stock for this product."
   }
-  if (err.kind === "not-found") return "That product no longer exists.";
+  if (err.kind === "not-found") return "That product no longer exists."
   if (err.kind === "unavailable") {
-    return "The service is waking up or unreachable. Try again in a moment.";
+    return "The service is waking up or unreachable. Try again in a moment."
   }
-  return "Something went wrong. Please try again.";
+  return "Something went wrong. Please try again."
 }

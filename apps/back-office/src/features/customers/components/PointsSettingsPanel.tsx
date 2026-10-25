@@ -1,79 +1,96 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Coins, History } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Coins, History } from "lucide-react"
 
-import type { PointsSettingsDTO } from "@effy/shared-types";
-import { Button, Input, Label, toast } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import type { PointsSettingsDTO } from "@effy/shared-types"
+import { Button, Input, Label, toast } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { sessionQuery } from "@/features/auth/queries";
+import { Panel } from "@effy/web-kit/patterns"
+import { sessionQuery } from "@/features/auth/queries"
 
-import { canEditPointsSettings } from "../access";
-import { pointsActionError } from "../errorText";
-import { pointsSettingsQuery, useUpdatePointsSettings } from "../queries";
+import { canEditPointsSettings } from "../access"
+import { pointsActionError } from "../errorText"
+import { pointsSettingsQuery, useUpdatePointsSettings } from "../queries"
 
-type Field = "centsPerPoint" | "expiryMonths" | "csaCreditLimitPoints" | "warningDays" | "holdMinutes";
+type Field = "centsPerPoint" | "expiryMonths" | "csaCreditLimitPoints" | "warningDays" | "holdMinutes"
 
 const FIELDS: { key: Field; label: string; help: string }[] = [
-  { key: "centsPerPoint", label: "Value of a point (cents)", help: "Applies to new orders. Orders already paid keep the value they were paid at." },
+  {
+    key: "centsPerPoint",
+    label: "Value of a point (cents)",
+    help: "Applies to new orders. Orders already paid keep the value they were paid at.",
+  },
   { key: "expiryMonths", label: "Points last (months)", help: "Applies to points credited from now on." },
-  { key: "csaCreditLimitPoints", label: "Customer-service credit limit", help: "The most a customer-service agent can credit at once." },
-  { key: "warningDays", label: "Expiry warning (days before)", help: "Customers are emailed once, this many days before points expire." },
-  { key: "holdMinutes", label: "Checkout hold (minutes)", help: "How long points chosen at checkout are set aside while the customer pays." },
-];
+  {
+    key: "csaCreditLimitPoints",
+    label: "Customer-service credit limit",
+    help: "The most a customer-service agent can credit at once.",
+  },
+  {
+    key: "warningDays",
+    label: "Expiry warning (days before)",
+    help: "Customers are emailed once, this many days before points expire.",
+  },
+  {
+    key: "holdMinutes",
+    label: "Checkout hold (minutes)",
+    help: "How long points chosen at checkout are set aside while the customer pays.",
+  },
+]
 
-const when = (iso: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+const when = (iso: string) =>
+  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
 
-/**
- * The points rules. Everyone can read them; only an admin can change them, and every change
- * is listed below with who made it.
- */
 export function PointsSettingsPanel() {
-  const { data: session } = useQuery(sessionQuery);
-  const editable = canEditPointsSettings(session?.status === "signed-in" ? session.identity.roles : []);
-  const settings = useQuery(pointsSettingsQuery);
-  const save = useUpdatePointsSettings();
-  const [draft, setDraft] = useState<Record<Field, string> | null>(null);
+  const { data: session } = useQuery(sessionQuery)
+  const editable = canEditPointsSettings(session?.status === "signed-in" ? session.identity.roles : [])
+  const settings = useQuery(pointsSettingsQuery)
+  const save = useUpdatePointsSettings()
+  const [draft, setDraft] = useState<Record<Field, string> | null>(null)
 
   useEffect(() => {
     if (settings.data && draft === null) {
-      setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, String(settings.data[f.key])])) as Record<Field, string>);
+      setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, String(settings.data[f.key])])) as Record<Field, string>)
     }
-  }, [settings.data, draft]);
+  }, [settings.data, draft])
 
-  if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />;
-  if (settings.isPending || draft === null) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
+  if (settings.isPending || draft === null) return <p className="text-sm text-muted-foreground">Loading…</p>
 
-  const s: PointsSettingsDTO = settings.data;
-  const patch: Partial<PointsSettingsDTO> = {};
-  let valid = true;
+  const s: PointsSettingsDTO = settings.data
+  const patch: Partial<PointsSettingsDTO> = {}
+  let valid = true
   for (const f of FIELDS) {
-    const n = Number(draft[f.key]);
-    if (!Number.isInteger(n)) valid = false;
-    else if (n !== s[f.key]) patch[f.key] = n;
+    const n = Number(draft[f.key])
+    if (!Number.isInteger(n)) valid = false
+    else if (n !== s[f.key]) patch[f.key] = n
   }
-  const dirty = Object.keys(patch).length > 0;
+  const dirty = Object.keys(patch).length > 0
 
   return (
     <div className="space-y-6">
       <form
         onSubmit={(e) => {
-          e.preventDefault();
+          e.preventDefault()
           save.mutate(patch, {
             onSuccess: (next) => {
-              toast("Points settings saved.");
-              setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, String(next[f.key])])) as Record<Field, string>);
+              toast("Points settings saved.")
+              setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, String(next[f.key])])) as Record<Field, string>)
             },
             onError: (err) => toast(pointsActionError(err)),
-          });
+          })
         }}
       >
         <Panel
           title="Rules"
           icon={<Coins aria-hidden="true" />}
-          description={editable ? "Changes apply to points earned or spent from now on." : "Only an administrator can change these."}
+          description={
+            editable
+              ? "Changes apply to points earned or spent from now on."
+              : "Only an administrator can change these."
+          }
           footer={
             editable ? (
               <>
@@ -106,7 +123,11 @@ export function PointsSettingsPanel() {
         </Panel>
       </form>
 
-      <Panel title="Changes" icon={<History aria-hidden="true" />} description="Every change to these rules, newest first.">
+      <Panel
+        title="Changes"
+        icon={<History aria-hidden="true" />}
+        description="Every change to these rules, newest first."
+      >
         {(s.history ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No changes yet.</p>
         ) : (
@@ -127,5 +148,5 @@ export function PointsSettingsPanel() {
         )}
       </Panel>
     </div>
-  );
+  )
 }

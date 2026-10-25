@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useForm } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form"
 
-import type { ShopRole } from "@effy/shared-types";
+import type { ShopRole } from "@effy/shared-types"
 import {
   Button,
   Dialog,
@@ -18,29 +18,27 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { shopMutationError } from "../errorText";
-import { useAddShopUser } from "../queries";
+import { shopMutationError } from "../errorText"
+import { useAddShopUser } from "../queries"
 
-// Provision a shop user (POST /admin/v1/shops/{id}/users). Role is a Select; emits
-// shop_user_provisioned on success.
-export interface AddShopUserDialogProps {
-  shopId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface AddShopUserDialogProps {
+  shopId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 const ROLE_LABELS: Record<ShopRole, string> = {
   shop_manager: "Shop manager",
   shop_staff: "Shop staff",
-};
+}
 
 export function AddShopUserDialog({ shopId, open, onOpenChange }: AddShopUserDialogProps) {
-  const addUser = useAddShopUser(shopId);
-  const [formError, setFormError] = useState<string | null>(null);
+  const addUser = useAddShopUser(shopId)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
@@ -49,21 +47,21 @@ export function AddShopUserDialog({ shopId, open, onOpenChange }: AddShopUserDia
       role: "shop_staff" as ShopRole,
     },
     onSubmit: async ({ value }) => {
-      setFormError(null);
+      setFormError(null)
       try {
         await addUser.mutateAsync({
           name: value.name.trim(),
           email: value.email.trim(),
           role: value.role,
-        });
-        track({ name: "shop_user_provisioned", shopId });
-        form.reset();
-        onOpenChange(false);
+        })
+        track({ name: "shop_user_provisioned", shopId })
+        form.reset()
+        onOpenChange(false)
       } catch (err) {
-        setFormError(shopMutationError(err, "A user with that email is already on this shop."));
+        setFormError(shopMutationError(err, "A user with that email is already on this shop."))
       }
     },
-  });
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,8 +72,8 @@ export function AddShopUserDialog({ shopId, open, onOpenChange }: AddShopUserDia
         </DialogHeader>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
+            e.preventDefault()
+            void form.handleSubmit()
           }}
           className="space-y-4"
           noValidate
@@ -114,10 +112,7 @@ export function AddShopUserDialog({ shopId, open, onOpenChange }: AddShopUserDia
             {(field) => (
               <div className="space-y-2">
                 <Label htmlFor="user-role">Role</Label>
-                <Select
-                  value={field.state.value}
-                  onValueChange={(v) => field.handleChange(v as ShopRole)}
-                >
+                <Select value={field.state.value} onValueChange={(v) => field.handleChange(v as ShopRole)}>
                   <SelectTrigger id="user-role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -145,5 +140,5 @@ export function AddShopUserDialog({ shopId, open, onOpenChange }: AddShopUserDia
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

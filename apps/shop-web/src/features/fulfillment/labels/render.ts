@@ -1,29 +1,12 @@
-/* The hex values in this file are deliberate and cannot be tokens — the same exemption as
- * `pickList.ts`. A label is a document for a thermal or laser printer: it has no access to the console's
- * stylesheet, and the theme's colours are for screens. It is black and white only.
- */
-
-/**
- * Bag labels: one pure renderer from a label document to SVG. The browser print, the preview and the
- * thermal (ZPL) path all draw it, so the preview is what prints.
- *
- * Fixed blocks, top to bottom, never reordered or omitted:
- *  1 header (Effy mark · Effy delivery / courier, reversed) 2 deliver to (postcode largest)
- *  3 temperature band (chilled/frozen reversed) 4 BAG n OF N · order · packed date
- *  5 Code 128 of EFY1:<code>, full width 6 QR · the code grouped for reading aloud
- *  7 footer: the approved customer contact
- *
- * Never on a label: the shop's name, a price, the customer's email, the billing address, or any delivery
- * window, day or estimate. The recipient's name, full address and phone are on it, so a bag separated
- * from its run is still deliverable.
- *
- * Bars sit on the printer's dot grid (a bar between dots is rounded, skewing Code 128's ratios): each
- * layout's module is a whole number of dots and the symbol starts on a dot boundary. Everything
- * interpolated is escaped.
- */
 import qrcode from "qrcode-generator"
 
-import { packageToken, WORDMARK_PATHS, WORDMARK_VIEWBOX, type ParcelZone, type ShopLabelCommonDTO } from "@effy/shared-types"
+import {
+  packageToken,
+  WORDMARK_PATHS,
+  WORDMARK_VIEWBOX,
+  type ParcelZone,
+  type ShopLabelCommonDTO,
+} from "@effy/shared-types"
 
 import { code128BWidths } from "./code128"
 import { fitText, PT_TO_MM, textWidthMm } from "./fit"
@@ -37,7 +20,6 @@ export const LABEL_LAYOUTS: ReadonlyArray<{ id: LabelLayout; name: string }> = [
   { id: "roll62", name: "62 mm roll (compact)" },
 ]
 
-/** What one bag's label needs — narrower than the order detail on purpose: nothing else can leak onto it. */
 export interface LabelDocument {
   common: ShopLabelCommonDTO
   parcel: { code: string; seq: number; of: number; zone: ParcelZone }
@@ -47,21 +29,45 @@ interface Geometry {
   widthMm: number
   heightMm: number
   padMm: number
-  /** Scale of every type size against the A6 design. */
   scale: number
-  /** The smallest any text may become (pt). */
   floorPt: number
-  /** Bar module in printer dots, per dpi. */
   moduleDots: Record<PrinterDpi, number>
   barHeightMm: number
   qrMm: number
 }
 
 export const GEOMETRY: Record<LabelLayout, Geometry> = {
-  a6: { widthMm: 101.6, heightMm: 152.4, padMm: 4, scale: 1, floorPt: 8, moduleDots: { 203: 4, 300: 6 }, barHeightMm: 22, qrMm: 24 },
+  a6: {
+    widthMm: 101.6,
+    heightMm: 152.4,
+    padMm: 4,
+    scale: 1,
+    floorPt: 8,
+    moduleDots: { 203: 4, 300: 6 },
+    barHeightMm: 22,
+    qrMm: 24,
+  },
   // One quarter of A4 portrait: 105 × 148.5 mm.
-  a4x4: { widthMm: 105, heightMm: 148.5, padMm: 4, scale: 1, floorPt: 8, moduleDots: { 203: 4, 300: 6 }, barHeightMm: 22, qrMm: 24 },
-  roll62: { widthMm: 62, heightMm: 100, padMm: 2.5, scale: 0.62, floorPt: 5.5, moduleDots: { 203: 2, 300: 3 }, barHeightMm: 13, qrMm: 15 },
+  a4x4: {
+    widthMm: 105,
+    heightMm: 148.5,
+    padMm: 4,
+    scale: 1,
+    floorPt: 8,
+    moduleDots: { 203: 4, 300: 6 },
+    barHeightMm: 22,
+    qrMm: 24,
+  },
+  roll62: {
+    widthMm: 62,
+    heightMm: 100,
+    padMm: 2.5,
+    scale: 0.62,
+    floorPt: 5.5,
+    moduleDots: { 203: 2, 300: 3 },
+    barHeightMm: 13,
+    qrMm: 15,
+  },
 }
 
 const ZONE_LINE: Record<ParcelZone, string> = {
@@ -72,56 +78,69 @@ const ZONE_LINE: Record<ParcelZone, string> = {
 
 export const LABEL_CONTACT = "Questions? hello@effyshopping.com"
 
-export { WORDMARK_PATHS, WORDMARK_VIEWBOX } from "@effy/shared-types"
+export { WORDMARK_PATHS } from "@effy/shared-types"
 
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
 
-/** "21 Oct 2026" from an ISO date (yyyy-mm-dd), in the label's own words. */
-export function packedWords(iso: string | null, today: Date = new Date()): string {
-  const d = iso ? new Date(`${iso}T00:00:00Z`) : new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))
+function packedWords(iso: string | null, today: Date = new Date()): string {
+  const d = iso
+    ? new Date(`${iso}T00:00:00Z`)
+    : new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))
   const m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]
   return `${d.getUTCDate()} ${m} ${d.getUTCFullYear()}`
 }
 
-/** "AUSTRALIA" for the stored `AU`; any other value as written, upper-cased. */
-export function countryWords(country: string | null | undefined): string | null {
+function countryWords(country: string | null | undefined): string | null {
   const c = country?.trim()
   if (!c) return null
   return c.toUpperCase() === "AU" ? "AUSTRALIA" : c.toUpperCase()
 }
 
-// The layout: every element as a box in mm, so tests can prove nothing leaves the label
-
-type Text = { kind: "text"; x: number; y: number; text: string; sizePt: number; bold?: boolean; mono?: boolean; anchor?: "start" | "end" | "middle"; fill?: "#000" | "#fff"; spacing?: number }
-type Rect = { kind: "rect"; x: number; y: number; w: number; h: number; fill: "#000" | "#fff" | "none"; stroke?: number }
+type Text = {
+  kind: "text"
+  x: number
+  y: number
+  text: string
+  sizePt: number
+  bold?: boolean
+  mono?: boolean
+  anchor?: "start" | "end" | "middle"
+  fill?: "#000" | "#fff"
+  spacing?: number
+}
+type Rect = {
+  kind: "rect"
+  x: number
+  y: number
+  w: number
+  h: number
+  fill: "#000" | "#fff" | "none"
+  stroke?: number
+}
 type Bars = { kind: "bars"; x: number; y: number; moduleMm: number; h: number; widths: number[] }
 type Qr = { kind: "qr"; x: number; y: number; size: number; token: string }
 type Mark = { kind: "mark"; x: number; y: number; h: number }
 export type LabelElement = Text | Rect | Bars | Qr | Mark
 
-export interface LabelLayoutResult {
+interface LabelLayoutResult {
   widthMm: number
   heightMm: number
   elements: LabelElement[]
-  /** The block each element belongs to, in order — for the "every block, in order" tests. */
   blocks: string[]
 }
 
-/**
- * Lay out one label. Pure and deterministic; `today` fills the packed date before the first print.
- *
- * It tightens itself rather than overflow. A long name and address (or the A4 quarter, shorter than
- * 4×6) can push the code block into the footer; the layout is tried at increasing `squeeze` — smaller gaps,
- * then a smaller QR, then shorter bars (never under 16 mm, never narrower) — until everything fits.
- */
-export function layoutLabel(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi = 203, today?: Date): LabelLayoutResult {
+export function layoutLabel(
+  doc: LabelDocument,
+  layout: LabelLayout,
+  dpi: PrinterDpi = 203,
+  today?: Date,
+): LabelLayoutResult {
   let out = layoutAt(doc, layout, dpi, today, 0)
   for (let squeeze = 1; squeeze <= 4 && overflows(out); squeeze++) out = layoutAt(doc, layout, dpi, today, squeeze)
   return out
 }
 
-/** True when the code block runs into the footer. */
 function overflows(l: LabelLayoutResult): boolean {
   const qr = l.elements.find((e) => e.kind === "qr") as Qr
   const footerRule = l.elements.filter((e) => e.kind === "rect").at(-1) as Rect
@@ -129,7 +148,13 @@ function overflows(l: LabelLayoutResult): boolean {
   return qr.y + qr.size > footerRule.y - 0.2 || hint.y > footerRule.y - 0.2
 }
 
-function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, today: Date | undefined, squeeze: number): LabelLayoutResult {
+function layoutAt(
+  doc: LabelDocument,
+  layout: LabelLayout,
+  dpi: PrinterDpi,
+  today: Date | undefined,
+  squeeze: number,
+): LabelLayoutResult {
   const base = GEOMETRY[layout]
   const g = {
     ...base,
@@ -137,24 +162,23 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
     barHeightMm: Math.max(base.barHeightMm * (1 - 0.1 * Math.max(0, squeeze - 1)), Math.min(16, base.barHeightMm)),
   }
   const k = g.scale
-  /** Vertical breathing room, tightened step by step. */
   const v = (n: number) => n * k * (1 - 0.2 * Math.min(squeeze, 3))
   const pt = (n: number) => Math.max(n * k, g.floorPt)
-  const asc = (sizePt: number) => sizePt * PT_TO_MM * 0.78 // cap height-ish: baseline offset below a line top
+  const asc = (sizePt: number) => sizePt * PT_TO_MM * 0.78
   const lineH = (sizePt: number) => sizePt * PT_TO_MM * 1.15
   const x0 = g.padMm
   const x1 = g.widthMm - g.padMm
   const W = x1 - x0
   const els: LabelElement[] = []
   const blocks: string[] = []
-  const rule = (y: number, weight = 0.6) => els.push({ kind: "rect", x: x0, y, w: W, h: weight * Math.max(k, 0.7), fill: "#000" })
+  const rule = (y: number, weight = 0.6) =>
+    els.push({ kind: "rect", x: x0, y, w: W, h: weight * Math.max(k, 0.7), fill: "#000" })
   let y = g.padMm
 
   // 1 — header
   blocks.push("header")
   const headH = 8 * k
   els.push({ kind: "mark", x: x0, y: y + headH * 0.1, h: headH * 0.8 })
-  // The header is the Effy mark only (operator, 2026-10-22): no service badge for Effy or courier bags.
   y += headH + v(2)
   rule(y)
   y += 0.6 * k + v(2)
@@ -169,7 +193,6 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
     els.push({ kind: "text", x: x0, y: y + asc(name.sizePt), text: line, sizePt: name.sizePt, bold: true })
     y += lineH(name.sizePt)
   }
-  // Every part of the shipping address, each on its own line (operator, 2026-10-22).
   for (const part of [doc.common.line1, doc.common.line2]) {
     if (!part?.trim()) continue
     const fit = fitText(part.trim(), W, [11, 10, 9, 8].map(pt), 2)
@@ -186,11 +209,14 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   const placeFit = fitText(place, W - pcW - 3 * k, [12, 11, 10, 9].map(pt), 1, { bold: true })
   const rowH = lineH(pcPt) * 0.95
   els.push({ kind: "text", x: x1, y: y + asc(pcPt), text: pc, sizePt: pcPt, bold: true, anchor: "end" })
-  if (placeFit.lines[0]) els.push({ kind: "text", x: x0, y: y + asc(pcPt), text: placeFit.lines[0], sizePt: placeFit.sizePt, bold: true })
+  if (placeFit.lines[0])
+    els.push({ kind: "text", x: x0, y: y + asc(pcPt), text: placeFit.lines[0], sizePt: placeFit.sizePt, bold: true })
   y += rowH
   // The country, and the phone the driver calls from the door.
   const country = countryWords(doc.common.country)
-  const contact = [country, doc.common.phone?.trim() ? `Ph ${doc.common.phone.trim()}` : null].filter(Boolean).join(" · ")
+  const contact = [country, doc.common.phone?.trim() ? `Ph ${doc.common.phone.trim()}` : null]
+    .filter(Boolean)
+    .join(" · ")
   if (contact) {
     const fit = fitText(contact, W, [10, 9, 8].map(pt), 1, { bold: true })
     els.push({ kind: "text", x: x0, y: y + asc(fit.sizePt), text: fit.lines[0]!, sizePt: fit.sizePt, bold: true })
@@ -204,18 +230,39 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   blocks.push("zone")
   const bandH = 8 * k
   const reversed = doc.parcel.zone !== "ambient"
-  els.push(reversed
-    ? { kind: "rect", x: x0, y, w: W, h: bandH, fill: "#000" }
-    : { kind: "rect", x: x0, y, w: W, h: bandH, fill: "none", stroke: 0.6 * Math.max(k, 0.7) })
+  els.push(
+    reversed
+      ? { kind: "rect", x: x0, y, w: W, h: bandH, fill: "#000" }
+      : { kind: "rect", x: x0, y, w: W, h: bandH, fill: "none", stroke: 0.6 * Math.max(k, 0.7) },
+  )
   const zonePt = pt(13)
   const ink = reversed ? "#fff" : "#000"
   const zoneWord = doc.parcel.zone.toUpperCase()
-  els.push({ kind: "text", x: x0 + 2.5 * k, y: y + bandH / 2 + asc(zonePt) / 2, text: zoneWord, sizePt: zonePt, bold: true, fill: ink, spacing: 0.08 })
+  els.push({
+    kind: "text",
+    x: x0 + 2.5 * k,
+    y: y + bandH / 2 + asc(zonePt) / 2,
+    text: zoneWord,
+    sizePt: zonePt,
+    bold: true,
+    fill: ink,
+    spacing: 0.08,
+  })
   const zoneLineRoom = W - 5 * k - textWidthMm(zoneWord, zonePt, { bold: true }) - 3 * k
   const zl = fitText(ZONE_LINE[doc.parcel.zone], zoneLineRoom, [9, 8, 7, 6, 5.5].map(pt), 2, { bold: true })
   const zlTop = y + bandH / 2 - (zl.lines.length * lineH(zl.sizePt)) / 2
   zl.lines.forEach((line, i) =>
-    els.push({ kind: "text", x: x1 - 2.5 * k, y: zlTop + i * lineH(zl.sizePt) + asc(zl.sizePt), text: line, sizePt: zl.sizePt, bold: true, anchor: "end", fill: ink }))
+    els.push({
+      kind: "text",
+      x: x1 - 2.5 * k,
+      y: zlTop + i * lineH(zl.sizePt) + asc(zl.sizePt),
+      text: line,
+      sizePt: zl.sizePt,
+      bold: true,
+      anchor: "end",
+      fill: ink,
+    }),
+  )
   y += bandH + v(2.5)
 
   // 4 — bag n of N, order, packed date
@@ -226,19 +273,60 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   const bagTop = y + lineH(capPt) + 0.5 * k
   const nStr = String(doc.parcel.seq)
   const nW = textWidthMm(nStr, bigPt, { bold: true })
-  // Positioned, not spaced: SVG collapses the spaces in " OF ", which ran "2OF 3" together.
   const gap = 1.6 * k
   const ofW = textWidthMm("OF", ofPt, { bold: true })
   els.push({ kind: "text", x: x0, y: bagTop + asc(bigPt), text: nStr, sizePt: bigPt, bold: true })
   els.push({ kind: "text", x: x0 + nW + gap, y: bagTop + asc(bigPt), text: "OF", sizePt: ofPt, bold: true })
-  els.push({ kind: "text", x: x0 + nW + gap + ofW + gap, y: bagTop + asc(bigPt), text: String(doc.parcel.of), sizePt: bigPt, bold: true })
+  els.push({
+    kind: "text",
+    x: x0 + nW + gap + ofW + gap,
+    y: bagTop + asc(bigPt),
+    text: String(doc.parcel.of),
+    sizePt: bigPt,
+    bold: true,
+  })
   const metaPt = pt(10)
   const orderPt = pt(11)
-  els.push({ kind: "text", x: x1, y: y + asc(capPt), text: "ORDER", sizePt: capPt, bold: true, anchor: "end", spacing: 0.12 })
-  els.push({ kind: "text", x: x1, y: y + lineH(capPt) + asc(orderPt), text: doc.common.orderNumber, sizePt: orderPt, bold: true, mono: true, anchor: "end" })
+  els.push({
+    kind: "text",
+    x: x1,
+    y: y + asc(capPt),
+    text: "ORDER",
+    sizePt: capPt,
+    bold: true,
+    anchor: "end",
+    spacing: 0.12,
+  })
+  els.push({
+    kind: "text",
+    x: x1,
+    y: y + lineH(capPt) + asc(orderPt),
+    text: doc.common.orderNumber,
+    sizePt: orderPt,
+    bold: true,
+    mono: true,
+    anchor: "end",
+  })
   const packedTop = y + lineH(capPt) + lineH(orderPt) + 1.2 * k
-  els.push({ kind: "text", x: x1, y: packedTop + asc(capPt), text: "PACKED", sizePt: capPt, bold: true, anchor: "end", spacing: 0.12 })
-  els.push({ kind: "text", x: x1, y: packedTop + lineH(capPt) + asc(metaPt), text: packedWords(doc.common.packedOn, today), sizePt: metaPt, bold: true, anchor: "end" })
+  els.push({
+    kind: "text",
+    x: x1,
+    y: packedTop + asc(capPt),
+    text: "PACKED",
+    sizePt: capPt,
+    bold: true,
+    anchor: "end",
+    spacing: 0.12,
+  })
+  els.push({
+    kind: "text",
+    x: x1,
+    y: packedTop + lineH(capPt) + asc(metaPt),
+    text: packedWords(doc.common.packedOn, today),
+    sizePt: metaPt,
+    bold: true,
+    anchor: "end",
+  })
   y = Math.max(bagTop + lineH(bigPt) * 0.9, packedTop + lineH(capPt) + lineH(metaPt)) + v(1.5)
   rule(y)
   y += 0.6 * k + v(2)
@@ -256,7 +344,16 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   els.push({ kind: "bars", x: bx + quiet * moduleMm, y, moduleMm, h: g.barHeightMm, widths })
   y += g.barHeightMm + v(1)
   const hrPt = pt(9)
-  els.push({ kind: "text", x: x0 + W / 2, y: y + asc(hrPt), text: token, sizePt: hrPt, mono: true, anchor: "middle", spacing: 0.15 })
+  els.push({
+    kind: "text",
+    x: x0 + W / 2,
+    y: y + asc(hrPt),
+    text: token,
+    sizePt: hrPt,
+    mono: true,
+    anchor: "middle",
+    spacing: 0.15,
+  })
   y += lineH(hrPt) + v(1.5)
   rule(y)
   y += 0.6 * k + v(2)
@@ -266,27 +363,46 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   els.push({ kind: "qr", x: x0, y, size: g.qrMm, token })
   const codePt = pt(16)
   const codeX = x0 + g.qrMm + 3 * k
-  els.push({ kind: "text", x: codeX, y: y + g.qrMm / 2 + asc(codePt) / 2 - 1 * k, text: doc.parcel.code, sizePt: codePt, bold: true, mono: true, spacing: 0.08 })
+  els.push({
+    kind: "text",
+    x: codeX,
+    y: y + g.qrMm / 2 + asc(codePt) / 2 - 1 * k,
+    text: doc.parcel.code,
+    sizePt: codePt,
+    bold: true,
+    mono: true,
+    spacing: 0.08,
+  })
   const hintPt = pt(9)
-  els.push({ kind: "text", x: codeX, y: y + g.qrMm / 2 + asc(codePt) / 2 + lineH(hintPt), text: "Scan, or type this code", sizePt: hintPt })
+  els.push({
+    kind: "text",
+    x: codeX,
+    y: y + g.qrMm / 2 + asc(codePt) / 2 + lineH(hintPt),
+    text: "Scan, or type this code",
+    sizePt: hintPt,
+  })
 
   // 7 — footer, anchored to the bottom
   blocks.push("footer")
   const footPt = pt(8)
   const footY = g.heightMm - g.padMm - lineH(footPt)
   els.push({ kind: "rect", x: x0, y: footY - 1 * k, w: W, h: 0.3 * Math.max(k, 0.7), fill: "#000" })
-  els.push({ kind: "text", x: x0 + W / 2, y: footY + asc(footPt), text: LABEL_CONTACT, sizePt: footPt, anchor: "middle" })
+  els.push({
+    kind: "text",
+    x: x0 + W / 2,
+    y: footY + asc(footPt),
+    text: LABEL_CONTACT,
+    sizePt: footPt,
+    anchor: "middle",
+  })
 
   return { widthMm: g.widthMm, heightMm: g.heightMm, elements: els, blocks }
 }
-
-// SVG
 
 const FONT = "Helvetica, Arial, sans-serif"
 const MONO = "Menlo, Consolas, 'Courier New', monospace"
 
 function qrCells(token: string): { n: number; cells: string } {
-  // Level M recovers from ~15% damage; at 11 characters the symbol stays at version 1–2.
   const qr = qrcode(0, "M")
   qr.addData(token)
   qr.make()
@@ -329,7 +445,6 @@ function elementSvg(e: LabelElement): string {
 
 const f = (n: number): string => (Math.round(n * 1000) / 1000).toString()
 
-/** One label as a standalone SVG sized in mm (its viewBox is in mm too). */
 export function renderLabelSvg(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi = 203, today?: Date): string {
   const l = layoutLabel(doc, layout, dpi, today)
   return (

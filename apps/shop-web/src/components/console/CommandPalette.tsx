@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { useDebouncedValue } from "@effy/web-kit"
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -40,12 +41,6 @@ import { orderListQuery } from "@/features/fulfillment/queries"
 import { exportOrders, printLists } from "@/features/today/QuickActionsSheet"
 import { setTheme, uiStore } from "@/lib/ui-store"
 
-/**
- * Search and commands (Foundations — "Search and commands"): ⌘K on a laptop, the header's search
- * button on a tablet or phone. Find an order by number or customer, a product by name, SKU or barcode,
- * or run an action — one list, keyboard first, 48px rows. A dialog from 768px; below it the same content
- * rises as a drawer. It reads only through the Orders and Catalog lists' own queries.
- */
 interface Item {
   id: string
   icon: LucideIcon
@@ -61,15 +56,6 @@ interface Section {
   items: Item[]
 }
 
-function useDebounced(value: string, ms: number): string {
-  const [v, setV] = useState(value)
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms)
-    return () => clearTimeout(t)
-  }, [value, ms])
-  return v
-}
-
 export function CommandPalette({
   open,
   onOpenChange,
@@ -79,7 +65,6 @@ export function CommandPalette({
   open: boolean
   onOpenChange: (open: boolean) => void
   roles: readonly ShopRole[]
-  /** Opens the header's scan dialog. */
   onScan: () => void
 }) {
   const isMobile = useIsMobile()
@@ -87,7 +72,7 @@ export function CommandPalette({
   const theme = useStore(uiStore, (s) => s.theme)
   const [query, setQuery] = useState("")
   const [focus, setFocus] = useState(0)
-  const q = useDebounced(query.trim(), 200)
+  const q = useDebouncedValue(query.trim(), 200)
   const searching = q.length >= 2
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -143,7 +128,12 @@ export function CommandPalette({
 
     const dark = theme === "dark" || (theme === "system" && document.documentElement.classList.contains("dark"))
     const actions: Item[] = [
-      { id: "new-product", icon: Plus, label: "New product", run: () => (close(), void navigate({ to: "/catalog/new" })) },
+      {
+        id: "new-product",
+        icon: Plus,
+        label: "New product",
+        run: () => (close(), void navigate({ to: "/catalog/new" })),
+      },
       { id: "scan", icon: ScanBarcode, label: "Scan a bag label", run: () => (close(), onScan()) },
       {
         id: "availability",

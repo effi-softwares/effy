@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { AustralianState } from "@effy/shared-types";
+import type { AustralianState } from "@effy/shared-types"
 
-import { useForm } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form"
 
 import {
   Button,
@@ -14,25 +14,23 @@ import {
   DialogTitle,
   Input,
   Label,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import type { ShopDetail } from "../model";
-import { shopMutationError } from "../errorText";
-import { useUpdateShop } from "../queries";
+import type { ShopDetail } from "../model"
+import { shopMutationError } from "../errorText"
+import { useUpdateShop } from "../queries"
 
-// Edit mutable shop details (PATCH /admin/v1/shops/{id}). The code is immutable, shown
-// read-only. Emits shop_updated on success.
-export interface EditShopDialogProps {
-  shop: ShopDetail;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface EditShopDialogProps {
+  shop: ShopDetail
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps) {
-  const updateShop = useUpdateShop(shop.id);
-  const [formError, setFormError] = useState<string | null>(null);
+  const updateShop = useUpdateShop(shop.id)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
@@ -47,28 +45,25 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
       state: shop.address?.state ?? "",
     },
     onSubmit: async ({ value }) => {
-      setFormError(null);
+      setFormError(null)
       try {
         await updateShop.mutateAsync({
           name: value.name.trim(),
           contactPhone: value.contactPhone.trim() || null,
           notes: value.notes.trim() || null,
-          // An empty box means clear, so `null` is sent rather than the key being dropped. The
-          // service reads the presence of a key — 056's lesson, where COALESCE collapsed "leave
-          // alone" and "clear" into one and a zone once assigned could never be un-assigned.
           addressLine1: value.addressLine1.trim() || null,
           addressLine2: value.addressLine2.trim() || null,
           suburb: value.suburb.trim() || null,
           postcode: value.postcode.trim() || null,
           state: (value.state.trim() || null) as AustralianState | null,
-        });
-        track({ name: "shop_updated", shopId: shop.id });
-        onOpenChange(false);
+        })
+        track({ name: "shop_updated", shopId: shop.id })
+        onOpenChange(false)
       } catch (err) {
-        setFormError(shopMutationError(err));
+        setFormError(shopMutationError(err))
       }
     },
-  });
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,8 +74,8 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
         </DialogHeader>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
+            e.preventDefault()
+            void form.handleSubmit()
           }}
           className="space-y-4"
           noValidate
@@ -130,9 +125,6 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
               </div>
             )}
           </form.Field>
-          {/* Where the shop physically is, so a driver can be told where to collect from.
-              A customer never sees this: hidden fulfilment is a platform invariant, guarded by a
-              source test in the admin service. */}
           <form.Field name="addressLine1">
             {(field) => (
               <div className="space-y-2">
@@ -225,5 +217,5 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

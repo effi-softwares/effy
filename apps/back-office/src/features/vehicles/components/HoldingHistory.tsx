@@ -1,19 +1,10 @@
-import type { VehicleHolding } from "@effy/shared-types";
+import type { VehicleHolding } from "@effy/shared-types"
 
-import { formatDateTime, formatOdometer } from "../model";
+import { formatDateTime, formatOdometer } from "../model"
 
-/**
- * Every period this vehicle has been out, newest first: who had it, when, and the two odometer readings.
- * A hand-over log, never a journey log (Effy does not track position). Offboarded drivers' periods still
- * appear.
- */
 export function HoldingHistory({ holdings }: { holdings: VehicleHolding[] }) {
   if (holdings.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        This vehicle has never been issued to anybody.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">This vehicle has never been issued to anybody.</p>
   }
 
   return (
@@ -31,5 +22,5 @@ export function HoldingHistory({ holdings }: { holdings: VehicleHolding[] }) {
         </li>
       ))}
     </ul>
-  );
+  )
 }

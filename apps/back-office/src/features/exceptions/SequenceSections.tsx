@@ -1,7 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import { CircleAlert, Clock, Hourglass, PackageSearch, ShieldAlert } from "lucide-react";
+import { Link } from "@tanstack/react-router"
+import { CircleAlert, Clock, Hourglass, PackageSearch, ShieldAlert } from "lucide-react"
 
-import { isDomainError } from "@effy/api-client";
+import { isDomainError } from "@effy/api-client"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,32 +13,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   Button,
-} from "@effy/design-system/ui";
-import { HOLD_REASON_WORDS, VEHICLE_CHECK_WORDS, type DeliveryExceptionListDTO, type HeldPackageDTO, type VehicleCheckItem } from "@effy/shared-types";
+} from "@effy/design-system/ui"
+import {
+  HOLD_REASON_WORDS,
+  VEHICLE_CHECK_WORDS,
+  type DeliveryExceptionListDTO,
+  type HeldPackageDTO,
+  type VehicleCheckItem,
+} from "@effy/shared-types"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { clockAt, moment } from "@/lib/format";
+import { Panel, Callout, StatusWord } from "@effy/web-kit/patterns"
+import { clockAt, moment } from "@/lib/format"
 
-import { useClearVehicleCheck, useResolveHold } from "./queries";
-import { ReasonDialog } from "./ReasonDialog";
+import { useClearVehicleCheck, useResolveHold } from "./queries"
+import { ReasonDialog } from "./ReasonDialog"
 
-/**
- * What else needs a dispatcher: runs whose next step is overdue, packages declared missing, and
- * vehicles found unsafe. Each is its own panel (redesign, board "Exceptions — open").
- */
 export function sequenceActionError(err: unknown): string {
-  if (!isDomainError(err)) return "Something went wrong. Nothing was changed — try again.";
-  if (err.status === 403) return "Only an admin or a manager can do that.";
-  if (err.status === 404) return "That is no longer there — somebody may have dealt with it. Reload to see.";
-  return err.detail ?? "That could not be done. Nothing was changed.";
+  if (!isDomainError(err)) return "Something went wrong. Nothing was changed — try again."
+  if (err.status === 403) return "Only an admin or a manager can do that."
+  if (err.status === 404) return "That is no longer there — somebody may have dealt with it. Reload to see."
+  return err.detail ?? "That could not be done. Nothing was changed."
 }
 
-const NOBODY = <span className="text-xs text-muted-foreground">Admin or manager</span>;
+const NOBODY = <span className="text-xs text-muted-foreground">Admin or manager</span>
 
 export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
-  const overdue = data.overdue ?? [];
+  const overdue = data.overdue ?? []
   return (
     <Panel
       title="Runs waiting on their next step"
@@ -47,7 +47,9 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
       flush
     >
       {overdue.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">Every open run is loaded, and every finished collection is checked in.</p>
+        <p className="px-5 py-4 text-sm text-muted-foreground">
+          Every open run is loaded, and every finished collection is checked in.
+        </p>
       ) : (
         <div className="bo-table-scroll">
           <table className="bo-table bo-rtable bo-table--plain">
@@ -84,12 +86,12 @@ export function OverduePanel({ data }: { data: DeliveryExceptionListDTO }) {
         </div>
       )}
     </Panel>
-  );
+  )
 }
 
 export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; canAct: boolean }) {
-  const resolveHold = useResolveHold();
-  const held = data.held ?? [];
+  const resolveHold = useResolveHold()
+  const held = data.held ?? []
   return (
     <Panel
       title="Packages declared missing"
@@ -125,8 +127,9 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                 <tr key={h.holdId}>
                   <td data-m="primary">
                     <span className="bo-code font-medium">{h.orderNumber}</span>
-                    {/* One bag held, or the whole package. */}
-                    <span className="bo-sub">{h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}</span>
+                    <span className="bo-sub">
+                      {h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}
+                    </span>
                   </td>
                   <td data-m="meta">{h.shopName}</td>
                   <td data-m="meta" data-label="Where">
@@ -147,11 +150,23 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                           variant="outline"
                           size="sm"
                           disabled={resolveHold.isPending}
-                          onClick={() => void resolveHold.mutateAsync({ holdId: h.holdId, resolution: "found" }).catch(() => undefined)}
+                          onClick={() =>
+                            void resolveHold
+                              .mutateAsync({ holdId: h.holdId, resolution: "found" })
+                              .catch(() => undefined)
+                          }
                         >
                           Found — plan again
                         </Button>
-                        <LostButton hold={h} disabled={resolveHold.isPending} onConfirm={() => void resolveHold.mutateAsync({ holdId: h.holdId, resolution: "lost" }).catch(() => undefined)} />
+                        <LostButton
+                          hold={h}
+                          disabled={resolveHold.isPending}
+                          onConfirm={() =>
+                            void resolveHold
+                              .mutateAsync({ holdId: h.holdId, resolution: "lost" })
+                              .catch(() => undefined)
+                          }
+                        />
                       </div>
                     ) : (
                       NOBODY
@@ -164,10 +179,9 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
         </div>
       )}
     </Panel>
-  );
+  )
 }
 
-/** "Record a package as lost" — a decision, so a dialog that says what it does and doesn't do. */
 function LostButton({ hold, disabled, onConfirm }: { hold: HeldPackageDTO; disabled: boolean; onConfirm: () => void }) {
   return (
     <AlertDialog>
@@ -194,12 +208,12 @@ function LostButton({ hold, disabled, onConfirm }: { hold: HeldPackageDTO; disab
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }
 
 export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionListDTO; canAct: boolean }) {
-  const clearCheck = useClearVehicleCheck();
-  const checks = data.vehicleChecks ?? [];
+  const clearCheck = useClearVehicleCheck()
+  const checks = data.vehicleChecks ?? []
   return (
     <Panel
       title="Vehicle checks today"
@@ -256,7 +270,9 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                     {!c.unsafe ? (
                       <span className="text-xs text-muted-foreground">No action needed</span>
                     ) : c.clearedAt ? (
-                      <span className="text-xs text-muted-foreground">Cleared{c.clearNote ? ` — ${c.clearNote}` : ""}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Cleared{c.clearNote ? ` — ${c.clearNote}` : ""}
+                      </span>
                     ) : canAct ? (
                       <ReasonDialog
                         label="Clear"
@@ -266,10 +282,10 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
                         confirmLabel="Clear"
                         onConfirm={async (note) => {
                           try {
-                            await clearCheck.mutateAsync({ checkId: c.checkId, note });
-                            return null;
+                            await clearCheck.mutateAsync({ checkId: c.checkId, note })
+                            return null
                           } catch (err) {
-                            return sequenceActionError(err);
+                            return sequenceActionError(err)
                           }
                         }}
                       />
@@ -284,14 +300,13 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
         </div>
       )}
     </Panel>
-  );
+  )
 }
 
-/** Where a driver declared it missing: any step can, now that every bag is accounted for. */
 const HOLD_STEP_WORDS: Record<HeldPackageDTO["step"], string> = {
   collect: "Not at the shop at collection",
   checkin: "Not in the van at check-in",
   load: "Not loaded at the hub",
   deliver: "Not in the van at the door",
   return: "Not returned to the hub",
-};
+}

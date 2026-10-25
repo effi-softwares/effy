@@ -1,23 +1,18 @@
-import type { FeePlanInput, FeePlanKind, FeePlanDTO } from "@effy/shared-types";
+import type { FeePlanInput, FeePlanKind, FeePlanDTO } from "@effy/shared-types"
 
-/**
- * What the plan editor holds while someone types. Strings throughout, as typed: the service
- * is the judge of every value and names each field it refuses, so nothing is parsed or rounded here
- * — a second set of rules in the console would be a second answer to "is this a valid plan?".
- */
 export interface PlanDraft {
-  name: string;
-  baseAmount: string;
-  distanceBands: { upperKm: string; addAmount: string }[];
-  weightBands: { upperKg: string; addAmount: string }[];
-  freeOverAmount: string;
-  smallOrderUnderAmount: string;
-  smallOrderFeeAmount: string;
-  todayPremiumAmount: string;
-  slotPremiums: Record<string, string>;
-  roundingStepAmount: string;
-  floorAmount: string;
-  capAmount: string;
+  name: string
+  baseAmount: string
+  distanceBands: { upperKm: string; addAmount: string }[]
+  weightBands: { upperKg: string; addAmount: string }[]
+  freeOverAmount: string
+  smallOrderUnderAmount: string
+  smallOrderFeeAmount: string
+  todayPremiumAmount: string
+  slotPremiums: Record<string, string>
+  roundingStepAmount: string
+  floorAmount: string
+  capAmount: string
 }
 
 export function emptyDraft(kind: FeePlanKind): PlanDraft {
@@ -34,15 +29,17 @@ export function emptyDraft(kind: FeePlanKind): PlanDraft {
     roundingStepAmount: "0.50",
     floorAmount: "",
     capAmount: "",
-  };
+  }
 }
 
-/** A plan opened for editing — or copied, which keeps every value and asks for a new name. */
 export function draftFrom(p: FeePlanDTO, copy: boolean): PlanDraft {
   return {
     name: copy ? `${p.name} (copy)` : p.name,
     baseAmount: p.baseAmount,
-    distanceBands: p.distanceBands.map((b) => ({ upperKm: b.upperKm === null ? "" : String(Number(b.upperKm)), addAmount: b.addAmount })),
+    distanceBands: p.distanceBands.map((b) => ({
+      upperKm: b.upperKm === null ? "" : String(Number(b.upperKm)),
+      addAmount: b.addAmount,
+    })),
     weightBands: p.weightBands.map((b) => ({ upperKg: String(b.upperGrams / 1000), addAmount: b.addAmount })),
     freeOverAmount: p.freeOverAmount ?? "",
     smallOrderUnderAmount: p.smallOrderUnderAmount ?? "",
@@ -52,20 +49,16 @@ export function draftFrom(p: FeePlanDTO, copy: boolean): PlanDraft {
     roundingStepAmount: p.roundingStepAmount,
     floorAmount: p.floorAmount,
     capAmount: p.capAmount,
-  };
+  }
 }
 
-const blankToNull = (s: string) => (s.trim() === "" ? null : s.trim());
+const blankToNull = (s: string) => (s.trim() === "" ? null : s.trim())
 
-/**
- * The draft as the service takes it. A distance band with an empty "up to" is the last band — "and
- * beyond" — and it is sent last whatever row it was typed on. A weight is typed in kg, sent in grams.
- */
 export function toInput(kind: FeePlanKind, d: PlanDraft): FeePlanInput {
   const distance = d.distanceBands
     .filter((b) => b.upperKm.trim() !== "" || b.addAmount.trim() !== "")
-    .map((b) => ({ upperKm: blankToNull(b.upperKm), addAmount: b.addAmount.trim() }));
-  const open = distance.filter((b) => b.upperKm === null);
+    .map((b) => ({ upperKm: blankToNull(b.upperKm), addAmount: b.addAmount.trim() }))
+  const open = distance.filter((b) => b.upperKm === null)
   return {
     kind,
     name: d.name.trim(),
@@ -87,5 +80,5 @@ export function toInput(kind: FeePlanKind, d: PlanDraft): FeePlanInput {
     roundingStepAmount: d.roundingStepAmount.trim(),
     floorAmount: d.floorAmount.trim(),
     capAmount: d.capAmount.trim(),
-  };
+  }
 }

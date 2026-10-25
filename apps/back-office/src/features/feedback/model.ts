@@ -1,16 +1,4 @@
-// Domain shapes for the feedback console slice. The API contracts double as the domain shapes
-// (identity map in repo.ts), matching the deliverability/shops slices. Labels come from the shared
-// package so the console, the storefront, and the emails can never disagree (Principle II).
-export type {
-  FeedbackCategory,
-  FeedbackDetailDTO,
-  FeedbackListDTO,
-  FeedbackListItemDTO,
-  FeedbackNoteDTO,
-  FeedbackReplyDTO,
-  FeedbackStatus,
-  FeedbackSubmitter,
-} from "@effy/shared-types"
+export type { FeedbackCategory, FeedbackDetailDTO, FeedbackListDTO, FeedbackStatus } from "@effy/shared-types"
 
 export {
   FEEDBACK_CATEGORIES,

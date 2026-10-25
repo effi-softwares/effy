@@ -1,19 +1,9 @@
-import type { OrderRow, OrdersSearch } from "./orderConsole"
-import { toCsv, toListQuery } from "./orderConsole"
+import { type OrderRow, type OrdersSearch, toCsv, toListQuery } from "./orderConsole"
 import { listOrders } from "./repo"
 
-/**
- * The Orders CSV export — one implementation, two call sites.
- *
- * Extracted from `OrderListScreen` when Today's Quick actions became its second caller. Two
- * exports would mean two CSV shapes, and the divergence would only ever be noticed in a spreadsheet
- * on someone else's desk — long after the change that caused it.
- */
-
-/** Capped: a CSV of a shop's entire history is a report, not an export button. */
 const MAX_PAGES = 40
 
-export async function collectOrders(search: OrdersSearch): Promise<OrderRow[]> {
+async function collectOrders(search: OrdersSearch): Promise<OrderRow[]> {
   const all: OrderRow[] = []
   for (let p = 1; p <= MAX_PAGES; p++) {
     const res = await listOrders({ ...toListQuery(search), page: p })
@@ -33,7 +23,6 @@ export function downloadOrdersCsv(rows: readonly OrderRow[]): void {
   URL.revokeObjectURL(url)
 }
 
-/** Fetch every matching order and hand the browser the file. Returns how many rows were exported. */
 export async function exportOrdersCsv(search: OrdersSearch): Promise<number> {
   const rows = await collectOrders(search)
   downloadOrdersCsv(rows)

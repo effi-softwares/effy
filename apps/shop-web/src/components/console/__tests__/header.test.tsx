@@ -3,11 +3,6 @@ import { render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-/**
- * The shop's parts of the consoles' shared header: the record named in the last crumb, and the order
- * pagination on order detail.
- */
-
 const location = vi.hoisted(() => ({ pathname: "/" }))
 const params = vi.hoisted(() => ({ value: {} as Record<string, string> }))
 
@@ -23,7 +18,6 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => () => {},
 }))
 
-// 057 A3 — the crumb reads the order console's detail (the key the order screen itself uses).
 const getOrder = vi.hoisted(() => vi.fn())
 const listOrders = vi.hoisted(() => vi.fn())
 vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
@@ -73,20 +67,15 @@ describe("crumbsFor", () => {
       { label: "Catalog", to: "/catalog" },
       { label: "Linen apron, natural" },
     ])
-    expect(crumbsFor("/catalog/new")).toEqual([
-      { label: "Catalog", to: "/catalog" },
-      { label: "New product" },
-    ])
+    expect(crumbsFor("/catalog/new")).toEqual([{ label: "Catalog", to: "/catalog" }, { label: "New product" }])
   })
 
   it("falls back to a noun, never 'Loading…', before the detail read lands", () => {
-    // The header outlives a failed read. A trail ending in "Order" is true either way.
     expect(crumbsFor("/orders/f1").at(-1)).toEqual({ label: "Order" })
     expect(crumbsFor("/catalog/p1").at(-1)).toEqual({ label: "Product" })
   })
 
   it("has no Restock destination", () => {
-    // Purchasing is deferred; an old bookmark must not grow a crumb for a screen that is gone.
     expect(crumbsFor("/restock")).toEqual([{ label: "Today" }])
   })
 })
@@ -123,7 +112,6 @@ describe("useHeaderRecord", () => {
 })
 
 describe("HeaderChrome", () => {
-  // Revision 2: no search in the header, no primary action, no theme toggle.
   it("carries nothing on a screen that is not an order", () => {
     at("/orders")
     const { container } = wrap(<HeaderChrome />)
@@ -148,7 +136,13 @@ describe("HeaderChrome", () => {
 
   it("mutes and disables an arrow at the end of the list", async () => {
     at("/orders/c", { fulfillmentId: "c" })
-    listOrders.mockResolvedValue({ items: [{ id: "a" }, { id: "b" }, { id: "c" }], total: 3, page: 1, pageSize: 25, counts: {} })
+    listOrders.mockResolvedValue({
+      items: [{ id: "a" }, { id: "b" }, { id: "c" }],
+      total: 3,
+      page: 1,
+      pageSize: 25,
+      counts: {},
+    })
     wrap(<HeaderChrome />)
     const next = await screen.findByRole("button", { name: "Next order" })
     expect(next).toBeDisabled()

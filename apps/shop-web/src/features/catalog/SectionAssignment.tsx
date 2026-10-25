@@ -1,52 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import { Button, Checkbox, Label } from "@effy/design-system/ui";
+import { Button, Checkbox, Label } from "@effy/design-system/ui"
 
-import { productMutationError } from "./errorText";
-import type { ProductDetail } from "./model";
-import { sectionsQuery, useSetProductSections } from "./queries";
+import { productMutationError } from "./errorText"
+import type { ProductDetail } from "./model"
+import { sectionsQuery, useSetProductSections } from "./queries"
 
-/**
- * Assign this product to the shop's sections. The whole membership is set at once — the backend
- * replaces (not merges) — so this holds a local checked set and PATCHes it on save. No cards; a plain
- * checkbox list (doctrine-2).
- */
 export function SectionAssignment({ detail }: { detail: ProductDetail }) {
-  const sections = useQuery(sectionsQuery);
-  const setSections = useSetProductSections(detail.id);
-  const [error, setError] = useState<string | null>(null);
+  const sections = useQuery(sectionsQuery)
+  const setSections = useSetProductSections(detail.id)
+  const [error, setError] = useState<string | null>(null)
 
-  const initial = useMemo(() => new Set(detail.sections), [detail.sections]);
-  const [checked, setChecked] = useState<Set<string>>(initial);
+  const initial = useMemo(() => new Set(detail.sections), [detail.sections])
+  const [checked, setChecked] = useState<Set<string>>(initial)
 
   useEffect(() => {
-    setChecked(new Set(detail.sections));
-    setError(null);
-  }, [detail.updatedAt, detail.sections]);
+    setChecked(new Set(detail.sections))
+    setError(null)
+  }, [detail.updatedAt, detail.sections])
 
-  const dirty =
-    checked.size !== initial.size || [...checked].some((id) => !initial.has(id));
+  const dirty = checked.size !== initial.size || [...checked].some((id) => !initial.has(id))
 
   function toggle(id: string, on: boolean) {
     setChecked((s) => {
-      const next = new Set(s);
-      if (on) next.add(id);
-      else next.delete(id);
-      return next;
-    });
+      const next = new Set(s)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
   }
 
   function save() {
-    setError(null);
-    setSections.mutate(
-      { sectionIds: [...checked] },
-      { onError: (err) => setError(productMutationError(err)) },
-    );
+    setError(null)
+    setSections.mutate({ sectionIds: [...checked] }, { onError: (err) => setError(productMutationError(err)) })
   }
 
-  const all = sections.data ?? [];
+  const all = sections.data ?? []
 
   return (
     <div className="space-y-3">
@@ -81,5 +72,5 @@ export function SectionAssignment({ detail }: { detail: ProductDetail }) {
 
       {error ? <p className="text-sm font-medium">{error}</p> : null}
     </div>
-  );
+  )
 }

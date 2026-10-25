@@ -119,11 +119,7 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     // Opens on Today.
     expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument()
-    // The fixture's figures were computed two minutes ago, and the subtitle says exactly that
-    // "a moment ago" over two-minute-old numbers would be a small, constant lie.
-    expect(
-      screen.getByText(/compared with the same day last week · updated 2 minutes ago/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/compared with the same day last week · updated 2 minutes ago/)).toBeInTheDocument()
   })
 
   it("restates the window in each metric label", async () => {
@@ -139,8 +135,6 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Awaiting pick")
 
-    // The same live figures Today shows — a minute-old backlog would send someone to a shelf for an
-    // order already packed.
     const strip = screen.getByText("Awaiting pick").closest("div")!.parentElement!
     expect(within(strip).getByText("4")).toBeInTheDocument()
     expect(within(strip).getByText("11")).toBeInTheDocument()
@@ -162,8 +156,6 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Revenue today")
 
-    // The design said "SEK incl. VAT". Per-item GST is unmodelled, so any tax claim here
-    // would be invented — and "Goods" is what stops this being read as the order totals elsewhere.
     expect(screen.queryByText(/VAT/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/incl\. GST/i)).not.toBeInTheDocument()
     expect(screen.getByText(/Goods · AUD/)).toBeInTheDocument()
@@ -173,8 +165,6 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Refunds")
 
-    // A shop has no storefront of its own to convert, customer data is withheld from shops, and the
-    // platform has no returns model. Each of these would have to be invented to be displayed.
     expect(screen.queryByText(/Conversion rate/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/New customers/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Returns open/i)).not.toBeInTheDocument()
@@ -195,7 +185,6 @@ describe("Insights (US3)", () => {
   it("renders a bar per bucket, including the empty ones", async () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Revenue today")
-    // A missing bar and a zero bar say different things; the chart draws every bucket the window has.
     expect(screen.getAllByTitle(/Mon 8/)).toHaveLength(2) // both charts
     expect(screen.getAllByTitle(/Mon 14 \(partial\)/)).toHaveLength(2)
   })
@@ -239,7 +228,6 @@ describe("Insights (US3)", () => {
 
 describe("the copy rules", () => {
   it("⚠ carries direction in the glyph and the sign, never in a colour", () => {
-    // Rendered in greyscale — or by a screen reader — these still say exactly what they mean.
     expect(deltaText(dto().primary.revenue, "previous_7_days")).toBe("▲ 9% vs previous week")
     expect(deltaText(dto().primary.averageOrderValue, "previous_7_days")).toBe("▼ 2% vs previous week")
     expect(deltaText(dto().primary.orders, "previous_7_days")).toBe("▲ 11 vs previous week")
@@ -248,8 +236,6 @@ describe("the copy rules", () => {
 
   it("distinguishes 'never measured' from 'measured a moment ago'", () => {
     const now = new Date(NOW).getTime()
-    // A shop whose rollups have never run shows zeros; saying "updated a moment ago" over them would
-    // present an absence as a measurement.
     expect(freshness(null, now)).toBe("not updated yet")
     expect(freshness("2026-09-14T03:59:30.000Z", now)).toBe("updated a moment ago")
     expect(freshness("2026-09-14T03:56:00.000Z", now)).toBe("updated 4 minutes ago")
@@ -268,7 +254,6 @@ describe("the CSV export", () => {
     expect(csv).toContain("Effy shop insights,Last 7 days")
     expect(csv).toContain("Window,")
     expect(csv).toContain("Compared with,")
-    // A column of numbers with no window attached is a number nobody can check later.
     expect(csv).toContain("Figures,updated 2 minutes ago")
     expect(csv).toContain("Revenue (goods, less refunds)")
   })

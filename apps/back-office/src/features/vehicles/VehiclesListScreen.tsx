@@ -1,47 +1,57 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CircleAlert, Truck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { CircleAlert, Truck } from "lucide-react"
 
-import { cn } from "@effy/design-system";
-import { Checkbox, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
-import type { VehicleListItem, VehicleOwnership, VehicleStatus } from "@effy/shared-types";
+import { cn } from "@effy/design-system"
+import { Checkbox, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
+import type { VehicleListItem, VehicleOwnership, VehicleStatus } from "@effy/shared-types"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { Facet, Pager, ResetFilters, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import {
+  PageHeader,
+  EmptyState,
+  StatusWord,
+  Facet,
+  Pager,
+  ResetFilters,
+  SearchBox,
+  Toolbar,
+  ToolbarSpacer,
+} from "@effy/web-kit/patterns"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
-import { CreateVehicleDialog } from "./components/CreateVehicleDialog";
-import { canManageVehicles } from "./access";
-import { BODY_TYPE_LABEL, COMPLIANCE_LABEL, OWNERSHIP_LABEL, refrigerationLabel, STATUS_LABEL, type VehicleListParams } from "./model";
-import { vehiclesListQuery } from "./queries";
+import { CreateVehicleDialog } from "./components/CreateVehicleDialog"
+import { canManageVehicles } from "./access"
+import {
+  BODY_TYPE_LABEL,
+  COMPLIANCE_LABEL,
+  OWNERSHIP_LABEL,
+  refrigerationLabel,
+  STATUS_LABEL,
+  type VehicleListParams,
+} from "./model"
+import { vehiclesListQuery } from "./queries"
 
-type View = "all" | VehicleStatus;
+type View = "all" | VehicleStatus
 const VIEWS: readonly { key: View; label: string }[] = [
   { key: "all", label: "In the fleet" },
   { key: "active", label: "Active" },
   { key: "off_road", label: "Off the road" },
   { key: "retired", label: "Retired" },
-];
+]
 
-/**
- * The vehicle register: a table, no metric tiles. Compliance shows without opening a record, naming the
- * lapsed item.
- */
 export function VehiclesListScreen() {
-  const roles = useSessionRoles();
-  const canManage = canManageVehicles(roles);
+  const roles = useSessionRoles()
+  const canManage = canManageVehicles(roles)
 
-  const [view, setView] = useState<View>("all");
-  const [refrigeration, setRefrigeration] = useState<"chilled" | "frozen" | null>(null);
-  const [owner, setOwner] = useState<VehicleOwnership | null>(null);
-  const [nonCompliantOnly, setNonCompliantOnly] = useState(false);
-  const [search, setSearch] = useState("");
-  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [view, setView] = useState<View>("all")
+  const [refrigeration, setRefrigeration] = useState<"chilled" | "frozen" | null>(null)
+  const [owner, setOwner] = useState<VehicleOwnership | null>(null)
+  const [nonCompliantOnly, setNonCompliantOnly] = useState(false)
+  const [search, setSearch] = useState("")
+  const [cursorStack, setCursorStack] = useState<string[]>([])
 
   const params: VehicleListParams = useMemo(
     () => ({
@@ -51,24 +61,23 @@ export function VehiclesListScreen() {
       cursor: cursorStack[cursorStack.length - 1],
     }),
     [view, refrigeration, nonCompliantOnly, cursorStack],
-  );
-  const query = useQuery(vehiclesListQuery(params));
+  )
+  const query = useQuery(vehiclesListQuery(params))
 
   function reset<T>(set: (v: T) => void) {
     return (v: T) => {
-      set(v);
-      setCursorStack([]);
-    };
+      set(v)
+      setCursorStack([])
+    }
   }
 
-  // Search and owner narrow the page on screen; the register is a few dozen vehicles at most.
   const items = (query.data?.items ?? []).filter((v) => {
-    if (owner && v.ownership !== owner) return false;
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return `${v.registrationPlate} ${v.make} ${v.model}`.toLowerCase().includes(q);
-  });
-  const filtered = Boolean(search || owner || refrigeration || nonCompliantOnly);
+    if (owner && v.ownership !== owner) return false
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return `${v.registrationPlate} ${v.make} ${v.model}`.toLowerCase().includes(q)
+  })
+  const filtered = Boolean(search || owner || refrigeration || nonCompliantOnly)
 
   return (
     <>
@@ -107,16 +116,19 @@ export function VehiclesListScreen() {
             label="Owner"
             value={owner}
             onChange={setOwner}
-            options={(Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[]).map((o) => ({ value: o, label: OWNERSHIP_LABEL[o] }))}
+            options={(Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[]).map((o) => ({
+              value: o,
+              label: OWNERSHIP_LABEL[o],
+            }))}
           />
           {filtered ? (
             <ResetFilters
               onReset={() => {
-                setSearch("");
-                setOwner(null);
-                setRefrigeration(null);
-                setNonCompliantOnly(false);
-                setCursorStack([]);
+                setSearch("")
+                setOwner(null)
+                setRefrigeration(null)
+                setNonCompliantOnly(false)
+                setCursorStack([])
               }}
             />
           ) : null}
@@ -167,7 +179,6 @@ export function VehiclesListScreen() {
               </tbody>
             </table>
           </div>
-          {/* nextCursor is consumed, not merely returned (053 shipped a console capped at 25). */}
           {query.data.nextCursor || cursorStack.length > 0 ? (
             <Pager
               summary={`${items.length} vehicle${items.length === 1 ? "" : "s"} · page ${cursorStack.length + 1}`}
@@ -180,15 +191,15 @@ export function VehiclesListScreen() {
         </div>
       )}
     </>
-  );
+  )
 }
 
 export function vehicleStatusTone(s: VehicleStatus) {
-  return s === "active" ? ("done" as const) : s === "off_road" ? ("problem" as const) : ("quiet" as const);
+  return s === "active" ? ("done" as const) : s === "off_road" ? ("problem" as const) : ("quiet" as const)
 }
 
 function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
-  const issues = v.complianceIssues;
+  const issues = v.complianceIssues
   return (
     <tr>
       <td data-m="primary">
@@ -225,5 +236,5 @@ function VehicleRow({ vehicle: v }: { vehicle: VehicleListItem }) {
         ) : null}
       </td>
     </tr>
-  );
+  )
 }

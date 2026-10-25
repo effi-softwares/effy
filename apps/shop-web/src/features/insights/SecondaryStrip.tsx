@@ -6,26 +6,7 @@ import { track } from "@/lib/telemetry"
 
 import { money } from "./model"
 
-/**
- * The drill-through strip.
- *
- * Three of the design's five cells are not built, and they are not omissions. `Conversion rate`
- * needs a storefront this shop does not have — customers buy from Effy, and a hidden fulfilment node
- * has no funnel of its own. `New customers` is customer-relationship data a shop is never shown.
- * `Returns open` needs a returns model the platform does not have. Each would have to
- * be invented to be displayed, and an invented number on an operator's screen is worse than a
- * missing one. Their slots carry figures the platform can stand behind instead.
- *
- * Every cell goes somewhere. A number that names a problem without taking you to it makes the
- * reader do a search; each of these opens the already-filtered list that explains it.
- */
-export function SecondaryStrip({
-  dto,
-  backlog,
-}: {
-  dto: ShopInsightsDTO
-  backlog: ShopBacklogDTO | undefined
-}) {
+export function SecondaryStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog: ShopBacklogDTO | undefined }) {
   const cells: Array<{
     label: string
     value: string

@@ -4,21 +4,11 @@ import { Download, RefreshCw, Share, WifiOff, X } from "lucide-react"
 
 import { Button } from "@effy/design-system/ui"
 
-import {
-  dismissInstall,
-  installStore,
-  isIosSafari,
-  promptInstall,
-} from "@/lib/install"
+import { dismissInstall, installStore, promptInstall } from "@/lib/install"
 import { onlineStore } from "@/lib/online"
 import { applyUpdate, pwaStore } from "@/lib/pwa"
 import { track } from "@/lib/telemetry"
 
-/**
- * Offline, update-ready and install, as one full-width strip showing one at a time in that order of
- * urgency: stacked banners would push the content down, and offline changes what the operator can
- * believe about everything below it.
- */
 export function PwaBanners() {
   const { updateReady } = useStore(pwaStore)
   const { online } = useStore(onlineStore)
@@ -39,8 +29,6 @@ function Strip({
   icon: React.ReactNode
   children: React.ReactNode
 }) {
-  // A full-width strip on the muted fill with an icon — never coloured (redesign brief §4). Offline
-  // reads as a problem through its icon and words, not a hue; `tone` only picks the icon's weight.
   return (
     <div
       className={`flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-2.5 text-sm text-foreground ${tone === "warning" ? "font-medium" : ""}`}
@@ -54,26 +42,17 @@ function Strip({
   )
 }
 
-/**
- * Offline is said plainly, and distinguishably from any other error.
- *
- * It does not say "retry". There is nothing to retry: the console recovers on its own when the
- * network returns, and offering a button that does nothing an operator can see teaches
- * them the console is broken.
- */
 function OfflineBanner() {
   return (
     <Strip tone="warning" icon={<WifiOff className="size-4" />}>
       <span className="font-medium">You are offline.</span>
       <span className="opacity-90">
-        Everything below was last loaded while you were connected. Changes cannot be saved until the
-        connection returns.
+        Everything below was last loaded while you were connected. Changes cannot be saved until the connection returns.
       </span>
     </Strip>
   )
 }
 
-/** A new version is waiting, and the operator decides when it lands. */
 function UpdateBanner() {
   return (
     <Strip tone="brand" icon={<RefreshCw className="size-4" />}>
@@ -93,13 +72,6 @@ function UpdateBanner() {
   )
 }
 
-/**
- * Install, on the two platforms that do it differently.
- *
- * The iOS branch is not a fallback for a missing API, it is the only route on iPadOS — which is
- * also the only platform where the Push API requires a home-screen app. An operator who never sees
- * these instructions cannot be asked for notification permission at all.
- */
 function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
   const [busy, setBusy] = useState(false)
 
@@ -135,9 +107,6 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
       ) : (
         <>
           <span className="font-medium">Add Effy Shop to your home screen</span>
-          {/* Named steps, not "install this app". On iPadOS there is no install API and no prompt
-              to fire — the operator has to find Share → Add to Home Screen themselves, and a vague
-              instruction is the same as none. */}
           <span className="inline-flex items-center gap-1 opacity-90">
             Tap <Share className="inline size-3.5" aria-label="Share" /> Share, then
             <span className="font-medium">Add to Home Screen</span>. Notifications need this.
@@ -151,20 +120,10 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
   )
 }
 
-/** Asked once, not on every visit. */
 function DismissButton() {
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      aria-label="Dismiss"
-      onClick={() => dismissInstall()}
-      className="size-10 p-0"
-    >
+    <Button size="sm" variant="ghost" aria-label="Dismiss" onClick={() => dismissInstall()} className="size-10 p-0">
       <X className="size-4" />
     </Button>
   )
 }
-
-/** Exported for the test that asserts the iOS branch is chosen by platform, not by absence. */
-export const __testables = { isIosSafari }

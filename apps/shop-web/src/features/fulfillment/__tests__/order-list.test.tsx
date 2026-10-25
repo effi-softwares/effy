@@ -32,7 +32,6 @@ import { OrderListScreen } from "../OrderListScreen"
 import type { OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
 
-/** jsdom applies no CSS, so both the wide table and the narrow list render — scope to the table. */
 const table = () => within(screen.getByRole("table"))
 const findInTable = async (text: string) => {
   await screen.findByRole("table")
@@ -72,11 +71,19 @@ describe("the Orders list (057 A3)", () => {
     expect(table().getByText("$57.80")).toBeInTheDocument()
   })
 
-  /** Counts cover every state, from the server — not the rows on this page. */
   it("shows the server's counts on every status tab", async () => {
     listOrders.mockResolvedValue(
       orderList([orderRow()], {
-        counts: { all: 41, new: 3, picking: 5, ready_for_pickup: 2, collected: 9, delivered: 20, unfulfillable: 1, withdrawn: 1 },
+        counts: {
+          all: 41,
+          new: 3,
+          picking: 5,
+          ready_for_pickup: 2,
+          collected: 9,
+          delivered: 20,
+          unfulfillable: 1,
+          withdrawn: 1,
+        },
       }),
     )
     wrap()
@@ -131,7 +138,6 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
   })
 
-  /** Revision 3 — the saved-views row and the body selects are gone on purpose. */
   it("has no saved views, no Fulfilment select and no labels above body selects", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap()
@@ -190,7 +196,6 @@ describe("the Orders list (057 A3)", () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { onSearchChange, rerender } = wrap()
     await screen.findByRole("table")
-    // Descending is the default now, so it is dropped from the URL rather than written into it.
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
     expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
 
@@ -204,25 +209,16 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total", dir: "asc" })
   })
 
-  /**
-   * The arrow is the only thing on screen that says which way the list runs. When it disagreed with
-   * the default it drew ↑ over a newest-first list and the first click on `Placed` did nothing
-   * visible — the exact shape of defect a green suite hides.
-   */
   it("shows the Placed column sorted descending by default", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap()
     await screen.findByRole("table")
-    const placed = table().getAllByRole("columnheader").find((th) => th.textContent?.startsWith("Placed"))
+    const placed = table()
+      .getAllByRole("columnheader")
+      .find((th) => th.textContent?.startsWith("Placed"))
     expect(placed).toHaveAttribute("aria-sort", "descending")
   })
 
-  /**
-   * The redesign (2026-10-24): a recent order gets a blue left rule, an unopened one reads bold — the
-   * identity has no green "new" wash and no yellow. The mark and the word are one feature, tested together. A test that asserted only the class
-   * would pass over a row that is legible to nobody who cannot see the colour; one that asserted
-   * only the word would pass over a row nobody can find. Both, or neither, is the contract.
-   */
   describe("the row's tone (2026-09-19)", () => {
     const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
     const rowOf = (text: string) => table().getByText(text).closest("tr") as HTMLElement
@@ -248,7 +244,6 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
 
-    /** Opening it IS the acknowledgement — `received` is the proof a person saw it. */
     it("leaves an opened order untinted, though its status pill still reads Preparing (073 words)", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Seen Already", placedAt: minutesAgo(45), status: "received" })]),
@@ -262,7 +257,6 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("Not opened")).not.toBeInTheDocument()
     })
 
-    /** A cancelled order placed ten minutes ago is not fresh work, and green would say it is. */
     it("never calls a terminal order recent", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Called Off", placedAt: minutesAgo(2), status: "withdrawn" })]),
@@ -273,7 +267,6 @@ describe("the Orders list (057 A3)", () => {
       expect(table().queryByText("New")).not.toBeInTheDocument()
     })
 
-    /** Two background utilities on one row resolve by stylesheet order, not by source order. */
     it("drops the wash on a selected row so the selection is never invisible", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Fresh Arrival", placedAt: minutesAgo(2), status: "pending" })]),
@@ -309,7 +302,6 @@ describe("empty states say which kind of empty it is", () => {
     listOrders.mockResolvedValue(orderList([]))
     const { onSearchChange } = wrap({ q: "zzz", range: "today", sort: "total" })
     expect(await screen.findByText("No orders match these filters")).toBeInTheDocument()
-    // Both the toolbar's and the empty state's reset do the same thing; use the empty state's.
     const resets = screen.getAllByRole("button", { name: "Reset filters" })
     await userEvent.click(resets[resets.length - 1]!)
     // Filters go; the operator's chosen sort stays.
@@ -319,7 +311,9 @@ describe("empty states say which kind of empty it is", () => {
 
 describe("selection and the bulk bar", () => {
   it("appears with the selection count and clears on demand", async () => {
-    listOrders.mockResolvedValue(orderList([orderRow({ id: "a", orderNumber: "EFY-A" }), orderRow({ id: "b", orderNumber: "EFY-B" })]))
+    listOrders.mockResolvedValue(
+      orderList([orderRow({ id: "a", orderNumber: "EFY-A" }), orderRow({ id: "b", orderNumber: "EFY-B" })]),
+    )
     wrap()
     await screen.findByRole("table")
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument()

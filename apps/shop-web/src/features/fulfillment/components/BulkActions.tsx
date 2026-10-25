@@ -17,12 +17,6 @@ import { getOrder, recordParcelPrints, setOrderTags, transitionFulfillment } fro
 import { printLabels, rememberedLayout, type PrintJob } from "../labels/printer"
 import { CantSupplyDialog } from "./StateControl"
 
-/**
- * The bulk bar: "N selected" · the actions · Clear. "Start picking" and "Mark ready" move only selected
- * orders at the step before; "Cancel orders" is the can't-supply declaration (a shop cannot cancel a
- * customer's order), confirmed in a sheet naming every order. Sequential; a failure does not abort the run,
- * and the toast names what refused.
- */
 export function BulkActions({
   rows,
   selected,
@@ -67,10 +61,6 @@ export function BulkActions({
     if (outcome.failed.length === 0) onClear()
   }
 
-  /**
-   * Print every bag's label for the selected orders in one go (spec US2 AS4). Each order is read
-   * fresh so the labels carry what the server holds now; then one print job, recorded only once sent.
-   */
   async function printSelected() {
     setRunning(true)
     try {
@@ -92,7 +82,9 @@ export function BulkActions({
         return
       }
       track({ name: "labels_printed", orders: jobs.length, count: out.printed, layout, path: out.path })
-      toast.success(`${out.printed} label${out.printed === 1 ? "" : "s"} for ${jobs.length} order${jobs.length === 1 ? "" : "s"} sent to the printer`)
+      toast.success(
+        `${out.printed} label${out.printed === 1 ? "" : "s"} for ${jobs.length} order${jobs.length === 1 ? "" : "s"} sent to the printer`,
+      )
       if (failed.length > 0) toast.error(`Couldn't read ${failed.join(", ")} — print those from the order.`)
     } finally {
       setRunning(false)
@@ -121,7 +113,6 @@ export function BulkActions({
   }
 
   return (
-    // The bulk bar floats over the list's foot (Patterns — "bulk bar"), clear of the phone's tab bar.
     <div
       role="region"
       aria-label="Selected orders"
@@ -185,16 +176,7 @@ export function BulkActions({
   )
 }
 
-/** The bar's buttons: the bar's own outline buttons — "Can't supply" says so in words, never in red. */
-function BarButton({
-  children,
-  onClick,
-  disabled,
-}: {
-  children: ReactNode
-  onClick: () => void
-  disabled?: boolean
-}) {
+function BarButton({ children, onClick, disabled }: { children: ReactNode; onClick: () => void; disabled?: boolean }) {
   return (
     <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
       {children}

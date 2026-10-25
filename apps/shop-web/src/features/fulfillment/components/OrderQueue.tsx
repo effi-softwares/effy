@@ -20,17 +20,6 @@ import { transitionFulfillment } from "../repo"
 
 import { OrderWait } from "./OrderWait"
 
-/**
- * The queue (redesign, Orders board 01 — "the packing bench"): four lanes side by side on a landscape
- * tablet, scrolling sideways on a portrait one. Oldest first in every lane. Every ticket's action is a
- * visible button — no swipe, no long-press.
- *
- * The one sanctioned exception to "no cards": a live work queue is drawn as tickets in every reference
- * product, and a table cannot show four stages side by side. They stay flat — a hairline, no shadow.
- *
- * Each lane is the Orders list's own query for its tab, so the queue and the table agree by
- * construction and a live `orders` update re-reads both.
- */
 const LANES: readonly { tab: ShopOrderTab; title: string; hint?: string; search: OrdersSearch }[] = [
   { tab: "new", title: "Awaiting pick", hint: "oldest first", search: { tab: "new", dir: "asc" } },
   { tab: "picking", title: "Picking", search: { tab: "picking", dir: "asc" } },
@@ -51,10 +40,6 @@ export function OrderQueue({ search, now }: { search: OrdersSearch; now: number 
   )
 }
 
-/**
- * The next collection, one line above the lanes (Orders board 01, 099) — the same Today read, so the
- * queue and Today cannot disagree. Nothing when no runs are set up.
- */
 function CollectionStrip({ now }: { now: number }) {
   const { data } = useQuery(todayQuery)
   const next = data?.nextCollection
@@ -63,9 +48,7 @@ function CollectionStrip({ now }: { now: number }) {
   return (
     <p role="status" className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted px-4 py-3">
       <Truck aria-hidden="true" className="size-5 shrink-0" />
-      <span className="font-medium">
-        Next collection {runTime(next, data?.timezone)} · Effy driver
-      </span>
+      <span className="font-medium">Next collection {runTime(next, data?.timezone)} · Effy driver</span>
       <span className="text-muted-foreground">
         · {next.due.ready} ready, {next.due.picking} still picking · {DRIVER_WORDS[driver]}
       </span>
@@ -84,7 +67,9 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
       <h2 className="sh-lane__head">
         {lane.title}
         {list.data ? (
-          <span className={cn("bo-tabs__count", lane.tab === "new" && total > 0 && "bo-tabs__count--primary")}>{total}</span>
+          <span className={cn("bo-tabs__count", lane.tab === "new" && total > 0 && "bo-tabs__count--primary")}>
+            {total}
+          </span>
         ) : null}
         {lane.hint ? <span className="sh-lane__hint">{lane.hint}</span> : null}
       </h2>
@@ -103,7 +88,9 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
         <p className="sh-lane__empty">{EMPTY[lane.tab] ?? "Nothing here"}</p>
       ) : (
         <>
-          {rows.map((row) => (quiet ? <QuietTicket key={row.id} row={row} /> : <Ticket key={row.id} row={row} now={now} />))}
+          {rows.map((row) =>
+            quiet ? <QuietTicket key={row.id} row={row} /> : <Ticket key={row.id} row={row} now={now} />,
+          )}
           {total > rows.length ? (
             <Link
               to="/orders"
@@ -191,7 +178,10 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
         <>
           <div className="sh-ticket__progress">
             <div className="bo-meter" role="img" aria-label={`${row.gatheredCount} of ${row.itemCount} picked`}>
-              <i className="bo-meter__booked" style={{ width: `${row.itemCount > 0 ? (row.gatheredCount / row.itemCount) * 100 : 0}%` }} />
+              <i
+                className="bo-meter__booked"
+                style={{ width: `${row.itemCount > 0 ? (row.gatheredCount / row.itemCount) * 100 : 0}%` }}
+              />
             </div>
             {row.gatheredCount} of {row.itemCount}
           </div>
@@ -214,7 +204,6 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
   )
 }
 
-/** Ready and collected orders: the code, its status or time, and what goes with it. Tapping opens it. */
 function QuietTicket({ row }: { row: OrderRow }) {
   return (
     <Link
@@ -231,7 +220,6 @@ function QuietTicket({ row }: { row: OrderRow }) {
   )
 }
 
-/** A ready order's ticket keeps its status word. */
 function ReadyWord() {
   return (
     <span className="bo-st bo-st--moving">

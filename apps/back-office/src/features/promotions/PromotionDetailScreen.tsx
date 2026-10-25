@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { CalendarDays, Pencil, TicketPercent, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { CalendarDays, Pencil, TicketPercent, Trash2 } from "lucide-react"
 
-import type { PromotionAction } from "@effy/shared-types";
+import type { PromotionAction } from "@effy/shared-types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,25 +21,22 @@ import {
   TabsCount,
   TabsList,
   TabsTrigger,
-} from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+} from "@effy/design-system/ui"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { DetailRows, Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { useHeaderDetail } from "@effy/web-kit/console";
-import { sessionQuery } from "@/features/auth/queries";
-import { track } from "@/lib/telemetry";
+import { PageHeader, DetailRows, Panel, Callout } from "@effy/web-kit/patterns"
+import { sessionQuery } from "@/features/auth/queries"
+import { track } from "@/lib/telemetry"
 
-import { canManagePromotions } from "./access";
-import { ChosenCustomers } from "./components/ChosenCustomers";
-import { CodesPanel } from "./components/CodesPanel";
-import { PicturesSection } from "./components/PicturesSection";
-import { PerformancePanel } from "./components/PerformancePanel";
-import { promotionMutationError } from "./errorText";
-import { usesLabel, type Promotion } from "./model";
-import { activeDates, PromotionStateWord } from "./PromotionsListScreen";
-import { promotionHistoryQuery, promotionQuery, useDeletePromotion, usePromotionAction } from "./queries";
+import { canManagePromotions } from "./access"
+import { ChosenCustomers } from "./components/ChosenCustomers"
+import { CodesPanel } from "./components/CodesPanel"
+import { PicturesSection } from "./components/PicturesSection"
+import { PerformancePanel } from "./components/PerformancePanel"
+import { promotionMutationError } from "./errorText"
+import { usesLabel, type Promotion } from "./model"
+import { activeDates, PromotionStateWord } from "./PromotionsListScreen"
+import { promotionHistoryQuery, promotionQuery, useDeletePromotion, usePromotionAction } from "./queries"
 
 const timeFmt = new Intl.DateTimeFormat("en-AU", {
   weekday: "short",
@@ -49,62 +46,71 @@ const timeFmt = new Intl.DateTimeFormat("en-AU", {
   hour: "numeric",
   minute: "2-digit",
   timeZone: "Australia/Melbourne",
-});
-const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "—");
+})
+const formatTime = (iso: string | null) => (iso ? timeFmt.format(new Date(iso)) : "—")
 
-/** What each lifecycle move does, said before it is done. */
 const CONFIRM: Record<PromotionAction, { title: string; body: string; verb: string } | null> = {
   publish: null,
   resume: null,
-  pause: { title: "Pause this promotion?", body: "It stops applying and leaves every place it is shown at once. Orders already placed keep their discount. You can resume it.", verb: "Pause" },
-  end: { title: "End this promotion now?", body: "It stops for good. Orders already placed keep their discount. To run it again, create a new one.", verb: "End now" },
-  archive: { title: "Archive this promotion?", body: "It ends, leaves every group and is hidden from the list. Every order that used it still names it.", verb: "Archive" },
-};
+  pause: {
+    title: "Pause this promotion?",
+    body: "It stops applying and leaves every place it is shown at once. Orders already placed keep their discount. You can resume it.",
+    verb: "Pause",
+  },
+  end: {
+    title: "End this promotion now?",
+    body: "It stops for good. Orders already placed keep their discount. To run it again, create a new one.",
+    verb: "End now",
+  },
+  archive: {
+    title: "Archive this promotion?",
+    body: "It ends, leaves every group and is hidden from the list. Every order that used it still names it.",
+    verb: "Archive",
+  },
+}
 
-/**
- * One promotion: its state and the moves it allows, what it gives in the words shoppers read,
- * where it is shown, and every change. Sectioned detail rows — no metric tiles.
- */
 export function PromotionDetailScreen({ promoId }: { promoId: string }) {
-  const { data: session } = useQuery(sessionQuery);
-  const roles = session?.status === "signed-in" ? session.identity.roles : [];
-  const canManage = canManagePromotions(roles);
-  const navigate = useNavigate();
-  const { data: p, error, isPending, isError, refetch } = useQuery(promotionQuery(promoId));
-  const act = usePromotionAction(promoId);
-  const del = useDeletePromotion();
-  const [confirming, setConfirming] = useState<PromotionAction | "delete" | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  useHeaderDetail(p?.name ?? null);
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  const canManage = canManagePromotions(roles)
+  const navigate = useNavigate()
+  const { data: p, error, isPending, isError, refetch } = useQuery(promotionQuery(promoId))
+  const act = usePromotionAction(promoId)
+  const del = useDeletePromotion()
+  const [confirming, setConfirming] = useState<PromotionAction | "delete" | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  useHeaderDetail(p?.name ?? null)
 
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
+  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) {
     return (
       <div className="space-y-4" aria-busy="true">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-60" />
       </div>
-    );
+    )
   }
 
   const run = (action: PromotionAction) => {
-    setActionError(null);
+    setActionError(null)
     act.mutate(action, {
       onSuccess: () => {
-        track({ name: "promotion_action", promotionId: promoId, action });
-        setConfirming(null);
+        track({ name: "promotion_action", promotionId: promoId, action })
+        setConfirming(null)
       },
       onError: (e) => setActionError(promotionMutationError(e)),
-    });
-  };
-  const ask = (action: PromotionAction) => (CONFIRM[action] ? setConfirming(action) : run(action));
+    })
+  }
+  const ask = (action: PromotionAction) => (CONFIRM[action] ? setConfirming(action) : run(action))
   const moves: { action: PromotionAction; label: string }[] = [
     ...(p.state === "draft" ? [{ action: "publish" as const, label: "Publish" }] : []),
     ...(p.state === "paused" ? [{ action: "resume" as const, label: "Resume" }] : []),
-    ...(["active", "scheduled", "used_up", "out_of_budget"].includes(p.state) ? [{ action: "pause" as const, label: "Pause" }] : []),
+    ...(["active", "scheduled", "used_up", "out_of_budget"].includes(p.state)
+      ? [{ action: "pause" as const, label: "Pause" }]
+      : []),
     ...(!["draft", "ended", "archived"].includes(p.state) ? [{ action: "end" as const, label: "End now" }] : []),
     ...(p.state !== "archived" ? [{ action: "archive" as const, label: "Archive" }] : []),
-  ];
+  ]
 
   return (
     <>
@@ -141,7 +147,12 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                 </Button>
               ) : null}
               {moves.map((m, i) => (
-                <Button key={m.action} variant={i === 0 && m.action === "publish" ? "default" : "outline"} disabled={act.isPending} onClick={() => ask(m.action)}>
+                <Button
+                  key={m.action}
+                  variant={i === 0 && m.action === "publish" ? "default" : "outline"}
+                  disabled={act.isPending}
+                  onClick={() => ask(m.action)}
+                >
                   {m.label}
                 </Button>
               ))}
@@ -156,10 +167,15 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         }
       />
 
-      {actionError ? <Callout tone="destructive" title="That didn't work">{actionError}</Callout> : null}
+      {actionError ? (
+        <Callout tone="destructive" title="That didn't work">
+          {actionError}
+        </Callout>
+      ) : null}
       {p.used ? (
         <Callout tone="info" title={`Used on ${p.uses} order${p.uses === 1 ? "" : "s"} · $${p.given} given.`}>
-          What it gives and who it is for are fixed, so every order keeps explaining its discount. Its dates, limits, words and groups can still change.
+          What it gives and who it is for are fixed, so every order keeps explaining its discount. Its dates, limits,
+          words and groups can still change.
         </Callout>
       ) : null}
 
@@ -209,9 +225,15 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
               </TabsContent>
             ) : null}
             <TabsContent value="groups" className="bo-tabpanel">
-              <Panel title="Shown in" description="Each group is a place the customer website and app show promotions, in the group's order." flush>
+              <Panel
+                title="Shown in"
+                description="Each group is a place the customer website and app show promotions, in the group's order."
+                flush
+              >
                 {p.groups.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-muted-foreground">Not shown anywhere. It still applies in the cart.</p>
+                  <p className="px-5 py-4 text-sm text-muted-foreground">
+                    Not shown anywhere. It still applies in the cart.
+                  </p>
                 ) : (
                   <ul className="divide-y divide-border">
                     {p.groups.map((g) => (
@@ -241,7 +263,9 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
           <Panel title="What shoppers read">
             <div className="space-y-2">
               {p.label ? <div className="bo-sub font-semibold uppercase tracking-wide">{p.label}</div> : null}
-              <div className="text-base font-semibold">{p.headline ?? <span className="text-muted-foreground">No headline — not shown in groups</span>}</div>
+              <div className="text-base font-semibold">
+                {p.headline ?? <span className="text-muted-foreground">No headline — not shown in groups</span>}
+              </div>
               {p.supportingLine ? <p className="bo-sub">{p.supportingLine}</p> : null}
               {p.sharedCode ? <div className="bo-code">{p.sharedCode}</div> : null}
               {p.terms ? <p className="bo-sub">{p.terms}</p> : null}
@@ -264,9 +288,15 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
       <AlertDialog open={confirming !== null} onOpenChange={(o) => (o ? null : setConfirming(null))}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirming === "delete" ? "Delete this promotion?" : confirming ? CONFIRM[confirming]?.title : ""}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirming === "delete" ? "Delete this promotion?" : confirming ? CONFIRM[confirming]?.title : ""}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirming === "delete" ? "Nobody has used it, so removing it changes no order. This cannot be undone." : confirming ? CONFIRM[confirming]?.body : ""}
+              {confirming === "delete"
+                ? "Nobody has used it, so removing it changes no order. This cannot be undone."
+                : confirming
+                  ? CONFIRM[confirming]?.body
+                  : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -274,7 +304,10 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
             <AlertDialogAction
               onClick={() =>
                 confirming === "delete"
-                  ? del.mutate(promoId, { onSuccess: () => void navigate({ to: "/promotions" }), onError: (e) => setActionError(promotionMutationError(e)) })
+                  ? del.mutate(promoId, {
+                      onSuccess: () => void navigate({ to: "/promotions" }),
+                      onError: (e) => setActionError(promotionMutationError(e)),
+                    })
                   : confirming && run(confirming)
               }
             >
@@ -284,7 +317,7 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
+  )
 }
 
 const WHO: Record<Promotion["audience"], string> = {
@@ -292,17 +325,28 @@ const WHO: Record<Promotion["audience"], string> = {
   first_order: "A customer's first order",
   new_customers: "New customers",
   chosen: "Chosen customers",
-};
+}
 
 function Overview({ p }: { p: Promotion }) {
-  const none = <span className="text-muted-foreground">—</span>;
+  const none = <span className="text-muted-foreground">—</span>
   return (
     <>
       <Panel title="What it gives">
         <DetailRows
           rows={[
             { label: "Gives", value: p.gives },
-            { label: "Applies", value: p.trigger === "code" ? <>With the code <span className="bo-code">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span></> : "Automatically" },
+            {
+              label: "Applies",
+              value:
+                p.trigger === "code" ? (
+                  <>
+                    With the code{" "}
+                    <span className="bo-code">{p.sharedCode ?? `${p.singleUseCodeCount} single-use codes`}</span>
+                  </>
+                ) : (
+                  "Automatically"
+                ),
+            },
             { label: "Minimum spend", value: Number(p.minSubtotal) > 0 ? `$${p.minSubtotal}` : "None" },
             { label: "Combines", value: p.combinable ? "With other promotions" : "Not with other promotions" },
           ]}
@@ -311,10 +355,24 @@ function Overview({ p }: { p: Promotion }) {
       <Panel title="Who and when" description="Times are Melbourne time.">
         <DetailRows
           rows={[
-            { label: "Who", value: p.audience === "chosen" ? `${WHO.chosen} (${p.chosenCustomerCount})` : WHO[p.audience] },
-            { label: "Delivery", value: p.deliveryTypes.length === 2 ? "Effy and courier" : p.deliveryTypes[0] === "effy" ? "Delivered by Effy only" : "Courier only" },
+            {
+              label: "Who",
+              value: p.audience === "chosen" ? `${WHO.chosen} (${p.chosenCustomerCount})` : WHO[p.audience],
+            },
+            {
+              label: "Delivery",
+              value:
+                p.deliveryTypes.length === 2
+                  ? "Effy and courier"
+                  : p.deliveryTypes[0] === "effy"
+                    ? "Delivered by Effy only"
+                    : "Courier only",
+            },
             { label: "Starts", value: p.startsAt ? formatTime(p.startsAt) : "No lower bound" },
-            { label: "Ends", value: p.endedAt ? `Ended ${formatTime(p.endedAt)}` : p.endsAt ? formatTime(p.endsAt) : "No upper bound" },
+            {
+              label: "Ends",
+              value: p.endedAt ? `Ended ${formatTime(p.endedAt)}` : p.endsAt ? formatTime(p.endsAt) : "No upper bound",
+            },
             { label: "Conditions", value: p.terms ?? none },
           ]}
         />
@@ -323,18 +381,26 @@ function Overview({ p }: { p: Promotion }) {
         <DetailRows
           rows={[
             { label: "Used", value: usesLabel(p) },
-            { label: "Per customer", value: p.maxUsesPerCustomer ? `${p.maxUsesPerCustomer} use${p.maxUsesPerCustomer === 1 ? "" : "s"}` : "No limit" },
+            {
+              label: "Per customer",
+              value: p.maxUsesPerCustomer
+                ? `${p.maxUsesPerCustomer} use${p.maxUsesPerCustomer === 1 ? "" : "s"}`
+                : "No limit",
+            },
             { label: "Discount given", value: `$${p.given}` },
-            { label: "Budget", value: p.budget ? `$${p.budget} · $${(Number(p.budget) - Number(p.given)).toFixed(2)} left` : "No budget" },
+            {
+              label: "Budget",
+              value: p.budget ? `$${p.budget} · $${(Number(p.budget) - Number(p.given)).toFixed(2)} left` : "No budget",
+            },
           ]}
         />
       </Panel>
     </>
-  );
+  )
 }
 
 function History({ promoId }: { promoId: string }) {
-  const { data, error, isPending, isError, refetch } = useQuery(promotionHistoryQuery(promoId));
+  const { data, error, isPending, isError, refetch } = useQuery(promotionHistoryQuery(promoId))
   return (
     <Panel title="History" description="Every change to this promotion, newest first." flush>
       {isError ? (
@@ -350,7 +416,9 @@ function History({ promoId }: { promoId: string }) {
           {data.map((e) => (
             <li key={e.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
               <div className="min-w-0">
-                <div className="text-sm font-medium">{e.action.replace(/^promo(tion|_code)\./, "").replace(/_/g, " ")}</div>
+                <div className="text-sm font-medium">
+                  {e.action.replace(/^promo(tion|_code)\./, "").replace(/_/g, " ")}
+                </div>
                 <div className="bo-sub font-mono">{e.actorSub}</div>
               </div>
               <span className="bo-sub whitespace-nowrap">{formatTime(e.createdAt)}</span>
@@ -359,5 +427,5 @@ function History({ promoId }: { promoId: string }) {
         </ul>
       )}
     </Panel>
-  );
+  )
 }

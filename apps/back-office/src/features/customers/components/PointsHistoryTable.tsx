@@ -1,14 +1,15 @@
-import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import { Link } from "@tanstack/react-router"
+import type { ColumnDef } from "@tanstack/react-table"
 
-import { POINTS_REASON_LABELS, type StaffPointsHistoryEntryDTO } from "@effy/shared-types";
-import { Button } from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { POINTS_REASON_LABELS, type StaffPointsHistoryEntryDTO } from "@effy/shared-types"
+import { Button } from "@effy/design-system/ui"
+import { DataTable, ErrorState } from "@effy/web-kit/console"
 
-import { usePointsHistory } from "../queries";
-import { formatDay, formatPoints } from "./points-format";
+import { usePointsHistory } from "../queries"
+import { formatDay, formatPoints } from "./points-format"
 
-const when = (iso: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+const when = (iso: string) =>
+  new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
 
 const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
   { id: "at", header: "When", cell: ({ row }) => <span className="tabular-nums">{when(row.original.at)}</span> },
@@ -27,7 +28,6 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
     cell: ({ row }) => (
       <span className="space-y-0.5">
         <span className="block">{POINTS_REASON_LABELS[row.original.reason] ?? row.original.reason}</span>
-        {/* Internal: shown to staff, never to the customer. */}
         {row.original.note ? <span className="block text-sm text-muted-foreground">{row.original.note}</span> : null}
       </span>
     ),
@@ -42,7 +42,11 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
     header: "Order",
     cell: ({ row }) =>
       row.original.orderId && row.original.orderNumber ? (
-        <Link to="/orders/$orderId" params={{ orderId: row.original.orderId }} className="font-mono text-primary hover:underline">
+        <Link
+          to="/orders/$orderId"
+          params={{ orderId: row.original.orderId }}
+          className="font-mono text-primary hover:underline"
+        >
           {row.original.orderNumber}
         </Link>
       ) : (
@@ -53,16 +57,16 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
   {
     id: "expires",
     header: "Usable until",
-    cell: ({ row }) => (row.original.expiresOn ? <span className="tabular-nums">{formatDay(row.original.expiresOn)}</span> : "—"),
+    cell: ({ row }) =>
+      row.original.expiresOn ? <span className="tabular-nums">{formatDay(row.original.expiresOn)}</span> : "—",
   },
-];
+]
 
-/** Every change to a customer's points, newest first. A table, never cards (Principle V). */
 export function PointsHistoryTable({ customerId }: { customerId: string }) {
-  const history = usePointsHistory(customerId);
-  if (history.isError) return <ErrorState error={history.error} onRetry={() => void history.refetch()} />;
-  if (history.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
-  const rows = history.data.pages.flatMap((p) => p.entries);
+  const history = usePointsHistory(customerId)
+  if (history.isError) return <ErrorState error={history.error} onRetry={() => void history.refetch()} />
+  if (history.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>
+  const rows = history.data.pages.flatMap((p) => p.entries)
   return (
     <div className="space-y-3">
       <DataTable columns={columns} data={rows} emptyMessage="No points yet." />
@@ -72,5 +76,5 @@ export function PointsHistoryTable({ customerId }: { customerId: string }) {
         </Button>
       ) : null}
     </div>
-  );
+  )
 }

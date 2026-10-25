@@ -9,10 +9,7 @@ import { cn } from "@effy/design-system"
 import { Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { Kbd } from "@effy/web-kit/patterns"
-import { PageHeader } from "@effy/web-kit/patterns"
-import { EmptyState } from "@effy/web-kit/patterns"
-import { Facet, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
+import { Kbd, PageHeader, EmptyState, Facet, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
 import { sessionQuery } from "@/features/auth/queries"
 import { dayWord, moment } from "@/lib/format"
 
@@ -29,8 +26,15 @@ import { feedbackDetailQuery, feedbackListQuery } from "./queries"
 
 const PAGE_SIZE = 25
 
-/** The inbox's status views. "All" leaves spam and archived in; each status is its own view. */
-const VIEWS: readonly (FeedbackStatus | "all")[] = ["new", "in_review", "replied", "resolved", "archived", "spam", "all"]
+const VIEWS: readonly (FeedbackStatus | "all")[] = [
+  "new",
+  "in_review",
+  "replied",
+  "resolved",
+  "archived",
+  "spam",
+  "all",
+]
 const COUNTED: readonly FeedbackStatus[] = ["new", "in_review", "replied", "resolved"]
 
 type Received = "today" | "7d" | "30d"
@@ -42,11 +46,6 @@ function fromFor(r: Received | null): string | undefined {
   return d.toISOString()
 }
 
-/**
- * Customer feedback (046; redesign, board "Feedback — inbox"): status views with counts, search and
- * facets, and a split view — the list beside the open submission. Below 1024px the list alone, each
- * item opening its own page. J / K move through the list.
- */
 export function FeedbackListScreen() {
   const [view, setView] = useState<FeedbackStatus | "all">("new")
   const [q, setQ] = useState("")
@@ -156,7 +155,9 @@ export function FeedbackListScreen() {
         <EmptyState
           icon={MessageSquareText}
           title={view === "new" ? "Nothing new" : "No feedback matches"}
-          description={view === "new" ? "Every submission has been looked at." : "Try another status, or clear the filters."}
+          description={
+            view === "new" ? "Every submission has been looked at." : "Try another status, or clear the filters."
+          }
         />
       ) : (
         <div className="bo-split">
@@ -169,7 +170,12 @@ export function FeedbackListScreen() {
               </span>
             </div>
             {items.map((i) => (
-              <InboxItem key={i.referenceCode} item={i} active={i.referenceCode === selected} onOpen={() => setOpen(i.referenceCode)} />
+              <InboxItem
+                key={i.referenceCode}
+                item={i}
+                active={i.referenceCode === selected}
+                onOpen={() => setOpen(i.referenceCode)}
+              />
             ))}
             <div className="mt-auto">
               <Pager
@@ -198,7 +204,15 @@ function InboxItem({
   active,
   onOpen,
 }: {
-  item: { referenceCode: string; category: FeedbackCategory; status: FeedbackStatus; rating: number | null; submitter: { name: string | null; email: string | null }; preview: string; createdAt: string }
+  item: {
+    referenceCode: string
+    category: FeedbackCategory
+    status: FeedbackStatus
+    rating: number | null
+    submitter: { name: string | null; email: string | null }
+    preview: string
+    createdAt: string
+  }
   active: boolean
   onOpen: () => void
 }) {
@@ -206,7 +220,9 @@ function InboxItem({
     <>
       <div className="flex items-center justify-between gap-2">
         <span className="bo-inbox-item__who truncate text-sm">{i.submitter.name ?? i.submitter.email ?? "Guest"}</span>
-        <span className="text-xs whitespace-nowrap text-muted-foreground">{dayWord(i.createdAt) === "Today" ? moment(i.createdAt).replace("Today, ", "") : dayWord(i.createdAt)}</span>
+        <span className="text-xs whitespace-nowrap text-muted-foreground">
+          {dayWord(i.createdAt) === "Today" ? moment(i.createdAt).replace("Today, ", "") : dayWord(i.createdAt)}
+        </span>
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <span className="bo-tag">{FEEDBACK_CATEGORY_LABELS[i.category]}</span>
@@ -224,7 +240,6 @@ function InboxItem({
   const cls = cn("bo-inbox-item w-full text-left", active && "is-active", i.status === "new" && "is-unread")
   return (
     <>
-      {/* Wide: opens beside the list. Narrow: the detail column is hidden, so it opens its own page. */}
       <button type="button" className={cn(cls, "max-lg:hidden")} aria-current={active || undefined} onClick={onOpen}>
         {body}
       </button>
@@ -239,7 +254,18 @@ function OpenSubmission({ referenceCode }: { referenceCode: string }) {
   const detail = useQuery(feedbackDetailQuery(referenceCode))
   const { data: session } = useQuery(sessionQuery)
   const roles = session?.status === "signed-in" ? session.identity.roles : []
-  if (detail.isError) return <div className="p-6"><ErrorState error={detail.error} onRetry={() => void detail.refetch()} /></div>
-  if (detail.isPending) return <div className="space-y-3 p-6"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /></div>
+  if (detail.isError)
+    return (
+      <div className="p-6">
+        <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
+      </div>
+    )
+  if (detail.isPending)
+    return (
+      <div className="space-y-3 p-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32" />
+      </div>
+    )
   return <FeedbackPanel detail={detail.data} mayReply={canReplyFeedback(roles)} showOpenLink />
 }

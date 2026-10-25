@@ -1,47 +1,43 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import { Button, Input, Label } from "@effy/design-system/ui";
-import type { VehicleDetail } from "@effy/shared-types";
+import { Button, Input, Label } from "@effy/design-system/ui"
+import type { VehicleDetail } from "@effy/shared-types"
 
-import { driversListQuery } from "@/features/drivers/queries";
+import { driversListQuery } from "@/features/drivers/queries"
 
-import { vehicleActionError, vehicleFieldErrors } from "../errorText";
-import { useIssueVehicle, useReturnVehicle } from "../queries";
+import { vehicleActionError, vehicleFieldErrors } from "../errorText"
+import { useIssueVehicle, useReturnVehicle } from "../queries"
 
-/**
- * Hand a vehicle to a driver, and take it back. The service composes the refusals ("already out with Sam
- * Rivers", "that driver already has EFY-002"), and the field messages are shown beside the form.
- */
 export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
-  const [driverId, setDriverId] = useState("");
-  const [odometer, setOdometer] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([]);
+  const [driverId, setDriverId] = useState("")
+  const [odometer, setOdometer] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([])
 
-  const issue = useIssueVehicle(vehicle.id);
-  const back = useReturnVehicle(vehicle.id);
-  const drivers = useQuery(driversListQuery({ status: "active" }));
+  const issue = useIssueVehicle(vehicle.id)
+  const back = useReturnVehicle(vehicle.id)
+  const drivers = useQuery(driversListQuery({ status: "active" }))
 
-  const held = Boolean(vehicle.currentHolderDriverId);
-  const busy = issue.isPending || back.isPending;
+  const held = Boolean(vehicle.currentHolderDriverId)
+  const busy = issue.isPending || back.isPending
 
   function reset() {
-    setError(null);
-    setFieldErrors([]);
+    setError(null)
+    setFieldErrors([])
   }
 
   function parseOdo(): number | null {
-    const t = odometer.trim();
-    if (t === "") return null;
-    const n = Number(t);
-    return Number.isInteger(n) && n >= 0 ? n : null;
+    const t = odometer.trim()
+    if (t === "") return null
+    const n = Number(t)
+    return Number.isInteger(n) && n >= 0 ? n : null
   }
 
   function onError(e: unknown, action: "issue" | "return") {
-    setError(vehicleActionError(e, action));
-    setFieldErrors(vehicleFieldErrors(e));
+    setError(vehicleActionError(e, action))
+    setFieldErrors(vehicleFieldErrors(e))
   }
 
   if (vehicle.status === "retired") {
@@ -49,7 +45,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
       <p className="text-sm text-muted-foreground">
         This vehicle is retired. Its history is kept, but it can no longer be issued to anybody.
       </p>
-    );
+    )
   }
 
   return (
@@ -74,11 +70,11 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
               type="button"
               disabled={busy}
               onClick={() => {
-                reset();
+                reset()
                 back.mutate(
                   { odometerEndKm: parseOdo() },
                   { onSuccess: () => setOdometer(""), onError: (e) => onError(e, "return") },
-                );
+                )
               }}
             >
               {back.isPending ? "Recording…" : "Record its return"}
@@ -119,17 +115,17 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
               type="button"
               disabled={busy || driverId === ""}
               onClick={() => {
-                reset();
+                reset()
                 issue.mutate(
                   { driverId, odometerStartKm: parseOdo() },
                   {
                     onSuccess: () => {
-                      setDriverId("");
-                      setOdometer("");
+                      setDriverId("")
+                      setOdometer("")
                     },
                     onError: (e) => onError(e, "issue"),
                   },
-                );
+                )
               }}
             >
               {issue.isPending ? "Issuing…" : "Issue vehicle"}
@@ -141,8 +137,6 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
       {error ? (
         <div role="alert" className="space-y-1">
           <p className="text-sm font-medium text-destructive">{error}</p>
-          {/* The field messages carry who or what is in the way. Rendering only the headline is
-              how 053's console lost the information the server had already worked out. */}
           {fieldErrors.map((f) => (
             <p key={f.field} className="text-sm text-muted-foreground">
               · {f.message}
@@ -151,5 +145,5 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
         </div>
       ) : null}
     </div>
-  );
+  )
 }

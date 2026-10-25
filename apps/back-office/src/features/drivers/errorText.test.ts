@@ -1,81 +1,67 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest"
 
-import { driverActionError } from "./errorText";
+import { driverActionError } from "./errorText"
 
-/**
- * The fixtures are the real throw shape: plain objects, as `@effy/api-client` produces them. A mapper
- * "tidied" into `instanceof Error` goes red.
- */
-
-/** The shape `@effy/api-client`'s `toDomainError` actually returns. Not an Error. */
 function thrown(over: Record<string, unknown> = {}) {
   return {
     kind: "unknown",
     status: 500,
     title: "Something went wrong",
     ...over,
-  };
+  }
 }
 
 describe("driverActionError — a refusal the operator can act on", () => {
   it("⚠ handles the api-client's PLAIN-OBJECT throw, not an Error instance", () => {
-    const err = thrown({ kind: "forbidden", status: 403 });
-    expect(err).not.toBeInstanceOf(Error);
-    expect(driverActionError(err, "status")).toContain("manager or an administrator");
-  });
+    const err = thrown({ kind: "forbidden", status: 403 })
+    expect(err).not.toBeInstanceOf(Error)
+    expect(driverActionError(err, "status")).toContain("manager or an administrator")
+  })
 
   it("names the action, so 'you cannot do this' says which this", () => {
-    const forbidden = thrown({ kind: "forbidden", status: 403 });
-    expect(driverActionError(forbidden, "create")).toContain("Adding a driver");
-    expect(driverActionError(forbidden, "release")).toContain("Releasing work");
-    expect(driverActionError(forbidden, "end-duty")).toContain("Ending a duty session");
-  });
+    const forbidden = thrown({ kind: "forbidden", status: 403 })
+    expect(driverActionError(forbidden, "create")).toContain("Adding a driver")
+    expect(driverActionError(forbidden, "release")).toContain("Releasing work")
+    expect(driverActionError(forbidden, "end-duty")).toContain("Ending a duty session")
+  })
 
   it("⚠ passes the SERVICE's conflict prose through for create and status", () => {
-    // These two are the only refusals the console cannot phrase better than the service can, because
-    // only the service knows which driver holds the address or what work is held.
     const duplicate = thrown({
       kind: "conflict",
       status: 409,
       detail: "Jo Chen already uses this work email (currently offboarded)",
-    });
-    expect(driverActionError(duplicate, "create")).toContain("Jo Chen");
-    expect(driverActionError(duplicate, "create")).toContain("offboarded");
-  });
+    })
+    expect(driverActionError(duplicate, "create")).toContain("Jo Chen")
+    expect(driverActionError(duplicate, "create")).toContain("offboarded")
+  })
 
   it("gives the concurrent-edit conflict the console's own copy, saying what to do", () => {
-    const stale = thrown({ kind: "conflict", status: 409, detail: "row moved" });
-    const msg = driverActionError(stale, "update");
-    // Not the server's prose: "row moved" is internals. The operator needs the action.
-    expect(msg).not.toContain("row moved");
-    expect(msg).toContain("Reload");
-    expect(msg).toContain("undo theirs");
-  });
+    const stale = thrown({ kind: "conflict", status: 409, detail: "row moved" })
+    const msg = driverActionError(stale, "update")
+    expect(msg).not.toContain("row moved")
+    expect(msg).toContain("Reload")
+    expect(msg).toContain("undo theirs")
+  })
 
   it("names the offending fields on a validation refusal", () => {
     const invalid = thrown({
       kind: "validation",
       status: 400,
       fields: [{ field: "licenceExpiresOn", message: "must be a date" }],
-    });
-    // The label the form uses, not the wire key — the message has to point at a visible box.
-    expect(driverActionError(invalid, "update")).toContain("the licence expiry");
-  });
+    })
+    expect(driverActionError(invalid, "update")).toContain("the licence expiry")
+  })
 
   it("falls back to a plain sentence when the server named no field", () => {
-    expect(driverActionError(thrown({ kind: "validation", status: 400 }), "update")).toContain(
-      "Check the form",
-    );
-  });
+    expect(driverActionError(thrown({ kind: "validation", status: 400 }), "update")).toContain("Check the form")
+  })
 
   it("says the service is waking up rather than blaming the operator", () => {
-    expect(driverActionError(thrown({ kind: "unavailable", status: 503 }), "create")).toContain(
-      "waking up",
-    );
-  });
+    expect(driverActionError(thrown({ kind: "unavailable", status: 503 }), "create")).toContain("waking up")
+  })
 
   it("handles a non-DomainError throw without crashing the screen", () => {
-    expect(driverActionError(new Error("boom"), "create")).toBe("Something went wrong. Try again.");
-    expect(driverActionError(undefined, "create")).toBe("Something went wrong. Try again.");
-  });
-});
+    expect(driverActionError(new Error("boom"), "create")).toBe("Something went wrong. Try again.")
+    expect(driverActionError(undefined, "create")).toBe("Something went wrong. Try again.")
+  })
+})

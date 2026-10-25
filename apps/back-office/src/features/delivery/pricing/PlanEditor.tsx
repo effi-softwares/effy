@@ -1,70 +1,81 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Plus, X } from "lucide-react"
 
-import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types";
+import type { FeePlanKind, FeePlanDTO } from "@effy/shared-types"
 import {
-  Button, Input, Label, Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,
-} from "@effy/design-system/ui";
+  Button,
+  Input,
+  Label,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@effy/design-system/ui"
 
-import { slotsQuery, useSavePlan } from "../queries";
-import { GapList } from "./GapList";
-import { planFieldErrors, pricingError } from "./gapText";
-import { draftFrom, emptyDraft, toInput, type PlanDraft } from "./planDraft";
+import { slotsQuery, useSavePlan } from "../queries"
+import { GapList } from "./GapList"
+import { planFieldErrors, pricingError } from "./gapText"
+import { draftFrom, emptyDraft, toInput, type PlanDraft } from "./planDraft"
 
-/**
- * Build or read one fee plan, as a sectioned side sheet: amounts · distance bands · weight bands · basket
- * rules · surcharges. Read-only for an active or retired plan and for an agent (a manager gets "Copy to new
- * draft"). Saving is not activating: a half-built draft may be saved, with what it lacks listed at the top.
- */
 export function PlanEditor({
-  kind, source, copy, canManage, onClose,
+  kind,
+  source,
+  copy,
+  canManage,
+  onClose,
 }: {
-  kind: FeePlanKind;
-  source: FeePlanDTO | null;
-  copy: boolean;
-  canManage: boolean;
-  onClose: () => void;
+  kind: FeePlanKind
+  source: FeePlanDTO | null
+  copy: boolean
+  canManage: boolean
+  onClose: () => void
 }) {
-  const [draft, setDraft] = useState<PlanDraft>(() => (source ? draftFrom(source, copy) : emptyDraft(kind)));
-  const [planId, setPlanId] = useState<string | null>(source && !copy ? source.id : null);
-  const [saved, setSaved] = useState<FeePlanDTO | null>(source && !copy ? source : null);
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
-  const save = useSavePlan();
-  const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" });
+  const [draft, setDraft] = useState<PlanDraft>(() => (source ? draftFrom(source, copy) : emptyDraft(kind)))
+  const [planId, setPlanId] = useState<string | null>(source && !copy ? source.id : null)
+  const [saved, setSaved] = useState<FeePlanDTO | null>(source && !copy ? source : null)
+  const [fields, setFields] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
+  const save = useSavePlan()
+  const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" })
 
-  const editable = canManage && (saved === null || saved.state === "draft");
-  const set = (patch: Partial<PlanDraft>) => setDraft((d) => ({ ...d, ...patch }));
-  const fieldError = (name: string) => (fields[name] ? <p className="text-sm text-destructive">{fields[name]}</p> : null);
+  const editable = canManage && (saved === null || saved.state === "draft")
+  const set = (patch: Partial<PlanDraft>) => setDraft((d) => ({ ...d, ...patch }))
+  const fieldError = (name: string) =>
+    fields[name] ? <p className="text-sm text-destructive">{fields[name]}</p> : null
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setFields({});
+    e.preventDefault()
+    setError(null)
+    setFields({})
     try {
-      const plan = await save.mutateAsync({ id: planId, body: toInput(kind, draft) });
-      setPlanId(plan.id);
-      setSaved(plan);
+      const plan = await save.mutateAsync({ id: planId, body: toInput(kind, draft) })
+      setPlanId(plan.id)
+      setSaved(plan)
     } catch (err) {
-      setFields(planFieldErrors(err));
-      setError(pricingError(err));
+      setFields(planFieldErrors(err))
+      setError(pricingError(err))
     }
   }
 
-  const title = saved ? saved.name : kind === "courier" ? "New courier table" : "New fee plan";
+  const title = saved ? saved.name : kind === "courier" ? "New courier table" : "New fee plan"
   const amount = (id: keyof PlanDraft, label: string, help?: string) => (
     <div className="space-y-1.5">
       <Label htmlFor={`plan-${id}`}>{label}</Label>
       <Input
-        id={`plan-${id}`} inputMode="decimal" disabled={!editable}
-        value={draft[id] as string} onChange={(e) => set({ [id]: e.target.value } as Partial<PlanDraft>)}
+        id={`plan-${id}`}
+        inputMode="decimal"
+        disabled={!editable}
+        value={draft[id] as string}
+        onChange={(e) => set({ [id]: e.target.value } as Partial<PlanDraft>)}
       />
       {help ? <p className="text-sm text-muted-foreground">{help}</p> : null}
       {fieldError(id)}
     </div>
-  );
+  )
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
@@ -72,9 +83,11 @@ export function PlanEditor({
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
-            {saved?.state === "active" ? "In force. A plan that has been active can't be changed — copy it to a new draft."
-              : saved?.state === "retired" ? "Retired. Kept as the record of what was charged while it was in force."
-              : "A draft. Saving does not change any fee; activating does."}
+            {saved?.state === "active"
+              ? "In force. A plan that has been active can't be changed — copy it to a new draft."
+              : saved?.state === "retired"
+                ? "Retired. Kept as the record of what was charged while it was in force."
+                : "A draft. Saving does not change any fee; activating does."}
           </SheetDescription>
         </SheetHeader>
 
@@ -85,11 +98,20 @@ export function PlanEditor({
             <h3 className="text-sm font-semibold">Amounts</h3>
             <div className="space-y-1.5">
               <Label htmlFor="plan-name">Name</Label>
-              <Input id="plan-name" disabled={!editable} value={draft.name} onChange={(e) => set({ name: e.target.value })} />
+              <Input
+                id="plan-name"
+                disabled={!editable}
+                value={draft.name}
+                onChange={(e) => set({ name: e.target.value })}
+              />
               {fieldError("name")}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {amount("baseAmount", kind === "courier" ? "Flat amount per order" : "Base", kind === "effy" ? "Every delivery starts here." : undefined)}
+              {amount(
+                "baseAmount",
+                kind === "courier" ? "Flat amount per order" : "Base",
+                kind === "effy" ? "Every delivery starts here." : undefined,
+              )}
               {amount("roundingStepAmount", "Round up to", "Every fee is rounded UP to a multiple of this.")}
               {amount("floorAmount", "Minimum fee")}
               {amount("capAmount", "Maximum fee")}
@@ -143,10 +165,14 @@ export function PlanEditor({
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Window surcharges</h3>
               <p className="text-sm text-muted-foreground">
-                Belong to this plan, not to the windows: replacing the plan never changes a window. A
-                customer sees a window's surcharge before choosing it.
+                Belong to this plan, not to the windows: replacing the plan never changes a window. A customer sees a
+                window's surcharge before choosing it.
               </p>
-              {amount("todayPremiumAmount", "Delivery today", "Added to any window today — what makes same-day a bit dearer.")}
+              {amount(
+                "todayPremiumAmount",
+                "Delivery today",
+                "Added to any window today — what makes same-day a bit dearer.",
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground">
@@ -155,24 +181,30 @@ export function PlanEditor({
                   </tr>
                 </thead>
                 <tbody>
-                  {/* The Any time window takes no surcharge: an order with no time pays the plain fee. */}
-                  {(slots.data ?? []).filter((s) => !s.anyTime).map((s, i) => (
-                    <tr key={s.id} className="border-t">
-                      <td className="py-1.5 font-mono tabular-nums">
-                        {s.startTime}–{s.endTime}
-                        {s.status !== "active" ? <span className="ml-2 font-sans text-muted-foreground">switched off</span> : null}
-                      </td>
-                      <td className="py-1.5">
-                        <Input
-                          aria-label={`Surcharge for ${s.startTime}–${s.endTime}`}
-                          inputMode="decimal" className="w-28" disabled={!editable} placeholder="0.00"
-                          value={draft.slotPremiums[s.id] ?? ""}
-                          onChange={(e) => set({ slotPremiums: { ...draft.slotPremiums, [s.id]: e.target.value } })}
-                        />
-                        {fieldError(`slotPremiums.${i}.addAmount`)}
-                      </td>
-                    </tr>
-                  ))}
+                  {(slots.data ?? [])
+                    .filter((s) => !s.anyTime)
+                    .map((s, i) => (
+                      <tr key={s.id} className="border-t">
+                        <td className="py-1.5 font-mono tabular-nums">
+                          {s.startTime}–{s.endTime}
+                          {s.status !== "active" ? (
+                            <span className="ml-2 font-sans text-muted-foreground">switched off</span>
+                          ) : null}
+                        </td>
+                        <td className="py-1.5">
+                          <Input
+                            aria-label={`Surcharge for ${s.startTime}–${s.endTime}`}
+                            inputMode="decimal"
+                            className="w-28"
+                            disabled={!editable}
+                            placeholder="0.00"
+                            value={draft.slotPremiums[s.id] ?? ""}
+                            onChange={(e) => set({ slotPremiums: { ...draft.slotPremiums, [s.id]: e.target.value } })}
+                          />
+                          {fieldError(`slotPremiums.${i}.addAmount`)}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
               {fieldError("slotPremiums")}
@@ -181,29 +213,42 @@ export function PlanEditor({
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <SheetFooter className="flex-row justify-end gap-2 p-0">
-            <Button type="button" variant="ghost" onClick={onClose}>Close</Button>
-            {editable ? <Button type="submit" disabled={save.isPending}>{planId ? "Save draft" : "Create draft"}</Button> : null}
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Close
+            </Button>
+            {editable ? (
+              <Button type="submit" disabled={save.isPending}>
+                {planId ? "Save draft" : "Create draft"}
+              </Button>
+            ) : null}
           </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>
-  );
+  )
 }
 
-/** One band table. The last row is labelled for what it does when its limit is left empty. */
 function BandsSection({
-  title, help, unit, rows, editable, lastOpenLabel, error, onChange,
+  title,
+  help,
+  unit,
+  rows,
+  editable,
+  lastOpenLabel,
+  error,
+  onChange,
 }: {
-  title: string;
-  help: string;
-  unit: string;
-  rows: { upper: string; add: string }[];
-  editable: boolean;
-  lastOpenLabel: string;
-  error?: string;
-  onChange: (rows: { upper: string; add: string }[]) => void;
+  title: string
+  help: string
+  unit: string
+  rows: { upper: string; add: string }[]
+  editable: boolean
+  lastOpenLabel: string
+  error?: string
+  onChange: (rows: { upper: string; add: string }[]) => void
 }) {
-  const update = (i: number, patch: Partial<{ upper: string; add: string }>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const update = (i: number, patch: Partial<{ upper: string; add: string }>) =>
+    onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
   return (
     <section className="space-y-3">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -221,20 +266,34 @@ function BandsSection({
             <tr key={i} className="border-t">
               <td className="py-1.5 pr-2">
                 <Input
-                  aria-label={`${title} ${i + 1} up to`} inputMode="decimal" className="w-32" disabled={!editable}
-                  placeholder={i === rows.length - 1 ? lastOpenLabel : ""} value={r.upper}
+                  aria-label={`${title} ${i + 1} up to`}
+                  inputMode="decimal"
+                  className="w-32"
+                  disabled={!editable}
+                  placeholder={i === rows.length - 1 ? lastOpenLabel : ""}
+                  value={r.upper}
                   onChange={(e) => update(i, { upper: e.target.value })}
                 />
               </td>
               <td className="py-1.5 pr-2">
                 <Input
-                  aria-label={`${title} ${i + 1} adds`} inputMode="decimal" className="w-28" disabled={!editable}
-                  value={r.add} onChange={(e) => update(i, { add: e.target.value })}
+                  aria-label={`${title} ${i + 1} adds`}
+                  inputMode="decimal"
+                  className="w-28"
+                  disabled={!editable}
+                  value={r.add}
+                  onChange={(e) => update(i, { add: e.target.value })}
                 />
               </td>
               <td className="py-1.5 text-right">
                 {editable ? (
-                  <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${title.toLowerCase()} ${i + 1}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${title.toLowerCase()} ${i + 1}`}
+                    onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                  >
                     <X />
                   </Button>
                 ) : null}
@@ -250,5 +309,5 @@ function BandsSection({
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </section>
-  );
+  )
 }

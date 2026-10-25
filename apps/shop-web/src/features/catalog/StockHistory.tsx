@@ -1,29 +1,14 @@
-import type { StockMovementDTO } from "@effy/shared-types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui";
+import type { StockMovementDTO } from "@effy/shared-types"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
-import { actorLabel, formatDelta, reasonLabel } from "./stockMovementText";
+import { actorLabel, formatDelta, reasonLabel } from "./stockMovementText"
 
-/**
- * The movement history, newest first. `actorKind` is its own column so a back-office correction never
- * looks like the shop's own change.
- */
 export function StockHistory({ movements }: { movements: StockMovementDTO[] }) {
-  // No heading of its own. It used to carry an "History" h3 with its own hairline; the
-  // Inventory section now supplies the "Stock movements" heading above it, and two headings for one
-  // table is the kind of drift that reads as a rendering bug rather than a design.
   return (
     <section className="space-y-3">
       {movements.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No stock changes recorded yet. Every change to the count appears here, with who made it and
-          why.
+          No stock changes recorded yet. Every change to the count appears here, with who made it and why.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -54,12 +39,10 @@ export function StockHistory({ movements }: { movements: StockMovementDTO[] }) {
         </div>
       )}
     </section>
-  );
+  )
 }
 
 function formatWhen(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
 }

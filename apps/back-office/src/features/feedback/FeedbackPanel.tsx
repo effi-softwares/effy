@@ -20,8 +20,7 @@ import {
 } from "./model"
 import { useAddFeedbackNote, useReplyToFeedback, useSetFeedbackStatus } from "./queries"
 
-/** A feedback status as a word with its tone (New is the one that needs a person). */
-export const STATUS_TONE: Record<FeedbackStatus, StatusTone> = {
+const STATUS_TONE: Record<FeedbackStatus, StatusTone> = {
   new: "info",
   in_review: "moving",
   replied: "done",
@@ -30,12 +29,15 @@ export const STATUS_TONE: Record<FeedbackStatus, StatusTone> = {
   spam: "quiet",
 }
 
-/**
- * One submission (046; redesign, boards "Feedback — inbox" / "Feedback — one submission"): the
- * shopper's own words, the staff timeline — internal notes and replies — a composer for either, and
- * the details. Used beside the inbox list and as its own page.
- */
-export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { detail: FeedbackDetailDTO; mayReply: boolean; showOpenLink?: boolean }) {
+export function FeedbackPanel({
+  detail,
+  mayReply,
+  showOpenLink = false,
+}: {
+  detail: FeedbackDetailDTO
+  mayReply: boolean
+  showOpenLink?: boolean
+}) {
   const s = detail.submitter
   const timeline = [
     ...detail.notes.map((n) => ({ kind: "note" as const, body: n.body, who: n.staffName ?? "Staff", at: n.createdAt })),
@@ -60,7 +62,11 @@ export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { deta
           <StatusControl detail={detail} />
           {showOpenLink ? (
             <Button variant="ghost" size="icon-sm" asChild>
-              <Link to="/feedback/$referenceCode" params={{ referenceCode: detail.referenceCode }} aria-label="Open full page">
+              <Link
+                to="/feedback/$referenceCode"
+                params={{ referenceCode: detail.referenceCode }}
+                aria-label="Open full page"
+              >
                 <ExternalLink aria-hidden="true" />
               </Link>
             </Button>
@@ -70,7 +76,6 @@ export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { deta
 
       <div className="grid flex-1 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 border-border p-6 max-md:p-4 xl:col-span-2 xl:border-r">
-          {/* `whitespace-pre-wrap` on plain text — React escapes it, so pasted markup renders inert. */}
           <p className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">{detail.message}</p>
 
           {timeline.length > 0 ? (
@@ -84,7 +89,9 @@ export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { deta
                     <div className="bo-tl__title">
                       {t.kind === "note" ? "Internal note" : "Reply sent"} · {t.who}
                     </div>
-                    <div className={cn("bo-tl__note whitespace-pre-wrap", t.kind === "note" && "bg-primary-muted!")}>{t.body}</div>
+                    <div className={cn("bo-tl__note whitespace-pre-wrap", t.kind === "note" && "bg-primary-muted!")}>
+                      {t.body}
+                    </div>
                   </div>
                   <span className="bo-tl__time">{moment(t.at)}</span>
                 </li>
@@ -107,7 +114,8 @@ export function FeedbackPanel({ detail, mayReply, showOpenLink = false }: { deta
             <Row label="Email">
               {s.email ? (
                 <>
-                  {s.email} <span className="text-xs text-muted-foreground">({s.emailVerified ? "verified" : "unverified"})</span>
+                  {s.email}{" "}
+                  <span className="text-xs text-muted-foreground">({s.emailVerified ? "verified" : "unverified"})</span>
                 </>
               ) : (
                 <span className="text-muted-foreground">none — cannot reply</span>
@@ -154,11 +162,6 @@ function StatusControl({ detail }: { detail: FeedbackDetailDTO }) {
   )
 }
 
-/**
- * One box, two kinds of writing: a reply (emailed to the submitter; marks it Replied) or an internal
- * note (never emailed or shown to them). Reply is gated by role (admin/manager) and by there being
- * an email to send to.
- */
 function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: boolean }) {
   const canSend = mayReply && detail.canReply
   const [mode, setMode] = useState<"reply" | "note">(canSend ? "reply" : "note")
@@ -173,19 +176,29 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
     try {
       await mutation.mutateAsync(body.trim())
       setBody("")
-    } catch {
-      /* surfaced below */
-    }
+    } catch {}
   }
 
   return (
     <div className="space-y-2">
       <div className="bo-seg" role="tablist" aria-label="Write">
-        <button type="button" role="tab" aria-selected={mode === "reply"} className={mode === "reply" ? "is-active" : undefined} onClick={() => setMode("reply")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "reply"}
+          className={mode === "reply" ? "is-active" : undefined}
+          onClick={() => setMode("reply")}
+        >
           <Reply aria-hidden="true" />
           Reply
         </button>
-        <button type="button" role="tab" aria-selected={mode === "note"} className={mode === "note" ? "is-active" : undefined} onClick={() => setMode("note")}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "note"}
+          className={mode === "note" ? "is-active" : undefined}
+          onClick={() => setMode("note")}
+        >
           <Lock aria-hidden="true" />
           Internal note
         </button>
@@ -193,7 +206,9 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
       {mode === "reply" && !mayReply ? (
         <p className="text-sm text-muted-foreground">Only a manager or admin can send a reply.</p>
       ) : mode === "reply" && !detail.canReply ? (
-        <p className="text-sm text-muted-foreground">This submission has no email address, so there is nowhere to send a reply.</p>
+        <p className="text-sm text-muted-foreground">
+          This submission has no email address, so there is nowhere to send a reply.
+        </p>
       ) : (
         <div className={cn("bo-composer", mode === "note" && "bo-composer--note")}>
           <label className="sr-only" htmlFor="fb-compose">
@@ -205,7 +220,9 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
             value={body}
             maxLength={max}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={mode === "reply" ? "Write a reply — it will be emailed to the submitter…" : "Add an internal note…"}
+            placeholder={
+              mode === "reply" ? "Write a reply — it will be emailed to the submitter…" : "Add an internal note…"
+            }
           />
           <div className="bo-composer__bar">
             <span className="text-xs text-muted-foreground">
@@ -214,16 +231,26 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
             </span>
             <Button size="sm" disabled={mutation.isPending || body.trim().length === 0} onClick={() => void submit()}>
               {mode === "reply" ? <Send aria-hidden="true" /> : null}
-              {mutation.isPending ? (mode === "reply" ? "Sending…" : "Saving…") : mode === "reply" ? "Send reply" : "Add note"}
+              {mutation.isPending
+                ? mode === "reply"
+                  ? "Sending…"
+                  : "Saving…"
+                : mode === "reply"
+                  ? "Send reply"
+                  : "Add note"}
             </Button>
           </div>
         </div>
       )}
       {reply.isError && mode === "reply" ? (
-        <p className="text-xs font-medium">The reply wasn&rsquo;t delivered. It was not marked as replied — try again.</p>
+        <p className="text-xs font-medium">
+          The reply wasn&rsquo;t delivered. It was not marked as replied — try again.
+        </p>
       ) : null}
       {note.isError && mode === "note" ? <p className="text-xs font-medium">Couldn&rsquo;t save that note.</p> : null}
-      <p className="text-xs text-muted-foreground">Sending a reply marks it Replied automatically. A note is never emailed or shown to the submitter.</p>
+      <p className="text-xs text-muted-foreground">
+        Sending a reply marks it Replied automatically. A note is never emailed or shown to the submitter.
+      </p>
     </div>
   )
 }

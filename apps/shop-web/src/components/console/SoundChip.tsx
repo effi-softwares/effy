@@ -7,11 +7,6 @@ import { unlockAudio, unlockOnFirstGesture } from "@/lib/chime"
 import { consoleStore, setSoundOn } from "@/lib/console-store"
 import { cn } from "@/lib/utils"
 
-/**
- * The header's sound chip (Foundations — "Header"): "Sound on" while the new-order chime can play,
- * "Sound off" when the operator has turned it off, and — solid, asking for a tap — "Tap to turn
- * sound on" while the browser has muted the page. A browser only plays sound after a tap.
- */
 export function SoundChip() {
   const { soundOn, audioReady } = useStore(consoleStore, (s) => s)
 

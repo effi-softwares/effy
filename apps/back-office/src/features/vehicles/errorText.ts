@@ -1,13 +1,6 @@
-import { isDomainError } from "@effy/api-client";
+import { isDomainError } from "@effy/api-client"
 
-/**
- * Failure copy for the vehicle register, shaped like `features/drivers/errorText.ts`:
- *  1. `@effy/api-client` throws a plain-object `DomainError`; `e instanceof Error` is always false.
- *  2. `detail` is shown only for the conflicts this console's API defines (which driver holds the vehicle,
- *  which vehicle the driver has); otherwise our own copy.
- */
-
-export type VehicleAction = "create" | "update" | "status" | "issue" | "return";
+type VehicleAction = "create" | "update" | "status" | "issue" | "return"
 
 const FORBIDDEN: Record<VehicleAction, string> = {
   create: "You do not have permission to add a vehicle.",
@@ -15,7 +8,7 @@ const FORBIDDEN: Record<VehicleAction, string> = {
   status: "You do not have permission to change a vehicle's status.",
   issue: "You do not have permission to issue a vehicle.",
   return: "You do not have permission to record a vehicle's return.",
-};
+}
 
 const NOT_FOUND: Record<VehicleAction, string> = {
   create: "That vehicle no longer exists.",
@@ -23,37 +16,33 @@ const NOT_FOUND: Record<VehicleAction, string> = {
   status: "That vehicle no longer exists.",
   issue: "That vehicle or driver no longer exists.",
   return: "That vehicle no longer exists.",
-};
+}
 
 export function vehicleActionError(err: unknown, action: VehicleAction): string {
   if (isDomainError(err)) {
-    if (err.kind === "forbidden") return FORBIDDEN[action];
-    if (err.kind === "not-found") return NOT_FOUND[action];
-    if (err.kind === "unauthenticated") return "Your session has expired. Sign in again.";
-    if (err.kind === "unavailable")
-      return "The service is waking up or unreachable. Try again in a moment.";
+    if (err.kind === "forbidden") return FORBIDDEN[action]
+    if (err.kind === "not-found") return NOT_FOUND[action]
+    if (err.kind === "unauthenticated") return "Your session has expired. Sign in again."
+    if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment."
 
     if (err.status === 409) {
-      // The conflicts this console cannot phrase better than the service can. Only the service
-      // knows who holds the vehicle, which vehicle the driver already has, and whether a plate is
-      // taken. All three are composed for a person, on purpose, and all three are useless generic.
       if ((action === "issue" || action === "return" || action === "status" || action === "create") && err.detail) {
-        return err.detail;
+        return err.detail
       }
       if (action === "update")
-        return "Someone else changed this vehicle while you were editing. Reload the page and reapply your change — saving now would quietly undo theirs.";
-      return "That has already changed. Reload and try again.";
+        return "Someone else changed this vehicle while you were editing. Reload the page and reapply your change — saving now would quietly undo theirs."
+      return "That has already changed. Reload and try again."
     }
 
     if (err.status === 400 || err.status === 422) {
-      const named = err.fields?.map((f) => f.field).filter(Boolean);
+      const named = err.fields?.map((f) => f.field).filter(Boolean)
       if (named && named.length > 0) {
-        return `Check ${named.map(fieldLabel).join(", ")} and try again.`;
+        return `Check ${named.map(fieldLabel).join(", ")} and try again.`
       }
-      return "Some of those details aren't valid. Check the form and try again.";
+      return "Some of those details aren't valid. Check the form and try again."
     }
   }
-  return "Something went wrong. Try again.";
+  return "Something went wrong. Try again."
 }
 
 const FIELD_LABEL: Record<string, string> = {
@@ -76,14 +65,13 @@ const FIELD_LABEL: Record<string, string> = {
   driverId: "the driver",
   status: "the status",
   reason: "the reason",
-};
-
-function fieldLabel(field: string): string {
-  return FIELD_LABEL[field] ?? field;
 }
 
-/** The per-field messages from a refusal ("currently held by Sam Rivers" beside the driver picker): what make a 409 actionable. */
+function fieldLabel(field: string): string {
+  return FIELD_LABEL[field] ?? field
+}
+
 export function vehicleFieldErrors(err: unknown): { field: string; message: string }[] {
-  if (!isDomainError(err)) return [];
-  return (err.fields ?? []).filter((f) => Boolean(f?.message));
+  if (!isDomainError(err)) return []
+  return (err.fields ?? []).filter((f) => Boolean(f?.message))
 }

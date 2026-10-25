@@ -1,32 +1,44 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { FeePlanDTO } from "@effy/shared-types";
+import type { FeePlanDTO } from "@effy/shared-types"
 import {
-  Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Label,
-} from "@effy/design-system/ui";
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Label,
+} from "@effy/design-system/ui"
 
-import { useActivatePlan } from "../queries";
-import { GapList } from "./GapList";
-import { pricingError } from "./gapText";
+import { useActivatePlan } from "../queries"
+import { GapList } from "./GapList"
+import { pricingError } from "./gapText"
 
-/**
- * Make a plan the one in force. Says which plan it replaces; asks, in words, before a $0
- * minimum goes live; and when refused, shows what is missing rather than "cannot activate".
- */
-export function ActivateDialog({ plan, retiring, onClose }: { plan: FeePlanDTO; retiring: FeePlanDTO | null; onClose: () => void }) {
-  const activate = useActivatePlan();
-  const zeroFloor = plan.gaps.some((g) => g.code === "floor_is_zero");
-  const [confirmZero, setConfirmZero] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const blocking = plan.gaps.filter((g) => g.blocking);
+export function ActivateDialog({
+  plan,
+  retiring,
+  onClose,
+}: {
+  plan: FeePlanDTO
+  retiring: FeePlanDTO | null
+  onClose: () => void
+}) {
+  const activate = useActivatePlan()
+  const zeroFloor = plan.gaps.some((g) => g.code === "floor_is_zero")
+  const [confirmZero, setConfirmZero] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const blocking = plan.gaps.filter((g) => g.blocking)
 
   async function go() {
-    setError(null);
+    setError(null)
     try {
-      await activate.mutateAsync({ id: plan.id, confirmZeroFloor: confirmZero });
-      onClose();
+      await activate.mutateAsync({ id: plan.id, confirmZeroFloor: confirmZero })
+      onClose()
     } catch (err) {
-      setError(pricingError(err));
+      setError(pricingError(err))
     }
   }
 
@@ -52,12 +64,17 @@ export function ActivateDialog({ plan, retiring, onClose }: { plan: FeePlanDTO; 
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => void go()} disabled={activate.isPending || blocking.length > 0 || (zeroFloor && !confirmZero)}>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => void go()}
+            disabled={activate.isPending || blocking.length > 0 || (zeroFloor && !confirmZero)}
+          >
             Activate
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

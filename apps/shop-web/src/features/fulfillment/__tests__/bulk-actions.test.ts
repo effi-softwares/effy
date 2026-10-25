@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest"
 import { bulkCandidates, summarise, withTag } from "../bulk"
 import type { FulfillmentSummary } from "../model"
 
-/** Bulk state-advance: the summary names what refused, and never claims success for work that did not happen. */
-
 function row(over: Partial<FulfillmentSummary> = {}): FulfillmentSummary {
   return {
     id: "f1",
@@ -23,10 +21,7 @@ function row(over: Partial<FulfillmentSummary> = {}): FulfillmentSummary {
 
 describe("bulkCandidates", () => {
   it("advances each portion to ITS OWN next state, not one state chosen for all", () => {
-    const rows = [
-      row({ id: "a", status: "received" }),
-      row({ id: "b", status: "picking" }),
-    ]
+    const rows = [row({ id: "a", status: "received" }), row({ id: "b", status: "picking" })]
     const got = bulkCandidates(rows, new Set(["a", "b"]))
     expect(got).toEqual([
       { id: "a", orderNumber: "EFY-1", to: "picking" },
@@ -39,10 +34,6 @@ describe("bulkCandidates", () => {
     expect(bulkCandidates(rows, new Set(["a"])).map((c) => c.id)).toEqual(["a"])
   })
 
-  /**
-   * `unfulfillable` tells Effy to refund a customer, so it needs a typed reason and must never ride a
-   * control where one click covers rows the operator did not read.
-   */
   it("never offers 'unfulfillable' in a bulk run, whatever nextTransition returns", () => {
     const every: FulfillmentSummary["status"][] = [
       "pending",
@@ -71,9 +62,7 @@ describe("bulkCandidates", () => {
 
 describe("summarise", () => {
   it("counts what advanced", () => {
-    expect(summarise({ succeeded: ["EFY-1", "EFY-2"], failed: [], skipped: 0 })).toBe(
-      "2 orders advanced.",
-    )
+    expect(summarise({ succeeded: ["EFY-1", "EFY-2"], failed: [], skipped: 0 })).toBe("2 orders advanced.")
   })
 
   it("names what refused instead of only counting it", () => {
@@ -107,10 +96,6 @@ describe("summarise", () => {
   })
 })
 
-/**
- * 057 A3 — "Add tag" in bulk. The tag route takes an absolute set, so each row must be sent its own
- * tags plus the new one — sending just the new tag would erase every tag the row already had.
- */
 describe("withTag", () => {
   const rows = [
     { id: "a", orderNumber: "EFY-A", status: "received" as const, tags: ["vip"] },

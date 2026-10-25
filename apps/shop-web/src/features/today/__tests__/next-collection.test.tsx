@@ -28,7 +28,14 @@ describe("Next collection (099)", () => {
   })
 
   it("says a driver is on the way, and never names them", () => {
-    render(<NextCollection next={next({ driver: "on_the_way", opensAt: "2026-10-26T23:45:00.000Z", driverOnDuty: true })} timezone={TZ} now={NOW} loading={false} />)
+    render(
+      <NextCollection
+        next={next({ driver: "on_the_way", opensAt: "2026-10-26T23:45:00.000Z", driverOnDuty: true })}
+        timezone={TZ}
+        now={NOW}
+        loading={false}
+      />,
+    )
     expect(screen.getByText("Driver on the way")).toBeInTheDocument()
   })
 

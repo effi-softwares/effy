@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useDebouncedValue } from "@effy/web-kit"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
@@ -16,11 +17,6 @@ import { cn } from "@/lib/utils"
 import { availabilityQuery, useToggleSale } from "./availability"
 import { productMutationError } from "./errorText"
 
-/**
- * Availability (Catalog board 02, 099): every size the shop sells, its stock, and a switch to take it
- * off sale in one tap. Off sale is immediate and never reviewed — the product page's own rule. The last
- * size on sale of a product cannot be switched off here; the row says why and links to the product.
- */
 const VIEWS: readonly { key: AvailabilityFilter; label: string; count: keyof ShopAvailabilityDTO["counts"] }[] = [
   { key: "needs_look", label: "Needs a look", count: "needsLook" },
   { key: "out_of_stock", label: "Out of stock", count: "outOfStock" },
@@ -32,19 +28,17 @@ const VIEWS: readonly { key: AvailabilityFilter; label: string; count: keyof Sho
 export function AvailabilityScreen() {
   const [filter, setFilter] = useState<AvailabilityFilter>("needs_look")
   const [text, setText] = useState("")
-  const [q, setQ] = useState("")
-  const [pages, setPages] = useState<string[]>([])
-
-  // Debounced: every keystroke would otherwise be a round trip.
-  useEffect(() => {
-    const t = setTimeout(() => setQ(text.trim()), 250)
-    return () => clearTimeout(t)
-  }, [text])
-  useEffect(() => setPages([]), [q, filter])
+  const q = useDebouncedValue(text.trim())
+  const listKey = `${filter}|${q}`
+  const [paging, setPaging] = useState<{ key: string; pages: string[] }>({ key: listKey, pages: [] })
+  const pages = paging.key === listKey ? paging.pages : []
+  const setPages = (next: string[]) => setPaging({ key: listKey, pages: next })
   useEffect(() => track({ name: "availability_viewed" }), [])
 
   const after = pages.at(-1)
-  const { data, error, isError, isPending, refetch, isPlaceholderData } = useQuery(availabilityQuery({ q, filter, after }))
+  const { data, error, isError, isPending, refetch, isPlaceholderData } = useQuery(
+    availabilityQuery({ q, filter, after }),
+  )
 
   return (
     <Page>
@@ -66,7 +60,15 @@ export function AvailabilityScreen() {
           >
             {v.label}
             {data ? (
-              <span className={cn("bo-tabs__count", v.key === "out_of_stock" && v.key !== filter && data.counts.outOfStock > 0 && "bo-tabs__count--primary")}>
+              <span
+                className={cn(
+                  "bo-tabs__count",
+                  v.key === "out_of_stock" &&
+                    v.key !== filter &&
+                    data.counts.outOfStock > 0 &&
+                    "bo-tabs__count--primary",
+                )}
+              >
                 {data.counts[v.count]}
               </span>
             ) : null}
@@ -77,7 +79,13 @@ export function AvailabilityScreen() {
       <div className="bo-toolbar">
         <label className="bo-toolbar__search">
           <Search aria-hidden="true" />
-          <Input aria-label="Search sizes" type="search" placeholder="Product, size or barcode…" value={text} onChange={(e) => setText(e.target.value)} />
+          <Input
+            aria-label="Search sizes"
+            type="search"
+            placeholder="Product, size or barcode…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
         </label>
       </div>
 
@@ -101,7 +109,9 @@ export function AvailabilityScreen() {
           <span className="bo-empty__icon" aria-hidden="true">
             {q ? <SearchX /> : <ToggleRight />}
           </span>
-          <h3>{q ? "No sizes match that search" : filter === "needs_look" ? "Nothing needs a look" : "No sizes here"}</h3>
+          <h3>
+            {q ? "No sizes match that search" : filter === "needs_look" ? "Nothing needs a look" : "No sizes here"}
+          </h3>
           <p>
             {q
               ? "Try the product's name, the size, its code or its barcode."
@@ -119,10 +129,20 @@ export function AvailabilityScreen() {
           </ul>
           {pages.length > 0 || data.next ? (
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" size="sm" disabled={pages.length === 0} onClick={() => setPages((p) => p.slice(0, -1))}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pages.length === 0}
+                onClick={() => setPages(pages.slice(0, -1))}
+              >
                 Previous
               </Button>
-              <Button variant="outline" size="sm" disabled={!data.next} onClick={() => data.next && setPages((p) => [...p, data.next!])}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => data.next && setPages([...pages, data.next])}
+              >
                 Next
               </Button>
             </div>
@@ -131,8 +151,8 @@ export function AvailabilityScreen() {
       )}
 
       <p className="text-sm text-muted-foreground">
-        A size with 0 in stock already can&apos;t be bought while its stock is counted. Switch it off when the count is wrong or you
-        can&apos;t sell it today.
+        A size with 0 in stock already can&apos;t be bought while its stock is counted. Switch it off when the count is
+        wrong or you can&apos;t sell it today.
       </p>
     </Page>
   )
@@ -177,7 +197,12 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <Link to="/catalog/$productId" params={{ productId: row.productId }} search={{ size: row.variantId }} className="font-medium text-foreground no-underline hover:underline">
+        <Link
+          to="/catalog/$productId"
+          params={{ productId: row.productId }}
+          search={{ size: row.variantId }}
+          className="font-medium text-foreground no-underline hover:underline"
+        >
           {row.productName}
           {row.label ? <span className="font-normal text-muted-foreground"> · {row.label}</span> : null}
         </Link>

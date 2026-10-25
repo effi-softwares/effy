@@ -1,123 +1,123 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { MapPin, Plus } from "lucide-react";
+import { useInfiniteQuery } from "@tanstack/react-query"
+import { MapPin, Plus } from "lucide-react"
 
-import type { CoverageGroupDTO, CoveragePostcodeDTO } from "@effy/shared-types";
+import type { CoverageGroupDTO, CoveragePostcodeDTO } from "@effy/shared-types"
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button, Checkbox, Skeleton,
-  Tabs, TabsContent, TabsCount, TabsList, TabsTrigger,
-} from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  Checkbox,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { Facet, ResetFilters, SearchBox, Toolbar } from "@effy/web-kit/patterns";
+import { PageHeader, EmptyState, StatusWord, Facet, ResetFilters, SearchBox, Toolbar } from "@effy/web-kit/patterns"
 
-import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText";
-import { coverageQuery, usePatchCoveragePostcodes, useRemoveCoveragePostcode } from "../queries";
-import type { CoverageFilters } from "../repo";
+import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText"
+import { coverageQuery, usePatchCoveragePostcodes, useRemoveCoveragePostcode } from "../queries"
+import type { CoverageFilters } from "../repo"
 
-import { AddPlacesDialog } from "./AddPlacesDialog";
-import { CourierPanel } from "./CourierPanel";
-import { DistanceDialog } from "./DistanceDialog";
-import { GroupsPanel } from "./GroupsPanel";
-import { PostcodeChecker } from "./PostcodeChecker";
+import { AddPlacesDialog } from "./AddPlacesDialog"
+import { DistanceDialog } from "./DistanceDialog"
+import { GroupsPanel } from "./GroupsPanel"
+import { PostcodeChecker } from "./PostcodeChecker"
 
-const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs";
+const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs"
 
-/**
- * Coverage: the one list of postcodes Effy delivers to with its own drivers.
- *
- * Being on the list is what makes an address "Delivered by Effy". A group is a label for staff and
- * changes nothing a customer sees, is offered or pays. This replaces the Zones and Rings tabs and
- * the per-shop same-day exceptions, none of which has a control any more.
- *
- * A table with a toolbar and three plain sections beneath — no cards (Principle V).
- *
- * Each postcode also says whether delivery today is offered there. Switched in bulk from the
- * selection (filter "Farther than", select all shown, "Don't offer"); never per group.
- */
 export function CoveragePanel({ canManage }: { canManage: boolean }) {
-  const [filters, setFilters] = useState<CoverageFilters>({});
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [addOpen, setAddOpen] = useState(false);
-  const [distanceOf, setDistanceOf] = useState<CoveragePostcodeDTO | null>(null);
-  const [removing, setRemoving] = useState<CoveragePostcodeDTO | null>(null);
-  const [moveTo, setMoveTo] = useState("");
-  const [confirmMove, setConfirmMove] = useState<string | null | undefined>(undefined);
-  const [todayTo, setTodayTo] = useState<"" | "offer" | "stop">("");
-  const [note, setNote] = useState<string | null>(null);
+  const [filters, setFilters] = useState<CoverageFilters>({})
+  const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [addOpen, setAddOpen] = useState(false)
+  const [distanceOf, setDistanceOf] = useState<CoveragePostcodeDTO | null>(null)
+  const [removing, setRemoving] = useState<CoveragePostcodeDTO | null>(null)
+  const [moveTo, setMoveTo] = useState("")
+  const [confirmMove, setConfirmMove] = useState<string | null | undefined>(undefined)
+  const [todayTo, setTodayTo] = useState<"" | "offer" | "stop">("")
+  const [note, setNote] = useState<string | null>(null)
 
-  const coverage = useInfiniteQuery(coverageQuery(filters));
-  const patch = usePatchCoveragePostcodes();
-  const remove = useRemoveCoveragePostcode();
+  const coverage = useInfiniteQuery(coverageQuery(filters))
+  const patch = usePatchCoveragePostcodes()
+  const remove = useRemoveCoveragePostcode()
 
-  const first = coverage.data?.pages[0];
-  const rows = useMemo(() => coverage.data?.pages.flatMap((p) => p.postcodes) ?? [], [coverage.data]);
-  const groups: CoverageGroupDTO[] = first?.groups ?? [];
-  const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
+  const first = coverage.data?.pages[0]
+  const rows = useMemo(() => coverage.data?.pages.flatMap((p) => p.postcodes) ?? [], [coverage.data])
+  const groups: CoverageGroupDTO[] = first?.groups ?? []
+  const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups])
 
   function applySearch(e: React.FormEvent) {
-    e.preventDefault();
-    setFilters((f) => ({ ...f, q: search.trim() || undefined }));
+    e.preventDefault()
+    setFilters((f) => ({ ...f, q: search.trim() || undefined }))
   }
 
   function toggle(postcode: string, on: boolean) {
     setSelected((s) => {
-      const next = new Set(s);
-      if (on) next.add(postcode);
-      else next.delete(postcode);
-      return next;
-    });
+      const next = new Set(s)
+      if (on) next.add(postcode)
+      else next.delete(postcode)
+      return next
+    })
   }
 
-  /** `target`: a group id, or null for "no group". */
   async function move(target: string | null, confirmNoDrivers = false) {
-    setNote(null);
+    setNote(null)
     try {
-      await patch.mutateAsync({ postcodes: [...selected], groupId: target, ...(confirmNoDrivers ? { confirmNoDrivers: true } : {}) });
-      setSelected(new Set());
-      setMoveTo("");
-      setConfirmMove(undefined);
+      await patch.mutateAsync({
+        postcodes: [...selected],
+        groupId: target,
+        ...(confirmNoDrivers ? { confirmNoDrivers: true } : {}),
+      })
+      setSelected(new Set())
+      setMoveTo("")
+      setConfirmMove(undefined)
     } catch (err) {
-      // Not an error to show — a question to ask (the driver count is zero where they would go).
-      if (isNoDriverCovers(err) && !confirmNoDrivers) setConfirmMove(target);
-      else setNote(coverageError(err));
+      if (isNoDriverCovers(err) && !confirmNoDrivers) setConfirmMove(target)
+      else setNote(coverageError(err))
     }
   }
 
-  /** Offer, or stop offering, delivery today at the selected postcodes. */
   async function setToday(offered: boolean) {
-    setNote(null);
+    setNote(null)
     try {
-      await patch.mutateAsync({ postcodes: [...selected], todayOffered: offered });
-      setSelected(new Set());
-      setTodayTo("");
+      await patch.mutateAsync({ postcodes: [...selected], todayOffered: offered })
+      setSelected(new Set())
+      setTodayTo("")
     } catch (err) {
-      setNote(coverageError(err));
+      setNote(coverageError(err))
     }
   }
 
   async function confirmRemove() {
-    if (!removing) return;
-    setNote(null);
+    if (!removing) return
+    setNote(null)
     try {
-      await remove.mutateAsync(removing.postcode);
-      toggle(removing.postcode, false);
+      await remove.mutateAsync(removing.postcode)
+      toggle(removing.postcode, false)
     } catch (err) {
-      setNote(coverageError(err));
+      setNote(coverageError(err))
     } finally {
-      setRemoving(null);
+      setRemoving(null)
     }
   }
 
-  const distanceFacet = filters.review ? "review" : (filters.source ?? null);
-  const anyFilter = Boolean(filters.q || filters.group || filters.source || filters.review || filters.today || filters.minKm);
-  const allShownSelected = rows.length > 0 && rows.every((r) => selected.has(r.postcode));
+  const distanceFacet = filters.review ? "review" : (filters.source ?? null)
+  const anyFilter = Boolean(
+    filters.q || filters.group || filters.source || filters.review || filters.today || filters.minKm,
+  )
+  const allShownSelected = rows.length > 0 && rows.every((r) => selected.has(r.postcode))
 
   return (
     <>
@@ -151,7 +151,9 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           {first ? (
             <p className="bo-sub" data-testid="coverage-counts">
               {first.counts.listed} postcode{first.counts.listed === 1 ? "" : "s"} listed
-              {first.counts.manualDistance > 0 ? ` · ${first.counts.manualDistance} with a distance entered by hand` : ""}
+              {first.counts.manualDistance > 0
+                ? ` · ${first.counts.manualDistance} with a distance entered by hand`
+                : ""}
               {first.counts.needsReview > 0 ? ` · ${first.counts.needsReview} to review` : ""}
               {first.counts.todayNotOffered > 0 ? ` · ${first.counts.todayNotOffered} not offered delivery today` : ""}
             </p>
@@ -166,8 +168,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                 placeholder="Place or postcode"
                 value={search}
                 onChange={(v) => {
-                  setSearch(v);
-                  if (v.trim() === "") setFilters((f) => ({ ...f, q: undefined }));
+                  setSearch(v)
+                  if (v.trim() === "") setFilters((f) => ({ ...f, q: undefined }))
                 }}
               />
             </form>
@@ -181,7 +183,13 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             <Facet
               label="Distance"
               value={distanceFacet}
-              onChange={(v) => setFilters((f) => ({ ...f, review: v === "review" || undefined, source: v === "manual" || v === "computed" ? v : undefined }))}
+              onChange={(v) =>
+                setFilters((f) => ({
+                  ...f,
+                  review: v === "review" || undefined,
+                  source: v === "manual" || v === "computed" ? v : undefined,
+                }))
+              }
               options={[
                 { value: "computed", label: "Worked out" },
                 { value: "manual", label: "Entered by hand" },
@@ -210,8 +218,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             {anyFilter ? (
               <ResetFilters
                 onReset={() => {
-                  setSearch("");
-                  setFilters({});
+                  setSearch("")
+                  setFilters({})
                 }}
               />
             ) : null}
@@ -220,7 +228,12 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           {canManage && selected.size > 0 ? (
             <div className="bo-bulkbar" data-testid="coverage-bulk">
               <span className="text-sm font-medium">{selected.size} selected</span>
-              <select aria-label="Move to group" className={SELECT} value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+              <select
+                aria-label="Move to group"
+                className={SELECT}
+                value={moveTo}
+                onChange={(e) => setMoveTo(e.target.value)}
+              >
                 <option value="">Move to group…</option>
                 <option value="none">No group</option>
                 {groups.map((g) => (
@@ -229,7 +242,12 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                   </option>
                 ))}
               </select>
-              <Button size="sm" variant="outline" disabled={!moveTo || patch.isPending} onClick={() => void move(moveTo === "none" ? null : moveTo)}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!moveTo || patch.isPending}
+                onClick={() => void move(moveTo === "none" ? null : moveTo)}
+              >
                 Move
               </Button>
               <select
@@ -242,7 +260,12 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                 <option value="offer">Offer</option>
                 <option value="stop">Don't offer</option>
               </select>
-              <Button size="sm" variant="outline" disabled={!todayTo || patch.isPending} onClick={() => void setToday(todayTo === "offer")}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!todayTo || patch.isPending}
+                onClick={() => void setToday(todayTo === "offer")}
+              >
                 Apply
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
@@ -281,7 +304,9 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                           <Checkbox
                             aria-label="Select all shown"
                             checked={allShownSelected}
-                            onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.postcode)) : new Set())}
+                            onCheckedChange={(v) =>
+                              setSelected(v === true ? new Set(rows.map((r) => r.postcode)) : new Set())
+                            }
                           />
                         </th>
                       ) : null}
@@ -311,7 +336,9 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                         </td>
                         <td data-m="meta" className="max-md:hidden">
                           {r.places.slice(0, 3).join(", ") || "—"}
-                          {r.places.length > 3 ? <span className="text-muted-foreground"> +{r.places.length - 3} more</span> : null}
+                          {r.places.length > 3 ? (
+                            <span className="text-muted-foreground"> +{r.places.length - 3} more</span>
+                          ) : null}
                           {r.state ? <span className="text-muted-foreground"> · {r.state}</span> : null}
                         </td>
                         <td data-m="meta" className="is-muted">
@@ -320,12 +347,18 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                         <td data-m="trail">
                           <span className="flex flex-wrap items-center gap-2">
                             <span className="tabular-nums">{r.distanceKm} km</span>
-                            <span className="bo-sub">{r.distanceSource === "manual" ? "entered by hand" : "worked out"}</span>
+                            <span className="bo-sub">
+                              {r.distanceSource === "manual" ? "entered by hand" : "worked out"}
+                            </span>
                             {r.needsReview ? <StatusWord tone="waiting">Review</StatusWord> : null}
                           </span>
                         </td>
                         <td data-m="meta">
-                          {r.todayOffered ? <span className="bo-sub">Offered</span> : <StatusWord tone="muted">Not offered</StatusWord>}
+                          {r.todayOffered ? (
+                            <span className="bo-sub">Offered</span>
+                          ) : (
+                            <StatusWord tone="muted">Not offered</StatusWord>
+                          )}
                         </td>
                         {canManage ? (
                           <td className="text-right whitespace-nowrap">
@@ -345,7 +378,12 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
               {coverage.hasNextPage ? (
                 <div className="bo-pager">
                   <span>{rows.length} shown</span>
-                  <Button variant="outline" size="sm" disabled={coverage.isFetchingNextPage} onClick={() => void coverage.fetchNextPage()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={coverage.isFetchingNextPage}
+                    onClick={() => void coverage.fetchNextPage()}
+                  >
                     Show more
                   </Button>
                 </div>
@@ -366,7 +404,12 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
       <AddPlacesDialog open={addOpen} onOpenChange={setAddOpen} groups={groups} />
       {distanceOf ? <DistanceDialog postcode={distanceOf} onClose={() => setDistanceOf(null)} /> : null}
 
-      <AlertDialog open={removing != null} onOpenChange={(o) => { if (!o) setRemoving(null); }}>
+      <AlertDialog
+        open={removing != null}
+        onOpenChange={(o) => {
+          if (!o) setRemoving(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Stop delivering to {removing?.postcode}?</AlertDialogTitle>
@@ -382,11 +425,18 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmMove !== undefined} onOpenChange={(o) => { if (!o) setConfirmMove(undefined); }}>
+      <AlertDialog
+        open={confirmMove !== undefined}
+        onOpenChange={(o) => {
+          if (!o) setConfirmMove(undefined)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>No driver can deliver there</AlertDialogTitle>
-            <AlertDialogDescription>{confirmMove === null ? NO_DRIVER_UNGROUPED : NO_DRIVER_GROUP}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {confirmMove === null ? NO_DRIVER_UNGROUPED : NO_DRIVER_GROUP}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -395,31 +445,5 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-/**
- * Courier delivery (076 US4; 079; redesign, board "Courier delivery and services") — its own page
- * now, reading the courier reach the coverage list carries.
- */
-export function CourierPage({ canManage }: { canManage: boolean }) {
-  const coverage = useInfiniteQuery(coverageQuery({}));
-  const first = coverage.data?.pages[0];
-  return (
-    <>
-      <PageHeader
-        title="Courier delivery"
-        description="Courier delivery for addresses outside Effy's area, its fees, and the courier services used."
-      />
-      {coverage.isError ? (
-        <ErrorState error={coverage.error} onRetry={() => void coverage.refetch()} />
-      ) : !first ? (
-        <Skeleton className="h-60" aria-busy="true" />
-      ) : (
-        <div className="bo-settings">
-          <CourierPanel courier={first.courier} canManage={canManage} />
-        </div>
-      )}
-    </>
-  );
+  )
 }

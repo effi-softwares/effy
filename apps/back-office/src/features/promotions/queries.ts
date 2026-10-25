@@ -1,8 +1,8 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
-import type { AdminPromotionWriteDTO, AdminUpdatePromotionImageRequest, PromotionAction } from "@effy/shared-types";
+import type { AdminPromotionWriteDTO, AdminUpdatePromotionImageRequest, PromotionAction } from "@effy/shared-types"
 
-import type { PromotionListParams, UpdateOrderPolicyRequest } from "./model";
+import type { PromotionListParams, UpdateOrderPolicyRequest } from "./model"
 import {
   actOnPromotion,
   createPromotion,
@@ -22,50 +22,62 @@ import {
   addPromotionImage,
   removePromotionImage,
   updatePromotionImage,
-} from "./repo";
+} from "./repo"
 
-// Server state lives only in the TanStack Query cache (Principle VI). Mutations invalidate the root
-// rather than patch the cache — a promotion's state and uses move without us touching them.
-
-export const PROMO_ROOT = ["back-office", "promotions"] as const;
+const PROMO_ROOT = ["back-office", "promotions"] as const
 
 export const promotionListQuery = (params: PromotionListParams) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "list", params] as const, queryFn: () => listPromotions(params) });
+  queryOptions({ queryKey: [...PROMO_ROOT, "list", params] as const, queryFn: () => listPromotions(params) })
 
 export const promotionQuery = (id: string) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "detail", id] as const, queryFn: () => getPromotion(id) });
+  queryOptions({ queryKey: [...PROMO_ROOT, "detail", id] as const, queryFn: () => getPromotion(id) })
 
 export const promotionHistoryQuery = (id: string) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "history", id] as const, queryFn: () => getPromotionHistory(id) });
+  queryOptions({ queryKey: [...PROMO_ROOT, "history", id] as const, queryFn: () => getPromotionHistory(id) })
 
-export const orderPolicyQuery = () => queryOptions({ queryKey: [...PROMO_ROOT, "order-policy"] as const, queryFn: () => getOrderPolicy() });
+export const orderPolicyQuery = () =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "order-policy"] as const, queryFn: () => getOrderPolicy() })
 
 function useInvalidating<A, R>(fn: (a: A) => Promise<R>) {
-  const queryClient = useQueryClient();
-  return useMutation({ mutationFn: fn, onSuccess: () => void queryClient.invalidateQueries({ queryKey: PROMO_ROOT }) });
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => void queryClient.invalidateQueries({ queryKey: PROMO_ROOT }) })
 }
 
-export const useCreatePromotion = () => useInvalidating((body: AdminPromotionWriteDTO) => createPromotion(body));
-export const useUpdatePromotion = (id: string) => useInvalidating((body: Partial<AdminPromotionWriteDTO>) => updatePromotion(id, body));
-export const usePromotionAction = (id: string) => useInvalidating((action: PromotionAction) => actOnPromotion(id, { action }));
-export const useDeletePromotion = () => useInvalidating((id: string) => deletePromotion(id));
-export const useUpdateOrderPolicy = () => useInvalidating((body: UpdateOrderPolicyRequest) => putOrderPolicy(body));
+export const useCreatePromotion = () => useInvalidating((body: AdminPromotionWriteDTO) => createPromotion(body))
+export const useUpdatePromotion = (id: string) =>
+  useInvalidating((body: Partial<AdminPromotionWriteDTO>) => updatePromotion(id, body))
+export const usePromotionAction = (id: string) =>
+  useInvalidating((action: PromotionAction) => actOnPromotion(id, { action }))
+export const useDeletePromotion = () => useInvalidating((id: string) => deletePromotion(id))
+export const useUpdateOrderPolicy = () => useInvalidating((body: UpdateOrderPolicyRequest) => putOrderPolicy(body))
 
 export const chosenCustomersQuery = (id: string, page: number) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "customers", id, page] as const, queryFn: () => listChosenCustomers(id, page) });
+  queryOptions({
+    queryKey: [...PROMO_ROOT, "customers", id, page] as const,
+    queryFn: () => listChosenCustomers(id, page),
+  })
 export const codesQuery = (id: string, page: number, state?: string) =>
-  queryOptions({ queryKey: [...PROMO_ROOT, "codes", id, page, state ?? ""] as const, queryFn: () => listCodes(id, page, state) });
-export const performanceQuery = (id: string) => queryOptions({ queryKey: [...PROMO_ROOT, "performance", id] as const, queryFn: () => getPerformance(id) });
+  queryOptions({
+    queryKey: [...PROMO_ROOT, "codes", id, page, state ?? ""] as const,
+    queryFn: () => listCodes(id, page, state),
+  })
+export const performanceQuery = (id: string) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "performance", id] as const, queryFn: () => getPerformance(id) })
 
-export const useAddChosenCustomers = (id: string) => useInvalidating((body: { emails?: string[]; customerIds?: string[] }) => addChosenCustomers(id, body));
-export const useRemoveChosenCustomer = (id: string) => useInvalidating((customerId: string) => removeChosenCustomer(id, customerId));
-export const useGenerateCodes = (id: string) => useInvalidating((body: { count: number; prefix?: string | null }) => generateCodes(id, body));
-
-// Pictures
+export const useAddChosenCustomers = (id: string) =>
+  useInvalidating((body: { emails?: string[]; customerIds?: string[] }) => addChosenCustomers(id, body))
+export const useRemoveChosenCustomer = (id: string) =>
+  useInvalidating((customerId: string) => removeChosenCustomer(id, customerId))
+export const useGenerateCodes = (id: string) =>
+  useInvalidating((body: { count: number; prefix?: string | null }) => generateCodes(id, body))
 
 export const useAddPromotionImage = (promotionId: string) =>
-  useInvalidating(({ file, alt }: { file: File; alt: string }) => addPromotionImage(promotionId, file, alt));
+  useInvalidating(({ file, alt }: { file: File; alt: string }) => addPromotionImage(promotionId, file, alt))
 export const useUpdatePromotionImage = (promotionId: string) =>
-  useInvalidating(({ imageId, body }: { imageId: string; body: AdminUpdatePromotionImageRequest }) => updatePromotionImage(promotionId, imageId, body));
+  useInvalidating(({ imageId, body }: { imageId: string; body: AdminUpdatePromotionImageRequest }) =>
+    updatePromotionImage(promotionId, imageId, body),
+  )
 export const useRemovePromotionImage = (promotionId: string) =>
-  useInvalidating(({ imageId, confirm }: { imageId: string; confirm: boolean }) => removePromotionImage(promotionId, imageId, confirm));
+  useInvalidating(({ imageId, confirm }: { imageId: string; confirm: boolean }) =>
+    removePromotionImage(promotionId, imageId, confirm),
+  )

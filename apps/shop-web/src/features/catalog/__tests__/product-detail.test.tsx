@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  // The rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
   useNavigate: () => () => {},
 }))
 
@@ -48,13 +47,36 @@ const DETAIL = {
   // The one size this product is sold as carries the price, codes and weight.
   unitBasis: null,
   options: [],
-  variants: [{
-    id: "00000000-0000-4000-8000-0000000000a1", position: 0, optionValueIds: [null, null], label: null,
-    sku: "EGG-700", gtin: null, shopPriceAmount: "8.50", shopCompareAtAmount: null,
-    customerPriceAmount: "8.50", customerCompareAtAmount: null, weightGrams: 800, weightIsAssumed: false,
-    packQuantity: null, packUnit: null, mediaId: null, state: "active",
-    stock: { productId: "p1", variantId: "00000000-0000-4000-8000-0000000000a1", tracked: false, onHand: null, threshold: null, effectiveThreshold: null, outOfStock: false, low: false },
-  }],
+  variants: [
+    {
+      id: "00000000-0000-4000-8000-0000000000a1",
+      position: 0,
+      optionValueIds: [null, null],
+      label: null,
+      sku: "EGG-700",
+      gtin: null,
+      shopPriceAmount: "8.50",
+      shopCompareAtAmount: null,
+      customerPriceAmount: "8.50",
+      customerCompareAtAmount: null,
+      weightGrams: 800,
+      weightIsAssumed: false,
+      packQuantity: null,
+      packUnit: null,
+      mediaId: null,
+      state: "active",
+      stock: {
+        productId: "p1",
+        variantId: "00000000-0000-4000-8000-0000000000a1",
+        tracked: false,
+        onHand: null,
+        threshold: null,
+        effectiveThreshold: null,
+        outOfStock: false,
+        low: false,
+      },
+    },
+  ],
   gstStatus: "gst_free",
   attributes: [],
   media: [],
@@ -68,10 +90,7 @@ function wrap(children: ReactNode) {
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
 }
 
-/** The focused edit dialogs round-trip a change to the server. */
 describe("product edit and persist", () => {
-  // Without this the "must not be called" assertion below counts calls made by the tests above it
-  // and fails for the wrong reason — a false red that teaches nothing.
   beforeEach(() => {
     updateProduct.mockClear()
   })
@@ -90,16 +109,15 @@ describe("product edit and persist", () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalled())
     const body = updateProduct.mock.calls[0]![1]
 
-    // Sizes travel whole (the server proposes only a difference), and nothing else rides along:
-    // a PATCH that resent untouched details is how one operator's save reverts another's.
-    expect(body).toMatchObject({ options: [], variants: [{ id: "00000000-0000-4000-8000-0000000000a1", shopPriceAmount: "9.00", sku: "EGG-700", weightGrams: 800 }] })
+    expect(body).toMatchObject({
+      options: [],
+      variants: [
+        { id: "00000000-0000-4000-8000-0000000000a1", shopPriceAmount: "9.00", sku: "EGG-700", weightGrams: 800 },
+      ],
+    })
     expect(body).not.toHaveProperty("name")
   })
 
-  /**
-   * The concurrency token crosses the wire byte for byte, never through a Date: `toISOString` truncates
-   * to milliseconds while PostgreSQL stores microseconds, so every save would read "changed by someone else".
-   */
   it("returns the concurrency token exactly as the server sent it", async () => {
     updateProduct.mockResolvedValue(DETAIL)
     getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })

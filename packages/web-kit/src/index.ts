@@ -8,6 +8,7 @@ export { configureAmplify, type AmplifyPoolConfig } from "./runtime/amplify";
 export { getAccessToken, getEmail, getGroups, getSubject } from "./runtime/auth-session";
 export { createQueryClient } from "./runtime/query-client";
 export { trackInputModality } from "./runtime/input-modality";
+export { useDebouncedValue } from "./runtime/use-debounced-value";
 export {
   createTelemetry,
   wireGlobalErrorReporting,

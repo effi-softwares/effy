@@ -11,19 +11,6 @@ import { track } from "@/lib/telemetry"
 
 import { attentionHref, attentionRow, formatAge } from "./model"
 
-/**
- * "Needs attention" — the card an operator opens the console to read.
- *
- * Every row ends in a verb, and the verb is specific: Pick, Restock, Review, Approve. A list that
- * names a problem without taking you to the thing that resolves it makes the reader do a search they
- * should not have to do — and a generic "View" makes them work out what they are supposed to do when
- * they get there.
- *
- * Urgency is the icon tile: an empty shelf is the foreground (black with its icon — the identity has no
- * red), orders waiting to be picked are blue, everything else is grey. The tile is never the only
- * signal: every row states its situation in words and ends in a specific verb, so the panel reads
- * identically in greyscale and to a screen reader.
- */
 export function NeedsAttention({
   items,
   more,
@@ -88,10 +75,6 @@ const ROW_ICON: Record<ShopAttentionItemDTO["kind"], LucideIcon> = {
   refund_proposed: ReceiptText,
 }
 
-/**
- * One item: its icon in a tile (a problem is the foreground — black with its icon, never red; waiting
- * work is blue), what it is in words, and the one verb that resolves it.
- */
 function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }) {
   const row = attentionRow(item, now)
   const Icon = ROW_ICON[item.kind]

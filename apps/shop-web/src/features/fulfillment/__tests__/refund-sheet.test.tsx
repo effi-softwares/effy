@@ -59,14 +59,8 @@ function wrap(roles: string[]) {
   )
 }
 
-/**
- * Refunding is manager-only, and a non-manager is not shown the control. Not the security boundary (the
- * backend decides from the platform record): this is the courtesy that `shop_staff`, with full fulfilment
- * access, never meets a refusal they can do nothing about.
- */
 describe("shop refund control", () => {
-  const paymentCard = async () =>
-    (await screen.findByText(/captured at checkout/)).closest("section") as HTMLElement
+  const paymentCard = async () => (await screen.findByText(/captured at checkout/)).closest("section") as HTMLElement
 
   it("offers refunding to a shop manager, in the Payment card", async () => {
     wrap(["shop_manager"])
@@ -92,12 +86,10 @@ describe("shop refund control", () => {
     expect(issueShopRefund).not.toHaveBeenCalled()
   })
 
-  /** The design's line picker: a quantity per line, a "max" shortcut clamped to what is left. */
   it("offers each line up to what is still refundable", async () => {
     wrap(["shop_manager"])
     await userEvent.click(within(await paymentCard()).getByRole("button", { name: "Refund" }))
     const sheet = await screen.findByRole("dialog")
-    // Oat milk: 3 ordered, 1 already on its way back → max 2 (the eggs' 2 of 2 read "max 2" too).
     expect(within(sheet).getAllByRole("button", { name: "max 2" })).toHaveLength(2)
     expect(within(sheet).getByText(/1 already refunded/)).toBeInTheDocument()
     expect(within(sheet).getByRole("button", { name: "Issue refund" })).toBeDisabled()
@@ -120,10 +112,6 @@ describe("shop refund control", () => {
     expect(body).not.toHaveProperty("amount")
   })
 
-  /**
-   * 057 A3 put the order's money on this screen by operator decision. It did not make capture or a
-   * tax line real: Effy captures at payment and per-item GST is unmodelled.
-   */
   it("shows the order's money, but no capture control and no tax line", async () => {
     wrap(["shop_manager"])
     await paymentCard()

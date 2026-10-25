@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import { createConfig } from "@effy/web-kit"
 
-/**
- * The config fails loudly, naming the key. `VITE_VAPID_PUBLIC_KEY` matters most: without it `getToken`
- * never resolves, and notifications look enabled on a tablet that will never ring. The list is written
- * here, not imported from `env.ts`, so a new required key added without it fails.
- */
 const REQUIRED_KEYS = [
   "VITE_COGNITO_USER_POOL_ID",
   "VITE_COGNITO_CLIENT_ID",
@@ -33,14 +28,10 @@ describe("shop-web config", () => {
     delete env[key]
     const cfg = createConfig(REQUIRED_KEYS, env)
 
-    // Naming it is the whole point: "Missing required config" on its own sends an operator
-    // looking through nine values.
     expect(() => cfg.assert()).toThrow(new RegExp(key))
   })
 
   it("treats an empty string as missing, not as a value", () => {
-    // An unset Amplify build variable arrives as "" rather than undefined, so a presence check
-    // written as `key in env` would pass with nothing behind it.
     const env = { ...fullEnv(), VITE_VAPID_PUBLIC_KEY: "" }
     const cfg = createConfig(REQUIRED_KEYS, env)
     expect(() => cfg.assert()).toThrow(/VITE_VAPID_PUBLIC_KEY/)

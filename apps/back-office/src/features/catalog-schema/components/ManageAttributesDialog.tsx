@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { useForm } from "@tanstack/react-form";
-import { X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { useForm } from "@tanstack/react-form"
+import { X } from "lucide-react"
 
 import {
   Button,
@@ -19,41 +19,27 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { catalogMutationError } from "../errorText";
-import type { ProductType } from "../model";
-import {
-  attributesQuery,
-  useAssignAttribute,
-  useUnassignAttribute,
-  useUpdateAssignment,
-} from "../queries";
+import { catalogMutationError } from "../errorText"
+import type { ProductType } from "../model"
+import { attributesQuery, useAssignAttribute, useUnassignAttribute, useUpdateAssignment } from "../queries"
 
-// Manage a product type's assigned attributes (POST/PATCH/DELETE /product-types/{id}/attributes...).
-// Shows the current assignments (mandatory toggle + unassign) and an assign form choosing an
-// unassigned, active attribute with its per-type facts (isMandatory / displayOrder / groupLabel).
-export interface ManageAttributesDialogProps {
-  productType: ProductType;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface ManageAttributesDialogProps {
+  productType: ProductType
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function ManageAttributesDialog({
-  productType,
-  open,
-  onOpenChange,
-}: ManageAttributesDialogProps) {
-  const { data: library } = useQuery({ ...attributesQuery(), enabled: open });
-  const assign = useAssignAttribute(productType.id);
-  const updateAssignment = useUpdateAssignment(productType.id);
-  const unassign = useUnassignAttribute(productType.id);
-  const [formError, setFormError] = useState<string | null>(null);
+export function ManageAttributesDialog({ productType, open, onOpenChange }: ManageAttributesDialogProps) {
+  const { data: library } = useQuery({ ...attributesQuery(), enabled: open })
+  const assign = useAssignAttribute(productType.id)
+  const updateAssignment = useUpdateAssignment(productType.id)
+  const unassign = useUnassignAttribute(productType.id)
+  const [formError, setFormError] = useState<string | null>(null)
 
-  const assignedIds = new Set(productType.attributes.map((a) => a.attributeId));
-  const assignable = (library ?? []).filter(
-    (a) => a.status === "active" && !assignedIds.has(a.id),
-  );
+  const assignedIds = new Set(productType.attributes.map((a) => a.attributeId))
+  const assignable = (library ?? []).filter((a) => a.status === "active" && !assignedIds.has(a.id))
 
   const form = useForm({
     defaultValues: {
@@ -63,10 +49,10 @@ export function ManageAttributesDialog({
       groupLabel: "",
     },
     onSubmit: async ({ value }) => {
-      setFormError(null);
+      setFormError(null)
       if (!value.attributeId) {
-        setFormError("Choose an attribute to assign.");
-        return;
+        setFormError("Choose an attribute to assign.")
+        return
       }
       try {
         await assign.mutateAsync({
@@ -74,16 +60,16 @@ export function ManageAttributesDialog({
           isMandatory: value.isMandatory,
           displayOrder: Number(value.displayOrder) || 0,
           groupLabel: value.groupLabel.trim() || null,
-        });
-        form.reset();
+        })
+        form.reset()
       } catch (err) {
-        setFormError(catalogMutationError(err, "That attribute is already assigned."));
+        setFormError(catalogMutationError(err, "That attribute is already assigned."))
       }
     },
-  });
+  })
 
   function toggleMandatory(attrId: string, next: boolean) {
-    updateAssignment.mutate({ attrId, body: { isMandatory: next } });
+    updateAssignment.mutate({ attrId, body: { isMandatory: next } })
   }
 
   return (
@@ -91,9 +77,7 @@ export function ManageAttributesDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Attributes · {productType.name}</DialogTitle>
-          <DialogDescription>
-            The attributes shops fill in when creating a product of this type.
-          </DialogDescription>
+          <DialogDescription>The attributes shops fill in when creating a product of this type.</DialogDescription>
         </DialogHeader>
 
         <section className="space-y-3">
@@ -106,10 +90,7 @@ export function ManageAttributesDialog({
                 .slice()
                 .sort((a, b) => a.displayOrder - b.displayOrder)
                 .map((attr) => (
-                  <li
-                    key={attr.attributeId}
-                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                  >
+                  <li key={attr.attributeId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                     <div className="flex flex-col">
                       <span className="font-medium">{attr.name}</span>
                       <span className="text-xs text-muted-foreground">
@@ -144,8 +125,8 @@ export function ManageAttributesDialog({
 
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
+            e.preventDefault()
+            void form.handleSubmit()
           }}
           className="space-y-3 border-t pt-4"
           noValidate
@@ -206,10 +187,7 @@ export function ManageAttributesDialog({
           <form.Field name="isMandatory">
             {(field) => (
               <Label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={field.state.value}
-                  onCheckedChange={(v) => field.handleChange(v)}
-                />
+                <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
                 Mandatory on this type
               </Label>
             )}
@@ -230,5 +208,5 @@ export function ManageAttributesDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

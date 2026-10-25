@@ -1,36 +1,40 @@
-import { DELIVERY_FEE_LINE_LABEL, type DeliveryFeeBreakdownDTO } from "@effy/shared-types";
+import { DELIVERY_FEE_LINE_LABEL, type DeliveryFeeBreakdownDTO } from "@effy/shared-types"
 
-const dollars = (cents: number) => `${cents < 0 ? "−" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`;
-const signed = (amount: string) => (amount.startsWith("-") ? `−$${amount.slice(1)}` : `$${amount}`);
-const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`;
+const dollars = (cents: number) => `${cents < 0 ? "−" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`
+const signed = (amount: string) => (amount.startsWith("-") ? `−$${amount.slice(1)}` : `$${amount}`)
+const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`
 
-/**
- * "How this fee was built", read from what the order stored, never re-worked, so it explains what was
- * charged after prices change. Staff only: it names the distance, weight and plan.
- */
 export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO }) {
-  const { inputs, parts } = breakdown;
-  const rows: [string, string, string][] = [];
+  const { inputs, parts } = breakdown
+  const rows: [string, string, string][] = []
   if (breakdown.kind === "effy") {
-    rows.push(["Base", "every delivery starts here", dollars(parts.baseCents)]);
+    rows.push(["Base", "every delivery starts here", dollars(parts.baseCents)])
     rows.push([
       "Distance",
       `${inputs.km} km — ${parts.distanceBandUpperKm === null ? "the last band, with no upper limit" : `the band up to ${parts.distanceBandUpperKm} km`}`,
       dollars(parts.distanceCents),
-    ]);
+    ])
   } else {
-    rows.push(["Courier, per order", "the flat amount", dollars(parts.baseCents)]);
+    rows.push(["Courier, per order", "the flat amount", dollars(parts.baseCents)])
   }
   rows.push([
     "Weight",
     `${kg(inputs.grams)} — ${parts.weightBandUpperGrams === null ? "the heaviest band" : `the band up to ${kg(parts.weightBandUpperGrams)}`}`,
     dollars(parts.weightCents),
-  ]);
-  if (parts.premiumCents > 0) rows.push(["Window surcharge", inputs.windowIsToday ? "a window today" : "the chosen window", dollars(parts.premiumCents)]);
-  if (parts.roundedCents !== parts.rawCents) rows.push(["Rounded up", `from ${dollars(parts.rawCents)}`, dollars(parts.roundedCents)]);
-  if (parts.clamp) rows.push([parts.clamp === "floor" ? "Minimum fee" : "Maximum fee", "applied", ""]);
-  if (parts.freeApplied) rows.push(["Free delivery", `the basket (${dollars(inputs.basketCents)}) reached the free-delivery amount`, ""]);
-  if (parts.smallOrderCents > 0) rows.push(["Small-order fee", `the basket was ${dollars(inputs.basketCents)}`, dollars(parts.smallOrderCents)]);
+  ])
+  if (parts.premiumCents > 0)
+    rows.push([
+      "Window surcharge",
+      inputs.windowIsToday ? "a window today" : "the chosen window",
+      dollars(parts.premiumCents),
+    ])
+  if (parts.roundedCents !== parts.rawCents)
+    rows.push(["Rounded up", `from ${dollars(parts.rawCents)}`, dollars(parts.roundedCents)])
+  if (parts.clamp) rows.push([parts.clamp === "floor" ? "Minimum fee" : "Maximum fee", "applied", ""])
+  if (parts.freeApplied)
+    rows.push(["Free delivery", `the basket (${dollars(inputs.basketCents)}) reached the free-delivery amount`, ""])
+  if (parts.smallOrderCents > 0)
+    rows.push(["Small-order fee", `the basket was ${dollars(inputs.basketCents)}`, dollars(parts.smallOrderCents)])
 
   return (
     <section className="space-y-3">
@@ -57,5 +61,5 @@ export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO
         <dd className="font-medium tabular-nums">{dollars(parts.totalCents)}</dd>
       </dl>
     </section>
-  );
+  )
 }

@@ -1,19 +1,11 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
-import type {
-  AdminDriverCreateRequest,
-  AdminDriverStatusRequest,
-  AdminDriverUpdateRequest,
-} from "@effy/shared-types";
+import type { AdminDriverCreateRequest, AdminDriverStatusRequest, AdminDriverUpdateRequest } from "@effy/shared-types"
 
-import type { DriverListParams } from "./model";
-import * as repo from "./repo";
+import type { DriverListParams } from "./model"
+import * as repo from "./repo"
 
-// Server state lives only in the TanStack Query cache (Principle VI) — never hand-cached in
-// component state. List queries are keyed on their params so each filter combination caches
-// independently; mutations invalidate rather than patch.
-
-export const driverKeys = {
+const driverKeys = {
   all: ["drivers"] as const,
   list: (p: DriverListParams) => ["drivers", "list", p] as const,
   detail: (id: string) => ["drivers", "detail", id] as const,
@@ -21,27 +13,24 @@ export const driverKeys = {
   duty: ["drivers", "duty"] as const,
   readiness: ["drivers", "readiness"] as const,
   zones: ["drivers", "zones"] as const,
-};
+}
 
 export const driversListQuery = (p: DriverListParams) =>
-  queryOptions({ queryKey: driverKeys.list(p), queryFn: () => repo.listDrivers(p) });
+  queryOptions({ queryKey: driverKeys.list(p), queryFn: () => repo.listDrivers(p) })
 
 export const driverDetailQuery = (id: string) =>
-  queryOptions({ queryKey: driverKeys.detail(id), queryFn: () => repo.getDriver(id) });
+  queryOptions({ queryKey: driverKeys.detail(id), queryFn: () => repo.getDriver(id) })
 
 export const driverAuditQuery = (id: string) =>
-  queryOptions({ queryKey: driverKeys.audit(id), queryFn: () => repo.getDriverAudit(id) });
+  queryOptions({ queryKey: driverKeys.audit(id), queryFn: () => repo.getDriverAudit(id) })
 
 export const dutyQuery = () =>
   queryOptions({
     queryKey: driverKeys.duty,
     queryFn: () => repo.getDuty(),
-    // "Who is working right now" is a live question — answered by a live `dispatch` update,
-    // which re-reads this the moment a driver goes on or off duty. Not polled.
-  });
+  })
 
-export const readinessQuery = () =>
-  queryOptions({ queryKey: driverKeys.readiness, queryFn: () => repo.getReadiness() });
+export const readinessQuery = () => queryOptions({ queryKey: driverKeys.readiness, queryFn: () => repo.getReadiness() })
 
 export const zonesQuery = () =>
   queryOptions({
@@ -49,51 +38,44 @@ export const zonesQuery = () =>
     queryFn: () => repo.listZones(),
     // Zones change with the delivery engine, not with drivers.
     staleTime: 5 * 60_000,
-  });
-
-// Mutations
+  })
 
 export function useCreateDriver() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: AdminDriverCreateRequest) => repo.createDriver(body),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
+      void qc.invalidateQueries({ queryKey: driverKeys.all })
     },
-  });
+  })
 }
 
 export function useUpdateDriver(driverId: string) {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: AdminDriverUpdateRequest) => repo.updateDriver(driverId, body),
     onSuccess: () => {
-      // Invalidate the whole driver namespace, not just the detail. A zone change moves the
-      // driver's blocked-reason flags, which appear on the register and in readiness. Patching the
-      // one cache entry would leave a profile saying "ready" beside a readiness view still calling
-      // them blocked — the silent-disagreement shape 029 and 033 both produced.
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
+      void qc.invalidateQueries({ queryKey: driverKeys.all })
     },
-  });
+  })
 }
 
 export function useSetDriverStatus(driverId: string) {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: AdminDriverStatusRequest) => repo.setDriverStatus(driverId, body),
     onSuccess: () => {
-      // A status change moves duty eligibility, stranded work and readiness all at once.
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
+      void qc.invalidateQueries({ queryKey: driverKeys.all })
     },
-  });
+  })
 }
 
 export function useEndDutySession() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (sessionId: string) => repo.endDutySession(sessionId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
+      void qc.invalidateQueries({ queryKey: driverKeys.all })
     },
-  });
+  })
 }

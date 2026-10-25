@@ -1,10 +1,9 @@
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, URL } from "node:url"
 
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import tailwindcss from "@tailwindcss/vite"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vitest/config"
 
-// Vite + React 19 SPA. Runs on:5173 (an approved dev CORS origin — contracts/config.contract.md).
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -19,4 +18,4 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     css: false,
   },
-});
+})

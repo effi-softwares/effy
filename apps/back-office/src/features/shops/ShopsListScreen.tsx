@@ -1,55 +1,49 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Plus, Store } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { Plus, Store } from "lucide-react"
 
-import type { ShopLifecycleStatus } from "@effy/shared-types";
-import { cn } from "@effy/design-system";
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import type { ShopLifecycleStatus } from "@effy/shared-types"
+import { cn } from "@effy/design-system"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns";
-import { sessionQuery } from "@/features/auth/queries";
+import { PageHeader, EmptyState, Pager, SearchBox, Toolbar } from "@effy/web-kit/patterns"
+import { sessionQuery } from "@/features/auth/queries"
 
-import { canManageShops } from "./access";
-import { CreateShopDialog } from "./components/CreateShopDialog";
-import { ShopStatusBadge } from "./components/StatusBadge";
-import type { ShopListItem } from "./model";
-import { shopListQuery } from "./queries";
+import { canManageShops } from "./access"
+import { CreateShopDialog } from "./components/CreateShopDialog"
+import { ShopStatusBadge } from "./components/StatusBadge"
+import type { ShopListItem } from "./model"
+import { shopListQuery } from "./queries"
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 20
 
-type View = "all" | ShopLifecycleStatus;
+type View = "all" | ShopLifecycleStatus
 const VIEWS: readonly { key: View; label: string }[] = [
   { key: "all", label: "All" },
   { key: "active", label: "Active" },
   { key: "suspended", label: "Suspended" },
   { key: "disabled", label: "Disabled" },
-];
+]
 
-/**
- * The shop register (009; redesign, board "Shops"): the fulfilment shops behind the one brand — never
- * shown to a customer — with their operators and how well their labels scan.
- */
 export function ShopsListScreen() {
-  const { data: session } = useQuery(sessionQuery);
-  const roles = session?.status === "signed-in" ? session.identity.roles : [];
-  const canManage = canManageShops(roles);
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  const canManage = canManageShops(roles)
 
-  const [page, setPage] = useState(1);
-  const [view, setView] = useState<View>("all");
-  const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [page, setPage] = useState(1)
+  const [view, setView] = useState<View>("all")
+  const [search, setSearch] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
 
   const params = useMemo(
     () => ({ page, pageSize: PAGE_SIZE, status: view === "all" ? undefined : view, q: search.trim() || undefined }),
     [page, view, search],
-  );
-  const { data, error, isPending, isError, refetch } = useQuery(shopListQuery(params));
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  )
+  const { data, error, isPending, isError, refetch } = useQuery(shopListQuery(params))
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
   return (
     <>
@@ -75,8 +69,8 @@ export function ShopsListScreen() {
               aria-current={v.key === view ? "page" : undefined}
               className={cn("bo-tabs__tab", v.key === view && "is-active")}
               onClick={() => {
-                setView(v.key);
-                setPage(1);
+                setView(v.key)
+                setPage(1)
               }}
             >
               {v.label}
@@ -90,8 +84,8 @@ export function ShopsListScreen() {
             placeholder="Search by code or name…"
             value={search}
             onChange={(v) => {
-              setSearch(v);
-              setPage(1);
+              setSearch(v)
+              setPage(1)
             }}
           />
         </Toolbar>
@@ -144,21 +138,16 @@ export function ShopsListScreen() {
 
       {canManage ? <CreateShopDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </>
-  );
+  )
 }
 
-/** "92% scanned" with a thin bar, or that nothing was recorded — never a 0% that blames the shop. */
-export function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: number; sinceDays: number } }) {
-  if (!scanning) return <span className="text-muted-foreground">—</span>;
-  const total = scanning.scanned + scanning.notScanned;
+function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: number; sinceDays: number } }) {
+  if (!scanning) return <span className="text-muted-foreground">—</span>
+  const total = scanning.scanned + scanning.notScanned
   if (total === 0) {
-    return (
-      <span className="bo-sub">
-        No scanning yet · {scanning.sinceDays} days
-      </span>
-    );
+    return <span className="bo-sub">No scanning yet · {scanning.sinceDays} days</span>
   }
-  const pct = Math.round((scanning.scanned / total) * 100);
+  const pct = Math.round((scanning.scanned / total) * 100)
   return (
     <div className="min-w-32">
       <div className="bo-progress-label">
@@ -169,7 +158,7 @@ export function ScanRate({ scanning }: { scanning?: { scanned: number; notScanne
         <i className={pct < 70 ? "bo-meter__over" : "bo-meter__booked"} style={{ width: `${pct}%` }} />
       </div>
     </div>
-  );
+  )
 }
 
 function ShopRow({ shop: s }: { shop: ShopListItem }) {
@@ -181,9 +170,12 @@ function ShopRow({ shop: s }: { shop: ShopListItem }) {
         </Link>
       </td>
       <td data-m="meta">{s.name}</td>
-      {/* A missing address is a named gap, not a blank cell. */}
       <td data-m="meta" data-label="Address">
-        {s.hasAddress ? <span className="text-muted-foreground">Recorded</span> : <span className="font-medium">Not recorded</span>}
+        {s.hasAddress ? (
+          <span className="text-muted-foreground">Recorded</span>
+        ) : (
+          <span className="font-medium">Not recorded</span>
+        )}
       </td>
       <td data-m="badge">
         <ShopStatusBadge status={s.status} />
@@ -195,5 +187,5 @@ function ShopRow({ shop: s }: { shop: ShopListItem }) {
         <ScanRate scanning={s.labelScanning} />
       </td>
     </tr>
-  );
+  )
 }

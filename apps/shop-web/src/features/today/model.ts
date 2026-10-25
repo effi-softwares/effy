@@ -10,21 +10,6 @@ import {
 import { runTime } from "@/features/fulfillment/collection"
 import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 
-/**
- * Today's copy and time formatting.
- *
- * The copy lives here, not in the components. Every string on this screen is quoted verbatim from
- * the brief, and several are assembled from the same figures in more than one place ("{units} units
- * to pack" appears in the attention row and in the glance cell). One builder means one wording; two
- * components writing their own template strings is how a screen ends up saying "3 orders" in one
- * place and "3 order" in another.
- *
- * Ages are computed from the server's clock, passed in as `now`. A shop tablet's clock can be
- * minutes out — or wrong by a day — and "oldest 3 h 12 m" derived from it would be confidently
- * incorrect about the one thing this card exists to convey: urgency.
- */
-
-/** "3 h 12 m" / "14 m" / "2 d 4 h" — the card's age format. */
 export function formatAge(fromIso: string, now: number): string {
   const ms = Math.max(0, now - new Date(fromIso).getTime())
   const minutes = Math.floor(ms / 60_000)
@@ -34,12 +19,6 @@ export function formatAge(fromIso: string, now: number): string {
   return `${Math.floor(hours / 24)} d ${hours % 24} h`
 }
 
-/**
- * "Just now" → "1 min ago" → "3 min ago" → "2 h ago".
- *
- * These must AGE without new data: a row that says "Just now" twenty minutes later is
- * worse than one with no timestamp at all, because it is read as new.
- */
 export function relativeTime(fromIso: string, now: number): string {
   const minutes = Math.floor(Math.max(0, now - new Date(fromIso).getTime()) / 60_000)
   if (minutes < 1) return "Just now"
@@ -50,14 +29,12 @@ export function relativeTime(fromIso: string, now: number): string {
   return `${Math.floor(hours / 24)} d ago`
 }
 
-/** An arrival is "New" only for its first minute — after that the badge is just decoration. */
-export const NEW_WINDOW_MS = 60_000
+const NEW_WINDOW_MS = 60_000
 
 export function isNewArrival(paidAtIso: string, now: number): boolean {
   return now - new Date(paidAtIso).getTime() < NEW_WINDOW_MS
 }
 
-/** "Monday 1 September · Melbourne" — weekday, date and the shop's timezone city, all derived. */
 export function subheading(nowIso: string, timezone: string): string {
   const date = new Date(nowIso)
   const day = new Intl.DateTimeFormat("en-AU", {
@@ -69,13 +46,11 @@ export function subheading(nowIso: string, timezone: string): string {
   return `${day} · ${cityOf(timezone)}`
 }
 
-/** `Australia/Melbourne` → "Melbourne"; `America/New_York` → "New York". */
-export function cityOf(timezone: string): string {
+function cityOf(timezone: string): string {
   const last = timezone.split("/").pop() ?? timezone
   return last.replace(/_/g, " ")
 }
 
-/** "3 min ago · 4 items · Effy driver": the meta line under a live order; the last part is who takes the package (`DELIVERED_BY_WORDS`). */
 export function liveMeta(
   o: {
     paidAt: string
@@ -88,7 +63,6 @@ export function liveMeta(
   timezone?: string,
 ): string {
   const items = `${o.itemCount} ${o.itemCount === 1 ? "item" : "items"}`
-  // A courier collecting from this shop says so, with when; an Effy run says which run (099).
   const who = o.courierPickup
     ? courierPickupLine(o.courierPickup)
     : o.collection
@@ -97,12 +71,10 @@ export function liveMeta(
   return `${relativeTime(o.paidAt, now)} · ${items} · ${who}`
 }
 
-/** What a Needs attention row says, and which verb resolves it. */
-export interface AttentionRow {
+interface AttentionRow {
   title: string
   detail: string
   action: string
-  /** `problem` is the only one that earns the destructive marker: an empty shelf is lost sales now. */
   tone: "problem" | "waiting" | "neutral"
 }
 
@@ -118,10 +90,7 @@ export function attentionRow(item: ShopAttentionItemDTO, now: number): Attention
     case "out_of_stock":
       return {
         title: `${item.name} out of stock`,
-        detail:
-          item.soldLast7Days > 0
-            ? `${item.soldLast7Days} sold in the last 7 days, 0 on hand`
-            : "0 on hand",
+        detail: item.soldLast7Days > 0 ? `${item.soldLast7Days} sold in the last 7 days, 0 on hand` : "0 on hand",
         action: "Restock",
         tone: "problem",
       }
@@ -145,12 +114,10 @@ export function attentionRow(item: ShopAttentionItemDTO, now: number): Attention
   }
 }
 
-/** "11 units to pack" — the phrase the attention row and the glance cell must both use. */
 export function unitsToPack(units: number): string {
   return `${units} ${units === 1 ? "unit" : "units"} to pack`
 }
 
-/** Where a row's button goes. Every one resolves the thing it describes. */
 export function attentionHref(item: ShopAttentionItemDTO): string {
   switch (item.kind) {
     case "awaiting_pick":
@@ -164,7 +131,6 @@ export function attentionHref(item: ShopAttentionItemDTO): string {
   }
 }
 
-/** The count badge: open items, including the ones the card could not fit. */
 export function openItemCount(today: ShopTodayDTO): number {
   return today.attention.length + today.attentionMore
 }

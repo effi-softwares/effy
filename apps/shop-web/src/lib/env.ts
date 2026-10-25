@@ -1,61 +1,39 @@
-import { createConfig } from "@effy/web-kit";
+import { createConfig } from "@effy/web-kit"
 
-// Per-environment config from Vite `VITE_*` (contracts/config.contract.md). Every value is
-// non-secret. A missing required value fails fast, naming the key — never a silent
-// mis-target of the wrong environment, or worse, the wrong identity pool.
 const REQUIRED = [
   "VITE_COGNITO_USER_POOL_ID",
   "VITE_COGNITO_CLIENT_ID",
   "VITE_API_BASE_URL",
-  // Web push. All five are public by design: they identify the Firebase project, they do not
-  // authorise anything. The secret half is the service account, which lives in Secrets Manager and
-  // is read only by the notifications worker — it never reaches a browser.
-  //
-  // Required, not optional, deliberately. Constitution § Real-World Identifiers: "where an
-  // identifier is not yet known, the configuration must fail loudly." A console that boots without
-  // a vapid key does not fail — `getToken` simply never resolves, permission is granted, and the
-  // operator is left with a toggle that is on and a device that never rings. That is precisely the
-  // silently-wrong outward-facing value the rule exists to prevent.
   "VITE_FIREBASE_API_KEY",
   "VITE_FIREBASE_PROJECT_ID",
   "VITE_FIREBASE_APP_ID",
   "VITE_FIREBASE_MESSAGING_SENDER_ID",
   "VITE_VAPID_PUBLIC_KEY",
-] as const;
+] as const
 
 const cfg = createConfig(
   REQUIRED,
   import.meta.env as unknown as Record<string, string | undefined>,
   "Set them in apps/shop-web/.env.local (see specs/007-shop-web/contracts/config.contract.md).",
-);
+)
 
 export function assertConfig(): void {
-  cfg.assert();
+  cfg.assert()
 }
 
 export const config = {
-  /** The shop pool — /effy/<env>/auth/shop/user_pool_id. Not back-office. */
   cognitoUserPoolId: (): string => cfg.require("VITE_COGNITO_USER_POOL_ID"),
   cognitoClientId: (): string => cfg.require("VITE_COGNITO_CLIENT_ID"),
-  /** The shared gateway host; paths carry /shop/v1/... */
   apiBaseUrl: (): string => cfg.require("VITE_API_BASE_URL"),
   posthogKey: (): string | undefined => cfg.optional("VITE_POSTHOG_KEY"),
   posthogHost: (): string | undefined => cfg.optional("VITE_POSTHOG_HOST"),
-  // Analytics kill switch. Anything but the string "false" (incl. unset) = enabled.
   telemetryEnabled: (): boolean => cfg.optional("VITE_TELEMETRY_ENABLED") !== "false",
 
-  /**
-   * The Firebase web app identity, for FCM web push.
-   *
-   * Read lazily, from the notification feature only. `firebase/app` and `firebase/messaging` are
-   * dynamically imported so they never land on the sign-in path, and calling this at
-   * module scope would defeat that by pulling config resolution forward.
-   */
   firebase: (): {
-    apiKey: string;
-    projectId: string;
-    appId: string;
-    messagingSenderId: string;
+    apiKey: string
+    projectId: string
+    appId: string
+    messagingSenderId: string
   } => ({
     apiKey: cfg.require("VITE_FIREBASE_API_KEY"),
     projectId: cfg.require("VITE_FIREBASE_PROJECT_ID"),
@@ -63,6 +41,5 @@ export const config = {
     messagingSenderId: cfg.require("VITE_FIREBASE_MESSAGING_SENDER_ID"),
   }),
 
-  /** The Web Push certificate's public key (Firebase console → Cloud Messaging → Web config). */
   vapidPublicKey: (): string => cfg.require("VITE_VAPID_PUBLIC_KEY"),
-};
+}

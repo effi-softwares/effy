@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { cn } from "@effy/design-system";
+import { cn } from "@effy/design-system"
 import {
   Button,
   Dialog,
@@ -11,43 +11,38 @@ import {
   DialogTitle,
   Label,
   Textarea,
-} from "@effy/design-system/ui";
-import { EXCEPTION_OUTCOMES, type DeliveryExceptionDTO, type ExceptionOutcome } from "@effy/shared-types";
+} from "@effy/design-system/ui"
+import { EXCEPTION_OUTCOMES, type DeliveryExceptionDTO, type ExceptionOutcome } from "@effy/shared-types"
 
-import { Callout } from "@effy/web-kit/patterns";
+import { Callout } from "@effy/web-kit/patterns"
 
-import { exceptionMutationError } from "./errorText";
-import { reasonLabel } from "./model";
-import { useResolveException } from "./queries";
+import { exceptionMutationError } from "./errorText"
+import { reasonLabel } from "./model"
+import { useResolveException } from "./queries"
 
-/** How a failed delivery ended, in the words staff use (board "Mark dealt with — outcome"). */
 export const OUTCOME_WORDS: Record<ExceptionOutcome, { label: string; hint: string }> = {
   redelivered: { label: "Redelivered", hint: "Given a new window from the order page" },
   refunded: { label: "Refunded", hint: "The customer has their money back" },
   collected: { label: "Customer collected", hint: "Picked up from the hub" },
   other: { label: "Other", hint: "Say what happened below" },
-};
+}
 
-/**
- * Closing a failed delivery: say how it ended so the next person doesn't have to ask. The outcome and
- * the note are kept on the failure; "Other" needs words.
- */
 export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryExceptionDTO; disabled?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [outcome, setOutcome] = useState<ExceptionOutcome | null>(null);
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const resolve = useResolveException();
+  const [open, setOpen] = useState(false)
+  const [outcome, setOutcome] = useState<ExceptionOutcome | null>(null)
+  const [note, setNote] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const resolve = useResolveException()
 
-  const ready = outcome !== null && (outcome !== "other" || note.trim().length > 0);
+  const ready = outcome !== null && (outcome !== "other" || note.trim().length > 0)
 
   async function confirm() {
-    setError(null);
+    setError(null)
     try {
-      await resolve.mutateAsync({ id: e.exceptionId, note: note.trim() || null, outcome });
-      setOpen(false);
+      await resolve.mutateAsync({ id: e.exceptionId, note: note.trim() || null, outcome })
+      setOpen(false)
     } catch (err) {
-      setError(exceptionMutationError(err));
+      setError(exceptionMutationError(err))
     }
   }
 
@@ -58,10 +53,10 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
         size="sm"
         disabled={disabled}
         onClick={() => {
-          setOutcome(null);
-          setNote("");
-          setError(null);
-          setOpen(true);
+          setOutcome(null)
+          setNote("")
+          setError(null)
+          setOpen(true)
         }}
       >
         Mark dealt with
@@ -71,7 +66,8 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
           <DialogHeader>
             <DialogTitle>Mark {e.orderNumber} dealt with</DialogTitle>
             <DialogDescription>
-              {reasonLabel(e.reason)} · {e.driverName} · the parcel is at the hub. Say how it ended so the next person doesn't have to ask.
+              {reasonLabel(e.reason)} · {e.driverName} · the parcel is at the hub. Say how it ended so the next person
+              doesn't have to ask.
             </DialogDescription>
           </DialogHeader>
           <fieldset className="space-y-2">
@@ -94,7 +90,13 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
           </fieldset>
           <div className="space-y-2">
             <Label htmlFor="resolve-note">{outcome === "other" ? "What happened" : "Note (optional)"}</Label>
-            <Textarea id="resolve-note" value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={3} />
+            <Textarea
+              id="resolve-note"
+              value={note}
+              onChange={(ev) => setNote(ev.target.value)}
+              maxLength={500}
+              rows={3}
+            />
           </div>
           {error ? <Callout tone="destructive" title={error} /> : null}
           <DialogFooter>
@@ -108,5 +110,5 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
         </DialogContent>
       </Dialog>
     </>
-  );
+  )
 }

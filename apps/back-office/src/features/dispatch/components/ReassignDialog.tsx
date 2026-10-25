@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"
 
 import {
   Button,
@@ -9,49 +9,41 @@ import {
   DialogHeader,
   DialogTitle,
   Label,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { dispatchActionError, refusalReasons } from "../errorText";
-import { useReassignRound } from "../queries";
+import { dispatchActionError, refusalReasons } from "../errorText"
+import { useReassignRound } from "../queries"
 
 interface Props {
-  roundId: string;
-  currentDriverName: string;
-  expectedUpdatedAt: string;
-  drivers: Array<{ driverId: string; driverName: string }>;
+  roundId: string
+  currentDriverName: string
+  expectedUpdatedAt: string
+  drivers: Array<{ driverId: string; driverName: string }>
 }
 
-/**
- * Move a round to another driver. A dispatcher may override a preference (the engine ranked somebody
- * lower) but not a fact (unlicensed, stood down, no suitable vehicle); the server names the condition
- * that failed, and this says it.
- */
 export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, drivers }: Props) {
-  const [open, setOpen] = useState(false);
-  const [driverId, setDriverId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [reasons, setReasons] = useState<string[]>([]);
-  const reassign = useReassignRound(roundId);
+  const [open, setOpen] = useState(false)
+  const [driverId, setDriverId] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [reasons, setReasons] = useState<string[]>([])
+  const reassign = useReassignRound(roundId)
 
-  // `mutate` with callbacks, not `mutateAsync` IN A try/catch — the house pattern, and it is not a
-  // style choice: a rejected `mutateAsync` is reported as an unhandled rejection even when the caller
-  // catches it, which fails the test run with the raw problem object and no stack.
   function submit() {
-    setError(null);
-    setReasons([]);
+    setError(null)
+    setReasons([])
     reassign.mutate(
       { driverId, expectedUpdatedAt },
       {
         onSuccess: () => {
-          setOpen(false);
-          setDriverId("");
+          setOpen(false)
+          setDriverId("")
         },
         onError: (err) => {
-          setError(dispatchActionError(err, "reassign"));
-          setReasons(refusalReasons(err));
+          setError(dispatchActionError(err, "reassign"))
+          setReasons(refusalReasons(err))
         },
       },
-    );
+    )
   }
 
   return (
@@ -89,9 +81,6 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
           {error ? (
             <div role="alert" className="space-y-1 text-sm">
               <p className="font-medium text-destructive">{error}</p>
-              {/* The named conditions, straight from the server. Without these a dispatcher knows
-                  only that it failed — not whether to renew a licence, issue a van, or pick somebody
-                  else entirely. */}
               {reasons.length > 0 ? (
                 <ul className="list-disc pl-5 text-muted-foreground">
                   {reasons.map((r) => (
@@ -113,5 +102,5 @@ export function ReassignDialog({ roundId, currentDriverName, expectedUpdatedAt, 
         </DialogContent>
       </Dialog>
     </>
-  );
+  )
 }

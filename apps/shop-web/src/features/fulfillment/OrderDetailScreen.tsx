@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-import { isShopManager } from "@effy/shared-types";
-import { useQuery } from "@tanstack/react-query";
+import { isShopManager } from "@effy/shared-types"
+import { useQuery } from "@tanstack/react-query"
 
 import {
   CalendarDays,
@@ -14,26 +14,25 @@ import {
   Printer,
   ReceiptText,
   Truck,
-} from "lucide-react";
+} from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
-import { PageHeader } from "@effy/web-kit/patterns";
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
+import { PageHeader } from "@effy/web-kit/patterns"
 
-import { sessionQuery } from "@/features/auth/queries";
-import { track } from "@/lib/telemetry";
-import { cn } from "@/lib/utils";
+import { sessionQuery } from "@/features/auth/queries"
+import { track } from "@/lib/telemetry"
+import { cn } from "@/lib/utils"
 
-import { CourierPickup } from "./components/CourierPickup";
-import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment";
-import { OrderActivitySheet } from "./components/OrderActivitySheet";
-import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
-import { PackageStatusPill } from "@effy/web-kit/console";
-import { PaymentPill } from "./components/OrderPill";
-import { PackBags } from "./components/PackBags";
-import { RefundSheet } from "./components/RefundSheet";
-import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl";
-import { canDeclareUnfulfillable, nextTransition } from "./model";
+import { CourierPickup } from "./components/CourierPickup"
+import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment"
+import { OrderActivitySheet } from "./components/OrderActivitySheet"
+import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags"
+import { PaymentPill } from "./components/OrderPill"
+import { PackBags } from "./components/PackBags"
+import { RefundSheet } from "./components/RefundSheet"
+import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl"
+import { canDeclareUnfulfillable, nextTransition } from "./model"
 import {
   formatMoney,
   formatWhen,
@@ -42,53 +41,29 @@ import {
   pickModeOf,
   refundableQuantity,
   type OrderDetail,
-} from "./orderConsole";
-import { collectionLine } from "./collection";
-import { printPickLists } from "./pickList";
-import { orderDetailQuery } from "./queries";
+} from "./orderConsole"
+import { collectionLine } from "./collection"
+import { printPickLists } from "./pickList"
+import { orderDetailQuery } from "./queries"
 
-/**
- * Order detail — the packing screen (redesign, "05 Packing an order"): the page head (order number,
- * status, placed · items · who collects); a main column — "Items and fulfilment" (the pick list), "Bags
- * & labels", "Internal notes" — beside a decision rail (Payment with Refund and "Can't supply it",
- * then Customer and delivery); and the next step in an action bar pinned to the bottom. The activity
- * log is a right sheet opened from "Activity". Order pagination lives in the app header
- * (`HeaderChrome`), never here.
- *
- * Where it departs from the mockup, it is because the platform cannot do the thing, not for taste:
- *  • Capture — Effy captures at payment, so the design's capture button never has an
- *  authorised-but-uncaptured order to act on.
- *  • "VAT 25%" — per-item GST is unmodelled; no tax row is drawn.
- *  • Duplicate / resend email / print invoice / edit order — an order is a paid record, the
- *  receipt resend is the customer's own route, and the platform cannot issue a tax invoice.
- *  • Carrier / tracking / record a return — a shop hands its package to an Effy driver and the
- *  platform has no returns model; "Fulfil" hands the package over instead.
- *  • Customer email, "CUSTOMER SINCE", billing address — never shared with a shop.
- *  • There is no "Cancel order": a shop cannot cancel a customer's order. "Can't supply it" declares
- *  that it cannot supply its part, and Effy decides the refund.
- * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if a
- * forbidden control reappears.
- *
- * Opening this screen IS the acknowledgement.
- */
 export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) {
-  const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(fulfillmentId));
-  const { data: session } = useQuery(sessionQuery);
-  const [activityOpen, setActivityOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [refundOpen, setRefundOpen] = useState(false);
+  const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(fulfillmentId))
+  const { data: session } = useQuery(sessionQuery)
+  const [activityOpen, setActivityOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [refundOpen, setRefundOpen] = useState(false)
 
-  const openedStatus = data?.status;
+  const openedStatus = data?.status
   useEffect(() => {
-    if (!openedStatus) return;
-    track({ name: "shop_order_opened", fulfillmentId, status: openedStatus });
+    if (!openedStatus) return
+    track({ name: "shop_order_opened", fulfillmentId, status: openedStatus })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per portion, not per status change
-  }, [fulfillmentId]);
+  }, [fulfillmentId])
 
   // A courtesy, not the gate. The backend decides from the platform record.
-  const canRefund = session?.status === "signed-in" && isShopManager(session.identity.roles);
+  const canRefund = session?.status === "signed-in" && isShopManager(session.identity.roles)
 
   if (isError) {
     return (
@@ -97,18 +72,18 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         onRetry={() => void refetch()}
         forbiddenMessage="This order isn't available to your shop."
       />
-    );
+    )
   }
   if (isPending) {
-    return <DetailSkeleton />;
+    return <DetailSkeleton />
   }
 
-  const detail: OrderDetail = data;
-  const currency = detail.money.currency;
-  const refundable = canRefund && detail.lines.some((l) => refundableQuantity(l) > 0);
-  const units = detail.lines.reduce((n, l) => n + l.orderedQuantity, 0);
-  const toGo = detail.lines.filter((l) => pickModeOf(l) === "none").length;
-  const note = stateNote(detail.status);
+  const detail: OrderDetail = data
+  const currency = detail.money.currency
+  const refundable = canRefund && detail.lines.some((l) => refundableQuantity(l) > 0)
+  const units = detail.lines.reduce((n, l) => n + l.orderedQuantity, 0)
+  const toGo = detail.lines.filter((l) => pickModeOf(l) === "none").length
+  const note = stateNote(detail.status)
 
   return (
     <div className="flex min-w-0 flex-col gap-6 max-md:gap-4">
@@ -128,11 +103,9 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         }
         meta={
           <>
-            {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
             <span>
               <CalendarDays aria-hidden="true" />
               {formatWhen(detail.placedAt)} · Online store ·{" "}
-              {/* The package's code: bag 1's. */}
               <span className="font-mono" aria-label="Package code">
                 {detail.parcels[0]?.code}
               </span>
@@ -168,7 +141,10 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       />
 
       {note ? (
-        <div className={cn("bo-alert", detail.status === "unfulfillable" ? "bo-alert--destructive" : "bo-alert--muted")} role="status">
+        <div
+          className={cn("bo-alert", detail.status === "unfulfillable" ? "bo-alert--destructive" : "bo-alert--muted")}
+          role="status"
+        >
           <Info aria-hidden="true" />
           <div className="bo-alert__title">{note}</div>
         </div>
@@ -216,7 +192,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           </section>
         </div>
 
-        {/* The decision rail: payment and its two money verbs, then who and where. */}
         <aside className="bo-detail__aside">
           <section className="bo-panel">
             <div className="bo-panel__head">
@@ -239,7 +214,8 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                 </div>
               </dl>
               <p className="text-sm text-muted-foreground">
-                {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at checkout
+                {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at
+                checkout
               </p>
             </div>
             {refundable || canDeclareUnfulfillable(detail.status) ? (
@@ -250,7 +226,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                     Refund
                   </Button>
                 ) : null}
-                {/* A shop cannot cancel a customer's order; it says it can't supply its part. */}
                 {canDeclareUnfulfillable(detail.status) ? (
                   <Button variant="ghost" onClick={() => setCancelOpen(true)}>
                     Can&apos;t supply it…
@@ -276,7 +251,10 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                   <dd>
                     <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
                     {detail.delivery.phone ? (
-                      <a href={`tel:${detail.delivery.phone}`} className="text-muted-foreground no-underline hover:underline">
+                      <a
+                        href={`tel:${detail.delivery.phone}`}
+                        className="text-muted-foreground no-underline hover:underline"
+                      >
                         {detail.delivery.phone}
                       </a>
                     ) : null}
@@ -288,7 +266,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                 </div>
                 <div className="bo-dl__row">
                   <dt>Bill to</dt>
-                  {/* Named and said to be withheld, not silently missing. */}
                   <dd className="text-muted-foreground">Held by Effy with the payment.</dd>
                 </div>
                 <div className="bo-dl__row">
@@ -319,7 +296,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         </aside>
       </div>
 
-      {/* The next step, pinned under the thumb. */}
       {nextTransition(detail.status) || detail.status === "ready_for_pickup" ? (
         <div className="sh-actionbar">
           <div className="sh-actionbar__text">
@@ -348,16 +324,21 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       <OrderNoteDialog fulfillmentId={detail.id} open={noteOpen} onOpenChange={setNoteOpen} />
       {canRefund ? (
         <RefundSheet
-          detail={{ id: detail.id, orderId: detail.orderId, orderNumber: detail.orderNumber, currency, lines: detail.lines }}
+          detail={{
+            id: detail.id,
+            orderId: detail.orderId,
+            orderNumber: detail.orderNumber,
+            currency,
+            lines: detail.lines,
+          }}
           open={refundOpen}
           onOpenChange={setRefundOpen}
         />
       ) : null}
     </div>
-  );
+  )
 }
 
-/** The packing screen while it loads: its head, the pick list and the rail, in their own shapes. */
 function DetailSkeleton() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading order">
@@ -388,20 +369,16 @@ function DetailSkeleton() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function addressText(detail: OrderDetail): string {
-  const d = detail.delivery;
+  const d = detail.delivery
   return [d.recipientName, d.line1, d.line2, [d.city, d.region, d.postalCode].filter(Boolean).join(" "), d.country]
     .filter(Boolean)
-    .join("\n");
+    .join("\n")
 }
 
-/**
- * "Print pick list" — one document, through the shared renderer. Today's "Print pick
- * lists" prints many through the same code, so the sheet a picker carries is the same either way.
- */
 function printPickList(detail: OrderDetail) {
   printPickLists(
     [

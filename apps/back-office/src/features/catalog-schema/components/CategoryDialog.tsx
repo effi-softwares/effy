@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useForm } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form"
 
 import {
   Button,
@@ -17,37 +17,28 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { catalogMutationError } from "../errorText";
-import type { Category } from "../model";
-import { useCreateCategory, useUpdateCategory } from "../queries";
+import { catalogMutationError } from "../errorText"
+import type { Category } from "../model"
+import { useCreateCategory, useUpdateCategory } from "../queries"
 
-// Create or edit a taxonomy node. `parentId` builds the tree (the backend rejects self/descendant
-// parents — no cycles, FR-006); on create the `key` is set once. `categories` is the full list, so
-// the parent select can offer every other node without a second fetch.
-const NO_PARENT = "__root";
+const NO_PARENT = "__root"
 
-export interface CategoryDialogProps {
-  category?: Category;
-  categories: Category[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface CategoryDialogProps {
+  category?: Category
+  categories: Category[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function CategoryDialog({
-  category,
-  categories,
-  open,
-  onOpenChange,
-}: CategoryDialogProps) {
-  const isEdit = Boolean(category);
-  const createCategory = useCreateCategory();
-  const updateCategory = useUpdateCategory(category?.id ?? "");
-  const [formError, setFormError] = useState<string | null>(null);
+export function CategoryDialog({ category, categories, open, onOpenChange }: CategoryDialogProps) {
+  const isEdit = Boolean(category)
+  const createCategory = useCreateCategory()
+  const updateCategory = useUpdateCategory(category?.id ?? "")
+  const [formError, setFormError] = useState<string | null>(null)
 
-  // A node cannot parent itself; the backend additionally blocks descendants (cycle guard).
-  const parentOptions = categories.filter((c) => c.id !== category?.id);
+  const parentOptions = categories.filter((c) => c.id !== category?.id)
 
   const form = useForm({
     defaultValues: {
@@ -57,30 +48,30 @@ export function CategoryDialog({
       displayOrder: category ? String(category.displayOrder) : "0",
     },
     onSubmit: async ({ value }) => {
-      setFormError(null);
-      const parentId = value.parentId === NO_PARENT ? null : value.parentId;
+      setFormError(null)
+      const parentId = value.parentId === NO_PARENT ? null : value.parentId
       try {
         if (category) {
           await updateCategory.mutateAsync({
             name: value.name.trim(),
             parentId,
             displayOrder: Number(value.displayOrder) || 0,
-          });
+          })
         } else {
           await createCategory.mutateAsync({
             key: value.key.trim(),
             name: value.name.trim(),
             parentId,
             displayOrder: Number(value.displayOrder) || 0,
-          });
+          })
         }
-        form.reset();
-        onOpenChange(false);
+        form.reset()
+        onOpenChange(false)
       } catch (err) {
-        setFormError(catalogMutationError(err, "A category with that key already exists."));
+        setFormError(catalogMutationError(err, "A category with that key already exists."))
       }
     },
-  });
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,15 +79,13 @@ export function CategoryDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit category" : "Create category"}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update the category. The key cannot change."
-              : "A node in the product category taxonomy."}
+            {isEdit ? "Update the category. The key cannot change." : "A node in the product category taxonomy."}
           </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
+            e.preventDefault()
+            void form.handleSubmit()
           }}
           className="space-y-4"
           noValidate
@@ -190,5 +179,5 @@ export function CategoryDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

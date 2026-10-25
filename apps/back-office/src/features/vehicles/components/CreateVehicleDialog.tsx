@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"
 
 import {
   Button,
@@ -11,15 +11,15 @@ import {
   DialogTrigger,
   Input,
   Label,
-} from "@effy/design-system/ui";
-import type { VehicleBodyType, VehicleCreateRequest, VehicleOwnership } from "@effy/shared-types";
+} from "@effy/design-system/ui"
+import type { VehicleBodyType, VehicleCreateRequest, VehicleOwnership } from "@effy/shared-types"
 
-import { BODY_TYPE_LABEL, OWNERSHIP_LABEL } from "../model";
-import { vehicleActionError, vehicleFieldErrors } from "../errorText";
-import { useCreateVehicle } from "../queries";
+import { BODY_TYPE_LABEL, OWNERSHIP_LABEL } from "../model"
+import { vehicleActionError, vehicleFieldErrors } from "../errorText"
+import { useCreateVehicle } from "../queries"
 
-const BODY_TYPES = Object.keys(BODY_TYPE_LABEL) as VehicleBodyType[];
-const OWNERSHIPS = Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[];
+const BODY_TYPES = Object.keys(BODY_TYPE_LABEL) as VehicleBodyType[]
+const OWNERSHIPS = Object.keys(OWNERSHIP_LABEL) as VehicleOwnership[]
 
 function Field({ id, label, children, hint }: { id: string; label: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -28,44 +28,40 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
       {children}
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
-  );
+  )
 }
 
-/**
- * Add a vehicle. Only the four fields the business cannot do without are required; capacity, refrigeration
- * and compliance dates are edited afterwards, so nobody fills in a wrong date to get past the form.
- */
 export function CreateVehicleDialog() {
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([]);
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([])
 
-  const [registrationPlate, setPlate] = useState("");
-  const [make, setMake] = useState("");
-  const [model, setModel] = useState("");
-  const [bodyType, setBodyType] = useState<VehicleBodyType>("van");
-  const [ownership, setOwnership] = useState<VehicleOwnership>("effy_owned");
-  const [canCarryChilled, setChilled] = useState(false);
-  const [canCarryFrozen, setFrozen] = useState(false);
+  const [registrationPlate, setPlate] = useState("")
+  const [make, setMake] = useState("")
+  const [model, setModel] = useState("")
+  const [bodyType, setBodyType] = useState<VehicleBodyType>("van")
+  const [ownership, setOwnership] = useState<VehicleOwnership>("effy_owned")
+  const [canCarryChilled, setChilled] = useState(false)
+  const [canCarryFrozen, setFrozen] = useState(false)
 
-  const create = useCreateVehicle();
+  const create = useCreateVehicle()
 
   function close() {
-    setOpen(false);
-    setError(null);
-    setFieldErrors([]);
-    setPlate("");
-    setMake("");
-    setModel("");
-    setBodyType("van");
-    setOwnership("effy_owned");
-    setChilled(false);
-    setFrozen(false);
+    setOpen(false)
+    setError(null)
+    setFieldErrors([])
+    setPlate("")
+    setMake("")
+    setModel("")
+    setBodyType("van")
+    setOwnership("effy_owned")
+    setChilled(false)
+    setFrozen(false)
   }
 
   function submit() {
-    setError(null);
-    setFieldErrors([]);
+    setError(null)
+    setFieldErrors([])
     const body: VehicleCreateRequest = {
       registrationPlate: registrationPlate.trim(),
       make: make.trim(),
@@ -74,18 +70,17 @@ export function CreateVehicleDialog() {
       ownership,
       canCarryChilled,
       canCarryFrozen,
-    };
+    }
     create.mutate(body, {
       onSuccess: close,
       onError: (e) => {
-        setError(vehicleActionError(e, "create"));
-        setFieldErrors(vehicleFieldErrors(e));
+        setError(vehicleActionError(e, "create"))
+        setFieldErrors(vehicleFieldErrors(e))
       },
-    });
+    })
   }
 
-  const disabled =
-    create.isPending || !registrationPlate.trim() || !make.trim() || !model.trim();
+  const disabled = create.isPending || !registrationPlate.trim() || !make.trim() || !model.trim()
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
@@ -134,13 +129,7 @@ export function CreateVehicleDialog() {
             </select>
           </Field>
 
-          {/* Ownership is a fact about the vehicle, not a different kind of record. A driver-owned
-              van is issued, inspected and retired exactly like an Effy-owned one. */}
-          <Field
-            id="v-owner"
-            label="Owner"
-            hint="A driver-owned vehicle is managed exactly like an Effy-owned one."
-          >
+          <Field id="v-owner" label="Owner" hint="A driver-owned vehicle is managed exactly like an Effy-owned one.">
             <select
               id="v-owner"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -189,5 +178,5 @@ export function CreateVehicleDialog() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

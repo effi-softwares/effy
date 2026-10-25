@@ -1,44 +1,45 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import { DELIVERY_FEE_LINE_LABEL, type FeePlanKind, type FeePlanDTO, type FeeSimulationDTO } from "@effy/shared-types";
-import { Button, Checkbox, Input, Label } from "@effy/design-system/ui";
+import { DELIVERY_FEE_LINE_LABEL, type FeePlanKind, type FeePlanDTO, type FeeSimulationDTO } from "@effy/shared-types"
+import { Button, Checkbox, Input, Label } from "@effy/design-system/ui"
 
-import { slotsQuery, useSimulateFee } from "../queries";
-import { pricingError } from "./gapText";
+import { slotsQuery, useSimulateFee } from "../queries"
+import { pricingError } from "./gapText"
 
-const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
+const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 
-/**
- * Try a plan (draft, active or retired) against a postcode, weight, basket value and window: the fee the
- * customer would see, then every step that built it. Read-only and open to agents (it is how a fee is
- * explained on the phone). The service prices with checkout's engine; this adds nothing up.
- */
 export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePlanKind }) {
-  const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" });
-  const simulate = useSimulateFee();
-  const [planId, setPlanId] = useState("");
-  const [postcode, setPostcode] = useState("");
-  const [kg, setKg] = useState("1");
-  const [basket, setBasket] = useState("50.00");
-  const [slotId, setSlotId] = useState("");
-  const [today, setToday] = useState(true);
-  const [result, setResult] = useState<FeeSimulationDTO | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const slots = useQuery({ ...slotsQuery(), enabled: kind === "effy" })
+  const simulate = useSimulateFee()
+  const [planId, setPlanId] = useState("")
+  const [postcode, setPostcode] = useState("")
+  const [kg, setKg] = useState("1")
+  const [basket, setBasket] = useState("50.00")
+  const [slotId, setSlotId] = useState("")
+  const [today, setToday] = useState(true)
+  const [result, setResult] = useState<FeeSimulationDTO | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function run(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setResult(null);
+    e.preventDefault()
+    setError(null)
+    setResult(null)
     try {
-      setResult(await simulate.mutateAsync({
-        planId: planId || null, postcode: postcode.trim(), grams: Math.round(Number(kg) * 1000), basketAmount: Number(basket || "0").toFixed(2),
-        slotId: kind === "effy" && slotId ? slotId : null, windowIsToday: kind === "effy" && slotId !== "" && today,
-        ...(kind === "courier" ? { forceKind: "courier" as const } : {}),
-      }));
+      setResult(
+        await simulate.mutateAsync({
+          planId: planId || null,
+          postcode: postcode.trim(),
+          grams: Math.round(Number(kg) * 1000),
+          basketAmount: Number(basket || "0").toFixed(2),
+          slotId: kind === "effy" && slotId ? slotId : null,
+          windowIsToday: kind === "effy" && slotId !== "" && today,
+          ...(kind === "courier" ? { forceKind: "courier" as const } : {}),
+        }),
+      )
     } catch (err) {
-      setError(pricingError(err));
+      setError(pricingError(err))
     }
   }
 
@@ -49,13 +50,23 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
           <Label htmlFor="sim-plan">Plan</Label>
           <select id="sim-plan" className={SELECT} value={planId} onChange={(e) => setPlanId(e.target.value)}>
             <option value="">The one in force</option>
-            {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.state})</option>)}
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.state})
+              </option>
+            ))}
           </select>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="sim-postcode">Postcode</Label>
-            <Input id="sim-postcode" inputMode="numeric" maxLength={4} value={postcode} onChange={(e) => setPostcode(e.target.value)} />
+            <Input
+              id="sim-postcode"
+              inputMode="numeric"
+              maxLength={4}
+              value={postcode}
+              onChange={(e) => setPostcode(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="sim-kg">Weight (kg)</Label>
@@ -72,16 +83,31 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
               <Label htmlFor="sim-window">Window</Label>
               <select id="sim-window" className={SELECT} value={slotId} onChange={(e) => setSlotId(e.target.value)}>
                 <option value="">None — a later day</option>
-                {(slots.data ?? []).filter((s) => !s.anyTime).map((s) => <option key={s.id} value={s.id}>{s.startTime}–{s.endTime}</option>)}
+                {(slots.data ?? [])
+                  .filter((s) => !s.anyTime)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.startTime}–{s.endTime}
+                    </option>
+                  ))}
               </select>
             </div>
             <div className="flex h-9 items-center gap-2">
-              <Checkbox id="sim-today" checked={today} disabled={!slotId} onCheckedChange={(v) => setToday(v === true)} />
-              <Label htmlFor="sim-today" className="font-normal">The window is today</Label>
+              <Checkbox
+                id="sim-today"
+                checked={today}
+                disabled={!slotId}
+                onCheckedChange={(v) => setToday(v === true)}
+              />
+              <Label htmlFor="sim-today" className="font-normal">
+                The window is today
+              </Label>
             </div>
           </div>
         ) : null}
-        <Button type="submit" variant="outline" disabled={simulate.isPending || postcode.trim().length !== 4}>Work it out</Button>
+        <Button type="submit" variant="outline" disabled={simulate.isPending || postcode.trim().length !== 4}>
+          Work it out
+        </Button>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </form>
 
@@ -97,7 +123,9 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                     {result.fee.lines.map((l, i) => (
                       <div key={`${l.kind}-${i}`} className="flex justify-between py-1.5">
                         <dt>{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
-                        <dd className="tabular-nums">{l.amount.startsWith("-") ? `−$${l.amount.slice(1)}` : `$${l.amount}`}</dd>
+                        <dd className="tabular-nums">
+                          {l.amount.startsWith("-") ? `−$${l.amount.slice(1)}` : `$${l.amount}`}
+                        </dd>
                       </div>
                     ))}
                     <div className="flex justify-between py-1.5 font-semibold">
@@ -113,7 +141,9 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                       <div key={`${s.label}-${i}`} className="grid grid-cols-[8rem_1fr_auto] gap-2 py-1.5">
                         <dt className="text-muted-foreground">{s.label}</dt>
                         <dd>{s.detail}</dd>
-                        <dd className="tabular-nums">{s.amount.startsWith("-") ? `−$${s.amount.slice(1)}` : `$${s.amount}`}</dd>
+                        <dd className="tabular-nums">
+                          {s.amount.startsWith("-") ? `−$${s.amount.slice(1)}` : `$${s.amount}`}
+                        </dd>
                       </div>
                     ))}
                   </dl>
@@ -126,5 +156,5 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
         )}
       </div>
     </div>
-  );
+  )
 }

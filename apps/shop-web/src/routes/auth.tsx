@@ -1,25 +1,16 @@
-import { createRoute, Outlet } from "@tanstack/react-router";
-import { BarChart3, Boxes, ClipboardList, type LucideIcon } from "lucide-react";
+import { createRoute, Outlet } from "@tanstack/react-router"
+import { BarChart3, Boxes, ClipboardList, type LucideIcon } from "lucide-react"
 
-import { SignInScreen } from "@/features/auth/SignInScreen";
+import { SignInScreen } from "@/features/auth/SignInScreen"
 
-import { rootRoute } from "./__root";
+import { rootRoute } from "./__root"
 
-/** The three things this console really does — each names a screen as it is (Today, Catalog, Insights). */
 const LINES: readonly { icon: LucideIcon; title: string; body: string }[] = [
   { icon: ClipboardList, title: "A live order queue", body: "Pick, check and hand over in one pass." },
   { icon: Boxes, title: "Stock on every size", body: "Counts, low-stock alerts and a one-tap off switch." },
   { icon: BarChart3, title: "How the shop is doing", body: "Sales, orders and your best sellers." },
-];
+]
 
-/**
- * The sign-in split (redesign, "02 Sign in"): the form column on the left with the "e." mark, and a
- * quiet panel on the right — the wordmark and three true lines. On a phone the form comes first and the
- * panel follows it.
- *
- * No figures anywhere: a signed-out page has no session and no shop, so any number here would be
- * invented on the one screen whose job is to earn trust before a credential is typed.
- */
 export const authLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth",
@@ -63,7 +54,7 @@ export const authLayoutRoute = createRoute({
       </section>
     </div>
   ),
-});
+})
 
 export const signInRoute = createRoute({
   getParentRoute: () => authLayoutRoute,
@@ -72,9 +63,9 @@ export const signInRoute = createRoute({
     next: typeof search.next === "string" ? search.next : undefined,
   }),
   component: SignInRouteComponent,
-});
+})
 
 function SignInRouteComponent() {
-  const { next } = signInRoute.useSearch();
-  return <SignInScreen next={next} />;
+  const { next } = signInRoute.useSearch()
+  return <SignInScreen next={next} />
 }

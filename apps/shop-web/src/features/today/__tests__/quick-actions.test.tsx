@@ -105,8 +105,6 @@ describe("Quick actions (US4)", () => {
     await userEvent.click(await screen.findByText("Export orders"))
 
     await vi.waitFor(() => expect(exportOrdersCsv).toHaveBeenCalled())
-    // It exports here rather than navigating with a flag: a URL that performs an action on arrival
-    // fires again on refresh and on a shared link.
     expect(navigate).not.toHaveBeenCalledWith(expect.objectContaining({ search: { export: "1" } }))
   })
 })
@@ -124,8 +122,6 @@ describe("printing says what actually happened", () => {
   })
 
   it("⚠ never claims a print when the browser blocked the window", async () => {
-    // `printed: 0` is what a blocked popup looks like from here. "0 pick lists sent to printer" over
-    // a window that never opened would leave an operator standing at the printer.
     printAwaitingPickLists.mockResolvedValue({ printed: 0, more: 0 })
     await printLists()
     expect(toast).toHaveBeenCalledWith("Nothing is waiting to be picked")
@@ -134,8 +130,6 @@ describe("printing says what actually happened", () => {
   it("⚠ says what it could NOT include when the batch is capped", async () => {
     printAwaitingPickLists.mockResolvedValue({ printed: 100, more: 37 })
     await printLists()
-    // A print that quietly covers the first hundred of a hundred and thirty-seven is how half a
-    // shop's work goes unpicked with nobody aware.
     expect(toast).toHaveBeenCalledWith("100 pick lists sent to printer · 37 more not included")
   })
 

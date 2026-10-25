@@ -1,72 +1,61 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { BadgeCheck, Car, History, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { BadgeCheck, Car, History, IdCard, Mail, Pencil, ShieldCheck, Truck, UserRound, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
-import type { AdminDriverProfile } from "@effy/shared-types";
+import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
+import type { AdminDriverProfile } from "@effy/shared-types"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { DetailRows, Panel } from "@effy/web-kit/patterns";
-import { ResponsiveSheet } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { DotWord, StatusWord } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
-import { useHeaderDetail } from "@effy/web-kit/console";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import { PageHeader, DetailRows, Panel, ResponsiveSheet, Callout, DotWord, StatusWord } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
-import { AuditTrail } from "./components/AuditTrail";
-import { CapabilityEditor } from "./components/CapabilityEditor";
-import { ProfileEditForm } from "./components/ProfileEditForm";
-import { StatusControl } from "./components/StatusControl";
-import { canManageDrivers } from "./access";
-import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model";
-import { driverDetailQuery } from "./queries";
+import { AuditTrail } from "./components/AuditTrail"
+import { CapabilityEditor } from "./components/CapabilityEditor"
+import { ProfileEditForm } from "./components/ProfileEditForm"
+import { StatusControl } from "./components/StatusControl"
+import { canManageDrivers } from "./access"
+import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model"
+import { driverDetailQuery } from "./queries"
 
-/**
- * The driver's profile of record (056 US1; redesign, board "Driver profile"): a head with who they
- * are and where they stand, the record in tabs (Profile · Clearances · Change history), and their
- * employment and today on the right. Sectioned detail rows — no cards, no metric tiles.
- */
-
-const dash = <span className="text-muted-foreground">—</span>;
+const dash = <span className="text-muted-foreground">—</span>
 
 function statusTone(s: AdminDriverProfile["status"]) {
-  return s === "active" ? "done" : s === "suspended" ? "problem" : "quiet";
+  return s === "active" ? "done" : s === "suspended" ? "problem" : "quiet"
 }
 
 function daysUntil(iso: string | null): string | null {
-  if (!iso) return null;
-  const days = Math.round((Date.parse(iso) - Date.now()) / 86_400_000);
-  if (Number.isNaN(days)) return null;
-  if (days < 0) return "Expired";
-  if (days === 0) return "Today";
-  return `In ${days} ${days === 1 ? "day" : "days"}`;
+  if (!iso) return null
+  const days = Math.round((Date.parse(iso) - Date.now()) / 86_400_000)
+  if (Number.isNaN(days)) return null
+  if (days < 0) return "Expired"
+  if (days === 0) return "Today"
+  return `In ${days} ${days === 1 ? "day" : "days"}`
 }
 
 export function DriverDetailScreen({ driverId }: { driverId: string }) {
-  const roles = useSessionRoles();
-  const canManage = canManageDrivers(roles);
-  const [editing, setEditing] = useState(false);
+  const roles = useSessionRoles()
+  const canManage = canManageDrivers(roles)
+  const [editing, setEditing] = useState(false)
 
-  const { data, error, isPending, isError, refetch } = useQuery(driverDetailQuery(driverId));
-  useHeaderDetail(data?.name ?? null);
+  const { data, error, isPending, isError, refetch } = useQuery(driverDetailQuery(driverId))
+  useHeaderDetail(data?.name ?? null)
 
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
+  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (isPending) {
     return (
       <div className="space-y-4" aria-busy="true">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-60" />
       </div>
-    );
+    )
   }
 
-  const d: AdminDriverProfile = data;
-  const onDuty = d.dutyState === "on_duty";
-  const expiry = daysUntil(d.credentials.licenceExpiresOn);
+  const d: AdminDriverProfile = data
+  const onDuty = d.dutyState === "on_duty"
+  const expiry = daysUntil(d.credentials.licenceExpiresOn)
 
   return (
     <>
@@ -117,15 +106,12 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         }
       />
 
-      {/* Stated at the top of the record, in words, with the remedy implied. */}
       {d.blockedReasons.length > 0 ? (
         <Callout tone="destructive" title="This driver cannot be given work.">
           {d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}
         </Callout>
       ) : null}
 
-      {/* The half-provisioned driver. Creating a driver writes to two systems and cannot be atomic;
-          the profile must show a half rather than render a half-working driver as normal. */}
       {d.accountState !== "ok" ? (
         <Callout tone="destructive" title="This driver is only half set up.">
           {d.accountState === "record_only"
@@ -183,7 +169,6 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                 />
               </Panel>
               <Panel title="Work assignment" icon={<Car aria-hidden="true" />}>
-                {/* The vehicle is the one the driver is currently holding (the open holding row). */}
                 <DetailRows
                   rows={[
                     { label: "Hub", value: d.hub ?? dash },
@@ -208,7 +193,10 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                         </>
                       ),
                     },
-                    { label: "Registration plate", value: d.vehicle.plate ? <span className="bo-code">{d.vehicle.plate}</span> : dash },
+                    {
+                      label: "Registration plate",
+                      value: d.vehicle.plate ? <span className="bo-code">{d.vehicle.plate}</span> : dash,
+                    },
                     { label: "Licence", value: d.credentials.licenceReference ?? dash },
                     { label: "Licence class", value: d.credentials.licenceClass ?? dash },
                     {
@@ -228,14 +216,21 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             </TabsContent>
 
             <TabsContent value="clearances" className="bo-tabpanel">
-              {/* What this driver may actually do: one row per (function, area). */}
-              <Panel title="Cleared for" icon={<BadgeCheck aria-hidden="true" />} description="Each clearance is one kind of work in one area, or everywhere.">
+              <Panel
+                title="Cleared for"
+                icon={<BadgeCheck aria-hidden="true" />}
+                description="Each clearance is one kind of work in one area, or everywhere."
+              >
                 <CapabilityEditor driverId={driverId} />
               </Panel>
             </TabsContent>
 
             <TabsContent value="history" className="bo-tabpanel">
-              <Panel title="Change history" icon={<History aria-hidden="true" />} description="Who changed what, newest first.">
+              <Panel
+                title="Change history"
+                icon={<History aria-hidden="true" />}
+                description="Who changed what, newest first."
+              >
                 <AuditTrail driverId={driverId} />
               </Panel>
             </TabsContent>
@@ -265,12 +260,12 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             <div className="space-y-3">
               {onDuty ? <StatusWord tone="moving">On duty</StatusWord> : <StatusWord tone="quiet">Off duty</StatusWord>}
               <p className="bo-sub">
-                {onDuty ? "Signed in to the driver app and taking work." : "Not on duty. Work is offered once they start a shift."}
+                {onDuty
+                  ? "Signed in to the driver app and taking work."
+                  : "Not on duty. Work is offered once they start a shift."}
               </p>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/drivers">
-                  All drivers
-                </Link>
+                <Link to="/drivers">All drivers</Link>
               </Button>
             </div>
           </Panel>
@@ -283,5 +278,5 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         </ResponsiveSheet>
       ) : null}
     </>
-  );
+  )
 }

@@ -18,11 +18,6 @@ import { ScanField } from "@effy/web-kit/scanner"
 import { listOrders } from "@/features/fulfillment/repo"
 import { consoleStore, setScanOpen } from "@/lib/console-store"
 
-/**
- * "Scan from anywhere" (Orders board 03): the header's Scan button opens a dialog that takes a scanner's
- * read or a typed order number and opens that order. It asks the order list's own search — one match
- * opens the order, anything else opens the list searched for it, so the operator sees why.
- */
 export function ScanButton() {
   const open = useStore(consoleStore, (s) => s.scanOpen)
   const setOpen = setScanOpen

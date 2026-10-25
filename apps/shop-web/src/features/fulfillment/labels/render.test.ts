@@ -49,9 +49,9 @@ const doc = (over: Partial<LabelDocument["parcel"]> = {}, c: LabelDocument["comm
 
 const LAYOUTS = LABEL_LAYOUTS.map((l) => l.id)
 const ZONES = ["ambient", "chilled", "frozen"] as const
-const textOf = (els: LabelElement[]) => els.filter((e): e is Extract<LabelElement, { kind: "text" }> => e.kind === "text").map((e) => e.text)
+const textOf = (els: LabelElement[]) =>
+  els.filter((e): e is Extract<LabelElement, { kind: "text" }> => e.kind === "text").map((e) => e.text)
 
-/** An element's box in mm (text measured with the same metrics the fit uses). */
 function box(e: LabelElement): { x0: number; x1: number; y0: number; y1: number } {
   switch (e.kind) {
     case "rect":
@@ -65,14 +65,15 @@ function box(e: LabelElement): { x0: number; x1: number; y0: number; y1: number 
     case "mark":
       return { x0: e.x, x1: e.x + (e.h * 198.2) / 86, y0: e.y, y1: e.y + e.h }
     case "text": {
-      const w = textWidthMm(e.text, e.sizePt, { bold: e.bold, mono: e.mono }) + (e.spacing ?? 0) * e.sizePt * 0.3528 * e.text.length
+      const w =
+        textWidthMm(e.text, e.sizePt, { bold: e.bold, mono: e.mono }) +
+        (e.spacing ?? 0) * e.sizePt * 0.3528 * e.text.length
       const x0 = e.anchor === "end" ? e.x - w : e.anchor === "middle" ? e.x - w / 2 : e.x
       return { x0, x1: x0 + w, y0: e.y - e.sizePt * 0.3528 * 0.8, y1: e.y + e.sizePt * 0.3528 * 0.25 }
     }
   }
 }
 
-/** Decode the bars back to text — what a scanner would read. */
 function decode(widths: number[]): string {
   const byPattern = new Map(PATTERNS.map((p, v) => [p, v]))
   const values: number[] = []
@@ -100,8 +101,12 @@ describe("bag labels (096, spec US10)", () => {
           const g = GEOMETRY[layout]
           for (const e of l.elements) {
             const b = box(e)
-            expect(b.x0, `${e.kind} ${JSON.stringify("text" in e ? e.text : "")} left`).toBeGreaterThanOrEqual(g.padMm - 0.01)
-            expect(b.x1, `${e.kind} ${JSON.stringify("text" in e ? e.text : "")} right`).toBeLessThanOrEqual(g.widthMm - g.padMm + 0.01)
+            expect(b.x0, `${e.kind} ${JSON.stringify("text" in e ? e.text : "")} left`).toBeGreaterThanOrEqual(
+              g.padMm - 0.01,
+            )
+            expect(b.x1, `${e.kind} ${JSON.stringify("text" in e ? e.text : "")} right`).toBeLessThanOrEqual(
+              g.widthMm - g.padMm + 0.01,
+            )
             expect(b.y0, `${e.kind} top`).toBeGreaterThanOrEqual(g.padMm - 0.5)
             expect(b.y1, `${e.kind} bottom`).toBeLessThanOrEqual(g.heightMm - g.padMm + 0.5)
           }
@@ -116,11 +121,31 @@ describe("bag labels (096, spec US10)", () => {
 
   it("says what a bag needs: service, recipient, postcode, zone, bag n of N, order, packed date, code, contact", () => {
     const words = textOf(layoutLabel(doc(), "a6").elements)
-    expect(words).toEqual(expect.arrayContaining([
-      "DELIVER TO", "Amelia Thompson", "14 Lydiard Street North", "Unit 3", "BALLARAT CENTRAL VIC", "3350", "AUSTRALIA · Ph 0412 345 678",
-      "FROZEN", "Keep frozen · −18 °C or colder", "BAG", "2", "OF", "3", "ORDER", "EFY-ESDPKF", "PACKED", "21 Oct 2026",
-      "EFY1:WTMZHX", "WTMZHX", "Scan, or type this code", LABEL_CONTACT,
-    ]))
+    expect(words).toEqual(
+      expect.arrayContaining([
+        "DELIVER TO",
+        "Amelia Thompson",
+        "14 Lydiard Street North",
+        "Unit 3",
+        "BALLARAT CENTRAL VIC",
+        "3350",
+        "AUSTRALIA · Ph 0412 345 678",
+        "FROZEN",
+        "Keep frozen · −18 °C or colder",
+        "BAG",
+        "2",
+        "OF",
+        "3",
+        "ORDER",
+        "EFY-ESDPKF",
+        "PACKED",
+        "21 Oct 2026",
+        "EFY1:WTMZHX",
+        "WTMZHX",
+        "Scan, or type this code",
+        LABEL_CONTACT,
+      ]),
+    )
     // The header is the Effy mark only: no service badge on any bag.
     expect(words).not.toContain("EFFY DELIVERY")
     expect(textOf(layoutLabel(doc({}, { ...common, service: "courier" }), "a6").elements)).not.toContain("COURIER")
@@ -129,7 +154,9 @@ describe("bag labels (096, spec US10)", () => {
 
   it("chilled and frozen bands are reversed; ambient is outlined", () => {
     const band = (zone: (typeof ZONES)[number]) =>
-      layoutLabel(doc({ zone }), "a6").elements.find((e) => e.kind === "rect" && e.h > 5 && Math.abs(e.w - (101.6 - 8)) < 0.01)!
+      layoutLabel(doc({ zone }), "a6").elements.find(
+        (e) => e.kind === "rect" && e.h > 5 && Math.abs(e.w - (101.6 - 8)) < 0.01,
+      )!
     expect(band("frozen")).toMatchObject({ fill: "#000" })
     expect(band("chilled")).toMatchObject({ fill: "#000" })
     expect(band("ambient")).toMatchObject({ fill: "none" })
@@ -157,7 +184,10 @@ describe("bag labels (096, spec US10)", () => {
   for (const layout of LAYOUTS) {
     for (const dpi of [203, 300] as PrinterDpi[]) {
       it(`${layout} @ ${dpi} dpi: bars are whole printer dots, start on the dot grid, and decode to the token`, () => {
-        const bars = layoutLabel(doc(), layout, dpi).elements.find((e) => e.kind === "bars") as Extract<LabelElement, { kind: "bars" }>
+        const bars = layoutLabel(doc(), layout, dpi).elements.find((e) => e.kind === "bars") as Extract<
+          LabelElement,
+          { kind: "bars" }
+        >
         const dot = 25.4 / dpi
         expect(Math.abs(bars.moduleMm / dot - Math.round(bars.moduleMm / dot))).toBeLessThan(1e-9)
         expect(bars.moduleMm).toBeGreaterThanOrEqual(0.25 - 1e-6)
@@ -176,20 +206,21 @@ describe("bag labels (096, spec US10)", () => {
     }
   })
 
-  /**
-   * Hidden fulfilment and the 079 rule: no shop name, price, billing address or email but the approved
-   * contact, and no window, day or estimate. The document type carries none of them — this proves a renderer
-   * change cannot add one through a field that happens to be nearby. (The recipient's phone IS printed.)
-   */
   it("never carries a shop name, a price, the billing address, another email, or a delivery window or day", () => {
     const leaky = {
-      ...common, shopName: "Green Grocer", email: "ada@example.com", total: "$44.00", window: "4–6 pm",
+      ...common,
+      shopName: "Green Grocer",
+      email: "ada@example.com",
+      total: "$44.00",
+      window: "4–6 pm",
       billingAddress: { line1: "99 Billing Road", city: "Geelong" },
     }
     for (const layout of LAYOUTS) {
       const svg = renderLabelSvg(doc({}, leaky as typeof common), layout)
       const text = [...svg.matchAll(/>([^<]+)</g)].map((m) => m[1]).join(" ")
-      expect(text).not.toMatch(/Green Grocer|\$|Billing Road|Geelong|ada@|same.?day|standard|window|\d{1,2}(:\d{2})?\s?(am|pm)|\d\s?–\s?\d/i)
+      expect(text).not.toMatch(
+        /Green Grocer|\$|Billing Road|Geelong|ada@|same.?day|standard|window|\d{1,2}(:\d{2})?\s?(am|pm)|\d\s?–\s?\d/i,
+      )
       expect(text.match(/[\w.+-]+@[\w.-]+/g) ?? []).toEqual(["hello@effyshopping.com"])
     }
   })
@@ -216,7 +247,17 @@ describe("direct thermal (ZPL) — 096, R9", () => {
   it("thresholds to one bit per pixel, MSB first, transparent as paper", () => {
     // 9 × 1: black, white, black, transparent, black×5 → 1010 1111 | 1000 0000
     const px = (r: number, a = 255) => [r, r, r, a]
-    const rgba = new Uint8ClampedArray([...px(0), ...px(255), ...px(0), ...px(0, 0), ...px(0), ...px(0), ...px(0), ...px(0), ...px(0)])
+    const rgba = new Uint8ClampedArray([
+      ...px(0),
+      ...px(255),
+      ...px(0),
+      ...px(0, 0),
+      ...px(0),
+      ...px(0),
+      ...px(0),
+      ...px(0),
+      ...px(0),
+    ])
     expect([...toMonochrome(rgba, 9, 1)]).toEqual([0b10101111, 0b10000000])
   })
 

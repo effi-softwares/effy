@@ -1,5 +1,4 @@
-import { useState } from "react";
-
+import { useState } from "react"
 
 import {
   Button,
@@ -11,42 +10,33 @@ import {
   DialogTitle,
   Input,
   Label,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { driverActionError } from "../errorText";
-import { useCreateDriver } from "../queries";
+import { driverActionError } from "../errorText"
+import { useCreateDriver } from "../queries"
 
-
-/**
- * Provision a driver — the platform record and a driver-app sign-in, created together.
- *
- * The refusal is the point of this component, not the happy path. Creating with a work email that
- * already belongs to someone must be refused and must name them. Before this feature the
- * same action silently adopted that person's record — overwriting their name, zone and vehicle — and
- * re-enabled the sign-in of someone who had been deliberately stood down. It reported success.
- */
 export function CreateDriverDialog() {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [workEmail, setWorkEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+  const [workEmail, setWorkEmail] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const create = useCreateDriver();
+  const create = useCreateDriver()
 
   function reset() {
-    setName("");
-    setWorkEmail("");
-    setError(null);
+    setName("")
+    setWorkEmail("")
+    setError(null)
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
+        setOpen(o)
+        if (!o) reset()
       }}
     >
       <Button onClick={() => setOpen(true)}>Add driver</Button>
@@ -54,16 +44,16 @@ export function CreateDriverDialog() {
         <DialogHeader>
           <DialogTitle>Add a driver</DialogTitle>
           <DialogDescription>
-            Creates their record and a sign-in for the driver app. They sign in with this work email
-            and a six-digit code — there is no password. Everything else can be filled in afterwards.
+            Creates their record and a sign-in for the driver app. They sign in with this work email and a six-digit
+            code — there is no password. Everything else can be filled in afterwards.
           </DialogDescription>
         </DialogHeader>
 
         <form
           className="space-y-4"
           onSubmit={(e) => {
-            e.preventDefault();
-            setError(null);
+            e.preventDefault()
+            setError(null)
             create.mutate(
               {
                 name,
@@ -71,13 +61,13 @@ export function CreateDriverDialog() {
               },
               {
                 onSuccess: (driver) => {
-                  track({ name: "driver_created", driverId: driver.id });
-                  setOpen(false);
-                  reset();
+                  track({ name: "driver_created", driverId: driver.id })
+                  setOpen(false)
+                  reset()
                 },
                 onError: (e) => setError(driverActionError(e, "create")),
               },
-            );
+            )
           }}
         >
           <div className="space-y-2">
@@ -101,16 +91,8 @@ export function CreateDriverDialog() {
               required
               autoComplete="off"
             />
-            {/* Said up front, because it cannot be undone from this console: the work email is the
-                sign-in identity and there is no route that changes it. */}
-            <p className="text-xs text-muted-foreground">
-              This is how they sign in, and it cannot be changed later.
-            </p>
+            <p className="text-xs text-muted-foreground">This is how they sign in, and it cannot be changed later.</p>
           </div>
-
-          {/* No zone picker on create. A new driver starts cleared for nothing, and
-              clearances are granted deliberately afterwards. A create form that quietly assigns
-              coverage is how somebody ends up eligible for work nobody decided to give them. */}
 
           {error ? (
             <p role="alert" className="text-sm font-medium text-destructive">
@@ -129,5 +111,5 @@ export function CreateDriverDialog() {
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -4,11 +4,6 @@ import { RadioGroup, RadioGroupItem } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
 
-/**
- * One choice from a few, as full-width cards (Foundations — "a choice is a full-width card, not a bare
- * radio"): the whole card is the target, the chosen one is ringed in blue. A heading names the group
- * and is its accessible label.
- */
 export function ChoiceCards<T extends string>({
   label,
   value,

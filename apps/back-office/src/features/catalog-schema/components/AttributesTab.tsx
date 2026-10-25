@@ -1,31 +1,29 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import type { ColumnDef } from "@tanstack/react-table"
+import { Pencil, Plus } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { Button } from "@effy/design-system/ui"
+import { DataTable, ErrorState } from "@effy/web-kit/console"
 
-import type { AttributeDefinition } from "../model";
-import { attributesQuery, useChangeAttributeStatus } from "../queries";
-import { AttributeDialog } from "./AttributeDialog";
-import { RetireControl } from "./RetireControl";
-import { SchemaStatusBadge } from "./StatusBadge";
-import { StatusFilter, type StatusFilterValue } from "./StatusFilter";
+import type { AttributeDefinition } from "../model"
+import { attributesQuery, useChangeAttributeStatus } from "../queries"
+import { AttributeDialog } from "./AttributeDialog"
+import { RetireControl } from "./RetireControl"
+import { SchemaStatusBadge } from "./StatusBadge"
+import { StatusFilter, type StatusFilterValue } from "./StatusFilter"
 
-// The Attributes tab: the reusable attribute library. Sectioned table (no cards); per-attribute
-// edit and retire/activate gated by `canManage`.
 export function AttributesTab({ canManage }: { canManage: boolean }) {
-  const { data, error, isPending, isError, refetch } = useQuery(attributesQuery());
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("active");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<AttributeDefinition | null>(null);
+  const { data, error, isPending, isError, refetch } = useQuery(attributesQuery())
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("active")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<AttributeDefinition | null>(null)
 
   const rows = useMemo(
     () => (data ?? []).filter((a) => statusFilter === "all" || a.status === statusFilter),
     [data, statusFilter],
-  );
+  )
 
   const columns = useMemo<ColumnDef<AttributeDefinition>[]>(
     () => [
@@ -66,17 +64,14 @@ export function AttributesTab({ canManage }: { canManage: boolean }) {
               id: "actions",
               header: () => <span className="sr-only">Actions</span>,
               cell: ({ row }: { row: { original: AttributeDefinition } }) => (
-                <AttributeActions
-                  attribute={row.original}
-                  onEdit={() => setEditing(row.original)}
-                />
+                <AttributeActions attribute={row.original} onEdit={() => setEditing(row.original)} />
               ),
             } satisfies ColumnDef<AttributeDefinition>,
           ]
         : []),
     ],
     [canManage],
-  );
+  )
 
   return (
     <div className="space-y-4">
@@ -101,27 +96,15 @@ export function AttributesTab({ canManage }: { canManage: boolean }) {
       {canManage ? (
         <>
           <AttributeDialog open={createOpen} onOpenChange={setCreateOpen} />
-          {editing ? (
-            <AttributeDialog
-              attribute={editing}
-              open
-              onOpenChange={(o) => !o && setEditing(null)}
-            />
-          ) : null}
+          {editing ? <AttributeDialog attribute={editing} open onOpenChange={(o) => !o && setEditing(null)} /> : null}
         </>
       ) : null}
     </div>
-  );
+  )
 }
 
-function AttributeActions({
-  attribute,
-  onEdit,
-}: {
-  attribute: AttributeDefinition;
-  onEdit: () => void;
-}) {
-  const changeStatus = useChangeAttributeStatus(attribute.id);
+function AttributeActions({ attribute, onEdit }: { attribute: AttributeDefinition; onEdit: () => void }) {
+  const changeStatus = useChangeAttributeStatus(attribute.id)
   return (
     <div className="flex justify-end gap-2">
       <Button variant="outline" size="sm" onClick={onEdit}>
@@ -135,5 +118,5 @@ function AttributeActions({
         mutate={(body) => changeStatus.mutateAsync(body)}
       />
     </div>
-  );
+  )
 }

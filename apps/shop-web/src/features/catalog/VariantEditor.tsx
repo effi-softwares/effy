@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react"
 
 import {
   Button,
@@ -11,10 +11,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@effy/design-system/ui";
-import { PACK_UNIT_LABELS, UNIT_BASES, UNIT_BASIS_LABELS, VARIANT_LIMITS, unitPriceText, type OptionInputDTO, type UnitBasis } from "@effy/shared-types";
+} from "@effy/design-system/ui"
+import {
+  PACK_UNIT_LABELS,
+  UNIT_BASES,
+  UNIT_BASIS_LABELS,
+  VARIANT_LIMITS,
+  unitPriceText,
+  type OptionInputDTO,
+  type UnitBasis,
+} from "@effy/shared-types"
 
-import { MicroLabel, TableFrame, Td, Th } from "@/components/console/primitives";
+import { MicroLabel, TableFrame, Td, Th } from "@/components/console/primitives"
 
 import {
   addMissingRows,
@@ -26,56 +34,41 @@ import {
   unitsFor,
   type VariantRowDraft,
   type VariantSetDraft,
-} from "./variants";
+} from "./variants"
 
-/**
- * Sizes and prices — the options a product varies by, and one row per variant it is sold as.
- *
- * A table, not cards (constitution Principle V). Fifty variants are fifty rows an operator scans
- * down a column at a time — every price, then every stock code — which a stack of cards makes
- * impossible.
- *
- * A product with no options is edited as one row with no option columns: "a loaf of bread" is the
- * common case and must not look like a spreadsheet.
- */
-export interface VariantEditorProps {
-  value: VariantSetDraft;
-  onChange: (next: VariantSetDraft) => void;
-  /** Field-path errors from `variantSetErrors` (or the server's problem body); shown when `showErrors`. */
-  errors: Record<string, string>;
-  showErrors: boolean;
-  /** The product's gallery, for a variant's own picture. Absent while creating (nothing is uploaded yet). */
-  media?: { storageKey: string; url: string; altText: string | null }[];
-  disabled?: boolean;
+interface VariantEditorProps {
+  value: VariantSetDraft
+  onChange: (next: VariantSetDraft) => void
+  errors: Record<string, string>
+  showErrors: boolean
+  media?: { storageKey: string; url: string; altText: string | null }[]
+  disabled?: boolean
 }
 
-const NONE = "__none__";
+const NONE = "__none__"
 
 export function VariantEditor({ value, onChange, errors, showErrors, media, disabled }: VariantEditorProps) {
-  // A cell's refusal shows once the operator has left that cell, or once they try to continue
-  // (`showErrors`) — never on rows they have not reached yet.
-  const [left, setLeft] = useState<ReadonlySet<string>>(new Set());
-  const leave = (path: string) => () => setLeft((s) => (s.has(path) ? s : new Set(s).add(path)));
-  const err = (path: string) => (showErrors || left.has(path) ? errors[path] : undefined);
+  const [left, setLeft] = useState<ReadonlySet<string>>(new Set())
+  const leave = (path: string) => () => setLeft((s) => (s.has(path) ? s : new Set(s).add(path)))
+  const err = (path: string) => (showErrors || left.has(path) ? errors[path] : undefined)
 
   function setOptions(next: OptionInputDTO[]) {
-    const options = next.map((o, i) => ({ ...o, position: i + 1 }));
-    onChange({ ...value, options, variants: syncRows(value.options, options, value.variants) });
+    const options = next.map((o, i) => ({ ...o, position: i + 1 }))
+    onChange({ ...value, options, variants: syncRows(value.options, options, value.variants) })
   }
   function patchRow(i: number, patch: Partial<VariantRowDraft>) {
-    onChange({ ...value, variants: value.variants.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+    onChange({ ...value, variants: value.variants.map((r, j) => (j === i ? { ...r, ...patch } : r)) })
   }
   function removeRow(i: number) {
-    onChange({ ...value, variants: value.variants.filter((_, j) => j !== i).map((r, j) => ({ ...r, position: j })) });
+    onChange({ ...value, variants: value.variants.filter((_, j) => j !== i).map((r, j) => ({ ...r, position: j })) })
   }
 
-  const hasOptions = value.options.length > 0;
-  const many = value.variants.length > 1;
-  const missing = hasOptions && addMissingRows(value).length > value.variants.length;
+  const hasOptions = value.options.length > 0
+  const many = value.variants.length > 1
+  const missing = hasOptions && addMissingRows(value).length > value.variants.length
 
   return (
     <div className="grid gap-6">
-      {/* Options */}
       <div className="grid gap-3">
         <div className="grid gap-1">
           <MicroLabel>Options</MicroLabel>
@@ -106,7 +99,12 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
               variant="outline"
               size="sm"
               disabled={disabled}
-              onClick={() => setOptions([...value.options, { id: newId(), position: value.options.length + 1, name: "", values: [] }])}
+              onClick={() =>
+                setOptions([
+                  ...value.options,
+                  { id: newId(), position: value.options.length + 1, name: "", values: [] },
+                ])
+              }
             >
               <Plus /> {hasOptions ? "Add a second option" : "Add an option"}
             </Button>
@@ -114,7 +112,6 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         ) : null}
       </div>
 
-      {/* Unit pricing */}
       <div className="grid max-w-[360px] gap-2">
         <Label htmlFor="v-basis">Unit pricing</Label>
         <Select
@@ -140,9 +137,10 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         {err("unitBasis") ? <p className="text-sm font-medium">{err("unitBasis")}</p> : null}
       </div>
 
-      {/* Variants */}
       <div className="grid gap-2">
-        <MicroLabel>{hasOptions ? `Variants (${value.variants.length} of up to ${VARIANT_LIMITS.variants})` : "Price and codes"}</MicroLabel>
+        <MicroLabel>
+          {hasOptions ? `Variants (${value.variants.length} of up to ${VARIANT_LIMITS.variants})` : "Price and codes"}
+        </MicroLabel>
         {!hasOptions && value.variants[0]?.code ? (
           <p className="text-sm text-muted-foreground">
             Effy code <span className="text-foreground font-mono">{value.variants[0].code}</span>
@@ -159,9 +157,14 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                 </Th>
               ) : null}
               <Th width="120px">
-                Your price *
-                <ColumnHelp>What Effy pays you</ColumnHelp>
-                {many ? <ApplyAll label="price" disabled={disabled} onClick={() => onChange({ ...value, variants: applyToAll(value, "shopPriceAmount") })} /> : null}
+                Your price *<ColumnHelp>What Effy pays you</ColumnHelp>
+                {many ? (
+                  <ApplyAll
+                    label="price"
+                    disabled={disabled}
+                    onClick={() => onChange({ ...value, variants: applyToAll(value, "shopPriceAmount") })}
+                  />
+                ) : null}
               </Th>
               <Th width="110px">
                 Was
@@ -178,7 +181,13 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
               <Th width="120px">
                 Weight (g)
                 <ColumnHelp>Packed, for delivery</ColumnHelp>
-                {many ? <ApplyAll label="weight" disabled={disabled} onClick={() => onChange({ ...value, variants: applyToAll(value, "weightGrams") })} /> : null}
+                {many ? (
+                  <ApplyAll
+                    label="weight"
+                    disabled={disabled}
+                    onClick={() => onChange({ ...value, variants: applyToAll(value, "weightGrams") })}
+                  />
+                ) : null}
               </Th>
               <Th width="170px">
                 Pack size
@@ -190,8 +199,8 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
           </thead>
           <tbody>
             {value.variants.map((r, i) => {
-              const unit = previewUnitPrice(value, r);
-              const cell = (field: string) => err(`variants[${i}].${field}`);
+              const unit = previewUnitPrice(value, r)
+              const cell = (field: string) => err(`variants[${i}].${field}`)
               return (
                 <tr key={r.id} className="border-border border-t align-top">
                   {hasOptions ? (
@@ -213,7 +222,9 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       onChange={(e) => patchRow(i, { shopPriceAmount: e.target.value })}
                     />
                     {cell("shopPriceAmount") ? <CellError text={cell("shopPriceAmount")!} /> : null}
-                    {unit ? <p className="text-muted-foreground mt-1 text-[13px] tabular-nums">{unitPriceText(unit)}</p> : null}
+                    {unit ? (
+                      <p className="text-muted-foreground mt-1 text-[13px] tabular-nums">{unitPriceText(unit)}</p>
+                    ) : null}
                   </Td>
                   <Td>
                     <Input
@@ -279,7 +290,9 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       />
                       <Select
                         value={r.packUnit === "" ? NONE : r.packUnit}
-                        onValueChange={(v) => patchRow(i, { packUnit: v === NONE ? "" : (v as VariantRowDraft["packUnit"]) })}
+                        onValueChange={(v) =>
+                          patchRow(i, { packUnit: v === NONE ? "" : (v as VariantRowDraft["packUnit"]) })
+                        }
                         disabled={disabled}
                       >
                         <SelectTrigger aria-label={`Pack unit for ${rowLabel(value, r)}`} className="w-[86px]">
@@ -295,7 +308,9 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                         </SelectContent>
                       </Select>
                     </div>
-                    {cell("packQuantity") || cell("packUnit") ? <CellError text={(cell("packQuantity") ?? cell("packUnit"))!} /> : null}
+                    {cell("packQuantity") || cell("packUnit") ? (
+                      <CellError text={(cell("packQuantity") ?? cell("packUnit"))!} />
+                    ) : null}
                   </Td>
                   {media && media.length > 0 ? (
                     <Td>
@@ -336,28 +351,34 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                     </Td>
                   ) : null}
                 </tr>
-              );
+              )
             })}
           </tbody>
         </TableFrame>
         {missing ? (
           <div>
-            <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange({ ...value, variants: addMissingRows(value) })}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onChange({ ...value, variants: addMissingRows(value) })}
+            >
               <Plus /> Add the missing combinations
             </Button>
           </div>
         ) : null}
       </div>
     </div>
-  );
+  )
 }
 
-/** One plain line under a column heading: what goes in it. */
 function ColumnHelp({ children }: { children: string }) {
-  return <span className="text-muted-foreground block text-[12px] font-normal tracking-normal normal-case">{children}</span>;
+  return (
+    <span className="text-muted-foreground block text-[12px] font-normal tracking-normal normal-case">{children}</span>
+  )
 }
 
-/** Copies the first row's value down the column. */
 function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
@@ -369,14 +390,13 @@ function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => 
     >
       Apply first to all
     </button>
-  );
+  )
 }
 
 function CellError({ text }: { text: string }) {
-  return <p className="mt-1 text-[13px] font-medium leading-tight">{text}</p>;
+  return <p className="mt-1 text-[13px] font-medium leading-tight">{text}</p>
 }
 
-/** One option: its name, its values (in order), and a field to add another. */
 function OptionRow({
   option,
   index,
@@ -385,26 +405,26 @@ function OptionRow({
   onChange,
   onRemove,
 }: {
-  option: OptionInputDTO;
-  index: number;
-  errors: Record<string, string>;
-  disabled?: boolean;
-  onChange: (next: OptionInputDTO) => void;
-  onRemove: () => void;
+  option: OptionInputDTO
+  index: number
+  errors: Record<string, string>
+  disabled?: boolean
+  onChange: (next: OptionInputDTO) => void
+  onRemove: () => void
 }) {
-  const [adding, setAdding] = useState("");
-  const f = `options[${index}]`;
+  const [adding, setAdding] = useState("")
+  const f = `options[${index}]`
   const addValue = () => {
-    const value = adding.trim();
-    if (!value) return;
+    const value = adding.trim()
+    if (!value) return
     if (option.values.some((v) => v.value.trim().toLowerCase() === value.toLowerCase())) {
-      setAdding("");
-      return;
+      setAdding("")
+      return
     }
-    onChange({ ...option, values: [...option.values, { id: newId(), value, position: option.values.length }] });
-    setAdding("");
-  };
-  const valueError = Object.entries(errors).find(([k]) => k.startsWith(`${f}.values`))?.[1];
+    onChange({ ...option, values: [...option.values, { id: newId(), value, position: option.values.length }] })
+    setAdding("")
+  }
+  const valueError = Object.entries(errors).find(([k]) => k.startsWith(`${f}.values`))?.[1]
 
   return (
     <div className="border-border grid gap-3 rounded-[var(--radius)] border p-3.5">
@@ -428,7 +448,10 @@ function OptionRow({
 
       <div className="flex flex-wrap items-center gap-1.5">
         {option.values.map((v) => (
-          <span key={v.id} className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2.5 text-sm">
+          <span
+            key={v.id}
+            className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2.5 text-sm"
+          >
             {v.value}
             <Button
               type="button"
@@ -437,7 +460,12 @@ function OptionRow({
               className="size-6"
               aria-label={`Remove ${v.value}`}
               disabled={disabled}
-              onClick={() => onChange({ ...option, values: option.values.filter((x) => x.id !== v.id).map((x, i) => ({ ...x, position: i })) })}
+              onClick={() =>
+                onChange({
+                  ...option,
+                  values: option.values.filter((x) => x.id !== v.id).map((x, i) => ({ ...x, position: i })),
+                })
+              }
             >
               <X className="size-3.5" />
             </Button>
@@ -454,18 +482,26 @@ function OptionRow({
               onChange={(e) => setAdding(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault();
-                  addValue();
+                  e.preventDefault()
+                  addValue()
                 }
               }}
             />
-            <Button type="button" variant="outline" size="sm" disabled={disabled || adding.trim() === ""} onClick={addValue}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || adding.trim() === ""}
+              onClick={addValue}
+            >
               Add
             </Button>
           </div>
         ) : null}
       </div>
-      {errors[`${f}.values`] || valueError ? <p className="text-sm font-medium">{errors[`${f}.values`] ?? valueError}</p> : null}
+      {errors[`${f}.values`] || valueError ? (
+        <p className="text-sm font-medium">{errors[`${f}.values`] ?? valueError}</p>
+      ) : null}
     </div>
-  );
+  )
 }

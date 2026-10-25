@@ -20,7 +20,6 @@ describe("⚠ FR-036 — a write is refused offline, never faked", () => {
   it("throws a DISTINCT error, so the UI can say 'offline' rather than 'something went wrong'", () => {
     onlineStore.setState((s) => ({ ...s, online: false }))
     expect(() => assertOnline()).toThrow(OfflineError)
-    // The message is what the operator reads. "Failed" would send them looking for a fault.
     expect(() => assertOnline()).toThrow(/offline/i)
   })
 
@@ -29,8 +28,6 @@ describe("⚠ FR-036 — a write is refused offline, never faked", () => {
   })
 
   it("⚠ refuses a POST without touching the network at all", async () => {
-    // The thing that must never happen is a write that looks like it worked. Refusing before the
-    // request is what makes "told it cannot be done" and "quietly did nothing" distinguishable.
     const fetchSpy = vi.spyOn(globalThis, "fetch")
     onlineStore.setState((s) => ({ ...s, online: false }))
 
@@ -40,15 +37,12 @@ describe("⚠ FR-036 — a write is refused offline, never faked", () => {
 
   it.each(["post", "put", "patch", "delete"] as const)("refuses %s offline", async (method) => {
     onlineStore.setState((s) => ({ ...s, online: false }))
-    await expect((api[method] as (p: string) => Promise<unknown>)("/shop/v1/x")).rejects.toThrow(
-      OfflineError,
-    )
+    await expect((api[method] as (p: string) => Promise<unknown>)("/shop/v1/x")).rejects.toThrow(OfflineError)
   })
 
   it("⚠ does NOT refuse a GET — a read should fall back to the cache, not to an error page", async () => {
     onlineStore.setState((s) => ({ ...s, online: false }))
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"))
-    // It fails as a network error, which is what lets TanStack Query serve its cached data.
     await expect(api.get("/shop/v1/today")).rejects.not.toBeInstanceOf(OfflineError)
   })
 })
@@ -67,8 +61,6 @@ describe("⚠ only a network failure means offline", () => {
   })
 
   it("⚠ an HTTP error does NOT mark the console offline", async () => {
-    // We reached the server. Treating a 500 as connectivity tells an operator to check their wifi
-    // over a backend defect — and hides the offline banner's meaning when it is genuinely needed.
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ title: "boom" }), {
         status: 500,
@@ -85,7 +77,6 @@ describe("FR-037 — recovery needs no manual reload", () => {
     const onReconnect = vi.fn()
     const stop = watchConnectivity(onReconnect)
 
-    // Already online: an `online` event that is not a recovery must not refetch every screen.
     window.dispatchEvent(new Event("online"))
     expect(onReconnect).not.toHaveBeenCalled()
 
@@ -104,9 +95,6 @@ describe("FR-037 — recovery needs no manual reload", () => {
 
 describe("⚠ the default is ONLINE, not offline", () => {
   it("does not render a console as offline just because the signal is unavailable", () => {
-    // `navigator.onLine` is absent in some environments. Defaulting to offline would show the
-    // banner and refuse every write on a perfectly connected console — a far worse failure than
-    // the reverse, which self-corrects on the first request.
     expect(onlineStore.state.online).toBe(true)
   })
 })

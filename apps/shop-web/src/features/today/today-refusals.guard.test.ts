@@ -3,16 +3,6 @@ import { join, resolve } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-/**
- * Three Quick actions the design offers are not built, because each would have to be faked:
- *  • New order: a shop cannot create an order; it fulfils portions of orders already paid.
- *  • Discount code: codes are platform-wide and would discount other shops' items.
- *  • Message a customer: a shop never has the customer's email, and the design's mailbox does not exist.
- *
- * A source guard; comments are stripped first, and patterns are word-bounded phrases that match wherever
- * they appear in code.
- */
-
 const TODAY_DIR = resolve(__dirname)
 
 const BANNED: Array<{ phrase: RegExp; why: string }> = [
@@ -42,7 +32,6 @@ const BANNED: Array<{ phrase: RegExp; why: string }> = [
   },
 ]
 
-/** Every.ts/.tsx file in the Today slice, minus its tests (a test may quote a banned phrase). */
 function sourceFiles(): string[] {
   return readdirSync(TODAY_DIR, { withFileTypes: true })
     .filter((e) => e.isFile())

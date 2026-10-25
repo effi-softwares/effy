@@ -1,15 +1,8 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
-import {
-  addFeedbackNote,
-  getFeedback,
-  listFeedback,
-  replyToFeedback,
-  setFeedbackStatus,
-} from "./repo"
+import { addFeedbackNote, getFeedback, listFeedback, replyToFeedback, setFeedbackStatus } from "./repo"
 import type { FeedbackListParams } from "./model"
 
-// Server state lives only in the TanStack Query cache (Principle VI).
 const ROOT = ["back-office", "feedback"] as const
 
 export const feedbackListQuery = (params: FeedbackListParams) =>

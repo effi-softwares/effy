@@ -1,81 +1,74 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import type { DeliveryDaysDTO } from "@effy/shared-types";
-import { Button, Checkbox, Input, Label } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import type { DeliveryDaysDTO } from "@effy/shared-types"
+import { Button, Checkbox, Input, Label } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText";
-import {
-  deliveryDaysQuery, useAddNonDeliveryDate, usePutDeliveryDays, useRemoveNonDeliveryDate,
-} from "../queries";
+import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText"
+import { deliveryDaysQuery, useAddNonDeliveryDate, usePutDeliveryDays, useRemoveNonDeliveryDate } from "../queries"
 
 const WEEKDAYS = [
-  [1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [7, "Sun"],
-] as const;
+  [1, "Mon"],
+  [2, "Tue"],
+  [3, "Wed"],
+  [4, "Thu"],
+  [5, "Fri"],
+  [6, "Sat"],
+  [7, "Sun"],
+] as const
 
-/**
- * Which days Effy delivers, how far ahead a customer may choose, and the timings the window rules
- * rest on.
- *
- * The hub turnaround is an assumption, and the screen says so. It has never been measured — there
- * is no timed round — and it decides what a customer is offered today, so it is labelled an estimate
- * rather than presented as a fact an operator might assume someone verified.
- *
- * Sectioned rows and a list — no cards (Principle V).
- */
 export function DeliveryDaysPanel({ canManage }: { canManage: boolean }) {
-  const days = useQuery(deliveryDaysQuery());
+  const days = useQuery(deliveryDaysQuery())
 
-  if (days.isError) return <ErrorState error={days.error} onRetry={() => void days.refetch()} />;
-  if (days.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (days.isError) return <ErrorState error={days.error} onRetry={() => void days.refetch()} />
+  if (days.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <SettingsForm value={days.data} canManage={canManage} />
       <ClosedDates value={days.data} canManage={canManage} />
     </div>
-  );
+  )
 }
 
 function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage: boolean }) {
-  const save = usePutDeliveryDays();
-  const [effyLookahead, setEffyLookahead] = useState(String(value.effyLookaheadDays));
-  const [closed, setClosed] = useState<number[]>(value.noDeliveryWeekdays);
-  const [hold, setHold] = useState(String(value.slotHoldMin));
-  const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin));
-  const [asapEstimate, setAsapEstimate] = useState(value.asapEstimate ?? "");
-  // Drivers' work: when a late step is raised to dispatch, and the daily vehicle check.
-  const [loadOverdue, setLoadOverdue] = useState(String(value.loadOverdueMin ?? 20));
-  const [checkinOverdue, setCheckinOverdue] = useState(String(value.checkinOverdueMin ?? 30));
-  const [vehicleCheck, setVehicleCheck] = useState(value.vehicleCheckRequired ?? false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const save = usePutDeliveryDays()
+  const [effyLookahead, setEffyLookahead] = useState(String(value.effyLookaheadDays))
+  const [closed, setClosed] = useState<number[]>(value.noDeliveryWeekdays)
+  const [hold, setHold] = useState(String(value.slotHoldMin))
+  const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin))
+  const [asapEstimate, setAsapEstimate] = useState(value.asapEstimate ?? "")
+  const [loadOverdue, setLoadOverdue] = useState(String(value.loadOverdueMin ?? 20))
+  const [checkinOverdue, setCheckinOverdue] = useState(String(value.checkinOverdueMin ?? 30))
+  const [vehicleCheck, setVehicleCheck] = useState(value.vehicleCheckRequired ?? false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
   // The server's values replace the form's after a save or a refetch.
   useEffect(() => {
-    setEffyLookahead(String(value.effyLookaheadDays));
-    setClosed(value.noDeliveryWeekdays);
-    setHold(String(value.slotHoldMin));
-    setTurnaround(String(value.hubTurnaroundMin));
-    setAsapEstimate(value.asapEstimate ?? "");
-    setLoadOverdue(String(value.loadOverdueMin ?? 20));
-    setCheckinOverdue(String(value.checkinOverdueMin ?? 30));
-    setVehicleCheck(value.vehicleCheckRequired ?? false);
-  }, [value]);
+    setEffyLookahead(String(value.effyLookaheadDays))
+    setClosed(value.noDeliveryWeekdays)
+    setHold(String(value.slotHoldMin))
+    setTurnaround(String(value.hubTurnaroundMin))
+    setAsapEstimate(value.asapEstimate ?? "")
+    setLoadOverdue(String(value.loadOverdueMin ?? 20))
+    setCheckinOverdue(String(value.checkinOverdueMin ?? 30))
+    setVehicleCheck(value.vehicleCheckRequired ?? false)
+  }, [value])
 
   function toggle(day: number) {
-    setSaved(false);
-    setClosed((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)));
+    setSaved(false)
+    setClosed((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)))
   }
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErrors({});
-    setError(null);
-    setSaved(false);
+    e.preventDefault()
+    setErrors({})
+    setError(null)
+    setSaved(false)
     try {
       await save.mutateAsync({
         effyLookaheadDays: Number(effyLookahead),
@@ -86,12 +79,12 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         loadOverdueMin: Number(loadOverdue),
         checkinOverdueMin: Number(checkinOverdue),
         vehicleCheckRequired: vehicleCheck,
-      });
-      setSaved(true);
+      })
+      setSaved(true)
     } catch (err) {
-      const named = fieldErrors(err);
-      setErrors(named);
-      if (Object.keys(named).length === 0) setError(deliveryMutationError(err, HUB_NOT_SET));
+      const named = fieldErrors(err)
+      setErrors(named)
+      if (Object.keys(named).length === 0) setError(deliveryMutationError(err, HUB_NOT_SET))
     }
   }
 
@@ -107,15 +100,15 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         aria-invalid={errors[id] ? true : undefined}
         aria-describedby={`days-${id}-hint`}
         onChange={(e) => {
-          setSaved(false);
-          set(e.target.value);
+          setSaved(false)
+          set(e.target.value)
         }}
       />
       <p id={`days-${id}-hint`} className={errors[id] ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
         {errors[id] ?? hint}
       </p>
     </div>
-  );
+  )
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
@@ -129,7 +122,6 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           setEffyLookahead,
         )}
 
-        {/* What a customer choosing "Standard" is told. */}
         <div className="space-y-2">
           <Label htmlFor="days-asapEstimate">“Standard” delivery tile — the timeframe customers are shown</Label>
           <Input
@@ -142,11 +134,14 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
             aria-invalid={errors.asapEstimate ? true : undefined}
             aria-describedby="days-asapEstimate-hint"
             onChange={(e) => {
-              setSaved(false);
-              setAsapEstimate(e.target.value);
+              setSaved(false)
+              setAsapEstimate(e.target.value)
             }}
           />
-          <p id="days-asapEstimate-hint" className={errors.asapEstimate ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+          <p
+            id="days-asapEstimate-hint"
+            className={errors.asapEstimate ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
+          >
             {errors.asapEstimate ??
               "Shown under “Standard” at checkout, and as “As soon as possible — …” on the order and receipt. Always an estimate, never a promised day."}
           </p>
@@ -156,7 +151,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           <legend className="text-sm font-medium">No delivery on</legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {WEEKDAYS.map(([day, name]) => {
-              const pressed = closed.includes(day);
+              const pressed = closed.includes(day)
               return (
                 <button
                   key={day}
@@ -166,12 +161,14 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
                   className={
                     "min-h-9 rounded-md border px-3 text-sm font-medium transition-colors " +
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 " +
-                    (pressed ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted")
+                    (pressed
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted")
                   }
                 >
                   {name}
                 </button>
-              );
+              )
             })}
           </div>
           {errors.noDeliveryWeekdays ? (
@@ -221,8 +218,8 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
             checked={vehicleCheck}
             disabled={!canManage}
             onCheckedChange={(v) => {
-              setSaved(false);
-              setVehicleCheck(v === true);
+              setSaved(false)
+              setVehicleCheck(v === true)
             }}
           />
           <div className="space-y-1">
@@ -249,35 +246,33 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </form>
-  );
+  )
 }
 
 function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: boolean }) {
-  const add = useAddNonDeliveryDate();
-  const remove = useRemoveNonDeliveryDate();
-  const [day, setDay] = useState("");
-  const [label, setLabel] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const add = useAddNonDeliveryDate()
+  const remove = useRemoveNonDeliveryDate()
+  const [day, setDay] = useState("")
+  const [label, setLabel] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setNotice(null);
+    e.preventDefault()
+    setError(null)
+    setNotice(null)
     try {
-      const added = await add.mutateAsync({ day, label: label.trim() || null });
-      setDay("");
-      setLabel("");
-      // Said plainly. Closing a date moves no placed order — the customer was promised that
-      // day and paid for it — so the operator has to know there are orders to deal with.
+      const added = await add.mutateAsync({ day, label: label.trim() || null })
+      setDay("")
+      setLabel("")
       if (added.affectedOrders > 0) {
         setNotice(
           `${added.affectedOrders} placed ${added.affectedOrders === 1 ? "order is" : "orders are"} already promised ${added.day}. ` +
             "They have not been changed.",
-        );
+        )
       }
     } catch (err) {
-      setError(fieldErrors(err).day ?? deliveryMutationError(err));
+      setError(fieldErrors(err).day ?? deliveryMutationError(err))
     }
   }
 
@@ -298,7 +293,12 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
                 </span>
               ) : null}
               {canManage ? (
-                <Button variant="ghost" size="sm" disabled={remove.isPending} onClick={() => void remove.mutateAsync(d.day)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={remove.isPending}
+                  onClick={() => void remove.mutateAsync(d.day)}
+                >
                   Reopen
                 </Button>
               ) : null}
@@ -315,7 +315,12 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
           </div>
           <div className="flex-1 space-y-2">
             <Label htmlFor="closed-label">Reason (optional)</Label>
-            <Input id="closed-label" placeholder="Public holiday" value={label} onChange={(e) => setLabel(e.target.value)} />
+            <Input
+              id="closed-label"
+              placeholder="Public holiday"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
           </div>
           <Button type="submit" disabled={add.isPending || !day}>
             Close date
@@ -329,5 +334,5 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </section>
-  );
+  )
 }

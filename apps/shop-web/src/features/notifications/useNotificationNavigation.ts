@@ -5,22 +5,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { onServiceWorkerNavigate } from "@/lib/pwa"
 import { track } from "@/lib/telemetry"
 
-/**
- * Handle the two messages the service worker sends.
- *
- *  navigate — a notification was tapped while this console was already open. The worker
- *  focused this window rather than opening a second one, and told us where to go.
- *  refresh — a push arrived for something already on screen, so the worker showed nothing
- *  and nudged us to refetch instead.
- *
- * Routing happens here, not in the worker. `client.navigate` would have been one line there and
- * is a full document load: it discards the Query cache, the operator's scroll position and whatever
- * they were half-way through. Going through the router keeps the SPA intact.
- *
- * `notif_opened` is fired here too, for the same reason — a service worker has no PostHog, and
- * giving it one would mean giving it a credential. It is the number that decides whether this slice
- * was worth building, and the engagement signal browsers rate-limit against.
- */
 export function useNotificationNavigation(): void {
   const navigate = useNavigate()
   const router = useRouter()
@@ -28,9 +12,6 @@ export function useNotificationNavigation(): void {
 
   useEffect(() => {
     const stop = onServiceWorkerNavigate((path) => {
-      // The worker already reduced this to a same-origin path (`safePath`), but this is the point
-      // where it becomes navigation, so it is checked again here rather than trusted across a
-      // boundary.
       if (!path.startsWith("/") || path.startsWith("//")) return
       void navigate({ to: path })
     })
@@ -41,8 +22,6 @@ export function useNotificationNavigation(): void {
         track({ name: "notif_opened", type: data.notificationType })
       }
       if (data?.type === "REFRESH") {
-        // Only what is on screen. A console with a dozen cached screens must not fire a dozen
-        // requests because one push arrived.
         void queryClient.invalidateQueries({ refetchType: "active" })
       }
     }

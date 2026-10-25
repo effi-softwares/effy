@@ -30,11 +30,6 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe("⚠ iPad detection (T043) — the device this audience actually uses", () => {
   it("recognises an iPad that reports itself as a Mac", () => {
-    // The defect this prevents. iPadOS 13+ sends a Macintosh user-agent. A check that only looks
-    // for /iPad|iPhone/ therefore treats every shop iPad as a desktop, shows no install
-    // instructions — and on iPadOS the Push API exists only for a home-screen app, so the operator
-    // can never even be asked for notification permission. The whole of US1 would be unreachable on
-    // the primary device, with nothing failing anywhere.
     stubUA(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
       5,
@@ -70,9 +65,6 @@ describe("⚠ iPad detection (T043) — the device this audience actually uses",
 
 describe("standalone detection", () => {
   it("uses Safari's own non-standard flag as well as display-mode", () => {
-    // `navigator.standalone` is the only reliable signal on older iOS. Checking display-mode alone
-    // makes an installed iPad look uninstalled, so the console keeps telling an operator to install
-    // something they are already using.
     stubDisplayMode(false)
     vi.stubGlobal("navigator", { userAgent: "iPad", maxTouchPoints: 5, standalone: true })
     expect(isStandalone()).toBe(true)
@@ -101,8 +93,6 @@ describe("dismissal is remembered (FR-006 — not nagged on every visit)", () =>
   })
 
   it("survives blocked storage instead of throwing", () => {
-    // A private window, or site data blocked. The affordance is a courtesy; a thrown read must
-    // never be able to take the console down with it.
     const orig = Storage.prototype.getItem
     Storage.prototype.getItem = () => {
       throw new Error("blocked")

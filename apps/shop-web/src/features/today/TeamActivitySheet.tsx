@@ -9,17 +9,7 @@ import { Check, CircleAlert, Dot } from "lucide-react"
 import { relativeTime } from "./model"
 import { teamActivityQuery } from "./queries"
 
-/**
- * "Team activity": the existing audit trails (fulfilment events, stock movements, shop-issued refunds) as a
- * shift. It writes nothing. The tone is a dot, not coloured text.
- */
-export function TeamActivitySheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
+export function TeamActivitySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const activity = useQuery({ ...teamActivityQuery, enabled: open })
   const now = Date.now()
 
@@ -75,7 +65,6 @@ export function TeamActivitySheet({
   )
 }
 
-/** Who acted — never blank, and never an Effy employee's name. */
 function who(actor: TeamActivityEntryDTO["actor"]): string {
   if (actor.kind === "staff") return actor.name
   if (actor.kind === "former_staff") return "A former team member"
@@ -92,7 +81,6 @@ const STATE_WORDS: Record<string, string> = {
   withdrawn: "withdrew",
 }
 
-/** One sentence per entry, in the operator's words rather than the database's. */
 function describe(entry: TeamActivityEntryDTO): string {
   const a = entry.action
   switch (a.kind) {

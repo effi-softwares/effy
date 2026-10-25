@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 
-import { AttributeField } from "./AttributeField";
-import type { ProductTypeAttribute } from "./model";
+import { AttributeField } from "./AttributeField"
+import type { ProductTypeAttribute } from "./model"
 
 function attr(over: Partial<ProductTypeAttribute>): ProductTypeAttribute {
   return {
@@ -18,33 +18,31 @@ function attr(over: Partial<ProductTypeAttribute>): ProductTypeAttribute {
     displayOrder: 0,
     groupLabel: null,
     ...over,
-  };
+  }
 }
 
-// The renderer maps each AttributeDataType to the right control (input/textarea/number/switch/
-// select/checkbox-group), from the schema alone.
 describe("AttributeField data-type → control mapping", () => {
-  const noop = vi.fn();
+  const noop = vi.fn()
 
   it("short_text → a text input", () => {
-    render(<AttributeField attr={attr({ dataType: "short_text" })} value={undefined} onChange={noop} />);
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-  });
+    render(<AttributeField attr={attr({ dataType: "short_text" })} value={undefined} onChange={noop} />)
+    expect(screen.getByRole("textbox")).toBeInTheDocument()
+  })
 
   it("long_text → a textarea", () => {
-    render(<AttributeField attr={attr({ dataType: "long_text" })} value={{ text: "x" }} onChange={noop} />);
-    expect((screen.getByRole("textbox") as HTMLElement).tagName).toBe("TEXTAREA");
-  });
+    render(<AttributeField attr={attr({ dataType: "long_text" })} value={{ text: "x" }} onChange={noop} />)
+    expect((screen.getByRole("textbox") as HTMLElement).tagName).toBe("TEXTAREA")
+  })
 
   it("number → a numeric input", () => {
-    render(<AttributeField attr={attr({ dataType: "number" })} value={undefined} onChange={noop} />);
-    expect(screen.getByRole("spinbutton")).toBeInTheDocument();
-  });
+    render(<AttributeField attr={attr({ dataType: "number" })} value={undefined} onChange={noop} />)
+    expect(screen.getByRole("spinbutton")).toBeInTheDocument()
+  })
 
   it("boolean → a switch", () => {
-    render(<AttributeField attr={attr({ dataType: "boolean" })} value={{ boolean: true }} onChange={noop} />);
-    expect(screen.getByRole("switch")).toBeInTheDocument();
-  });
+    render(<AttributeField attr={attr({ dataType: "boolean" })} value={{ boolean: true }} onChange={noop} />)
+    expect(screen.getByRole("switch")).toBeInTheDocument()
+  })
 
   it("single_select (small) → radios from allowedValues", () => {
     render(
@@ -59,10 +57,10 @@ describe("AttributeField data-type → control mapping", () => {
         value={undefined}
         onChange={noop}
       />,
-    );
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
-    expect(screen.getByText("Mild")).toBeInTheDocument();
-  });
+    )
+    expect(screen.getAllByRole("radio")).toHaveLength(2)
+    expect(screen.getByText("Mild")).toBeInTheDocument()
+  })
 
   it("multi_select → a checkbox group from allowedValues", () => {
     render(
@@ -77,9 +75,9 @@ describe("AttributeField data-type → control mapping", () => {
         value={{ options: ["nuts"] }}
         onChange={noop}
       />,
-    );
-    expect(screen.getAllByRole("checkbox")).toHaveLength(2);
-  });
+    )
+    expect(screen.getAllByRole("checkbox")).toHaveLength(2)
+  })
 
   it("shows the unit, help text, and a mandatory marker", () => {
     render(
@@ -88,9 +86,9 @@ describe("AttributeField data-type → control mapping", () => {
         value={undefined}
         onChange={noop}
       />,
-    );
-    expect(screen.getByText("(g)")).toBeInTheDocument();
-    expect(screen.getByText("Net weight")).toBeInTheDocument();
-    expect(screen.getByText("*")).toBeInTheDocument();
-  });
-});
+    )
+    expect(screen.getByText("(g)")).toBeInTheDocument()
+    expect(screen.getByText("Net weight")).toBeInTheDocument()
+    expect(screen.getByText("*")).toBeInTheDocument()
+  })
+})

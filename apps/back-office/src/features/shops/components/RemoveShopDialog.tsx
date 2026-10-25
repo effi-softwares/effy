@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"
 
 import {
   AlertDialog,
@@ -9,47 +9,39 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { shopMutationError } from "../errorText";
-import { useDeleteShop } from "../queries";
+import { shopMutationError } from "../errorText"
+import { useDeleteShop } from "../queries"
 
-// Explicit-confirm shop removal (DELETE /admin/v1/shops/{id}) via alert-dialog. Emits shop_deleted;
-// navigates away on success (the shop no longer exists).
-export interface RemoveShopDialogProps {
-  shopId: string;
-  shopName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onRemoved: () => void;
+interface RemoveShopDialogProps {
+  shopId: string
+  shopName: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onRemoved: () => void
 }
 
-export function RemoveShopDialog({
-  shopId,
-  shopName,
-  open,
-  onOpenChange,
-  onRemoved,
-}: RemoveShopDialogProps) {
-  const deleteShop = useDeleteShop(shopId);
-  const [formError, setFormError] = useState<string | null>(null);
+export function RemoveShopDialog({ shopId, shopName, open, onOpenChange, onRemoved }: RemoveShopDialogProps) {
+  const deleteShop = useDeleteShop(shopId)
+  const [formError, setFormError] = useState<string | null>(null)
 
   async function confirm() {
-    setFormError(null);
+    setFormError(null)
     try {
-      await deleteShop.mutateAsync();
-      track({ name: "shop_deleted", shopId });
-      onOpenChange(false);
-      onRemoved();
+      await deleteShop.mutateAsync()
+      track({ name: "shop_deleted", shopId })
+      onOpenChange(false)
+      onRemoved()
     } catch (err) {
       setFormError(
         shopMutationError(
           err,
           "This shop has had operators, so it can't be removed. Disable it instead — its history is kept.",
         ),
-      );
+      )
     }
   }
 
@@ -67,8 +59,8 @@ export function RemoveShopDialog({
           <AlertDialogCancel disabled={deleteShop.isPending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
-              e.preventDefault();
-              void confirm();
+              e.preventDefault()
+              void confirm()
             }}
             disabled={deleteShop.isPending}
           >
@@ -77,5 +69,5 @@ export function RemoveShopDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

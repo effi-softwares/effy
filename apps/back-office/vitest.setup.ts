@@ -1,6 +1,5 @@
-import "@testing-library/jest-dom/vitest";
+import "@testing-library/jest-dom/vitest"
 
-// jsdom lacks matchMedia; the dashboard shell's responsive hook (useIsMobile) needs it.
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string): MediaQueryList =>
     ({
@@ -12,28 +11,22 @@ if (typeof window !== "undefined" && !window.matchMedia) {
       addListener: () => {},
       removeListener: () => {},
       dispatchEvent: () => false,
-    }) as unknown as MediaQueryList;
+    }) as unknown as MediaQueryList
 }
 
-// jsdom implements no Pointer Capture API and no scrollIntoView. Radix's Select calls both while
-// opening, so without these any test that opens a <Select> dies with an unhandled TypeError
-// which vitest reports as an "unhandled error", not as a failing assertion, so it is easy to
-// mistake for flake. Every console surface that offers a choice uses this primitive.
 for (const m of ["hasPointerCapture", "setPointerCapture", "releasePointerCapture"] as const) {
   if (!(m in Element.prototype)) {
-    Object.defineProperty(Element.prototype, m, { value: () => false, writable: true });
+    Object.defineProperty(Element.prototype, m, { value: () => false, writable: true })
   }
 }
 if (!("scrollIntoView" in Element.prototype)) {
-  Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true });
+  Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true })
 }
 
-// jsdom has no ResizeObserver. Radix's Checkbox measures itself with one the moment it is checked,
-// so a test that only renders a checkbox passes and one that ticks it dies.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as unknown as typeof ResizeObserver;
+  } as unknown as typeof ResizeObserver
 }

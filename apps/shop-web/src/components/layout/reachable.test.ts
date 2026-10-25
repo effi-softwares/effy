@@ -5,20 +5,12 @@ import { describe, expect, it } from "vitest"
 
 import { NAV } from "./nav"
 
-/**
- * Every screen is reachable without typing a URL. A screen linked from nowhere (the notification
- * settings once were) means no device can register and every push is skipped, with all its tests green.
- * An exemption states its reason here, beside the rule.
- */
 const ROUTES_DIR = join(__dirname, "..", "..", "routes")
 
-/** Routes that are deliberately not in the nav, each with the reason it is not. */
 const EXEMPT: Record<string, string> = {
   "catalog/new": "reached from the Catalog screen's own 'Add product' action, where the work is",
-  "dev/tokens": "a dev-only page of swatches; router.tsx strips it from production builds",
 }
 
-/** Every `path:` a route file declares. */
 function declaredPaths(): Array<{ file: string; path: string }> {
   const out: Array<{ file: string; path: string }> = []
   for (const f of readdirSync(ROUTES_DIR)) {
@@ -39,7 +31,7 @@ describe("⚠ no screen is reachable only by typing its URL", () => {
     const navTargets = new Set(NAV.map((n) => n.to.replace(/^\//, "")))
 
     const unreachable = declaredPaths().filter(({ file, path }) => {
-      if (file.startsWith("auth")) return false // the sign-in flow is where you arrive, not navigate
+      if (file.startsWith("auth")) return false
       if (path.includes("$")) return false // a detail screen, opened from its own list
       if (path === "/" || path === "") return false // the index screen
       return !navTargets.has(path) && !(path in EXEMPT)
@@ -52,15 +44,10 @@ describe("⚠ no screen is reachable only by typing its URL", () => {
   })
 
   it("the notification settings screen specifically is in the nav", () => {
-    // Named explicitly, not just covered by the sweep above: this is the one that was missing, and
-    // the whole push feature is unusable without it. A regression here silently costs the operator
-    // every notification, with the backend reporting healthy `skipped: no_token` drains forever.
     expect(NAV.map((n) => n.to)).toContain("/settings/notifications")
   })
 
   it("every exemption names a real route", () => {
-    // An exemption for a route that no longer exists is a stale excuse that would let a genuinely
-    // unreachable screen inherit it.
     const paths = new Set(declaredPaths().map((p) => p.path))
     for (const key of Object.keys(EXEMPT)) {
       expect(paths.has(key), `EXEMPT lists "${key}", which is not a declared route`).toBe(true)
@@ -68,12 +55,8 @@ describe("⚠ no screen is reachable only by typing its URL", () => {
   })
 
   it("every nav item points at a route that exists", () => {
-    // The mirror image: a nav entry to nowhere gives an operator a 404 and teaches them the console
-    // is unreliable. 059's own P3 test makes the same assertion for notification destinations.
     const paths = new Set(declaredPaths().map((p) => p.path))
-    const broken = NAV.map((n) => n.to.replace(/^\//, "")).filter(
-      (t) => t !== "" && !paths.has(t),
-    )
+    const broken = NAV.map((n) => n.to.replace(/^\//, "")).filter((t) => t !== "" && !paths.has(t))
     expect(broken, "nav item(s) pointing at a route that does not exist").toEqual([])
   })
 })

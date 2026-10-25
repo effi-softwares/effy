@@ -20,16 +20,6 @@ import {
   type ZebraDevice,
 } from "@/features/fulfillment/labels/printer"
 
-/**
- * Settings → Printing: which printer this computer prints bag labels on,
- * its resolution, and the label size. Remembered on this computer only — each shop PC drives its own
- * printer.
- *
- * Direct printing (no print dialog) is for Zebra label printers through Zebra Browser Print, Zebra's free
- * helper installed on this computer. Without it, labels print through the browser at their exact size.
- *
- * Sectioned rows, not cards (Principle V).
- */
 export function PrintingSettingsScreen() {
   const [choice, setChoice] = useState<PrinterChoice>(rememberedPrinter)
   const [layout, setLayout] = useState<LabelLayout>(rememberedLayout)
@@ -51,10 +41,16 @@ export function PrintingSettingsScreen() {
 
   return (
     <Page>
-      <PageHeader title="Printing" description="Choose how this computer prints bag labels; each computer keeps its own setting." />
+      <PageHeader
+        title="Printing"
+        description="Choose how this computer prints bag labels; each computer keeps its own setting."
+      />
       <section className="bo-panel max-w-3xl">
         <div>
-          <Row label="Printer" hint="Labels go straight to a Zebra label printer when Zebra Browser Print is running on this computer.">
+          <Row
+            label="Printer"
+            hint="Labels go straight to a Zebra label printer when Zebra Browser Print is running on this computer."
+          >
             <Select
               value={value}
               onValueChange={(v) => {
@@ -68,7 +64,8 @@ export function PrintingSettingsScreen() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="browser">The browser's print window</SelectItem>
-                {choice.kind === "zebra" && !(Array.isArray(zebras) && zebras.some((z) => z.uid === choice.device.uid)) ? (
+                {choice.kind === "zebra" &&
+                !(Array.isArray(zebras) && zebras.some((z) => z.uid === choice.device.uid)) ? (
                   <SelectItem value={value}>{choice.device.name} (not found now)</SelectItem>
                 ) : null}
                 {Array.isArray(zebras)
@@ -87,8 +84,8 @@ export function PrintingSettingsScreen() {
           </Row>
           {zebras === null ? (
             <p className="border-b border-border px-5 py-4 text-sm text-muted-foreground">
-              No Zebra Browser Print on this computer. To print straight to a Zebra label printer, install Zebra Browser Print
-              from Zebra's website, start it, then open{" "}
+              No Zebra Browser Print on this computer. To print straight to a Zebra label printer, install Zebra Browser
+              Print from Zebra's website, start it, then open{" "}
               <a className="text-primary underline" href={BROWSER_PRINT_URL} target="_blank" rel="noreferrer">
                 {BROWSER_PRINT_URL}
               </a>{" "}
@@ -96,7 +93,10 @@ export function PrintingSettingsScreen() {
             </p>
           ) : null}
 
-          <Row label="Printer resolution" hint="Printed on the printer's own label or in its manual. Most label printers are 203 dpi.">
+          <Row
+            label="Printer resolution"
+            hint="Printed on the printer's own label or in its manual. Most label printers are 203 dpi."
+          >
             <Select value={String(choice.dpi)} onValueChange={(v) => save({ ...choice, dpi: Number(v) as PrinterDpi })}>
               <SelectTrigger aria-label="Printer resolution" className="w-[180px]">
                 <SelectValue />
@@ -108,7 +108,10 @@ export function PrintingSettingsScreen() {
             </Select>
           </Row>
 
-          <Row label="Label size" hint="4 × 6 in (A6) for label printers; A4 prints four labels per sheet on an office printer.">
+          <Row
+            label="Label size"
+            hint="4 × 6 in (A6) for label printers; A4 prints four labels per sheet on an office printer."
+          >
             <Select
               value={layout}
               onValueChange={(v) => {
@@ -140,7 +143,11 @@ export function PrintingSettingsScreen() {
               <Printer aria-hidden="true" />
               Print a test label
             </Button>
-            {result ? <span role="status" className="text-sm font-medium">{result}</span> : null}
+            {result ? (
+              <span role="status" className="text-sm font-medium">
+                {result}
+              </span>
+            ) : null}
           </Row>
         </div>
       </section>

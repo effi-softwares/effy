@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { IssueRefundRequest, RefundReason } from "@effy/shared-types";
+import type { IssueRefundRequest, RefundReason } from "@effy/shared-types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,68 +20,48 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { refundActionError } from "../refundErrorText";
-import { useIssueRefund } from "../refundQueries";
+import { refundActionError } from "../refundErrorText"
+import { useIssueRefund } from "../refundQueries"
 
-export interface RefundableLine {
-  orderItemId: string;
-  productName: string;
-  /** The size as sold. */
-  variantLabel?: string | null;
-  quantity: number;
-  unitPriceAmount: string;
+interface RefundableLine {
+  orderItemId: string
+  productName: string
+  variantLabel?: string | null
+  quantity: number
+  unitPriceAmount: string
 }
 
-/**
- * Issuing a refund.
- *
- * This is the only control in this console that moves money, and refunding is irreversible: there
- * is no un-refund, and a correction would be a new charge the platform cannot make. Everything about
- * this component is shaped by that — a confirmation step that names the amount (FR/T031), no
- * optimistic update, and an amount that is computed rather than typed.
- *
- * Two kinds, never blurred. Selecting lines computes the amount and it cannot be edited:
- * if the two could disagree, the record would claim a refund covered items it did not. A goodwill
- * refund takes a free amount and requires a note, so the honest case for an untied figure — a late
- * delivery — does not have to borrow a line and put a false statement in the audit trail.
- *
- * Detail rows and controls, no cards (Principle V), and no colour carries meaning.
- */
 export function RefundPanel({
   orderId,
   lines,
   refundableAmount,
 }: {
-  orderId: string;
-  lines: RefundableLine[];
-  refundableAmount: string;
+  orderId: string
+  lines: RefundableLine[]
+  refundableAmount: string
 }) {
-  const issue = useIssueRefund(orderId);
+  const issue = useIssueRefund(orderId)
 
-  const [kind, setKind] = useState<"item" | "goodwill">("item");
-  const [selected, setSelected] = useState<Record<string, number>>({});
-  const [reason, setReason] = useState<RefundReason>("item_not_supplied");
-  const [note, setNote] = useState("");
-  const [goodwillAmount, setGoodwillAmount] = useState("");
-  const [confirming, setConfirming] = useState(false);
+  const [kind, setKind] = useState<"item" | "goodwill">("item")
+  const [selected, setSelected] = useState<Record<string, number>>({})
+  const [reason, setReason] = useState<RefundReason>("item_not_supplied")
+  const [note, setNote] = useState("")
+  const [goodwillAmount, setGoodwillAmount] = useState("")
+  const [confirming, setConfirming] = useState(false)
 
-  // Computed, never typed. This figure is what the server will independently recompute from the
-  // same lines; showing anything else would be a promise the server may not keep.
   const computed = lines
     .filter((l) => selected[l.orderItemId])
-    .reduce((sum, l) => sum + Number(l.unitPriceAmount) * (selected[l.orderItemId] ?? 0), 0);
+    .reduce((sum, l) => sum + Number(l.unitPriceAmount) * (selected[l.orderItemId] ?? 0), 0)
 
-  const amountToRefund = kind === "item" ? computed.toFixed(2) : goodwillAmount;
+  const amountToRefund = kind === "item" ? computed.toFixed(2) : goodwillAmount
   const canSubmit =
-    kind === "item"
-      ? computed > 0
-      : goodwillAmount.trim() !== "" && Number(goodwillAmount) > 0 && note.trim() !== "";
+    kind === "item" ? computed > 0 : goodwillAmount.trim() !== "" && Number(goodwillAmount) > 0 && note.trim() !== ""
 
   function body(): IssueRefundRequest {
     if (kind === "goodwill") {
-      return { kind: "goodwill", amount: goodwillAmount, note };
+      return { kind: "goodwill", amount: goodwillAmount, note }
     }
     return {
       kind: "item",
@@ -90,7 +70,7 @@ export function RefundPanel({
       lines: lines
         .filter((l) => selected[l.orderItemId])
         .map((l) => ({ orderItemId: l.orderItemId, quantity: selected[l.orderItemId]! })),
-    };
+    }
   }
 
   return (
@@ -123,10 +103,10 @@ export function RefundPanel({
           selected={selected}
           onToggle={(id, qty) =>
             setSelected((s) => {
-              const next = { ...s };
-              if (qty <= 0) delete next[id];
-              else next[id] = qty;
-              return next;
+              const next = { ...s }
+              if (qty <= 0) delete next[id]
+              else next[id] = qty
+              return next
             })
           }
           reason={reason}
@@ -134,12 +114,7 @@ export function RefundPanel({
           computed={computed}
         />
       ) : (
-        <GoodwillFields
-          amount={goodwillAmount}
-          onAmount={setGoodwillAmount}
-          note={note}
-          onNote={setNote}
-        />
+        <GoodwillFields amount={goodwillAmount} onAmount={setGoodwillAmount} note={note} onNote={setNote} />
       )}
 
       <Button disabled={!canSubmit || issue.isPending} onClick={() => setConfirming(true)}>
@@ -153,16 +128,10 @@ export function RefundPanel({
       ) : null}
       {issue.isSuccess ? (
         <p role="status" className="text-sm">
-          {/* "on its way", not "refunded". The bank has not moved anything and may refuse it weeks
-              later. Telling staff it is done would make them stop watching. */}
-          {issue.data.amount} is on its way back to the customer. {issue.data.remainingAmount} remains
-          refundable.
+          {issue.data.amount} is on its way back to the customer. {issue.data.remainingAmount} remains refundable.
         </p>
       ) : null}
 
-      {/* A confirmation that names the amount. This control moves real money and refunding
-          is irreversible; a mis-click here is not a wrong pixel. The dialog states the figure and what
-          it covers, so confirming is a deliberate act rather than a second click in the same place. */}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -180,9 +149,9 @@ export function RefundPanel({
               onClick={() =>
                 issue.mutate(body(), {
                   onSuccess: () => {
-                    setSelected({});
-                    setGoodwillAmount("");
-                    setNote("");
+                    setSelected({})
+                    setGoodwillAmount("")
+                    setNote("")
                   },
                 })
               }
@@ -193,7 +162,7 @@ export function RefundPanel({
         </AlertDialogContent>
       </AlertDialog>
     </section>
-  );
+  )
 }
 
 function ItemSelection({
@@ -204,15 +173,15 @@ function ItemSelection({
   onReason,
   computed,
 }: {
-  lines: RefundableLine[];
-  selected: Record<string, number>;
-  onToggle: (id: string, qty: number) => void;
-  reason: RefundReason;
-  onReason: (r: RefundReason) => void;
-  computed: number;
+  lines: RefundableLine[]
+  selected: Record<string, number>
+  onToggle: (id: string, qty: number) => void
+  reason: RefundReason
+  onReason: (r: RefundReason) => void
+  computed: number
 }) {
   if (lines.length === 0) {
-    return <p className="text-sm text-muted-foreground">Every line on this order is fully refunded.</p>;
+    return <p className="text-sm text-muted-foreground">Every line on this order is fully refunded.</p>
   }
   return (
     <div className="space-y-3">
@@ -256,15 +225,12 @@ function ItemSelection({
         </Select>
       </div>
 
-      {/* Read-only, and that is the requirement (FR-003 / A7a). If this could be typed over, the
-          amount and the line selection could disagree, and the record would claim a refund covered
-          items it did not. */}
       <dl className="grid grid-cols-[10rem_1fr] gap-x-4 text-sm">
         <dt className="text-muted-foreground">Amount</dt>
         <dd className="tabular-nums font-medium">{computed.toFixed(2)}</dd>
       </dl>
     </div>
-  );
+  )
 }
 
 function GoodwillFields({
@@ -273,10 +239,10 @@ function GoodwillFields({
   note,
   onNote,
 }: {
-  amount: string;
-  onAmount: (v: string) => void;
-  note: string;
-  onNote: (v: string) => void;
+  amount: string
+  onAmount: (v: string) => void
+  note: string
+  onNote: (v: string) => void
 }) {
   return (
     <div className="space-y-3">
@@ -292,8 +258,6 @@ function GoodwillFields({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="goodwill-note">Why</Label>
-        {/* Required, and the database refuses without it. An amount with no line and no explanation
-            is unaccountable — nobody reading the record later can say what it was for. */}
         <Textarea
           id="goodwill-note"
           value={note}
@@ -302,5 +266,5 @@ function GoodwillFields({
         />
       </div>
     </div>
-  );
+  )
 }

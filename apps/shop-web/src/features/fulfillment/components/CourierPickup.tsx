@@ -6,14 +6,15 @@ import { Button } from "@effy/design-system/ui"
 import { canHandOver, courierPickupLine, pickupWhen } from "../courierPickup"
 import { useCourierHandover } from "../queries"
 
-/**
- * A courier collects this parcel from the shop: who comes, when, the label to attach, and
- * "Handed over to courier" once they have it.
- *
- * Rows, not a card (Principle V), in the "Customer and delivery" section. The shop prepares and
- * marks the parcel ready exactly as before; the handover is the only new step.
- */
-export function CourierPickup({ fulfillmentId, status, pickup }: { fulfillmentId: string; status: string; pickup: CourierPickupDTO }) {
+export function CourierPickup({
+  fulfillmentId,
+  status,
+  pickup,
+}: {
+  fulfillmentId: string
+  status: string
+  pickup: CourierPickupDTO
+}) {
   const handOver = useCourierHandover(fulfillmentId)
   const when = pickupWhen(pickup)
   const service = [pickup.courierName, pickup.serviceName].filter(Boolean).join(" · ")
@@ -47,7 +48,12 @@ export function CourierPickup({ fulfillmentId, status, pickup }: { fulfillmentId
           <>
             <dt className="text-muted-foreground">Label</dt>
             <dd>
-              <a className="font-medium text-primary hover:underline" href={pickup.labelUrl} target="_blank" rel="noreferrer">
+              <a
+                className="font-medium text-primary hover:underline"
+                href={pickup.labelUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open label to print
               </a>
             </dd>

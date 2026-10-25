@@ -1,33 +1,28 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CalendarClock, PackageX, Truck, UserX } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { CalendarClock, PackageX, Truck, UserX } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { AssignmentActions } from "@/features/assign/AssignmentActions";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import { PageHeader } from "@effy/web-kit/patterns"
+import { AssignmentActions } from "@/features/assign/AssignmentActions"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
-import { canDispatch } from "./access";
-import { RoundTable } from "./components/RoundTable";
-import { UnassignedPanel } from "./components/UnassignedPanel";
-import { WindowsByDay } from "./components/WindowsByDay";
-import { dispatchDayQuery } from "./queries";
+import { canDispatch } from "./access"
+import { RoundTable } from "./components/RoundTable"
+import { UnassignedPanel } from "./components/UnassignedPanel"
+import { WindowsByDay } from "./components/WindowsByDay"
+import { dispatchDayQuery } from "./queries"
 
-/**
- * Dispatch: who has what, when each round opens, and anything that needs a driver, in three sections
- * (Needs a driver · Delivery windows · Rounds). Auto-assign runs every 5 minutes; a person steps in only
- * where it can't. Re-read when work moves; nothing polls.
- */
-type Section = "driver" | "windows" | "rounds";
+type Section = "driver" | "windows" | "rounds"
 
 export function DispatchDayScreen() {
-  const { data, error, isPending, isError, refetch } = useQuery(dispatchDayQuery());
-  const mayAssign = canDispatch(useSessionRoles());
-  const [section, setSection] = useState<Section>("driver");
+  const { data, error, isPending, isError, refetch } = useQuery(dispatchDayQuery())
+  const mayAssign = canDispatch(useSessionRoles())
+  const [section, setSection] = useState<Section>("driver")
 
   return (
     <>
@@ -45,13 +40,13 @@ export function DispatchDayScreen() {
         </div>
       ) : (
         <>
-          {/* FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
-          {data.failedParcels && (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
+          {data.failedParcels &&
+          (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
             <Link to="/exceptions" className="bo-alert bo-alert--destructive no-underline">
               <PackageX aria-hidden="true" />
               <div className="bo-alert__title">
-                Failed deliveries: {data.failedParcels.withDrivers} still with drivers · {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting
-                for a decision.
+                Failed deliveries: {data.failedParcels.withDrivers} still with drivers ·{" "}
+                {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting for a decision.
               </div>
               <div className="bo-alert__description">See exceptions — each one has a customer still waiting.</div>
             </Link>
@@ -77,7 +72,9 @@ export function DispatchDayScreen() {
                   </TabsTrigger>
                 </TabsList>
               </div>
-              <span className="text-xs text-muted-foreground max-md:hidden">Live — re-reads when a driver or auto-assign moves work</span>
+              <span className="text-xs text-muted-foreground max-md:hidden">
+                Live — re-reads when a driver or auto-assign moves work
+              </span>
             </div>
 
             <TabsContent value="driver" className="bo-tabpanel">
@@ -89,7 +86,16 @@ export function DispatchDayScreen() {
                         <AssignmentActions
                           packageId={item.packageId}
                           stage={item.stage}
-                          assignment={{ assignmentId: null, driver: null, opensAt: null, dueAt: null, roundId: null, how: null, unassignedReason: null, movable: true }}
+                          assignment={{
+                            assignmentId: null,
+                            driver: null,
+                            opensAt: null,
+                            dueAt: null,
+                            roundId: null,
+                            how: null,
+                            unassignedReason: null,
+                            movable: true,
+                          }}
                           title={`${item.orderNumber} · ${item.shopName}`}
                         />
                       )
@@ -97,7 +103,6 @@ export function DispatchDayScreen() {
                 }
               />
             </TabsContent>
-            {/* Every day on sale: each window's parcels and who has its round. */}
             <TabsContent value="windows" className="bo-tabpanel">
               <WindowsByDay />
             </TabsContent>
@@ -108,5 +113,5 @@ export function DispatchDayScreen() {
         </>
       )}
     </>
-  );
+  )
 }

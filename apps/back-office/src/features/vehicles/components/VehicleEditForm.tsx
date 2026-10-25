@@ -1,25 +1,24 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { Button, Input, Label } from "@effy/design-system/ui";
-import type { VehicleDetail, VehicleFuelType, VehicleUpdateRequest } from "@effy/shared-types";
+import { Button, Input, Label } from "@effy/design-system/ui"
+import type { VehicleDetail, VehicleFuelType, VehicleUpdateRequest } from "@effy/shared-types"
 
-import { FUEL_TYPE_LABEL } from "../model";
-import { vehicleActionError, vehicleFieldErrors } from "../errorText";
-import { useUpdateVehicle } from "../queries";
+import { FUEL_TYPE_LABEL } from "../model"
+import { vehicleActionError, vehicleFieldErrors } from "../errorText"
+import { useUpdateVehicle } from "../queries"
 
-const FUEL_TYPES = Object.keys(FUEL_TYPE_LABEL) as VehicleFuelType[];
+const FUEL_TYPES = Object.keys(FUEL_TYPE_LABEL) as VehicleFuelType[]
 
-/** An empty box means clear. `null`, not `undefined` — see the note on submit. */
 function orNull(v: string): string | null {
-  const t = v.trim();
-  return t === "" ? null : t;
+  const t = v.trim()
+  return t === "" ? null : t
 }
 
 function numOrNull(v: string): number | null {
-  const t = v.trim();
-  if (t === "") return null;
-  const n = Number(t);
-  return Number.isInteger(n) ? n : null;
+  const t = v.trim()
+  if (t === "") return null
+  const n = Number(t)
+  return Number.isInteger(n) ? n : null
 }
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
@@ -28,38 +27,35 @@ function Field({ id, label, children }: { id: string; label: string; children: R
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
-  );
+  )
 }
 
 export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
-  const [year, setYear] = useState(vehicle.year?.toString() ?? "");
-  const [fuelType, setFuelType] = useState<string>(vehicle.fuelType ?? "");
-  const [payloadKg, setPayload] = useState(vehicle.payloadKg?.toString() ?? "");
-  const [loadVolumeLitres, setVolume] = useState(vehicle.loadVolumeLitres?.toString() ?? "");
-  const [crateCapacity, setCrates] = useState(vehicle.crateCapacity?.toString() ?? "");
-  const [canCarryChilled, setChilled] = useState(vehicle.canCarryChilled);
-  const [canCarryFrozen, setFrozen] = useState(vehicle.canCarryFrozen);
-  const [registrationExpiresOn, setReg] = useState(vehicle.registrationExpiresOn ?? "");
-  const [insurancePolicyReference, setPolicy] = useState(vehicle.insurancePolicyReference ?? "");
-  const [insuranceExpiresOn, setIns] = useState(vehicle.insuranceExpiresOn ?? "");
-  const [roadworthyExpiresOn, setRwc] = useState(vehicle.roadworthyExpiresOn ?? "");
-  const [odometerKm, setOdo] = useState(vehicle.odometerKm?.toString() ?? "");
-  const [notes, setNotes] = useState(vehicle.notes ?? "");
+  const [year, setYear] = useState(vehicle.year?.toString() ?? "")
+  const [fuelType, setFuelType] = useState<string>(vehicle.fuelType ?? "")
+  const [payloadKg, setPayload] = useState(vehicle.payloadKg?.toString() ?? "")
+  const [loadVolumeLitres, setVolume] = useState(vehicle.loadVolumeLitres?.toString() ?? "")
+  const [crateCapacity, setCrates] = useState(vehicle.crateCapacity?.toString() ?? "")
+  const [canCarryChilled, setChilled] = useState(vehicle.canCarryChilled)
+  const [canCarryFrozen, setFrozen] = useState(vehicle.canCarryFrozen)
+  const [registrationExpiresOn, setReg] = useState(vehicle.registrationExpiresOn ?? "")
+  const [insurancePolicyReference, setPolicy] = useState(vehicle.insurancePolicyReference ?? "")
+  const [insuranceExpiresOn, setIns] = useState(vehicle.insuranceExpiresOn ?? "")
+  const [roadworthyExpiresOn, setRwc] = useState(vehicle.roadworthyExpiresOn ?? "")
+  const [odometerKm, setOdo] = useState(vehicle.odometerKm?.toString() ?? "")
+  const [notes, setNotes] = useState(vehicle.notes ?? "")
 
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ field: string; message: string }[]>([])
+  const [saved, setSaved] = useState(false)
 
-  const update = useUpdateVehicle(vehicle.id);
+  const update = useUpdateVehicle(vehicle.id)
 
   function submit() {
-    setError(null);
-    setFieldErrors([]);
-    setSaved(false);
+    setError(null)
+    setFieldErrors([])
+    setSaved(false)
 
-    /**
-     * Every key is sent, and `null` means clear: the server reads the presence of a key. Do not drop nulls.
-     */
     const body: VehicleUpdateRequest = {
       updatedAt: vehicle.updatedAt,
       year: numOrNull(year),
@@ -75,15 +71,15 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
       roadworthyExpiresOn: orNull(roadworthyExpiresOn),
       odometerKm: numOrNull(odometerKm),
       notes: orNull(notes),
-    };
+    }
 
     update.mutate(body, {
       onSuccess: () => setSaved(true),
       onError: (e) => {
-        setError(vehicleActionError(e, "update"));
-        setFieldErrors(vehicleFieldErrors(e));
+        setError(vehicleActionError(e, "update"))
+        setFieldErrors(vehicleFieldErrors(e))
       },
-    });
+    })
   }
 
   return (
@@ -111,7 +107,12 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
           <Input id="ve-payload" inputMode="numeric" value={payloadKg} onChange={(e) => setPayload(e.target.value)} />
         </Field>
         <Field id="ve-volume" label="Load volume (L)">
-          <Input id="ve-volume" inputMode="numeric" value={loadVolumeLitres} onChange={(e) => setVolume(e.target.value)} />
+          <Input
+            id="ve-volume"
+            inputMode="numeric"
+            value={loadVolumeLitres}
+            onChange={(e) => setVolume(e.target.value)}
+          />
         </Field>
         <Field id="ve-crates" label="Crate capacity">
           <Input id="ve-crates" inputMode="numeric" value={crateCapacity} onChange={(e) => setCrates(e.target.value)} />
@@ -165,5 +166,5 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
         {update.isPending ? "Saving…" : "Save changes"}
       </Button>
     </div>
-  );
+  )
 }

@@ -42,16 +42,6 @@ const ROLE_LABEL: Record<ShopRole, string> = {
   shop_staff: "Staff",
 }
 
-/**
- * The shop's own team.
- *
- * The roster is readable by everyone, the actions are manager-only. Knowing who you work
- * with is not privileged; changing who can do what is. And this component is not the gate — the
- * backend re-checks `shop_manager` against the platform record on every write and refuses regardless.
- * Withholding the controls only spares a staff member a refusal they can do nothing about.
- *
- * It writes the same records back-office owns. There is no shop-local roster.
- */
 export function TeamRoster() {
   const { data, error, isPending, isError, refetch } = useQuery(teamQuery)
   const { data: session } = useQuery(sessionQuery)
@@ -127,16 +117,9 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
 
   return (
     <TableRow>
-      {/* Every list of people carries avatars (adoption prompt, Phase 2 §8). Seeded on the staff
-          ID, so a colleague keeps one tint here and anywhere else they appear — and a rename does not
-          re-colour them. */}
       <TableCell className="font-medium">
         <span className="flex items-center gap-2.5">
-          <InitialsAvatar
-            name={member.name ?? member.email ?? "?"}
-            seed={member.staffId}
-            className="size-8 shrink-0"
-          />
+          <InitialsAvatar name={member.name ?? member.email ?? "?"} seed={member.staffId} className="size-8 shrink-0" />
           {member.name ?? "—"}
         </span>
       </TableCell>
@@ -174,7 +157,6 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
         ) : null}
       </TableCell>
       <TableCell>
-        {/* Status by word, never a hue (Principle V). */}
         {member.status === "active" ? (
           <span className="bo-st bo-st--done">Active</span>
         ) : (
@@ -183,8 +165,6 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
       </TableCell>
       {canManage ? (
         <TableCell className="text-right">
-          {/* Withheld on your own row — a courtesy against locking yourself out. The backend also
-              refuses removing the last manager, which is the actual protection. */}
           {member.status === "active" && !member.isSelf ? (
             <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirm(true)}>
               Stand down
@@ -216,13 +196,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
   )
 }
 
-function InviteDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
+function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const invite = useInviteStaff()
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
@@ -239,9 +213,6 @@ function InviteDialog({
           setName("")
           onOpenChange(false)
         },
-        // The server's own words are shown. "That email belongs to someone who was stood down here"
-        // is the whole point of the refusal — a generic "couldn't invite" would leave the manager
-        // retrying an address that will never work.
         onError: (e) => setError(productMutationError(e)),
       },
     )
@@ -264,12 +235,7 @@ function InviteDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="invite-email">Work email</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="invite-role">Role</Label>
@@ -297,10 +263,7 @@ function InviteDialog({
           <Button variant="ghost" disabled={invite.isPending} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={invite.isPending || !email.trim() || !name.trim()}
-            onClick={submit}
-          >
+          <Button disabled={invite.isPending || !email.trim() || !name.trim()} onClick={submit}>
             {invite.isPending ? "Inviting…" : "Send invite"}
           </Button>
         </ResponsiveModalFooter>

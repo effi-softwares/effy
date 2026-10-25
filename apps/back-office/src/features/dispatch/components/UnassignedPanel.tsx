@@ -1,25 +1,17 @@
-import { Clock, UserX } from "lucide-react";
+import { Clock, UserX } from "lucide-react"
 
-import type { UnassignedWorkDTO } from "@effy/shared-types";
+import type { UnassignedWorkDTO } from "@effy/shared-types"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
+import { Panel, EmptyState } from "@effy/web-kit/patterns"
 
-import { describeReasons, waitingFor } from "../model";
+import { describeReasons, waitingFor } from "../model"
 
-/**
- * "Needs a driver" (redesign, board "Dispatch — today"): every package ready at a shop or waiting at
- * the hub that nobody has, and why auto-assign could not place it.
- *
- * The reader that makes an unassigned package explainable. Every reason is shown, in words
- * (`describeReasons`), never a code — a person fixes a licence, not `licence_expired`.
- */
 export function UnassignedPanel({
   items,
   renderAssign,
 }: {
-  items: UnassignedWorkDTO[];
-  renderAssign?: (item: UnassignedWorkDTO) => React.ReactNode;
+  items: UnassignedWorkDTO[]
+  renderAssign?: (item: UnassignedWorkDTO) => React.ReactNode
 }) {
   if (items.length === 0) {
     return (
@@ -28,7 +20,7 @@ export function UnassignedPanel({
         title={<span id="unassigned-heading">Nothing needs a driver</span>}
         description="Every package ready at a shop or waiting at the hub has been given to a driver."
       />
-    );
+    )
   }
 
   return (
@@ -69,10 +61,7 @@ export function UnassignedPanel({
                   <span className="font-medium">{describeReasons(item.reasons)}</span>
                 </td>
                 <td data-m="meta">
-                  {/* Where it is and what it is waiting for. A package readied in the evening for
-                      tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
                   <span>{waitingFor(item, new Date())}</span>
-                  {/* Still at its supplier after the run that would have made its window. */}
                   {item.collectLate ? (
                     <span className="bo-late ml-2">
                       <Clock aria-hidden="true" />
@@ -92,5 +81,5 @@ export function UnassignedPanel({
         </table>
       </div>
     </Panel>
-  );
+  )
 }

@@ -1,52 +1,30 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { AdminDriverProfile, AdminDriverUpdateRequest } from "@effy/shared-types";
-import {
-  Button,
-  Input,
-  Label,
-  Textarea,
-} from "@effy/design-system/ui";
+import type { AdminDriverProfile, AdminDriverUpdateRequest } from "@effy/shared-types"
+import { Button, Input, Label, Textarea } from "@effy/design-system/ui"
 
-import { driverActionError } from "../errorText";
-import { useUpdateDriver } from "../queries";
+import { driverActionError } from "../errorText"
+import { useUpdateDriver } from "../queries"
 
-/**
- * Edit the profile of record. Every emptied field sends `null`, never `undefined`: the server reads the
- * presence of a key, so `null` clears it (a zone can be un-assigned). Do not strip empty values.
- * `workEmail` is the sign-in identity and is not editable. `updatedAt` is echoed so a second save cannot
- * silently overwrite another.
- */
-export function ProfileEditForm({
-  driver,
-  onDone,
-}: {
-  driver: AdminDriverProfile;
-  onDone: () => void;
-}) {
-  const update = useUpdateDriver(driver.id);
-  const [error, setError] = useState<string | null>(null);
+export function ProfileEditForm({ driver, onDone }: { driver: AdminDriverProfile; onDone: () => void }) {
+  const update = useUpdateDriver(driver.id)
+  const [error, setError] = useState<string | null>(null)
 
-  const [name, setName] = useState(driver.name);
-  const [contactPhone, setContactPhone] = useState(driver.contactPhone ?? "");
-  // The vehicle type/plate fields are gone from this form. A vehicle is its own record now,
-  // and what a driver drives is decided by issuing them one on the vehicle screen — not by typing a
-  // string here that nobody maintained. The registration expiry went with them: it is a fact about a
-  // vehicle, so a second driver holding the same van reads the same date.
-  const [licenceReference, setLicenceReference] = useState(driver.credentials.licenceReference ?? "");
-  const [licenceExpiresOn, setLicenceExpiresOn] = useState(driver.credentials.licenceExpiresOn ?? "");
-  const [licenceClass, setLicenceClass] = useState<string>(driver.credentials.licenceClass ?? "");
-  const [emergencyName, setEmergencyName] = useState(driver.emergencyContact.name ?? "");
-  const [emergencyPhone, setEmergencyPhone] = useState(driver.emergencyContact.phone ?? "");
-  const [startedOn, setStartedOn] = useState(driver.startedOn ?? "");
-  const [notes, setNotes] = useState(driver.notes ?? "");
+  const [name, setName] = useState(driver.name)
+  const [contactPhone, setContactPhone] = useState(driver.contactPhone ?? "")
+  const [licenceReference, setLicenceReference] = useState(driver.credentials.licenceReference ?? "")
+  const [licenceExpiresOn, setLicenceExpiresOn] = useState(driver.credentials.licenceExpiresOn ?? "")
+  const [licenceClass, setLicenceClass] = useState<string>(driver.credentials.licenceClass ?? "")
+  const [emergencyName, setEmergencyName] = useState(driver.emergencyContact.name ?? "")
+  const [emergencyPhone, setEmergencyPhone] = useState(driver.emergencyContact.phone ?? "")
+  const [startedOn, setStartedOn] = useState(driver.startedOn ?? "")
+  const [notes, setNotes] = useState(driver.notes ?? "")
 
-  /** An emptied text box means clear, so it becomes `null` rather than `""` or being dropped. */
-  const orNull = (v: string): string | null => (v.trim() === "" ? null : v.trim());
+  const orNull = (v: string): string | null => (v.trim() === "" ? null : v.trim())
 
   function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
     const body: AdminDriverUpdateRequest = {
       name: name.trim(),
       contactPhone: orNull(contactPhone),
@@ -59,11 +37,11 @@ export function ProfileEditForm({
       startedOn: orNull(startedOn),
       notes: orNull(notes),
       updatedAt: driver.updatedAt,
-    };
+    }
     update.mutate(body, {
       onSuccess: onDone,
       onError: (err) => setError(driverActionError(err, "update")),
-    });
+    })
   }
 
   return (
@@ -74,12 +52,8 @@ export function ProfileEditForm({
         </Field>
 
         <Field id="f-email" label="Work email">
-          {/* Shown because it is part of the record a person is reading, disabled because it is the
-              sign-in identity. Hiding it would be worse: they would wonder where it went. */}
           <Input id="f-email" value={driver.workEmail} disabled />
-          <p className="text-xs text-muted-foreground">
-            The sign-in identity. It cannot be changed here.
-          </p>
+          <p className="text-xs text-muted-foreground">The sign-in identity. It cannot be changed here.</p>
         </Field>
 
         <Field id="f-phone" label="Phone">
@@ -92,17 +66,8 @@ export function ProfileEditForm({
         </Field>
 
         <Field id="f-started" label="Started on">
-          <Input
-            id="f-started"
-            type="date"
-            value={startedOn}
-            onChange={(e) => setStartedOn(e.target.value)}
-          />
+          <Input id="f-started" type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} />
         </Field>
-
-        {/* The zone picker is gone. A driver's coverage is a set of clearances now
-            (function × area), granted on the Clearances section below, because one zone could never
-            express "delivers here, collects everywhere". */}
 
         <Field id="f-licence-class" label="Licence class">
           <select
@@ -138,9 +103,7 @@ export function ProfileEditForm({
             value={licenceExpiresOn}
             onChange={(e) => setLicenceExpiresOn(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground">
-            Once this date passes, the driver cannot be given work.
-          </p>
+          <p className="text-xs text-muted-foreground">Once this date passes, the driver cannot be given work.</p>
         </Field>
 
         <Field id="f-em-name" label="Emergency contact">
@@ -181,22 +144,14 @@ export function ProfileEditForm({
         </Button>
       </div>
     </form>
-  );
+  )
 }
 
-function Field({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
-  );
+  )
 }

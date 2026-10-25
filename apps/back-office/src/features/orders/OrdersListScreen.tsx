@@ -1,40 +1,46 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useHotkey } from "@tanstack/react-hotkeys";
-import { Route, SearchX, Truck, UserX } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link, useNavigate, useSearch } from "@tanstack/react-router"
+import { useHotkey } from "@tanstack/react-hotkeys"
+import { Route, SearchX, Truck, UserX } from "lucide-react"
 
-import { cn } from "@effy/design-system";
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types";
-import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
+import { cn } from "@effy/design-system"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types"
+import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
 
-import { Kbd } from "@effy/web-kit/patterns";
-import { PageHeader, ViewTabs } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { Facet, Pager, ResetFilters, SearchBox, Toolbar, ToolbarSpacer } from "@effy/web-kit/patterns";
-import { moment, money } from "@/lib/format";
+import {
+  Kbd,
+  PageHeader,
+  ViewTabs,
+  EmptyState,
+  Facet,
+  Pager,
+  ResetFilters,
+  SearchBox,
+  Toolbar,
+  ToolbarSpacer,
+} from "@effy/web-kit/patterns"
+import { moment, money } from "@/lib/format"
 
-import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderListParams, type OrderSummary } from "./model";
-import { orderViewCountsQuery, ordersListQuery } from "./queries";
+import {
+  AWAITING_LABEL,
+  DELIVERY_FILTER_LABEL,
+  deliveryTypeText,
+  PROMISE_LABEL,
+  STAGE_LABEL,
+  type OrderListParams,
+  type OrderSummary,
+} from "./model"
+import { orderViewCountsQuery, ordersListQuery } from "./queries"
 
-/**
- * The order list (redesign, board "Orders — all orders").
- *
- * Saved views are tabs with counts and live in the URL, so a view's link opens the same list for
- * anyone. Search and two facets (who delivers, what an Effy order was sold) narrow every view. A
- * table on a desktop, two-line rows on a phone; J / K move through the rows and Enter opens one.
- *
- * A table, not cards, and no metric row (Principle V). The counts on the tabs take you to the rows
- * rather than telling you how many there are.
- */
-export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "courier"] as const;
-export type OrderView = (typeof ORDER_VIEWS)[number];
+export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "courier"] as const
+export type OrderView = (typeof ORDER_VIEWS)[number]
 export interface OrdersSearch {
-  view?: OrderView;
-  delivery?: "effy" | "courier";
-  sold?: DeliveryPromise;
+  view?: OrderView
+  delivery?: "effy" | "courier"
+  sold?: DeliveryPromise
 }
 
 const VIEW_LABEL: Record<OrderView, string> = {
@@ -44,44 +50,39 @@ const VIEW_LABEL: Record<OrderView, string> = {
   arrival: AWAITING_LABEL.arrival,
   refund: AWAITING_LABEL.refund_decision,
   courier: AWAITING_LABEL.courier_problem,
-};
+}
 
 function viewParams(view: OrderView): Pick<OrderListParams, "awaiting" | "needsDriver"> {
   switch (view) {
     case "driver":
-      return { needsDriver: true };
+      return { needsDriver: true }
     case "handover":
-      return { awaiting: "handover" };
+      return { awaiting: "handover" }
     case "arrival":
-      return { awaiting: "arrival" };
+      return { awaiting: "arrival" }
     case "refund":
-      return { awaiting: "refund_decision" };
+      return { awaiting: "refund_decision" }
     case "courier":
-      return { awaiting: "courier_problem" };
+      return { awaiting: "courier_problem" }
     default:
-      return {};
+      return {}
   }
 }
 
 export function OrdersListScreen() {
-  const search = useSearch({ strict: false }) as OrdersSearch;
-  const navigate = useNavigate();
-  const view: OrderView = search.view ?? "all";
-  const [q, setQ] = useState("");
-  const [rows, setRows] = useState(25);
-  /**
-   * Keyset paging, so a stack rather than a page number. A cursor list cannot jump to "page 5"
-   * the trade for never showing the same order twice while new ones arrive. Changing a filter resets
-   * it: a cursor minted under one filter means nothing under another.
-   */
-  const [cursors, setCursors] = useState<string[]>([]);
-  const [focus, setFocus] = useState(-1);
+  const search = useSearch({ strict: false }) as OrdersSearch
+  const navigate = useNavigate()
+  const view: OrderView = search.view ?? "all"
+  const [q, setQ] = useState("")
+  const [rows, setRows] = useState(25)
+  const [cursors, setCursors] = useState<string[]>([])
+  const [focus, setFocus] = useState(-1)
 
   const setSearch = (patch: Partial<OrdersSearch>) => {
-    setCursors([]);
-    setFocus(-1);
-    void navigate({ to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, ...patch }) });
-  };
+    setCursors([])
+    setFocus(-1)
+    void navigate({ to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, ...patch }) })
+  }
 
   const base = useMemo<OrderListParams>(
     () => ({
@@ -90,29 +91,29 @@ export function OrdersListScreen() {
       promise: search.sold,
     }),
     [q, search.delivery, search.sold],
-  );
+  )
   const params = useMemo<OrderListParams>(
     () => ({ ...base, ...viewParams(view), cursor: cursors[cursors.length - 1], limit: rows }),
     [base, view, cursors, rows],
-  );
+  )
 
-  const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params));
-  const counts = useQuery(orderViewCountsQuery(base));
-  const items = data?.items ?? [];
+  const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params))
+  const counts = useQuery(orderViewCountsQuery(base))
+  const items = data?.items ?? []
 
-  useEffect(() => setFocus(-1), [data]);
-  useHotkey("J", () => setFocus((i) => Math.min(i + 1, items.length - 1)), { ignoreInputs: true });
-  useHotkey("K", () => setFocus((i) => Math.max(i - 1, 0)), { ignoreInputs: true });
+  useEffect(() => setFocus(-1), [data])
+  useHotkey("J", () => setFocus((i) => Math.min(i + 1, items.length - 1)), { ignoreInputs: true })
+  useHotkey("K", () => setFocus((i) => Math.max(i - 1, 0)), { ignoreInputs: true })
   useHotkey(
     "Enter",
     () => {
-      const o = items[focus];
-      if (o) void navigate({ to: "/orders/$orderId", params: { orderId: o.id } });
+      const o = items[focus]
+      if (o) void navigate({ to: "/orders/$orderId", params: { orderId: o.id } })
     },
     { ignoreInputs: true, enabled: focus >= 0 },
-  );
+  )
 
-  const c = counts.data;
+  const c = counts.data
   const countOf: Record<OrderView, number | undefined> = {
     all: c?.all,
     driver: c?.needsDriver,
@@ -120,8 +121,8 @@ export function OrdersListScreen() {
     arrival: c?.arrival,
     refund: c?.refundDecision,
     courier: c?.courierProblem,
-  };
-  const filtered = Boolean(q || search.delivery || search.sold);
+  }
+  const filtered = Boolean(q || search.delivery || search.sold)
 
   return (
     <>
@@ -153,7 +154,10 @@ export function OrdersListScreen() {
           views={ORDER_VIEWS.map((v) => ({
             key: v,
             label: VIEW_LABEL[v],
-            link: { to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, view: v === "all" ? undefined : v }) } as never,
+            link: {
+              to: "/orders",
+              search: (prev: OrdersSearch) => clean({ ...prev, view: v === "all" ? undefined : v }),
+            } as never,
             count: countOf[v],
             attention: v !== "all",
           }))}
@@ -164,8 +168,8 @@ export function OrdersListScreen() {
             placeholder="Order number or customer email…"
             value={q}
             onChange={(v) => {
-              setQ(v);
-              setCursors([]);
+              setQ(v)
+              setCursors([])
             }}
           />
           <Facet
@@ -183,8 +187,8 @@ export function OrdersListScreen() {
           {filtered ? (
             <ResetFilters
               onReset={() => {
-                setQ("");
-                setSearch({ delivery: undefined, sold: undefined });
+                setQ("")
+                setSearch({ delivery: undefined, sold: undefined })
               }}
             />
           ) : null}
@@ -204,15 +208,19 @@ export function OrdersListScreen() {
         <EmptyState
           icon={SearchX}
           title={filtered || view !== "all" ? "No orders match your filter." : "No orders yet."}
-          description={filtered || view !== "all" ? "Try a different view, or clear the filters." : "Paid orders appear here as they arrive."}
+          description={
+            filtered || view !== "all"
+              ? "Try a different view, or clear the filters."
+              : "Paid orders appear here as they arrive."
+          }
           action={
             filtered || view !== "all" ? (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setQ("");
-                  setSearch({ view: undefined, delivery: undefined, sold: undefined });
+                  setQ("")
+                  setSearch({ view: undefined, delivery: undefined, sold: undefined })
                 }}
               >
                 Clear filters
@@ -251,8 +259,8 @@ export function OrdersListScreen() {
             onNext={() => setCursors((s) => (data.nextCursor ? [...s, data.nextCursor] : s))}
             rows={rows}
             onRows={(n) => {
-              setRows(n);
-              setCursors([]);
+              setRows(n)
+              setCursors([])
             }}
           />
         </div>
@@ -260,19 +268,19 @@ export function OrdersListScreen() {
 
       <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground max-md:hidden">
         <Kbd>J</Kbd>
-        <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package; Problem
-        always wins.
+        <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package;
+        Problem always wins.
       </p>
     </>
-  );
+  )
 }
 
 function clean(s: OrdersSearch): OrdersSearch {
-  const out: OrdersSearch = {};
-  if (s.view && s.view !== "all") out.view = s.view;
-  if (s.delivery) out.delivery = s.delivery;
-  if (s.sold) out.sold = s.sold;
-  return out;
+  const out: OrdersSearch = {}
+  if (s.view && s.view !== "all") out.view = s.view
+  if (s.delivery) out.delivery = s.delivery
+  if (s.sold) out.sold = s.sold
+  return out
 }
 
 function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean }) {
@@ -292,7 +300,6 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
       </td>
       <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
       <td data-m="meta">
-        {/* Who delivers it; a dash for an order from before delivery types — nothing is guessed. */}
         <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
         {o.promise && o.promise !== "window" ? <span className="bo-sub">{PROMISE_LABEL[o.promise]}</span> : null}
       </td>
@@ -300,24 +307,30 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
         <DriverCell order={o} />
       </td>
       <td data-m="meta" data-label="Next step">
-        {o.awaiting ? <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span> : <span className="text-muted-foreground">Complete</span>}
-        {/* What the customer is being told — staff always see the shopper's words. */}
+        {o.awaiting ? (
+          <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span>
+        ) : (
+          <span className="text-muted-foreground">Complete</span>
+        )}
         <span className="bo-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
       </td>
       <td data-m="trail" className="is-num font-medium">
         {money(o.grandTotalAmount, o.currency)}
       </td>
     </tr>
-  );
+  )
 }
 
-/** "Ada → Ben" (collect → deliver), and a tag when a package has nobody. */
 function DriverCell({ order }: { order: OrderSummary }) {
-  const { collect, deliver } = order.drivers;
-  const names = [collect.join(", "), deliver.join(", ")].filter((s) => s !== "");
+  const { collect, deliver } = order.drivers
+  const names = [collect.join(", "), deliver.join(", ")].filter((s) => s !== "")
   return (
     <span className="flex flex-col items-start gap-1">
-      {names.length > 0 ? <span className="whitespace-nowrap">{names.join(" → ")}</span> : !order.needsDriver ? <span className="text-muted-foreground">—</span> : null}
+      {names.length > 0 ? (
+        <span className="whitespace-nowrap">{names.join(" → ")}</span>
+      ) : !order.needsDriver ? (
+        <span className="text-muted-foreground">—</span>
+      ) : null}
       {order.needsDriver ? (
         <span className="bo-tag">
           <UserX aria-hidden="true" />
@@ -325,5 +338,5 @@ function DriverCell({ order }: { order: OrderSummary }) {
         </span>
       ) : null}
     </span>
-  );
+  )
 }

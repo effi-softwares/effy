@@ -1,20 +1,9 @@
 import type { ShopBacklogDTO, ShopInsightsDTO } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
 
-import { deltaText, deltaToneClass, metricLabel, money, RANGE_SUFFIX } from "./model"
+import { deltaText, deltaToneClass, metricLabel, money } from "./model"
 
-/**
- * The primary metric strip: one bordered container divided by rules, not tiles. "Awaiting pick" and
- * "Unfulfilled units" come from `todayQuery`, not the analytics payload, so they are live and agree with
- * Today.
- */
-export function MetricStrip({
-  dto,
-  backlog,
-}: {
-  dto: ShopInsightsDTO
-  backlog: ShopBacklogDTO | undefined
-}) {
+export function MetricStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog: ShopBacklogDTO | undefined }) {
   const cells = [
     {
       label: metricLabel("Revenue", dto.range),
@@ -48,11 +37,6 @@ export function MetricStrip({
     },
   ]
 
-  // The rules are a 1px grid gap over the border colour, not per-cell left borders. At three
-  // breakpoints the cells wrap, and `border-l` + `first:border-l-0` leaves the leftmost cell of every
-  // wrapped row drawing a rule against the container's own edge — the dangling rule the brief warns
-  // about. A gap draws only between cells, at every width, with no nth-child arithmetic.
-  // One bordered row of figures, not five cards. The last two are live work, not results — blue.
   return (
     <dl className="sh-kpis">
       {cells.map((c, i) => (
@@ -62,13 +46,9 @@ export function MetricStrip({
             {c.label}
           </dt>
           <dd className="sh-kpi__value">{c.value}</dd>
-          {/* The glyph carries the direction (deltaText writes ▲/▼), so colour never says it alone. */}
           <dd className={cn("sh-kpi__sub", "tone" in c && c.tone ? c.tone : null)}>{c.note}</dd>
         </div>
       ))}
     </dl>
   )
 }
-
-/** The window suffix, exported for the tests that pin the label wording. */
-export { RANGE_SUFFIX }

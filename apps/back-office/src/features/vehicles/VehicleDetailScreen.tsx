@@ -1,22 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { Gauge, History, Pencil, ShieldCheck, Snowflake, Truck, UserRound } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Gauge, History, Pencil, ShieldCheck, Snowflake, Truck, UserRound } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
-import type { VehicleDetail } from "@effy/shared-types";
+import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
+import type { VehicleDetail } from "@effy/shared-types"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { DetailRows, Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { useHeaderDetail } from "@effy/web-kit/console";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import { PageHeader, DetailRows, Panel, Callout, StatusWord } from "@effy/web-kit/patterns"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
 
-import { HoldingControl } from "./components/HoldingControl";
-import { HoldingHistory } from "./components/HoldingHistory";
-import { VehicleEditForm } from "./components/VehicleEditForm";
-import { VehicleStatusControl } from "./components/VehicleStatusControl";
-import { canManageVehicles } from "./access";
+import { HoldingControl } from "./components/HoldingControl"
+import { HoldingHistory } from "./components/HoldingHistory"
+import { VehicleEditForm } from "./components/VehicleEditForm"
+import { VehicleStatusControl } from "./components/VehicleStatusControl"
+import { canManageVehicles } from "./access"
 import {
   BODY_TYPE_LABEL,
   COMPLIANCE_LABEL,
@@ -27,42 +23,37 @@ import {
   refrigerationLabel,
   STATUS_LABEL,
   STATUS_MEANING,
-} from "./model";
-import { vehicleDetailQuery } from "./queries";
-import { vehicleStatusTone } from "./VehiclesListScreen";
+} from "./model"
+import { vehicleDetailQuery } from "./queries"
+import { vehicleStatusTone } from "./VehiclesListScreen"
 
-/**
- * A vehicle's record (061 US1/US2; redesign, board "Vehicle record"): Details · Edit details ·
- * Handover history in tabs; who has it, compliance and status on the right. Sectioned detail rows
- * the same shape as the driver profile, no cards.
- */
-const dash = <span className="text-muted-foreground">—</span>;
+const dash = <span className="text-muted-foreground">—</span>
 
 function inDays(iso: string | null): string | null {
-  if (!iso) return null;
-  const days = Math.round((Date.parse(iso) - Date.now()) / 86_400_000);
-  if (Number.isNaN(days)) return null;
-  return days < 0 ? "Expired" : `${days} ${days === 1 ? "day" : "days"}`;
+  if (!iso) return null
+  const days = Math.round((Date.parse(iso) - Date.now()) / 86_400_000)
+  if (Number.isNaN(days)) return null
+  return days < 0 ? "Expired" : `${days} ${days === 1 ? "day" : "days"}`
 }
 
 export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
-  const roles = useSessionRoles();
-  const canManage = canManageVehicles(roles);
-  const query = useQuery(vehicleDetailQuery(vehicleId));
-  useHeaderDetail(query.data?.registrationPlate ?? null);
+  const roles = useSessionRoles()
+  const canManage = canManageVehicles(roles)
+  const query = useQuery(vehicleDetailQuery(vehicleId))
+  useHeaderDetail(query.data?.registrationPlate ?? null)
 
-  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />
   if (!query.data) {
     return (
       <div className="space-y-4" aria-busy="true">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-60" />
       </div>
-    );
+    )
   }
 
-  const v: VehicleDetail = query.data;
-  const regDays = inDays(v.registrationExpiresOn);
+  const v: VehicleDetail = query.data
+  const regDays = inDays(v.registrationExpiresOn)
 
   return (
     <>
@@ -88,9 +79,12 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         }
       />
 
-      {/* Compliance is derived on read and names the lapsed item, because the remedy differs. */}
       {v.complianceIssues.length > 0 ? (
-        <Callout tone="destructive" title={v.complianceIssues.map((i) => COMPLIANCE_LABEL[i]).join(" · ")} role="status">
+        <Callout
+          tone="destructive"
+          title={v.complianceIssues.map((i) => COMPLIANCE_LABEL[i]).join(" · ")}
+          role="status"
+        >
           Its driver cannot be given work until it is put right. Record the new date under Compliance.
         </Callout>
       ) : null}
@@ -127,7 +121,8 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                       label: "Status",
                       value: (
                         <>
-                          {STATUS_LABEL[v.status]} <span className="text-muted-foreground">{STATUS_MEANING[v.status]}</span>
+                          {STATUS_LABEL[v.status]}{" "}
+                          <span className="text-muted-foreground">{STATUS_MEANING[v.status]}</span>
                         </>
                       ),
                     },
@@ -136,7 +131,10 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                     { label: "Fuel", value: v.fuelType ? FUEL_TYPE_LABEL[v.fuelType] : dash },
                     { label: "Carries", value: refrigerationLabel(v.canCarryChilled, v.canCarryFrozen) },
                     { label: "Payload", value: v.payloadKg ? `${v.payloadKg.toLocaleString("en-AU")} kg` : dash },
-                    { label: "Load volume", value: v.loadVolumeLitres ? `${v.loadVolumeLitres.toLocaleString("en-AU")} L` : dash },
+                    {
+                      label: "Load volume",
+                      value: v.loadVolumeLitres ? `${v.loadVolumeLitres.toLocaleString("en-AU")} L` : dash,
+                    },
                     { label: "Crates", value: v.crateCapacity ?? dash },
                     { label: "Odometer", value: formatOdometer(v.odometerKm) },
                     { label: "Notes", value: v.notes ?? dash },
@@ -152,7 +150,11 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
               </TabsContent>
             ) : null}
             <TabsContent value="history" className="bo-tabpanel">
-              <Panel title="Handover history" icon={<History aria-hidden="true" />} description="Every time it was issued and returned, newest first.">
+              <Panel
+                title="Handover history"
+                icon={<History aria-hidden="true" />}
+                description="Every time it was issued and returned, newest first."
+              >
                 <HoldingHistory holdings={v.holdings} />
               </Panel>
             </TabsContent>
@@ -187,7 +189,9 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
                   value: (
                     <>
                       {v.insurancePolicyReference ?? dash}
-                      {v.insuranceExpiresOn ? <div className="bo-sub">Expires {formatDate(v.insuranceExpiresOn)}</div> : null}
+                      {v.insuranceExpiresOn ? (
+                        <div className="bo-sub">Expires {formatDate(v.insuranceExpiresOn)}</div>
+                      ) : null}
                     </>
                   ),
                 },
@@ -198,7 +202,9 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
           {canManage ? (
             <Panel title="Status">
               <div className="space-y-3">
-                <p className="bo-sub">Off the road is temporary — in the workshop, or awaiting repair. Retired is for good.</p>
+                <p className="bo-sub">
+                  Off the road is temporary — in the workshop, or awaiting repair. Retired is for good.
+                </p>
                 <VehicleStatusControl vehicle={v} />
               </div>
             </Panel>
@@ -206,5 +212,5 @@ export function VehicleDetailScreen({ vehicleId }: { vehicleId: string }) {
         </aside>
       </div>
     </>
-  );
+  )
 }

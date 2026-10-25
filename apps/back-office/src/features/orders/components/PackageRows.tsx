@@ -1,58 +1,66 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS } from "@effy/shared-types";
-import type { AdminPackageHandoverDTO, AdminParcelDTO, HandoverMethod, OrderAssignment, RecordedHandoverStep } from "@effy/shared-types";
-import { AssignmentLine } from "./AssignmentLine";
-import { ConsignmentBlock } from "./ConsignmentBlock";
-import { PackageStatusPill } from "@effy/web-kit/console";
-import { Button, Input } from "@effy/design-system/ui";
-import { CircleCheck, Package, PackageCheck, Store, Truck, Undo2, Warehouse } from "lucide-react";
-
-import { clockAt } from "@/lib/format";
-
-import type { OrderPackage } from "../model";
 import {
-  nextActionFor, packageDeliveryText, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
-  formatDeliveryDay,
-} from "../model";
+  PARCEL_CUSTODY_WORDS,
+  PARCEL_ZONE_WORDS,
+  type AdminPackageHandoverDTO,
+  type AdminParcelDTO,
+  type HandoverMethod,
+  type OrderAssignment,
+  type RecordedHandoverStep,
+} from "@effy/shared-types"
+import { AssignmentLine } from "./AssignmentLine"
+import { ConsignmentBlock } from "./ConsignmentBlock"
+import { PackageStatusPill } from "@effy/web-kit/console"
+import { Button, Input } from "@effy/design-system/ui"
+import { CircleCheck, Package, PackageCheck, Store, Truck, Undo2, Warehouse } from "lucide-react"
 
-/**
- * One row per package — a detail row, not a card (Principle V).
- *
- * The card instinct is strongest here. Each package has a shop, a status, a count, a subtotal, a
- * handover and an arrival — six facts that beg to be tiled in a bordered box. Rows keep them
- * scannable down a column, which is what an operator comparing three packages actually does.
- */
+import { clockAt } from "@/lib/format"
+
+import {
+  type OrderPackage,
+  nextActionFor,
+  packageDeliveryText,
+  PROMISE_FLAG_LABEL,
+  promiseFlagsFor,
+  promiseTextFor,
+  formatDeliveryDay,
+} from "../model"
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(iso),
-  );
+  if (!iso) return "—"
+  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
 }
 
-/** The Assign to… / Unassign controls for one stage of one package; absent for a CSA. */
-export type AssignmentActions = (
+type AssignmentActions = (
   pkg: OrderPackage,
   stage: "collection" | "delivery",
   assignment: OrderAssignment,
-) => React.ReactNode;
+) => React.ReactNode
 
 interface Props {
-  /** The order, and how its courier parcels reach the courier (null unless a courier delivers). */
-  orderId?: string;
-  courierCollection?: "hub" | "supplier" | null;
-  renderActions?: AssignmentActions;
-  packages: OrderPackage[];
-  canRecord: boolean;
-  busy: boolean;
-  onHandoff(fulfillmentId: string, reference: string, carrierName: string): void;
-  onArrival(fulfillmentId: string): void;
-  /** What a scan opened this order for: that bag (or package) is highlighted. */
-  highlight?: { parcelId?: string; packageId?: string };
+  orderId?: string
+  courierCollection?: "hub" | "supplier" | null
+  renderActions?: AssignmentActions
+  packages: OrderPackage[]
+  canRecord: boolean
+  busy: boolean
+  onHandoff(fulfillmentId: string, reference: string, carrierName: string): void
+  onArrival(fulfillmentId: string): void
+  highlight?: { parcelId?: string; packageId?: string }
 }
 
-export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions, orderId, courierCollection = null, highlight }: Props) {
+export function PackageRows({
+  packages,
+  canRecord,
+  busy,
+  onHandoff,
+  onArrival,
+  renderActions,
+  orderId,
+  courierCollection = null,
+  highlight,
+}: Props) {
   return (
     <div className="divide-y divide-border">
       {packages.map((pkg) => (
@@ -70,12 +78,10 @@ export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, r
         />
       ))}
       {packages.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">
-          This order has no packages yet.
-        </p>
+        <p className="px-5 py-4 text-sm text-muted-foreground">This order has no packages yet.</p>
       ) : null}
     </div>
-  );
+  )
 }
 
 function PackageRow({
@@ -89,24 +95,24 @@ function PackageRow({
   courierCollection,
   highlight,
 }: {
-  highlight?: { parcelId?: string; packageId?: string };
-  orderId?: string;
-  courierCollection: "hub" | "supplier" | null;
-  renderActions?: AssignmentActions;
-  pkg: OrderPackage;
-  canRecord: boolean;
-  busy: boolean;
-  onHandoff(fulfillmentId: string, reference: string, carrierName: string): void;
-  onArrival(fulfillmentId: string): void;
+  highlight?: { parcelId?: string; packageId?: string }
+  orderId?: string
+  courierCollection: "hub" | "supplier" | null
+  renderActions?: AssignmentActions
+  pkg: OrderPackage
+  canRecord: boolean
+  busy: boolean
+  onHandoff(fulfillmentId: string, reference: string, carrierName: string): void
+  onArrival(fulfillmentId: string): void
 }) {
-  const [reference, setReference] = useState("");
-  const [carrierName, setCarrierName] = useState("");
-  const action = nextActionFor(pkg);
-  const promise = promiseTextFor(pkg);
-  const flags = promiseFlagsFor(pkg);
+  const [reference, setReference] = useState("")
+  const [carrierName, setCarrierName] = useState("")
+  const action = nextActionFor(pkg)
+  const promise = promiseTextFor(pkg)
+  const flags = promiseFlagsFor(pkg)
 
-  const bags = pkg.parcels ?? [];
-  const lit = highlight?.packageId === pkg.fulfillmentId || bags.some((b) => b.parcelId === highlight?.parcelId);
+  const bags = pkg.parcels ?? []
+  const lit = highlight?.packageId === pkg.fulfillmentId || bags.some((b) => b.parcelId === highlight?.parcelId)
   return (
     <div
       id={`package-${pkg.fulfillmentId}`}
@@ -121,7 +127,6 @@ function PackageRow({
           <div className="min-w-0">
             <div className="font-semibold">{pkg.shopName}</div>
             <div className="bo-sub">
-              {/* The code on the package's label; what a driver will scan. */}
               {pkg.packageCode ? (
                 <>
                   <span className="bo-code" aria-label="Package code">
@@ -134,33 +139,32 @@ function PackageRow({
             </div>
           </div>
         </div>
-        {/* Where it really is, from the shared derivation; the old guess from the shop's status
-            said "At hub" the moment a driver picked a package up. */}
         {pkg.statusView ? <PackageStatusPill view={pkg.statusView} icons /> : null}
       </div>
 
-      {/* Who has it. One row per stage; nothing when the stage has nothing to say yet. */}
       {pkg.collect || pkg.deliver ? (
         <div className="divide-y divide-border rounded-lg border border-border">
           {pkg.collect ? (
-            <AssignmentLine label="Collect" assignment={pkg.collect} actions={renderActions?.(pkg, "collection", pkg.collect)} />
+            <AssignmentLine
+              label="Collect"
+              assignment={pkg.collect}
+              actions={renderActions?.(pkg, "collection", pkg.collect)}
+            />
           ) : null}
           {pkg.deliver ? (
-            <AssignmentLine label="Deliver" assignment={pkg.deliver} actions={renderActions?.(pkg, "delivery", pkg.deliver)} />
+            <AssignmentLine
+              label="Deliver"
+              assignment={pkg.deliver}
+              actions={renderActions?.(pkg, "delivery", pkg.deliver)}
+            />
           ) : null}
         </div>
       ) : null}
 
-      {/* The package's bags: each has its own label, and each is handed over on its own. */}
       {bags.length > 0 ? <BagTable bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
       {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {/*
-            What the customer was promised. Rendered only when there is a promise: an order
-            placed before 069 was promised no day, and a "Promised: —" row would read as data that went
-            missing rather than data that never existed.
-          */}
           {promise ? (
             <dl className="bo-dl bo-dl--tight">
               <div className="bo-dl__row">
@@ -176,7 +180,6 @@ function PackageRow({
               {flags.length > 0 ? (
                 <div className="bo-dl__row">
                   <dt>Note</dt>
-                  {/* Words, never colour alone. */}
                   <dd className="flex flex-wrap gap-x-3">
                     {flags.map((f) => (
                       <span key={f} className={f === "on_time" ? "text-muted-foreground" : "font-medium"}>
@@ -190,21 +193,24 @@ function PackageRow({
           ) : (
             <div />
           )}
-          {/* How it was handed over at each step, as recorded. Nothing is shown — never "by hand"
-              by assumption — when nothing was recorded. */}
           {pkg.handovers && pkg.handovers.length > 0 ? (
             <div>
               <div className="bo-eyebrow mb-2">Hand-overs</div>
               <ol className="bo-tl" aria-label="Hand-overs">
                 {pkg.handovers.map((h, i) => (
                   <li key={i} className="bo-tl__item pb-2.5">
-                    <span className={`bo-tl__mark ${h.step === "deliver" ? "bo-tl__mark--done" : "bo-tl__mark--primary"}`} aria-hidden="true">
+                    <span
+                      className={`bo-tl__mark ${h.step === "deliver" ? "bo-tl__mark--done" : "bo-tl__mark--primary"}`}
+                      aria-hidden="true"
+                    >
                       <StepIcon step={h.step} />
                     </span>
                     <div>
                       <div className="text-sm font-medium">
                         {HANDOVER_STEP_WORDS[h.step]}
-                        {h.parcelCode && bags.length > 1 ? <span className="bo-sub"> · {bagWord(bags, h.parcelCode)}</span> : null}
+                        {h.parcelCode && bags.length > 1 ? (
+                          <span className="bo-sub"> · {bagWord(bags, h.parcelCode)}</span>
+                        ) : null}
                       </div>
                       <div className="bo-tl__body">
                         {byWords(h)} · <span className="bo-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
@@ -233,13 +239,6 @@ function PackageRow({
               <dd>{pkg.handoff.carrierName}</dd>
             </>
           ) : null}
-          {/*
-            FR-003 / SC-009. When there is NO reference, this block renders nothing — no row, no
-            dash, no "(not recorded)", no warning styling. Effy has no carrier contract, so most
-            handovers genuinely have none, and a handover without one is a complete record. An empty
-            state that looks like missing data is how an operator starts chasing a number that was
-            never going to exist.
-          */}
           {pkg.handoff.reference ? (
             <>
               <dt className="text-muted-foreground">Reference</dt>
@@ -264,7 +263,6 @@ function PackageRow({
         </dl>
       ) : null}
 
-      {/* When it is due out by its courier service's next pickup, and whether that has gone. */}
       {pkg.dueOut || pkg.late ? (
         <p className={`text-sm ${pkg.late ? "text-warning" : "text-muted-foreground"}`}>
           {pkg.dueOut
@@ -274,7 +272,6 @@ function PackageRow({
         </p>
       ) : null}
 
-      {/* A courier order sold since courier services: its consignment. */}
       {orderId && pkg.deliveredBy === "courier" && (courierCollection !== null || pkg.consignment) ? (
         <ConsignmentBlock orderId={orderId} pkg={pkg} canRecord={canRecord} collection={courierCollection} />
       ) : null}
@@ -291,7 +288,6 @@ function PackageRow({
             />
           </label>
           <label className="space-y-1 text-sm">
-            {/* Labelled optional in the UI, not merely permitted by the API. */}
             <span className="text-muted-foreground">Consignment reference (optional)</span>
             <Input
               value={reference}
@@ -300,10 +296,7 @@ function PackageRow({
               placeholder="Leave blank if none"
             />
           </label>
-          <Button
-            disabled={busy}
-            onClick={() => onHandoff(pkg.fulfillmentId, reference, carrierName)}
-          >
+          <Button disabled={busy} onClick={() => onHandoff(pkg.fulfillmentId, reference, carrierName)}>
             Record handover
           </Button>
         </div>
@@ -320,10 +313,9 @@ function PackageRow({
         </div>
       ) : null}
     </div>
-  );
+  )
 }
 
-/** The bags, one row each; a voided bag is listed struck through so a stray label can be explained. */
 function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
   return (
     <div>
@@ -343,39 +335,57 @@ function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlig
             <tr
               key={b.parcelId}
               id={`parcel-${b.parcelId}`}
-              className={b.parcelId === highlightParcelId ? "bg-brand-soft font-medium" : b.voided ? "text-muted-foreground" : ""}
+              className={
+                b.parcelId === highlightParcelId ? "bg-brand-soft font-medium" : b.voided ? "text-muted-foreground" : ""
+              }
               aria-current={b.parcelId === highlightParcelId ? "true" : undefined}
             >
               <td className="tabular-nums">{b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`}</td>
               <td className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</td>
               <td>{PARCEL_ZONE_WORDS[b.zone]}</td>
-              <td>{b.voided ? "Removed" : b.printedCount === 0 ? "Not printed" : b.printedCount === 1 ? "Printed" : `Printed ${b.printedCount}×`}</td>
+              <td>
+                {b.voided
+                  ? "Removed"
+                  : b.printedCount === 0
+                    ? "Not printed"
+                    : b.printedCount === 1
+                      ? "Printed"
+                      : `Printed ${b.printedCount}×`}
+              </td>
               <td>{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  );
+  )
 }
 
-/** "Bag 2" for a hand-over of that bag. */
 function bagWord(bags: AdminParcelDTO[], code: string): string {
-  const b = bags.find((x) => x.code === code);
-  return b ? `Bag ${b.seq}` : code;
+  const b = bags.find((x) => x.code === code)
+  return b ? `Bag ${b.seq}` : code
 }
 
-/** Who made a hand-over: a driver by name; shop and hub staff by role. */
 function byWords(h: AdminPackageHandoverDTO): string {
-  if (h.actor === "shop_staff") return "Shop staff";
-  if (h.actor === "admin_staff") return "Hub staff";
-  return h.driverName ?? "Driver";
+  if (h.actor === "shop_staff") return "Shop staff"
+  if (h.actor === "admin_staff") return "Hub staff"
+  return h.driverName ?? "Driver"
 }
 
-/** The hand-over's step and method, in staff words. */
 function StepIcon({ step }: { step: RecordedHandoverStep }) {
-  const Icon = step === "deliver" ? CircleCheck : step === "checkin" ? Warehouse : step === "load" ? Truck : step === "return" ? Undo2 : step === "pack" ? PackageCheck : Package;
-  return <Icon />;
+  const Icon =
+    step === "deliver"
+      ? CircleCheck
+      : step === "checkin"
+        ? Warehouse
+        : step === "load"
+          ? Truck
+          : step === "return"
+            ? Undo2
+            : step === "pack"
+              ? PackageCheck
+              : Package
+  return <Icon />
 }
 
 const HANDOVER_STEP_WORDS: Record<RecordedHandoverStep, string> = {
@@ -387,9 +397,9 @@ const HANDOVER_STEP_WORDS: Record<RecordedHandoverStep, string> = {
   load: "Loaded",
   deliver: "Delivered",
   return: "Returned to hub",
-};
+}
 const HANDOVER_METHOD_WORDS: Record<HandoverMethod, string> = {
   scan: "scanned",
   typed: "code typed",
   manual: "by hand",
-};
+}

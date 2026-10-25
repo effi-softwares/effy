@@ -1,15 +1,8 @@
 @import "tailwindcss";
-/* ⚠ REQUIRED BY THE SHARED PRIMITIVES. Sheet, dialog, dropdown, popover, select and tooltip animate
-   with `animate-in` / `slide-in-from-*` / `fade-*` utilities this package defines. Without it
-   Tailwind emits NO rule for them — no error — and every overlay pops in and out unanimated. */
 @import "tw-animate-css";
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
-/* The back-office identity (the "Effy Back-Office Redesign" canvas) — the same identity file, primitive
-   and pattern styles, scale and frame as shop-web: the two consoles are one look. NOT the console
-   tokens.css: both declare --primary, --border…, and a second import would silently win. */
 @import "@effy/design-system/backoffice.css";
-/* How the shared primitives look, the patterns, the consoles' one scale, and the frame (StaffShell). */
 @import "@effy/design-system/backoffice/primitives.css";
 @import "@effy/design-system/backoffice/patterns.css";
 @import "@effy/design-system/backoffice/touch.css";

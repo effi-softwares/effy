@@ -1,54 +1,47 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { CircleMinus, CirclePlus, Coins, History, Mail, ShoppingBag } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { Panel } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
-import { useHeaderDetail } from "@effy/web-kit/console";
-import { sessionQuery } from "@/features/auth/queries";
-import { money } from "@/lib/format";
+import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
+import { sessionQuery } from "@/features/auth/queries"
+import { money } from "@/lib/format"
 
-import { canDebitPoints, creditIsLimited } from "./access";
-import { CreditPointsSheet } from "./components/CreditPointsSheet";
-import { DebitPointsSheet } from "./components/DebitPointsSheet";
-import { PointsHistoryTable } from "./components/PointsHistoryTable";
-import { formatDay, formatPoints } from "./components/points-format";
-import { customerDetailQuery, pointsSettingsQuery } from "./queries";
+import { canDebitPoints, creditIsLimited } from "./access"
+import { CreditPointsSheet } from "./components/CreditPointsSheet"
+import { DebitPointsSheet } from "./components/DebitPointsSheet"
+import { PointsHistoryTable } from "./components/PointsHistoryTable"
+import { formatDay, formatPoints } from "./components/points-format"
+import { customerDetailQuery, pointsSettingsQuery } from "./queries"
 
-/**
- * A customer (074; redesign, board "Customer — points and orders"): their points — usable, held,
- * next to expire — the ledger behind them, and recent orders. Points are a way of paying, never a
- * discount; the balance is worked out from the ledger, never stored.
- */
 export function CustomerDetailScreen({ customerId }: { customerId: string }) {
-  const { data: session } = useQuery(sessionQuery);
-  const roles = session?.status === "signed-in" ? session.identity.roles : [];
-  const detail = useQuery(customerDetailQuery(customerId));
-  const settings = useQuery(pointsSettingsQuery);
-  const [crediting, setCrediting] = useState(false);
-  const [debiting, setDebiting] = useState(false);
-  useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null);
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  const detail = useQuery(customerDetailQuery(customerId))
+  const settings = useQuery(pointsSettingsQuery)
+  const [crediting, setCrediting] = useState(false)
+  const [debiting, setDebiting] = useState(false)
+  useHeaderDetail(detail.data ? detail.data.name || detail.data.email : null)
 
-  if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />;
+  if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
   if (detail.isPending) {
     return (
       <div className="space-y-4" aria-busy="true">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-40" />
       </div>
-    );
+    )
   }
 
-  const c = detail.data;
-  const centsPerPoint = settings.data?.centsPerPoint ?? 1;
-  const limit = creditIsLimited(roles) ? (settings.data?.csaCreditLimitPoints ?? null) : null;
-  const mayDebit = canDebitPoints(roles);
+  const c = detail.data
+  const centsPerPoint = settings.data?.centsPerPoint ?? 1
+  const limit = creditIsLimited(roles) ? (settings.data?.csaCreditLimitPoints ?? null) : null
+  const mayDebit = canDebitPoints(roles)
 
   return (
     <>
@@ -85,7 +78,11 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
 
       <div className="bo-detail">
         <div className="bo-detail__main">
-          <Panel title="Points" icon={<Coins aria-hidden="true" />} description="Points are a way of paying, never a discount. The balance is worked out from the ledger, never stored.">
+          <Panel
+            title="Points"
+            icon={<Coins aria-hidden="true" />}
+            description="Points are a way of paying, never a discount. The balance is worked out from the ledger, never stored."
+          >
             <dl className="bo-dl">
               <div className="bo-dl__row">
                 <dt>Usable</dt>
@@ -101,7 +98,9 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
               <div className="bo-dl__row">
                 <dt>Next to expire</dt>
                 <dd className="tabular-nums">
-                  {c.points.nextExpiry ? `${formatPoints(c.points.nextExpiry.points)} after ${formatDay(c.points.nextExpiry.date)}` : "—"}
+                  {c.points.nextExpiry
+                    ? `${formatPoints(c.points.nextExpiry.points)} after ${formatDay(c.points.nextExpiry.date)}`
+                    : "—"}
                 </dd>
               </div>
             </dl>
@@ -124,7 +123,11 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
               </div>
             </div>
             <TabsContent value="history" className="bo-tabpanel">
-              <Panel title="History" icon={<History aria-hidden="true" />} description="Newest first. Nothing is edited or deleted — a correction is a new line.">
+              <Panel
+                title="History"
+                icon={<History aria-hidden="true" />}
+                description="Newest first. Nothing is edited or deleted — a correction is a new line."
+              >
                 <PointsHistoryTable customerId={c.id} />
               </Panel>
             </TabsContent>
@@ -202,5 +205,5 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         />
       ) : null}
     </>
-  );
+  )
 }

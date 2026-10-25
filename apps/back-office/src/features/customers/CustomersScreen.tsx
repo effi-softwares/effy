@@ -1,69 +1,55 @@
-import { useEffect, useState } from "react";
+import { useState } from "react"
+import { useDebouncedValue } from "@effy/web-kit"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "@tanstack/react-router";
-import { ChevronRight, Coins, History, Search, SearchX } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link, useSearch } from "@tanstack/react-router"
+import { ChevronRight, Coins, History, Search, SearchX } from "lucide-react"
 
-import { Button, Input, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Button, Input, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
+import { PageHeader, EmptyState } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
 
-import { PointsSettingsPanel } from "./components/PointsSettingsPanel";
-import { formatPoints } from "./components/points-format";
-import { customerSearchQuery } from "./queries";
+import { PointsSettingsPanel } from "./components/PointsSettingsPanel"
+import { formatPoints } from "./components/points-format"
+import { customerSearchQuery } from "./queries"
 
-/**
- * Customers: find one by order number or email to see and change their points. Search-first, with no
- * list of every customer (a privacy surface this console does not need). `?tab=settings` is Points
- * settings.
- */
 export function CustomersScreen() {
-  const { tab } = useSearch({ strict: false }) as { tab?: string };
-  return tab === "settings" ? <PointsSettingsPage /> : <CustomerSearch />;
+  const { tab } = useSearch({ strict: false }) as { tab?: string }
+  return tab === "settings" ? <PointsSettingsPage /> : <CustomerSearch />
 }
 
-/** Recent customers opened from this page — a per-browser convenience, never sent anywhere. */
-const RECENT_KEY = "effy.customers.recent";
+const RECENT_KEY = "effy.customers.recent"
 interface Recent {
-  id: string;
-  name: string;
-  email: string;
-  points: number;
+  id: string
+  name: string
+  email: string
+  points: number
 }
 function readRecent(): Recent[] {
   try {
-    const v: unknown = JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]");
-    return Array.isArray(v) ? (v as Recent[]).slice(0, 5) : [];
+    const v: unknown = JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")
+    return Array.isArray(v) ? (v as Recent[]).slice(0, 5) : []
   } catch {
-    return [];
+    return []
   }
 }
 function remember(r: Recent) {
   try {
-    window.localStorage.setItem(RECENT_KEY, JSON.stringify([r, ...readRecent().filter((x) => x.id !== r.id)].slice(0, 5)));
-  } catch {
-    /* storage blocked — search works without it */
-  }
-}
-
-function useDebounced(value: string, ms = 250) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
+    window.localStorage.setItem(
+      RECENT_KEY,
+      JSON.stringify([r, ...readRecent().filter((x) => x.id !== r.id)].slice(0, 5)),
+    )
+  } catch {}
 }
 
 function CustomerSearch() {
-  const [q, setQ] = useState("");
-  const query = useDebounced(q.trim());
-  const search = useQuery(customerSearchQuery(query));
-  const recent = readRecent();
-  const searching = query.length >= 3;
+  const [q, setQ] = useState("")
+  const query = useDebouncedValue(q.trim())
+  const search = useQuery(customerSearchQuery(query))
+  const recent = readRecent()
+  const searching = query.length >= 3
 
   return (
     <div className="flex max-w-[1040px] flex-col gap-6">
@@ -95,7 +81,9 @@ function CustomerSearch() {
 
       {!searching ? (
         <section className="space-y-3" aria-labelledby="recent-h">
-          <p className="text-sm text-muted-foreground">Type an order number (EFY-…) or at least three letters of an email.</p>
+          <p className="text-sm text-muted-foreground">
+            Type an order number (EFY-…) or at least three letters of an email.
+          </p>
           {recent.length > 0 ? (
             <>
               <h2 id="recent-h" className="bo-eyebrow">
@@ -129,7 +117,11 @@ function CustomerSearch() {
           <Skeleton className="h-10" />
         </div>
       ) : search.data.length === 0 ? (
-        <EmptyState icon={SearchX} title="No customer matches that." description="Check the order number, or try part of the email address." />
+        <EmptyState
+          icon={SearchX}
+          title="No customer matches that."
+          description="Check the order number, or try part of the email address."
+        />
       ) : (
         <section className="space-y-3" aria-label="Matches">
           <p className="text-sm text-muted-foreground">
@@ -158,7 +150,9 @@ function CustomerSearch() {
                             to="/customers/$customerId"
                             params={{ customerId: c.id }}
                             className="bo-link"
-                            onClick={() => remember({ id: c.id, name: c.name, email: c.email, points: Number(c.points) })}
+                            onClick={() =>
+                              remember({ id: c.id, name: c.name, email: c.email, points: Number(c.points) })
+                            }
                           >
                             {c.name || c.email}
                           </Link>
@@ -180,7 +174,7 @@ function CustomerSearch() {
         </section>
       )}
     </div>
-  );
+  )
 }
 
 function PointsSettingsPage() {
@@ -193,5 +187,5 @@ function PointsSettingsPage() {
       />
       <PointsSettingsPanel />
     </div>
-  );
+  )
 }

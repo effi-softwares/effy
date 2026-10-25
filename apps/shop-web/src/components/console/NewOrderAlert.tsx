@@ -13,20 +13,9 @@ import { orderListQuery } from "@/features/fulfillment/queries"
 import { playChime } from "@/lib/chime"
 import { consoleStore } from "@/lib/console-store"
 
-/** How often the chime repeats while an order nobody has opened is waiting. */
 const REPEAT_MS = 20_000
-/** "Later" quiets one order for this long; then it asks again. */
 const SNOOZE_MS = 5 * 60_000
 
-/**
- * "A new order can't be missed" (Today board 02): a pinned blue strip above every screen, a chime
- * that repeats until someone opens the order, and the word "New order". Opening the order IS the
- * acknowledgement — the server moves it out of `pending` and the live update takes the strip away.
- *
- * It reads the Orders list's own query for orders awaiting pick (re-read by the live channel, never
- * on a timer) and keeps only the ones nobody has opened. The repeating timer only re-plays a sound;
- * it reads nothing.
- */
 export function NewOrderAlert() {
   const navigate = useNavigate()
   const soundOn = useStore(consoleStore, (s) => s.soundOn)
@@ -40,7 +29,6 @@ export function NewOrderAlert() {
   )
   const first = waiting[waiting.length - 1]
 
-  // Chime at once for an order not seen before, then every REPEAT_MS while any is waiting.
   const heard = useRef(new Set<string>())
   useEffect(() => {
     const fresh = waiting.some((o) => !heard.current.has(o.id))
@@ -80,7 +68,9 @@ export function NewOrderAlert() {
       </div>
       <Button
         variant="ghost"
-        onClick={() => setSnoozed((s) => ({ ...s, ...Object.fromEntries(waiting.map((o) => [o.id, Date.now() + SNOOZE_MS])) }))}
+        onClick={() =>
+          setSnoozed((s) => ({ ...s, ...Object.fromEntries(waiting.map((o) => [o.id, Date.now() + SNOOZE_MS])) }))
+        }
       >
         Later
       </Button>

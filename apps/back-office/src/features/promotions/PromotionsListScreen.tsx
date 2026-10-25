@@ -1,59 +1,64 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react"
 
-import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types";
-import { cn } from "@effy/design-system";
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types"
+import { cn } from "@effy/design-system"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { Facet, Pager, ResetFilters, SearchBox, Toolbar } from "@effy/web-kit/patterns";
-import { sessionQuery } from "@/features/auth/queries";
-import { promotionGroupsQuery } from "@/features/promotion-groups/queries";
+import {
+  PageHeader,
+  EmptyState,
+  StatusWord,
+  Facet,
+  Pager,
+  ResetFilters,
+  SearchBox,
+  Toolbar,
+} from "@effy/web-kit/patterns"
+import { sessionQuery } from "@/features/auth/queries"
+import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
 
-import { canManagePromotions } from "./access";
-import { KIND_WORD, STATE_TONE, STATE_WORD, usesLabel } from "./model";
-import { promotionListQuery } from "./queries";
+import { canManagePromotions } from "./access"
+import { KIND_WORD, STATE_TONE, STATE_WORD, usesLabel } from "./model"
+import { promotionListQuery } from "./queries"
 
-const PAGE_SIZE = 25;
-type View = "all" | PromotionState;
+const PAGE_SIZE = 25
+type View = "all" | PromotionState
 
-const dateFmt = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Melbourne" });
+const dateFmt = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Australia/Melbourne",
+})
 
-/** "1 Oct – 31 Oct 2026" / "From 12 Sep 2026" / "Always". */
 export function activeDates(startsAt: string | null, endsAt: string | null): string {
-  if (!startsAt && !endsAt) return "Always";
-  if (!endsAt) return `From ${dateFmt.format(new Date(startsAt!))}`;
-  if (!startsAt) return `Until ${dateFmt.format(new Date(endsAt))}`;
-  return `${dateFmt.format(new Date(startsAt))} – ${dateFmt.format(new Date(endsAt))}`;
+  if (!startsAt && !endsAt) return "Always"
+  if (!endsAt) return `From ${dateFmt.format(new Date(startsAt!))}`
+  if (!startsAt) return `Until ${dateFmt.format(new Date(endsAt))}`
+  return `${dateFmt.format(new Date(startsAt))} – ${dateFmt.format(new Date(endsAt))}`
 }
 
 export function PromotionStateWord({ state }: { state: PromotionState }) {
-  return <StatusWord tone={STATE_TONE[state]}>{STATE_WORD[state]}</StatusWord>;
+  return <StatusWord tone={STATE_TONE[state]}>{STATE_WORD[state]}</StatusWord>
 }
 
-/**
- * Promotions (094; redesign, board "Promotion codes"): every offer, automatic or by code, in one
- * table — what it gives, who it is for, when, how much it has been used, and where it is shown. State
- * is worked out by the server from the switch, dates, uses and budget; it is never stored.
- */
 export function PromotionsListScreen() {
-  const { data: session } = useQuery(sessionQuery);
-  const roles = session?.status === "signed-in" ? session.identity.roles : [];
-  const canManage = canManagePromotions(roles);
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  const canManage = canManagePromotions(roles)
 
-  const [page, setPage] = useState(1);
-  const [view, setView] = useState<View>("all");
-  const [search, setSearch] = useState("");
-  const [kind, setKind] = useState<PromotionKind | null>(null);
-  const [trigger, setTrigger] = useState<PromotionTrigger | null>(null);
-  const [groupId, setGroupId] = useState<string | null>(null);
-  const groups = useQuery(promotionGroupsQuery());
+  const [page, setPage] = useState(1)
+  const [view, setView] = useState<View>("all")
+  const [search, setSearch] = useState("")
+  const [kind, setKind] = useState<PromotionKind | null>(null)
+  const [trigger, setTrigger] = useState<PromotionTrigger | null>(null)
+  const [groupId, setGroupId] = useState<string | null>(null)
+  const groups = useQuery(promotionGroupsQuery())
 
   const params = useMemo(
     () => ({
@@ -66,18 +71,26 @@ export function PromotionsListScreen() {
       groupId: groupId ?? undefined,
     }),
     [page, view, search, kind, trigger, groupId],
-  );
-  const { data, error, isPending, isError, refetch } = useQuery(promotionListQuery(params));
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const filtered = Boolean(search || kind || trigger || groupId);
-  const reset = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setPage(1);
-  };
+  )
+  const { data, error, isPending, isError, refetch } = useQuery(promotionListQuery(params))
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+  const filtered = Boolean(search || kind || trigger || groupId)
+  const reset =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v)
+      setPage(1)
+    }
   const countOf = (v: View) =>
-    data ? (v === "all" ? Object.entries(data.counts).filter(([s]) => s !== "archived").reduce((a, [, n]) => a + n, 0) : data.counts[v]) : undefined;
+    data
+      ? v === "all"
+        ? Object.entries(data.counts)
+            .filter(([s]) => s !== "archived")
+            .reduce((a, [, n]) => a + n, 0)
+        : data.counts[v]
+      : undefined
   // Archived ones are kept out of "All" (and of the tabs) unless asked for.
-  const views: View[] = ["all", ...PROMOTION_STATES];
+  const views: View[] = ["all", ...PROMOTION_STATES]
 
   return (
     <>
@@ -158,11 +171,11 @@ export function PromotionsListScreen() {
           {filtered ? (
             <ResetFilters
               onReset={() => {
-                setSearch("");
-                setKind(null);
-                setTrigger(null);
-                setGroupId(null);
-                setPage(1);
+                setSearch("")
+                setKind(null)
+                setTrigger(null)
+                setGroupId(null)
+                setPage(1)
               }}
             />
           ) : null}
@@ -180,7 +193,11 @@ export function PromotionsListScreen() {
         <EmptyState
           icon={TicketPercent}
           title={filtered || view !== "all" ? "No promotions match your filter." : "No promotions yet."}
-          description={filtered || view !== "all" ? undefined : "Create a promotion to give shoppers money off — automatically or with a code."}
+          description={
+            filtered || view !== "all"
+              ? undefined
+              : "Create a promotion to give shoppers money off — automatically or with a code."
+          }
         />
       ) : (
         <div className="bo-table-wrap">
@@ -204,7 +221,9 @@ export function PromotionsListScreen() {
                       <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="bo-link">
                         {p.name}
                       </Link>
-                      <div className="bo-sub">{p.codeSummary ? <span className="bo-code">{p.codeSummary}</span> : "Automatic"}</div>
+                      <div className="bo-sub">
+                        {p.codeSummary ? <span className="bo-code">{p.codeSummary}</span> : "Automatic"}
+                      </div>
                     </td>
                     <td data-m="meta">{p.gives}</td>
                     <td data-m="meta" className="is-muted">
@@ -237,9 +256,9 @@ export function PromotionsListScreen() {
         </div>
       )}
       <p className="bo-sub">
-        Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored. Customer service can read
-        every promotion; changing one needs a manager or an administrator.
+        Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored.
+        Customer service can read every promotion; changing one needs a manager or an administrator.
       </p>
     </>
-  );
+  )
 }

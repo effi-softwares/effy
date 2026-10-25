@@ -1,15 +1,7 @@
 @import "tailwindcss";
-/* ⚠ REQUIRED BY THE SHARED PRIMITIVES. Sheet, dialog, dropdown, popover, select and tooltip animate
-   with `animate-in` / `slide-in-from-*` / `fade-*` utilities this package defines. Without it
-   Tailwind emits NO rule for them — no error — and every overlay pops in and out unanimated. */
 @import "tw-animate-css";
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
-/* THE BACK-OFFICE IDENTITY, SIZED FOR TOUCH ("Effy Shop Console Redesign" canvas, 2026-10-24). The two
-   internal consoles look like one product: shop-web reads the back-office identity file, the same
-   primitive and pattern styles (shared from @effy/design-system, never copied), and adds one layer of
-   its own — touch sizes and the parts only a shop needs. ⚠ One identity file only: the console
-   `tokens.css` declares the same names, and a second import would silently win. */
 @import "@effy/design-system/backoffice.css";
 @import "@effy/design-system/backoffice/primitives.css";
 @import "@effy/design-system/backoffice/patterns.css";
@@ -17,8 +9,6 @@
 @import "@effy/design-system/backoffice/shell.css";
 @import "./styles/touch.css";
 
-/* This surface defines NO token values of its own; the rules below only bind browser defaults to the
-   identity's tokens — asserted by src/theme-tokens.test.ts. */
 @layer base {
   * {
     border-color: var(--color-border);
@@ -30,14 +20,9 @@
     font-size: 15px;
     line-height: 22px;
     -webkit-font-smoothing: antialiased;
-    /* Adoption prompt, Phase 1: body text gets `pretty` so a heading or a card subtitle never leaves
-       one orphaned word on its own line. Unsupported browsers ignore it; nothing depends on it. */
     text-wrap: pretty;
   }
 
-  /* ⚠ ANY NUMBER THAT CAN CHANGE MUST BE TABULAR (adoption prompt, Phase 1). Declared once here on
-     the elements that always hold changing figures, so a metric value or a table amount cannot jog
-     sideways as it updates. Identifiers get the mono family at their call site. */
   th,
   td,
   output,
@@ -45,8 +30,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* The reference design's scrollbar: the thumb is the hairline colour inset by a transparent
-     border, so a scrolling region reads as part of the surface rather than a browser artifact. */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

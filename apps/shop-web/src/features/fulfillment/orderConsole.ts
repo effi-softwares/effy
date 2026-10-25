@@ -6,8 +6,6 @@ import {
   SHOP_ORDER_RANGES,
   SHOP_ORDER_SORTS,
   SHOP_ORDER_TABS,
-  type ShopOrderActivityDTO,
-  type ShopOrderActivityEntryDTO,
   type ShopOrderAttention,
   type ShopOrderDetailDTO,
   type ShopOrderLineDTO,
@@ -17,43 +15,27 @@ import {
   type ShopOrderDeliveredBy,
   type ShopOrderPaymentState,
   type ShopOrderRange,
-  type ShopOrderRefundDTO,
   type ShopOrderRowDTO,
   type ShopOrderSort,
   type ShopOrderTab,
+  type FulfillmentStatus,
 } from "@effy/shared-types"
-import type { FulfillmentStatus } from "@effy/shared-types"
-
-/**
- * The shop order console's domain — the list's URL state, the labels, and money
- * formatting. Pure: no React, no transport.
- *
- * The list's state lives in the URL, not in component state. Clicking a row opens the order and the
- * back button must land on the same filtered, sorted page — and the order detail's previous/next
- * needs to know which list it was opened from. A URL answers both; `useState` answers neither.
- */
 
 export type OrderRow = ShopOrderRowDTO
 export type OrderList = ShopOrderListDTO
 export type OrderDetail = ShopOrderDetailDTO
 export type OrderLine = ShopOrderLineDTO
-export type OrderRefund = ShopOrderRefundDTO
-export type OrderActivity = ShopOrderActivityDTO
-export type OrderActivityEntry = ShopOrderActivityEntryDTO
 
-/** The list's search params. Every key optional — absent means "the default". */
 export interface OrdersSearch {
   tab?: ShopOrderTab
   q?: string
   attention?: ShopOrderAttention
   payment?: ShopOrderPaymentState
-  /** Who takes the package away. (Was `method`: the customer's words, which a shop is no longer shown.) */
   deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
   page?: number
-  /** How the list is shown: the table (default, for the counter) or the queue's lanes (the packing bench). Not sent to the server. */
   view?: "queue"
 }
 
@@ -61,10 +43,6 @@ function pick<T extends string>(raw: unknown, allowed: readonly T[]): T | undefi
   return typeof raw === "string" && (allowed as readonly string[]).includes(raw) ? (raw as T) : undefined
 }
 
-/**
- * Parse the URL into search params. Invalid and default values are dropped, not kept: a URL carrying
- * `tab=all&page=1` is the same list as a bare `/orders`, and two URLs for one list would cache twice.
- */
 export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch {
   const out: OrdersSearch = {}
   const tab = pick(raw.tab, SHOP_ORDER_TABS)
@@ -74,18 +52,12 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (attention && attention !== "any") out.attention = attention
   const payment = pick(raw.payment, SHOP_ORDER_PAYMENT_STATES)
   if (payment) out.payment = payment
-  // An old link may still carry `method=same_day`. It is dropped, like any key this list does not
-  // know: the words were the customer's, and "standard" no longer says who collects the package.
   const deliveredBy = pick(raw.deliveredBy, SHOP_ORDER_DELIVERED_BY)
   if (deliveredBy && deliveredBy !== "any") out.deliveredBy = deliveredBy
   const range = pick(raw.range, SHOP_ORDER_RANGES)
   if (range && range !== "any") out.range = range
   const sort = pick(raw.sort, SHOP_ORDER_SORTS)
   if (sort && sort !== "placed") out.sort = sort
-  // Descending is the default (see ORDER_ROW_TONE below) — so it is `asc` that must be written into
-  // the URL, and `desc` that is dropped. This must agree with the service's own default
-  // (`apis/edge-api/shop/src/orders/service.ts`): if the two disagree, a bare `/orders` sends no
-  // direction, the server picks its own, and the header arrow points the wrong way at a correct list.
   if (raw.dir === "asc") out.dir = "asc"
   const page = typeof raw.page === "number" ? raw.page : Number(raw.page)
   if (Number.isInteger(page) && page > 1) out.page = page
@@ -93,27 +65,18 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   return out
 }
 
-/** The API query for a search. Only non-default keys are sent, so equal lists share a cache entry; the view is the screen's, never the server's. */
 export function toListQuery(s: OrdersSearch): ShopOrderListQuery {
   const { view: _view, ...query } = validateOrdersSearch(s as Record<string, unknown>)
   return query
 }
 
-/** Whether anything narrows the list beyond the tab — what separates "no orders yet" from "no match". */
 export function isFiltered(s: OrdersSearch): boolean {
   return !!(s.q || s.attention || s.payment || s.deliveredBy || s.range)
 }
 
-/**
- * How many filters are set — the count on the "Filters" button (revision 3). The search and the tab
- * are not filters here: each has its own control on the page. `attention` still counts, because an old
- * link may carry it and the sheet's "Clear all" is the way to drop it.
- */
 export function activeFilterCount(s: OrdersSearch): number {
   return [s.range, s.payment, s.deliveredBy, s.attention].filter(Boolean).length
 }
-
-// Labels
 
 export const TAB_LABEL: Record<ShopOrderTab, string> = {
   all: "All",
@@ -133,18 +96,6 @@ export const PAYMENT_LABEL: Record<ShopOrderPaymentState, string> = {
   refunded: "Refunded",
 }
 
-export const ATTENTION_LABEL: Record<ShopOrderAttention, string> = {
-  any: "Any status",
-  at_risk: "At risk",
-  short: "Short items",
-  on_track: "On track",
-}
-
-/**
- * Who takes a package away from the shop. The words are `DELIVERED_BY_WORDS`'S (shared-types):
- * the shop app prints the same two, and a test holds it to them. "Same-day" and "standard" are the
- * customer's words and appear nowhere in this console (`scripts/check-shop-delivery-words.sh`).
- */
 export const DELIVERED_BY_FILTER_LABEL: Record<ShopOrderDeliveredBy, string> = {
   any: "Anyone",
   ...DELIVERED_BY_WORDS,
@@ -157,23 +108,12 @@ export const RANGE_LABEL: Record<ShopOrderRange, string> = {
   "30d": "Last 30 days",
 }
 
-/** "Effy driver" / "Courier" — who this package is handed to. */
 export function deliveredByText(d: DeliveredBy): string {
   return DELIVERED_BY_WORDS[d]
 }
 
-// Formatting
+const RECENT_WINDOW_MS = 15 * 60_000
 
-// The row's tone (2026-09-19, operator direction)
-
-/**
- * How long an order reads as "just in": longer than Today's 60 s feed, because an operator comes back to
- * the order book from the floor. The screen ticks its own clock, so a row stops being green on time even
- * with no new data.
- */
-export const RECENT_WINDOW_MS = 15 * 60_000
-
-/** Terminal states — the portion has left this shop's hands, one way or another. */
 const TERMINAL: ReadonlySet<FulfillmentStatus> = new Set<FulfillmentStatus>([
   "collected",
   "delivered",
@@ -181,17 +121,9 @@ const TERMINAL: ReadonlySet<FulfillmentStatus> = new Set<FulfillmentStatus>([
   "withdrawn",
 ])
 
-/**
- * The row's highlight, or `null`. `recent` is the clock (it just arrived); `unopened` is a person
- * (`pending` = nobody at the shop has opened it). The status pill cannot say the second (`pending` and
- * `received` are both "Awaiting pick"). A terminal order is never "recent".
- */
 export type OrderRowTone = "recent" | "unopened"
 
-export function orderRowTone(
-  row: Pick<OrderRow, "placedAt" | "status">,
-  now: number,
-): OrderRowTone | null {
+export function orderRowTone(row: Pick<OrderRow, "placedAt" | "status">, now: number): OrderRowTone | null {
   const placed = new Date(row.placedAt).getTime()
   if (!TERMINAL.has(row.status) && Number.isFinite(placed) && now - placed < RECENT_WINDOW_MS) {
     return "recent"
@@ -199,9 +131,6 @@ export function orderRowTone(
   return row.status === "pending" ? "unopened" : null
 }
 
-/**
- * The list's Placed column, as the design has it: the time for today's orders, the day otherwise.
- */
 export function formatPlacedShort(iso: string, now: Date = new Date()): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return "—"
@@ -211,14 +140,12 @@ export function formatPlacedShort(iso: string, now: Date = new Date()): string {
     : d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
 }
 
-/** A decimal-string amount as currency. The wire value is never parsed into arithmetic here. */
 export function formatMoney(amount: string, currency = "AUD"): string {
   const n = Number(amount)
   if (!Number.isFinite(n)) return "—"
   return new Intl.NumberFormat("en-AU", { style: "currency", currency }).format(n)
 }
 
-/** "10 Sep, 2:14 pm" — the list's placed column and every log line. */
 export function formatWhen(iso: string | null): string {
   if (!iso) return "—"
   const d = new Date(iso)
@@ -226,7 +153,6 @@ export function formatWhen(iso: string | null): string {
   return d.toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 }
 
-/** The payment method in words: "Visa •••• 4242", or "Card" when the brand was not recorded. */
 export function paymentMethodText(p: OrderDetail["payment"]): string {
   const brand = p.methodBrand ? p.methodBrand.charAt(0).toUpperCase() + p.methodBrand.slice(1) : null
   if (brand && p.methodLast4) return `${brand} •••• ${p.methodLast4}`
@@ -235,12 +161,10 @@ export function paymentMethodText(p: OrderDetail["payment"]): string {
   return "Recorded at checkout"
 }
 
-/** Units of a line that can still be refunded — ordered, minus what is already on its way back. */
 export function refundableQuantity(line: Pick<OrderLine, "orderedQuantity" | "refundedQuantity">): number {
   return Math.max(0, line.orderedQuantity - line.refundedQuantity)
 }
 
-/** CSV for the current list — one row per order, the columns the table shows. */
 export function toCsv(rows: readonly OrderRow[]): string {
   const esc = (v: string | number) => {
     const s = String(v)
@@ -265,24 +189,20 @@ export function toCsv(rows: readonly OrderRow[]): string {
   return [head.join(","), ...body].join("\n")
 }
 
-// Item-level picking (A3 revision 2)
-
-/**
- * A line's pick state, derived from its two counts — never stored beside them.
- *  full — every unit gathered · part — some gathered (the rest short) · unavailable — none gathered,
- *  all short · none — untouched.
- */
 export type PickMode = "full" | "part" | "unavailable" | "none"
 
-export function pickModeOf(l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity">): PickMode {
+export function pickModeOf(
+  l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity">,
+): PickMode {
   if (l.gatheredQuantity >= l.orderedQuantity && l.orderedQuantity > 0) return "full"
   if (l.gatheredQuantity > 0) return "part"
   if (l.unavailableQuantity > 0) return "unavailable"
   return "none"
 }
 
-/** The status line under the SKU: "Picked" / "{n} of {total} picked" / "Unavailable · {note}" / "Not picked". */
-export function pickLabel(l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity" | "pickNote">): string {
+export function pickLabel(
+  l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity" | "pickNote">,
+): string {
   switch (pickModeOf(l)) {
     case "full":
       return "Picked"
@@ -295,16 +215,11 @@ export function pickLabel(l: Pick<OrderLine, "orderedQuantity" | "gatheredQuanti
   }
 }
 
-/** "{picked} of {total} items picked" — lines picked in full, over lines. */
 export function pickSummary(lines: readonly OrderLine[]): string {
   const full = lines.filter((l) => pickModeOf(l) === "full").length
   return `${full} of ${lines.length} ${lines.length === 1 ? "item" : "items"} picked`
 }
 
-/**
- * The Adjust dialog's "Units picked" rule — required, numeric, at least 1, at most ordered. The copy
- * is the design's, and the server refuses the same values.
- */
 export function unitsError(raw: string, ordered: number): string | null {
   if (raw.trim() === "" || !/^\d+$/.test(raw.trim())) return "Enter a number."
   const n = Number(raw)
@@ -313,7 +228,6 @@ export function unitsError(raw: string, ordered: number): string | null {
   return null
 }
 
-/** The toast (and the log entry's words) for one line's new state. */
 export function pickToast(name: string, mode: PickMode, units: number, ordered: number): string {
   switch (mode) {
     case "full":
@@ -327,7 +241,6 @@ export function pickToast(name: string, mode: PickMode, units: number, ordered: 
   }
 }
 
-/** Whether lines can still be picked from the console: before handover. A tick on "received" starts picking. */
 export function canPick(status: OrderDetail["status"]): boolean {
   return status === "pending" || status === "received" || status === "picking"
 }

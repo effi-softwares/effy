@@ -1,18 +1,18 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { render, screen } from "@testing-library/react"
+import type { ReactNode } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { CoverageGap } from "@effy/shared-types";
+import type { CoverageGap } from "@effy/shared-types"
 
-const getCoverage = vi.hoisted(() => vi.fn());
+const getCoverage = vi.hoisted(() => vi.fn())
 
-vi.mock("../capabilityRepo", () => ({ getCoverage }));
+vi.mock("../capabilityRepo", () => ({ getCoverage }))
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...rest }: { children: ReactNode }) => <a {...rest}>{children}</a>,
-}));
+}))
 
-const { CoveragePanel } = await import("./CoveragePanel");
+const { CoveragePanel } = await import("./CoveragePanel")
 
 function gap(over: Partial<CoverageGap> = {}): CoverageGap {
   return {
@@ -22,31 +22,24 @@ function gap(over: Partial<CoverageGap> = {}): CoverageGap {
     reason: "no_driver_cleared",
     clearedDriverCount: 0,
     ...over,
-  };
+  }
 }
 
 function renderPanel() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<CoveragePanel />, {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     ),
-  });
+  })
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  getCoverage.mockResolvedValue({ gaps: [gap()] });
-});
+  vi.clearAllMocks()
+  getCoverage.mockResolvedValue({ gaps: [gap()] })
+})
 
 describe("CoveragePanel — where the fleet has no cover", () => {
-  /**
-   * Two reasons, and the words name different remedies.
-   *
-   * "Nobody is cleared" is fixed on a driver's record. "Cleared drivers cannot work today" is fixed
-   * in readiness — a licence, a vehicle. A single "uncovered" label would send an operator to the
-   * wrong screen half the time.
-   */
   it("⚠ distinguishes nobody-cleared from everybody-unavailable", async () => {
     getCoverage.mockResolvedValue({
       gaps: [
@@ -58,44 +51,38 @@ describe("CoveragePanel — where the fleet has no cover", () => {
           clearedDriverCount: 2,
         }),
       ],
-    });
-    renderPanel();
+    })
+    renderPanel()
 
-    expect(await screen.findByText(/Nobody is cleared for this/)).toBeInTheDocument();
-    expect(screen.getByText(/Cleared drivers cannot work today/)).toBeInTheDocument();
-    // The count is what makes the second reason actionable — somebody has the clearance.
-    expect(screen.getByText(/2 cleared, none available/)).toBeInTheDocument();
-  });
+    expect(await screen.findByText(/Nobody is cleared for this/)).toBeInTheDocument()
+    expect(screen.getByText(/Cleared drivers cannot work today/)).toBeInTheDocument()
+    expect(screen.getByText(/2 cleared, none available/)).toBeInTheDocument()
+  })
 
   it("names the kind of work, because a zone can be covered for one and not the other", async () => {
     getCoverage.mockResolvedValue({
-      gaps: [gap({ function: "collection", })],
-    });
-    renderPanel();
-    expect(await screen.findByText(/^Collect —/)).toBeInTheDocument();
+      gaps: [gap({ function: "collection" })],
+    })
+    renderPanel()
+    expect(await screen.findByText(/^Collect —/)).toBeInTheDocument()
     // A gap is per area and kind of work; no delivery method is named.
-    expect(document.body.textContent).not.toMatch(/same[- ]day|standard/i);
-  });
+    expect(document.body.textContent).not.toMatch(/same[- ]day|standard/i)
+  })
 
-  /** A list of problems, not a matrix. Nothing covered appears at all. */
   it("⚠ says everything is covered rather than listing zones with a green tick", async () => {
-    getCoverage.mockResolvedValue({ gaps: [] });
-    renderPanel();
-    expect(await screen.findByText(/Every zone can be served/)).toBeInTheDocument();
-    expect(screen.queryByText(/Nobody is cleared/)).not.toBeInTheDocument();
-  });
+    getCoverage.mockResolvedValue({ gaps: [] })
+    renderPanel()
+    expect(await screen.findByText(/Every zone can be served/)).toBeInTheDocument()
+    expect(screen.queryByText(/Nobody is cleared/)).not.toBeInTheDocument()
+  })
 
   it("groups several gaps in one zone under that zone", async () => {
     getCoverage.mockResolvedValue({
-      gaps: [
-        gap({ function: "collection" }),
-        gap({ function: "delivery" }),
-      ],
-    });
-    renderPanel();
-    await screen.findByText("Inner North");
-    // One heading, two rows — an operator reads one place at a time, not one row at a time.
-    expect(screen.getAllByText("Inner North")).toHaveLength(1);
-    expect(screen.getAllByText(/Nobody is cleared for this/)).toHaveLength(2);
-  });
-});
+      gaps: [gap({ function: "collection" }), gap({ function: "delivery" })],
+    })
+    renderPanel()
+    await screen.findByText("Inner North")
+    expect(screen.getAllByText("Inner North")).toHaveLength(1)
+    expect(screen.getAllByText(/Nobody is cleared for this/)).toHaveLength(2)
+  })
+})

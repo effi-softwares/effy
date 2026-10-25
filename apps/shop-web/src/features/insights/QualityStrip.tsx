@@ -2,8 +2,10 @@ import type { ShopInsightsDTO } from "@effy/shared-types"
 
 import { BASIS_LABEL, deltaText } from "./model"
 
-/** A rate's change, in percentage points: "▲ 2.5 pts vs the previous 7 days". */
-function pointsText(figure: NonNullable<ShopInsightsDTO["quality"]["foundRate"]>, basis: ShopInsightsDTO["comparison"]["basis"]): string {
+function pointsText(
+  figure: NonNullable<ShopInsightsDTO["quality"]["foundRate"]>,
+  basis: ShopInsightsDTO["comparison"]["basis"],
+): string {
   const { kind, amount } = figure.change
   if (kind === "none" || amount === null) return "Nothing to compare yet"
   const n = Number(amount)
@@ -11,19 +13,12 @@ function pointsText(figure: NonNullable<ShopInsightsDTO["quality"]["foundRate"]>
   return `${arrow} ${Math.abs(n)} pts ${BASIS_LABEL[basis]}`
 }
 
-/** "18 min", "1 h 5 m": the average time from payment to ready. */
-export function durationText(seconds: number): string {
+function durationText(seconds: number): string {
   const mins = Math.round(seconds / 60)
   if (mins < 60) return `${mins} min`
   return `${Math.floor(mins / 60)} h ${mins % 60} m`
 }
 
-/**
- * How well the shop fulfils (Insights, 099): found rate, can't-supply rate and average time to ready,
- * over the orders it finished in the window. One bordered row of figures, never cards. A window with
- * nothing to measure reads "—", never 0% or 100%. The change is in words and a glyph, never by colour
- * alone; a rate moves in percentage points.
- */
 export function QualityStrip({ dto }: { dto: ShopInsightsDTO }) {
   const q = dto.quality
   const basis = dto.comparison.basis
@@ -61,7 +56,11 @@ export function QualityStrip({ dto }: { dto: ShopInsightsDTO }) {
             <dt className="sh-kpi__label">{c.label}</dt>
             <dd className="sh-kpi__value">{c.value ?? "—"}</dd>
             <dd className="sh-kpi__sub">
-              {c.figure ? (c.points ? pointsText(c.figure, basis) : deltaText(c.figure, basis)) : "No orders in this window yet"}
+              {c.figure
+                ? c.points
+                  ? pointsText(c.figure, basis)
+                  : deltaText(c.figure, basis)
+                : "No orders in this window yet"}
             </dd>
             <dd className="sh-kpi__sub">{c.hint}</dd>
           </div>

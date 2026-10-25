@@ -1,54 +1,46 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 
-import { Clock, Radio } from "lucide-react";
+import { Clock, Radio } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { dispatchDayQuery } from "@/features/dispatch/queries";
+import { Panel, Callout } from "@effy/web-kit/patterns"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { dispatchDayQuery } from "@/features/dispatch/queries"
 
-import { canManageDrivers } from "../access";
-import { driverActionError } from "../errorText";
-import { durationSince, formatTime } from "../model";
-import { dutyQuery, useEndDutySession } from "../queries";
-import { useState } from "react";
+import { canManageDrivers } from "../access"
+import { driverActionError } from "../errorText"
+import { durationSince, formatTime } from "../model"
+import { dutyQuery, useEndDutySession } from "../queries"
+import { useState } from "react"
 
-/**
- * Who is working right now. Assignment is automatic, which is safe only if a person can see what it
- * decided. A list and a sentence saying what the numbers mean together, not metric tiles.
- */
 export function DutyPanel() {
-  const roles = useSessionRoles();
-  const canManage = canManageDrivers(roles);
-  const [error, setError] = useState<string | null>(null);
+  const roles = useSessionRoles()
+  const canManage = canManageDrivers(roles)
+  const [error, setError] = useState<string | null>(null)
 
-  const { data, error: queryError, isPending, isError, refetch } = useQuery(dutyQuery());
-  const endSession = useEndDutySession();
-  const day = useQuery(dispatchDayQuery());
+  const { data, error: queryError, isPending, isError, refetch } = useQuery(dutyQuery())
+  const endSession = useEndDutySession()
+  const day = useQuery(dispatchDayQuery())
 
-  if (isError) return <ErrorState error={queryError} onRetry={() => void refetch()} />;
-  if (isPending) return <Skeleton className="h-40" />;
+  if (isError) return <ErrorState error={queryError} onRetry={() => void refetch()} />
+  if (isPending) return <Skeleton className="h-40" />
 
-  const waiting = data.unassigned.readyToCollect + data.unassigned.readyToDeliver;
-  // Who has a round right now, from today's dispatch read — what each driver is actually doing.
-  const roundOf = (driverId: string) => day.data?.rounds.find((r) => r.driverId === driverId);
+  const waiting = data.unassigned.readyToCollect + data.unassigned.readyToDeliver
+  const roundOf = (driverId: string) => day.data?.rounds.find((r) => r.driverId === driverId)
 
   return (
     <Panel
       title="On duty now"
       icon={<Radio aria-hidden="true" />}
       description={
-        /* The sentence that answers "WHY IS NOTHING MOVING?". With nobody on duty, an empty list
-           reads as "nothing to see" — it is the waiting count beside it that turns silence into a
-           cause. FR-036 exists because that state was invisible. */
         waiting > 0 && data.unassigned.driversOnDuty === 0 ? undefined : waiting > 0 ? (
           <>
-            {data.onDuty.length} {data.onDuty.length === 1 ? "driver" : "drivers"} · <span className="tabular-nums">{waiting}</span>{" "}
-            {waiting === 1 ? "package is" : "packages are"} waiting to be picked up on the next assignment round
+            {data.onDuty.length} {data.onDuty.length === 1 ? "driver" : "drivers"} ·{" "}
+            <span className="tabular-nums">{waiting}</span> {waiting === 1 ? "package is" : "packages are"} waiting to
+            be picked up on the next assignment round
             {data.unassigned.readyToDeliver > 0
               ? ` (${data.unassigned.readyToCollect} to collect, ${data.unassigned.readyToDeliver} to deliver)`
               : ""}
@@ -58,12 +50,24 @@ export function DutyPanel() {
           `${data.onDuty.length} ${data.onDuty.length === 1 ? "driver" : "drivers"}`
         )
       }
-      actions={<span className="text-xs text-muted-foreground">Drivers go on duty from the driver app; back-office cannot do it for them.</span>}
+      actions={
+        <span className="text-xs text-muted-foreground">
+          Drivers go on duty from the driver app; back-office cannot do it for them.
+        </span>
+      }
       flush
     >
       {waiting > 0 && data.unassigned.driversOnDuty === 0 ? (
         <div className="px-5 pt-4">
-          <Callout tone="destructive" title={<>Nobody is on duty, and <span className="tabular-nums">{waiting}</span> {waiting === 1 ? "package is" : "packages are"} waiting for a driver.</>}>
+          <Callout
+            tone="destructive"
+            title={
+              <>
+                Nobody is on duty, and <span className="tabular-nums">{waiting}</span>{" "}
+                {waiting === 1 ? "package is" : "packages are"} waiting for a driver.
+              </>
+            }
+          >
             Nothing will move until someone goes on duty in the driver app.
           </Callout>
         </div>
@@ -93,7 +97,7 @@ export function DutyPanel() {
             </thead>
             <tbody>
               {data.onDuty.map((d) => {
-                const round = roundOf(d.driverId);
+                const round = roundOf(d.driverId)
                 return (
                   <tr key={d.sessionId}>
                     <td data-m="primary">
@@ -116,9 +120,16 @@ export function DutyPanel() {
                       {durationSince(d.onDutySince)}
                     </td>
                     <td data-m="meta" data-label="Finish">
-                      {/* "unknown" is a real answer and is said, not implied by a blank. */}
-                      <span className={d.pastExpectedEnd ? "font-medium" : d.expectedEndAt ? undefined : "text-muted-foreground"}>
-                        {d.pastExpectedEnd ? "Past their expected finish" : d.expectedEndAt ? `Expects to finish ${formatTime(d.expectedEndAt)}` : "Finish time unknown"}
+                      <span
+                        className={
+                          d.pastExpectedEnd ? "font-medium" : d.expectedEndAt ? undefined : "text-muted-foreground"
+                        }
+                      >
+                        {d.pastExpectedEnd
+                          ? "Past their expected finish"
+                          : d.expectedEndAt
+                            ? `Expects to finish ${formatTime(d.expectedEndAt)}`
+                            : "Finish time unknown"}
                       </span>
                       {d.overdue ? (
                         <span className="bo-late mt-0.5 flex">
@@ -134,8 +145,10 @@ export function DutyPanel() {
                           size="sm"
                           disabled={endSession.isPending}
                           onClick={() => {
-                            setError(null);
-                            endSession.mutate(d.sessionId, { onError: (e) => setError(driverActionError(e, "end-duty")) });
+                            setError(null)
+                            endSession.mutate(d.sessionId, {
+                              onError: (e) => setError(driverActionError(e, "end-duty")),
+                            })
                           }}
                         >
                           End shift
@@ -143,12 +156,12 @@ export function DutyPanel() {
                       ) : null}
                     </td>
                   </tr>
-                );
+                )
               })}
             </tbody>
           </table>
         </div>
       )}
     </Panel>
-  );
+  )
 }

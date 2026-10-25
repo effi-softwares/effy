@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"
 
 import {
   AlertDialog,
@@ -12,34 +12,22 @@ import {
   AlertDialogTrigger,
   Button,
   Input,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { deliverabilityError } from "../errorText";
-import type { EmailDeliveryState } from "../model";
-import { useRepairDeliverability } from "../queries";
+import { deliverabilityError } from "../errorText"
+import type { EmailDeliveryState } from "../model"
+import { useRepairDeliverability } from "../queries"
 
-/**
- * The audited repair. The backend clears the mail service's suppression entry and then the platform's own
- * record; half a repair leaves the person locked out. The note is required: this re-enables mail to an
- * address that hard-failed, and a fresh bounce spends the shared sending reputation (a paused sender stops
- * sign-in for four audiences).
- */
-export function RepairDialog({
-  address,
-  state,
-}: {
-  address: string;
-  state: EmailDeliveryState;
-}) {
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState("");
-  const repair = useRepairDeliverability(address);
+export function RepairDialog({ address, state }: { address: string; state: EmailDeliveryState }) {
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState("")
+  const repair = useRepairDeliverability(address)
 
   async function confirm() {
     try {
-      await repair.mutateAsync(note);
-      setOpen(false);
-      setNote("");
+      await repair.mutateAsync(note)
+      setOpen(false)
+      setNote("")
     } catch {
       // Rendered below from `repair.error`.
     }
@@ -59,9 +47,9 @@ export function RepairDialog({
             {state === "undeliverable" && (
               <>
                 {" "}
-                Messages to it were being <strong>permanently rejected</strong>. Only do this once
-                you know the mailbox works again — another failure spends Effy&apos;s sending
-                reputation, which every audience&apos;s sign-in depends on.
+                Messages to it were being <strong>permanently rejected</strong>. Only do this once you know the mailbox
+                works again — another failure spends Effy&apos;s sending reputation, which every audience&apos;s sign-in
+                depends on.
               </>
             )}
           </AlertDialogDescription>
@@ -78,9 +66,7 @@ export function RepairDialog({
             placeholder="e.g. spoke to Sam; their mailbox was restored today"
             onChange={(e) => setNote(e.target.value)}
           />
-          {repair.isError && (
-            <p className="text-sm text-destructive">{deliverabilityError(repair.error)}</p>
-          )}
+          {repair.isError && <p className="text-sm text-destructive">{deliverabilityError(repair.error)}</p>}
         </div>
 
         <AlertDialogFooter>
@@ -88,8 +74,8 @@ export function RepairDialog({
           <AlertDialogAction
             disabled={!note.trim() || repair.isPending}
             onClick={(e) => {
-              e.preventDefault();
-              void confirm();
+              e.preventDefault()
+              void confirm()
             }}
           >
             {repair.isPending ? "Repairing…" : "Repair"}
@@ -97,5 +83,5 @@ export function RepairDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

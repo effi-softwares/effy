@@ -1,17 +1,10 @@
-/**
- * The direct-thermal path: the same label SVG, rasterised at the printer's dpi,
- * thresholded to one bit and sent as one ZPL graphic field (`^GFA`, Z64-compressed). The preview and the
- * paper are the same pixels, and the bars — already on the dot grid — print at exact widths.
- */
 import { GEOMETRY, type LabelLayout, type PrinterDpi } from "./render"
 
-/** The label's size in printer dots. */
 export function labelDots(layout: LabelLayout, dpi: PrinterDpi): { w: number; h: number } {
   const g = GEOMETRY[layout]
   return { w: Math.round((g.widthMm / 25.4) * dpi), h: Math.round((g.heightMm / 25.4) * dpi) }
 }
 
-/** One bit per pixel, MSB first, rows padded to whole bytes; a pixel is black when its luma is under half. */
 export function toMonochrome(rgba: Uint8ClampedArray, w: number, h: number): Uint8Array {
   const rowBytes = Math.ceil(w / 8)
   const out = new Uint8Array(rowBytes * h)
@@ -27,7 +20,6 @@ export function toMonochrome(rgba: Uint8ClampedArray, w: number, h: number): Uin
   return out
 }
 
-/** CRC-16/xmodem (poly 0x1021, init 0) over the Z64 text — what ZPL checks a compressed field against. */
 export function crc16(text: string): string {
   let crc = 0
   for (let i = 0; i < text.length; i++) {
@@ -49,7 +41,6 @@ function base64(bytes: Uint8Array): string {
   return btoa(s)
 }
 
-/** A one-label ZPL program from a monochrome bitmap. */
 export async function bitmapToZpl(bits: Uint8Array, w: number, h: number): Promise<string> {
   const rowBytes = Math.ceil(w / 8)
   const total = rowBytes * h
@@ -57,8 +48,11 @@ export async function bitmapToZpl(bits: Uint8Array, w: number, h: number): Promi
   return `^XA^PW${w}^LL${h}^FO0,0^GFA,${total},${total},${rowBytes},:Z64:${z64}:${crc16(z64)}^FS^XZ`
 }
 
-/** Rasterise a label SVG at the printer's dpi (browser only). */
-export async function rasterise(svg: string, layout: LabelLayout, dpi: PrinterDpi): Promise<{ bits: Uint8Array; w: number; h: number }> {
+async function rasterise(
+  svg: string,
+  layout: LabelLayout,
+  dpi: PrinterDpi,
+): Promise<{ bits: Uint8Array; w: number; h: number }> {
   const { w, h } = labelDots(layout, dpi)
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }))
   try {
@@ -79,7 +73,6 @@ export async function rasterise(svg: string, layout: LabelLayout, dpi: PrinterDp
   }
 }
 
-/** The ZPL for these label SVGs, one label program each. */
 export async function svgsToZpl(svgs: readonly string[], layout: LabelLayout, dpi: PrinterDpi): Promise<string> {
   const parts: string[] = []
   for (const svg of svgs) {

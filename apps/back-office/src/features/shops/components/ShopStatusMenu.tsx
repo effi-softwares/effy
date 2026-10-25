@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { ShopLifecycleStatus } from "@effy/shared-types";
+import type { ShopLifecycleStatus } from "@effy/shared-types"
 import {
   Button,
   Dialog,
@@ -9,16 +9,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { useChangeShopStatus } from "../queries";
+import { useChangeShopStatus } from "../queries"
 
-// Lifecycle transitions (POST /admin/v1/shops/{id}/status), each confirmed in a dialog that says what
-// happens (redesign, board "Suspend a shop"). Emits shop_status_changed.
-
-const VERB: Record<ShopLifecycleStatus, string> = { active: "Activate", suspended: "Suspend", disabled: "Disable" };
+const VERB: Record<ShopLifecycleStatus, string> = { active: "Activate", suspended: "Suspend", disabled: "Disable" }
 
 const CONSEQUENCES: Record<ShopLifecycleStatus, string[]> = {
   active: ["New orders can be sent here again.", "Operators can sign in and take work."],
@@ -27,11 +24,8 @@ const CONSEQUENCES: Record<ShopLifecycleStatus, string[]> = {
     "New orders stop being sent here. Its products stay listed if another shop stocks them.",
     "Operators keep their sign-in and can finish what they have.",
   ],
-  disabled: [
-    "Every operator's sign-in stops straight away.",
-    "No work reaches the shop. Its history is kept.",
-  ],
-};
+  disabled: ["Every operator's sign-in stops straight away.", "No work reaches the shop. Its history is kept."],
+}
 
 export function ShopStatusDialog({
   shopId,
@@ -39,27 +33,27 @@ export function ShopStatusDialog({
   target,
   onOpenChange,
 }: {
-  shopId: string;
-  shopName: string;
-  target: ShopLifecycleStatus | null;
-  onOpenChange: (open: boolean) => void;
+  shopId: string
+  shopName: string
+  target: ShopLifecycleStatus | null
+  onOpenChange: (open: boolean) => void
 }) {
-  const changeStatus = useChangeShopStatus(shopId);
-  const [error, setError] = useState<string | null>(null);
+  const changeStatus = useChangeShopStatus(shopId)
+  const [error, setError] = useState<string | null>(null)
 
   function confirm() {
-    if (!target) return;
-    setError(null);
+    if (!target) return
+    setError(null)
     changeStatus.mutate(
       { status: target },
       {
         onSuccess: () => {
-          track({ name: "shop_status_changed", shopId });
-          onOpenChange(false);
+          track({ name: "shop_status_changed", shopId })
+          onOpenChange(false)
         },
         onError: () => setError("Couldn't change the shop's status. Try again."),
       },
-    );
+    )
   }
 
   return (
@@ -102,5 +96,5 @@ export function ShopStatusDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

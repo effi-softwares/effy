@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { AdminDriverProfile, DriverEmploymentStatus } from "@effy/shared-types";
+import type { AdminDriverProfile, DriverEmploymentStatus } from "@effy/shared-types"
 import {
   Button,
   Dialog,
@@ -11,73 +11,63 @@ import {
   DialogTitle,
   Label,
   Textarea,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { track } from "@/lib/telemetry";
+import { track } from "@/lib/telemetry"
 
-import { driverActionError } from "../errorText";
-import { STATUS_MEANING } from "../model";
-import { useSetDriverStatus } from "../queries";
-
-/**
- * The employment lifecycle control. The copy says both halves every time: access ends immediately (the
- * record and the sign-in account change in one operation), while work does not come back immediately
- * (un-started work returns on the next assignment pass; anything picked up waits for a person).
- */
+import { driverActionError } from "../errorText"
+import { STATUS_MEANING } from "../model"
+import { useSetDriverStatus } from "../queries"
 
 const TRANSITIONS: Record<DriverEmploymentStatus, DriverEmploymentStatus[]> = {
   active: ["suspended", "offboarded"],
   suspended: ["active", "offboarded"],
-  // Terminal. Restoring a departed employee is a re-hire decision, not a button — and FR-014's
-  // refusal already names an offboarded record when their address is reused, so the operator is
-  // pointed at the choice deliberately rather than nudged into it.
   offboarded: [],
-};
+}
 
 const VERB: Record<DriverEmploymentStatus, string> = {
   active: "Restore",
   suspended: "Suspend",
   offboarded: "Offboard",
-};
+}
 
 export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
-  const [target, setTarget] = useState<DriverEmploymentStatus | null>(null);
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [target, setTarget] = useState<DriverEmploymentStatus | null>(null)
+  const [reason, setReason] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const mutate = useSetDriverStatus(driver.id);
-  const options = TRANSITIONS[driver.status];
+  const mutate = useSetDriverStatus(driver.id)
+  const options = TRANSITIONS[driver.status]
 
   function close() {
-    setTarget(null);
-    setReason("");
-    setError(null);
+    setTarget(null)
+    setReason("")
+    setError(null)
   }
 
   function submit() {
-    if (!target) return;
-    setError(null);
+    if (!target) return
+    setError(null)
     mutate.mutate(
       { status: target, reason },
       {
         onSuccess: () => {
-          track({ name: "driver_status_changed", driverId: driver.id, status: target });
-          close();
+          track({ name: "driver_status_changed", driverId: driver.id, status: target })
+          close()
         },
         onError: (e) => {
-          setError(driverActionError(e, "status"));
+          setError(driverActionError(e, "status"))
         },
       },
-    );
+    )
   }
 
   if (options.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        This driver has left. Their record and work history are kept for audit; their sign-in is
-        permanently closed.
+        This driver has left. Their record and work history are kept for audit; their sign-in is permanently closed.
       </p>
-    );
+    )
   }
 
   return (
@@ -100,14 +90,12 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* The timing truth, stated on every stand-down. */}
             {target !== "active" ? (
               <div className="border-l-2 border-foreground py-1 pl-3 text-sm">
                 <p className="font-medium">They lose access straight away.</p>
                 <p className="text-muted-foreground">
-                  Work they have not started yet goes back to the pool on the next assignment round.
-                  Anything they have already picked up stays with them until someone releases it —
-                  you will find it under Stranded work.
+                  Work they have not started yet goes back to the pool on the next assignment round. Anything they have
+                  already picked up stays with them until someone releases it — you will find it under Stranded work.
                 </p>
               </div>
             ) : null}
@@ -127,9 +115,7 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
                 }
                 rows={2}
               />
-              <p className="text-xs text-muted-foreground">
-                Kept on the driver's record and in the change history.
-              </p>
+              <p className="text-xs text-muted-foreground">Kept on the driver's record and in the change history.</p>
             </div>
 
             {error ? (
@@ -143,16 +129,12 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
             <Button type="button" variant="outline" onClick={close}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={mutate.isPending || reason.trim() === ""}
-              onClick={() => submit()}
-            >
-              {mutate.isPending ? "Working…" : (target ? VERB[target] : "Confirm")}
+            <Button type="button" disabled={mutate.isPending || reason.trim() === ""} onClick={() => submit()}>
+              {mutate.isPending ? "Working…" : target ? VERB[target] : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
-  );
+  )
 }

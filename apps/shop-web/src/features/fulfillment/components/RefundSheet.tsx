@@ -12,32 +12,28 @@ import { fulfillmentMutationError } from "../errorText"
 import { formatMoney, refundableQuantity, type OrderLine } from "../orderConsole"
 import { invalidateOrders } from "../queries"
 import { issueShopRefund } from "../repo"
-import { lineCodes } from "../codes";
+import { lineCodes } from "../codes"
 
-/** What the sheet needs to know about the order: the portion, the order, and this shop's priced lines. */
-export interface RefundTarget {
-  /** The portion (shop_fulfillment.id) — telemetry's unit of work. */
+interface RefundTarget {
   id: string
   orderId: string
   orderNumber: string
   currency: string
-  lines: Pick<OrderLine, "orderItemId" | "name" | "variantLabel" | "variantCode" | "sku" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
+  lines: Pick<
+    OrderLine,
+    | "orderItemId"
+    | "name"
+    | "variantLabel"
+    | "variantCode"
+    | "sku"
+    | "orderedQuantity"
+    | "refundedQuantity"
+    | "unitPrice"
+  >[]
 }
 
 type Reason = "item_not_supplied" | "item_unusable"
 
-/**
- * Refunding this shop's portion of an order — the design's `isRefund` sheet: one row per
- * line with a quantity field, a "max" shortcut and the line's total; the reason; "Return items to
- * stock"; and the refund total.
- *
- * It sends lines and quantities, never an amount. The server prices the refund from the receipt and
- * refuses a client-supplied amount, so the total here is only a preview of that pricing.
- * The design's "Refund shipping" toggle is absent: a shop refund covers the shop's own lines, and the
- * delivery fee is Effy's to return.
- * Only this shop's lines, clamped to what is not already on its way back; the server re-checks both.
- * Manager-only, and this component is not the gate — the backend decides from the platform record.
- */
 export function RefundSheet({
   detail,
   open,
@@ -52,7 +48,6 @@ export function RefundSheet({
   const [reason, setReason] = useState<Reason>("item_not_supplied")
   const [restock, setRestock] = useState(false)
 
-  // Each opening starts clean, never from a half-finished choice left from the last time.
   useEffect(() => {
     if (open) {
       setQuantities({})
@@ -61,8 +56,7 @@ export function RefundSheet({
     }
   }, [open])
 
-  const qty = (id: string, max: number) =>
-    Math.max(0, Math.min(max, Number.parseInt(quantities[id] ?? "", 10) || 0))
+  const qty = (id: string, max: number) => Math.max(0, Math.min(max, Number.parseInt(quantities[id] ?? "", 10) || 0))
   const chosen = detail.lines
     .map((l) => ({ line: l, n: qty(l.orderItemId, refundableQuantity(l)) }))
     .filter((c) => c.n > 0)
@@ -77,7 +71,6 @@ export function RefundSheet({
       }),
     onSuccess: (res) => {
       track({ name: "shop_refund_initiated", fulfillmentId: detail.id })
-      // "Sent", not "refunded": the provider accepting it means only that it is on its way.
       toast.success(`Refund of ${formatMoney(res.amount, detail.currency)} sent`, {
         description: detail.orderNumber,
       })
@@ -125,9 +118,7 @@ export function RefundSheet({
                   disabled={max === 0}
                   value={quantities[l.orderItemId] ?? ""}
                   placeholder="0"
-                  onChange={(e) =>
-                    setQuantities((q) => ({ ...q, [l.orderItemId]: e.target.value.replace(/\D/g, "") }))
-                  }
+                  onChange={(e) => setQuantities((q) => ({ ...q, [l.orderItemId]: e.target.value.replace(/\D/g, "") }))}
                   className="w-16 text-right tabular-nums"
                 />
                 <Button
@@ -148,7 +139,6 @@ export function RefundSheet({
         })}
       </div>
 
-      {/* Effy's vocabulary — the business needs to tell these apart for its own reporting. */}
       <ChoiceCards
         label="Reason"
         value={reason}
@@ -159,8 +149,6 @@ export function RefundSheet({
         onChange={(v) => setReason(v as Reason)}
       />
 
-      {/* Off by default, and the default is the honest one — a shop refunding an unusable item has
-          nothing to put back. Honoured by the server since 057 A3 (it used to be ignored). */}
       <SheetToggleRow
         title="Return items to stock"
         detail="Only if you still have them and they can be sold."

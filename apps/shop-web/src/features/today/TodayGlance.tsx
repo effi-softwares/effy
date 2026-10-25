@@ -10,12 +10,6 @@ import { insightsQuery } from "@/features/insights/queries"
 
 import { unitsToPack } from "./model"
 
-/**
- * "Today at a glance" — the rail panel ("Today so far" on the canvas): four label · value rows, not
- * cards. It reads `insightsQuery("today")`, the same entry Insights reads, so the two agree by
- * construction. "Awaiting pick" comes from the operational snapshot instead, because it is live work —
- * and it is the one figure in blue, as work rather than a result.
- */
 export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }) {
   const insights = useQuery(insightsQuery("today"))
   const dto = insights.data

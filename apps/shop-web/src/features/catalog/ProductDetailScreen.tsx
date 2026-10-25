@@ -1,73 +1,57 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { Boxes, CircleAlert, Eye, FileText, Hourglass, ImageOff, Images, type LucideIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
+import { Boxes, CircleAlert, Eye, FileText, Hourglass, ImageOff, Images, type LucideIcon } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { GST_STATUS_WORDS } from "@effy/shared-types";
-import { ErrorState } from "@effy/web-kit/console";
-import { DetailRows, PageHeader } from "@effy/web-kit/patterns";
+import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { GST_STATUS_WORDS } from "@effy/shared-types"
+import { ErrorState } from "@effy/web-kit/console"
+import { DetailRows, PageHeader } from "@effy/web-kit/patterns"
 
-import { DetailSection, Page, SectionAction } from "@/components/console/primitives";
-import { cn } from "@/lib/utils";
+import { DetailSection, Page, SectionAction } from "@/components/console/primitives"
+import { cn } from "@/lib/utils"
 
-import { ProductStatusBadge } from "./components/ProductStatusBadge";
-import {
-  formatAttributeValue,
-  formatMoney,
-  orderedMedia,
-  storefrontText,
-} from "./detailFormat";
-import { InventorySection } from "./InventorySection";
-import { MediaGallery } from "./MediaGallery";
-import type { ProductDetail } from "./model";
-import { ProductActivitySheet } from "./ProductActivitySheet";
-import { ProductHeaderActions } from "./ProductActions";
-import {
-  AttributesEditDialog,
-  BasicsEditDialog,
-  CategorizationEditDialog,
-  SizesEditDialog,
-} from "./ProductEditDialogs";
-import { productDetailQuery } from "./queries";
-import { reviewChip, workingDetail } from "./review";
-import { ReviewPanel } from "./ReviewPanel";
-import { SectionAssignment } from "./SectionAssignment";
-import { defaultStockVariantId, shopPriceSummary } from "./variants";
-import { VariantsSection } from "./VariantsSection";
+import { ProductStatusBadge } from "./components/ProductStatusBadge"
+import { formatAttributeValue, formatMoney, orderedMedia, storefrontText } from "./detailFormat"
+import { InventorySection } from "./InventorySection"
+import { MediaGallery } from "./MediaGallery"
+import type { ProductDetail } from "./model"
+import { ProductActivitySheet } from "./ProductActivitySheet"
+import { ProductHeaderActions } from "./ProductActions"
+import { AttributesEditDialog, BasicsEditDialog, CategorizationEditDialog, SizesEditDialog } from "./ProductEditDialogs"
+import { productDetailQuery } from "./queries"
+import { reviewChip, workingDetail } from "./review"
+import { ReviewPanel } from "./ReviewPanel"
+import { SectionAssignment } from "./SectionAssignment"
+import { defaultStockVariantId, shopPriceSummary } from "./variants"
+import { VariantsSection } from "./VariantsSection"
 
-type EditTarget = "basics" | "sizes" | "categorization" | "attributes" | null;
+type EditTarget = "basics" | "sizes" | "categorization" | "attributes" | null
 
-type DetailTab = "details" | "inventory" | "media" | "visibility";
+type DetailTab = "details" | "inventory" | "media" | "visibility"
 
-/**
- * Product detail (redesign, "08 Product"): the page head (picture, name, state, what it is, the header's
- * verbs), the review panel when Effy has something to say, then four tabs grouped by the question an
- * operator arrives with — Details, Inventory, Media, Visibility. The change log is in the Activity sheet.
- * The body is keyed on `productId`, so another product opens on Details.
- */
 export function ProductDetailScreen({ productId, initialSize }: { productId: string; initialSize?: string }) {
-  return <ProductDetailBody key={productId} productId={productId} initialSize={initialSize} />;
+  return <ProductDetailBody key={productId} productId={productId} initialSize={initialSize} />
 }
 
 function ProductDetailBody({ productId, initialSize }: { productId: string; initialSize?: string }) {
-  const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId));
-  const [editing, setEditing] = useState<EditTarget>(null);
-  const [tab, setTab] = useState<DetailTab>("details");
-  const [activityOpen, setActivityOpen] = useState(false);
+  const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId))
+  const [editing, setEditing] = useState<EditTarget>(null)
+  const [tab, setTab] = useState<DetailTab>("details")
+  const [activityOpen, setActivityOpen] = useState(false)
   // The size whose stock the Inventory tab, Receive stock and Activity show.
-  const [chosenStockVariant, setStockVariant] = useState<string | null>(initialSize ?? null);
-  const navigate = useNavigate();
+  const [chosenStockVariant, setStockVariant] = useState<string | null>(initialSize ?? null)
+  const navigate = useNavigate()
 
-  const goCatalog = () => void navigate({ to: "/catalog" });
+  const goCatalog = () => void navigate({ to: "/catalog" })
 
   if (isError) {
     return (
       <Page>
         <ErrorState error={error} onRetry={() => void refetch()} />
       </Page>
-    );
+    )
   }
   if (isPending) {
     return (
@@ -83,29 +67,25 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         <Skeleton className="h-12 w-96 max-w-full rounded-lg" />
         <Skeleton className="h-64 w-full rounded-lg" />
       </Page>
-    );
+    )
   }
 
-  const detail: ProductDetail = data;
+  const detail: ProductDetail = data
   const stockVariantId =
     chosenStockVariant && detail.variants.some((v) => v.id === chosenStockVariant && v.state !== "removed")
       ? chosenStockVariant
-      : (defaultStockVariantId(detail) ?? "");
-  // The page shows the live product; the editors open on the shop's own latest version.
-  const working = workingDetail(detail);
-  const chip = reviewChip(detail.reviewState);
-  // The header's price is the cheapest size on sale, "From" when sizes differ; its stock chip
-  // answers for the product as a whole (sold out only when every size on sale is).
-  const price = shopPriceSummary(detail);
-  const onSale = detail.variants.filter((v) => v.state === "active");
-  const soldOut = onSale.length > 0 && onSale.every((v) => v.stock.outOfStock);
-  const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target);
+      : (defaultStockVariantId(detail) ?? "")
+  const working = workingDetail(detail)
+  const chip = reviewChip(detail.reviewState)
+  const price = shopPriceSummary(detail)
+  const onSale = detail.variants.filter((v) => v.state === "active")
+  const soldOut = onSale.length > 0 && onSale.every((v) => v.stock.outOfStock)
+  const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target)
 
-  const sizes = detail.variants.filter((v) => v.state !== "removed");
+  const sizes = detail.variants.filter((v) => v.state !== "removed")
 
   return (
     <Page>
-      {/* The page head: the picture, the name with its state, what it is, and the header's verbs. */}
       <div className="flex items-start gap-4 max-md:flex-col">
         <ProductThumb detail={detail} />
         <div className="min-w-0 flex-1">
@@ -114,9 +94,10 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             title={
               <>
                 {detail.name}
-                {/* The header word answers "can a shopper buy this right now", so it takes the live
-                    stock the page is already reading rather than a state an empty shelf contradicts. */}
-                <ProductStatusBadge status={detail.status} stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined} />
+                <ProductStatusBadge
+                  status={detail.status}
+                  stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined}
+                />
                 {chip ? (
                   <span className={cn("bo-st", chip.tone === "warning" ? "bo-st--problem" : "bo-st--moving")}>
                     {chip.tone === "warning" ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
@@ -180,7 +161,6 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </div>
         </div>
 
-        {/* Details: what it is, and what it costs */}
         <TabsContent value="details" className="bo-tabpanel">
           <VariantsSection detail={detail} onEdit={edit("sizes")} />
 
@@ -195,7 +175,10 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                 { label: "Brand", value: detail.brand ?? "—" },
                 { label: "Type", value: detail.typeName },
                 { label: "Short description", value: detail.shortDescription },
-                { label: "Long description", value: <span className="whitespace-pre-line">{detail.longDescription ?? "—"}</span> },
+                {
+                  label: "Long description",
+                  value: <span className="whitespace-pre-line">{detail.longDescription ?? "—"}</span>,
+                },
                 { label: "GST", value: detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set" },
               ]}
             />
@@ -220,19 +203,14 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           </DetailSection>
         </TabsContent>
 
-        {/* Inventory: Stock rules + Stock movements (see InventorySection) */}
         <TabsContent value="inventory" className="bo-tabpanel">
           <InventorySection detail={detail} variantId={stockVariantId} onVariantChange={setStockVariant} />
         </TabsContent>
 
         <TabsContent value="media" className="bo-tabpanel">
-          {/* The gallery edits the shop's own latest image set — the proposed one when images are
-              part of a pending change. */}
           <MediaGallery detail={working} />
         </TabsContent>
 
-        {/* Not "Visibility and channels": Effy is one storefront with hidden fulfilment, so there is
-            exactly one channel. The tab holds whether shoppers can see the product and where it is filed. */}
         <TabsContent value="visibility" className="bo-tabpanel">
           <DetailSection
             title="Visibility and placement"
@@ -251,7 +229,12 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         </TabsContent>
       </Tabs>
 
-      <ProductActivitySheet detail={detail} variantId={stockVariantId} open={activityOpen} onOpenChange={setActivityOpen} />
+      <ProductActivitySheet
+        detail={detail}
+        variantId={stockVariantId}
+        open={activityOpen}
+        onOpenChange={setActivityOpen}
+      />
 
       <BasicsEditDialog
         detail={working}
@@ -274,7 +257,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         onOpenChange={(o) => setEditing(o ? "attributes" : null)}
       />
     </Page>
-  );
+  )
 }
 
 const TABS: readonly { value: DetailTab; label: string; icon: LucideIcon }[] = [
@@ -282,10 +265,10 @@ const TABS: readonly { value: DetailTab; label: string; icon: LucideIcon }[] = [
   { value: "inventory", label: "Inventory", icon: Boxes },
   { value: "media", label: "Media", icon: Images },
   { value: "visibility", label: "Visibility", icon: Eye },
-];
+]
 
 function ProductThumb({ detail }: { detail: ProductDetail }) {
-  const primary = orderedMedia(detail)[0];
+  const primary = orderedMedia(detail)[0]
   return primary ? (
     <img
       src={primary.url}
@@ -296,5 +279,5 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
     <div className="bo-img size-24 rounded-lg max-md:size-20">
       <ImageOff aria-hidden="true" />
     </div>
-  );
+  )
 }

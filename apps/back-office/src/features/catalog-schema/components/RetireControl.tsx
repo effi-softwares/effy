@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import type { SchemaStatus } from "@effy/shared-types";
+import type { SchemaStatus } from "@effy/shared-types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,41 +11,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-} from "@effy/design-system/ui";
+} from "@effy/design-system/ui"
 
-import { catalogMutationError } from "../errorText";
+import { catalogMutationError } from "../errorText"
 
-// Retire / activate a schema entity (product type, attribute, or category). Activating is direct;
-// retiring is confirmed (and may be refused 409 if the entity is still in use — FR-006), so the
-// confirm dialog surfaces that conflict inline. `mutate` is the per-id status mutation's mutateAsync
-// supplied by the row (which owns the hook), keeping this control entity-agnostic.
-export interface RetireControlProps {
-  status: SchemaStatus;
-  entityLabel: string;
-  mutate: (body: { status: SchemaStatus }) => Promise<unknown>;
-  pending: boolean;
+interface RetireControlProps {
+  status: SchemaStatus
+  entityLabel: string
+  mutate: (body: { status: SchemaStatus }) => Promise<unknown>
+  pending: boolean
 }
 
 export function RetireControl({ status, entityLabel, mutate, pending }: RetireControlProps) {
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function activate() {
-    setError(null);
+    setError(null)
     try {
-      await mutate({ status: "active" });
-    } catch {
-      /* transient failures surface via the list's own error handling on refetch */
-    }
+      await mutate({ status: "active" })
+    } catch {}
   }
 
   async function confirmRetire() {
-    setError(null);
+    setError(null)
     try {
-      await mutate({ status: "retired" });
-      setOpen(false);
+      await mutate({ status: "retired" })
+      setOpen(false)
     } catch (err) {
-      setError(catalogMutationError(err, `This ${entityLabel} is in use and can't be retired.`));
+      setError(catalogMutationError(err, `This ${entityLabel} is in use and can't be retired.`))
     }
   }
 
@@ -54,7 +48,7 @@ export function RetireControl({ status, entityLabel, mutate, pending }: RetireCo
       <Button variant="outline" size="sm" disabled={pending} onClick={activate}>
         Activate
       </Button>
-    );
+    )
   }
 
   return (
@@ -67,8 +61,8 @@ export function RetireControl({ status, entityLabel, mutate, pending }: RetireCo
           <AlertDialogHeader>
             <AlertDialogTitle>Retire this {entityLabel}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Retired {entityLabel}s stay on existing products but are hidden from new ones. You can
-              activate it again later.
+              Retired {entityLabel}s stay on existing products but are hidden from new ones. You can activate it again
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -76,8 +70,8 @@ export function RetireControl({ status, entityLabel, mutate, pending }: RetireCo
             <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
-                e.preventDefault();
-                void confirmRetire();
+                e.preventDefault()
+                void confirmRetire()
               }}
               disabled={pending}
             >
@@ -87,5 +81,5 @@ export function RetireControl({ status, entityLabel, mutate, pending }: RetireCo
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
+  )
 }

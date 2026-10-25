@@ -10,10 +10,6 @@ import { cn } from "@/lib/utils"
 import { formatWhen } from "../orderConsole"
 import { orderActivityQuery } from "../queries"
 
-/**
- * The order's Activity sheet: a right sheet (a drawer on a phone), a timeline, no footer; the order's log only. Read only
- * when open; every write invalidates it.
- */
 export function OrderActivitySheet({
   fulfillmentId,
   open,
@@ -52,8 +48,6 @@ export function OrderActivitySheet({
         <ol className="bo-tl">
           {log.data.entries.map((e) => (
             <li key={e.id} className="bo-tl__item">
-              {/* The mark: black with an icon for something the customer will not get, blue for a
-                  decision, plain for routine progress. The title always says which. */}
               <span
                 aria-hidden="true"
                 className={cn(

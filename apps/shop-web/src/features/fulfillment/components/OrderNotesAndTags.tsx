@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react"
 import { X } from "lucide-react"
 
-import {
-  SHOP_ORDER_NOTE_MAX_LENGTH,
-  SHOP_ORDER_TAG_MAX,
-  SHOP_ORDER_TAG_MAX_LENGTH,
-} from "@effy/shared-types"
+import { SHOP_ORDER_NOTE_MAX_LENGTH, SHOP_ORDER_TAG_MAX, SHOP_ORDER_TAG_MAX_LENGTH } from "@effy/shared-types"
 
 import { Button, Input, Textarea } from "@effy/design-system/ui"
 
@@ -14,11 +10,6 @@ import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { orderEditError } from "../errorText"
 import { useAddOrderNote, useSetOrderTags } from "../queries"
 
-/**
- * "Order tags" — the design's `isOrderTags` sheet: the current tags as removable chips, an "Add a tag"
- * field with its Add button, and Save tags. The whole set is saved at once (the route is absolute), so
- * nothing is written until Save. The limits are the service's own.
- */
 export function OrderTagsDialog({
   fulfillmentId,
   tags,
@@ -59,9 +50,11 @@ export function OrderTagsDialog({
       saveLabel="Save tags"
       saving={save.isPending}
       error={save.isError ? orderEditError(save.error) : null}
-      onSave={() => save.mutate(text.trim() ? [...new Set([...draft, text.trim().toLowerCase()])] : draft, {
-        onSuccess: () => onOpenChange(false),
-      })}
+      onSave={() =>
+        save.mutate(text.trim() ? [...new Set([...draft, text.trim().toLowerCase()])] : draft, {
+          onSuccess: () => onOpenChange(false),
+        })
+      }
     >
       {draft.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
@@ -101,7 +94,12 @@ export function OrderTagsDialog({
             }}
             className="flex-1"
           />
-          <Button type="button" variant="outline" onClick={add} disabled={!text.trim() || draft.length >= SHOP_ORDER_TAG_MAX}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={add}
+            disabled={!text.trim() || draft.length >= SHOP_ORDER_TAG_MAX}
+          >
             Add
           </Button>
         </div>
@@ -110,10 +108,6 @@ export function OrderTagsDialog({
   )
 }
 
-/**
- * "Internal note" — the design's `isNote` sheet. Append-only: there is no edit or delete, so a note
- * someone acted on cannot be quietly rewritten afterwards. It is added to the activity log.
- */
 export function OrderNoteDialog({
   fulfillmentId,
   open,

@@ -1,11 +1,3 @@
-/**
- * Fitting a label's text by measured width.
- *
- * The label is a fixed-size document for paper, so text cannot reflow onto a next page: a long name or
- * address must shrink, then wrap, and never run off the label. Widths come from the Helvetica AFM tables
- * in `helvetica-metrics.json` (Arial is metric-compatible), so the fit is deterministic — the same in a
- * test (jsdom has no `measureText`) as on paper.
- */
 import metrics from "./helvetica-metrics.json"
 
 const PT_TO_MM = 25.4 / 72
@@ -13,10 +5,8 @@ const PT_TO_MM = 25.4 / 72
 type Widths = Record<string, number>
 const REGULAR = metrics.regular as Widths
 const BOLD = metrics.bold as Widths
-/** A glyph the table does not know is measured as a wide lower-case letter — never as nothing. */
 const FALLBACK = 600
 
-/** The width of `text` in mm at `sizePt`. `mono` text is measured as 0.6 em per character. */
 export function textWidthMm(text: string, sizePt: number, opts: { bold?: boolean; mono?: boolean } = {}): number {
   if (opts.mono) return [...text].length * 0.6 * sizePt * PT_TO_MM
   const table = opts.bold ? BOLD : REGULAR
@@ -25,16 +15,11 @@ export function textWidthMm(text: string, sizePt: number, opts: { bold?: boolean
   return (units / 1000) * sizePt * PT_TO_MM
 }
 
-export interface Fitted {
+interface Fitted {
   sizePt: number
   lines: string[]
 }
 
-/**
- * Fit `text` into `maxWidthMm`: the largest of `sizesPt` (largest first) at which it fits on one line;
- * failing that, the smallest size, wrapped on word boundaries into at most `maxLines`, the last line
- * ending in an ellipsis if it still does not fit. Every returned line fits `maxWidthMm`.
- */
 export function fitText(
   text: string,
   maxWidthMm: number,
@@ -68,7 +53,6 @@ export function fitText(
     }
   }
   lines.push(current)
-  // A line too long (the last, or a single word with no spaces to wrap at) ends in an ellipsis.
   return { sizePt: size, lines: lines.map((l) => ellipsize(l, fits)) }
 }
 

@@ -1,37 +1,18 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { asapSentence, courierEstimateSentence } from "@effy/shared-types";
-import { Button } from "@effy/design-system/ui";
-import { CalendarClock, Route, Truck } from "lucide-react";
+import { asapSentence, courierEstimateSentence } from "@effy/shared-types"
+import { Button } from "@effy/design-system/ui"
+import { CalendarClock, Route, Truck } from "lucide-react"
 
-import { ChangeDeliveryWindowDialog } from "./ChangeDeliveryWindowDialog";
-import { CourierCollection } from "./CourierCollection";
-import { DeliverByEffyDialog } from "./DeliverByEffyDialog";
-import { DeliveryHistory } from "./DeliveryHistory";
-import { SendByCourierDialog } from "./SendByCourierDialog";
-import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model";
+import { ChangeDeliveryWindowDialog } from "./ChangeDeliveryWindowDialog"
+import { CourierCollection } from "./CourierCollection"
+import { DeliverByEffyDialog } from "./DeliverByEffyDialog"
+import { DeliveryHistory } from "./DeliveryHistory"
+import { SendByCourierDialog } from "./SendByCourierDialog"
+import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model"
 
-/**
- * Who delivers this order, why, and every change since.
- *
- * A list of facts and a list of changes, not a card and not a timeline widget — the question staff
- * are asked is "why did this go by courier?", and the answer is one line. The history is rows of
- * when / what / why / who like the order's own history below it.
- *
- * Nothing is shown for an order placed before orders had a delivery type except that plain fact.
- * Its packages still say who took them (the Packages section); a type and a history are not invented
- * for it.
- */
-export type DeliveryMove = "courier" | "effy" | "retime";
+export type DeliveryMove = "courier" | "effy" | "retime"
 
-/**
- * The order's Delivery panel in the summary rail (redesign, board "Order — Delivered by Effy"): who
- * delivers it and why, what was sold, where it goes (`children`), the move actions, and — as its own
- * panel — the history of who delivers it.
- *
- * `moving` may be controlled by the page, so its header actions ("Change day or time…") open the same
- * dialogs the panel's buttons do.
- */
 export function DeliveryTypeSection({
   order,
   formatDateTime,
@@ -41,17 +22,17 @@ export function DeliveryTypeSection({
   onMovingChange,
   children,
 }: {
-  order: OrderDetail;
-  formatDateTime: (iso: string | null) => string;
-  canChangeCollection?: boolean;
-  canMove?: boolean;
-  moving?: DeliveryMove | null;
-  onMovingChange?: (m: DeliveryMove | null) => void;
-  children?: React.ReactNode;
+  order: OrderDetail
+  formatDateTime: (iso: string | null) => string
+  canChangeCollection?: boolean
+  canMove?: boolean
+  moving?: DeliveryMove | null
+  onMovingChange?: (m: DeliveryMove | null) => void
+  children?: React.ReactNode
 }) {
-  const [ownMoving, setOwnMoving] = useState<DeliveryMove | null>(null);
-  const moving = movingProp !== undefined ? movingProp : ownMoving;
-  const setMoving = onMovingChange ?? setOwnMoving;
+  const [ownMoving, setOwnMoving] = useState<DeliveryMove | null>(null)
+  const moving = movingProp !== undefined ? movingProp : ownMoving
+  const setMoving = onMovingChange ?? setOwnMoving
 
   return (
     <>
@@ -76,11 +57,9 @@ export function DeliveryTypeSection({
             {order.courierEstimate ? (
               <div className="bo-dl__row">
                 <dt>Customer was told</dt>
-                {/* The estimate as sold — the order's own copy, in the sentence the customer read. */}
                 <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
               </div>
             ) : null}
-            {/* What an Effy order was sold. The packages show the day and window it is planned for. */}
             {order.promise ? (
               <div className="bo-dl__row">
                 <dt>Sold as</dt>
@@ -97,7 +76,6 @@ export function DeliveryTypeSection({
 
           {children}
 
-          {/* An emergency move, and back. Offered to admins and managers; the preview says if it may not. */}
           {order.deliveryType && canMove && order.status === "paid" ? (
             <div className="grid gap-2">
               {order.deliveryType === "effy" ? (
@@ -121,15 +99,30 @@ export function DeliveryTypeSection({
           ) : null}
           {canMove ? (
             <>
-              <SendByCourierDialog orderId={order.id} open={moving === "courier"} onOpenChange={(o) => setMoving(o ? "courier" : null)} />
-              <DeliverByEffyDialog orderId={order.id} open={moving === "effy"} onOpenChange={(o) => setMoving(o ? "effy" : null)} />
-              <ChangeDeliveryWindowDialog orderId={order.id} open={moving === "retime"} onOpenChange={(o) => setMoving(o ? "retime" : null)} />
+              <SendByCourierDialog
+                orderId={order.id}
+                open={moving === "courier"}
+                onOpenChange={(o) => setMoving(o ? "courier" : null)}
+              />
+              <DeliverByEffyDialog
+                orderId={order.id}
+                open={moving === "effy"}
+                onOpenChange={(o) => setMoving(o ? "effy" : null)}
+              />
+              <ChangeDeliveryWindowDialog
+                orderId={order.id}
+                open={moving === "retime"}
+                onOpenChange={(o) => setMoving(o ? "retime" : null)}
+              />
             </>
           ) : null}
           <DeliveryHistory moves={order.deliveryMoves ?? []} formatDateTime={(iso) => formatDateTime(iso)} />
 
-          {/* Only on a courier order. */}
-          <CourierCollection order={order} canChange={canChangeCollection} formatDateTime={(iso) => formatDateTime(iso)} />
+          <CourierCollection
+            order={order}
+            canChange={canChangeCollection}
+            formatDateTime={(iso) => formatDateTime(iso)}
+          />
         </div>
       </section>
 
@@ -151,7 +144,11 @@ export function DeliveryTypeSection({
                       {c.note ? ` — ${c.note}` : ""}
                     </span>
                     <span className="bo-sub">
-                      {c.actor.kind === "staff" ? <span className="bo-code">{c.actor.sub}</span> : "Decided at checkout"}
+                      {c.actor.kind === "staff" ? (
+                        <span className="bo-code">{c.actor.sub}</span>
+                      ) : (
+                        "Decided at checkout"
+                      )}
                     </span>
                   </td>
                   <td className="is-num text-xs whitespace-nowrap text-muted-foreground">{formatDateTime(c.at)}</td>
@@ -162,5 +159,5 @@ export function DeliveryTypeSection({
         </section>
       ) : null}
     </>
-  );
+  )
 }

@@ -1,55 +1,43 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
-import type { ReassignRoundInput, ReorderStopsInput } from "@effy/shared-types";
+import type { ReassignRoundInput, ReorderStopsInput } from "@effy/shared-types"
 
-import * as repo from "./repo";
-
-// Server state lives only in the TanStack Query cache (Principle VI). Mutations invalidate.
+import * as repo from "./repo"
 
 export const dispatchKeys = {
   all: ["dispatch"] as const,
   day: () => ["dispatch", "day"] as const,
   round: (id: string) => ["dispatch", "round", id] as const,
-  // Under "dispatch": a pass, an assignment or a check-in changes what a window shows.
   windows: (date: string | null) => ["dispatch", "windows", date ?? "today"] as const,
-};
+}
 
 export const dispatchWindowsQuery = (date: string | null) =>
-  queryOptions({ queryKey: dispatchKeys.windows(date), queryFn: () => repo.getWindows(date) });
+  queryOptions({ queryKey: dispatchKeys.windows(date), queryFn: () => repo.getWindows(date) })
 
-export const dispatchDayQuery = () =>
-  queryOptions({ queryKey: dispatchKeys.day(), queryFn: repo.getDay });
+export const dispatchDayQuery = () => queryOptions({ queryKey: dispatchKeys.day(), queryFn: repo.getDay })
 
 export const dispatchRoundQuery = (id: string) =>
-  queryOptions({ queryKey: dispatchKeys.round(id), queryFn: () => repo.getRound(id) });
+  queryOptions({ queryKey: dispatchKeys.round(id), queryFn: () => repo.getRound(id) })
 
-/**
- * Every mutation invalidates the day. A dispatcher's change moves work between drivers, so the
- * round they did not touch is stale too — patching one row in the cache would leave the other
- * showing a driver who no longer holds it.
- */
 function useDispatchMutation<TVars>(fn: (v: TVars) => Promise<void>) {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: dispatchKeys.all });
+      void qc.invalidateQueries({ queryKey: dispatchKeys.all })
     },
-  });
+  })
 }
 
 export const useReassignRound = (id: string) =>
-  useDispatchMutation<ReassignRoundInput>((body) => repo.reassign(id, body));
+  useDispatchMutation<ReassignRoundInput>((body) => repo.reassign(id, body))
 
 export const useUnassignRound = (id: string) =>
-  useDispatchMutation<string>((expectedUpdatedAt) => repo.unassign(id, expectedUpdatedAt));
+  useDispatchMutation<string>((expectedUpdatedAt) => repo.unassign(id, expectedUpdatedAt))
 
-export const useReorderStops = (id: string) =>
-  useDispatchMutation<ReorderStopsInput>((body) => repo.reorder(id, body));
+export const useReorderStops = (id: string) => useDispatchMutation<ReorderStopsInput>((body) => repo.reorder(id, body))
 
-
-/** Waive the order of work for one run. */
 export const useWaiveSequence = (id: string) =>
   useDispatchMutation<string>(async (reason) => {
-    await repo.waiveSequence(id, reason);
-  });
+    await repo.waiveSequence(id, reason)
+  })

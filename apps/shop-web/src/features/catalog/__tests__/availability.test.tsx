@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, className }: { children: ReactNode; className?: string }) => <a className={className}>{children}</a>,
+  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <a className={className}>{children}</a>
+  ),
 }))
 vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }))
 
@@ -30,7 +32,16 @@ const row = (over: Partial<ShopAvailabilityRowDTO> = {}): ShopAvailabilityRowDTO
   gtin: null,
   onSale: true,
   lastOnSale: false,
-  stock: { productId: "p1", variantId: "v1", tracked: true, onHand: 0, threshold: null, effectiveThreshold: 5, outOfStock: true, low: false },
+  stock: {
+    productId: "p1",
+    variantId: "v1",
+    tracked: true,
+    onHand: 0,
+    threshold: null,
+    effectiveThreshold: 5,
+    outOfStock: true,
+    low: false,
+  },
   imageUrl: null,
   ...over,
 })

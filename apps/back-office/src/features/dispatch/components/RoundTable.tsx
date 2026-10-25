@@ -1,26 +1,19 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { Link } from "@tanstack/react-router";
-import { Clock, Truck } from "lucide-react";
+import { Link } from "@tanstack/react-router"
+import { Clock, Truck } from "lucide-react"
 
-import type { DispatchRoundSummaryDTO } from "@effy/shared-types";
+import type { DispatchRoundSummaryDTO } from "@effy/shared-types"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
+import { Panel, StatusWord } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
 
-import { momentText, roundLabel, roundOpenState } from "../model";
+import { momentText, roundLabel, roundOpenState } from "../model"
 
-/**
- * Today's rounds (redesign, board "Dispatch — today", Rounds tab): who holds which run, how far
- * through it they are, when it opens and when it is due.
- *
- * Late is derived on read, never stored — a stored flag is wrong every minute nothing writes to it.
- */
 export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
-  const [kind, setKind] = useState<"all" | "collection" | "delivery">("all");
-  const shown = rounds.filter((r) => kind === "all" || r.round.kind === kind);
-  const now = new Date();
+  const [kind, setKind] = useState<"all" | "collection" | "delivery">("all")
+  const shown = rounds.filter((r) => kind === "all" || r.round.kind === kind)
+  const now = new Date()
 
   return (
     <Panel
@@ -34,7 +27,13 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
       actions={
         <div className="bo-seg" role="group" aria-label="Work">
           {(["all", "collection", "delivery"] as const).map((k) => (
-            <button key={k} type="button" className={kind === k ? "is-active" : undefined} aria-pressed={kind === k} onClick={() => setKind(k)}>
+            <button
+              key={k}
+              type="button"
+              className={kind === k ? "is-active" : undefined}
+              aria-pressed={kind === k}
+              onClick={() => setKind(k)}
+            >
               {k === "all" ? "All" : k === "collection" ? "Collection" : "Delivery"}
             </button>
           ))}
@@ -60,10 +59,10 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
             </thead>
             <tbody>
               {shown.map((r) => {
-                const total = r.round.stops?.length ?? 0;
-                const done = Math.max(0, total - Number(r.stopsRemaining));
-                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                const open = roundOpenState(r.round, now);
+                const total = r.round.stops?.length ?? 0
+                const done = Math.max(0, total - Number(r.stopsRemaining))
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0
+                const open = roundOpenState(r.round, now)
                 return (
                   <tr key={r.round.id}>
                     <td data-m="primary">
@@ -71,7 +70,11 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                         <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
                           {initialsOf(r.driverName)}
                         </span>
-                        <Link to="/orders/assignments/rounds/$roundId" params={{ roundId: r.round.id }} className="bo-link">
+                        <Link
+                          to="/orders/assignments/rounds/$roundId"
+                          params={{ roundId: r.round.id }}
+                          className="bo-link"
+                        >
                           {r.driverName}
                         </Link>
                       </div>
@@ -97,18 +100,23 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                     <td data-m="meta" data-label="Packages left" className="is-num">
                       {r.packagesRemaining}
                     </td>
-                    {/* Words, never colour: "Open" and "Opens 1:15 pm" differ by text. */}
                     <td data-m="meta" data-label="Opens">
                       {open.text || "—"}
                     </td>
-                    {/* The day is said when it is not today — a round can be for tomorrow's run now. */}
                     <td data-m="hide" className="whitespace-nowrap">
                       {momentText(r.round.deadlineAt, now)}
                     </td>
                     <td data-m="badge">
                       <span className="flex flex-wrap items-center gap-2">
-                        {/* Where the run is, in the words the driver's app uses ("Out 4 of 9"). */}
-                        <StatusWord tone={r.round.status === "completed" ? "done" : r.round.status === "cancelled" ? "quiet" : "moving"}>
+                        <StatusWord
+                          tone={
+                            r.round.status === "completed"
+                              ? "done"
+                              : r.round.status === "cancelled"
+                                ? "quiet"
+                                : "moving"
+                          }
+                        >
                           {r.stageLabel ?? r.round.status.replace("_", " ")}
                         </StatusWord>
                         {r.isLate ? (
@@ -120,12 +128,12 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                       </span>
                     </td>
                   </tr>
-                );
+                )
               })}
             </tbody>
           </table>
         </div>
       )}
     </Panel>
-  );
+  )
 }

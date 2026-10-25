@@ -1,45 +1,37 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CircleCheck, Hourglass, PackageSearch, PackageX, Route, ShieldAlert, Undo2, Warehouse } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { CircleCheck, Hourglass, PackageSearch, PackageX, Route, ShieldAlert, Undo2, Warehouse } from "lucide-react"
 
-import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { Button, Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { moment } from "@/lib/format";
+import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { moment } from "@/lib/format"
 
-import { canResolveExceptions } from "./access";
-import { reasonLabel, sortForTriage } from "./model";
-import { exceptionsQuery } from "./queries";
-import { RecordReturnButton } from "./RecordReturnDialog";
-import { OUTCOME_WORDS, ResolveDialog } from "./ResolveDialog";
-import { HeldPanel, OverduePanel, VehicleChecksPanel } from "./SequenceSections";
+import { canResolveExceptions } from "./access"
+import { reasonLabel, sortForTriage } from "./model"
+import { exceptionsQuery } from "./queries"
+import { RecordReturnButton } from "./RecordReturnDialog"
+import { OUTCOME_WORDS, ResolveDialog } from "./ResolveDialog"
+import { HeldPanel, OverduePanel, VehicleChecksPanel } from "./SequenceSections"
 
-/**
- * Delivery exceptions: deliveries a driver could not complete, runs waiting on their next step, vehicles
- * found unsafe, and packages declared missing, as four lists, one at a time. Nothing resolves itself. A
- * csa reads every list and acts on none.
- */
-type Section = "failed" | "runs" | "vehicles" | "missing";
+type Section = "failed" | "runs" | "vehicles" | "missing"
 
 export function ExceptionsScreen() {
-  const [section, setSection] = useState<Section>("failed");
-  const [showResolved, setShowResolved] = useState(false);
-  const canResolve = canResolveExceptions(useSessionRoles());
+  const [section, setSection] = useState<Section>("failed")
+  const [showResolved, setShowResolved] = useState(false)
+  const canResolve = canResolveExceptions(useSessionRoles())
 
-  const open = useQuery(exceptionsQuery(false));
-  // "Dealt with" is read only when someone asks for it — the open list is the working view.
-  const all = useQuery({ ...exceptionsQuery(true), enabled: showResolved });
+  const open = useQuery(exceptionsQuery(false))
+  const all = useQuery({ ...exceptionsQuery(true), enabled: showResolved })
 
-  const data = open.data;
-  const unsafe = data?.vehicleChecks?.filter((c) => c.unsafe && c.clearedAt === null).length ?? 0;
-  const resolved = all.data?.exceptions.filter((e) => e.resolvedAt !== null) ?? [];
-  const failedRows = showResolved ? resolved : (data?.exceptions.filter((e) => e.resolvedAt === null) ?? []);
+  const data = open.data
+  const unsafe = data?.vehicleChecks?.filter((c) => c.unsafe && c.clearedAt === null).length ?? 0
+  const resolved = all.data?.exceptions.filter((e) => e.resolvedAt !== null) ?? []
+  const failedRows = showResolved ? resolved : (data?.exceptions.filter((e) => e.resolvedAt === null) ?? [])
 
   return (
     <>
@@ -90,16 +82,30 @@ export function ExceptionsScreen() {
                 </TabsTrigger>
               </TabsList>
             </div>
-            <span className="text-xs text-muted-foreground max-md:hidden">Live — nothing here refreshes on a timer</span>
+            <span className="text-xs text-muted-foreground max-md:hidden">
+              Live — nothing here refreshes on a timer
+            </span>
           </div>
 
           <TabsContent value="failed" className="bo-tabpanel">
             <section className="space-y-3" aria-labelledby="failed-h">
               <div className="bo-tabs" role="tablist" aria-label="Show">
-                <button type="button" role="tab" aria-selected={!showResolved} className={`bo-tabs__tab${!showResolved ? " is-active" : ""}`} onClick={() => setShowResolved(false)}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={!showResolved}
+                  className={`bo-tabs__tab${!showResolved ? " is-active" : ""}`}
+                  onClick={() => setShowResolved(false)}
+                >
                   Open<span className="bo-tabs__count">{data.openCount}</span>
                 </button>
-                <button type="button" role="tab" aria-selected={showResolved} className={`bo-tabs__tab${showResolved ? " is-active" : ""}`} onClick={() => setShowResolved(true)}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={showResolved}
+                  className={`bo-tabs__tab${showResolved ? " is-active" : ""}`}
+                  onClick={() => setShowResolved(true)}
+                >
                   Dealt with{all.data ? <span className="bo-tabs__count">{resolved.length}</span> : null}
                 </button>
               </div>
@@ -114,8 +120,6 @@ export function ExceptionsScreen() {
               ) : showResolved && all.isError ? (
                 <ErrorState error={all.error} onRetry={() => void all.refetch()} />
               ) : failedRows.length === 0 ? (
-                /* A stated fact, not blank space. "Nothing failed" is information; an empty region is
-                   indistinguishable from a screen that did not load. */
                 <EmptyState
                   icon={CircleCheck}
                   title={showResolved ? "Nothing has been dealt with yet" : "Every delivery got through"}
@@ -146,7 +150,6 @@ export function ExceptionsScreen() {
                             </td>
                             <td data-m="meta">
                               <span className="font-medium">{reasonLabel(e.reason)}</span>
-                              {/* The driver's own words, where they left any. */}
                               {e.note ? <span className="bo-sub">{e.note}</span> : null}
                             </td>
                             <td data-m="meta" data-label="Driver">
@@ -154,7 +157,6 @@ export function ExceptionsScreen() {
                             </td>
                             <td data-m="hide">{e.destinationSuburb ?? "—"}</td>
                             <td data-m="badge">
-                              {/* "still in a van" and "back at the hub" are different problems. */}
                               {e.packageLocation === "with_driver" ? (
                                 <StatusWord tone="problem" icon={Undo2}>
                                   With {e.driverName} — to return
@@ -175,7 +177,6 @@ export function ExceptionsScreen() {
                                   {e.resolution?.note ? <span className="bo-sub">{e.resolution.note}</span> : null}
                                 </span>
                               ) : canResolve && e.packageLocation === "with_driver" ? (
-                                /* Still in the van: it has to come back before anything else. */
                                 <RecordReturnButton exception={e} />
                               ) : canResolve ? (
                                 <ResolveDialog exception={e} />
@@ -205,8 +206,10 @@ export function ExceptionsScreen() {
       )}
 
       {!canResolve ? (
-        <p className="text-xs text-muted-foreground">A customer-service agent sees these lists read-only — closing and acting needs an admin or a manager.</p>
+        <p className="text-xs text-muted-foreground">
+          A customer-service agent sees these lists read-only — closing and acting needs an admin or a manager.
+        </p>
       ) : null}
     </>
-  );
+  )
 }

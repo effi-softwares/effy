@@ -1,50 +1,33 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 
-import { Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router"
 
-import type { CoverageGap } from "@effy/shared-types";
+import type { CoverageGap } from "@effy/shared-types"
 
-import { COVERAGE_REASON_LABEL, FUNCTION_SHORT } from "../capabilityModel";
-import { coverageQuery } from "../capabilityQueries";
+import { COVERAGE_REASON_LABEL, FUNCTION_SHORT } from "../capabilityModel"
+import { coverageQuery } from "../capabilityQueries"
 
-/**
- * Where the fleet has no cover.
- *
- * A list of problems, not a matrix. A covered combination emits no row at all — a screen
- * that lists every zone and colours the bad ones is a screen an operator has to scan, and the whole
- * point of this view is that it is short enough to read.
- *
- * And it lives inside the readiness section, not on its own page. Two screens answering
- * "can this driver work?" would eventually disagree, and an operator would have no way to tell which
- * was right. Both read one availability rule on the server for the same reason.
- */
 export function CoveragePanel() {
-  const query = useQuery(coverageQuery());
-  const gaps = query.data?.gaps ?? [];
+  const query = useQuery(coverageQuery())
+  const gaps = query.data?.gaps ?? []
 
-  if (query.isPending) return null;
+  if (query.isPending) return null
 
   if (gaps.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Every zone can be served for every kind of work it offers.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Every zone can be served for every kind of work it offers.</p>
   }
 
-  // Grouped by zone so an operator reads one place at a time rather than one row at a time.
-  const byZone = new Map<string, CoverageGap[]>();
+  const byZone = new Map<string, CoverageGap[]>()
   for (const g of gaps) {
-    const list = byZone.get(g.zoneName) ?? [];
-    list.push(g);
-    byZone.set(g.zoneName, list);
+    const list = byZone.get(g.zoneName) ?? []
+    list.push(g)
+    byZone.set(g.zoneName, list)
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        {gaps.length} {gaps.length === 1 ? "gap" : "gaps"} across {byZone.size}{" "}
-        {byZone.size === 1 ? "area" : "areas"}.
+        {gaps.length} {gaps.length === 1 ? "gap" : "gaps"} across {byZone.size} {byZone.size === 1 ? "area" : "areas"}.
       </p>
 
       <ul className="divide-y border-y">
@@ -55,12 +38,7 @@ export function CoveragePanel() {
               <p key={g.function} className="text-sm text-muted-foreground">
                 {FUNCTION_SHORT[g.function]} —{" "}
                 <span className="text-foreground">{COVERAGE_REASON_LABEL[g.reason]}</span>
-                {/* The count is what makes the two reasons actionable. Zero means grant somebody a
-                    clearance, here. More than zero means the people who have it cannot work today,
-                    and the fix is above, in readiness. */}
-                {g.clearedDriverCount > 0 ? (
-                  <span> ({g.clearedDriverCount} cleared, none available)</span>
-                ) : null}
+                {g.clearedDriverCount > 0 ? <span> ({g.clearedDriverCount} cleared, none available)</span> : null}
               </p>
             ))}
           </li>
@@ -75,5 +53,5 @@ export function CoveragePanel() {
         .
       </p>
     </div>
-  );
+  )
 }

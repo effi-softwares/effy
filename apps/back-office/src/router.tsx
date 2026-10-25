@@ -1,52 +1,43 @@
-import type { QueryClient } from "@tanstack/react-query";
-import { createRouter } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query"
+import { createRouter } from "@tanstack/react-router"
 
-import { adminRoute, appIndexRoute, appRoute } from "./routes/app";
-import { authLayoutRoute, signInRoute } from "./routes/auth";
-import { catalogSchemaRoute } from "./routes/catalog-schema";
-import {
-  createPromotionRoute,
-  editPromotionRoute,
-  orderRulesRoute,
-  promotionDetailRoute,
-  promotionGroupRoute,
-  promotionGroupsRoute,
-  promotionsIndexRoute,
-  promotionSkinsRoute,
-  createSkinRoute,
-  promotionSkinRoute,
-} from "./routes/promotions";
-import {
-  deliverabilityDetailRoute,
-  deliverabilityIndexRoute,
-} from "./routes/deliverability";
-import { productReviewIndexRoute, productReviewItemRoute } from "./routes/product-review";
-import { deliveryIndexRoute } from "./routes/delivery";
-import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback";
-import {
-  driverDetailRoute,
-  driversIndexRoute,
-} from "./routes/drivers";
-import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles";
-import { dispatchIndexRoute, dispatchRoundRoute } from "./routes/dispatch";
-import { exceptionsRoute } from "./routes/exceptions";
-import { hubRoute } from "./routes/hub";
-import { handoverReportRoute } from "./routes/reports";
-import { taxSettingsRoute } from "./routes/settings";
+import { StatusPage } from "./components/patterns/StatusPage"
+import { rootRoute } from "./routes/__root"
+import { adminRoute, appIndexRoute, appRoute } from "./routes/app"
+import { authLayoutRoute, signInRoute } from "./routes/auth"
+import { catalogSchemaRoute } from "./routes/catalog-schema"
+import { customerDetailRoute, customersIndexRoute } from "./routes/customers"
+import { deliverabilityDetailRoute, deliverabilityIndexRoute } from "./routes/deliverability"
+import { deliveryIndexRoute } from "./routes/delivery"
+import { driverDetailRoute, driversIndexRoute } from "./routes/drivers"
+import { exceptionsRoute } from "./routes/exceptions"
+import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback"
+import { hubRoute } from "./routes/hub"
 import {
   orderDetailRoute,
   ordersAssignmentRoundRoute,
   ordersAssignmentsRoute,
   ordersHandoverRoute,
   ordersIndexRoute,
-} from "./routes/orders";
-import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
-import { customerDetailRoute, customersIndexRoute } from "./routes/customers";
-import { StatusPage } from "./components/patterns/StatusPage";
-import { rootRoute } from "./routes/__root";
+} from "./routes/orders"
+import { productReviewIndexRoute, productReviewItemRoute } from "./routes/product-review"
+import {
+  createPromotionRoute,
+  createSkinRoute,
+  editPromotionRoute,
+  orderRulesRoute,
+  promotionDetailRoute,
+  promotionGroupRoute,
+  promotionGroupsRoute,
+  promotionSkinRoute,
+  promotionSkinsRoute,
+  promotionsIndexRoute,
+} from "./routes/promotions"
+import { handoverReportRoute } from "./routes/reports"
+import { taxSettingsRoute } from "./routes/settings"
+import { shopDetailRoute, shopsIndexRoute } from "./routes/shops"
+import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles"
 
-// Code-based route tree. Protected app shell at '/' (+ '/admin', '/shops',
-// '/catalog', '/promotions'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     appIndexRoute,
@@ -61,17 +52,16 @@ const routeTree = rootRoute.addChildren([
     customersIndexRoute,
     customerDetailRoute,
     driversIndexRoute,
-      driverDetailRoute,
+    driverDetailRoute,
     vehiclesIndexRoute,
     vehicleDetailRoute,
-    dispatchIndexRoute,
     exceptionsRoute,
     hubRoute,
     handoverReportRoute,
     taxSettingsRoute,
-    dispatchRoundRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
+    deliveryIndexRoute,
     productReviewIndexRoute,
     productReviewItemRoute,
     feedbackIndexRoute,
@@ -80,17 +70,16 @@ const routeTree = rootRoute.addChildren([
     promotionsIndexRoute,
     orderRulesRoute,
     createPromotionRoute,
+    promotionDetailRoute,
+    editPromotionRoute,
     promotionGroupsRoute,
     promotionGroupRoute,
     promotionSkinsRoute,
     createSkinRoute,
     promotionSkinRoute,
-    editPromotionRoute,
-    promotionDetailRoute,
-    deliveryIndexRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
-]);
+])
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
@@ -98,15 +87,12 @@ export function createAppRouter(queryClient: QueryClient) {
     context: { queryClient },
     defaultPreload: "intent",
     scrollRestoration: true,
-    // A path nothing matches (redesign, board "Not found") — inside the shell when signed in.
     defaultNotFoundComponent: () => <StatusPage kind="notfound" />,
-  });
+  })
 }
-
-export type AppRouter = ReturnType<typeof createAppRouter>;
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: AppRouter;
+    router: ReturnType<typeof createAppRouter>
   }
 }

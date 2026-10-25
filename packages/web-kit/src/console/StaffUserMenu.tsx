@@ -61,7 +61,7 @@ export function StaffUserMenu({
           </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[280px]" side="bottom" align="end" sideOffset={8}>
+      <DropdownMenuContent className="w-70" side="bottom" align="end" sideOffset={8}>
         <DropdownMenuLabel className="p-0 font-normal text-foreground">
           <div className="flex items-center gap-3 px-2 py-2">
             <span aria-hidden="true" className="bo-account-avatar">

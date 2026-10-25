@@ -1,34 +1,28 @@
-import { Check, Minus } from "lucide-react";
+import { Check, Minus } from "lucide-react"
 
-import type { BackOfficeRole } from "@effy/shared-types";
-import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
+import type { BackOfficeRole } from "@effy/shared-types"
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { Panel } from "@effy/web-kit/patterns";
-import { canManageCatalog } from "@/features/catalog-schema/access";
-import { canDebitPoints, canEditPointsSettings } from "@/features/customers/access";
-import { canRepairDelivery } from "@/features/deliverability/access";
-import { canManageDelivery } from "@/features/delivery/access";
-import { canDispatch } from "@/features/dispatch/access";
-import { canManageDrivers } from "@/features/drivers/access";
-import { canResolveExceptions } from "@/features/exceptions/access";
-import { canReplyFeedback } from "@/features/feedback/access";
-import { canRecordOrderProgress } from "@/features/orders/access";
-import { canDecideReview } from "@/features/product-review/access";
-import { canManagePromotions } from "@/features/promotions/access";
-import { canManageShops } from "@/features/shops/access";
-import { canManageVehicles } from "@/features/vehicles/access";
+import { PageHeader, Panel } from "@effy/web-kit/patterns"
+import { canManageCatalog } from "@/features/catalog-schema/access"
+import { canDebitPoints, canEditPointsSettings } from "@/features/customers/access"
+import { canRepairDelivery } from "@/features/deliverability/access"
+import { canManageDelivery } from "@/features/delivery/access"
+import { canDispatch } from "@/features/dispatch/access"
+import { canManageDrivers } from "@/features/drivers/access"
+import { canResolveExceptions } from "@/features/exceptions/access"
+import { canReplyFeedback } from "@/features/feedback/access"
+import { canRecordOrderProgress } from "@/features/orders/access"
+import { canDecideReview } from "@/features/product-review/access"
+import { canManagePromotions } from "@/features/promotions/access"
+import { canManageShops } from "@/features/shops/access"
+import { canManageVehicles } from "@/features/vehicles/access"
 
-import { AdminOnlyScreen } from "./AdminOnlyScreen";
-import { ProvingScreen } from "./ProvingScreen";
+import { AdminOnlyScreen } from "./AdminOnlyScreen"
+import { ProvingScreen } from "./ProvingScreen"
 
-type Rule = (roles: readonly BackOfficeRole[]) => boolean;
+type Rule = (roles: readonly BackOfficeRole[]) => boolean
 
-/**
- * What each role can do, read from the same functions the screens use to show a control — so the
- * table cannot drift from the console. It is still only the interface's courtesy: the backend
- * decides every request.
- */
 const PERMISSIONS: readonly { what: string; rule: Rule }[] = [
   { what: "Read every page", rule: () => true },
   { what: "Record order progress and refunds", rule: canRecordOrderProgress },
@@ -46,15 +40,14 @@ const PERMISSIONS: readonly { what: string; rule: Rule }[] = [
   { what: "Change delivery settings", rule: canManageDelivery },
   { what: "Re-enable email to an address", rule: canRepairDelivery },
   { what: "Change points settings", rule: canEditPointsSettings },
-];
+]
 
 const ROLES: readonly { role: BackOfficeRole; label: string }[] = [
   { role: "admin", label: "Administrator" },
   { role: "manager", label: "Manager" },
   { role: "csa", label: "Customer support" },
-];
+]
 
-/** Admin and access (005/006; redesign, board "Admin and access"): who you are, and what each role can do. */
 export function AdminAccessScreen() {
   return (
     <>
@@ -81,7 +74,11 @@ export function AdminAccessScreen() {
           </div>
         </TabsContent>
         <TabsContent value="roles" className="bo-tabpanel">
-          <Panel title="Roles and permissions" description="Roles are granted in the admin sign-in pool; the platform's staff record decides." flush>
+          <Panel
+            title="Roles and permissions"
+            description="Roles are granted in the admin sign-in pool; the platform's staff record decides."
+            flush
+          >
             <div className="bo-table-scroll">
               <table className="bo-table">
                 <thead>
@@ -116,5 +113,5 @@ export function AdminAccessScreen() {
         </TabsContent>
       </Tabs>
     </>
-  );
+  )
 }

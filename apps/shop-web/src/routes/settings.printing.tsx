@@ -1,13 +1,11 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router"
 
-import { PrintingSettingsScreen } from "@/features/printing/PrintingSettings";
+import { PrintingSettingsScreen } from "@/features/printing/PrintingSettings"
 
-import { appRoute } from "./app";
+import { appRoute } from "./app"
 
-// Label printing settings for this computer. Under the protected layout; no role gate (every
-// operator prints labels).
 export const printingSettingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "settings/printing",
   component: PrintingSettingsScreen,
-});
+})

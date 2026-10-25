@@ -3,21 +3,8 @@ import { join, resolve } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-/**
- * The shop console offers no action the platform cannot perform. A source guard, because the design
- * reference (a generic e-commerce console) has screens that look reasonable to port:
- *  • Payment capture: Effy captures at payment; a capture button would suggest money is being held.
- *  • Carrier / tracking: a shop hands its package to an Effy driver or a courier; it never books a carrier.
- *  • Order-line editing / duplication: an order is a paid record; a refund is a later row, never an edit.
- */
-
 const FULFILLMENT_DIR = resolve(__dirname, "..")
 
-/**
- * Comments are stripped before scanning, so prose may explain the bans. Patterns are word-bounded phrases:
- * one anchored on a following quote or `<` let `<RotateCcw />Capture payment` and a newline through. Every
- * pattern was verified by breaking it.
- */
 const FORBIDDEN: { label: string; pattern: RegExp }[] = [
   { label: "payment capture", pattern: /\bcapture\s+(payment|funds)\b|\bpayment\s+capture\b/i },
   { label: "carrier selection", pattern: /\b(select|choose|book|assign)\s+(a\s+)?carrier\b/i },
@@ -27,7 +14,6 @@ const FORBIDDEN: { label: string; pattern: RegExp }[] = [
   { label: "order duplication", pattern: /\b(duplicate|copy)\s+order\b|\breorder\s+this\b/i },
 ]
 
-/** Strip block and line comments so prose can explain the ban without tripping it. */
 function code(path: string): string {
   return readFileSync(path, "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -52,22 +38,16 @@ describe("the shop console offers no action the platform cannot perform", () => 
   const files = sourceFiles(FULFILLMENT_DIR)
 
   it("finds the fulfillment sources to scan (a guard over nothing proves nothing)", () => {
-    // 054's `TestRailsCarryOnlyAvailableProducts` passed vacuously once its rails emptied. If this
-    // directory is ever moved, the loop below would silently assert nothing — so assert the corpus.
     expect(files.length).toBeGreaterThan(5)
   })
 
   for (const { label, pattern } of FORBIDDEN) {
     it(`offers no ${label} control`, () => {
       const offenders = files.filter((f) => pattern.test(code(f)))
-      expect(
-        offenders,
-        `${label} is not something Effy's model supports — see this file's docblock`,
-      ).toEqual([])
+      expect(offenders, `${label} is not something Effy's model supports — see this file's docblock`).toEqual([])
     })
   }
 
-  /** The pick contract carries no money and no shop identity (the console's order money comes from `/shop/v1/orders…`). */
   it("keeps the pick contract free of money and shop identity (shop-mobile reads it)", () => {
     const contract = code(resolve(FULFILLMENT_DIR, "../../../../../packages/shared-types/src/shop-order.ts"))
     for (const banned of [
@@ -80,7 +60,6 @@ describe("the shop console offers no action the platform cannot perform", () => 
     }
   })
 
-  /** 057 A3 — no tax figure may be drawn: per-item GST is unmodelled. */
   it("draws no tax line", () => {
     const offenders = files.filter((f) => /\b(VAT|GST)\b/.test(code(f)))
     expect(offenders).toEqual([])

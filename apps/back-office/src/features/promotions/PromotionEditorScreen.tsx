@@ -1,274 +1,113 @@
-import { useState } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { Lock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
+import { Lock } from "lucide-react"
 
-import type { AdminPromotionWriteDTO, PromotionAudience, PromotionKind, PromotionTrigger } from "@effy/shared-types";
-import { cn } from "@effy/design-system";
-import { Button, Checkbox, Input, Label, Skeleton, Switch, Textarea } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import type { AdminPromotionWriteDTO, PromotionAudience } from "@effy/shared-types"
+import { cn } from "@effy/design-system"
+import { Button, Checkbox, Input, Label, Skeleton, Switch, Textarea } from "@effy/design-system/ui"
+import { ErrorState, useHeaderDetail } from "@effy/web-kit/console"
+import { Callout, PageHeader, Panel } from "@effy/web-kit/patterns"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { useHeaderDetail } from "@effy/web-kit/console";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { promotionGroupsQuery } from "@/features/promotion-groups/queries";
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { promotionGroupsQuery } from "@/features/promotion-groups/queries"
 
-import { canManagePromotions } from "./access";
-import { type AppliesTo, type Targets, TargetPicker } from "./components/TargetPicker";
-import { promotionMutationError, refusedFields } from "./errorText";
-import type { Promotion } from "./model";
-import { promotionQuery, useCreatePromotion, useUpdatePromotion } from "./queries";
+import { canManagePromotions } from "./access"
+import { PromotionSummary } from "./components/PromotionSummary"
+import { TargetPicker } from "./components/TargetPicker"
+import { promotionMutationError, refusedFields } from "./errorText"
+import type { Promotion } from "./model"
+import {
+  AUDIENCE_LABEL,
+  bodyOf,
+  DAYS,
+  draftOf,
+  EMPTY_DRAFT,
+  KIND_LABEL,
+  KINDS_OFFERED,
+  type Draft,
+} from "./promotionDraft"
+import { promotionQuery, useCreatePromotion, useUpdatePromotion } from "./queries"
 
-/**
- * Create or edit a promotion, as a page: the definition in sections on the left, and the promotion read
- * back in words on the right as it is typed. Once used, what it gives and who it is for are locked, with the
- * reason.
- */
-const KINDS_OFFERED: readonly PromotionKind[] = ["cart", "item", "bxgy", "delivery"];
-const KIND_LABEL: Record<PromotionKind, string> = { cart: "Off the cart", item: "Off items", bxgy: "Buy X get Y", delivery: "Off delivery" };
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const AUDIENCE_LABEL: Record<PromotionAudience, string> = {
-  everyone: "Everyone",
-  first_order: "First order",
-  new_customers: "New customers",
-  chosen: "Chosen customers",
-};
-
-interface Draft {
-  name: string;
-  kind: PromotionKind;
-  trigger: PromotionTrigger;
-  codeMode: "shared" | "single_use";
-  sharedCode: string;
-  valueType: "percent" | "amount" | "free";
-  percentOff: string;
-  amountOff: string;
-  maxDiscount: string;
-  minSubtotal: string;
-  minQuantity: string;
-  appliesTo: AppliesTo;
-  targets: Targets;
-  bxgyBuy: string;
-  bxgyGet: string;
-  bxgyMax: string;
-  deliveryTypes: ("effy" | "courier")[];
-  audience: PromotionAudience;
-  daysOfWeek: number[];
-  timeFrom: string;
-  timeTo: string;
-  startsAt: string;
-  endsAt: string;
-  maxUses: string;
-  maxUsesPerCustomer: string;
-  budget: string;
-  combinable: boolean;
-  headline: string;
-  supportingLine: string;
-  label: string;
-  groupIds: string[];
-}
-
-const EMPTY: Draft = {
-  name: "",
-  kind: "cart",
-  trigger: "code",
-  codeMode: "shared",
-  sharedCode: "",
-  valueType: "percent",
-  percentOff: "",
-  amountOff: "",
-  maxDiscount: "",
-  minSubtotal: "0.00",
-  minQuantity: "",
-  appliesTo: "products",
-  targets: { products: [], categoryIds: [], brands: [] },
-  bxgyBuy: "2",
-  bxgyGet: "1",
-  bxgyMax: "",
-  deliveryTypes: ["effy", "courier"],
-  audience: "everyone",
-  daysOfWeek: [],
-  timeFrom: "",
-  timeTo: "",
-  startsAt: "",
-  endsAt: "",
-  maxUses: "",
-  maxUsesPerCustomer: "",
-  budget: "",
-  combinable: false,
-  headline: "",
-  supportingLine: "",
-  label: "",
-  groupIds: [],
-};
-
-/** `<input type="datetime-local">` holds local time; the wire is ISO. */
-const toLocal = (iso: string | null) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-};
-const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null);
-const intOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
-const moneyOrNull = (v: string) => (v.trim() === "" ? null : Number(v).toFixed(2));
-
-function draftOf(p: Promotion): Draft {
-  return {
-    name: p.name,
-    kind: p.kind,
-    trigger: p.trigger,
-    codeMode: p.trigger === "code" && !p.sharedCode && p.singleUseCodeCount > 0 ? "single_use" : "shared",
-    sharedCode: p.sharedCode ?? "",
-    valueType: p.valueType,
-    percentOff: p.percentOff?.toString() ?? "",
-    amountOff: p.amountOff ?? "",
-    maxDiscount: p.maxDiscount ?? "",
-    minSubtotal: p.minSubtotal,
-    minQuantity: p.minQuantity?.toString() ?? "",
-    appliesTo: p.appliesTo === "cart" ? "products" : p.appliesTo,
-    targets: { products: p.targets.products, categoryIds: p.targets.categories.map((c) => c.id), brands: p.targets.brands },
-    bxgyBuy: p.bxgy?.buy.toString() ?? "2",
-    bxgyGet: p.bxgy?.get.toString() ?? "1",
-    bxgyMax: p.bxgy?.maxPerOrder?.toString() ?? "",
-    deliveryTypes: p.deliveryTypes,
-    audience: p.audience,
-    daysOfWeek: p.daysOfWeek ?? [],
-    timeFrom: p.timeFrom ?? "",
-    timeTo: p.timeTo ?? "",
-    startsAt: toLocal(p.startsAt),
-    endsAt: toLocal(p.endsAt),
-    maxUses: p.maxUses?.toString() ?? "",
-    maxUsesPerCustomer: p.maxUsesPerCustomer?.toString() ?? "",
-    budget: p.budget ?? "",
-    combinable: p.combinable,
-    headline: p.headline ?? "",
-    supportingLine: p.supportingLine ?? "",
-    label: p.label ?? "",
-    groupIds: p.groups.map((g) => g.id),
-  };
-}
-
-function bodyOf(d: Draft, used: boolean): Partial<AdminPromotionWriteDTO> {
-  const fixed: Partial<AdminPromotionWriteDTO> = used
-    ? {}
-    : {
-        kind: d.kind,
-        trigger: d.trigger,
-        valueType: d.valueType,
-        ...(d.valueType === "percent" ? { percentOff: Number(d.percentOff), maxDiscount: moneyOrNull(d.maxDiscount) } : {}),
-        ...(d.valueType === "amount" ? { amountOff: Number(d.amountOff || "0").toFixed(2) } : {}),
-        minSubtotal: Number(d.minSubtotal || "0").toFixed(2),
-        minQuantity: intOrNull(d.minQuantity),
-        audience: d.audience,
-        deliveryTypes: d.deliveryTypes,
-        ...(d.kind === "item" || d.kind === "bxgy"
-          ? {
-              appliesTo: d.appliesTo,
-              targets: { productIds: d.targets.products.map((p) => p.id), categoryIds: d.targets.categoryIds, brands: d.targets.brands },
-            }
-          : { appliesTo: "cart" as const }),
-        ...(d.kind === "bxgy" ? { bxgy: { buy: Number(d.bxgyBuy), get: Number(d.bxgyGet), maxPerOrder: intOrNull(d.bxgyMax) } } : { bxgy: null }),
-      };
-  return {
-    name: d.name.trim(),
-    ...fixed,
-    ...(d.trigger === "code" && d.codeMode === "shared" ? { sharedCode: d.sharedCode.trim() || null } : {}),
-    ...(d.trigger === "code" && d.codeMode === "single_use" && !used ? { codeMode: "single_use" as const } : {}),
-    daysOfWeek: d.daysOfWeek.length ? [...d.daysOfWeek].sort() : null,
-    timeFrom: d.timeFrom || null,
-    timeTo: d.timeTo || null,
-    startsAt: fromLocal(d.startsAt),
-    endsAt: fromLocal(d.endsAt),
-    maxUses: intOrNull(d.maxUses),
-    maxUsesPerCustomer: intOrNull(d.maxUsesPerCustomer),
-    budget: moneyOrNull(d.budget),
-    combinable: d.combinable,
-    headline: d.headline.trim() || null,
-    supportingLine: d.supportingLine.trim() || null,
-    label: d.label.trim() || null,
-    groupIds: d.groupIds,
-  };
-}
+const toggleIn = <T,>(list: T[], item: T, on: boolean): T[] => (on ? [...list, item] : list.filter((x) => x !== item))
 
 export function PromotionEditorScreen({ promoId }: { promoId?: string }) {
-  const existing = useQuery({ ...promotionQuery(promoId ?? ""), enabled: Boolean(promoId) });
-  if (promoId && existing.isError) return <ErrorState error={existing.error} onRetry={() => void existing.refetch()} />;
-  if (promoId && !existing.data) return <Skeleton className="h-96" aria-busy="true" />;
-  return <Editor key={existing.data?.updatedAt ?? "new"} current={existing.data ?? null} />;
+  const existing = useQuery({ ...promotionQuery(promoId ?? ""), enabled: Boolean(promoId) })
+  if (promoId && existing.isError) return <ErrorState error={existing.error} onRetry={() => void existing.refetch()} />
+  if (promoId && !existing.data) return <Skeleton className="h-96" aria-busy="true" />
+  return <Editor key={existing.data?.updatedAt ?? "new"} current={existing.data ?? null} />
 }
 
 function Editor({ current }: { current: Promotion | null }) {
-  const navigate = useNavigate();
-  const canManage = canManagePromotions(useSessionRoles());
-  const groups = useQuery(promotionGroupsQuery());
-  const create = useCreatePromotion();
-  const update = useUpdatePromotion(current?.id ?? "");
-  const [d, setD] = useState<Draft>(current ? draftOf(current) : EMPTY);
-  const [error, setError] = useState<string | null>(null);
-  const [bad, setBad] = useState<Set<string>>(new Set());
-  const used = current?.used ?? false;
-  const busy = create.isPending || update.isPending;
-  useHeaderDetail(current ? current.name : "New promotion");
+  const navigate = useNavigate()
+  const canManage = canManagePromotions(useSessionRoles())
+  const groups = useQuery(promotionGroupsQuery())
+  const create = useCreatePromotion()
+  const update = useUpdatePromotion(current?.id ?? "")
+  const [d, setD] = useState<Draft>(current ? draftOf(current) : EMPTY_DRAFT)
+  const [error, setError] = useState<string | null>(null)
+  const [bad, setBad] = useState<Set<string>>(new Set())
+  const used = current?.used ?? false
+  const busy = create.isPending || update.isPending
+  useHeaderDetail(current ? current.name : "New promotion")
 
-  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }))
+  const backTo = current
+    ? { to: "/promotions/$promoId" as const, params: { promoId: current.id } }
+    : { to: "/promotions" as const }
 
   async function save(publish: boolean) {
-    setError(null);
-    setBad(new Set());
+    setError(null)
+    setBad(new Set())
     try {
-      const body = bodyOf(d, used);
+      const body = bodyOf(d, used)
       const saved = current
         ? await update.mutateAsync({ ...body, expectedUpdatedAt: current.updatedAt })
-        : await create.mutateAsync({ ...(body as AdminPromotionWriteDTO), publish });
-      await navigate({ to: "/promotions/$promoId", params: { promoId: saved.id } });
+        : await create.mutateAsync({ ...(body as AdminPromotionWriteDTO), publish })
+      await navigate({ to: "/promotions/$promoId", params: { promoId: saved.id } })
     } catch (err) {
-      setError(promotionMutationError(err));
-      setBad(refusedFields(err));
+      setError(promotionMutationError(err))
+      setBad(refusedFields(err))
     }
   }
 
   if (!canManage) {
     return (
       <>
-        <PageHeader back={{ label: "Promotions", link: { to: "/promotions" } }} title={current ? "Edit promotion" : "Create promotion"} />
-        <p className="text-sm text-muted-foreground">Creating or changing a promotion needs a manager or an administrator.</p>
+        <PageHeader
+          back={{ label: "Promotions", link: { to: "/promotions" } }}
+          title={current ? "Edit promotion" : "Create promotion"}
+        />
+        <p className="text-sm text-muted-foreground">
+          Creating or changing a promotion needs a manager or an administrator.
+        </p>
       </>
-    );
+    )
   }
 
-  const field = (id: string, label: string, hint: string | null, input: React.ReactNode, key = id) => (
-    <div className="space-y-2">
-      <Label htmlFor={id} className={cn(bad.has(key) && "text-foreground underline decoration-2")}>
-        {label}
-      </Label>
-      {input}
-      {hint ? <p className="bo-sub">{hint}</p> : null}
-    </div>
-  );
-  const locked = used ? <Lock aria-label="Fixed once used" className="size-3.5 text-muted-foreground" /> : null;
+  const locked = used ? <Lock aria-label="Fixed once used" className="size-3.5 text-muted-foreground" /> : null
+  const targeted = d.kind === "item" || d.kind === "bxgy"
+  const freeAllowed = d.kind === "delivery" || d.kind === "bxgy"
 
   return (
     <>
       <PageHeader
-        back={{ label: current ? current.name : "Promotions", link: current ? { to: "/promotions/$promoId", params: { promoId: current.id } } : { to: "/promotions" } }}
+        back={{ label: current ? current.name : "Promotions", link: backTo }}
         title={current ? "Edit promotion" : "Create promotion"}
         description="Set the offer, who can use it, when it runs, and its limits."
       />
       {used ? (
         <Callout tone="info" title="This promotion has been used.">
-          What it gives and who it is for are fixed, so every order keeps explaining its discount. Its name, dates, limits, words and groups can
-          still change.
+          What it gives and who it is for are fixed, so every order keeps explaining its discount. Its name, dates,
+          limits, words and groups can still change.
         </Callout>
       ) : null}
 
       <form
         onSubmit={(e) => {
-          e.preventDefault();
-          void save(false);
+          e.preventDefault()
+          void save(false)
         }}
         className="bo-detail"
         noValidate
@@ -276,143 +115,248 @@ function Editor({ current }: { current: Promotion | null }) {
         <div className="bo-detail__main">
           <Panel title="Basics">
             <div className="space-y-5">
-              {field(
-                "promo-name",
-                "Name",
-                "For staff only — shoppers read the words below.",
-                <Input id="promo-name" value={d.name} onChange={(e) => set("name", e.target.value)} className="max-w-md" autoFocus={!current} />,
-                "name",
-              )}
+              <Field
+                id="promo-name"
+                label="Name"
+                hint="For staff only — shoppers read the words below."
+                invalid={bad.has("name")}
+              >
+                <Input
+                  id="promo-name"
+                  value={d.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  className="max-w-md"
+                  autoFocus={!current}
+                />
+              </Field>
               <div className="space-y-2">
                 <span className="flex items-center gap-1.5 text-sm font-medium">How it applies {locked}</span>
-                <div role="group" aria-label="How it applies" className="bo-seg">
-                  {(["code", "automatic"] as const).map((t) => (
-                    <button key={t} type="button" disabled={used} className={cn(d.trigger === t && "is-active")} aria-pressed={d.trigger === t} onClick={() => set("trigger", t)}>
-                      {t === "code" ? "With a code" : "Automatically"}
-                    </button>
-                  ))}
-                </div>
+                <Choice
+                  label="How it applies"
+                  value={d.trigger}
+                  disabled={used}
+                  onChange={(t) => set("trigger", t)}
+                  options={[
+                    { value: "code", label: "With a code" },
+                    { value: "automatic", label: "Automatically" },
+                  ]}
+                />
                 <p className="bo-sub">
-                  {d.trigger === "code" ? "Shoppers type the code in their cart." : "It applies by itself to every cart that qualifies."}
+                  {d.trigger === "code"
+                    ? "Shoppers type the code in their cart."
+                    : "It applies by itself to every cart that qualifies."}
                 </p>
               </div>
               {d.trigger === "code" ? (
-                <div role="group" aria-label="Codes" className="bo-seg">
-                  {(["shared", "single_use"] as const).map((m) => (
-                    <button key={m} type="button" disabled={used} className={cn(d.codeMode === m && "is-active")} aria-pressed={d.codeMode === m} onClick={() => set("codeMode", m)}>
-                      {m === "shared" ? "One code shoppers share" : "Single-use codes"}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <Choice
+                    label="Codes"
+                    value={d.codeMode}
+                    disabled={used}
+                    onChange={(m) => set("codeMode", m)}
+                    options={[
+                      { value: "shared", label: "One code shoppers share" },
+                      { value: "single_use", label: "Single-use codes" },
+                    ]}
+                  />
+                  {d.codeMode === "single_use" ? (
+                    <p className="bo-sub">Generate the codes on the promotion's page once it is saved.</p>
+                  ) : (
+                    <Field
+                      id="promo-code"
+                      label="Code"
+                      hint="Shoppers may type it in any case, with or without spaces."
+                      invalid={bad.has("sharedCode")}
+                    >
+                      <Input
+                        id="promo-code"
+                        value={d.sharedCode}
+                        onChange={(e) => set("sharedCode", e.target.value.toUpperCase())}
+                        placeholder="SPRING20"
+                        className="max-w-xs font-mono"
+                      />
+                    </Field>
+                  )}
+                </>
               ) : null}
-              {d.trigger === "code" && d.codeMode === "single_use" ? <p className="bo-sub">Generate the codes on the promotion's page once it is saved.</p> : null}
-              {d.trigger === "code" && d.codeMode === "shared"
-                ? field(
-                    "promo-code",
-                    "Code",
-                    "Shoppers may type it in any case, with or without spaces.",
-                    <Input id="promo-code" value={d.sharedCode} onChange={(e) => set("sharedCode", e.target.value.toUpperCase())} placeholder="SPRING20" className="max-w-xs font-mono" />,
-                    "sharedCode",
-                  )
-                : null}
             </div>
           </Panel>
 
           <Panel title={<span className="flex items-center gap-1.5">What it gives {locked}</span>}>
             <div className="space-y-5">
-              <div role="group" aria-label="Kind" className="bo-seg">
-                {KINDS_OFFERED.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    disabled={used}
-                    className={cn(d.kind === k && "is-active")}
-                    aria-pressed={d.kind === k}
-                    onClick={() => setD((x) => ({ ...x, kind: k, valueType: k === "delivery" || k === "bxgy" ? "free" : x.valueType === "free" ? "percent" : x.valueType }))}
-                  >
-                    {KIND_LABEL[k]}
-                  </button>
-                ))}
-              </div>
-              {d.kind === "item" || d.kind === "bxgy" ? (
-                <TargetPicker appliesTo={d.appliesTo} onAppliesTo={(a) => set("appliesTo", a)} value={d.targets} onChange={(t) => set("targets", t)} disabled={used} />
+              <Choice
+                label="Kind"
+                value={d.kind}
+                disabled={used}
+                options={KINDS_OFFERED.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+                onChange={(k) =>
+                  setD((x) => ({
+                    ...x,
+                    kind: k,
+                    valueType:
+                      k === "delivery" || k === "bxgy" ? "free" : x.valueType === "free" ? "percent" : x.valueType,
+                  }))
+                }
+              />
+              {targeted ? (
+                <TargetPicker
+                  appliesTo={d.appliesTo}
+                  onAppliesTo={(a) => set("appliesTo", a)}
+                  value={d.targets}
+                  onChange={(t) => set("targets", t)}
+                  disabled={used}
+                />
               ) : null}
               {d.kind === "bxgy" ? (
                 <div className="grid gap-4 sm:grid-cols-3">
-                  {field("bx-buy", "Buy", null, <Input id="bx-buy" type="number" min={1} disabled={used} value={d.bxgyBuy} onChange={(e) => set("bxgyBuy", e.target.value)} />, "bxgy.buy")}
-                  {field("bx-get", "Get", "The cheapest ones.", <Input id="bx-get" type="number" min={1} disabled={used} value={d.bxgyGet} onChange={(e) => set("bxgyGet", e.target.value)} />, "bxgy.get")}
-                  {field("bx-max", "Times per order", "Empty for no limit.", <Input id="bx-max" type="number" min={1} disabled={used} value={d.bxgyMax} onChange={(e) => set("bxgyMax", e.target.value)} />, "bxgy.maxPerOrder")}
+                  <Field id="bx-buy" label="Buy" invalid={bad.has("bxgy.buy")}>
+                    <Input
+                      id="bx-buy"
+                      type="number"
+                      min={1}
+                      disabled={used}
+                      value={d.bxgyBuy}
+                      onChange={(e) => set("bxgyBuy", e.target.value)}
+                    />
+                  </Field>
+                  <Field id="bx-get" label="Get" hint="The cheapest ones." invalid={bad.has("bxgy.get")}>
+                    <Input
+                      id="bx-get"
+                      type="number"
+                      min={1}
+                      disabled={used}
+                      value={d.bxgyGet}
+                      onChange={(e) => set("bxgyGet", e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    id="bx-max"
+                    label="Times per order"
+                    hint="Empty for no limit."
+                    invalid={bad.has("bxgy.maxPerOrder")}
+                  >
+                    <Input
+                      id="bx-max"
+                      type="number"
+                      min={1}
+                      disabled={used}
+                      value={d.bxgyMax}
+                      onChange={(e) => set("bxgyMax", e.target.value)}
+                    />
+                  </Field>
                 </div>
               ) : null}
-              <div role="group" aria-label="Takes off" className="bo-seg">
-                {(d.kind === "delivery" || d.kind === "bxgy" ? (["free", "percent", "amount"] as const) : (["percent", "amount"] as const)).map((v) => (
-                  <button key={v} type="button" disabled={used} className={cn(d.valueType === v && "is-active")} aria-pressed={d.valueType === v} onClick={() => set("valueType", v)}>
-                    {v === "free" ? (d.kind === "delivery" ? "Free delivery" : "Free") : v === "percent" ? "A percentage" : "A fixed amount"}
-                  </button>
-                ))}
-              </div>
+              <Choice
+                label="Takes off"
+                value={d.valueType}
+                disabled={used}
+                onChange={(v) => set("valueType", v)}
+                options={[
+                  ...(freeAllowed
+                    ? [{ value: "free" as const, label: d.kind === "delivery" ? "Free delivery" : "Free" }]
+                    : []),
+                  { value: "percent" as const, label: "A percentage" },
+                  { value: "amount" as const, label: "A fixed amount" },
+                ]}
+              />
               {d.valueType === "percent" ? (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {field(
-                    "promo-percent",
-                    "Percent off",
-                    "Up to 100.",
+                  <Field id="promo-percent" label="Percent off" hint="Up to 100." invalid={bad.has("percentOff")}>
                     <div className="flex items-center gap-2">
-                      <Input id="promo-percent" type="number" min={0.01} max={100} step="0.01" disabled={used} value={d.percentOff} onChange={(e) => set("percentOff", e.target.value)} />
+                      <Input
+                        id="promo-percent"
+                        type="number"
+                        min={0.01}
+                        max={100}
+                        step="0.01"
+                        disabled={used}
+                        value={d.percentOff}
+                        onChange={(e) => set("percentOff", e.target.value)}
+                      />
                       <span className="text-sm text-muted-foreground">%</span>
-                    </div>,
-                    "percentOff",
-                  )}
-                  {field(
-                    "promo-cap",
-                    "Up to (optional)",
-                    "The most it takes off one order.",
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">$</span>
-                      <Input id="promo-cap" inputMode="decimal" disabled={used} value={d.maxDiscount} onChange={(e) => set("maxDiscount", e.target.value)} placeholder="No cap" />
-                    </div>,
-                    "maxDiscount",
-                  )}
+                    </div>
+                  </Field>
+                  <Field
+                    id="promo-cap"
+                    label="Up to (optional)"
+                    hint="The most it takes off one order."
+                    invalid={bad.has("maxDiscount")}
+                  >
+                    <MoneyInput
+                      id="promo-cap"
+                      disabled={used}
+                      value={d.maxDiscount}
+                      onChange={(e) => set("maxDiscount", e.target.value)}
+                      placeholder="No cap"
+                    />
+                  </Field>
                 </div>
-              ) : d.valueType === "free" ? null : (
-                field(
-                  "promo-amount",
-                  "Amount off",
-                  "Never takes a cart below zero.",
-                  <div className="flex max-w-48 items-center gap-2">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <Input id="promo-amount" inputMode="decimal" disabled={used} value={d.amountOff} onChange={(e) => set("amountOff", e.target.value)} placeholder="10.00" />
-                  </div>,
-                  "amountOff",
-                )
-              )}
-              {field(
-                "promo-min",
-                "Minimum spend",
-                "0.00 for no minimum.",
-                <div className="flex max-w-48 items-center gap-2">
-                  <span className="text-sm text-muted-foreground">$</span>
-                  <Input id="promo-min" inputMode="decimal" disabled={used} value={d.minSubtotal} onChange={(e) => set("minSubtotal", e.target.value)} />
-                </div>,
-                "minSubtotal",
-              )}
-              {d.kind === "item" || d.kind === "bxgy"
-                ? field("promo-minq", "Minimum quantity (optional)", "Qualifying items in the cart.", <Input id="promo-minq" type="number" min={1} disabled={used} value={d.minQuantity} onChange={(e) => set("minQuantity", e.target.value)} className="max-w-32" />, "minQuantity")
-                : null}
+              ) : d.valueType === "amount" ? (
+                <Field
+                  id="promo-amount"
+                  label="Amount off"
+                  hint="Never takes a cart below zero."
+                  invalid={bad.has("amountOff")}
+                >
+                  <MoneyInput
+                    id="promo-amount"
+                    className="max-w-48"
+                    disabled={used}
+                    value={d.amountOff}
+                    onChange={(e) => set("amountOff", e.target.value)}
+                    placeholder="10.00"
+                  />
+                </Field>
+              ) : null}
+              <Field id="promo-min" label="Minimum spend" hint="0.00 for no minimum." invalid={bad.has("minSubtotal")}>
+                <MoneyInput
+                  id="promo-min"
+                  className="max-w-48"
+                  disabled={used}
+                  value={d.minSubtotal}
+                  onChange={(e) => set("minSubtotal", e.target.value)}
+                />
+              </Field>
+              {targeted ? (
+                <Field
+                  id="promo-minq"
+                  label="Minimum quantity (optional)"
+                  hint="Qualifying items in the cart."
+                  invalid={bad.has("minQuantity")}
+                >
+                  <Input
+                    id="promo-minq"
+                    type="number"
+                    min={1}
+                    disabled={used}
+                    value={d.minQuantity}
+                    onChange={(e) => set("minQuantity", e.target.value)}
+                    className="max-w-32"
+                  />
+                </Field>
+              ) : null}
             </div>
           </Panel>
 
           <Panel title={<span className="flex items-center gap-1.5">Who {locked}</span>}>
             <div className="space-y-5">
-              <div role="group" aria-label="Who" className="bo-seg flex-wrap">
-                {(Object.keys(AUDIENCE_LABEL) as PromotionAudience[]).map((a) => (
-                  <button key={a} type="button" disabled={used} className={cn(d.audience === a && "is-active")} aria-pressed={d.audience === a} onClick={() => set("audience", a)}>
-                    {AUDIENCE_LABEL[a]}
-                  </button>
-                ))}
-              </div>
-              {d.audience === "chosen" ? <p className="bo-sub">Add the customers on the promotion's page once it is saved.</p> : null}
-              {d.audience === "new_customers" ? <p className="bo-sub">Customers whose account was created on or after the start date.</p> : null}
+              <Choice
+                label="Who"
+                className="flex-wrap"
+                value={d.audience}
+                disabled={used}
+                onChange={(a) => set("audience", a)}
+                options={(Object.keys(AUDIENCE_LABEL) as PromotionAudience[]).map((a) => ({
+                  value: a,
+                  label: AUDIENCE_LABEL[a],
+                }))}
+              />
+              {d.audience === "chosen" ? (
+                <p className="bo-sub">Add the customers on the promotion's page once it is saved.</p>
+              ) : null}
+              {d.audience === "new_customers" ? (
+                <p className="bo-sub">Customers whose account was created on or after the start date.</p>
+              ) : null}
               <div className="space-y-2">
                 <span className="text-sm font-medium">Delivery</span>
                 <div className="flex flex-wrap gap-4">
@@ -421,7 +365,7 @@ function Editor({ current }: { current: Promotion | null }) {
                       <Checkbox
                         disabled={used}
                         checked={d.deliveryTypes.includes(t)}
-                        onCheckedChange={(v) => set("deliveryTypes", v === true ? [...d.deliveryTypes, t] : d.deliveryTypes.filter((x) => x !== t))}
+                        onCheckedChange={(v) => set("deliveryTypes", toggleIn(d.deliveryTypes, t, v === true))}
                       />
                       {t === "effy" ? "Delivered by Effy" : "Courier delivery"}
                     </label>
@@ -431,11 +375,28 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title="When" description="Melbourne time. Leave a date empty for no bound; no days chosen means every day.">
+          <Panel
+            title="When"
+            description="Melbourne time. Leave a date empty for no bound; no days chosen means every day."
+          >
             <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
-                {field("promo-starts", "Starts", null, <Input id="promo-starts" type="datetime-local" value={d.startsAt} onChange={(e) => set("startsAt", e.target.value)} />, "startsAt")}
-                {field("promo-ends", "Ends", null, <Input id="promo-ends" type="datetime-local" value={d.endsAt} onChange={(e) => set("endsAt", e.target.value)} />, "endsAt")}
+                <Field id="promo-starts" label="Starts" invalid={bad.has("startsAt")}>
+                  <Input
+                    id="promo-starts"
+                    type="datetime-local"
+                    value={d.startsAt}
+                    onChange={(e) => set("startsAt", e.target.value)}
+                  />
+                </Field>
+                <Field id="promo-ends" label="Ends" invalid={bad.has("endsAt")}>
+                  <Input
+                    id="promo-ends"
+                    type="datetime-local"
+                    value={d.endsAt}
+                    onChange={(e) => set("endsAt", e.target.value)}
+                  />
+                </Field>
               </div>
               <div className="space-y-2">
                 <span className="text-sm font-medium">Days</span>
@@ -444,7 +405,7 @@ function Editor({ current }: { current: Promotion | null }) {
                     <label key={day} className="flex items-center gap-1.5 text-sm">
                       <Checkbox
                         checked={d.daysOfWeek.includes(i + 1)}
-                        onCheckedChange={(v) => set("daysOfWeek", v === true ? [...d.daysOfWeek, i + 1] : d.daysOfWeek.filter((x) => x !== i + 1))}
+                        onCheckedChange={(v) => set("daysOfWeek", toggleIn(d.daysOfWeek, i + 1, v === true))}
                       />
                       {day}
                     </label>
@@ -452,51 +413,116 @@ function Editor({ current }: { current: Promotion | null }) {
                 </div>
               </div>
               <div className="grid max-w-md gap-4 sm:grid-cols-2">
-                {field("promo-from", "From (optional)", null, <Input id="promo-from" type="time" value={d.timeFrom} onChange={(e) => set("timeFrom", e.target.value)} />, "timeFrom")}
-                {field("promo-to", "Until", null, <Input id="promo-to" type="time" value={d.timeTo} onChange={(e) => set("timeTo", e.target.value)} />, "timeTo")}
+                <Field id="promo-from" label="From (optional)" invalid={bad.has("timeFrom")}>
+                  <Input
+                    id="promo-from"
+                    type="time"
+                    value={d.timeFrom}
+                    onChange={(e) => set("timeFrom", e.target.value)}
+                  />
+                </Field>
+                <Field id="promo-to" label="Until" invalid={bad.has("timeTo")}>
+                  <Input id="promo-to" type="time" value={d.timeTo} onChange={(e) => set("timeTo", e.target.value)} />
+                </Field>
               </div>
             </div>
           </Panel>
 
           <Panel title="Limits" description="Leave empty for no limit. A promotion that reaches one stops at once.">
             <div className="grid gap-4 sm:grid-cols-3">
-              {field("promo-max", "Total uses", null, <Input id="promo-max" type="number" min={1} value={d.maxUses} onChange={(e) => set("maxUses", e.target.value)} placeholder="Unlimited" />, "maxUses")}
-              {field(
-                "promo-per",
-                "Uses per customer",
-                null,
-                <Input id="promo-per" type="number" min={1} value={d.maxUsesPerCustomer} onChange={(e) => set("maxUsesPerCustomer", e.target.value)} placeholder="Unlimited" />,
-                "maxUsesPerCustomer",
-              )}
-              {field(
-                "promo-budget",
-                "Budget",
-                "Total discount it may give.",
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">$</span>
-                  <Input id="promo-budget" inputMode="decimal" value={d.budget} onChange={(e) => set("budget", e.target.value)} placeholder="No budget" />
-                </div>,
-                "budget",
-              )}
+              <Field id="promo-max" label="Total uses" invalid={bad.has("maxUses")}>
+                <Input
+                  id="promo-max"
+                  type="number"
+                  min={1}
+                  value={d.maxUses}
+                  onChange={(e) => set("maxUses", e.target.value)}
+                  placeholder="Unlimited"
+                />
+              </Field>
+              <Field id="promo-per" label="Uses per customer" invalid={bad.has("maxUsesPerCustomer")}>
+                <Input
+                  id="promo-per"
+                  type="number"
+                  min={1}
+                  value={d.maxUsesPerCustomer}
+                  onChange={(e) => set("maxUsesPerCustomer", e.target.value)}
+                  placeholder="Unlimited"
+                />
+              </Field>
+              <Field id="promo-budget" label="Budget" hint="Total discount it may give." invalid={bad.has("budget")}>
+                <MoneyInput
+                  id="promo-budget"
+                  value={d.budget}
+                  onChange={(e) => set("budget", e.target.value)}
+                  placeholder="No budget"
+                />
+              </Field>
             </div>
             <label className="mt-5 flex items-start gap-3 text-sm">
-              <Switch checked={d.combinable} onCheckedChange={(v) => set("combinable", v)} aria-label="Combines with other promotions" />
+              <Switch
+                checked={d.combinable}
+                onCheckedChange={(v) => set("combinable", v)}
+                aria-label="Combines with other promotions"
+              />
               <span>
                 <span className="font-medium">Combines with other promotions</span>
-                <span className="bo-sub block">Off: when another offer gives the shopper more, that one applies instead of this.</span>
+                <span className="bo-sub block">
+                  Off: when another offer gives the shopper more, that one applies instead of this.
+                </span>
               </span>
             </label>
           </Panel>
 
-          <Panel title="What shoppers read" description="Shown wherever the promotion is shown. The code and conditions are added for you.">
+          <Panel
+            title="What shoppers read"
+            description="Shown wherever the promotion is shown. The code and conditions are added for you."
+          >
             <div className="space-y-5">
-              {field("promo-headline", "Headline", "Needed to show it in a group. Up to 80 characters.", <Input id="promo-headline" value={d.headline} maxLength={80} onChange={(e) => set("headline", e.target.value)} placeholder="20% off your first grocery order" />, "headline")}
-              {field("promo-support", "Supporting line (optional)", null, <Textarea id="promo-support" rows={2} maxLength={160} value={d.supportingLine} onChange={(e) => set("supportingLine", e.target.value)} />, "supportingLine")}
-              {field("promo-label", "Label (optional)", "A short tag above the headline, like “This week's offer”.", <Input id="promo-label" value={d.label} maxLength={24} onChange={(e) => set("label", e.target.value)} className="max-w-xs" />, "label")}
+              <Field
+                id="promo-headline"
+                label="Headline"
+                hint="Needed to show it in a group. Up to 80 characters."
+                invalid={bad.has("headline")}
+              >
+                <Input
+                  id="promo-headline"
+                  value={d.headline}
+                  maxLength={80}
+                  onChange={(e) => set("headline", e.target.value)}
+                  placeholder="20% off your first grocery order"
+                />
+              </Field>
+              <Field id="promo-support" label="Supporting line (optional)" invalid={bad.has("supportingLine")}>
+                <Textarea
+                  id="promo-support"
+                  rows={2}
+                  maxLength={160}
+                  value={d.supportingLine}
+                  onChange={(e) => set("supportingLine", e.target.value)}
+                />
+              </Field>
+              <Field
+                id="promo-label"
+                label="Label (optional)"
+                hint="A short tag above the headline, like “This week's offer”."
+                invalid={bad.has("label")}
+              >
+                <Input
+                  id="promo-label"
+                  value={d.label}
+                  maxLength={24}
+                  onChange={(e) => set("label", e.target.value)}
+                  className="max-w-xs"
+                />
+              </Field>
             </div>
           </Panel>
 
-          <Panel title="Where it's shown" description="A promotion can be in several groups. Reorder a group from its own page.">
+          <Panel
+            title="Where it's shown"
+            description="A promotion can be in several groups. Reorder a group from its own page."
+          >
             {groups.data && groups.data.length > 0 ? (
               <ul className="grid gap-2 sm:grid-cols-2">
                 {groups.data.map((g) => (
@@ -504,7 +530,7 @@ function Editor({ current }: { current: Promotion | null }) {
                     <label className="flex items-start gap-3 text-sm">
                       <Checkbox
                         checked={d.groupIds.includes(g.id)}
-                        onCheckedChange={(v) => set("groupIds", v === true ? [...d.groupIds, g.id] : d.groupIds.filter((x) => x !== g.id))}
+                        onCheckedChange={(v) => set("groupIds", toggleIn(d.groupIds, g.id, v === true))}
                       />
                       <span>
                         <span className="font-medium">{g.name}</span>
@@ -528,7 +554,7 @@ function Editor({ current }: { current: Promotion | null }) {
           <div className="bo-panel bo-panel__foot bo-panel__foot--between rounded-lg">
             <span className="bo-sub">{current ? "Unsaved changes" : "Saved as a draft until you publish it."}</span>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => void navigate(current ? { to: "/promotions/$promoId", params: { promoId: current.id } } : { to: "/promotions" })}>
+              <Button type="button" variant="outline" onClick={() => void navigate(backTo)}>
                 Cancel
               </Button>
               <Button type="submit" variant={current ? "default" : "outline"} disabled={busy}>
@@ -544,48 +570,75 @@ function Editor({ current }: { current: Promotion | null }) {
         </div>
 
         <aside className="bo-detail__aside">
-          <Summary d={d} />
+          <PromotionSummary d={d} />
         </aside>
       </form>
     </>
-  );
+  )
 }
 
-/** The promotion read back as it will behave. The server's own sentence appears on its page once saved. */
-function Summary({ d }: { d: Draft }) {
-  const off = d.valueType === "free" ? "free" : d.valueType === "percent" ? `${d.percentOff || "…"}% off` : `$${d.amountOff || "…"} off`;
-  const value =
-    d.kind === "delivery"
-      ? d.valueType === "free" ? "Free delivery" : `${off} delivery`
-      : d.kind === "bxgy"
-        ? `Buy ${d.bxgyBuy || "…"} get ${d.bxgyGet || "…"} ${off}`
-        : d.kind === "item"
-          ? `${off} chosen ${d.appliesTo}`
-          : `${off} the cart${d.valueType === "percent" && d.maxDiscount ? `, up to $${d.maxDiscount}` : ""}`;
-  const min = Number(d.minSubtotal) > 0 ? `On orders over $${Number(d.minSubtotal).toFixed(2)}` : "On any order";
-  const limits = [d.maxUses && `${d.maxUses} uses in total`, d.maxUsesPerCustomer && `${d.maxUsesPerCustomer} per customer`, d.budget && `budget $${d.budget}`].filter(Boolean);
+function Field({
+  id,
+  label,
+  hint,
+  invalid,
+  children,
+}: {
+  id: string
+  label: string
+  hint?: string
+  invalid?: boolean
+  children: ReactNode
+}) {
   return (
-    <Panel title="Summary">
-      <div className="space-y-4">
-        {d.label ? <div className="bo-sub font-semibold uppercase tracking-wide">{d.label}</div> : null}
-        <div className="text-base font-semibold">{d.headline || d.name || "Untitled promotion"}</div>
-        {d.supportingLine ? <p className="bo-sub">{d.supportingLine}</p> : null}
-        <ul className="space-y-1.5 text-sm">
-          <li>{value}</li>
-          <li>{min}</li>
-          <li>{AUDIENCE_LABEL[d.audience]}{d.deliveryTypes.length === 1 ? ` · ${d.deliveryTypes[0] === "effy" ? "Delivered by Effy only" : "Courier only"}` : ""}</li>
-          {d.daysOfWeek.length || d.timeFrom ? (
-            <li>
-              {d.daysOfWeek.length ? [...d.daysOfWeek].sort().map((x) => DAYS[x - 1]).join(", ") : "Every day"}
-              {d.timeFrom && d.timeTo ? ` ${d.timeFrom}–${d.timeTo}` : ""}
-            </li>
-          ) : null}
-          <li>{d.trigger === "code" ? <>With the code <span className="bo-code">{d.sharedCode || "…"}</span></> : "Applies automatically"}</li>
-          <li>{limits.length ? limits.join(" · ") : "No limits"}</li>
-          <li className="text-muted-foreground">{d.combinable ? "Combines with other offers" : "Doesn't combine with other offers"}</li>
-        </ul>
-        <p className="bo-sub">Never takes delivery or a cart below zero. Once it is used, what it gives and who it is for are fixed.</p>
-      </div>
-    </Panel>
-  );
+    <div className="space-y-2">
+      <Label htmlFor={id} className={cn(invalid && "text-foreground underline decoration-2")}>
+        {label}
+      </Label>
+      {children}
+      {hint ? <p className="bo-sub">{hint}</p> : null}
+    </div>
+  )
+}
+
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  disabled,
+  className,
+}: {
+  label: string
+  value: T
+  options: readonly { value: T; label: string }[]
+  onChange: (value: T) => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <div role="group" aria-label={label} className={cn("bo-seg", className)}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          disabled={disabled}
+          className={cn(value === o.value && "is-active")}
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MoneyInput({ className, ...props }: ComponentProps<typeof Input>) {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <span className="text-sm text-muted-foreground">$</span>
+      <Input inputMode="decimal" {...props} />
+    </div>
+  )
 }

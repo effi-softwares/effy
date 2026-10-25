@@ -1,53 +1,42 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 
-import type { CourierView, HandoverRowDTO } from "@effy/shared-types";
-import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react";
+import type { CourierView, HandoverRowDTO } from "@effy/shared-types"
+import { CircleAlert, CircleCheck, Clock, Forward, PackageOpen, Settings2, Store, Truck, Warehouse } from "lucide-react"
 
-import { cn } from "@effy/design-system";
-import { Button, Skeleton } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import { cn } from "@effy/design-system"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
+import { PageHeader, EmptyState, StatusWord } from "@effy/web-kit/patterns"
 
-import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock";
-import { courierParcelsQuery } from "./queries";
+import { CONSIGNMENT_STATE_LABEL } from "./components/ConsignmentBlock"
+import { courierParcelsQuery } from "./queries"
 
-/**
- * Courier parcels: everything a courier takes that is not finished, in five views.
- *
- *  At the hub, due collected (or still to collect), not handed over, due by the next pickup
- *  At the hub, late the pickup it was due for has gone
- *  Supplier pickups a courier collects from the supplier — booked or still to arrange
- *  with the courier handed over, not delivered; overdue first
- *  Problems failed, lost, damaged or returned, until resolved
- *
- * A table with views, no metric tiles (Principle V). Read-only for every role; bookings and steps
- * are recorded on the order.
- */
 const VIEWS: { value: CourierView; label: string; empty: string }[] = [
   { value: "hub_due", label: "At the hub", empty: "No courier parcels are waiting at the hub." },
   { value: "hub_late", label: "Late at the hub", empty: "Nothing has missed its pickup." },
   { value: "supplier", label: "Supplier pickups", empty: "No pickups from suppliers are waiting." },
   { value: "with_courier", label: "With the courier", empty: "Nothing is with a courier right now." },
   { value: "problems", label: "Problems", empty: "No problems reported." },
-];
+]
 
 const when = (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Melbourne" }).format(new Date(iso));
+  new Intl.DateTimeFormat("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Australia/Melbourne",
+  }).format(new Date(iso))
 
-/**
- * Courier parcels (080; redesign, board "Courier parcels"): parcels a courier takes to customers
- * outside Effy's area, by stage. Open an order to book its consignment and record each step.
- */
 export function CourierScreen() {
-  const [view, setView] = useState<CourierView>("hub_due");
-  const { data, error, isPending, isError, refetch } = useQuery(courierParcelsQuery(view));
-  const current = VIEWS.find((v) => v.value === view)!;
+  const [view, setView] = useState<CourierView>("hub_due")
+  const { data, error, isPending, isError, refetch } = useQuery(courierParcelsQuery(view))
+  const current = VIEWS.find((v) => v.value === view)!
   return (
     <>
       <PageHeader
@@ -136,27 +125,40 @@ export function CourierScreen() {
         </div>
       )}
     </>
-  );
+  )
 }
 
 function dueText(r: HandoverRowDTO) {
-  if (r.pickup) return <span className="tabular-nums">Pickup {r.pickup.date}{r.pickup.from ? `, ${r.pickup.from}–${r.pickup.to}` : ""}</span>;
-  if (r.collection === "supplier") return <span className="text-muted-foreground">Pickup to arrange</span>;
-  return <span className="tabular-nums">{r.dueOut ? when(r.dueOut) : r.handoverDueOn}</span>;
+  if (r.pickup)
+    return (
+      <span className="tabular-nums">
+        Pickup {r.pickup.date}
+        {r.pickup.from ? `, ${r.pickup.from}–${r.pickup.to}` : ""}
+      </span>
+    )
+  if (r.collection === "supplier") return <span className="text-muted-foreground">Pickup to arrange</span>
+  return <span className="tabular-nums">{r.dueOut ? when(r.dueOut) : r.handoverDueOn}</span>
 }
 
-/** Where the parcel is, in one word with its tone: with the courier → blue, a problem → black. */
 function whereWord(r: HandoverRowDTO) {
   if (r.consignmentState) {
-    const problem = ["failed", "lost", "damaged", "returned"].includes(r.consignmentState);
-    const done = r.consignmentState === "delivered";
+    const problem = ["failed", "lost", "damaged", "returned"].includes(r.consignmentState)
+    const done = r.consignmentState === "delivered"
     return (
-      <StatusWord tone={problem ? "problem" : done ? "done" : "moving"} icon={problem ? CircleAlert : done ? CircleCheck : Forward}>
+      <StatusWord
+        tone={problem ? "problem" : done ? "done" : "moving"}
+        icon={problem ? CircleAlert : done ? CircleCheck : Forward}
+      >
         {CONSIGNMENT_STATE_LABEL[r.consignmentState]}
       </StatusWord>
-    );
+    )
   }
-  if (r.collection === "supplier") return <StatusWord tone="waiting" icon={Store}>At the supplier</StatusWord>;
+  if (r.collection === "supplier")
+    return (
+      <StatusWord tone="waiting" icon={Store}>
+        At the supplier
+      </StatusWord>
+    )
   return r.atHub ? (
     <StatusWord tone="moving" icon={Warehouse}>
       At the hub
@@ -165,5 +167,5 @@ function whereWord(r: HandoverRowDTO) {
     <StatusWord tone="muted" icon={PackageOpen}>
       Not at the hub yet
     </StatusWord>
-  );
+  )
 }

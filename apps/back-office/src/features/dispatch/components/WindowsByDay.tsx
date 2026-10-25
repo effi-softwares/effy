@@ -1,29 +1,25 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, Clock, Route, Snowflake } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { CalendarClock, Clock, Route, Snowflake } from "lucide-react"
 
-import type { DispatchWindowDTO } from "@effy/shared-types";
-import { Badge, Skeleton } from "@effy/design-system/ui";
-import { PackageStatusPill } from "@effy/web-kit/console";
+import type { DispatchWindowDTO } from "@effy/shared-types"
+import { Badge, Skeleton } from "@effy/design-system/ui"
+import { PackageStatusPill } from "@effy/web-kit/console"
 
-import { Panel } from "@effy/web-kit/patterns";
+import { Panel } from "@effy/web-kit/patterns"
 
-import { dispatchWindowsQuery } from "../queries";
+import { dispatchWindowsQuery } from "../queries"
 
-/** The round line under a window: who has it, or what will happen. */
 export function roundLine(w: DispatchWindowDTO, isToday: boolean): string {
-  if (w.rounds.length === 0) return isToday ? "No round yet — auto-assign plans it as parcels reach the hub" : "Planned on the day";
-  return w.rounds.map((r) => `${r.driver.name} (${r.parcels})`).join(", ");
+  if (w.rounds.length === 0)
+    return isToday ? "No round yet — auto-assign plans it as parcels reach the hub" : "Planned on the day"
+  return w.rounds.map((r) => `${r.driver.name} (${r.parcels})`).join(", ")
 }
 
-/**
- * Delivery windows by day (082; redesign, board "Dispatch — today", Delivery windows tab): every day
- * on sale, each window's parcels, and the round that carries them.
- */
 export function WindowsByDay() {
-  const [date, setDate] = useState<string | null>(null);
-  const { data, isPending, isError } = useQuery(dispatchWindowsQuery(date));
+  const [date, setDate] = useState<string | null>(null)
+  const { data, isPending, isError } = useQuery(dispatchWindowsQuery(date))
 
   return (
     <Panel
@@ -63,11 +59,13 @@ export function WindowsByDay() {
       ) : (
         <div className="divide-y divide-border">
           {data.windows.map((w) => {
-            const isToday = data.days.find((d) => d.date === data.date)?.isToday ?? false;
-            const delivered = w.parcels.filter((p) => p.status.status === "delivered").length;
-            const moving = w.parcels.filter((p) => ["with_driver", "at_hub", "out_for_delivery"].includes(p.status.status)).length;
-            const n = w.parcels.length || 1;
-            const summary = `${w.parcels.length} ${w.parcels.length === 1 ? "parcel" : "parcels"} · ${roundLine(w, isToday)}`;
+            const isToday = data.days.find((d) => d.date === data.date)?.isToday ?? false
+            const delivered = w.parcels.filter((p) => p.status.status === "delivered").length
+            const moving = w.parcels.filter((p) =>
+              ["with_driver", "at_hub", "out_for_delivery"].includes(p.status.status),
+            ).length
+            const n = w.parcels.length || 1
+            const summary = `${w.parcels.length} ${w.parcels.length === 1 ? "parcel" : "parcels"} · ${roundLine(w, isToday)}`
             return (
               <div key={w.windowStart} className="space-y-3 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -79,11 +77,17 @@ export function WindowsByDay() {
                     </span>
                   </div>
                   <div className="flex min-w-[220px] items-center gap-3">
-                    <div className="bo-meter flex-1" role="img" aria-label={`${delivered} delivered, ${moving} on the way, of ${w.parcels.length}`}>
+                    <div
+                      className="bo-meter flex-1"
+                      role="img"
+                      aria-label={`${delivered} delivered, ${moving} on the way, of ${w.parcels.length}`}
+                    >
                       <i className="bo-meter__done" style={{ width: `${(delivered / n) * 100}%` }} />
                       <i className="bo-meter__booked" style={{ width: `${(moving / n) * 100}%` }} />
                     </div>
-                    <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{delivered} delivered</span>
+                    <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+                      {delivered} delivered
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -129,10 +133,10 @@ export function WindowsByDay() {
                   </div>
                 ) : null}
               </div>
-            );
+            )
           })}
         </div>
       )}
     </Panel>
-  );
+  )
 }

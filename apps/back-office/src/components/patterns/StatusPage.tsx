@@ -1,18 +1,15 @@
-import { Link } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
-import { CloudOff, LockKeyhole, SearchX, ShieldOff } from "lucide-react";
+import { Link } from "@tanstack/react-router"
+import { type LucideIcon, CloudOff, LockKeyhole, SearchX, ShieldOff } from "lucide-react"
 
-import { cn } from "@effy/design-system";
-import { Button } from "@effy/design-system/ui";
+import { cn } from "@effy/design-system"
+import { Button } from "@effy/design-system/ui"
 
-/**
- * A whole-page state (boards "Access denied" and "Not found"): an icon, the code, one sentence of what
- * happened, the one thing to do next, and a footnote. Rendered inside the shell, so the sidebar is
- * still there to go somewhere else.
- */
-export type StatusKind = "denied" | "notfound" | "expired" | "unavailable";
+type StatusKind = "denied" | "notfound" | "expired" | "unavailable"
 
-const KINDS: Record<StatusKind, { code: string; icon: LucideIcon; problem?: boolean; title: string; body: string; foot: string }> = {
+const KINDS: Record<
+  StatusKind,
+  { code: string; icon: LucideIcon; problem?: boolean; title: string; body: string; foot: string }
+> = {
   denied: {
     code: "403",
     icon: ShieldOff,
@@ -42,10 +39,10 @@ const KINDS: Record<StatusKind, { code: string; icon: LucideIcon; problem?: bool
     body: "The service is waking up or unreachable. Try again in a moment.",
     foot: "Nothing was changed.",
   },
-};
+}
 
 export function StatusPage({ kind, onRetry }: { kind: StatusKind; onRetry?: () => void }) {
-  const k = KINDS[kind];
+  const k = KINDS[kind]
   return (
     <div className="mx-auto flex max-w-[460px] flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
       <span className={cn("bo-icon-tile size-14!", k.problem && "bo-icon-tile--problem")}>
@@ -69,5 +66,5 @@ export function StatusPage({ kind, onRetry }: { kind: StatusKind; onRetry?: () =
       </div>
       <p className="mt-4 text-xs text-muted-foreground">{k.foot}</p>
     </div>
-  );
+  )
 }

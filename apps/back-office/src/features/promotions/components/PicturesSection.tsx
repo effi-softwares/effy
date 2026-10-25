@@ -1,6 +1,6 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { useRef, useState, type PointerEvent } from "react"
 
-import { ArrowLeft, ArrowRight, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImagePlus, Trash2 } from "lucide-react"
 
 import {
   AlertDialog,
@@ -14,73 +14,88 @@ import {
   Button,
   Input,
   Label,
-} from "@effy/design-system/ui";
-import type { AdminPromotionImageDTO } from "@effy/shared-types";
+} from "@effy/design-system/ui"
+import type { AdminPromotionImageDTO } from "@effy/shared-types"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { Callout } from "@effy/web-kit/patterns";
-import { track } from "@/lib/telemetry";
+import { Panel, Callout } from "@effy/web-kit/patterns"
+import { track } from "@/lib/telemetry"
 
-import { inUseError, promotionMutationError } from "../errorText";
-import type { Promotion } from "../model";
-import { useAddPromotionImage, useRemovePromotionImage, useUpdatePromotionImage } from "../queries";
+import { inUseError, promotionMutationError } from "../errorText"
+import type { Promotion } from "../model"
+import { useAddPromotionImage, useRemovePromotionImage, useUpdatePromotionImage } from "../queries"
 
-const ACCEPT = "image/jpeg,image/png,image/webp";
-const MAX_BYTES = 10 * 1024 * 1024;
-const MAX_PICTURES = 10;
+const ACCEPT = "image/jpeg,image/png,image/webp"
+const MAX_BYTES = 10 * 1024 * 1024
+const MAX_PICTURES = 10
 
-/**
- * A promotion's pictures. Each has a description for people who cannot see it, and a focus
- * point (click the picture) that every crop keeps in view. A skin that shows a picture uses the one a
- * group chose for it, or the one that best fits its shape.
- */
 export function PicturesSection({ promotion, canManage }: { promotion: Promotion; canManage: boolean }) {
-  const add = useAddPromotionImage(promotion.id);
-  const [file, setFile] = useState<File | null>(null);
-  const [alt, setAlt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  const images = promotion.images;
-  const full = images.length >= MAX_PICTURES;
+  const add = useAddPromotionImage(promotion.id)
+  const [file, setFile] = useState<File | null>(null)
+  const [alt, setAlt] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const images = promotion.images
+  const full = images.length >= MAX_PICTURES
 
   function choose(f: File | null) {
-    setError(null);
-    if (f && !ACCEPT.split(",").includes(f.type)) return setError("That file can't be used: a JPEG, PNG or WebP picture.");
-    if (f && f.size > MAX_BYTES) return setError("That picture is larger than 10 MB.");
-    setFile(f);
+    setError(null)
+    if (f && !ACCEPT.split(",").includes(f.type))
+      return setError("That file can't be used: a JPEG, PNG or WebP picture.")
+    if (f && f.size > MAX_BYTES) return setError("That picture is larger than 10 MB.")
+    setFile(f)
   }
 
   function upload() {
-    if (!file) return;
+    if (!file) return
     add.mutate(
       { file, alt: alt.trim() },
       {
         onSuccess: () => {
-          track({ name: "promotion_image_added", promotionId: promotion.id });
-          setFile(null);
-          setAlt("");
-          if (input.current) input.current.value = "";
+          track({ name: "promotion_image_added", promotionId: promotion.id })
+          setFile(null)
+          setAlt("")
+          if (input.current) input.current.value = ""
         },
-        onError: (e) => setError(e instanceof Error && !("type" in e) ? "The picture could not be uploaded. Try again." : promotionMutationError(e)),
+        onError: (e) =>
+          setError(
+            e instanceof Error && !("type" in e)
+              ? "The picture could not be uploaded. Try again."
+              : promotionMutationError(e),
+          ),
       },
-    );
+    )
   }
 
   return (
     <div className="space-y-4">
       {canManage ? (
-        <Panel title="Add a picture" description={`Up to ${MAX_PICTURES} per promotion — JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}>
+        <Panel
+          title="Add a picture"
+          description={`Up to ${MAX_PICTURES} per promotion — JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}
+        >
           {full ? (
             <p className="bo-sub">This promotion has {MAX_PICTURES} pictures. Remove one to add another.</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="picture-file">Picture</Label>
-                <Input id="picture-file" ref={input} type="file" accept={ACCEPT} onChange={(e) => choose(e.target.files?.[0] ?? null)} />
+                <Input
+                  id="picture-file"
+                  ref={input}
+                  type="file"
+                  accept={ACCEPT}
+                  onChange={(e) => choose(e.target.files?.[0] ?? null)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="picture-alt">Description</Label>
-                <Input id="picture-alt" value={alt} maxLength={150} placeholder="A basket of oranges on a kitchen table" onChange={(e) => setAlt(e.target.value)} />
+                <Input
+                  id="picture-alt"
+                  value={alt}
+                  maxLength={150}
+                  placeholder="A basket of oranges on a kitchen table"
+                  onChange={(e) => setAlt(e.target.value)}
+                />
                 <p className="bo-sub">Read aloud to shoppers who can't see the picture.</p>
               </div>
               <div className="sm:col-span-2">
@@ -99,33 +114,57 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
         </Panel>
       ) : null}
       {images.length === 0 ? (
-        <Callout tone="info" title="No pictures">Skins that show a picture draw their colour and decorations instead.</Callout>
+        <Callout tone="info" title="No pictures">
+          Skins that show a picture draw their colour and decorations instead.
+        </Callout>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2" data-testid="promotion-pictures">
           {images.map((img, i) => (
-            <PictureItem key={img.id} promotionId={promotion.id} image={img} index={i} count={images.length} canManage={canManage} />
+            <PictureItem
+              key={img.id}
+              promotionId={promotion.id}
+              image={img}
+              index={i}
+              count={images.length}
+              canManage={canManage}
+            />
           ))}
         </ul>
       )}
     </div>
-  );
+  )
 }
 
-function PictureItem({ promotionId, image, index, count, canManage }: { promotionId: string; image: AdminPromotionImageDTO; index: number; count: number; canManage: boolean }) {
-  const update = useUpdatePromotionImage(promotionId);
-  const remove = useRemovePromotionImage(promotionId);
-  const [alt, setAlt] = useState(image.alt);
-  const [error, setError] = useState<string | null>(null);
-  const [removing, setRemoving] = useState(false);
+function PictureItem({
+  promotionId,
+  image,
+  index,
+  count,
+  canManage,
+}: {
+  promotionId: string
+  image: AdminPromotionImageDTO
+  index: number
+  count: number
+  canManage: boolean
+}) {
+  const update = useUpdatePromotionImage(promotionId)
+  const remove = useRemovePromotionImage(promotionId)
+  const [alt, setAlt] = useState(image.alt)
+  const [error, setError] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
   const save = (body: Parameters<typeof update.mutate>[0]["body"]) => {
-    setError(null);
-    update.mutate({ imageId: image.id, body }, { onError: (e) => setError(promotionMutationError(e)) });
-  };
+    setError(null)
+    update.mutate({ imageId: image.id, body }, { onError: (e) => setError(promotionMutationError(e)) })
+  }
   const setFocus = (e: PointerEvent<HTMLButtonElement>) => {
-    if (!canManage) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    save({ focusX: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), focusY: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
-  };
+    if (!canManage) return
+    const r = e.currentTarget.getBoundingClientRect()
+    save({
+      focusX: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+      focusY: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+    })
+  }
 
   return (
     <li className="space-y-2 rounded-lg border border-border p-3">
@@ -144,22 +183,47 @@ function PictureItem({ promotionId, image, index, count, canManage }: { promotio
         />
       </button>
       <div className="bo-sub">
-        {image.width}×{image.height} · {image.usedIn.length ? `Chosen in ${image.usedIn.map((g) => g.name).join(", ")}` : "Used where it fits best"}
+        {image.width}×{image.height} ·{" "}
+        {image.usedIn.length ? `Chosen in ${image.usedIn.map((g) => g.name).join(", ")}` : "Used where it fits best"}
         {canManage ? " · Click the picture to set what every crop keeps in view." : null}
       </div>
       {canManage ? (
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-0 flex-1 space-y-1">
             <Label htmlFor={`alt-${image.id}`}>Description</Label>
-            <Input id={`alt-${image.id}`} value={alt} maxLength={150} onChange={(e) => setAlt(e.target.value)} onBlur={() => alt.trim() && alt.trim() !== image.alt && save({ alt: alt.trim() })} />
+            <Input
+              id={`alt-${image.id}`}
+              value={alt}
+              maxLength={150}
+              onChange={(e) => setAlt(e.target.value)}
+              onBlur={() => alt.trim() && alt.trim() !== image.alt && save({ alt: alt.trim() })}
+            />
           </div>
-          <Button size="icon" variant="ghost" aria-label="Move earlier" disabled={index === 0 || update.isPending} onClick={() => save({ position: index - 1 })}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Move earlier"
+            disabled={index === 0 || update.isPending}
+            onClick={() => save({ position: index - 1 })}
+          >
             <ArrowLeft aria-hidden="true" />
           </Button>
-          <Button size="icon" variant="ghost" aria-label="Move later" disabled={index === count - 1 || update.isPending} onClick={() => save({ position: index + 1 })}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Move later"
+            disabled={index === count - 1 || update.isPending}
+            onClick={() => save({ position: index + 1 })}
+          >
             <ArrowRight aria-hidden="true" />
           </Button>
-          <Button size="icon" variant="ghost" aria-label={`Remove ${image.alt}`} disabled={remove.isPending} onClick={() => setRemoving(true)}>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Remove ${image.alt}`}
+            disabled={remove.isPending}
+            onClick={() => setRemoving(true)}
+          >
             <Trash2 aria-hidden="true" />
           </Button>
         </div>
@@ -197,5 +261,5 @@ function PictureItem({ promotionId, image, index, count, canManage }: { promotio
         </AlertDialogContent>
       </AlertDialog>
     </li>
-  );
+  )
 }

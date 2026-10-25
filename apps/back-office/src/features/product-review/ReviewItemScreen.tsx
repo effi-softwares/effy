@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
 
-import { useHotkey } from "@tanstack/react-hotkeys";
-import { Store } from "lucide-react";
+import { useHotkey } from "@tanstack/react-hotkeys"
+import { Store } from "lucide-react"
 
-import type { ReviewImageDTO, ReviewItemDetailDTO } from "@effy/shared-types";
+import type { ReviewImageDTO, ReviewItemDetailDTO } from "@effy/shared-types"
 import {
   Button,
   Dialog,
@@ -22,42 +22,27 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
-} from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+} from "@effy/design-system/ui"
+import { ErrorState, useHeaderBack, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Kbd } from "@effy/web-kit/patterns";
-import { PageHeader } from "@effy/web-kit/patterns";
-import { DetailRows, Panel } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
+import { Kbd, PageHeader, DetailRows, Panel, StatusWord } from "@effy/web-kit/patterns"
 
-import { useHeaderBack, useHeaderDetail } from "@effy/web-kit/console";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { track } from "@/lib/telemetry";
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { track } from "@/lib/telemetry"
 
-import { canDecideReview } from "./access";
-import { reviewActionError } from "./errorText";
-import { MarginField } from "./MarginField";
-import { ReviewVariants } from "./ReviewVariants";
-import { KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model";
-import { reviewItemQuery, useApprove, useSendBack } from "./queries";
+import { canDecideReview } from "./access"
+import { reviewActionError } from "./errorText"
+import { MarginField } from "./MarginField"
+import { ReviewVariants } from "./ReviewVariants"
+import { KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model"
+import { reviewItemQuery, useApprove, useSendBack } from "./queries"
 
-/**
- * One review item: everything the shop entered, what it is asking to change, and the decision.
- *
- * A reviewer decides on what they see. The item carries a version; the decision sends it back. If
- * the shop edits the item meanwhile, or a colleague decides it, the server refuses and this page
- * reloads — nothing is ever approved that nobody looked at.
- *
- * Everything here is shop-authored text shown inside an internal console. It is rendered as text
- * nodes only; a product name containing markup is a product name containing markup.
- */
 export function ReviewItemScreen({ productId }: { productId: string }) {
-  const item = useQuery(reviewItemQuery(productId));
-  // The loaded page's header carries its own; until then, the way back is still in the header.
-  useHeaderBack(item.isSuccess ? null : BACK);
+  const item = useQuery(reviewItemQuery(productId))
+  useHeaderBack(item.isSuccess ? null : BACK)
 
   if (item.isError) {
-    return <ErrorState error={item.error} onRetry={() => void item.refetch()} />;
+    return <ErrorState error={item.error} onRetry={() => void item.refetch()} />
   }
   if (item.isPending) {
     return (
@@ -65,59 +50,63 @@ export function ReviewItemScreen({ productId }: { productId: string }) {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-60" />
       </div>
-    );
+    )
   }
-  // Keyed on the version: a reload after a conflict resets the form to what is now true.
-  return <ReviewItem key={item.data.version} item={item.data} onChanged={() => void item.refetch()} />;
+  return <ReviewItem key={item.data.version} item={item.data} onChanged={() => void item.refetch()} />
 }
 
-const BACK = { label: "Product review", link: { to: "/product-review" } } as const;
+const BACK = { label: "Product review", link: { to: "/product-review" } } as const
 
 function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged: () => void }) {
-  const navigate = useNavigate();
-  useHeaderDetail(item.productName);
-  const canDecide = canDecideReview(useSessionRoles());
-  const approve = useApprove(item.productId);
-  const sendBack = useSendBack(item.productId);
+  const navigate = useNavigate()
+  useHeaderDetail(item.productName)
+  const canDecide = canDecideReview(useSessionRoles())
+  const approve = useApprove(item.productId)
+  const sendBack = useSendBack(item.productId)
 
-  // Start from the margin the product already carries, so confirming it is one click.
-  const [entry, setEntry] = useState<MarginEntry>(
-    item.currentMargin ?? { kind: "percent", value: "" },
-  );
-  const [reason, setReason] = useState("");
-  const [sendingBack, setSendingBack] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [entry, setEntry] = useState<MarginEntry>(item.currentMargin ?? { kind: "percent", value: "" })
+  const [reason, setReason] = useState("")
+  const [sendingBack, setSendingBack] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
 
-  const margin = toMargin(entry);
-  const busy = approve.isPending || sendBack.isPending;
+  const margin = toMargin(entry)
+  const busy = approve.isPending || sendBack.isPending
 
   async function run(decision: "approved" | "sent_back", action: () => Promise<unknown>) {
-    setMessage(null);
+    setMessage(null)
     try {
-      await action();
+      await action()
       track({
         name: "product_review_decided",
         productId: item.productId,
         kind: item.kind,
         decision,
         marginSet: decision === "approved" && margin !== null,
-      });
-      await navigate({ to: "/product-review" });
+      })
+      await navigate({ to: "/product-review" })
     } catch (err) {
-      setMessage(reviewActionError(err));
-      onChanged(); // show the reviewer what it is now
+      setMessage(reviewActionError(err))
+      onChanged() // show the reviewer what it is now
     }
   }
 
-  useHotkey("A", () => {
-    if (canDecide && !busy && !(item.marginRequired && !margin)) void doApprove();
-  }, { ignoreInputs: true });
-  useHotkey("R", () => {
-    if (canDecide && !busy) setSendingBack(true);
-  }, { ignoreInputs: true });
+  useHotkey(
+    "A",
+    () => {
+      if (canDecide && !busy && !(item.marginRequired && !margin)) void doApprove()
+    },
+    { ignoreInputs: true },
+  )
+  useHotkey(
+    "R",
+    () => {
+      if (canDecide && !busy) setSendingBack(true)
+    },
+    { ignoreInputs: true },
+  )
 
   function doApprove() {
-    return run("approved", () => approve.mutateAsync({ version: item.version, ...(margin ? { margin } : {}) }));
+    return run("approved", () => approve.mutateAsync({ version: item.version, ...(margin ? { margin } : {}) }))
   }
 
   return (
@@ -189,12 +178,11 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                               <th scope="row" className="text-left font-medium">
                                 {c.label}
                               </th>
-                              {/* Read aloud as "Name — was X — proposed Y". */}
-                              <td className="whitespace-pre-line break-words text-muted-foreground line-through decoration-muted-foreground/40">
+                              <td className="whitespace-pre-line wrap-break-word text-muted-foreground line-through decoration-muted-foreground/40">
                                 <span className="sr-only">was </span>
                                 {c.before ?? "nothing"}
                               </td>
-                              <td className="whitespace-pre-line break-words font-medium">
+                              <td className="whitespace-pre-line wrap-break-word font-medium">
                                 <span className="sr-only">proposed </span>
                                 {c.after ?? "nothing"}
                               </td>
@@ -214,7 +202,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   rows={item.details.map((row) => ({
                     key: row.label,
                     label: row.label,
-                    value: <span className="whitespace-pre-line break-words">{row.value ?? "—"}</span>,
+                    value: <span className="whitespace-pre-line wrap-break-word">{row.value ?? "—"}</span>,
                   }))}
                 />
               </Panel>
@@ -233,19 +221,28 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </Panel>
             </TabsContent>
           </Tabs>
-          {/* Every size the decision puts on sale, priced under the margin being typed. */}
           <ReviewVariants variants={item.variants} entry={entry} />
         </div>
 
         <aside className="bo-detail__aside is-first">
           <Panel title="Decision">
             {!canDecide ? (
-              <p className="text-sm text-muted-foreground">You can read this. Approving or sending it back needs a manager or an administrator.</p>
+              <p className="text-sm text-muted-foreground">
+                You can read this. Approving or sending it back needs a manager or an administrator.
+              </p>
             ) : (
               <div className="space-y-4">
-                <MarginField id="review-margin" shopPrices={item.variants.filter((v) => v.change !== "removed").map((v) => v.shopPriceAmount)} value={entry} onChange={setEntry} disabled={busy} />
+                <MarginField
+                  id="review-margin"
+                  shopPrices={item.variants.filter((v) => v.change !== "removed").map((v) => v.shopPriceAmount)}
+                  value={entry}
+                  onChange={setEntry}
+                  disabled={busy}
+                />
                 <p className="bo-sub">
-                  {item.currentMargin ? `Current margin: ${marginLabel(item.currentMargin)}.` : "No margin has been set for this product."}
+                  {item.currentMargin
+                    ? `Current margin: ${marginLabel(item.currentMargin)}.`
+                    : "No margin has been set for this product."}
                   {item.marginRequired ? " A margin must be confirmed to approve this." : ""}
                 </p>
                 {message ? (
@@ -263,7 +260,9 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                     <Kbd className="ml-auto max-md:hidden">R</Kbd>
                   </Button>
                 </div>
-                <p className="bo-sub">Approving publishes {item.kind === "change" ? "the change" : "the product"} to customers at once.</p>
+                <p className="bo-sub">
+                  Approving publishes {item.kind === "change" ? "the change" : "the product"} to customers at once.
+                </p>
               </div>
             )}
           </Panel>
@@ -275,7 +274,8 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
           <DialogHeader>
             <DialogTitle>Send back to {item.shop.name}?</DialogTitle>
             <DialogDescription>
-              {item.kind === "change" ? "The live product stays as it is." : "The product stays off sale."} The shop can fix it and submit again.
+              {item.kind === "change" ? "The live product stays as it is." : "The product stays off sale."} The shop can
+              fix it and submit again.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -301,7 +301,9 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
             </Button>
             <Button
               disabled={busy || reason.trim() === ""}
-              onClick={() => void run("sent_back", () => sendBack.mutateAsync({ version: item.version, reason: reason.trim() }))}
+              onClick={() =>
+                void run("sent_back", () => sendBack.mutateAsync({ version: item.version, reason: reason.trim() }))
+              }
             >
               Send back to shop
             </Button>
@@ -309,7 +311,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         </DialogContent>
       </Dialog>
     </>
-  );
+  )
 }
 
 function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) {
@@ -327,7 +329,6 @@ function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) 
                 alt={img.altText ?? ""}
                 className="size-28 rounded-md border border-border object-cover"
               />
-              {/* Said in words: which image leads, and which are being added. */}
               <p className="text-xs text-muted-foreground">
                 {[img.isPrimary ? "Main image" : null, img.isNew ? "New" : null].filter(Boolean).join(" · ") || " "}
               </p>
@@ -336,5 +337,5 @@ function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) 
         </ul>
       )}
     </div>
-  );
+  )
 }

@@ -1,28 +1,35 @@
-import { useState } from "react";
+import { useState } from "react"
 
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { LayoutList, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { LayoutList, Plus } from "lucide-react"
 
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Skeleton, Textarea } from "@effy/design-system/ui";
-import { ErrorState } from "@effy/web-kit/console";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Skeleton,
+  Textarea,
+} from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { PageHeader } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { canManagePromotions } from "@/features/promotions/access";
-import { promotionMutationError } from "@/features/promotions/errorText";
+import { PageHeader, EmptyState } from "@effy/web-kit/patterns"
+import { useSessionRoles } from "@/features/auth/useSessionRoles"
+import { canManagePromotions } from "@/features/promotions/access"
+import { promotionMutationError } from "@/features/promotions/errorText"
 
-import { promotionGroupsQuery, useCreateGroup } from "./queries";
+import { promotionGroupsQuery, useCreateGroup } from "./queries"
 
-/**
- * Display groups: the places promotions are shown. The customer website and app ask for a
- * group by its KEY, which never changes once created; a promotion may be in several.
- */
 export function PromotionGroupsScreen() {
-  const canManage = canManagePromotions(useSessionRoles());
-  const { data, error, isPending, isError, refetch } = useQuery(promotionGroupsQuery());
-  const [creating, setCreating] = useState(false);
+  const canManage = canManagePromotions(useSessionRoles())
+  const { data, error, isPending, isError, refetch } = useQuery(promotionGroupsQuery())
+  const [creating, setCreating] = useState(false)
 
   return (
     <>
@@ -44,7 +51,11 @@ export function PromotionGroupsScreen() {
       ) : isPending ? (
         <Skeleton className="h-40" aria-busy="true" />
       ) : data.length === 0 ? (
-        <EmptyState icon={LayoutList} title="No display groups yet." description="Create one for each place promotions are shown." />
+        <EmptyState
+          icon={LayoutList}
+          title="No display groups yet."
+          description="Create one for each place promotions are shown."
+        />
       ) : (
         <div className="bo-table-wrap">
           <div className="bo-table-scroll">
@@ -80,56 +91,93 @@ export function PromotionGroupsScreen() {
       )}
       {canManage ? <CreateGroupDialog open={creating} onOpenChange={setCreating} /> : null}
     </>
-  );
+  )
 }
 
-const slug = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40)
 
 function CreateGroupDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const create = useCreateGroup();
-  const [name, setName] = useState("");
-  const [key, setKey] = useState("");
-  const [keyTouched, setKeyTouched] = useState(false);
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const k = keyTouched ? key : slug(name);
+  const create = useCreateGroup()
+  const [name, setName] = useState("")
+  const [key, setKey] = useState("")
+  const [keyTouched, setKeyTouched] = useState(false)
+  const [description, setDescription] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const k = keyTouched ? key : slug(name)
   const close = () => {
-    setName("");
-    setKey("");
-    setKeyTouched(false);
-    setDescription("");
-    setError(null);
-    onOpenChange(false);
-  };
+    setName("")
+    setKey("")
+    setKeyTouched(false)
+    setDescription("")
+    setError(null)
+    onOpenChange(false)
+  }
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New display group</DialogTitle>
-          <DialogDescription>A place promotions are shown. Give the key to whoever builds that place in the website or app.</DialogDescription>
+          <DialogDescription>
+            A place promotions are shown. Give the key to whoever builds that place in the website or app.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="group-name">Name</Label>
-            <Input id="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Summer sale strip" autoFocus />
+            <Input
+              id="group-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Summer sale strip"
+              autoFocus
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="group-key">Key</Label>
-            <Input id="group-key" className="font-mono" value={k} onChange={(e) => { setKeyTouched(true); setKey(slug(e.target.value)); }} />
+            <Input
+              id="group-key"
+              className="font-mono"
+              value={k}
+              onChange={(e) => {
+                setKeyTouched(true)
+                setKey(slug(e.target.value))
+              }}
+            />
             <p className="bo-sub">Lower-case letters, numbers and dashes. It can't be changed later.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="group-desc">Where it's shown (optional)</Label>
-            <Textarea id="group-desc" rows={2} maxLength={240} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea
+              id="group-desc"
+              rows={2}
+              maxLength={240}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
-          {error ? <p role="alert" className="text-sm font-medium">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="text-sm font-medium">
+              {error}
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={close}>Cancel</Button>
+          <Button variant="outline" onClick={close}>
+            Cancel
+          </Button>
           <Button
             disabled={!name.trim() || !k || create.isPending}
             onClick={() =>
-              create.mutate({ key: k, name: name.trim(), description: description.trim() || null }, { onSuccess: close, onError: (e) => setError(promotionMutationError(e)) })
+              create.mutate(
+                { key: k, name: name.trim(), description: description.trim() || null },
+                { onSuccess: close, onError: (e) => setError(promotionMutationError(e)) },
+              )
             }
           >
             Create group
@@ -137,5 +185,5 @@ function CreateGroupDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

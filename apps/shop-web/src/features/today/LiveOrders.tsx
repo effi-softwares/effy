@@ -9,19 +9,6 @@ import { formatMoney } from "@/features/fulfillment/orderConsole"
 
 import { isNewArrival, liveMeta } from "./model"
 
-/**
- * "Live orders" — the five most recent, ageing in place.
- *
- * Every row opens the order it names. The imported design generated arrivals on a timer and had
- * to give some rows a default cursor and a "still coming in" toast, because their detail pages did
- * not exist. On this platform a shop learns of an order only after the payment transaction has
- * committed and fanned it out, so that state is unrepresentable — and the rule the design was
- * working around ("never send a row to a different order's id") holds by construction here.
- *
- * A new arrival tints blue for 600 ms (the motion board's highlight) and carries a blue "New" badge
- * for its first minute — attention is blue in this identity, green only ever means done. The word
- * is always there, so the row reads as new in greyscale and to a screen reader.
- */
 export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[]; now: number }) {
   return (
     <section className="bo-panel min-w-0">
@@ -47,7 +34,7 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
                   to="/orders/$fulfillmentId"
                   params={{ fulfillmentId: o.fulfillmentId }}
                   className={cn(
-                    "flex min-h-[72px] w-full items-center gap-4 px-5 py-3 text-left no-underline hover:bg-[var(--row-hover)] max-md:px-4",
+                    "flex min-h-18 w-full items-center gap-4 px-5 py-3 text-left no-underline hover:bg-row-hover max-md:px-4",
                     fresh && "bo-flash",
                   )}
                 >
@@ -64,7 +51,9 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
                     </span>
                     <span className="bo-sub truncate">{liveMeta(o, now)}</span>
                   </span>
-                  <span className="font-semibold whitespace-nowrap tabular-nums">{formatMoney(o.total, o.currency)}</span>
+                  <span className="font-semibold whitespace-nowrap tabular-nums">
+                    {formatMoney(o.total, o.currency)}
+                  </span>
                 </Link>
               </li>
             )

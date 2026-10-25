@@ -1,34 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react";
+import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react"
 
-import { Skeleton } from "@effy/design-system/ui";
+import { Skeleton } from "@effy/design-system/ui"
 
-import { Panel } from "@effy/web-kit/patterns";
-import { EmptyState } from "@effy/web-kit/patterns";
-import { StatusWord } from "@effy/web-kit/patterns";
-import { initialsOf } from "@/components/shell/identity";
+import { Panel, EmptyState, StatusWord } from "@effy/web-kit/patterns"
+import { initialsOf } from "@/components/shell/identity"
 
-import { BLOCKED_LABEL, formatDate } from "../model";
-import { readinessQuery } from "../queries";
-import { CoveragePanel } from "./CoveragePanel";
+import { BLOCKED_LABEL, formatDate } from "../model"
+import { readinessQuery } from "../queries"
+import { CoveragePanel } from "./CoveragePanel"
 
-/**
- * Readiness (redesign, Drivers board, Readiness view — "readiness panel built but never shown"):
- * drivers who cannot be given work and why, licences and registrations to renew, and work nobody
- * can cover. Each says where to fix it; the next assignment pass picks the change up.
- *
- * "Work nobody can cover" lives here rather than on its own page: two screens
- * answering "can this driver work?" would eventually disagree. On the server both read one rule.
- */
 export function ReadinessPanel() {
-  const { data, isPending } = useQuery(readinessQuery());
+  const { data, isPending } = useQuery(readinessQuery())
 
-  if (isPending) return <Skeleton className="h-64" />;
-  if (!data) return null;
+  if (isPending) return <Skeleton className="h-64" />
+  if (!data) return null
 
-  const uncovered = data.uncoveredZones.filter((z) => z.activeDrivers === 0);
-  const nothingWrong = data.blocked.length === 0 && uncovered.length === 0 && data.expiring.length === 0;
+  const uncovered = data.uncoveredZones.filter((z) => z.activeDrivers === 0)
+  const nothingWrong = data.blocked.length === 0 && uncovered.length === 0 && data.expiring.length === 0
 
   return (
     <div className="grid items-start gap-6 xl:grid-cols-2">
@@ -42,7 +32,12 @@ export function ReadinessPanel() {
         </div>
       ) : null}
 
-      <Panel title="Drivers who cannot be given work" icon={<UserX aria-hidden="true" />} description="Fix the cause on their record — the next assignment pass picks them up." flush>
+      <Panel
+        title="Drivers who cannot be given work"
+        icon={<UserX aria-hidden="true" />}
+        description="Fix the cause on their record — the next assignment pass picks them up."
+        flush
+      >
         {data.blocked.length === 0 ? (
           <p className="px-5 py-4 text-sm text-muted-foreground">Every driver can be given work.</p>
         ) : (
@@ -64,7 +59,12 @@ export function ReadinessPanel() {
         )}
       </Panel>
 
-      <Panel title="Licences and registrations to renew" icon={<IdCard aria-hidden="true" />} description="Once a date passes, the driver cannot be given work." flush>
+      <Panel
+        title="Licences and registrations to renew"
+        icon={<IdCard aria-hidden="true" />}
+        description="Once a date passes, the driver cannot be given work."
+        flush
+      >
         {data.expiring.length === 0 ? (
           <p className="px-5 py-4 text-sm text-muted-foreground">Nothing is close to expiring.</p>
         ) : (
@@ -91,10 +91,14 @@ export function ReadinessPanel() {
       </Panel>
 
       <div className="xl:col-span-2">
-        <Panel title="Work nobody can cover" icon={<MapPinned aria-hidden="true" />} description="Grant a clearance on any driver's record.">
+        <Panel
+          title="Work nobody can cover"
+          icon={<MapPinned aria-hidden="true" />}
+          description="Grant a clearance on any driver's record."
+        >
           <CoveragePanel />
         </Panel>
       </div>
     </div>
-  );
+  )
 }

@@ -1,15 +1,10 @@
-import { ReasonDialog } from "@/features/exceptions/ReasonDialog";
-import { sequenceActionError } from "@/features/exceptions/SequenceSections";
+import { ReasonDialog } from "@/features/exceptions/ReasonDialog"
+import { sequenceActionError } from "@/features/exceptions/SequenceSections"
 
-import { useWaiveSequence } from "../queries";
+import { useWaiveSequence } from "../queries"
 
-/**
- * A driver cannot load (parcels still to check in or return) or collect (deliveries still open),
- * and the reason is outside the app — a phone that died at the hub. Let this one run go ahead; the
- * reason is kept with it and shown on the run.
- */
 export function WaiveSequenceButton({ roundId, driverName }: { roundId: string; driverName: string }) {
-  const waive = useWaiveSequence(roundId);
+  const waive = useWaiveSequence(roundId)
   return (
     <ReasonDialog
       label="Let this run go ahead"
@@ -19,12 +14,12 @@ export function WaiveSequenceButton({ roundId, driverName }: { roundId: string; 
       confirmLabel="Let it go ahead"
       onConfirm={async (reason) => {
         try {
-          await waive.mutateAsync(reason);
-          return null;
+          await waive.mutateAsync(reason)
+          return null
         } catch (err) {
-          return sequenceActionError(err);
+          return sequenceActionError(err)
         }
       }}
     />
-  );
+  )
 }
