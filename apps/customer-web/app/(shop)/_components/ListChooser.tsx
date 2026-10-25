@@ -17,11 +17,6 @@ import {
   removeFromList,
 } from "@/lib/list-actions"
 
-/**
- * The list chooser: which of the shopper's lists a product is in, a tick box each, and a way to make a
- * new one. Reached only through `import` (the heart is on the guest path), so the shadcn dialog it is
- * built on never reaches a guest route's first load.
- */
 export function openListChooser(productId: string, onClose?: () => void, variantId?: string | null): void {
   const host = document.createElement("div")
   document.body.appendChild(host)
@@ -69,7 +64,6 @@ export function ListChooser({
     else setState({ phase: result.reason === "guest" ? "guest" : "failed" })
   }
 
-  // Its own React root is removed once the closing animation has played (the Drawer's is the longer).
   useEffect(() => {
     if (open) return
     const t = window.setTimeout(onClosed, 500)

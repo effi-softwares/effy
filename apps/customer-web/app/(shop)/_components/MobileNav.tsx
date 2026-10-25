@@ -9,19 +9,6 @@ import { clsx } from "clsx"
 
 import { loadSideDrawer, useLazyOverlay } from "@/components/overlays/lazy"
 
-/**
- * The small-screen navigation drawer: shadcn's Drawer from the left edge (`SideDrawer`), fetched on
- * demand because vaul and radix are barred from the guest first load. `lg:hidden`, the
- * mirror of `PrimaryNav`'s `hidden lg:flex`, so the links are never in the accessibility tree twice.
- *
- * The account drill-in is a stack of panels in one clipped viewport, each `absolute inset-0`:
- *
- *  root ◀── translate-x-0 account ──▶ translate-x-full (off-stage, right)
- *  root ──▶ -translate-x-1/4 account ◀── translate-x-0 (drilled in)
- *
- * Both levels stay mounted, so going back is instant. The inactive level is `inert`, or its links would
- * stay in the tab order while off screen.
- */
 
 const LINKS = [
   { label: "Home", href: "/" },

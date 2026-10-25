@@ -6,11 +6,6 @@ import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@effy/design-sy
 
 import { ActionButton, iconBtnClass } from "@/components/storefront/actions"
 
-/**
- * The phone and tablet filters: shadcn's Drawer from the bottom edge, around the same controls as the
- * desktop column. Its own module, fetched on demand — vaul and radix never reach /search's first load,
- * nor the desktop filter chunk.
- */
 export function FilterSheet({
   open,
   onOpenChange,

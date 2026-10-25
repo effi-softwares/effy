@@ -46,7 +46,6 @@ afterEach(() => {
 })
 
 describe("AddressFormModal — the container", () => {
-  // shadcn's responsive dialog: a Dialog from `md`, a bottom Drawer below it.
   it("opens as one dialog, named for what it does", () => {
     render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
     expect(screen.getByRole("dialog", { name: "Add address" })).toBeInTheDocument()

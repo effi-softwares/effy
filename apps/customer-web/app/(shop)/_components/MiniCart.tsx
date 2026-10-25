@@ -12,13 +12,6 @@ import { useOnDemand } from "@/lib/use-on-demand"
 
 const loadBody = () => import("./MiniCartBody").then((m) => m.MiniCartBody)
 
-/**
- * The cart drawer: review and adjust the cart without navigating away. shadcn's Drawer from the right
- * edge (`SideDrawer`), by the header control that opens it. The drawer and its contents are fetched on
- * demand — vaul and radix are barred from the guest first load by dependency-cruiser. The button sits
- * in the shared chrome chunk, so every icon import here costs every guest route: measure before adding
- * one.
- */
 export function MiniCart() {
   const lines = useCart()
   const router = useRouter()
@@ -26,28 +19,11 @@ export function MiniCart() {
   const currency = lines[0]?.currency ?? "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
 
-  // The drawer and its contents are fetched once the shopper shows they want them — pointer or focus
-  // on the button, or the press itself — and stay loaded. See `MiniCartBody`.
   const { Overlay: Drawer, open, setOpen, want, wanted } = useLazyOverlay(loadSideDrawer)
   const Body = useOnDemand(loadBody, wanted)
 
   const close = useCallback(() => setOpen(false), [setOpen])
 
-  /**
-   * "Go to cart" — the one control here that is supposed to navigate, and the drawer must be out of
-   * the way when it lands.
-   *
-   * It drives the router itself rather than leaving `<Link>` to do it after an `onClick` that
-   * closes the drawer. Both handlers fire on the same click, and the order in which a top-layer
-   * dismissal and a client-side navigation resolve is not something to leave to chance on the
-   * storefront's primary conversion path: `close` returns focus to the trigger and runs the
-   * exit animation while Next is starting a route change. Ordering it explicitly
-   * close, then push — makes "press it and you are on the cart page" true by construction.
-   *
-   * It stays an `<a>` with a real `href` (hence `<Link>`, not a button): cmd/ctrl-click, middle-click,
-   * "open in new tab" and a crawler all need a URL, and those paths return early so the browser keeps
-   * its own behaviour.
-   */
   const goToCart = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return

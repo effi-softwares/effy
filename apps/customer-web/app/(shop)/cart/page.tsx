@@ -58,7 +58,6 @@ export default function CartPage() {
 
   const currency = cart.currency || lines[0]?.currency || "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
-  // The question is shadcn's AlertDialog, fetched when the shopper reaches for "Empty cart".
   const { Overlay: Confirm, open: confirming, setOpen: setConfirming, want: wantConfirm } = useLazyOverlay(loadDialog)
 
   /** Empty the cart, and hand back a way to undo it. The emptied lines live only as long as

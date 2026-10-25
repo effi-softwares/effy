@@ -5,11 +5,6 @@ import { cn } from "@effy/design-system";
 import { useIsMobile } from "@effy/design-system/hooks/use-mobile";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from "@effy/design-system/ui";
 
-/**
- * A long form or a picker (Patterns board, "Overlays"): a right drawer on a desktop that blurs the page,
- * and below 768px the same content rising from the bottom with a handle and the primary action first
- * and full width. Header, a scrolling body, and a footer that stays put.
- */
 export function ResponsiveSheet({
   open,
   onOpenChange,

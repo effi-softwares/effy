@@ -16,14 +16,8 @@ import {
 } from "./drawer"
 import { dialogDrawerClassName, overlayClassName } from "./overlay"
 
-/**
- * shadcn's responsive dialog, as the platform's ONE dialog: a centred Dialog at or above the mobile
- * breakpoint, and the same content in a bottom Drawer below it. Every part switches with the root, so a
- * consumer writes the Dialog API once and gets both.
- */
 const DialogMobileContext = React.createContext(false)
 
-/** True when the dialog is rendering as a Drawer (below the breakpoint). */
 function useDialogIsMobile() {
   return React.useContext(DialogMobileContext)
 }
@@ -88,7 +82,6 @@ function DialogContent({
 }) {
   const isMobile = useDialogIsMobile()
   if (isMobile) {
-    // No close button: a Drawer closes by a swipe down or a tap outside.
     return (
       <DrawerContent className={cn(dialogDrawerClassName, className)} {...props}>
         {children}

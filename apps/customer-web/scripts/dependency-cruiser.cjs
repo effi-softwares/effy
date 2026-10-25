@@ -1,7 +1,3 @@
-/**
- * Fails the build when a guest route can reach the auth SDK, or when imports form a cycle. The heavy UI
- * libraries are held to the first load only, in `dependency-cruiser.first-load.cjs`.
- */
 const GUEST_PATHS = [
   "^app/layout\\.tsx$",
   "^app/page\\.tsx$",

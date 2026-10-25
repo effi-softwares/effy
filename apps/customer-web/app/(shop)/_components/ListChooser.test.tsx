@@ -169,7 +169,6 @@ describe("068 — the list chooser", () => {
     render(<ListChooser productId={PRODUCT} onClosed={onClosed} />)
 
     await userEvent.click(await screen.findByRole("button", { name: "Done" }))
-    // Once the closing animation has had its time, so its own root can be removed.
     await waitFor(() => expect(onClosed).toHaveBeenCalledOnce(), { timeout: 1500 })
   })
 })

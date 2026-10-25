@@ -10,14 +10,6 @@ import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 
-/**
- * What the cart drawer shows once it is open: the lines, the subtotal and the two ways out.
- *
- * Fetched when the drawer is first wanted, not with the page. `MiniCart` is in the chrome,
- * so everything it imports is on every guest route. The button stays there; the drawer and this — with
- * `next/image` and the cart's write actions behind it — are fetched when the pointer or
- * focus reaches the button, or on the first press. Add nothing here to `MiniCart.tsx`'s imports.
- */
 export function MiniCartBody({
   close,
   goToCart,

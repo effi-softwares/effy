@@ -16,12 +16,6 @@ import {
 } from "./drawer"
 import { dialogDrawerClassName, overlayClassName } from "./overlay"
 
-/**
- * shadcn's AlertDialog, responsive like `Dialog`: centred at or above the mobile breakpoint, a bottom
- * Drawer below it. Either way it is a question that must be answered — the Drawer is not dismissed by a
- * swipe, a tap outside or Escape, only by Cancel or the action. (Not vaul's `dismissible={false}`: that
- * ignores every close, Cancel's included.)
- */
 const AlertDialogMobileContext = React.createContext(false)
 
 function useAlertDialogIsMobile() {
@@ -172,7 +166,6 @@ function AlertDialogDescription({
   )
 }
 
-/** Closes the dialog after its `onClick`, unless that handler calls `preventDefault` (a pending save). */
 function AlertDialogAction({
   className,
   ...props

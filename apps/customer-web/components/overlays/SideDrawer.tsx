@@ -7,11 +7,6 @@ import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@effy/design-sy
 
 import { cn } from "@/lib/utils"
 
-/**
- * A panel from the left or right edge — the cart and the phone menu. shadcn's Drawer (vaul) on the
- * shared blurred backdrop: focus trap, Escape, tap outside and swipe toward the edge all close it.
- * Fetched on demand by guest routes (`loadSideDrawer`), never at load.
- */
 export function SideDrawer({
   open,
   onOpenChange,
@@ -26,10 +21,8 @@ export function SideDrawer({
   open: boolean
   onOpenChange: (open: boolean) => void
   side: "left" | "right"
-  /** The drawer's name, shown in its header and announced as its title. */
   title: React.ReactNode
   closeLabel?: string
-  /** Inline, so it wins over the Drawer's default side width without a variant-prefixed class. */
   width: string
   maxWidth: string
   headerClassName?: string
