@@ -23,17 +23,19 @@ export interface StaffHeaderProps {
   searchPrompt: string;
   /** The surface's own controls, placed before the live status and search. */
   actions?: ReactNode;
+  /** The account menu (StaffUserMenu), in the right corner after search. */
+  account?: ReactNode;
   /** The record on screen, when the surface derives it itself (otherwise `useHeaderDetail`). */
   detail?: string | null;
 }
 
-export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPrompt, actions, detail: detailProp }: StaffHeaderProps) {
+export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPrompt, actions, account, detail: detailProp }: StaffHeaderProps) {
   const { pathname, search } = useLocation();
   const { toggleSidebar, setOpenMobile } = useSidebar();
   const fromPage = useContext(DetailContext)?.detail ?? null;
   const detail = detailProp ?? fromPage;
   const tab = typeof (search as { tab?: unknown }).tab === "string" ? (search as { tab: string }).tab : undefined;
-  const where = staffLocate(groups, staffActiveKey(groups, { pathname, tab }, defaultTabs));
+  const where = staffLocate(groups, staffActiveKey(groups, { pathname, tab, query: search as Record<string, unknown> }, defaultTabs));
 
   // "Operations › Overview", or for a grouped page "Orders › All orders"; a record adds itself after
   // the page, which then links back to its list ("Orders › All orders › EFY-20481").
@@ -97,6 +99,7 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
         <button type="button" className="bo-iconbtn lg:hidden" aria-label="Search" onClick={onOpenSearch}>
           <Search aria-hidden="true" />
         </button>
+        {account}
       </div>
     </header>
   );

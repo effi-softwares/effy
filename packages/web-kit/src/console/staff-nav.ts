@@ -14,6 +14,11 @@ export interface StaffNavLeaf<TRole extends string = string, TCount extends stri
   to: string;
   /** A tab carried in the URL (`/delivery?tab=pricing`). Matched as part of "is this the page". */
   tab?: string;
+  /**
+   * Other search params that make this page (`/orders?view=queue`). Every one must match for the leaf
+   * to be the page, and a leaf that names them beats a plain one on the same path.
+   */
+  query?: Readonly<Record<string, string>>;
   count?: TCount;
   /** A black count: the queue where something has already gone wrong. */
   countTone?: "strong";
@@ -57,6 +62,8 @@ export function visibleStaffGroups<TRole extends string, TCount extends string>(
 export interface Where {
   pathname: string;
   tab?: string;
+  /** The URL's search params, for leaves that name a `query`. */
+  query?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -74,7 +81,7 @@ export function staffActiveKey(
   for (const group of groups) {
     for (const item of group.items) {
       for (const leaf of item.subs ?? [item]) {
-        const score = matchScore(leaf, where.pathname, tab, defaultTabs);
+        const score = matchScore(leaf, where.pathname, tab, defaultTabs, where.query);
         if (score > 0 && (!best || score > best.score)) best = { key: leaf.key, score };
       }
     }
@@ -82,10 +89,23 @@ export function staffActiveKey(
   return best?.key ?? null;
 }
 
-function matchScore(leaf: StaffNavLeaf, pathname: string, tab: string | undefined, defaultTabs: DefaultTabs): number {
+function matchScore(
+  leaf: StaffNavLeaf,
+  pathname: string,
+  tab: string | undefined,
+  defaultTabs: DefaultTabs,
+  query: Readonly<Record<string, unknown>> | undefined,
+): number {
   if (leaf.to === "/") return pathname === "/" ? 1 : 0;
   const onPath = pathname === leaf.to || pathname.startsWith(leaf.to + "/");
   if (!onPath) return 0;
+  if (leaf.query) {
+    // Every named param must match (an order opened from the queue keeps `view=queue`, so Queue stays
+    // lit on its detail); one more than a plain leaf on the same path, so the named one wins.
+    const keys = Object.keys(leaf.query);
+    if (!keys.every((k) => String(query?.[k] ?? "") === leaf.query![k])) return 0;
+    return leaf.to.length * 2 + keys.length;
+  }
   if (leaf.tab !== undefined) {
     // A record under the page (`/customers/abc`) belongs to the page's default tab — the list it was
     // opened from — not to a settings tab that happens to share the route.
@@ -118,7 +138,8 @@ export function staffLocate<TRole extends string, TCount extends string>(
  * typed `to` is asserted here, once. Each surface's nav test holds every `to` to a route it declares.
  */
 export function staffLinkOf(leaf: StaffNavLeaf): LinkProps {
-  return (leaf.tab ? { to: leaf.to, search: { tab: leaf.tab } } : { to: leaf.to }) as LinkProps;
+  const search = { ...(leaf.tab ? { tab: leaf.tab } : {}), ...leaf.query };
+  return (Object.keys(search).length > 0 ? { to: leaf.to, search } : { to: leaf.to }) as LinkProps;
 }
 
 /**

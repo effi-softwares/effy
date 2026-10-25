@@ -3,8 +3,8 @@
  * touch scale (2026-10-25: the operator chose the shop's sizes for both consoles). Class names are
  * `bo-*`; the primitives underneath are restyled only through them.
  *
- * Sizes: rows 40 · sub-rows 36 · brand and account 52 · search 40 · header 64 (`--header-h`) · header
- * buttons 44. Folded, the rail is 96px and labelled — icon over word, 64px targets. */
+ * Sizes: rows 40 · sub-rows 36 · brand and account 52 · header 64 (`--header-h`) · header buttons and
+ * search 44. Search is in the header only. Folded, the rail is 96px and labelled — icon over word, 64px targets. */
 
 /* ---------- Sidebar ---------- */
 .bo-shell [data-slot="sidebar-container"] {
@@ -39,7 +39,71 @@
 }
 
 .bo-sb-head { gap: 8px; padding: 12px; }
-.bo-sb-foot { padding: 12px; }
+/* The menu scrolls inside the rail — expanded and folded alike (the primitive clips it when folded,
+   which back-office's long menu overflows) — with no visible scrollbar, a fade-free hard edge, and room
+   under the last item for the home indicator. */
+.bo-sidebar [data-slot="sidebar-content"] {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.bo-sidebar [data-slot="sidebar-content"]::-webkit-scrollbar { display: none; }
+
+/* The scroll hint (no scrollbar, so the rail says it itself): the list fades out at an edge it runs
+   past, and a small round button rests on the bottom edge while there is more below. The button
+   nudges down three times as it appears, then stays still — a hint, not an alarm. */
+.bo-sidebar [data-slot="sidebar-inner"] { position: relative; }
+.bo-sidebar [data-slot="sidebar-content"][data-more-below="true"] {
+  mask-image: linear-gradient(to bottom, black calc(100% - 56px), transparent);
+}
+.bo-sidebar [data-slot="sidebar-content"][data-more-above="true"] {
+  mask-image: linear-gradient(to bottom, transparent, black 32px);
+}
+.bo-sidebar [data-slot="sidebar-content"][data-more-above="true"][data-more-below="true"] {
+  mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 56px), transparent);
+}
+.bo-sb-more {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 999px;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  animation: bo-more-in var(--dur-standard) var(--ease-move), bo-more-nudge 1.4s var(--ease-move) 0.4s 3;
+}
+/* 36px drawn, 44px to a finger. */
+.bo-sb-more::before { content: ""; position: absolute; inset: -4px; }
+.bo-sb-more:hover { background: var(--sidebar-accent); }
+.bo-sb-more > svg { width: 18px; height: 18px; }
+@keyframes bo-more-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bo-more-nudge {
+  0%, 60%, 100% { transform: none; }
+  30% { transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bo-sb-more { animation: none; }
+}
+/* A boundary 24px above the rail's bottom edge (plus the home indicator's inset): the menu scrolls
+   INSIDE it, so an item never runs to the edge — at the end of the list or part-way through it. Padding
+   on the frame, not the scroller, so the scroll viewport itself stops short. */
+.bo-sidebar [data-slot="sidebar-inner"],
+.bo-sidebar[data-mobile="true"] > div:last-of-type {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
 .bo-sb-group { padding: 4px 12px; }
 .bo-sb-grouplabel {
   height: 32px;
@@ -48,7 +112,7 @@
   font-weight: 500;
   color: var(--sidebar-muted);
 }
-.bo-sb-menu { gap: 2px; }
+.bo-sb-menu { gap: 6px; }
 .bo-sb-rule { display: none; }
 
 .bo-sb-btn {
@@ -69,7 +133,7 @@
   font-weight: 500;
 }
 .bo-sb-btn > svg { width: 18px; height: 18px; flex: none; }
-/* The brand block and the account button: a 32px tile and two lines. */
+/* The brand block: a 32px tile and two lines. */
 .bo-sb-btn.bo-sb-brand { height: 52px; padding: 0 10px; }
 .bo-sb-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; transition: opacity var(--dur-fast) ease; }
 
@@ -145,24 +209,6 @@
   font-weight: 600;
 }
 
-.bo-sb-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 40px;
-  padding: 0 10px;
-  border: 1px solid var(--sidebar-border);
-  border-radius: var(--radius-md);
-  background: var(--background);
-  color: var(--sidebar-muted);
-  font-size: 14px;
-  cursor: pointer;
-  transition: border-color var(--dur-fast) ease;
-}
-.bo-sb-search:hover { border-color: var(--input); color: var(--sidebar-foreground); }
-.bo-sb-search > svg { width: 18px; height: 18px; flex: none; }
-
 /* Counts: blue on its tint; a strong one is black. They roll to a new number (220 ms). */
 .bo-count {
   margin-left: auto;
@@ -189,17 +235,21 @@
 }
 .bo-count-dot { display: none; }
 
-/* ---------- Folded: the labelled rail — icon over word, 64px targets ---------- */
+/* ---------- Folded: the labelled rail — icon over word, targets 52px and up ---------- */
 /* ⚠ IN THE BASE LAYER, ON PURPOSE. The primitive forces a 32px square on a folded button with
    IMPORTANT utilities (`group-data-[collapsible=icon]:size-8!`, `p-2!`, `p-0!`). For `!important`
    the cascade runs backwards — an EARLIER layer beats a later one, and any layer beats unlayered — so
    an unlayered `!important` here loses (2026-10-25: every rail item rendered as a 32px square with its
    label cut to "O…"). Declared in `base`, before `utilities`, these win. */
 @layer base {
+  /* Sized by its content with the same padding all round, so the space between one item's label and
+     the next item's icon is the same whether a label takes one line ("Tax") or two ("Product review").
+     A fixed height centred a one-line label in spare room and made its gaps look ~13px wider. */
   [data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand) {
     width: 100% !important;
-    height: 64px !important;
-    padding: 6px 4px !important;
+    height: auto !important;
+    min-height: 52px;
+    padding: 8px 4px !important;
   }
   [data-collapsible="icon"] .bo-sb-btn.bo-sb-brand {
     width: 52px !important;
@@ -207,11 +257,15 @@
     padding: 10px !important;
   }
 }
-[data-collapsible="icon"] .bo-sb-head,
-[data-collapsible="icon"] .bo-sb-foot { align-items: center; padding: 12px 8px; }
-[data-collapsible="icon"] .bo-sb-group { padding: 4px 8px; align-items: center; }
-[data-collapsible="icon"] .bo-sb-menu { width: 100%; gap: 4px; }
-[data-collapsible="icon"] .bo-sb-rule { display: block; height: 1px; margin: 0 4px 8px; background: var(--sidebar-border); }
+[data-collapsible="icon"] .bo-sb-head { align-items: center; padding: 12px 8px; }
+/* One rhythm: 12px between items everywhere; between groups the same 12px either side of a 1px rule. The
+   group label is removed, not faded and pulled up by a negative margin (the primitive's way), which
+   left a different gap at every group boundary. */
+[data-collapsible="icon"] .bo-sb-group { padding: 0 8px; align-items: center; }
+[data-collapsible="icon"] .bo-sb-group + .bo-sb-group { padding-top: 0; }
+[data-collapsible="icon"] .bo-sb-grouplabel { display: none; }
+[data-collapsible="icon"] .bo-sb-menu { width: 100%; gap: 12px; }
+[data-collapsible="icon"] .bo-sb-rule { display: block; flex: none; height: 1px; margin: 12px 12px; background: var(--sidebar-border); }
 [data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand) {
   flex-direction: column;
   justify-content: center;
@@ -242,7 +296,20 @@
 [data-collapsible="icon"] .bo-sb-btn.bo-sb-brand > .bo-sb-label,
 [data-collapsible="icon"] .bo-sb-btn.bo-sb-brand > .bo-sb-chev,
 [data-collapsible="icon"] .bo-sb-chev { display: none; }
-[data-collapsible="icon"] .bo-sb-search { width: 52px; height: 40px; justify-content: center; }
+/* A grouped entry in the rail: a small chevron at its right edge says "tap for its pages". */
+[data-collapsible="icon"] .bo-sb-btn:not(.bo-sb-brand) > svg.bo-sb-flyhint {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  color: var(--sidebar-muted);
+}
+/* Its pages, in a menu beside the rail (rows are 44px from touch.css). */
+.bo-sb-flyout { min-width: 232px; }
+.bo-sb-flyout [data-slot="dropdown-menu-item"] { gap: 10px; }
+.bo-sb-flyout [data-slot="dropdown-menu-item"][data-active="true"] { background: var(--accent); font-weight: 500; }
 [data-collapsible="icon"] .bo-count { display: none; }
 [data-collapsible="icon"] .bo-count-dot {
   display: block;
@@ -308,6 +375,9 @@
 .bo-iconbtn:hover { background: var(--accent); }
 .bo-iconbtn:disabled { opacity: 0.4; cursor: not-allowed; background: none; }
 .bo-iconbtn > svg { width: 18px; height: 18px; }
+/* The account menu's avatar, last in the header's right corner. */
+.bo-account { margin-left: 2px; border-radius: var(--radius-lg); }
+.bo-account[data-state="open"] { background: var(--accent); }
 .bo-topbar-search {
   display: inline-flex;
   align-items: center;

@@ -2,17 +2,14 @@ import type { LinkProps } from "@tanstack/react-router";
 import {
   BadgePercent,
   ClipboardCheck,
-  Coins,
   Contact,
   LayoutDashboard,
   ListTree,
-  MailWarning,
   MapPinned,
   Package,
   PackageX,
-  ReceiptText,
+  Settings,
   Warehouse,
-  Shield,
   Store,
   Truck,
 } from "lucide-react";
@@ -33,7 +30,7 @@ import {
  * The back-office sidebar (redesign, board "Sidebar — expanded").
  *
  * The old console listed fourteen links in one group and hid Dispatch. The rail now groups them by
- * the job — Operations · People · Catalogue · Settings — with live counts on the ones that need a
+ * the job — Operations · People · Catalogue · Setup — with live counts on the ones that need a
  * person. Every page is still the route it was; only where it sits in the menu moved.
  *
  * A hidden item is a courtesy, never the guard. `requiredRole` mirrors the gate the backend checks
@@ -123,7 +120,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   {
-    label: "Settings",
+    label: "Setup",
     items: [
       {
         key: "delivery-group",
@@ -140,11 +137,21 @@ export const NAV_GROUPS: readonly NavGroup[] = [
           { key: "hub", label: "Hub and timings", to: "/delivery", tab: "settings" },
         ],
       },
-      { key: "deliverability", label: "Email deliverability", to: "/deliverability", icon: MailWarning, count: "deliverability" },
-      { key: "points", label: "Points settings", to: "/customers", tab: "settings", icon: Coins },
-      // Effy's tax identity and the tax-invoice switch.
-      { key: "tax", label: "Tax", to: "/settings/tax", icon: ReceiptText, requiredRole: "admin" },
-      { key: "admin", label: "Admin and access", to: "/admin", icon: Shield, requiredRole: "admin" },
+      // Everything else that is set once and left alone, in one entry (2026-10-25): four rail items
+      // became one. Each page keeps its own route and gate; only where it sits in the menu moved.
+      {
+        key: "settings-group",
+        label: "Settings",
+        to: "/settings",
+        icon: Settings,
+        subs: [
+          { key: "points", label: "Points", to: "/customers", tab: "settings" },
+          // Effy's tax identity and the tax-invoice switch.
+          { key: "tax", label: "Tax", to: "/settings/tax", requiredRole: "admin" },
+          { key: "deliverability", label: "Email deliverability", to: "/deliverability", count: "deliverability" },
+          { key: "admin", label: "Admin and access", to: "/admin", requiredRole: "admin" },
+        ],
+      },
     ],
   },
 ];

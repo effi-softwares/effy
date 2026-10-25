@@ -29,8 +29,17 @@ describe("back-office sidebar — who sees what", () => {
     }
   });
 
-  it("groups the rail by the job: Operations · People · Catalogue · Settings", () => {
-    expect(visibleGroups(NAV_GROUPS, ["admin"]).map((g) => g.label)).toEqual(["Operations", "People", "Catalogue", "Settings"]);
+  it("groups the rail by the job: Operations · People · Catalogue · Setup", () => {
+    expect(visibleGroups(NAV_GROUPS, ["admin"]).map((g) => g.label)).toEqual(["Operations", "People", "Catalogue", "Setup"]);
+  });
+
+  it("keeps the set-and-leave pages under one Settings entry, gated per page", () => {
+    const settings = (roles: readonly BackOfficeRole[]) =>
+      visibleGroups(NAV_GROUPS, roles).flatMap((g) => g.items).find((i) => i.key === "settings-group")?.subs?.map((s) => s.key);
+    expect(settings(["admin"])).toEqual(["points", "tax", "deliverability", "admin"]);
+    // A manager or csa still has Settings, without the admin-only pages.
+    expect(settings(["manager"])).toEqual(["points", "deliverability"]);
+    expect(settings(["csa"])).toEqual(["points", "deliverability"]);
   });
 });
 

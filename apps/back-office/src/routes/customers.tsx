@@ -10,7 +10,7 @@ import { appRoute } from "./app";
 export const customersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "customers",
-  // Which tab is open — the sidebar's "Points settings" opens the settings tab directly.
+  // Which tab is open — the sidebar's Settings › Points opens the settings tab directly.
   validateSearch: (search: Record<string, unknown>): { tab?: string } =>
     typeof search.tab === "string" ? { tab: search.tab } : {},
   component: CustomersScreen,

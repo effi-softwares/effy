@@ -28,7 +28,7 @@ export interface StaffShellProps {
   headerActions?: ReactNode;
   /** The record on screen, when the surface derives it itself; otherwise pages call `useHeaderDetail`. */
   headerDetail?: string | null;
-  /** The account menu (StaffUserMenu). */
+  /** The account menu (StaffUserMenu) — the header's right corner. */
   userMenu: ReactNode;
   /** Controlled fold — held in the surface's client store. */
   sidebarOpen: boolean;
@@ -88,8 +88,6 @@ export function StaffShell({
         groups={groups}
         defaultTabs={defaultTabs}
         counts={counts}
-        onOpenSearch={onOpenSearch}
-        footer={userMenu}
       />
       <SidebarInset className="min-w-0 bg-background">
         <HeaderDetailProvider>
@@ -100,6 +98,7 @@ export function StaffShell({
             onOpenSearch={onOpenSearch}
             searchPrompt={searchPrompt}
             actions={headerActions}
+            account={userMenu}
             detail={headerDetail}
           />
           <main className="bo-content">{children}</main>

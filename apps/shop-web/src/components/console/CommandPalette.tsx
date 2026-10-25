@@ -166,10 +166,10 @@ export function CommandPalette({
     const pages = visibleNav(NAV, roles)
       .filter((n) => matches(n.label))
       .map<Item>((n) => ({
-        id: `page:${n.to}`,
+        id: `page:${n.to}:${n.label}`,
         icon: n.icon,
         label: n.label,
-        run: () => (close(), void navigate({ to: n.to })),
+        run: () => (close(), void navigate({ to: n.to, search: n.search } as never)),
       }))
     if (pages.length) out.push({ label: "Go to", items: pages })
 
