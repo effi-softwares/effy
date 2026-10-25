@@ -9,7 +9,7 @@ import { PageHeader } from "@effy/web-kit/patterns";
 import { DetailRows, Panel } from "@effy/web-kit/patterns";
 import { Callout } from "@effy/web-kit/patterns";
 import { StatusWord } from "@effy/web-kit/patterns";
-import { useHeaderDetail } from "@/components/shell/SiteHeader";
+import { useHeaderDetail } from "@effy/web-kit/console";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { HoldingControl } from "./components/HoldingControl";

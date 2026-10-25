@@ -14,7 +14,7 @@ import { ResponsiveSheet } from "@effy/web-kit/patterns";
 import { Callout } from "@effy/web-kit/patterns";
 import { DotWord, StatusWord } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
-import { useHeaderDetail } from "@/components/shell/SiteHeader";
+import { useHeaderDetail } from "@effy/web-kit/console";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { AuditTrail } from "./components/AuditTrail";

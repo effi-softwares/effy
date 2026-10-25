@@ -13,6 +13,8 @@
 @import "@effy/design-system/backoffice.css";
 @import "@effy/design-system/backoffice/primitives.css";
 @import "@effy/design-system/backoffice/patterns.css";
+@import "@effy/design-system/backoffice/touch.css";
+@import "@effy/design-system/backoffice/shell.css";
 @import "./styles/touch.css";
 
 /* This surface defines NO token values of its own; the rules below only bind browser defaults to the

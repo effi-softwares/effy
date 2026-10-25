@@ -1,7 +1,7 @@
 import { Shield, type LucideIcon } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
-import { currentSection, visibleNav, type NavItem } from "./nav";
+import { visibleNav, type NavItem } from "./nav";
 
 type Role = "shop_manager" | "shop_staff";
 
@@ -27,19 +27,5 @@ describe("visibleNav", () => {
   it("hides the gated item from a lower-privilege or role-less operator", () => {
     expect(visibleNav(NAV, ["shop_staff"]).map((i) => i.to)).not.toContain("/manager");
     expect(visibleNav(NAV, []).map((i) => i.to)).not.toContain("/manager");
-  });
-});
-
-describe("currentSection", () => {
-  it("resolves the root path to the root item's label", () => {
-    expect(currentSection(NAV, "/")).toBe("Dashboard");
-  });
-
-  it("matches a nested path by prefix", () => {
-    expect(currentSection(NAV, "/manager/detail")).toBe("Management");
-  });
-
-  it("falls back rather than throwing on an unknown path", () => {
-    expect(currentSection(NAV, "/nowhere")).toBe("Dashboard");
   });
 });

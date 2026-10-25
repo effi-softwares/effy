@@ -12,7 +12,7 @@ import { ErrorState } from "@effy/web-kit/console";
 import { PageHeader } from "@effy/web-kit/patterns";
 import { Panel } from "@effy/web-kit/patterns";
 import { Callout } from "@effy/web-kit/patterns";
-import { useHeaderDetail } from "@/components/shell/SiteHeader";
+import { useHeaderDetail } from "@effy/web-kit/console";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { promotionGroupsQuery } from "@/features/promotion-groups/queries";
 

@@ -26,7 +26,7 @@ import { PageHeader } from "@effy/web-kit/patterns";
 import { Panel } from "@effy/web-kit/patterns";
 import { Callout } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
-import { useHeaderDetail } from "@/components/shell/SiteHeader";
+import { useHeaderDetail } from "@effy/web-kit/console";
 import { AssignmentActions } from "@/features/assign/AssignmentActions";
 import { sessionQuery } from "@/features/auth/queries";
 import { OrderCustomerPoints } from "@/features/customers/components/OrderCustomerPoints";

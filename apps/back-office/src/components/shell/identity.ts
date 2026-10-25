@@ -1,27 +1,7 @@
 import type { BackOfficeRole } from "@effy/shared-types";
 
-/**
- * How the shell names the person signed in.
- *
- * The session and the staff record carry an email, roles and a status — no display name. Until the
- * record has one, the email's local part stands in ("alex.chen" → "Alex Chen"); it is never sent
- * anywhere, only shown back to the person it belongs to.
- */
-export function displayName(email: string): string {
-  const local = email.split("@")[0] ?? "";
-  if (!local) return "Signed in";
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-export function initialsOf(name: string): string {
-  const parts = name.split(" ").filter(Boolean);
-  const letters = parts.length > 1 ? parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0) : name.slice(0, 2);
-  return letters.toUpperCase();
-}
+// The name and initials the shell shows are shared with shop-web (one definition, in the kit).
+export { displayName, initialsOf } from "@effy/web-kit/console";
 
 const ROLE_LABEL: Record<BackOfficeRole, string> = {
   admin: "Admin",

@@ -1,32 +1,45 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronRight, Menu, PanelLeft, RefreshCw, RefreshCcw, Search, WifiOff } from "lucide-react";
+import { ChevronRight, Menu, PanelLeft, RefreshCcw, RefreshCw, Search, WifiOff } from "lucide-react";
 
 import { useSidebar } from "@effy/design-system/ui";
-import { useLiveStatus } from "@effy/web-kit/console";
 
-import { Kbd } from "@effy/web-kit/patterns";
-
-import { activeKey, linkOf, locate, type NavGroup } from "./nav";
+import { useLiveStatus } from "../live/LiveProvider";
+import { Kbd } from "../patterns/Kbd";
+import { staffActiveKey, staffLinkOf, staffLocate, type DefaultTabs, type StaffNavGroup } from "./staff-nav";
 
 /**
- * The header (sidebar-07's SiteHeader, board "Header"): 56px — the rail trigger, a hairline, where
- * you are (section › page › record), and on the right the live status and the ⌘K search.
- * Below 768px: a menu button, the page's own title and a search icon.
+ * The consoles' header (sidebar-07's SiteHeader, board "Header"): the rail trigger, a hairline, where
+ * you are (section › page › record), then the surface's own controls, the live status and the ⌘K
+ * search. Below 768px: a menu button, the page's own title and a search icon.
  */
-export function SiteHeader({ groups, onOpenSearch }: { groups: readonly NavGroup[]; onOpenSearch: () => void }) {
+export interface StaffHeaderProps {
+  title: string;
+  groups: readonly StaffNavGroup[];
+  defaultTabs?: DefaultTabs;
+  onOpenSearch: () => void;
+  /** The search box's prompt, e.g. "Order, customer, package…". */
+  searchPrompt: string;
+  /** The surface's own controls, placed before the live status and search. */
+  actions?: ReactNode;
+  /** The record on screen, when the surface derives it itself (otherwise `useHeaderDetail`). */
+  detail?: string | null;
+}
+
+export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPrompt, actions, detail: detailProp }: StaffHeaderProps) {
   const { pathname, search } = useLocation();
   const { toggleSidebar, setOpenMobile } = useSidebar();
-  const detail = useContext(DetailContext)?.detail ?? null;
+  const fromPage = useContext(DetailContext)?.detail ?? null;
+  const detail = detailProp ?? fromPage;
   const tab = typeof (search as { tab?: unknown }).tab === "string" ? (search as { tab: string }).tab : undefined;
-  const where = locate(groups, activeKey(groups, { pathname, tab }));
+  const where = staffLocate(groups, staffActiveKey(groups, { pathname, tab }, defaultTabs));
 
   // "Operations › Overview", or for a grouped page "Orders › All orders"; a record adds itself after
   // the page, which then links back to its list ("Orders › All orders › EFY-20481").
   const section = where ? (where.item.subs ? where.item.label : where.group.label) : null;
   const page = where ? (where.item.subs ? where.leaf.label : where.item.label) : null;
-  const mobileTitle = detail ?? page ?? "Effy Back-Office";
+  const mobileTitle = detail ?? page ?? title;
 
   return (
     <header className="bo-topbar">
@@ -42,19 +55,19 @@ export function SiteHeader({ groups, onOpenSearch }: { groups: readonly NavGroup
       >
         <PanelLeft aria-hidden="true" />
       </button>
-      <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border max-md:hidden" />
+      <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border max-md:hidden" />
 
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm whitespace-nowrap text-muted-foreground max-md:hidden">
+      <nav aria-label="Breadcrumb" className="bo-crumbs max-md:hidden">
         {where && section && page ? (
           <>
             <span>{section}</span>
-            <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
+            <ChevronRight aria-hidden="true" />
             {detail ? (
               <>
-                <Link {...linkOf(where.leaf)} className="hover:text-foreground">
+                <Link {...staffLinkOf(where.leaf)} className="hover:text-foreground">
                   {page}
                 </Link>
-                <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
+                <ChevronRight aria-hidden="true" />
                 <span aria-current="page" className="truncate font-medium text-foreground">
                   {detail}
                 </span>
@@ -67,20 +80,21 @@ export function SiteHeader({ groups, onOpenSearch }: { groups: readonly NavGroup
           </>
         ) : (
           <span aria-current="page" className="font-medium text-foreground">
-            Effy Back-Office
+            {title}
           </span>
         )}
       </nav>
-      <span className="truncate text-[15px] font-semibold md:hidden">{mobileTitle}</span>
+      <span className="bo-topbar-title truncate md:hidden">{mobileTitle}</span>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-2">
+        {actions}
         <LivePill />
-        <button type="button" className="bo-topbar-search max-md:hidden" aria-label="Search orders, customers and codes" onClick={onOpenSearch}>
+        <button type="button" className="bo-topbar-search max-lg:hidden" aria-label="Search and commands" onClick={onOpenSearch}>
           <Search aria-hidden="true" />
-          <span className="truncate">Order, customer, package…</span>
+          <span className="truncate">{searchPrompt}</span>
           <Kbd className="ml-auto">⌘K</Kbd>
         </button>
-        <button type="button" className="bo-iconbtn md:hidden" aria-label="Search" onClick={onOpenSearch}>
+        <button type="button" className="bo-iconbtn lg:hidden" aria-label="Search" onClick={onOpenSearch}>
           <Search aria-hidden="true" />
         </button>
       </div>
@@ -114,7 +128,7 @@ function LivePill() {
 
   if (!live || state === "live" || !shown) return null;
   const reconnecting = state === "reconnecting";
-  const at = clock.format(live.currentAsOf).replace(/[\u00a0\u202f]/g, " ").toLowerCase();
+  const at = clock.format(live.currentAsOf).replace(/[  ]/g, " ").toLowerCase();
   return (
     <>
       <span role="status" className="bo-live">

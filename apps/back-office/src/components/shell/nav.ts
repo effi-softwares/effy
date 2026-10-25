@@ -1,5 +1,4 @@
 import type { LinkProps } from "@tanstack/react-router";
-import type { LucideIcon } from "lucide-react";
 import {
   BadgePercent,
   ClipboardCheck,
@@ -19,6 +18,16 @@ import {
 } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
+import {
+  staffActiveKey,
+  staffLinkOf,
+  staffLocate,
+  visibleStaffGroups,
+  type StaffNavEntry,
+  type StaffNavGroup,
+  type StaffNavLeaf,
+  type Where,
+} from "@effy/web-kit/console";
 
 /**
  * The back-office sidebar (redesign, board "Sidebar — expanded").
@@ -35,29 +44,10 @@ import type { BackOfficeRole } from "@effy/shared-types";
 /** The live counts the rail carries. Each is read from the page's own query (useNavCounts). */
 export type NavCountKey = "dispatch" | "exceptions" | "feedback" | "review" | "deliverability";
 
-export interface NavLeaf {
-  key: string;
-  label: string;
-  to: string;
-  /** A tab carried in the URL (`/delivery?tab=pricing`). Matched as part of "is this the page". */
-  tab?: string;
-  count?: NavCountKey;
-  requiredRole?: BackOfficeRole;
-  /** Shown to any one of these roles (the hub station: admin or manager). */
-  requiredAnyRole?: readonly BackOfficeRole[];
-}
-
-export interface NavEntry extends NavLeaf {
-  icon: LucideIcon;
-  /** Exceptions' count is black: it is the one queue where something has already gone wrong. */
-  countTone?: "strong";
-  subs?: readonly NavLeaf[];
-}
-
-export interface NavGroup {
-  label: string;
-  items: readonly NavEntry[];
-}
+/** The model is the consoles' shared one (@effy/web-kit/console), specialised to this surface. */
+export type NavLeaf = StaffNavLeaf<BackOfficeRole, NavCountKey>;
+export type NavEntry = StaffNavEntry<BackOfficeRole, NavCountKey>;
+export type NavGroup = StaffNavGroup<BackOfficeRole, NavCountKey>;
 
 /** The tab a route opens on when the URL names none — a sub-page for it must count as active. */
 export const DEFAULT_TAB: Readonly<Record<string, string>> = {
@@ -160,82 +150,22 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 ];
 
 /** The menu this person sees. Role filtering only — the backend is the gate. */
-export function visibleGroups(
-  groups: readonly NavGroup[],
-  roles: readonly BackOfficeRole[],
-): NavGroup[] {
-  const allowed = (leaf: NavLeaf) =>
-    (leaf.requiredRole === undefined || roles.includes(leaf.requiredRole)) &&
-    (leaf.requiredAnyRole === undefined || leaf.requiredAnyRole.some((r) => roles.includes(r)));
-  return groups
-    .map((g) => ({
-      label: g.label,
-      items: g.items
-        .filter(allowed)
-        .map((item) => (item.subs ? { ...item, subs: item.subs.filter(allowed) } : item)),
-    }))
-    .filter((g) => g.items.length > 0);
+export function visibleGroups(groups: readonly NavGroup[], roles: readonly BackOfficeRole[]): NavGroup[] {
+  return visibleStaffGroups(groups, roles);
 }
 
-export interface Where {
-  pathname: string;
-  tab?: string;
-}
+export type { Where };
 
-/**
- * Which leaf is the page on screen. The most specific `to` wins (`/orders/assignments` beats
- * `/orders`), and a leaf that names a tab only matches that tab — so "Pricing" and "Coverage" are
- * never both lit. Derived from the router every render; never held in state.
- */
+/** Which leaf is the page on screen (shared matcher, this surface's default tabs). */
 export function activeKey(groups: readonly NavGroup[], where: Where): string | null {
-  const tab = where.tab ?? DEFAULT_TAB[where.pathname];
-  let best: { key: string; score: number } | null = null;
-  for (const group of groups) {
-    for (const item of group.items) {
-      for (const leaf of item.subs ?? [item]) {
-        const score = matchScore(leaf, where.pathname, tab);
-        if (score > 0 && (!best || score > best.score)) best = { key: leaf.key, score };
-      }
-    }
-  }
-  return best?.key ?? null;
+  return staffActiveKey(groups, where, DEFAULT_TAB);
 }
 
-function matchScore(leaf: NavLeaf, pathname: string, tab: string | undefined): number {
-  if (leaf.to === "/") return pathname === "/" ? 1 : 0;
-  const onPath = pathname === leaf.to || pathname.startsWith(leaf.to + "/");
-  if (!onPath) return 0;
-  if (leaf.tab !== undefined) {
-    // A record under the page (`/customers/abc`) belongs to the page's default tab — the list it was
-    // opened from — not to a settings tab that happens to share the route.
-    if (pathname !== leaf.to) return leaf.tab === DEFAULT_TAB[leaf.to] ? leaf.to.length * 2 : 0;
-    return leaf.tab === tab ? leaf.to.length * 2 + 1 : 0;
-  }
-  return leaf.to.length * 2;
+export function locate(groups: readonly NavGroup[], key: string | null) {
+  return staffLocate(groups, key);
 }
 
-/** Where the active leaf sits: its group, its entry and (for a sub-page) the leaf. For the breadcrumb. */
-export function locate(
-  groups: readonly NavGroup[],
-  key: string | null,
-): { group: NavGroup; item: NavEntry; leaf: NavLeaf } | null {
-  if (!key) return null;
-  for (const group of groups) {
-    for (const item of group.items) {
-      if (item.key === key) return { group, item, leaf: item };
-      const leaf = item.subs?.find((s) => s.key === key);
-      if (leaf) return { group, item, leaf };
-    }
-  }
-  return null;
-}
-
-/**
- * The link for a leaf: its route, plus its tab when it names one.
- *
- * The nav holds paths as strings (it is data, matched against `location.pathname`), so the router's
- * typed `to` is asserted here, once. nav.test.ts holds every `to` to a route the router declares.
- */
+/** The link for a leaf: its route, plus its tab when it names one. */
 export function linkOf(leaf: NavLeaf): LinkProps {
-  return (leaf.tab ? { to: leaf.to, search: { tab: leaf.tab } } : { to: leaf.to }) as LinkProps;
+  return staffLinkOf(leaf);
 }

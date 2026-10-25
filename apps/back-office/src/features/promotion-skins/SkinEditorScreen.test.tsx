@@ -11,7 +11,6 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
   useNavigate: () => navigate,
 }));
-vi.mock("@/components/shell/SiteHeader", () => ({ useHeaderDetail: () => undefined }));
 vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }));
 
 const roleState = vi.hoisted(() => ({ roles: ["manager"] as BackOfficeRole[] }));

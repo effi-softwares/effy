@@ -43,6 +43,14 @@ constitution Principle I requires before merge; write them (or fold them into a 
   chip, ⌘K search and commands, the header's Scan dialog, choice-card dialogs (no native selects or `confirm()`),
   the pick list's 44px ticks and product-barcode scan. A shop's "Cancel order" is now "Can't supply it…", and
   "Items from other shops" is no longer shown (brief §6).
+- **One console shell, one scale (2026-10-25, operator direction).** Back-office and shop-web now render the SAME
+  shell — `StaffShell` in `@effy/web-kit/console` (sidebar with groups/sub-pages/counts/search/environment tag,
+  64px header with breadcrumb, account menu; nav model `StaffNavGroup`) — and BOTH wear the shop's touch scale
+  (`@effy/design-system/backoffice/touch.css`: 44px controls, 15px body, 40px sidebar rows) and frame styles
+  (`backoffice/shell.css`, moved from back-office; `--header-h` 64). `ConsoleShell`, `NavList`, `MobileNavBar`,
+  `ConsoleUserMenu` and back-office's own `AppSidebar`/`SiteHeader`/`NavUser` are deleted. ⚠ shop-web lost its
+  bottom tab bar (below 768px both use the menu sheet; 768–1023 the 96px labelled rail) and its header subtitle
+  line; its always-on "Live" chip is now back-office's quiet pill (shows only when updates are off).
 
 **098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** ✅ **BUILT
 2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** A product is now its shared details plus one or more **variants**

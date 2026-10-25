@@ -1,15 +1,13 @@
-import { Check, ChevronsUpDown, IdCard, Keyboard, LogOut, Monitor, Moon, Sun } from "lucide-react";
-import type { ComponentType } from "react";
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 
-import type { BackOfficeRole, StaffStatus } from "@effy/shared-types";
 import {
   Badge,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,23 +15,24 @@ import {
   useSidebar,
 } from "@effy/design-system/ui";
 
-import type { Theme } from "@/lib/ui-store";
-
-import { displayName, initialsOf, roleLabel } from "./identity";
+import type { Theme } from "../runtime/ui-store";
+import { displayName, initialsOf } from "./staff-nav";
 
 /**
  * The sidebar footer: who is signed in, and the account and appearance menu (board "Account and
- * appearance menu"). Appearance lives here, not in the header: Light / Dark / System.
+ * appearance menu"). Appearance lives here, not in the header: Light / Dark / System. A surface adds
+ * its own entries (back-office: its staff record, keyboard shortcuts) through `items`.
  */
-export interface NavUserProps {
+export interface StaffUserMenuProps {
   email: string;
-  roles: readonly BackOfficeRole[];
-  /** From the staff record; undefined until it has loaded. */
-  status: StaffStatus | undefined;
+  /** "Admin", "Manager"… — the highest role held; null for none. */
+  roleLabel: string | null;
+  /** "Active" / "Disabled", once known. */
+  statusLabel?: string | null;
   theme: Theme;
   onSetTheme: (theme: Theme) => void;
-  onOpenRecord: () => void;
-  onOpenShortcuts: () => void;
+  /** Surface-specific menu entries, shown above Appearance. */
+  items?: ReactNode;
   onSignOut: () => void;
   signingOut?: boolean;
 }
@@ -44,20 +43,18 @@ const MODES: readonly { value: Theme; label: string; Icon: ComponentType<{ "aria
   { value: "system", label: "System", Icon: Monitor },
 ];
 
-export function NavUser({
+export function StaffUserMenu({
   email,
-  roles,
-  status,
+  roleLabel,
+  statusLabel,
   theme,
   onSetTheme,
-  onOpenRecord,
-  onOpenShortcuts,
+  items,
   onSignOut,
   signingOut = false,
-}: NavUserProps) {
+}: StaffUserMenuProps) {
   const { isMobile } = useSidebar();
   const name = displayName(email);
-  const role = roleLabel(roles);
 
   return (
     <SidebarMenu>
@@ -67,27 +64,22 @@ export function NavUser({
             <SidebarMenuButton
               size="lg"
               aria-label="Account and appearance"
-              className="bo-sb-btn h-12 p-2 data-[state=open]:bg-sidebar-accent"
+              className="bo-sb-btn bo-sb-brand data-[state=open]:bg-sidebar-accent"
             >
               <span aria-hidden="true" className="bo-avatar">
                 {initialsOf(name)}
               </span>
-              <span className="grid min-w-0 flex-1 leading-tight">
+              <span className="bo-sb-label grid min-w-0 flex-1 leading-tight">
                 <strong className="truncate text-sm font-semibold">{name}</strong>
-                <span className="truncate text-xs text-sidebar-muted">
-                  {role ? `${role} · ` : ""}
+                <span className="truncate text-xs text-muted-foreground">
+                  {roleLabel ? `${roleLabel} · ` : ""}
                   {email}
                 </span>
               </span>
-              <ChevronsUpDown aria-hidden="true" className="ml-auto text-sidebar-muted" />
+              <ChevronsUpDown aria-hidden="true" className="bo-sb-chev ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[260px]"
-            side={isMobile ? "top" : "right"}
-            align="end"
-            sideOffset={8}
-          >
+          <DropdownMenuContent className="w-[280px]" side={isMobile ? "top" : "right"} align="end" sideOffset={8}>
             <DropdownMenuLabel className="p-0 font-normal text-foreground">
               <div className="flex items-center gap-3 px-2 py-2">
                 <span aria-hidden="true" className="bo-avatar">
@@ -98,22 +90,20 @@ export function NavUser({
                   <div className="truncate text-xs text-muted-foreground">{email}</div>
                 </div>
               </div>
-              <div className="flex gap-1 px-2 pb-2">
-                {role ? <Badge variant="brand">{role}</Badge> : null}
-                {status ? <Badge variant="secondary">{status === "active" ? "Active" : "Disabled"}</Badge> : null}
-              </div>
+              {roleLabel || statusLabel ? (
+                <div className="flex gap-1 px-2 pb-2">
+                  {roleLabel ? <Badge variant="brand">{roleLabel}</Badge> : null}
+                  {statusLabel ? <Badge variant="secondary">{statusLabel}</Badge> : null}
+                </div>
+              ) : null}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onOpenRecord}>
-              <IdCard aria-hidden="true" />
-              Your back-office record
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onOpenShortcuts}>
-              <Keyboard aria-hidden="true" />
-              Keyboard shortcuts
-              <DropdownMenuShortcut>?</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {items ? (
+              <>
+                {items}
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuLabel>Appearance</DropdownMenuLabel>
             {MODES.map(({ value, label, Icon }) => (
               <DropdownMenuItem

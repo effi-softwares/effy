@@ -4,8 +4,8 @@ import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
- * The console header after the 2026-09-10 design revision: a breadcrumb trail in place of the static
- * title, and no right-hand primary action or theme toggle.
+ * The shop's parts of the consoles' shared header: the record named in the last crumb, and the order
+ * pagination on order detail.
  */
 
 const location = vi.hoisted(() => ({ pathname: "/" }))
@@ -38,7 +38,7 @@ vi.mock("@/features/catalog/repo", async (importOriginal) => ({
   getProduct,
 }))
 
-const { crumbsFor, HeaderBreadcrumbs } = await import("../HeaderBreadcrumbs")
+const { crumbsFor, useHeaderRecord } = await import("../headerRecord")
 const { HeaderChrome } = await import("../HeaderChrome")
 
 function wrap(children: ReactNode) {
@@ -91,36 +91,32 @@ describe("crumbsFor", () => {
   })
 })
 
-describe("HeaderBreadcrumbs", () => {
-  it("names the order from the cached detail read, in mono, as the page heading", async () => {
+function Record() {
+  return <output>{useHeaderRecord() ?? "none"}</output>
+}
+
+describe("useHeaderRecord", () => {
+  it("names the order from the cached detail read", async () => {
     at("/orders/f1", { fulfillmentId: "f1" })
     getOrder.mockResolvedValue({ orderNumber: "EFY-10023" })
-    wrap(<HeaderBreadcrumbs />)
+    wrap(<Record />)
 
-    const heading = await screen.findByRole("heading", { level: 1, name: "EFY-10023" })
-    expect(heading.querySelector(".font-mono")).not.toBeNull()
-    // The final crumb is where you are — never a link to itself.
-    expect(screen.queryByRole("link", { name: "EFY-10023" })).not.toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Orders" })).toHaveAttribute("href", "/orders")
+    expect(await screen.findByText("EFY-10023")).toBeInTheDocument()
   })
 
   it("names the product on its detail screen", async () => {
     at("/catalog/p1", { productId: "p1" })
     getProduct.mockResolvedValue({ name: "Linen apron, natural" })
-    wrap(<HeaderBreadcrumbs />)
+    wrap(<Record />)
 
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Linen apron, natural" }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Catalog" })).toHaveAttribute("href", "/catalog")
+    expect(await screen.findByText("Linen apron, natural")).toBeInTheDocument()
   })
 
-  it("reads nothing on a screen with no detail to name", () => {
+  it("names nothing, and reads nothing, on a screen with no detail", () => {
     at("/catalog")
-    wrap(<HeaderBreadcrumbs />)
+    wrap(<Record />)
 
-    expect(screen.getByRole("heading", { level: 1, name: "Catalog" })).toBeInTheDocument()
-    expect(screen.queryByRole("link")).not.toBeInTheDocument()
+    expect(screen.getByText("none")).toBeInTheDocument()
     expect(getProduct).not.toHaveBeenCalled()
     expect(getOrder).not.toHaveBeenCalled()
   })

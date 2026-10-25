@@ -40,8 +40,8 @@ export const adminRoute = createRoute({
 });
 
 // The authenticated frame (the redesign's "Foundations and shell": shadcn sidebar-07 with grouped
-// navigation, live counts, ⌘K search). It is this surface's own composition of the shared sidebar
-// primitives — shop-web keeps @effy/web-kit's ConsoleShell. Wired by hand — no DI framework.
+// navigation, live counts, ⌘K search) — the consoles' one shell, shared with shop-web.
+// Wired by hand — no DI framework.
 function AppShellRoute() {
   const { data } = useQuery(sessionQuery);
   const signOut = useSignOut();

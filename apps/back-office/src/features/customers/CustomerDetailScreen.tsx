@@ -10,7 +10,7 @@ import { ErrorState } from "@effy/web-kit/console";
 import { PageHeader } from "@effy/web-kit/patterns";
 import { Panel } from "@effy/web-kit/patterns";
 import { initialsOf } from "@/components/shell/identity";
-import { useHeaderDetail } from "@/components/shell/SiteHeader";
+import { useHeaderDetail } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 import { money } from "@/lib/format";
 

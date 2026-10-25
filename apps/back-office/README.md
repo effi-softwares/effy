@@ -59,10 +59,11 @@ nothing else either. That symmetry is the point (constitution Principle II).
   Genuine client-only state (theme, command palette, sidebar collapse) goes in `lib/ui-store.ts`,
   nothing else — the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
   never the shadcn block's cookie.
-- **Dashboard chrome is `<ConsoleShell>` from `@effy/web-kit/console`**, not a feature slice and no
-  longer app-local. To add a nav destination: add a `NavItem` to `components/layout/nav.ts` (set
-  `requiredRole` to role-gate it — filtered by the same predicate as the route guard), then add its
-  route. A hidden nav item is **not** a gate: add the matching backend check too.
+- **Dashboard chrome is `<StaffShell>` from `@effy/web-kit/console`** — the consoles' ONE shell,
+  shared with shop-web (same frame, scale and theme; styles in `@effy/design-system/backoffice/shell.css`
+  and `touch.css`). `components/shell/AppShell.tsx` only supplies this surface's nav, counts, account
+  menu entries and dialogs. To add a nav destination: add an entry to `components/shell/nav.ts` (set
+  `requiredRole` to role-gate it), then add its route. A hidden nav item is **not** a gate: add the matching backend check too.
 - **If you are about to copy a file from `apps/shop-web`, it belongs in a package instead**,
   parameterized. Copy-paste of cross-cutting logic across surfaces is prohibited (Principle II).
 - **DTOs are mapped to domain models in `repo.ts`** and never leak past it into screens.

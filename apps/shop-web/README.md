@@ -54,7 +54,7 @@ src/
 ├── routes/
 │   ├── __root.tsx      router context (the server-state client)
 │   ├── auth.tsx        public: /auth/sign-in
-│   └── app.tsx         protected: beforeLoad guard + <ConsoleShell> + the screens
+│   └── app.tsx         protected: beforeLoad guard + <StaffShell> + the screens
 ├── lib/                thin wiring over @effy/web-kit: env, api, telemetry, ui-store
 ├── components/layout/
 │   └── nav.ts          THIS surface's nav config (which items, which role each needs)
