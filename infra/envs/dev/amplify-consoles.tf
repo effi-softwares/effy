@@ -25,7 +25,7 @@ locals {
   }]
 
   # ── PWA response headers ─────────────────────────────────────────────────────────────────
-  # shop-web only. back-office is not a PWA and passes nothing, so it stays byte-identical.
+  # Both consoles are PWAs (shop-web since 059, back-office since 2026-10-25); both pass these.
   pwa_headers = [
     {
       # The service worker decides when every other asset is refreshed, so it is the one file that
@@ -95,9 +95,8 @@ module "amplify_shop_web" {
   framework     = "Web"
   stage         = "DEVELOPMENT"
 
-  env_vars     = local.shop_web_env
-  custom_rules = local.spa_rewrite_rules
-  # Shop-web is the platform's only PWA. back-office passes nothing and stays byte-identical.
+  env_vars       = local.shop_web_env
+  custom_rules   = local.spa_rewrite_rules
   custom_headers = local.pwa_headers
 
   # service_role_arn unused for WEB (the module ignores it and sets iam_service_role_arn = null).
@@ -122,8 +121,9 @@ module "amplify_back_office" {
   framework     = "Web"
   stage         = "DEVELOPMENT"
 
-  env_vars     = local.back_office_env
-  custom_rules = local.spa_rewrite_rules
+  env_vars       = local.back_office_env
+  custom_rules   = local.spa_rewrite_rules
+  custom_headers = local.pwa_headers
 
   domain_name      = var.amplify_consoles_domain_enabled ? module.dns.zone_name : ""
   subdomain_prefix = var.back_office_subdomain

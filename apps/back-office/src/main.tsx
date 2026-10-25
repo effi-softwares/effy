@@ -7,6 +7,7 @@ import { RouterProvider } from "@tanstack/react-router"
 
 import { configureAmplify } from "./lib/amplify"
 import { assertConfig } from "./lib/env"
+import { registerServiceWorker } from "./lib/pwa"
 import { initTelemetry, reportError } from "./lib/telemetry"
 import { applyTheme, uiStore } from "./lib/ui-store"
 import { createAppRouter } from "./router"
@@ -23,6 +24,8 @@ try {
   // Focus rings for keyboard navigation only, never after a click or tap.
   trackInputModality()
   applyTheme(uiStore.state.theme)
+
+  registerServiceWorker()
 
   const queryClient = createQueryClient()
   const router = createAppRouter(queryClient)

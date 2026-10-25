@@ -16,6 +16,7 @@ import { setCommandPaletteOpen, setSidebarOpen, setTheme, uiStore } from "@/lib/
 import { CHORDS } from "./chords"
 import { CommandPalette } from "./CommandPalette"
 import { ScanBox } from "./ScanBox"
+import { UpdateBanner } from "./UpdateBanner"
 import { DEFAULT_TAB, linkOf, locate, NAV_GROUPS, visibleGroups } from "./nav"
 import { ShortcutsDialog, StaffRecordDialog } from "./ShellDialogs"
 import { roleLabel } from "./identity"
@@ -99,6 +100,7 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
       overlays={
         <>
           <ScanBox />
+          <UpdateBanner />
           <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} groups={groups} roles={roles} />
           <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
           <StaffRecordDialog open={recordOpen} onOpenChange={setRecordOpen} />

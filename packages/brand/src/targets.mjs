@@ -139,8 +139,11 @@ function mobileTargets(app, surface, colourway) {
 }
 
 /** Favicon set for a Vite SPA (public/ + explicit <link> tags in index.html). */
-/** @param {boolean} [pwa] also emit the four manifest icons (shop-web only). */
-function viteWebTargets(app, surface, colourway, pwa = false) {
+/**
+ * @param {boolean} [pwa] also emit the four manifest icons (the installable consoles).
+ * @param {boolean} [push] also emit the notification badge (shop-web only — the one console sent push).
+ */
+function viteWebTargets(app, surface, colourway, pwa = false, push = false) {
   const pub = `apps/${app}/public`
   const pwaTargets = !pwa
     ? []
@@ -182,6 +185,10 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
           sizes: [512],
           path: `${pub}/web-app-icon-512.png`,
         },
+      ]
+  const pushTargets = !push
+    ? []
+    : [
         // The notification badge: Android renders it as a white silhouette, so it is the mark alone in one colour.
         {
           surface,
@@ -222,6 +229,7 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
       path: `${pub}/apple-touch-icon.png`,
     },
     ...pwaTargets,
+    ...pushTargets,
   ]
 }
 
@@ -291,9 +299,9 @@ export const TARGETS = [
     path: "apps/customer-web/public/web-app-icon-512.png",
   },
 
-  // shop-web (installable, so it takes the manifest icons) and back-office
-  ...viteWebTargets("shop-web", "shop-web", "tile", true),
-  ...viteWebTargets("back-office", "back-office", "tile"),
+  // both consoles are installable, so both take the manifest icons; only shop-web is sent push
+  ...viteWebTargets("shop-web", "shop-web", "tile", true, true),
+  ...viteWebTargets("back-office", "back-office", "tile", true),
 
   // mobile
   ...mobileTargets("customer-mobile", "customer-mobile", "tile"),

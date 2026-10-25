@@ -8,6 +8,7 @@ type AnalyticsEvent =
   | { name: "auth_sign_in_succeeded"; subject: string }
   | { name: "auth_sign_in_failed"; reason: string }
   | { name: "auth_signed_out" }
+  | { name: "sw_update_applied" }
   | { name: "admin_area_access_denied" }
   | { name: "shop_created"; shopId: string }
   | { name: "shop_updated"; shopId: string }

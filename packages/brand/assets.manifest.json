@@ -36,6 +36,34 @@
       "bytes": 808
     },
     {
+      "surface": "back-office",
+      "slot": "pwa-any-192",
+      "path": "apps/back-office/public/web-app-icon-192.png",
+      "sha256": "829a370656e1d6ded644c974b58f548e23b5a69ab94959c376a3f9dcf267fb17",
+      "bytes": 2036
+    },
+    {
+      "surface": "back-office",
+      "slot": "pwa-any-512",
+      "path": "apps/back-office/public/web-app-icon-512.png",
+      "sha256": "0f2227dd98a8c32e4fb9f41f32e23b5550febe6daf74a3bb9a3218875f427086",
+      "bytes": 5800
+    },
+    {
+      "surface": "back-office",
+      "slot": "pwa-192",
+      "path": "apps/back-office/public/web-app-manifest-192x192.png",
+      "sha256": "a27528886208b0fe1dd000b1618a698668fa2c9db117ff65f667b4c1e692182c",
+      "bytes": 1300
+    },
+    {
+      "surface": "back-office",
+      "slot": "pwa-512",
+      "path": "apps/back-office/public/web-app-manifest-512x512.png",
+      "sha256": "3359a8369c9c5fb6b75d573d7cd7f1e0efc4c8fb32fa745d89d659c56b0bcb33",
+      "bytes": 3903
+    },
+    {
       "surface": "customer-mobile",
       "slot": "android-adaptive-background",
       "path": "apps/customer-mobile/androidApp/src/main/res/drawable/ic_launcher_background.xml",
