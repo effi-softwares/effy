@@ -43,13 +43,13 @@ export function Alert({
       data-slot="alert"
       role={announce ? (variant === "destructive" ? "alert" : "status") : undefined}
       className={clsx(
-        "grid grid-cols-[1rem_1fr] items-start gap-x-3 gap-y-0.5 rounded-lg border px-4 py-3 text-sm",
+        "grid grid-cols-[1rem_1fr] items-start gap-x-3 gap-y-1 rounded-lg border px-4 py-3 text-sm",
         v.box,
         className,
       )}
       {...props}
     >
-      <Icon aria-hidden="true" className={clsx("mt-0.5 size-4", v.icon)} />
+      <Icon aria-hidden="true" className={clsx("mt-1 size-4", v.icon)} />
       <div className="min-w-0">
         {title && (
           <p className={clsx("leading-5", variant === "destructive" ? "font-semibold" : "font-medium")}>{title}</p>

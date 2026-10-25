@@ -118,7 +118,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
   return (
     <TableRow>
       <TableCell className="font-medium">
-        <span className="flex items-center gap-2.5">
+        <span className="flex items-center gap-3">
           <InitialsAvatar name={member.name ?? member.email ?? "?"} seed={member.staffId} className="size-8 shrink-0" />
           {member.name ?? "—"}
         </span>
@@ -229,15 +229,15 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         </ResponsiveModalHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="invite-name">Name</Label>
             <Input id="invite-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="invite-email">Work email</Label>
             <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="invite-role">Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as ShopRole)}>
               <SelectTrigger id="invite-role">

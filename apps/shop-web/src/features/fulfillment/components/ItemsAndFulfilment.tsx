@@ -87,7 +87,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
         <div className="grid min-w-0 flex-1 gap-2">
           <h2 className="ef-panel__title">Items and fulfilment</h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <div className="ef-meter ef-meter--lg w-full max-w-[260px]" aria-hidden="true">
+            <div className="ef-meter ef-meter--lg w-full max-w-65" aria-hidden="true">
               <i className="ef-meter__booked" style={{ width: `${pct}%` }} />
             </div>
             <p className="ef-panel__desc">
@@ -103,7 +103,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
       </div>
 
       {editable ? (
-        <div className="flex flex-wrap items-center gap-2.5 border-b border-b-border px-5 py-3 max-md:px-4">
+        <div className="flex flex-wrap items-center gap-3 border-b border-b-border px-5 py-3 max-md:px-4">
           <div className="min-w-0 flex-1">
             <ScanField
               accept={(t) => /^\d{8,14}$/.test(t.trim())}
@@ -134,7 +134,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
           const Z = ZONE[zone]
           return (
             <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
-              <h3 className="flex items-center gap-2 border-b border-b-border bg-muted/55 px-5 py-3 text-[13px] font-semibold tracking-[0.02em] max-md:px-4 max-md:py-2.5 [&_svg]:size-4">
+              <h3 className="flex items-center gap-2 border-b border-b-border bg-muted/55 px-5 py-3 text-sm font-semibold tracking-[0.02em] max-md:px-4 max-md:py-3 [&_svg]:size-4">
                 <Z.icon aria-hidden="true" />
                 {STORAGE_CLASS_WORDS[zone].toUpperCase()}
                 <span className="font-normal tracking-normal text-muted-foreground">· {Z.hint}</span>

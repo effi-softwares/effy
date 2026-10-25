@@ -156,7 +156,7 @@ export function OverviewScreen() {
             actions={
               <span className="ef-tag">
                 <span
-                  className="size-1.5 animate-[effy-pulse_2s_ease-in-out_infinite] rounded-full bg-success"
+                  className="size-2 animate-[effy-pulse_2s_ease-in-out_infinite] rounded-full bg-success"
                   aria-hidden="true"
                 />
                 Live
@@ -174,7 +174,7 @@ export function OverviewScreen() {
                     <span className="ef-attn__title">{a.title}</span>
                     <span className="ef-attn__desc block">{a.desc}</span>
                   </span>
-                  <span className="min-w-10 text-right text-[22px] leading-[28px] font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-[18px]">
+                  <span className="min-w-10 text-right text-2xl leading-7 font-semibold tracking-[-0.02em] tabular-nums max-md:min-w-7 max-md:text-lg">
                     {a.n === undefined ? <Skeleton className="ml-auto h-6 w-8" /> : a.n}
                   </span>
                   <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />

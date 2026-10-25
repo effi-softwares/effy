@@ -426,7 +426,7 @@ export function SearchExperience({
               <SlidersHorizontal aria-hidden="true" />
               Filters
               {activeCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-2 text-xs text-primary-foreground">
                   {activeCount}
                 </span>
               )}
@@ -437,7 +437,7 @@ export function SearchExperience({
                 key={chip.key}
                 type="button"
                 onClick={chip.remove}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium hover:bg-accent max-lg:hidden"
+                className="inline-flex h-7 items-center gap-2 rounded-md border px-2 text-xs font-medium hover:bg-accent max-lg:hidden"
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}
@@ -481,7 +481,7 @@ export function SearchExperience({
                   key={chip.key}
                   type="button"
                   onClick={chip.remove}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium"
                   aria-label={`Remove filter: ${chip.label}`}
                 >
                   {chip.label}

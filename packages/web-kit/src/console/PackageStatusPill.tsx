@@ -43,7 +43,7 @@ export function PackageStatusPill({
 }) {
   const Icon = STATUS_ICON[view.status];
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <Badge variant={STATUS_TONE[view.status]}>
         {icons ? <Icon aria-hidden="true" /> : null}
         {view.word}

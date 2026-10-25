@@ -121,7 +121,7 @@ function PanelSkeleton({ rows }: { rows: number }) {
           <Skeleton className="size-9 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-3.5 w-1/3" />
+            <Skeleton className="h-4 w-1/3" />
           </div>
         </div>
       ))}

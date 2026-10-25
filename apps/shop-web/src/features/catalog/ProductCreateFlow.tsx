@@ -222,7 +222,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
 
       <div className="ef-detail">
         <section className="ef-panel ef-detail__main">
-          <div className="ef-panel__body min-h-[280px]">
+          <div className="ef-panel__body min-h-70">
             <div className="flex h-full flex-col gap-4">{stepBody()}</div>
           </div>
         </section>

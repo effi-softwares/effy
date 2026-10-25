@@ -57,9 +57,9 @@ export function OrderTagsDialog({
       }
     >
       {draft.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {draft.map((t) => (
-            <span key={t} className="ef-tag h-9! gap-1 pr-0.5 text-sm!">
+            <span key={t} className="ef-tag h-9! gap-1 pr-1 text-sm!">
               {t}
               <Button
                 type="button"

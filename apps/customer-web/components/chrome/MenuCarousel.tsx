@@ -65,7 +65,7 @@ export function MenuCarousel({ children }: { children: React.ReactNode }) {
       onPointerLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
       onBlur={() => setHeld(false)}
-      className="flex h-full min-h-[22rem] flex-col"
+      className="flex h-full min-h-88 flex-col"
     >
       <div ref={scope} className="relative flex-1 overflow-hidden rounded-lg">
         {slides.map((slide, i) => (
@@ -84,11 +84,11 @@ export function MenuCarousel({ children }: { children: React.ReactNode }) {
       </div>
       {count > 1 && (
         <div className="mt-2 flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5" aria-hidden="true">
+          <div className="flex items-center gap-2" aria-hidden="true">
             {slides.map((_, i) => (
               <span
                 key={i}
-                className={`size-1.5 rounded-full ${i === current ? "bg-primary" : "bg-primary/25"}`}
+                className={`size-2 rounded-full ${i === current ? "bg-primary" : "bg-primary/25"}`}
               />
             ))}
           </div>

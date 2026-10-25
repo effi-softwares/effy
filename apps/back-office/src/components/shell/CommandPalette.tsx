@@ -303,7 +303,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
 
   const body: ReactNode = (
     <>
-      <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-4">
+      <div className="flex h-13 shrink-0 items-center gap-2 border-b border-border px-4">
         <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <input
           autoFocus
@@ -316,7 +316,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           aria-activedescendant={flat[focus] ? `bo-palette-${focus}` : undefined}
           aria-label="Search"
           placeholder="Search orders, customers, packages, codes — or type a command"
-          className="min-w-0 flex-1 border-0 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
         />
         <Kbd className="max-md:hidden">esc</Kbd>
       </div>
@@ -325,7 +325,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
         id="bo-palette-list"
         role="listbox"
         aria-label="Results"
-        className="max-h-[440px] overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
+        className="max-h-110 overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
       >
         {sections.length === 0 ? (
           <p className="px-2 py-8 text-center text-sm text-muted-foreground">
@@ -338,7 +338,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
         ) : (
           sections.map((section) => (
             <div key={section.label} role="group" aria-label={section.label} className="pt-1">
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{section.label}</div>
+              <div className="px-2 py-2 text-xs font-medium text-muted-foreground">{section.label}</div>
               {section.items.map((item) => {
                 index += 1
                 const i = index
@@ -353,13 +353,13 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
                     onMouseMove={() => setFocus(i)}
                     onClick={(e) => choose(item, e.metaKey || e.ctrlKey)}
                     className={cn(
-                      "flex h-9 w-full items-center gap-2.5 rounded-sm px-2 text-left text-sm",
+                      "flex h-9 w-full items-center gap-3 rounded-sm px-2 text-left text-sm",
                       i === focus && "bg-accent",
                     )}
                   >
                     <item.icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">
-                      <span className={cn(item.mono && "font-mono text-[13px] tracking-[-0.01em]")}>{item.label}</span>
+                      <span className={cn(item.mono && "font-mono text-sm tracking-[-0.01em]")}>{item.label}</span>
                       {item.meta ? <span className="text-muted-foreground"> {item.meta}</span> : null}
                     </span>
                     {item.keys ? <Kbd>{item.keys}</Kbd> : null}
@@ -398,7 +398,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
           <DrawerDescription className="sr-only">
             Search orders, customers and package codes, or go to a page.
           </DrawerDescription>
-          <span aria-hidden="true" className="mx-auto mt-2.5 mb-1 h-[5px] w-12 shrink-0 rounded-full bg-muted" />
+          <span aria-hidden="true" className="mx-auto mt-3 mb-1 h-2 w-12 shrink-0 rounded-full bg-muted" />
           <div className="flex min-h-0 flex-1 flex-col">{body}</div>
         </DrawerContent>
       </Drawer>
@@ -409,7 +409,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] flex max-w-[640px] translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-[640px]"
+        className="top-[12%] flex max-w-160 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-160"
       >
         <DialogTitle className="sr-only">Search and commands</DialogTitle>
         <DialogDescription className="sr-only">

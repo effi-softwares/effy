@@ -54,20 +54,20 @@ export function NewOrderAlert() {
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-primary py-3.5 pr-4 pl-5 text-primary-foreground"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-primary py-4 pr-4 pl-5 text-primary-foreground"
     >
       <span
-        className="grid size-11 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-5.5"
+        className="grid size-11 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-6"
         aria-hidden="true"
       >
         <BellRing />
       </span>
       <div className="min-w-0 flex-[1_1_240px]">
-        <p className="text-[17px] leading-[24px] font-semibold">
+        <p className="text-lg leading-6 font-semibold">
           New order · <span className="font-mono">{first.orderNumber}</span>
           {more > 0 ? ` and ${more} more` : ""}
         </p>
-        <p className="text-[14px] leading-[20px] opacity-90">
+        <p className="text-sm leading-5 opacity-90">
           {items} · {who}
           {soundOn ? " · the chime repeats until someone opens it" : ""}
         </p>

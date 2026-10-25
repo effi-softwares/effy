@@ -22,7 +22,7 @@ export function SignInScreen({ next }: { next?: string }) {
   return (
     <div className="grid gap-6">
       <div className="grid gap-2">
-        <h1 className="text-[30px] leading-9 font-semibold tracking-[-.025em] max-md:text-2xl">Sign in to Effy Shop</h1>
+        <h1 className="text-3xl leading-9 font-semibold tracking-[-.025em] max-md:text-2xl">Sign in to Effy Shop</h1>
         <p className="text-muted-foreground">
           We&apos;ll email you a 6-digit code to access your shop. There&apos;s no password.
         </p>

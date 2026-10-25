@@ -61,11 +61,11 @@ export function Field({
       {error ? (
         // `role="alert"` so a shopper using a screen reader hears the refusal rather than tabbing past
         // it. A decline they cannot perceive is indistinguishable from the form doing nothing.
-        <p role="alert" className="mt-1.5 text-[13px] font-medium text-foreground">
+        <p role="alert" className="mt-2 text-sm font-medium text-foreground">
           {error}
         </p>
       ) : hint ? (
-        <p className="mt-1.5 text-[13px] text-muted-foreground">{hint}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   )

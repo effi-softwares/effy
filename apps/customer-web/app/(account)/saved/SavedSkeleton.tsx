@@ -15,7 +15,7 @@ export function SavedSkeleton() {
       <div className="divide-y rounded-lg border">
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex items-center gap-4 p-4">
-            <Skeleton className="size-[72px]" />
+            <Skeleton className="size-18" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-48" />
               <Skeleton className="h-4 w-24" />

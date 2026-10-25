@@ -62,11 +62,11 @@ export function StorefrontChrome({
 
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container">
-          <div className="flex h-14 items-center gap-2 lg:h-[68px] lg:gap-6">
+          <div className="flex h-14 items-center gap-2 lg:h-17 lg:gap-6">
             <Suspense fallback={<MobileNavFallback />}>
               <MobileNavIsland />
             </Suspense>
-            <BrandMark className="max-lg:text-[22px]!" />
+            <BrandMark className="max-lg:text-2xl!" />
             {search && (
               <Suspense fallback={<HeaderSearchFallback className="max-lg:hidden" />}>
                 <SearchWithAisles className="max-lg:hidden" />

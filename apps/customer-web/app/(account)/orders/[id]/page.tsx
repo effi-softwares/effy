@@ -148,7 +148,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           ) : null}
 
           <section aria-labelledby="order-help" className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <h2 id="order-help" className="leading-none font-semibold">
                 Something wrong with this order?
               </h2>

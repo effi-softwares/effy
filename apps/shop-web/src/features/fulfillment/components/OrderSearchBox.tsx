@@ -34,7 +34,7 @@ export function OrderSearchBox({ value, onChange }: { value: string; onChange: (
             setText("")
             onChange("")
           }}
-          className="absolute right-1.5"
+          className="absolute right-2"
         >
           <X className="size-4" />
         </Button>

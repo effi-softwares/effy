@@ -26,7 +26,7 @@ export function StepTabs({ step, disabled, onStep }: Props) {
             className={cn("ef-tabs__tab disabled:cursor-default", active && "is-active")}
           >
             <span aria-hidden="true" className={cn("ef-tabs__count", done && "ef-tabs__count--primary")}>
-              {done ? <Check className="size-3.5" /> : i + 1}
+              {done ? <Check className="size-4" /> : i + 1}
             </span>
             {title}
             <span className="sr-only">{done ? " (done)" : active ? " (now)" : ""}</span>

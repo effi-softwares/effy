@@ -266,7 +266,7 @@ export function OrdersListScreen() {
         </div>
       )}
 
-      <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground max-md:hidden">
+      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground max-md:hidden">
         <Kbd>J</Kbd>
         <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package;
         Problem always wins.

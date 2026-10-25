@@ -150,7 +150,7 @@ export function FeedbackListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <Skeleton className="h-[480px]" />
+        <Skeleton className="h-120" />
       ) : items.length === 0 ? (
         <EmptyState
           icon={MessageSquareText}
@@ -236,7 +236,7 @@ function InboxItem({
             {i.rating}
           </span>
         ) : null}
-        <span className="ef-code text-2xs text-muted-foreground">{i.referenceCode}</span>
+        <span className="ef-code text-xs text-muted-foreground">{i.referenceCode}</span>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">{i.preview}</p>
     </>

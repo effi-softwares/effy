@@ -75,7 +75,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
 
       {canManage ? (
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="cap-fn">Work</Label>
             <select
               id="cap-fn"
@@ -91,7 +91,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
             </select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="cap-zone">Where</Label>
             <select
               id="cap-zone"

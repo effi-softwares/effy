@@ -46,14 +46,14 @@ export function FulfilDialog({
         {inParcel.map((l) => (
           <div
             key={l.orderItemId}
-            className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-2.5"
+            className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-3"
           >
-            <div className="grid min-w-0 flex-1 gap-0.5">
+            <div className="grid min-w-0 flex-1 gap-1">
               <div className="font-medium">
                 {l.name}
                 {l.variantLabel ? ` · ${l.variantLabel}` : ""}
               </div>
-              <div className="font-mono text-[13px] text-muted-foreground">{lineCodes(l.variantCode, l.sku)}</div>
+              <div className="font-mono text-sm text-muted-foreground">{lineCodes(l.variantCode, l.sku)}</div>
             </div>
             <div className="whitespace-nowrap tabular-nums">
               {l.gatheredQuantity} <span className="text-muted-foreground">of {l.orderedQuantity}</span>
@@ -67,7 +67,7 @@ export function FulfilDialog({
           as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
         </p>
       ) : null}
-      <div className="grid gap-0.5">
+      <div className="grid gap-1">
         <div className="font-medium">The customer is told</div>
         <div className="text-sm text-muted-foreground">They get a notification as soon as it&apos;s ready.</div>
       </div>

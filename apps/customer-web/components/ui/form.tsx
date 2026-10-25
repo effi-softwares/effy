@@ -59,7 +59,7 @@ export function Switch({
         aria-hidden="true"
         className={cn(
           "pointer-events-none block size-4 rounded-full bg-background shadow-xs transition-transform",
-          checked ? "translate-x-[18px]" : "translate-x-0.5",
+          checked ? "translate-x-5" : "translate-x-1",
         )}
       />
     </button>

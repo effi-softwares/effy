@@ -37,7 +37,7 @@ export function DuplicateSkinDialog({
         <DialogHeader>
           <DialogTitle>Duplicate {skin.name}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="dup-name">Name of the copy</Label>
           <Input id="dup-name" value={name} onChange={(e) => setName(e.target.value)} />
           {error ? (

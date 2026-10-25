@@ -132,7 +132,7 @@ export function DutyPanel() {
                             : "Finish time unknown"}
                       </span>
                       {d.overdue ? (
-                        <span className="late mt-0.5 flex">
+                        <span className="late mt-1 flex">
                           <Clock aria-hidden="true" />
                           Shift running long
                         </span>

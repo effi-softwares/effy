@@ -12,7 +12,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-[15px] leading-[1.42857] tabular-nums", className)}
+        className={cn("w-full caption-bottom text-base leading-[1.42857] tabular-nums", className)}
         {...props}
       />
     </div>
@@ -77,7 +77,7 @@ function TableHead({
       data-slot="table-head"
       data-numeric={numeric ? "" : undefined}
       className={cn(
-        "h-11 whitespace-nowrap bg-card px-3 first:pl-4 last:pr-4 align-middle text-[13.5px] font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-11 whitespace-nowrap bg-card px-3 first:pl-4 last:pr-4 align-middle text-sm font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-1",
         numeric ? "text-right" : "text-left",
         className
       )}
@@ -110,13 +110,13 @@ function TableSortHead({
         type="button"
         onClick={onSort}
         className={cn(
-          "flex h-9 w-full items-center gap-1 px-3 text-[11.5px] font-medium uppercase tracking-[0.04em] text-muted-foreground transition-colors outline-none hover:text-foreground",
+          "flex h-9 w-full items-center gap-1 px-3 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground transition-colors outline-none hover:text-foreground",
           numeric ? "justify-end" : "justify-start"
         )}
       >
         {children}
         {direction ? (
-          <span aria-hidden="true" className="text-[9px] leading-none text-brand">
+          <span aria-hidden="true" className="text-xs leading-none text-brand">
             {direction === "asc" ? "\u25b2" : "\u25bc"}
           </span>
         ) : null}
@@ -139,7 +139,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "whitespace-nowrap px-3 py-3.5 first:pl-4 last:pr-4 align-middle text-[15px] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "whitespace-nowrap px-3 py-4 first:pl-4 last:pr-4 align-middle text-base [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-1",
         numeric && "text-right font-mono tabular-nums",
         mono && !numeric && "font-mono",
         className

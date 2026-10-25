@@ -90,7 +90,7 @@ function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }
       >
         <Icon />
       </span>
-      <div className="ef-attn__text min-w-[160px]">
+      <div className="ef-attn__text min-w-40">
         <p className="ef-attn__title text-pretty">{row.title}</p>
         <p className="ef-attn__desc">{row.detail}</p>
       </div>

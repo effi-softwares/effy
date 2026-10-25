@@ -67,7 +67,7 @@ export function LookPanel({
       description={`Layouts that fit a ${SIZE_WORD[group.size].toLowerCase()} place: ${fitsWords(group.size)} — and Classic, as it always looked.`}
     >
       <fieldset disabled={!canManage || update.isPending} className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="group-size">Size of the place</Label>
           <select
             id="group-size"
@@ -82,7 +82,7 @@ export function LookPanel({
             ))}
           </select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="group-default">Default skin</Label>
           <select
             id="group-default"
@@ -97,7 +97,7 @@ export function LookPanel({
             ))}
           </select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="group-code-default">For promotions with a code</Label>
           <select
             id="group-code-default"
@@ -188,7 +188,7 @@ export function MemberLookDialog({
           <DialogDescription>Only in {group.name}. Its other places keep their own look.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="member-skin">Skin</Label>
             <select
               id="member-skin"
@@ -204,7 +204,7 @@ export function MemberLookDialog({
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="member-picture">Picture</Label>
             <select
               id="member-picture"

@@ -86,7 +86,7 @@ function ShopDefaultThreshold({ shopId }: { shopId: string }) {
         then reported as running low, though a product that reaches zero is still reported as out of stock.
       </p>
       <div className="flex items-end gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="shop-default-threshold">Threshold</Label>
           <Input
             id="shop-default-threshold"

@@ -75,7 +75,7 @@ export function WalletRow({
       />
 
       {available === "yes" ? (
-        <p className="mt-2.5 text-center text-xs text-muted-foreground">
+        <p className="mt-3 text-center text-xs text-muted-foreground">
           One tap — no card details to type.
         </p>
       ) : null}
@@ -88,7 +88,7 @@ export function WalletDivider({ label = "Or pay another way" }: { label?: string
   return (
     <div className="flex items-center gap-4">
       <span className="h-px flex-1 bg-border" />
-      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border" />
     </div>
   )

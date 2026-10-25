@@ -52,16 +52,16 @@ function Loader({
 
 const AREA = {
   // A drawer's body: the sheet is narrow, the mark should not dominate it.
-  sheet: { loader: 44, className: "min-h-40", gap: "gap-3", title: "text-[13px]", text: "text-xs" },
+  sheet: { loader: 44, className: "min-h-40", gap: "gap-3", title: "text-sm", text: "text-xs" },
   // A table or a section: roughly the height of a short result set, so arrival does not jump.
-  region: { loader: 56, className: "min-h-72", gap: "gap-4", title: "text-sm", text: "text-[13px]" },
+  region: { loader: 56, className: "min-h-72", gap: "gap-4", title: "text-sm", text: "text-sm" },
   // A whole screen's content.
   page: {
     loader: 72,
     className: "min-h-[min(60vh,520px)]",
     gap: "gap-5",
-    title: "text-[15px]",
-    text: "text-[13px]",
+    title: "text-base",
+    text: "text-sm",
   },
 } as const
 

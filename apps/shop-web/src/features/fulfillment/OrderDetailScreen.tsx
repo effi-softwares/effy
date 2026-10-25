@@ -270,7 +270,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
                 </div>
                 <div className="ef-dl__row">
                   <dt>Tags</dt>
-                  <dd className="flex flex-wrap items-center gap-1.5">
+                  <dd className="flex flex-wrap items-center gap-2">
                     {detail.tags.length > 0 ? (
                       detail.tags.map((t) => (
                         <span key={t} className="ef-tag">
@@ -352,11 +352,11 @@ function DetailSkeleton() {
           <div className="ef-panel">
             {Array.from({ length: 4 }, (_, i) => (
               <div key={i} className="pick">
-                <Skeleton className="size-11 rounded-[10px]" />
+                <Skeleton className="size-11 rounded-xl" />
                 <Skeleton className="pick__img" />
                 <div className="grid gap-2">
                   <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-4 w-1/3" />
                 </div>
                 <Skeleton className="h-6 w-10" />
               </div>

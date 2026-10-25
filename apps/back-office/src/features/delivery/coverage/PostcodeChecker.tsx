@@ -29,7 +29,7 @@ export function PostcodeChecker() {
   return (
     <div className="space-y-2">
       <form onSubmit={check} className="flex items-end gap-2">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="coverage-check">Check a postcode or place</Label>
           <Input
             id="coverage-check"

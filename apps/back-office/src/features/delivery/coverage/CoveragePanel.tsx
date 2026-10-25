@@ -35,7 +35,7 @@ import { DistanceDialog } from "./DistanceDialog"
 import { GroupsPanel } from "./GroupsPanel"
 import { PostcodeChecker } from "./PostcodeChecker"
 
-const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs"
+const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs"
 
 export function CoveragePanel({ canManage }: { canManage: boolean }) {
   const [filters, setFilters] = useState<CoverageFilters>({})

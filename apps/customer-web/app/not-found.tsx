@@ -25,7 +25,7 @@ export default function NotFound() {
   return (
     <StorefrontChrome search>
       <div className="container py-10">
-        <div className="mx-auto max-w-[560px] space-y-4 py-12 text-center">
+        <div className="mx-auto max-w-140 space-y-4 py-12 text-center">
           <p className="text-sm text-muted-foreground">404</p>
           <h1 className="text-4xl font-semibold tracking-tight">We can&apos;t find that page</h1>
           <p className="text-base text-muted-foreground">

@@ -53,7 +53,7 @@ export function ScanButton() {
         <span className="max-sm:hidden">Scan</span>
       </Button>
       <ResponsiveModal open={open} onOpenChange={(o) => !busy && setOpen(o)}>
-        <ResponsiveModalContent className="sm:max-w-[520px]">
+        <ResponsiveModalContent className="sm:max-w-130">
           <ResponsiveModalHeader>
             <ResponsiveModalTitle>Scan from anywhere</ResponsiveModalTitle>
             <ResponsiveModalDescription>

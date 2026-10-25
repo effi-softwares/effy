@@ -44,9 +44,9 @@ const KINDS: Record<
 export function StatusPage({ kind, onRetry }: { kind: StatusKind; onRetry?: () => void }) {
   const k = KINDS[kind]
   return (
-    <div className="mx-auto flex max-w-[460px] flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
+    <div className="mx-auto flex max-w-115 flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
       <span className={cn("ef-icon-tile size-14!", k.problem && "ef-icon-tile--problem")}>
-        <k.icon aria-hidden="true" className="size-[26px]!" />
+        <k.icon aria-hidden="true" className="size-7!" />
       </span>
       <span className="ef-code text-muted-foreground">{k.code}</span>
       <h1 className="text-2xl font-semibold tracking-tight">{k.title}</h1>

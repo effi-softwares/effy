@@ -209,14 +209,14 @@ export function CommandPalette({
           placeholder="Search orders and products, or type a command"
           className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
         />
-        <Kbd className="max-[1279px]:hidden">esc</Kbd>
+        <Kbd className="max-xl:hidden">esc</Kbd>
       </div>
       <div
         ref={listRef}
         id="sh-palette-list"
         role="listbox"
         aria-label="Results"
-        className="max-h-[480px] overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
+        className="max-h-120 overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
       >
         {sections.length === 0 ? (
           <p className="px-2 py-8 text-center text-muted-foreground">
@@ -225,7 +225,7 @@ export function CommandPalette({
         ) : (
           sections.map((section) => (
             <div key={section.label} role="group" aria-label={section.label} className="pt-1">
-              <div className="ef-eyebrow px-2 py-1.5">{section.label}</div>
+              <div className="ef-eyebrow px-2 py-2">{section.label}</div>
               {section.items.map((item) => {
                 index += 1
                 const i = index
@@ -257,7 +257,7 @@ export function CommandPalette({
           <p className="px-2 pt-2 text-sm text-muted-foreground">Type two characters to search orders and products.</p>
         ) : null}
       </div>
-      <div className="flex h-10 shrink-0 items-center gap-4 border-t border-border px-4 text-sm whitespace-nowrap text-muted-foreground max-[1279px]:hidden">
+      <div className="flex h-10 shrink-0 items-center gap-4 border-t border-border px-4 text-sm whitespace-nowrap text-muted-foreground max-xl:hidden">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> move
@@ -289,7 +289,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] flex max-w-[640px] translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-[640px]"
+        className="top-[12%] flex max-w-160 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-160"
       >
         <DialogTitle className="sr-only">Search and commands</DialogTitle>
         <DialogDescription className="sr-only">Search orders and products, or go to a page.</DialogDescription>

@@ -5,7 +5,7 @@
  */
 
 const CHIP =
-  "inline-flex h-[22px] w-[34px] shrink-0 items-center justify-center rounded-[4px] border border-border bg-secondary text-[8px] font-semibold tracking-[0.04em] text-muted-foreground"
+  "inline-flex h-6 w-9 shrink-0 items-center justify-center rounded-sm border border-border bg-secondary text-xs font-semibold tracking-[0.04em] text-muted-foreground"
 
 /** One network chip. `label` is the network's short name, not a logo. */
 export function NetworkMark({ label }: { label: string }) {
@@ -25,7 +25,7 @@ export function NetworkMark({ label }: { label: string }) {
 export function AcceptedNetworks({ className }: { className?: string }) {
   return (
     <span className={className} aria-hidden="true">
-      <span className="flex gap-1.5">
+      <span className="flex gap-2">
         <NetworkMark label="VISA" />
         <NetworkMark label="MC" />
         <NetworkMark label="AMEX" />

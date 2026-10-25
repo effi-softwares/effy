@@ -6,7 +6,7 @@ import { ACCOUNT_LINKS } from "@/components/header/account-links"
 import { Avatar } from "@/components/ui/misc"
 import { initialsFor } from "@/lib/initials"
 
-const item = "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+const item = "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent"
 
 /**
  * The header's account trigger and dropdown (reference: Home · Account dropdown).
@@ -40,7 +40,7 @@ export function AccountMenu({
           user reads off the button is in its name (WCAG 2.5.3). */}
       <summary
         data-testid="account-menu-trigger"
-        className="flex h-11 list-none items-center gap-2 rounded-md py-1 pr-2.5 pl-1 hover:bg-accent group-open:bg-accent [&::-webkit-details-marker]:hidden"
+        className="flex h-11 list-none items-center gap-2 rounded-md py-1 pr-3 pl-1 hover:bg-accent group-open:bg-accent [&::-webkit-details-marker]:hidden"
       >
         <Avatar initials={initialsFor(givenName, familyName) ?? "·"} />
         <span className="flex flex-col text-left">
@@ -50,11 +50,11 @@ export function AccountMenu({
           </span>
           {pts !== null && <span className="mt-1 text-xs leading-none text-primary">{pts} pts</span>}
         </span>
-        <ChevronDown aria-hidden="true" className="size-3.5 text-muted-foreground" />
+        <ChevronDown aria-hidden="true" className="size-4 text-muted-foreground" />
       </summary>
 
-      <div className="absolute right-0 z-50 mt-2 w-[260px] rounded-md border bg-popover p-1 shadow-md">
-        <div className="px-2 py-1.5">
+      <div className="absolute right-0 z-50 mt-2 w-65 rounded-md border bg-popover p-1 shadow-md">
+        <div className="px-2 py-2">
           <p data-testid="menu-greeting" className="truncate text-sm font-medium">
             Hi, {givenName ?? "there"}
           </p>

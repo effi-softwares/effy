@@ -6,7 +6,7 @@
 
 @layer components {
   .ticket {
-    @apply flex flex-col gap-2.5 rounded-lg border border-solid border-border bg-card p-4 text-inherit no-underline;
+    @apply flex flex-col gap-3 rounded-lg border border-solid border-border bg-card p-4 text-inherit no-underline;
   }
   .ticket.is-new {
     @apply border-primary;
@@ -22,7 +22,7 @@
     @apply w-full;
   }
   .pick {
-    @apply grid min-h-20 grid-cols-[44px_56px_minmax(0,1fr)_auto] items-center gap-3.5 border-b border-b-border px-5 py-3;
+    @apply grid min-h-20 grid-cols-[44px_56px_minmax(0,1fr)_auto] items-center gap-4 border-b border-b-border px-5 py-3;
   }
   .pick:last-child {
     @apply border-b-0;
@@ -53,7 +53,7 @@
     @apply size-5;
   }
   .stepper output {
-    @apply min-w-12 text-center text-[20px] font-semibold tabular-nums;
+    @apply min-w-12 text-center text-xl font-semibold tabular-nums;
   }
 
   .actionbar {
@@ -105,10 +105,10 @@
     @apply flex items-center gap-2;
   }
   .ticket__code {
-    @apply font-mono text-[16px] font-semibold tracking-[-0.01em];
+    @apply font-mono text-base font-semibold tracking-[-0.01em];
   }
   .ticket__meta {
-    @apply text-[14px] leading-[20px] text-muted-foreground;
+    @apply text-sm leading-5 text-muted-foreground;
   }
   .pick__img {
     @apply size-14;
@@ -119,22 +119,22 @@
     }
   }
   .scan__state {
-    @apply flex items-center gap-2 text-[14px] font-medium;
+    @apply flex items-center gap-2 text-sm font-medium;
   }
   .scan__state svg {
-    @apply size-4.5;
+    @apply size-5;
   }
   .actionbar__text {
-    @apply flex min-w-0 flex-[1_1_260px] flex-col gap-0.5;
+    @apply flex min-w-0 flex-[1_1_260px] flex-col gap-1;
   }
   .actionbar__title {
-    @apply text-[16px] leading-[22px] font-semibold;
+    @apply text-base leading-6 font-semibold;
   }
   .actionbar__desc {
-    @apply text-[14px] leading-[20px] text-muted-foreground;
+    @apply text-sm leading-5 text-muted-foreground;
   }
   .actionbar__actions {
-    @apply flex flex-wrap gap-2.5;
+    @apply flex flex-wrap gap-3;
   }
   @media (max-width: 767px) {
     .actionbar__actions {
@@ -148,13 +148,13 @@
     }
   }
   .kpi__label {
-    @apply flex items-center gap-1.5 text-[13px] text-muted-foreground;
+    @apply flex items-center gap-2 text-sm text-muted-foreground;
   }
   .kpi__value {
-    @apply text-[22px] leading-[28px] font-semibold tracking-[-0.02em] tabular-nums;
+    @apply text-2xl leading-7 font-semibold tracking-[-0.02em] tabular-nums;
   }
   .kpi__sub {
-    @apply text-[13px] text-muted-foreground;
+    @apply text-sm text-muted-foreground;
   }
 }
 @keyframes sh-flash {

@@ -37,10 +37,10 @@ export function LegalDocumentView({ slug, version, home = "legal" }: { slug: str
   // The rail lists the document's own sections — its second-level headings, in order.
   const sections = blocks.flatMap((b, i) => (b.kind === "heading" && b.level === 2 ? [{ index: i, title: textOf(b.runs) }] : []))
   const contents = (
-    <ul className="flex flex-col gap-0.5">
+    <ul className="flex flex-col gap-1">
       {sections.map((s) => (
         <li key={s.index}>
-          <a href={`#${anchorOf(s.index)}`} className="block rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
+          <a href={`#${anchorOf(s.index)}`} className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground">
             {s.title}
           </a>
         </li>
@@ -62,12 +62,12 @@ export function LegalDocumentView({ slug, version, home = "legal" }: { slug: str
         {sections.length > 1 && (
           <aside className="sticky top-36 max-lg:hidden">
             <nav aria-label="On this page">
-              <p className="mb-2 px-2.5 text-xs font-medium tracking-wider text-muted-foreground uppercase">On this page</p>
+              <p className="mb-2 px-3 text-xs font-medium tracking-wider text-muted-foreground uppercase">On this page</p>
               {contents}
             </nav>
           </aside>
         )}
-        <article className="max-w-[760px] min-w-0 space-y-8">
+        <article className="max-w-190 min-w-0 space-y-8">
           <header className="space-y-3">
             <h1 className="text-3xl font-semibold tracking-tight">{doc.title}</h1>
             <p className="text-sm text-muted-foreground">

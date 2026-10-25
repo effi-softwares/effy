@@ -198,7 +198,7 @@ function PackageRow({
               <div className="ef-eyebrow mb-2">Hand-overs</div>
               <ol className="ef-tl" aria-label="Hand-overs">
                 {pkg.handovers.map((h, i) => (
-                  <li key={i} className="ef-tl__item pb-2.5">
+                  <li key={i} className="ef-tl__item pb-3">
                     <span
                       className={`ef-tl__mark ${h.step === "deliver" ? "ef-tl__mark--done" : "ef-tl__mark--primary"}`}
                       aria-hidden="true"

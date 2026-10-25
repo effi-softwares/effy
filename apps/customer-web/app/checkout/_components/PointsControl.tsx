@@ -62,7 +62,7 @@ export function PointsControl({
           />
           <span
             aria-hidden="true"
-            className="relative h-5 w-9 rounded-full bg-input transition-colors peer-checked:bg-primary peer-disabled:opacity-50 after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-background after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"
+            className="relative h-5 w-9 rounded-full bg-input transition-colors peer-checked:bg-primary peer-disabled:opacity-50 after:absolute after:top-1 after:left-1 after:size-4 after:rounded-full after:bg-background after:shadow-xs after:transition-transform peer-checked:after:translate-x-4"
           />
         </label>
       </div>

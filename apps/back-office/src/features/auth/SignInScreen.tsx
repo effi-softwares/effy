@@ -44,10 +44,10 @@ export function SignInScreen({ next }: { next?: string }) {
         </p>
       </section>
       <aside className="flex min-h-dvh flex-col justify-between border-l border-border bg-muted p-12 max-md:hidden">
-        <span className="text-[40px] leading-none font-bold tracking-[-0.04em]">
+        <span className="text-4xl leading-none font-bold tracking-[-0.04em]">
           effy<b className="text-success">.</b>
         </span>
-        <ul className="max-w-[440px] space-y-4">
+        <ul className="max-w-110 space-y-4">
           {ASIDE.map((a) => (
             <li key={a.title} className="flex gap-3">
               <span className="ef-icon-tile ef-icon-tile--primary">

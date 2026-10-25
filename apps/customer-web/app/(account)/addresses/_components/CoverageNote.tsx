@@ -9,7 +9,7 @@ export function CoverageNote({ coverage, className = "" }: { coverage: CoverageK
   if (!coverage) return null
   if (coverage === "none") {
     return (
-      <p className={`flex items-center gap-1.5 text-sm font-medium ${className}`} data-testid="coverage-refusal">
+      <p className={`flex items-center gap-2 text-sm font-medium ${className}`} data-testid="coverage-refusal">
         <CircleX aria-hidden="true" className="size-4 shrink-0" />
         {COVERAGE_REFUSAL_SENTENCE}
       </p>
@@ -18,7 +18,7 @@ export function CoverageNote({ coverage, className = "" }: { coverage: CoverageK
   const Icon = coverage === "effy" ? Truck : Package
   return (
     <p
-      className={`flex items-center gap-1.5 text-sm font-medium ${coverage === "effy" ? "text-brand" : "text-primary"} ${className}`}
+      className={`flex items-center gap-2 text-sm font-medium ${coverage === "effy" ? "text-brand" : "text-primary"} ${className}`}
       data-testid="coverage-label"
     >
       <Icon aria-hidden="true" className="size-4 shrink-0" />

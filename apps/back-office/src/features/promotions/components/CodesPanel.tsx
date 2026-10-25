@@ -50,7 +50,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
     >
       {canManage ? (
         <div className="flex flex-wrap items-end gap-3 border-b border-border px-5 py-4">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="codes-count">How many</Label>
             <Input
               id="codes-count"
@@ -62,7 +62,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
               className="w-28"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="codes-prefix">Prefix (optional)</Label>
             <Input
               id="codes-prefix"

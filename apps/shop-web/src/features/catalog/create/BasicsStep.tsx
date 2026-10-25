@@ -89,7 +89,7 @@ function Field({
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {required ? <span className="ml-0.5 text-muted-foreground">*</span> : null}
+        {required ? <span className="ml-1 text-muted-foreground">*</span> : null}
       </Label>
       {children}
     </div>

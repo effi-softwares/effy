@@ -35,7 +35,7 @@ export function CardAdd({
       <Link
         href={href}
         aria-label={`Choose a size of ${product.name}`}
-        className="relative z-10 inline-flex h-8 shrink-0 items-center rounded-md border border-input bg-background px-3 text-[13px] font-medium shadow-xs hover:bg-accent"
+        className="relative z-10 inline-flex h-8 shrink-0 items-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent"
       >
         Choose
       </Link>
@@ -54,7 +54,7 @@ export function CardAdd({
             capture({ name: "product_added_to_cart", props: { productId: product.productId, quantity: 1 } }),
           )
         }}
-        className="relative z-10 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-[13px] font-medium shadow-xs hover:bg-accent"
+        className="relative z-10 inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs hover:bg-accent"
       >
         <Plus aria-hidden="true" className="size-4" />
         Add
@@ -78,7 +78,7 @@ export function CardAdd({
       >
         <Minus aria-hidden="true" className="size-4" />
       </button>
-      <span aria-live="polite" className="min-w-6 text-center text-[13px] font-semibold tabular-nums">
+      <span aria-live="polite" className="min-w-6 text-center text-sm font-semibold tabular-nums">
         {quantity}
       </span>
       <button

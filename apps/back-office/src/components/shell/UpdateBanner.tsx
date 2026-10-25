@@ -14,7 +14,7 @@ export function UpdateBanner() {
   return (
     <div
       role="status"
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 rounded-xl border bg-popover px-4 py-2.5 text-sm text-popover-foreground shadow-lg"
+      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 rounded-xl border bg-popover px-4 py-3 text-sm text-popover-foreground shadow-lg"
     >
       <RefreshCw aria-hidden="true" className="size-4 shrink-0" />
       <span className="font-medium">A new version of back-office is ready.</span>

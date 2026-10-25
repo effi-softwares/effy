@@ -47,7 +47,7 @@ export function DistanceDialog({ postcode, onClose }: { postcode: CoveragePostco
             {postcode.needsReview ? " The hub has moved since it was entered — check it is still right." : ""}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="distance-km">Distance from the hub (km, straight line)</Label>
           <Input
             id="distance-km"

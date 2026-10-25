@@ -52,7 +52,7 @@ export function ExceptionsScreen() {
         <ErrorState error={open.error} onRetry={() => void open.refetch()} />
       ) : open.isPending || !data ? (
         <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-9 w-[28rem] max-w-full" />
+          <Skeleton className="h-9 w-112 max-w-full" />
           <Skeleton className="h-64" />
         </div>
       ) : (

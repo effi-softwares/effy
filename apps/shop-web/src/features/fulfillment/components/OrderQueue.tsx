@@ -67,15 +67,15 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
   const quiet = lane.tab === "collected"
 
   return (
-    <section className="flex min-w-0 flex-col gap-2.5 max-lg:snap-start" role="listitem" aria-label={lane.title}>
-      <h2 className="flex h-10 items-center gap-2 text-[15px] font-semibold">
+    <section className="flex min-w-0 flex-col gap-3 max-lg:snap-start" role="listitem" aria-label={lane.title}>
+      <h2 className="flex h-10 items-center gap-2 text-base font-semibold">
         {lane.title}
         {list.data ? (
           <span className={cn("ef-tabs__count", lane.tab === "new" && total > 0 && "ef-tabs__count--primary")}>
             {total}
           </span>
         ) : null}
-        {lane.hint ? <span className="ml-auto text-[13px] font-normal text-muted-foreground">{lane.hint}</span> : null}
+        {lane.hint ? <span className="ml-auto text-sm font-normal text-muted-foreground">{lane.hint}</span> : null}
       </h2>
 
       {list.isError ? (
@@ -89,7 +89,7 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
           </div>
         ))
       ) : rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-[14px] text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
           {EMPTY[lane.tab] ?? "Nothing here"}
         </p>
       ) : (
@@ -182,7 +182,7 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
 
       {row.status === "picking" ? (
         <>
-          <div className="flex items-center gap-2.5 text-[13px] tabular-nums text-muted-foreground [&_.ef-meter]:flex-auto">
+          <div className="flex items-center gap-3 text-sm tabular-nums text-muted-foreground [&_.ef-meter]:flex-auto">
             <div className="ef-meter" role="img" aria-label={`${row.gatheredCount} of ${row.itemCount} picked`}>
               <i
                 className="ef-meter__booked"
@@ -217,9 +217,7 @@ function QuietTicket({ row }: { row: OrderRow }) {
     >
       <span className="ticket__top">
         <span className="ticket__code">{row.orderNumber}</span>
-        <span className="ml-auto text-[14px] tabular-nums text-muted-foreground">
-          {formatPlacedShort(row.placedAt)}
-        </span>
+        <span className="ml-auto text-sm tabular-nums text-muted-foreground">{formatPlacedShort(row.placedAt)}</span>
       </span>
       <span className="ticket__meta">{itemsLine(row)}</span>
     </Link>

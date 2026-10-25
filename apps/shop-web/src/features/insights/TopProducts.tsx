@@ -17,7 +17,7 @@ export function TopProducts({
   return (
     <section className="ef-panel min-w-0">
       <header className="ef-panel__head">
-        <div className="grid gap-0.5">
+        <div className="grid gap-1">
           <h2 className="ef-panel__title">Top products</h2>
           <p className="ef-panel__desc">By revenue, {RANGE_PERIOD[range]}</p>
         </div>
@@ -33,7 +33,7 @@ export function TopProducts({
           <tbody>
             {products.map((p) => (
               <tr key={p.productId}>
-                <td className="w-[64px]">
+                <td className="w-16">
                   {p.thumbnailUrl ? (
                     <img src={p.thumbnailUrl} alt="" className="size-10 rounded-md border border-border object-cover" />
                   ) : (
@@ -51,7 +51,7 @@ export function TopProducts({
                   <span className="ef-sub font-mono">{p.sku ?? "—"}</span>
                 </td>
                 <td className="w-[34%]">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <Progress
                       className="min-w-10 flex-1"
                       height={5}
@@ -64,7 +64,7 @@ export function TopProducts({
                     </span>
                   </div>
                 </td>
-                <td className="is-num w-[110px] font-semibold whitespace-nowrap">{money(p.revenue, currency)}</td>
+                <td className="is-num w-28 font-semibold whitespace-nowrap">{money(p.revenue, currency)}</td>
               </tr>
             ))}
           </tbody>

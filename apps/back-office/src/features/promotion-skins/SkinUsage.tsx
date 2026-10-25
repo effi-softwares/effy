@@ -8,7 +8,7 @@ export function SkinUsage({ skin }: { skin: AdminSkinDTO }) {
       {usage.placements === 0 && usage.defaultOf.length === 0 ? (
         <p className="ef-sub">Nowhere yet. Choose it on a display group's page.</p>
       ) : (
-        <ul className="space-y-1.5 text-sm" data-testid="skin-usage">
+        <ul className="space-y-2 text-sm" data-testid="skin-usage">
           {usage.defaultOf.map((g) => (
             <li key={`d-${g.id}-${g.forCode}`}>
               Default of <span className="font-medium">{g.name}</span>

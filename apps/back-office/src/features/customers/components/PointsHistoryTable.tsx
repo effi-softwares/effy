@@ -26,7 +26,7 @@ const columns: ColumnDef<StaffPointsHistoryEntryDTO>[] = [
     id: "reason",
     header: "Reason",
     cell: ({ row }) => (
-      <span className="space-y-0.5">
+      <span className="space-y-1">
         <span className="block">{POINTS_REASON_LABELS[row.original.reason] ?? row.original.reason}</span>
         {row.original.note ? <span className="block text-sm text-muted-foreground">{row.original.note}</span> : null}
       </span>

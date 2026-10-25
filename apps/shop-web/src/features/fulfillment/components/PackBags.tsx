@@ -122,7 +122,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
       <div className="grid gap-3 border-b border-border px-5 py-4 max-md:px-4">
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {ZONES.map((z) => (
-            <div key={z} className="grid gap-1.5">
+            <div key={z} className="grid gap-2">
               <MicroLabel>
                 {PARCEL_ZONE_WORDS[z]}
                 {detail.zonesNeeded.includes(z) ? " · needed" : ""}
@@ -185,7 +185,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
             rememberLayout(v as LabelLayout)
           }}
         >
-          <SelectTrigger aria-label="Label size" className="w-[260px]">
+          <SelectTrigger aria-label="Label size" className="w-65">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -230,7 +230,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
         ) : null}
       </div>
 
-      <div className="grid gap-6 py-2 min-[1280px]:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="grid gap-6 py-2 xl:grid-cols-[minmax(0,1fr)_auto]">
         <div className="ef-table-scroll">
           <table className="ef-table ef-table--plain">
             <thead>
@@ -287,9 +287,9 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
           </table>
         </div>
         {previewSvg ? (
-          <figure className="grid justify-items-center gap-1.5 px-5 pb-4">
+          <figure className="grid justify-items-center gap-2 px-5 pb-4">
             <div
-              className="border-border w-[220px] overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
+              className="border-border w-55 overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
               dangerouslySetInnerHTML={{ __html: previewSvg }}
             />
             <figcaption className="text-sm text-muted-foreground">Preview</figcaption>

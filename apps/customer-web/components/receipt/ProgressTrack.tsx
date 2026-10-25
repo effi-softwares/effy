@@ -43,10 +43,10 @@ export function ProgressTrack({ stage, className }: { stage: OrderStage; classNa
             <li
               key={step.stage}
               className={cn(
-                "relative flex items-start gap-3 pb-4 last:pb-0 @md:flex-col @md:items-center @md:gap-1.5 @md:px-1 @md:pb-0 @md:text-center",
+                "relative flex items-start gap-3 pb-4 last:pb-0 @md:flex-col @md:items-center @md:gap-2 @md:px-1 @md:pb-0 @md:text-center",
                 // The line arriving at this step: down the side in a column, along the top in a row.
-                "before:absolute before:-top-4 before:left-[15px] before:h-4 before:w-0.5 first:before:hidden",
-                "@md:before:top-[15px] @md:before:-left-1/2 @md:before:h-0.5 @md:before:w-full",
+                "before:absolute before:-top-4 before:left-4 before:h-4 before:w-1 first:before:hidden",
+                "@md:before:top-4 @md:before:-left-1/2 @md:before:h-1 @md:before:w-full",
                 reached ? "before:bg-brand" : "before:bg-border",
               )}
             >
@@ -62,7 +62,7 @@ export function ProgressTrack({ stage, className }: { stage: OrderStage; classNa
                 <Icon />
               </span>
               <span>
-                <span className={cn("block text-[13px]", reached ? "font-semibold" : "font-medium text-muted-foreground")}>
+                <span className={cn("block text-sm", reached ? "font-semibold" : "font-medium text-muted-foreground")}>
                   {step.label}
                   {isCurrent ? <span className="sr-only"> — current step</span> : null}
                   {done ? <span className="sr-only"> — completed</span> : null}

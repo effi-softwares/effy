@@ -85,7 +85,7 @@ export function InsightsScreen() {
       {!dto ? (
         <div className="grid gap-6" aria-busy="true" aria-label="Loading insights">
           <Skeleton className="h-28 w-full rounded-lg" />
-          <div className="grid gap-6 min-[1024px]:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Skeleton className="h-64 rounded-lg" />
             <Skeleton className="h-64 rounded-lg" />
           </div>
@@ -94,7 +94,7 @@ export function InsightsScreen() {
         <>
           <MetricStrip dto={dto} backlog={today.data?.backlog} />
 
-          <div className="grid items-start gap-6 min-[1024px]:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2">
             <BarChart
               series="primary"
               title="Revenue"

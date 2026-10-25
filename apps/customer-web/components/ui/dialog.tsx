@@ -58,7 +58,7 @@ export function Dialog({
       className={cn(
         // Taller than the screen scrolls inside the dialog; the page behind never moves.
         "fx-dialog fx-dialog-modal fx-responsive m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-lg border bg-background p-6 text-foreground shadow-lg",
-        size === "lg" ? "max-w-[560px]" : "max-w-md",
+        size === "lg" ? "max-w-140" : "max-w-md",
       )}
     >
       <div className="flex flex-col gap-4">

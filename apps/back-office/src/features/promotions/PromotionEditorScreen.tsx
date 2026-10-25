@@ -86,7 +86,7 @@ function Editor({ current }: { current: Promotion | null }) {
     )
   }
 
-  const locked = used ? <Lock aria-label="Fixed once used" className="size-3.5 text-muted-foreground" /> : null
+  const locked = used ? <Lock aria-label="Fixed once used" className="size-4 text-muted-foreground" /> : null
   const targeted = d.kind === "item" || d.kind === "bxgy"
   const freeAllowed = d.kind === "delivery" || d.kind === "bxgy"
 
@@ -130,7 +130,7 @@ function Editor({ current }: { current: Promotion | null }) {
                 />
               </Field>
               <div className="space-y-2">
-                <span className="flex items-center gap-1.5 text-sm font-medium">How it applies {locked}</span>
+                <span className="flex items-center gap-2 text-sm font-medium">How it applies {locked}</span>
                 <Choice
                   label="How it applies"
                   value={d.trigger}
@@ -182,7 +182,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-1.5">What it gives {locked}</span>}>
+          <Panel title={<span className="flex items-center gap-2">What it gives {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Kind"
@@ -338,7 +338,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-1.5">Who {locked}</span>}>
+          <Panel title={<span className="flex items-center gap-2">Who {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Who"
@@ -402,7 +402,7 @@ function Editor({ current }: { current: Promotion | null }) {
                 <span className="text-sm font-medium">Days</span>
                 <div className="flex flex-wrap gap-3">
                   {DAYS.map((day, i) => (
-                    <label key={day} className="flex items-center gap-1.5 text-sm">
+                    <label key={day} className="flex items-center gap-2 text-sm">
                       <Checkbox
                         checked={d.daysOfWeek.includes(i + 1)}
                         onCheckedChange={(v) => set("daysOfWeek", toggleIn(d.daysOfWeek, i + 1, v === true))}

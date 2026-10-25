@@ -144,15 +144,15 @@ export function StockTable({
                         }}
                       />
                       {plan.kind === "invalid" ? (
-                        <p className="mt-1 text-[13px] font-medium">Enter {plan.message}</p>
+                        <p className="mt-1 text-sm font-medium">Enter {plan.message}</p>
                       ) : null}
                       {errors[v.id] ? (
-                        <p role="alert" className="mt-1 text-[13px] leading-tight font-medium">
+                        <p role="alert" className="mt-1 text-sm leading-tight font-medium">
                           {errors[v.id]}
                         </p>
                       ) : null}
                       {!v.stock.tracked && after !== null ? (
-                        <p className="mt-1 text-[13px] text-muted-foreground">Starts counting this size</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Starts counting this size</p>
                       ) : null}
                     </Td>
                     <Td align="right" className="font-medium tabular-nums">
@@ -178,7 +178,7 @@ export function StockTable({
         </div>
 
         <div className="ef-panel__foot flex-wrap items-end! justify-between!">
-          <div className="grid min-w-[260px] flex-1 gap-1.5">
+          <div className="grid min-w-65 flex-1 gap-2">
             <Label htmlFor="stock-note">Note (optional)</Label>
             <Input
               id="stock-note"

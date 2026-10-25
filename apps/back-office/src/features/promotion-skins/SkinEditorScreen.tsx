@@ -171,7 +171,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
         <fieldset className="ef-detail__main min-w-0 space-y-4" disabled={!canManage}>
           <Panel title="Name and layout">
             <div className="space-y-4">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="skin-name">Name</Label>
                 <Input
                   id="skin-name"
@@ -182,7 +182,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                 />
                 <p className="ef-sub">For staff only. Pick it by this name when placing a promotion.</p>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <span className="text-sm font-medium">Layout</span>
                 <div role="radiogroup" aria-label="Layout" className="grid gap-2 sm:grid-cols-3">
                   {DESIGNED_LAYOUTS.map((l) => (
@@ -331,7 +331,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                 />
                 {s.label.show ? (
                   <>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <Label htmlFor="label-words">Label words</Label>
                       <Input
                         id="label-words"
@@ -409,7 +409,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
               />
               {s.button.style !== "none" ? (
                 <>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <Label htmlFor="btn-words">Button words</Label>
                     <Input
                       id="btn-words"

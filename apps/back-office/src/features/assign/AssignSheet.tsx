@@ -74,10 +74,10 @@ export function AssignSheet({
       }
     >
       <label className="relative flex items-center">
-        <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 size-4 text-muted-foreground" />
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
         <span className="sr-only">Search drivers</span>
         <Input
-          className="pl-[34px]!"
+          className="pl-9!"
           placeholder="Search drivers"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

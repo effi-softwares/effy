@@ -25,7 +25,7 @@ export function ColourField({
   const [text, setText] = useState(value)
   const shown = HEX.test(text) && text.toLowerCase() !== value.toLowerCase() ? value : text
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={`${id}-hex`}>{label}</Label>
       <div className="flex items-center gap-2">
         <input
@@ -94,7 +94,7 @@ export function Choice<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <select id={id} className={cn(SELECT, "w-full")} value={value} onChange={(e) => onChange(e.target.value as T)}>
         {options.map((o) => (
@@ -121,7 +121,7 @@ export function Strength({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id}>
         {label} <span className="tabular-nums text-muted-foreground">{Math.round(value * 100)}%</span>
       </Label>

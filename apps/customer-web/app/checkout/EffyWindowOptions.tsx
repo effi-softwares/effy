@@ -163,7 +163,7 @@ export function EffyWindowOptions({
                 aria-expanded={timesShown}
                 aria-controls={timesId}
                 onClick={() => toggleTimes(d)}
-                className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline underline-offset-4"
+                className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline underline-offset-4"
               >
                 {DELIVERY_WINDOW_WORDS.timeOptionOpen}
                 <ChevronDown aria-hidden="true" className={"size-4 transition-transform " + (timesShown ? "rotate-180" : "")} />

@@ -30,11 +30,11 @@ function EmptyState({
       {...props}
     >
       {icon}
-      <div className="text-[14px] font-semibold">{title}</div>
+      <div className="text-sm font-semibold">{title}</div>
       {description ? (
-        <div className="max-w-[340px] text-[13px] text-muted-foreground">{description}</div>
+        <div className="max-w-85 text-sm text-muted-foreground">{description}</div>
       ) : null}
-      {action ? <div className="mt-1.5">{action}</div> : null}
+      {action ? <div className="mt-2">{action}</div> : null}
     </div>
   )
 }

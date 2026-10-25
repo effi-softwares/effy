@@ -120,7 +120,7 @@ export function BulkActions({
     >
       <div className="whitespace-nowrap tabular-nums">{selected.size} selected</div>
       <div aria-hidden="true" className="ef-bulkbar__sep" />
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
           Start picking
         </BarButton>

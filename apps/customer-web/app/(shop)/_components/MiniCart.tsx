@@ -74,12 +74,12 @@ export function MiniCart() {
         {/* The name is built from what is shown, plus hidden words — not an aria-label. A label
             that rewords the visible "$72.70 15" fails WCAG 2.5.3: a voice user saying what they
             see would not match it. */}
-        <ShoppingCart className="size-[18px]" aria-hidden="true" />
+        <ShoppingCart className="size-5" aria-hidden="true" />
         <span className="sr-only">Cart,</span>
         <span className="max-md:hidden">{formatMoney(totals.itemSubtotal, currency)}</span>
         {/* An inverted chip, not `bg-white/20`: that tint lifted the blue to 4.44:1 under white
             text, below AA. The inverse pair is the primary/foreground pair the token guard holds. */}
-        <span className="grid h-8 min-w-[30px] place-items-center rounded-sm bg-primary-foreground px-2 font-semibold text-primary">
+        <span className="grid h-8 min-w-8 place-items-center rounded-sm bg-primary-foreground px-2 font-semibold text-primary">
           {count > 99 ? "99+" : count}
         </span>
         <span className="sr-only">{count === 1 ? "item" : "items"}</span>
@@ -94,7 +94,7 @@ export function MiniCart() {
         // `backdrop:bg-black/50` matches the design-system overlays (Dialog/Sheet/Drawer). It was
         // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
         // appearance, so that scrim rendered as a white film on a dark surface. A scrim must darken.
-        className="fx-dialog fx-drawer-right ml-auto h-full max-h-none w-full max-w-[420px] border-l bg-background p-0 text-foreground shadow-lg"
+        className="fx-dialog fx-drawer-right ml-auto h-full max-h-none w-full max-w-105 border-l bg-background p-0 text-foreground shadow-lg"
         aria-labelledby="mini-cart-title"
         // Light dismiss. A native <dialog> closes on Escape and nothing else — which on a phone,
         // where there is no Escape key, leaves the close button as the only way out. A click whose

@@ -31,7 +31,7 @@ export function RefundBlock({
           </li>
         ))}
       </ul>
-      <dl className="flex flex-col gap-1.5 border-t pt-4 text-sm">
+      <dl className="flex flex-col gap-2 border-t pt-4 text-sm">
         <div className="flex justify-between gap-3">
           <dt>Refunded</dt>
           <dd className="tabular-nums">{refundedTotal}</dd>

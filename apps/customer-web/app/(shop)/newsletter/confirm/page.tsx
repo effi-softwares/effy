@@ -35,7 +35,7 @@ export default function NewsletterConfirmPage({
 }) {
   return (
     <div className="container py-10">
-      <div className="mx-auto max-w-[480px] py-12">
+      <div className="mx-auto max-w-120 py-12">
         <Suspense fallback={<Outcome icon={Loader} title="Confirming…" body="One moment." />}>
           <ConfirmOutcome searchParams={searchParams} />
         </Suspense>
@@ -104,7 +104,7 @@ function Outcome({
 }) {
   return (
     <div className="flex flex-col items-center gap-6 rounded-lg border bg-card p-6 text-center shadow-xs">
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-2">
         <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
           <Icon aria-hidden="true" className="size-6" />
         </span>

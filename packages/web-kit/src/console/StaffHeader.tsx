@@ -46,7 +46,7 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
   const mobileTitle = detail ?? page ?? title;
 
   return (
-    <header className="sticky top-0 z-10 flex h-(--header-h) flex-none items-center gap-2.5 border-b border-b-border bg-background pr-5 pl-4 max-md:gap-1.5 max-md:px-2">
+    <header className="sticky top-0 z-10 flex h-(--header-h) flex-none items-center gap-3 border-b border-b-border bg-background pr-5 pl-4 max-md:gap-2 max-md:px-2">
       <button type="button" className="ef-iconbtn md:hidden" aria-label="Open menu" onClick={() => setOpenMobile(true)}>
         <Menu aria-hidden="true" />
       </button>
@@ -68,7 +68,7 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
       ) : null}
       <nav
         aria-label="Breadcrumb"
-        className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[15px] whitespace-nowrap text-muted-foreground max-md:hidden [&>svg]:size-4 [&>svg]:flex-none"
+        className="flex min-w-0 items-center gap-2 overflow-hidden text-base whitespace-nowrap text-muted-foreground max-md:hidden [&>svg]:size-4 [&>svg]:flex-none"
       >
         {where && section && page ? (
           <>
@@ -96,14 +96,14 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
           </span>
         )}
       </nav>
-      <span className="truncate text-[16px] font-semibold md:hidden">{mobileTitle}</span>
+      <span className="truncate text-base font-semibold md:hidden">{mobileTitle}</span>
 
       <div className="ml-auto flex items-center gap-2">
         {actions}
         <LivePill />
         <button
           type="button"
-          className="inline-flex h-11 w-75 cursor-pointer items-center gap-2.5 rounded-md border border-input bg-background pr-2.5 pl-3 text-[14px] text-muted-foreground shadow-xs transition-[border-color] duration-(--dur-fast) ease-[ease] hover:border-muted-foreground max-lg:hidden [&>svg]:size-4.5 [&>svg]:flex-none"
+          className="inline-flex h-11 w-75 cursor-pointer items-center gap-3 rounded-md border border-input bg-background pr-3 pl-3 text-sm text-muted-foreground shadow-xs transition-[border-color] duration-(--dur-fast) ease-[ease] hover:border-muted-foreground max-lg:hidden [&>svg]:size-5 [&>svg]:flex-none"
           aria-label="Search and commands"
           onClick={onOpenSearch}
         >

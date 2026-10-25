@@ -23,7 +23,7 @@ function numOrNull(v: string): number | null {
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>

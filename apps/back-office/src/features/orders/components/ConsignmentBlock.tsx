@@ -182,7 +182,7 @@ export function ConsignmentBlock({
       )}
 
       {c && c.events.length > 0 ? (
-        <ol className="space-y-0.5 text-sm text-muted-foreground" aria-label="Consignment history">
+        <ol className="space-y-1 text-sm text-muted-foreground" aria-label="Consignment history">
           {c.events.map((e, i) => (
             <li key={`${e.at}-${i}`}>
               <span className="tabular-nums">

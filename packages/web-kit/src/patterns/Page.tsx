@@ -32,20 +32,20 @@ export function PageHeader({
         {back && !inHeader ? (
           <Link
             {...back.link}
-            className="-mt-2.5 -mb-1.5 inline-flex min-h-11 w-fit items-center gap-1.5 text-[15px] text-muted-foreground no-underline hover:text-foreground [&_svg]:size-4"
+            className="-mt-3 -mb-2 inline-flex min-h-11 w-fit items-center gap-2 text-base text-muted-foreground no-underline hover:text-foreground [&_svg]:size-4"
           >
             <ArrowLeft aria-hidden="true" />
             {back.label}
           </Link>
         ) : null}
-        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[26px] leading-[32px] font-semibold tracking-[-0.02em] max-md:text-[22px] max-md:leading-[28px]">
+        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2 text-2xl leading-8 font-semibold tracking-[-0.02em] max-md:text-2xl max-md:leading-7">
           {title}
         </h1>
         {description ? (
-          <p className="max-w-[72ch] text-[15px] leading-[22px] text-pretty text-muted-foreground">{description}</p>
+          <p className="max-w-[72ch] text-base leading-6 text-pretty text-muted-foreground">{description}</p>
         ) : null}
         {meta ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px] text-muted-foreground [&_svg]:size-3.5 [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground [&_svg]:size-4 [&>span]:inline-flex [&>span]:items-center [&>span]:gap-2">
             {meta}
           </div>
         ) : null}

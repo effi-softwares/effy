@@ -56,7 +56,7 @@ function StateBlock({ state }: { state: State }) {
             iPhone, notifications only work for apps on the home screen.
           </Note>
           <Note>
-            Tap <Share className="inline size-3.5 align-text-bottom" aria-label="Share" /> Share, then{" "}
+            Tap <Share className="inline size-4 align-text-bottom" aria-label="Share" /> Share, then{" "}
             <span className="text-foreground font-medium">Add to Home Screen</span>. Open Effy Shop from there and come
             back to this screen.
           </Note>

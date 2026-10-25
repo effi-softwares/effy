@@ -242,7 +242,7 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
             <div className="space-y-4">
               <div>
                 <StatusWord tone={statusTone(d.status)}>{STATUS_LABEL[d.status]}</StatusWord>
-                <p className="ef-sub mt-1.5">{STATUS_MEANING[d.status]}</p>
+                <p className="ef-sub mt-2">{STATUS_MEANING[d.status]}</p>
               </div>
               <DetailRows
                 tight

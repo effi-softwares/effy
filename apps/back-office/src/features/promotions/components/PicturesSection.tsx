@@ -77,7 +77,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
             <p className="ef-sub">This promotion has {MAX_PICTURES} pictures. Remove one to add another.</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="picture-file">Picture</Label>
                 <Input
                   id="picture-file"
@@ -87,7 +87,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
                   onChange={(e) => choose(e.target.files?.[0] ?? null)}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="picture-alt">Description</Label>
                 <Input
                   id="picture-alt"

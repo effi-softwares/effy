@@ -37,7 +37,7 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         </ResponsiveModalHeader>
         <dl className="divide-y divide-border">
           {rows.map((r) => (
-            <div key={r.what} className="flex items-center justify-between gap-4 py-2.5 text-sm">
+            <div key={r.what} className="flex items-center justify-between gap-4 py-3 text-sm">
               <dt>{r.what}</dt>
               <dd className="flex gap-1">
                 {r.keys.map((k) => (
@@ -97,7 +97,7 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
               </Badge>
             </Row>
             <Row k="Reference">
-              <span className="font-mono text-[13px] break-all">{me.data.subject}</span>
+              <span className="font-mono text-sm break-all">{me.data.subject}</span>
             </Row>
           </dl>
         )}
@@ -108,7 +108,7 @@ export function StaffRecordDialog({ open, onOpenChange }: { open: boolean; onOpe
 
 function Row({ k, children }: { k: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4 py-2.5">
+    <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4 py-3">
       <dt className="text-muted-foreground">{k}</dt>
       <dd className="min-w-0">{children}</dd>
     </div>

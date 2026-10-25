@@ -18,7 +18,7 @@ export function Shipments({ detail }: { detail: OrderDetail }) {
     <div className="border-t border-border px-5 py-4 max-md:px-4">
       <div className="ef-eyebrow pb-2">Shipments</div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div className="grid min-w-0 gap-0.5">
+        <div className="grid min-w-0 gap-1">
           <div className="font-medium">
             {deliveredByText(detail.deliveredBy)} · <span className="ef-code">{detail.orderNumber}</span>
           </div>

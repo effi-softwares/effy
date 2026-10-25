@@ -56,7 +56,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
             Out with <span className="font-medium">{vehicle.currentHolderName}</span>.
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="odo-in">Closing odometer (km)</Label>
               <Input
                 id="odo-in"
@@ -85,7 +85,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
         <>
           <p className="text-sm text-muted-foreground">Available — nobody has this vehicle.</p>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="hold-driver">Issue to</Label>
               <select
                 id="hold-driver"
@@ -101,7 +101,7 @@ export function HoldingControl({ vehicle }: { vehicle: VehicleDetail }) {
                 ))}
               </select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="odo-out">Opening odometer (km)</Label>
               <Input
                 id="odo-out"

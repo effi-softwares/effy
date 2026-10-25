@@ -25,7 +25,7 @@ export function CourierPickup({
         <Truck aria-hidden="true" className="size-4 text-muted-foreground" />
         {courierPickupLine(pickup)}
       </p>
-      <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-[max-content_1fr]">
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
         {service ? (
           <>
             <dt className="text-muted-foreground">Courier</dt>

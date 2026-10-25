@@ -62,7 +62,7 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
         Mark dealt with
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:max-w-140">
           <DialogHeader>
             <DialogTitle>Mark {e.orderNumber} dealt with</DialogTitle>
             <DialogDescription>
@@ -80,7 +80,7 @@ export function ResolveDialog({ exception: e, disabled }: { exception: DeliveryE
                   role="radio"
                   aria-checked={outcome === o}
                   onClick={() => setOutcome(o)}
-                  className={cn("ef-choice-card flex-col gap-0.5! text-left", outcome === o && "is-checked")}
+                  className={cn("ef-choice-card flex-col gap-1! text-left", outcome === o && "is-checked")}
                 >
                   <span className="text-sm font-medium">{OUTCOME_WORDS[o].label}</span>
                   <span className="text-xs text-muted-foreground">{OUTCOME_WORDS[o].hint}</span>

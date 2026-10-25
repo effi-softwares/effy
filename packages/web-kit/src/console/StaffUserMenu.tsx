@@ -57,7 +57,7 @@ export function StaffUserMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="ef-iconbtn group ml-0.5 rounded-full hover:bg-transparent data-[state=open]:bg-transparent"
+          className="ef-iconbtn group ml-1 rounded-full hover:bg-transparent data-[state=open]:bg-transparent"
           aria-label={`Account and appearance — ${name}`}
         >
           <span
@@ -95,7 +95,7 @@ export function StaffUserMenu({
         ) : null}
         {/* Appearance as three icons in one row — the current one filled. Each stays a menu item (arrow
             keys reach it, Enter picks it) and keeps the menu open, so the change is seen in place. */}
-        <div role="group" aria-label="Appearance" className="mx-1.5 my-1 grid grid-cols-3 gap-0.5 rounded-md bg-muted p-0.75">
+        <div role="group" aria-label="Appearance" className="mx-2 my-1 grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
           {MODES.map(({ value, label, Icon }) => (
             <DropdownMenuItem
               key={value}
@@ -104,7 +104,7 @@ export function StaffUserMenu({
               aria-label={`${label} appearance`}
               title={label}
               data-current={theme === value ? "true" : undefined}
-              className="min-h-7.5 justify-center rounded-[5px] p-0 text-muted-foreground data-[current=true]:bg-background data-[current=true]:text-foreground data-[current=true]:shadow-xs [&>svg]:size-4 [&>svg]:text-inherit!"
+              className="min-h-8 justify-center rounded-md p-0 text-muted-foreground data-[current=true]:bg-background data-[current=true]:text-foreground data-[current=true]:shadow-xs [&>svg]:size-4 [&>svg]:text-inherit!"
               onSelect={(event) => {
                 event.preventDefault();
                 onSetTheme(value);

@@ -140,7 +140,7 @@ export default function CartPage() {
 
               {/* Offers that do not apply yet, each with the one thing to do about it. */}
               {(cart.promotionsNotApplied ?? []).length > 0 ? (
-                <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                   {cart.promotionsNotApplied!.map((n) => (
                     <li key={n.promotionId}>
                       <span className="font-medium text-foreground">{n.headline}:</span> {n.detail}
@@ -172,8 +172,8 @@ export default function CartPage() {
                   </span>
                 </>
               )}
-              <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <Lock aria-hidden="true" className="size-3.5" />
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Lock aria-hidden="true" className="size-4" />
                 Secure checkout. Sign in to complete your order.
               </p>
               <PaymentMarks className="mt-4 justify-center" />
@@ -283,8 +283,8 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
         </span>
         <UnitPrice unit={line.unitPrice} />
         {line.available === false ? (
-          <span className="mt-1 flex items-center gap-1.5 text-xs font-medium">
-            <CircleAlert aria-hidden="true" className="size-3.5" />
+          <span className="mt-1 flex items-center gap-2 text-xs font-medium">
+            <CircleAlert aria-hidden="true" className="size-4" />
             Unavailable — not included in your total
           </span>
         ) : null}
@@ -297,7 +297,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               className="grid h-full w-9 place-items-center rounded-l-md hover:bg-accent"
               aria-label="Decrease quantity"
             >
-              <Minus className="size-3.5" />
+              <Minus className="size-4" />
             </button>
             <span className="w-8 text-center text-sm font-medium tabular-nums" aria-live="polite">
               {line.quantity}
@@ -309,7 +309,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               disabled={line.quantity >= 99}
               aria-label="Increase quantity"
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-4" />
             </button>
           </div>
           <button type="button" onClick={remove} className={textAction}>

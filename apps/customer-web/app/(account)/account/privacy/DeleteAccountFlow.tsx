@@ -104,7 +104,7 @@ export function DeleteAccountFlow() {
           {preview.retained.map((r) => (
             <li key={r.category}>
               <p className="text-sm font-medium text-foreground">{r.category}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{r.reason}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{r.reason}</p>
             </li>
           ))}
         </ul>

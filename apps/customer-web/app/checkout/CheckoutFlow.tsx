@@ -679,8 +679,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             ) : null}
           </div>
         </dl>
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-          <Lock aria-hidden="true" className="size-3.5" />
+        <p className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Lock aria-hidden="true" className="size-4" />
           Payments are processed securely by Stripe
         </p>
       </aside>

@@ -79,7 +79,7 @@ export function CreditPointsSheet({
           submit()
         }}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="credit-points">Points</Label>
           <Input
             id="credit-points"
@@ -97,7 +97,7 @@ export function CreditPointsSheet({
           ) : null}
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="credit-reason">Reason</Label>
           <Select value={reason} onValueChange={(v) => setReason(v as PointsCreditReason)}>
             <SelectTrigger id="credit-reason" className="w-full">
@@ -113,7 +113,7 @@ export function CreditPointsSheet({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="credit-order">Order</Label>
           <Select value={orderId} onValueChange={setOrderId}>
             <SelectTrigger id="credit-order" className="w-full">
@@ -130,7 +130,7 @@ export function CreditPointsSheet({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="credit-note">Internal note{reason === "other" ? "" : " (optional)"}</Label>
           <Textarea id="credit-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} />
           <p className="text-sm text-muted-foreground">Only staff see this. The customer sees the reason.</p>

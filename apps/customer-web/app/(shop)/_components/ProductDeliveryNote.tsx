@@ -49,7 +49,7 @@ export async function ProductDeliveryNote() {
   return (
     <div className="rounded-lg border shadow-xs">
       <div className="flex gap-3 p-4">
-        <Truck aria-hidden="true" className={`mt-0.5 size-4 shrink-0 ${address?.coverage === "effy" ? "text-brand" : ""}`} />
+        <Truck aria-hidden="true" className={`mt-1 size-4 shrink-0 ${address?.coverage === "effy" ? "text-brand" : ""}`} />
         <div className="min-w-0 text-sm">
           <p className="font-medium">{title}</p>
           <p className="text-muted-foreground">{body}</p>
@@ -57,7 +57,7 @@ export async function ProductDeliveryNote() {
       </div>
       {points && (
         <div className="flex gap-3 border-t p-4">
-          <Coins aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+          <Coins aria-hidden="true" className="mt-1 size-4 shrink-0 text-primary" />
           <div className="min-w-0 text-sm">
             <p className="font-medium">
               You have{" "}

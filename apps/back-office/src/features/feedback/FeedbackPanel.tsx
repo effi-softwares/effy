@@ -104,7 +104,7 @@ export function FeedbackPanel({
 
         <div className="min-w-0 space-y-4 p-6 max-md:p-4">
           <h3 className="ef-eyebrow">Details</h3>
-          <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-0.5">
+          <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
             <Row label="Category">{FEEDBACK_CATEGORY_LABELS[detail.category]}</Row>
             <Row label="Rating">{detail.rating ? `${detail.rating}/5` : "—"}</Row>
             <Row label="From">
@@ -217,7 +217,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
           <textarea
             id="fb-compose"
             rows={4}
-            className="min-h-16 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[14px] text-foreground outline-none"
+            className="min-h-16 w-full resize-none border-0 bg-transparent px-3 py-3 text-sm text-foreground outline-none"
             value={body}
             maxLength={max}
             onChange={(e) => setBody(e.target.value)}
@@ -225,7 +225,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
               mode === "reply" ? "Write a reply — it will be emailed to the submitter…" : "Add an internal note…"
             }
           />
-          <div className="flex items-center justify-between gap-2 border-t border-t-border py-1.5 pr-1.5 pl-2.5">
+          <div className="flex items-center justify-between gap-2 border-t border-t-border py-2 pr-2 pl-3">
             <span className="text-xs text-muted-foreground">
               {mode === "reply" && detail.submitter.email ? `To ${detail.submitter.email} · ` : "Staff only · "}
               {body.length} / {max}

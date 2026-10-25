@@ -28,7 +28,7 @@ export function ShopperPreview({ draft, type, imageUrl }: Props) {
             <ImageIcon aria-hidden="true" />
           </div>
         )}
-        <div className="grid gap-0.5">
+        <div className="grid gap-1">
           {draft.brand.trim() ? <div className="text-sm text-muted-foreground">{draft.brand}</div> : null}
           <div className="text-lg font-semibold">{draft.name.trim() || "Untitled product"}</div>
         </div>

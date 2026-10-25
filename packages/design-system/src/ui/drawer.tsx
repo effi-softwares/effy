@@ -78,7 +78,7 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="drawer-header"
       className={cn(
-        "flex flex-col gap-1.5 p-4 text-center md:gap-2 md:text-left",
+        "flex flex-col gap-2 p-4 text-center md:gap-2 md:text-left",
         className
       )}
       {...props}

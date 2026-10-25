@@ -33,10 +33,10 @@ export function ResponsiveSheet({
         side={isMobile ? "bottom" : "right"}
         className={cn(
           "flex flex-col gap-0! p-0",
-          isMobile ? "max-h-[92dvh] rounded-t-2xl" : cn("w-full", wide ? "sm:max-w-[560px]" : "sm:max-w-[460px]"),
+          isMobile ? "max-h-[92dvh] rounded-t-2xl" : cn("w-full", wide ? "sm:max-w-140" : "sm:max-w-115"),
         )}
       >
-        {isMobile ? <span aria-hidden="true" className="mx-auto mt-2.5 h-[5px] w-12 shrink-0 rounded-full bg-muted" /> : null}
+        {isMobile ? <span aria-hidden="true" className="mx-auto mt-3 h-2 w-12 shrink-0 rounded-full bg-muted" /> : null}
         <div className={cn("flex flex-col gap-1", isMobile ? "px-4 pt-3 pb-2" : "px-6 pt-5 pb-3 pr-12")}>
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : <SheetDescription className="sr-only">{title}</SheetDescription>}

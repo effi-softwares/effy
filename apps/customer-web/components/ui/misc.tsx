@@ -37,7 +37,7 @@ export function Avatar({
       aria-hidden="true"
       className={clsx(
         "inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-semibold",
-        size === "md" ? "size-8 text-[13px]" : "size-12 text-base",
+        size === "md" ? "size-8 text-sm" : "size-12 text-base",
         className,
       )}
     >
@@ -52,11 +52,11 @@ export type Crumb = { label: string; href?: string }
 export function Breadcrumb({ items, className }: { items: Crumb[]; className?: string }) {
   return (
     <nav aria-label="Breadcrumb" className={className}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+      <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         {items.map((c, i) => {
           const last = i === items.length - 1
           return (
-            <li key={`${c.label}-${i}`} className="flex items-center gap-1.5">
+            <li key={`${c.label}-${i}`} className="flex items-center gap-2">
               {last || !c.href ? (
                 <span aria-current={last ? "page" : undefined} className={clsx(last && "text-foreground")}>
                   {c.label}
@@ -66,7 +66,7 @@ export function Breadcrumb({ items, className }: { items: Crumb[]; className?: s
                   {c.label}
                 </Link>
               )}
-              {!last && <ChevronRight aria-hidden="true" className="size-3.5" />}
+              {!last && <ChevronRight aria-hidden="true" className="size-4" />}
             </li>
           )
         })}

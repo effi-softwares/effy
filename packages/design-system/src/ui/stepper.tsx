@@ -50,7 +50,7 @@ export function Stepper({
                   : {})}
                 aria-current={active ? "step" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left",
+                  "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-2 text-left",
                   selectable && "hover:bg-accent cursor-pointer",
                   !selectable && "cursor-default",
                 )}
@@ -64,7 +64,7 @@ export function Stepper({
                     !done && !active && "text-muted-foreground border border-border",
                   )}
                 >
-                  {done ? <Check className="size-3.5" /> : i + 1}
+                  {done ? <Check className="size-4" /> : i + 1}
                 </span>
                 <span
                   className={cn(

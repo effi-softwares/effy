@@ -25,9 +25,9 @@ export function ArrivalPanel({
     const [partner, estimate] = courierLines(delivery.courierEstimate)
     return (
       <section className="rounded-lg border bg-card shadow-xs">
-        <div className="flex flex-col gap-1.5 px-6 pt-6" data-testid="arrival-courier">
-          <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary">
-            <Package aria-hidden="true" className="size-3.5" />
+        <div className="flex flex-col gap-2 px-6 pt-6" data-testid="arrival-courier">
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-primary">
+            <Package aria-hidden="true" className="size-4" />
             {DELIVERY_TYPE_WORDS.courier}
           </p>
           <p className="text-2xl font-semibold tracking-tight">{partner}</p>
@@ -51,9 +51,9 @@ export function ArrivalPanel({
   if (delivery?.type === "effy" && delivery.promise === "asap" && delivery.asapEstimate) {
     return (
       <section className="rounded-lg border bg-card shadow-xs">
-        <div className="flex flex-col gap-1.5 px-6 pt-6" data-testid="arrival-asap">
-          <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand">
-            <Truck aria-hidden="true" className="size-3.5" />
+        <div className="flex flex-col gap-2 px-6 pt-6" data-testid="arrival-asap">
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-brand">
+            <Truck aria-hidden="true" className="size-4" />
             {DELIVERY_TYPE_WORDS.effy}
           </p>
           <p className="text-2xl font-semibold tracking-tight">{DELIVERY_WINDOW_WORDS.asapTitle}</p>
@@ -115,9 +115,9 @@ function Arrival({
   anyTime: boolean
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand">
-        <Truck aria-hidden="true" className="size-3.5" />
+    <div className="flex flex-col gap-2">
+      <p className="inline-flex items-center gap-2 text-sm font-medium text-brand">
+        <Truck aria-hidden="true" className="size-4" />
         <span>{multiple ? `Delivery ${index + 1}` : label}</span>
         <span aria-hidden="true">·</span>
         <span>{methodLabel(arrival.method)}</span>

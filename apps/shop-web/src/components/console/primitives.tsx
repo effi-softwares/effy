@@ -60,9 +60,7 @@ export function SectionAction({
 }
 
 export function MicroLabel({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("text-[13px] font-medium whitespace-nowrap text-muted-foreground", className)}>{children}</div>
-  )
+  return <div className={cn("text-sm font-medium whitespace-nowrap text-muted-foreground", className)}>{children}</div>
 }
 
 export function TableFrame({ children, className }: { children: ReactNode; className?: string }) {

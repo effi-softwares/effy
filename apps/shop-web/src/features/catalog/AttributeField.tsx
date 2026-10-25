@@ -31,7 +31,7 @@ export function AttributeField({ attr, value, onChange, error }: AttributeFieldP
     <div className="space-y-2">
       <Label htmlFor={fieldId}>
         {attr.name}
-        {attr.isMandatory ? <span className="ml-0.5 text-muted-foreground">*</span> : null}
+        {attr.isMandatory ? <span className="ml-1 text-muted-foreground">*</span> : null}
         {attr.unit ? <span className="ml-1 text-muted-foreground">({attr.unit})</span> : null}
       </Label>
 

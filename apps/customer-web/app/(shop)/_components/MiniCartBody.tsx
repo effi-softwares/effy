@@ -74,7 +74,7 @@ export function MiniCartBody({
                 {/* The size chosen. */}
                 {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
               </span>
-              <span className="mt-0.5 text-xs text-muted-foreground">
+              <span className="mt-1 text-xs text-muted-foreground">
                 {formatMoney(line.unitPriceAmount, line.currency)} each
               </span>
 

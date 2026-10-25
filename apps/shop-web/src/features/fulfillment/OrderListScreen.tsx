@@ -192,7 +192,7 @@ export function OrderListScreen({
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
               label="Placed"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               anyLabel={RANGE_LABEL.any}
               value={search.range ?? null}
               options={SHOP_ORDER_RANGES.filter((r) => r !== "any").map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
@@ -200,7 +200,7 @@ export function OrderListScreen({
             />
             <Facet
               label="Goes with"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               anyLabel={DELIVERED_BY_FILTER_LABEL.any}
               value={search.deliveredBy ?? null}
               options={SHOP_ORDER_DELIVERED_BY.filter((d) => d !== "any").map((d) => ({
@@ -211,12 +211,12 @@ export function OrderListScreen({
             />
             <Facet
               label="Payment"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               value={search.payment ?? null}
               options={SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))}
               onChange={(payment) => update({ payment: payment ?? undefined })}
             />
-            <Button variant="outline" className="min-[1024px]:hidden" onClick={() => setFiltersOpen(true)}>
+            <Button variant="outline" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               Filters
               {filterCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{filterCount}</span> : null}
@@ -305,7 +305,7 @@ function ListLoading() {
           <Skeleton className="size-5 rounded" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3.5 w-48" />
+            <Skeleton className="h-4 w-48" />
           </div>
           <Skeleton className="h-6 w-24 rounded-md" />
           <Skeleton className="h-4 w-16" />

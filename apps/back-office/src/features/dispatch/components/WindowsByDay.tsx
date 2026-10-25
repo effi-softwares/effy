@@ -76,7 +76,7 @@ export function WindowsByDay() {
                       {w.parcels.length} {w.parcels.length === 1 ? "parcel" : "parcels"}
                     </span>
                   </div>
-                  <div className="flex min-w-[220px] items-center gap-3">
+                  <div className="flex min-w-55 items-center gap-3">
                     <div
                       className="ef-meter flex-1"
                       role="img"
@@ -91,7 +91,7 @@ export function WindowsByDay() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Route aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  <Route aria-hidden="true" className="size-4 text-muted-foreground" />
                   <span>{roundLine(w, isToday)}</span>
                 </div>
                 {w.parcels.length > 0 ? (

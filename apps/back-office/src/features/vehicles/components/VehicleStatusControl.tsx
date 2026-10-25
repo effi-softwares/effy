@@ -80,7 +80,7 @@ export function VehicleStatusControl({ vehicle }: { vehicle: VehicleDetail }) {
               </p>
             ) : null}
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="v-status-reason">Reason</Label>
               <Textarea id="v-status-reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
               <p className="text-xs text-muted-foreground">Kept on the vehicle's record and in the change history.</p>

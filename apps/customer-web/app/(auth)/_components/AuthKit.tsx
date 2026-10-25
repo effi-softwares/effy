@@ -101,7 +101,7 @@ export function PasswordField({
           aria-pressed={revealed}
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
           // Drawn 32px, pressable 44px: `after` extends the target.
-          className={iconBtnClass("ghost", "sm", "absolute top-1.5 right-1.5 after:absolute after:-inset-1.5")}
+          className={iconBtnClass("ghost", "sm", "absolute top-2 right-2 after:absolute after:-inset-2")}
         >
           {revealed ? (
             <EyeOff aria-hidden className="size-4" />
@@ -258,7 +258,7 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
       data-testid="auth-error"
       className="flex items-start gap-3 rounded-lg border border-destructive bg-card px-4 py-3 text-sm font-medium text-foreground"
     >
-      <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <CircleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
       <span>{children}</span>
     </p>
   )
@@ -315,7 +315,7 @@ export function Divider() {
 export function EmailChip({ email, onChange }: { email: string; onChange: () => void }) {
   return (
     <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-      <User aria-hidden="true" className="size-3.5 shrink-0" />
+      <User aria-hidden="true" className="size-4 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{email}</span>
       <InlineAction onClick={onChange} testId="change-address">
         Change
@@ -363,7 +363,7 @@ export function NoticeCard({
     <div
       role="status"
       data-testid={testId}
-      className="grid grid-cols-[16px_1fr] items-start gap-x-3 gap-y-0.5 rounded-lg bg-primary-muted px-4 py-3 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:text-primary"
+      className="grid grid-cols-[16px_1fr] items-start gap-x-3 gap-y-1 rounded-lg bg-primary-muted px-4 py-3 text-sm [&>svg]:mt-1 [&>svg]:size-4 [&>svg]:text-primary"
     >
       {icon}
       <div className="font-medium">{title}</div>
@@ -403,7 +403,7 @@ export function StepShell({
             {icon}
           </div>
         )}
-        <h1 className="text-[38px] font-semibold leading-[1.1] tracking-[-0.025em] text-balance">
+        <h1 className="text-4xl font-semibold leading-[1.1] tracking-[-0.025em] text-balance">
           {title}
         </h1>
         {subtitle && <div className="text-muted-foreground">{subtitle}</div>}

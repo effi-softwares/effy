@@ -27,7 +27,7 @@ export function Badge({
     <span
       data-slot="badge"
       className={clsx(
-        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold whitespace-nowrap [&_svg]:size-3",
+        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold whitespace-nowrap [&_svg]:size-3",
         // `outline` names its own border colour; two border colours on one element is decided by
         // stylesheet order, so the transparent one is only added where no other is.
         variant !== "outline" && "border-transparent",

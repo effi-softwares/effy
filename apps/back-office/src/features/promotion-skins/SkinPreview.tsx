@@ -134,7 +134,7 @@ export function SkinPreview({
       <div className="flex flex-wrap items-center gap-2">
         <select
           aria-label="Preview words"
-          className="h-8 rounded-md border border-input bg-background px-2 text-[13px]"
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
           value={which}
           onChange={(e) => setWhich(e.target.value)}
         >
@@ -172,13 +172,13 @@ export function SkinPreview({
             ))}
           </div>
         ) : null}
-        <label className="flex items-center gap-1.5 text-[13px]">
+        <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={picture} onChange={(e) => setPicture(e.target.checked)} />
           Sample picture
         </label>
       </div>
       <div className="rounded-lg border border-border bg-muted/40 p-4">
-        <div className={cn("mx-auto", width === "phone" ? "max-w-[375px]" : "max-w-[880px]")}>
+        <div className={cn("mx-auto", width === "phone" ? "max-w-94" : "max-w-220")}>
           <PromoSkin
             promotion={promotion}
             layout={layout}

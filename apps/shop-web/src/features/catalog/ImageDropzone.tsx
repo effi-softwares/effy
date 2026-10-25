@@ -101,7 +101,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-muted/30">
             <img src={previewUrl} alt="Selected product" className="max-h-full max-w-full object-contain" />
             {uploading ? (
-              <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/10">
+              <div className="absolute inset-x-0 bottom-0 h-2 bg-black/10">
                 <div
                   className="h-full bg-primary transition-all"
                   style={{ width: `${progress}%` }}
@@ -173,14 +173,14 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
             <span className="block text-sm text-muted-foreground">JPEG, PNG, or WebP · up to 10 MB</span>
           </span>
           <span className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <MousePointerClick className="size-3.5" /> Click to browse
+            <span className="flex items-center gap-2">
+              <MousePointerClick className="size-4" /> Click to browse
             </span>
-            <span className="flex items-center gap-1.5">
-              <Upload className="size-3.5" /> Drag &amp; drop
+            <span className="flex items-center gap-2">
+              <Upload className="size-4" /> Drag &amp; drop
             </span>
-            <span className="flex items-center gap-1.5">
-              <ClipboardPaste className="size-3.5" /> Paste
+            <span className="flex items-center gap-2">
+              <ClipboardPaste className="size-4" /> Paste
             </span>
           </span>
         </button>

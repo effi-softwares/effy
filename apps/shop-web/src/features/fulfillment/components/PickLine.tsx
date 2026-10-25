@@ -28,7 +28,7 @@ function PickBox({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "grid size-11 cursor-pointer place-items-center rounded-[10px] border-[1.5px] border-input bg-background p-0 text-primary-foreground transition-[background-color,border-color] duration-(--dur-fast) ease-[ease] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-5.5",
+        "grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-input bg-background p-0 text-primary-foreground transition-[background-color,border-color] duration-(--dur-fast) ease-[ease] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-6",
         mode === "full" && "border-primary bg-primary",
         mode === "part" && "border-primary bg-primary-muted text-primary",
         mode === "unavailable" && "border-dashed text-foreground",
@@ -83,13 +83,13 @@ export function LineRow({
         </div>
       )}
       <div className="min-w-0">
-        <div className={cn("text-[16px] leading-[22px] font-medium", mode === "full" && "text-muted-foreground")}>
+        <div className={cn("text-base leading-6 font-medium", mode === "full" && "text-muted-foreground")}>
           {line.name}
           {line.variantLabel ? <span className="text-muted-foreground"> · {line.variantLabel}</span> : null}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13.5px] leading-[20px] text-muted-foreground">
-          <span className="font-mono text-[13px] whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
-          {line.gtin ? <span className="font-mono text-[13px] whitespace-nowrap">{line.gtin}</span> : null}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-5 text-muted-foreground">
+          <span className="font-mono text-sm whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
+          {line.gtin ? <span className="font-mono text-sm whitespace-nowrap">{line.gtin}</span> : null}
           <span className={cn("whitespace-nowrap", STATUS_CLASS[mode])}>{pickLabel(line)}</span>
           {line.refundedQuantity > 0 ? (
             <span className="whitespace-nowrap">{line.refundedQuantity} refunded</span>
@@ -97,7 +97,7 @@ export function LineRow({
         </div>
       </div>
       <div className="flex items-center gap-3 max-md:col-span-full max-md:justify-between max-md:pl-14">
-        <div className="min-w-14 text-right text-[20px] font-semibold tracking-[-0.01em] tabular-nums [&_small]:block [&_small]:text-[12px] [&_small]:font-normal [&_small]:tracking-normal [&_small]:text-muted-foreground">
+        <div className="min-w-14 text-right text-xl font-semibold tracking-[-0.01em] tabular-nums [&_small]:block [&_small]:text-xs [&_small]:font-normal [&_small]:tracking-normal [&_small]:text-muted-foreground">
           ×&nbsp;{line.orderedQuantity}
           <small>
             {formatMoney(line.unitPrice, currency)} · {formatMoney(line.lineTotal, currency)}

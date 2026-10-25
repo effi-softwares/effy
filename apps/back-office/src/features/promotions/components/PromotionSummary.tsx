@@ -31,7 +31,7 @@ export function PromotionSummary({ d }: { d: Draft }) {
         {d.label ? <div className="ef-sub font-semibold uppercase tracking-wide">{d.label}</div> : null}
         <div className="text-base font-semibold">{d.headline || d.name || "Untitled promotion"}</div>
         {d.supportingLine ? <p className="ef-sub">{d.supportingLine}</p> : null}
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-2 text-sm">
           <li>{value}</li>
           <li>{min}</li>
           <li>

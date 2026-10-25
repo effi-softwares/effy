@@ -25,7 +25,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
             <li key={category.key} className="shrink-0">
               <Link
                 href={`/search?category=${encodeURIComponent(category.key)}`}
-                className="group flex w-[5.5rem] flex-col items-center gap-3 rounded-lg py-2 text-center sm:w-28"
+                className="group flex w-22 flex-col items-center gap-3 rounded-lg py-2 text-center sm:w-28"
               >
                 {/* The whole tile is the target, past the 44px minimum. */}
                 <MediaFrame
@@ -36,7 +36,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                   rounded="rounded-full"
                   fallbackLabel={category.name.charAt(0).toUpperCase()}
                   sizes="112px"
-                  className="w-[4.5rem] transition-shadow sm:w-24"
+                  className="w-18 transition-shadow sm:w-24"
                 />
                 {/* The name is the caption + a hidden count, not an aria-label: a label that drops the
                     fallback letter on screen fails WCAG 2.5.3 (label in name). */}

@@ -138,7 +138,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                       The whole round leaves their work at once. Nothing is cancelled for the customer.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <ul className="list-disc space-y-1.5 pl-5 text-sm">
+                  <ul className="list-disc space-y-2 pl-5 text-sm">
                     <li>
                       Packages not yet loaded go back to <span className="font-medium">Needs a driver</span>, and
                       auto-assign tries again on its next pass.
@@ -206,7 +206,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               const note = windowNoteFor(s, now)
               return (
                 <li key={id} className="flex items-center gap-3 border-b border-border px-5 py-3 last:border-b-0">
-                  <span className="avatar avatar--sq size-6.5! text-[11px]!" aria-hidden="true">
+                  <span className="avatar avatar--sq size-7! text-xs!" aria-hidden="true">
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">

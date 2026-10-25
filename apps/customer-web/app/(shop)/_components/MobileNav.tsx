@@ -120,7 +120,7 @@ export function MobileNav({
         // `backdrop:bg-black/50` matches the design-system overlays and the cart drawer. It was
         // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
         // appearance, so that scrim rendered as a white film on a dark surface. A scrim must darken.
-        className="fx-dialog fx-drawer-left mr-auto h-full max-h-none w-[85%] max-w-[360px] border-r bg-background p-0 text-foreground shadow-lg"
+        className="fx-dialog fx-drawer-left mr-auto h-full max-h-none w-[85%] max-w-90 border-r bg-background p-0 text-foreground shadow-lg"
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b px-4 py-3">

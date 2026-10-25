@@ -97,7 +97,7 @@ export function PrivacySection() {
           <li>
             <Link
               href="/legal/privacy-policy"
-              className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
+              className="flex min-h-12 items-center py-3 text-sm hover:text-foreground/70"
             >
               Privacy policy
             </Link>
@@ -168,7 +168,7 @@ function LegalGroup({ title, docs }: { title: string; docs: ReturnType<typeof al
           <li key={doc.slug}>
             <Link
               href={`/legal/${doc.slug}`}
-              className="flex min-h-[48px] items-center justify-between py-3 text-sm hover:text-foreground/70"
+              className="flex min-h-12 items-center justify-between py-3 text-sm hover:text-foreground/70"
             >
               <span>{doc.title}</span>
               <span className="text-xs text-muted-foreground">Updated {doc.effectiveDate}</span>

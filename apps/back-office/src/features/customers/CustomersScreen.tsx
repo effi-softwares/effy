@@ -52,7 +52,7 @@ function CustomerSearch() {
   const searching = query.length >= 3
 
   return (
-    <div className="flex max-w-[1040px] flex-col gap-6">
+    <div className="flex max-w-260 flex-col gap-6">
       <PageHeader
         title="Customers"
         description="Find a customer by order number or email to view and adjust their points."
@@ -67,7 +67,7 @@ function CustomerSearch() {
       />
 
       <label className="relative flex w-full items-center">
-        <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
+        <Search aria-hidden="true" className="pointer-events-none absolute left-4 size-4 text-muted-foreground" />
         <span className="sr-only">Find a customer</span>
         <Input
           type="search"
@@ -75,7 +75,7 @@ function CustomerSearch() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           autoFocus
-          className="h-12! pl-10! text-[15px]!"
+          className="h-12! pl-10! text-base!"
         />
       </label>
 
@@ -179,7 +179,7 @@ function CustomerSearch() {
 
 function PointsSettingsPage() {
   return (
-    <div className="flex max-w-[880px] flex-col gap-6">
+    <div className="flex max-w-220 flex-col gap-6">
       <PageHeader
         back={{ label: "Customers", link: { to: "/customers" } }}
         title="Points settings"

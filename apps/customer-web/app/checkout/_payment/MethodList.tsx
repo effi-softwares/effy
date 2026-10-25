@@ -32,7 +32,7 @@ export function MethodList({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       <Row
         selected={selected === "card"}
         onSelect={() => onSelect("card")}
@@ -54,7 +54,7 @@ export function MethodList({
           title="Pay over time"
           subtitle="Split your order into instalments"
         >
-          <div className="px-4.5 pb-5 pt-1">
+          <div className="px-5 pb-5 pt-1">
             <div className="mb-4 h-px bg-border" />
             {/*
               The provider's own rows, carrying the provider's own terms. `accordion` so each option
@@ -103,22 +103,22 @@ function Row({
         onClick={onSelect}
         disabled={disabled}
         aria-pressed={selected}
-        className="flex h-18.5 w-full items-center gap-3.5 px-4.5 text-left disabled:opacity-60"
+        className="flex h-19 w-full items-center gap-4 px-5 text-left disabled:opacity-60"
       >
         <span
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px]",
+            "flex size-5 shrink-0 items-center justify-center rounded-full border-2",
             selected ? "border-primary" : "border-input",
           )}
         >
-          <span className={cn("size-2.5 rounded-full", selected && "bg-primary")} />
+          <span className={cn("size-3 rounded-full", selected && "bg-primary")} />
         </span>
-        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-secondary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium tracking-[-0.01em]">{title}</span>
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">{subtitle}</span>
+          <span className="block text-base font-medium tracking-[-0.01em]">{title}</span>
+          <span className="mt-1 block text-sm text-muted-foreground">{subtitle}</span>
         </span>
         {trailing ? <span className="shrink-0">{trailing}</span> : null}
       </button>

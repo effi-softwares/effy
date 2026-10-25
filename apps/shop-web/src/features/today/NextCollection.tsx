@@ -52,7 +52,7 @@ function Body({ next, timezone, now }: { next: ShopNextCollectionDTO; timezone: 
   return (
     <>
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <span className="text-[26px] leading-8 font-semibold tracking-[-.02em] tabular-nums">
+        <span className="text-2xl leading-8 font-semibold tracking-[-.02em] tabular-nums">
           {runTime(next, timezone)}
         </span>
         <span className="text-muted-foreground">Effy driver</span>

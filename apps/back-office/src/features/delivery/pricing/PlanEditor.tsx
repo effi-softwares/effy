@@ -63,7 +63,7 @@ export function PlanEditor({
 
   const title = saved ? saved.name : kind === "courier" ? "New courier table" : "New fee plan"
   const amount = (id: keyof PlanDraft, label: string, help?: string) => (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={`plan-${id}`}>{label}</Label>
       <Input
         id={`plan-${id}`}
@@ -96,7 +96,7 @@ export function PlanEditor({
 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Amounts</h3>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="plan-name">Name</Label>
               <Input
                 id="plan-name"
@@ -185,13 +185,13 @@ export function PlanEditor({
                     .filter((s) => !s.anyTime)
                     .map((s, i) => (
                       <tr key={s.id} className="border-t">
-                        <td className="py-1.5 font-mono tabular-nums">
+                        <td className="py-2 font-mono tabular-nums">
                           {s.startTime}–{s.endTime}
                           {s.status !== "active" ? (
                             <span className="ml-2 font-sans text-muted-foreground">switched off</span>
                           ) : null}
                         </td>
-                        <td className="py-1.5">
+                        <td className="py-2">
                           <Input
                             aria-label={`Surcharge for ${s.startTime}–${s.endTime}`}
                             inputMode="decimal"
@@ -264,7 +264,7 @@ function BandsSection({
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className="border-t">
-              <td className="py-1.5 pr-2">
+              <td className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} up to`}
                   inputMode="decimal"
@@ -275,7 +275,7 @@ function BandsSection({
                   onChange={(e) => update(i, { upper: e.target.value })}
                 />
               </td>
-              <td className="py-1.5 pr-2">
+              <td className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} adds`}
                   inputMode="decimal"
@@ -285,7 +285,7 @@ function BandsSection({
                   onChange={(e) => update(i, { add: e.target.value })}
                 />
               </td>
-              <td className="py-1.5 text-right">
+              <td className="py-2 text-right">
                 {editable ? (
                   <Button
                     type="button"

@@ -61,7 +61,7 @@ export function OrderTable({
   return (
     <div className={cn("ef-table-wrap transition-opacity", stale && "opacity-60")}>
       <div className="ef-table-scroll">
-        <table className="ef-table ef-rtable min-w-[900px] max-md:min-w-0">
+        <table className="ef-table ef-rtable min-w-225 max-md:min-w-0">
           <thead>
             <tr>
               <th className="is-check">
@@ -233,9 +233,9 @@ function SortTh({
         {label}
         {current ? (
           dir === "asc" ? (
-            <ArrowUp aria-hidden="true" className="size-3.5 text-foreground" />
+            <ArrowUp aria-hidden="true" className="size-4 text-foreground" />
           ) : (
-            <ArrowDown aria-hidden="true" className="size-3.5 text-foreground" />
+            <ArrowDown aria-hidden="true" className="size-4 text-foreground" />
           )
         ) : null}
       </button>

@@ -23,9 +23,9 @@ const iconChipVariants = cva(
       },
       size: {
         // 24px in rows, 28px on card headers, 29px on metric tiles.
-        sm: "size-6 rounded-[7px] text-[12px] [&_svg]:size-3.5",
-        md: "size-7 rounded-lg text-[13px] [&_svg]:size-4",
-        lg: "size-[29px] rounded-lg text-[14px] [&_svg]:size-4",
+        sm: "size-6 rounded-lg text-xs [&_svg]:size-4",
+        md: "size-7 rounded-lg text-sm [&_svg]:size-4",
+        lg: "size-8 rounded-lg text-sm [&_svg]:size-4",
       },
     },
     defaultVariants: { tone: "brand", size: "md" },

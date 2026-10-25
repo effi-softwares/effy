@@ -42,7 +42,7 @@ function TabsTrigger({
       data-slot="tabs-trigger"
       className={cn(
         // The active segment is a raised chip on the trough; the others sit at 70%.
-        "group/tab inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent px-4 text-[15px] font-medium text-foreground opacity-70 [transition:background-color_var(--dur-standard)_var(--ease-move),opacity_var(--dur-fast)_ease] outline-none hover:opacity-100 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:opacity-100 data-[state=active]:shadow-xs dark:data-[state=active]:bg-[#27272a] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
+        "group/tab inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent px-4 text-base font-medium text-foreground opacity-70 [transition:background-color_var(--dur-standard)_var(--ease-move),opacity_var(--dur-fast)_ease] outline-none hover:opacity-100 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:opacity-100 data-[state=active]:shadow-xs dark:data-[state=active]:bg-[#27272a] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
         className,
       )}
       {...props}
@@ -69,7 +69,7 @@ function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="tabs-count"
       className={cn(
-        "inline-flex h-[18px] items-center rounded-sm bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background",
+        "inline-flex h-5 items-center rounded-sm bg-muted px-2 text-xs font-medium tabular-nums text-muted-foreground group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background",
         className,
       )}
       {...props}

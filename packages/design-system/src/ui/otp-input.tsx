@@ -123,7 +123,7 @@ function OtpCells({
           // still flush with the label above (the group stays `w-full`, so the transparent input
           // overlay keeps covering the full field). The cell count still comes from `POSITIONS`
           // (derived from `OTP_LENGTH`), so no literal "six" is written down here.
-          className="pointer-events-none flex gap-1.5 sm:gap-2"
+          className="pointer-events-none flex gap-2 sm:gap-2"
         >
           {POSITIONS.map((i) => (
             <Cell
@@ -174,7 +174,7 @@ function Cell({
         // `border-ring` (the colour has no headroom above 3:1; the weight does). The same size in every
         // state, so the row never shifts while typing; a fixed 44/48px square set only here, large
         // because codes are typed under time pressure.
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-[1.5px] bg-background transition-colors sm:h-12 sm:w-12",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-2 bg-background transition-colors sm:h-12 sm:w-12",
         "font-mono text-lg tabular-nums text-foreground sm:text-xl",
         filled ? "border-foreground" : "border-ring",
         // The error is on the cells too, not only in the message.
@@ -191,7 +191,7 @@ function Cell({
       {active && !filled && (
         <span
           data-slot="otp-caret"
-          className="hidden h-5 w-0.5 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-6"
+          className="hidden h-5 w-1 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-6"
         />
       )}
     </div>

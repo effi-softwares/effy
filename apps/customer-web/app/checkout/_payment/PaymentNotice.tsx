@@ -25,7 +25,7 @@ export function PaymentNotice({
     >
       <Icon
         className={[
-          "mt-0.5 size-4 shrink-0",
+          "mt-1 size-4 shrink-0",
           kind === "error" ? "text-foreground" : "text-muted-foreground",
         ].join(" ")}
         aria-hidden="true"

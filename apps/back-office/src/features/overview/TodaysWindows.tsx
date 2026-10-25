@@ -76,13 +76,13 @@ export function TodaysWindows() {
                         {s.startTime.slice(0, 5)} – {s.endTime.slice(0, 5)}
                       </span>
                       {s.anyTime ? (
-                        <Badge variant="outline" className="ml-1.5">
+                        <Badge variant="outline" className="ml-2">
                           Any time
                         </Badge>
                       ) : null}
                       <span className="ef-sub">Order by {ampm(s.cutoffTime)}</span>
                     </td>
-                    <td data-m="full" className="min-w-[180px]">
+                    <td data-m="full" className="min-w-45">
                       <Meter
                         booked={pct}
                         label={`${s.bookedToday} booked`}

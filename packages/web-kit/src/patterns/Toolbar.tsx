@@ -59,7 +59,7 @@ export function SearchBox({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8! pr-8! pl-[34px]! text-[13px]!"
+        className="h-8! pr-8! pl-9! text-sm!"
       />
       {value ? null : <Kbd className="absolute right-2 max-md:hidden">/</Kbd>}
     </label>
@@ -93,7 +93,7 @@ export function Facet<T extends string>({
         <button
           type="button"
           className={cn(
-            "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-3.5 text-[14px] font-medium whitespace-nowrap text-foreground hover:bg-accent max-md:flex-none [&_svg]:size-4 [&_svg]:text-muted-foreground",
+            "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-4 text-sm font-medium whitespace-nowrap text-foreground hover:bg-accent max-md:flex-none [&_svg]:size-4 [&_svg]:text-muted-foreground",
             chosen && "border-solid",
             className,
           )}
@@ -103,7 +103,7 @@ export function Facet<T extends string>({
           {chosen ? (
             <>
               <span className="h-4 w-px bg-border" aria-hidden="true" />
-              <span className="inline-flex h-6 items-center rounded-sm bg-secondary px-1.5 text-[13px] font-medium">{chosen.label}</span>
+              <span className="inline-flex h-6 items-center rounded-sm bg-secondary px-2 text-sm font-medium">{chosen.label}</span>
             </>
           ) : null}
         </button>
@@ -171,7 +171,7 @@ export function Pager({
               aria-label="Rows per page"
               value={rows}
               onChange={(e) => onRows(Number(e.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs"
             >
               {[25, 50, 100].map((n) => (
                 <option key={n} value={n}>

@@ -231,7 +231,7 @@ export function CatalogListScreen() {
           onChange={(v) => onFilter(setReview, (v ?? ALL) as ShopReviewState | typeof ALL)}
           anyLabel="Any review state"
         />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <Input
             aria-label="Minimum price"
             placeholder="Min $"
@@ -273,7 +273,7 @@ export function CatalogListScreen() {
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           <span className="text-sm whitespace-nowrap text-muted-foreground">Filtered by</span>
           {activeFilters.map((f) => (
             <Button
@@ -422,7 +422,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
       </Td>
       <Td className="text-muted-foreground">{product.categoryName}</Td>
       <Td>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <ProductStatusBadge status={product.status} />
           {chip ? (
             <span className={cn("ef-st", sentBack ? "ef-st--problem" : "ef-st--moving")}>
@@ -454,7 +454,7 @@ function CatalogLoading() {
           <Skeleton className="size-12 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-4 w-28" />
           </div>
           <Skeleton className="h-6 w-20 rounded-md" />
           <Skeleton className="h-4 w-16" />

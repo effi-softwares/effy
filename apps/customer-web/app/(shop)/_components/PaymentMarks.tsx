@@ -13,7 +13,7 @@ export function PaymentMarks({ className }: { className?: string }) {
       {PAYMENT_MARKS.map((mark) => (
         <li
           key={mark}
-          className="inline-grid h-[22px] min-w-9 place-items-center rounded-sm border bg-background px-1.5 text-[9px] leading-none font-bold tracking-[0.02em]"
+          className="inline-grid h-6 min-w-9 place-items-center rounded-sm border bg-background px-2 text-xs leading-none font-bold tracking-[0.02em]"
         >
           {mark}
         </li>
