@@ -5,7 +5,6 @@ import "aws-amplify/auth/enable-oauth-listener"
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Hub } from "aws-amplify/utils"
 import { CircleX } from "lucide-react"
 
@@ -16,7 +15,7 @@ import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
 import { capture } from "@/lib/telemetry"
 import { startGoogleSignIn, takePendingNext } from "../_lib/auth-actions"
 import { ensureCustomerRecord } from "../_lib/seed-actions"
-import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
+import { enterSignedIn, HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
 import { AltJourney, StepShell } from "../_components/AuthKit"
 
 const RETRY_FLAG = "effy_google_retry"
@@ -28,7 +27,6 @@ const RETRY_FLAG = "effy_google_retry"
  * retry if it proves unnecessary on this pool.
  */
 export function CallbackHandler() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const handled = useRef(false)
 
@@ -49,20 +47,13 @@ export function CallbackHandler() {
         }
         capture({ name: "sign_in_completed", props: { route: "google" } })
         capture({ name: "account_linked", props: { provider: "google" } })
-        // The federated route needs the same cart merge as the native ones.
-        void mergeCartAfterSignIn()
-    // And the saved list, as email sign-in does.
-    void mergeSavedAfterSignIn()
-
-        // Ensure the platform record (`GET /customer/v1/me`): the name step's PATCH answers 403 without one.
-        void ensureCustomerRecord()
-
         const next = safeNextTarget(takePendingNext())
         if (next !== "/") {
           capture({ name: "deferred_sign_in_resumed", props: { route: "google" } })
         }
-        router.replace(next)
-        router.refresh()
+        // The same cart and saved merges as the native routes, and the platform record
+        // (`GET /customer/v1/me`): the name step's PATCH answers 403 without one.
+        await enterSignedIn(next, [mergeCartAfterSignIn(), mergeSavedAfterSignIn(), ensureCustomerRecord()])
       }
 
       if (payload.event === "signInWithRedirect_failure") {
@@ -89,7 +80,7 @@ export function CallbackHandler() {
     })
 
     return () => stop()
-  }, [router])
+  }, [])
 
   // Reference: Google sign-in failed.
   if (error) {

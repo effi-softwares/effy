@@ -5,7 +5,7 @@ package com.effyshopping.customer.mobile.features.auth.domain
  *
  * Why these are not methods on the viewmodel. They were, and that made them untestable in practice:
  * `AuthViewModel` takes twelve collaborators including concrete `SessionManager` and
- * `CustomerNavigator` classes, so pinning "what happens on the sixth send" meant standing up the
+ * `CustomerNavigator` classes, so pinning "what happens on the 21st send" meant standing up the
  * entire auth stack in a fake. The result was that the two rules most likely to strand a real shopper
  * — the hourly send ceiling and the attempt cap — had **no coverage at all** on either mobile app.
  *
@@ -16,12 +16,12 @@ package com.effyshopping.customer.mobile.features.auth.domain
 /**
  * Mirrors `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts`.
  *
- * The platform allows five codes per address per **fixed clock hour**, keyed on `HMAC(email)`. The
- * sixth is refused by the trigger — which then returns a normal challenge carrying a masked
+ * The platform allows twenty codes per address per **fixed clock hour**, keyed on `HMAC(email)`. The
+ * 21st is refused by the trigger — which then returns a normal challenge carrying a masked
  * destination, so the app would cheerfully announce "we sent a code to a•••@…" for an email that does
  * not exist, and the shopper would find out only after burning three guesses.
  */
-const val MAX_SENDS_PER_FLOW = 5
+const val MAX_SENDS_PER_FLOW = 20
 
 /** Mirrors `OTP_MAX_ATTEMPTS`. Three wrong codes and the Cognito session is over, not merely wrong. */
 const val MAX_OTP_ATTEMPTS = 3

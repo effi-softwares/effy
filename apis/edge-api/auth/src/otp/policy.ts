@@ -11,7 +11,7 @@ import { decodeEnvelope, digestCode, digestsMatch, type CodeEnvelope } from "./c
 export const OTP_LENGTH = 6;
 export const OTP_TTL_SECONDS = 300;
 export const OTP_MAX_ATTEMPTS = 3;
-export const OTP_SENDS_PER_HOUR = 5;
+export const OTP_SENDS_PER_HOUR = 20;
 
 const DIGITS = /^[0-9]+$/;
 

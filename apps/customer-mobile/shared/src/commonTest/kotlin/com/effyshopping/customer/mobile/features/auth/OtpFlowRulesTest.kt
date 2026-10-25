@@ -22,11 +22,11 @@ class OtpFlowRulesTest {
     // The hourly send ceiling
 
     @Test
-    fun `the ceiling mirrors the platform's five sends per address per hour`() {
+    fun `the ceiling mirrors the platform's twenty sends per address per hour`() {
         // ⚠ If `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts` ever changes, this
         // number must change with it — the client counts locally precisely because the server's
         // refusal is invisible (it returns a normal challenge with a masked destination).
-        assertEquals(5, MAX_SENDS_PER_FLOW)
+        assertEquals(20, MAX_SENDS_PER_FLOW)
     }
 
     @Test
@@ -38,8 +38,8 @@ class OtpFlowRulesTest {
     }
 
     @Test
-    fun `⚠ the SIXTH send is refused locally — not fired and silently dropped`() {
-        // The case this whole mechanism exists for. Past five sends the trigger refuses but still
+    fun `⚠ the 21st send is refused locally — not fired and silently dropped`() {
+        // The case this whole mechanism exists for. Past twenty sends the trigger refuses but still
         // returns a normal challenge, so firing anyway shows "we sent a code to a•••@…" for an email
         // that does not exist — and the shopper discovers it only after burning three guesses.
         assertEquals(
@@ -49,13 +49,13 @@ class OtpFlowRulesTest {
         // And it stays refused; it does not wrap or reset within the flow.
         assertEquals(
             ResendVerdict.Ceiling,
-            resendVerdict(sendsThisFlow = 9, resendRemaining = 0, loading = false),
+            resendVerdict(sendsThisFlow = MAX_SENDS_PER_FLOW + 4, resendRemaining = 0, loading = false),
         )
     }
 
     @Test
-    fun `the fifth send is still allowed — the ceiling is a count of SENDS — not of resends`() {
-        // Off-by-one guard: one initial code plus four resends is five sends, and the fifth must go.
+    fun `the twentieth send is still allowed — the ceiling is a count of SENDS — not of resends`() {
+        // Off-by-one guard: one initial code plus nineteen resends is twenty sends, and the twentieth must go.
         assertEquals(
             ResendVerdict.Allowed,
             resendVerdict(sendsThisFlow = MAX_SENDS_PER_FLOW - 1, resendRemaining = 0, loading = false),
@@ -72,7 +72,7 @@ class OtpFlowRulesTest {
 
     @Test
     fun `⚠ a request already in flight blocks a second one`() {
-        // Without this, an impatient double-tap spends two of five sends on one intent.
+        // Without this, an impatient double-tap spends two of twenty sends on one intent.
         assertEquals(
             ResendVerdict.Busy,
             resendVerdict(sendsThisFlow = 1, resendRemaining = 0, loading = true),

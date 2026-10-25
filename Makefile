@@ -313,7 +313,7 @@ shop-test: ## shop-web unit/component tests (vitest)
 
 # --- customer storefront — the platform's first public surface. SSR-first, guest-first.
 # It runs against the live dev backend gateway (or `make edge-offline SERVICE=…` for one service).
-cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3000)
+cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3043)
 	@pnpm --filter @effy/customer-web dev
 
 cw-build: ## Production build of the customer storefront

@@ -38,7 +38,7 @@ interface AuthDriver {
     /** Confirm a registration code, then auto-sign-in → [AuthStep.Done]. */
     suspend fun confirmSignUp(email: String, code: String): AuthStep
 
-    /** Resend the sign-up confirmation code (Cognito's managed flow; outside the platform's five-per-hour code budget). */
+    /** Resend the sign-up confirmation code (Cognito's managed flow; outside the platform's twenty-per-hour code budget). */
     suspend fun resendSignUpCode(email: String): AuthStep
 
     // Sign-in — two routes, and only two
@@ -62,7 +62,7 @@ interface AuthDriver {
      *  • the 3-attempt counter resets (the new Cognito session starts with an empty attempt list);
      *  • the previous code becomes unreachable from this device, because the SDK overwrites the stored
      *  session. It is not revoked server-side — supersession is a client-side property here;
-     *  • it consumes one of the five hourly sends for this address, and the sixth is refused while
+     *  • it consumes one of the twenty hourly sends for this address, and the 21st is refused while
      *  still returning a normal-looking challenge, so the shopper is shown a code screen for an
      *  email that does not exist. That is why the ViewModel counts sends.
      */

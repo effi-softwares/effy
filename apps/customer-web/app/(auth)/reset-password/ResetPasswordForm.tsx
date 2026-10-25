@@ -69,7 +69,7 @@ export function ResetPasswordForm() {
   const sendCode = useCallback(async () => {
     await startPasswordReset(address)
     codeSent.current = true
-    // Marks the send, so the resend cooldown runs (five sends per address per hour).
+    // Marks the send, so the resend cooldown runs (twenty sends per address per hour).
     markCodeSent()
   }, [address])
 

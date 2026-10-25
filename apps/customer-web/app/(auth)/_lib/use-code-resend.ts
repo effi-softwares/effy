@@ -5,11 +5,11 @@ import * as React from "react"
 import { markCodeSent, secondsUntilResend } from "@/lib/otp-cooldown"
 
 /**
- * The platform's per-address ceiling (`OTP_SENDS_PER_HOUR = 5` in `apis/edge-api/auth/src/otp/policy.ts`,
- * per clock hour): one code plus four resends. The sixth is refused yet looks like a normal code step,
+ * The platform's per-address ceiling (`OTP_SENDS_PER_HOUR = 20` in `apis/edge-api/auth/src/otp/policy.ts`,
+ * per clock hour): one code plus nineteen resends. The 21st is refused yet looks like a normal code step,
  * so the UI refuses locally at the ceiling.
  */
-const MAX_SENDS_PER_FLOW = 5
+const MAX_SENDS_PER_FLOW = 20
 
 /** Resend state for a code step: the cooldown and the per-flow send ceiling (sends from other tabs or devices are invisible). */
 export function useCodeResend(options: { onSend: () => Promise<void> }) {

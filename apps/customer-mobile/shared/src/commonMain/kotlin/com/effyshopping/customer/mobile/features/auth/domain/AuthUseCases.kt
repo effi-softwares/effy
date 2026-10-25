@@ -49,7 +49,7 @@ class SignInWithEmailOtp(private val authDriver: AuthDriver) {
  * Send another sign-in code.
  *
  * Named for what it does. There is no resend API for a custom challenge — this re-runs sign-in,
- * which resets the attempt counter and consumes one of five hourly sends. See [AuthDriver].
+ * which resets the attempt counter and consumes one of twenty hourly sends. See [AuthDriver].
  */
 class ResendSignInCode(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.resendSignInCode(email.trim())

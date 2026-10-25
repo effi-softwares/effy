@@ -85,15 +85,15 @@ describe("guessing a code", () => {
 
 describe("issuance budget", () => {
   it("states the per-address hourly limit as a constant the trigger shares", () => {
-    expect(OTP_SENDS_PER_HOUR).toBe(5);
+    expect(OTP_SENDS_PER_HOUR).toBe(20);
   });
 
   it("⚠ restarting the flow does NOT reset the attempt budget in practice", () => {
-    // A new InitiateAuth resets `session[]`; the send limit bounds it: 5 sends/hour × 3 guesses.
+    // A new InitiateAuth resets `session[]`; the send limit bounds it: 20 sends/hour × 3 guesses.
     const guessesPerHour = OTP_SENDS_PER_HOUR * OTP_MAX_ATTEMPTS;
-    expect(guessesPerHour).toBe(15);
-    // ~1 in 66,667 per hour. Remove either control and it is not acceptable.
-    expect(10 ** 6 / guessesPerHour).toBeGreaterThan(50_000);
+    expect(guessesPerHour).toBe(60);
+    // ~1 in 16,667 per hour. Remove either control and it is not acceptable.
+    expect(10 ** 6 / guessesPerHour).toBeGreaterThan(15_000);
   });
 });
 

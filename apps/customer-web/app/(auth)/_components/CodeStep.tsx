@@ -284,7 +284,7 @@ function ResendLine({
 }
 
 /**
- * The hourly send ceiling (five per address), said out loud: the sixth is refused but still returns a
+ * The hourly send ceiling (twenty per address), said out loud: the 21st is refused but still returns a
  * normal-looking challenge. This flow cannot see sends from another tab or device (the trigger discards
  * the retry-after, so the response reveals nothing about the account).
  */

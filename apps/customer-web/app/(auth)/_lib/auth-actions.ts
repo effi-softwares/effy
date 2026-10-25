@@ -105,8 +105,8 @@ export async function submitOtpCode(code: string) {
 /**
  * There is no resend API for the sign-in code: this re-runs `signIn` (`CreateAuthChallenge` reuses the
  * envelope on a re-challenge and sends nothing). So a resend resets the three-attempt counter, makes the
- * previous code unreachable from this device (not revoked server-side), and uses one of five hourly
- * sends; the sixth is refused but still looks like a normal challenge, hence the client-side counter.
+ * previous code unreachable from this device (not revoked server-side), and uses one of twenty hourly
+ * sends; the 21st is refused but still looks like a normal challenge, hence the client-side counter.
  */
 export async function resendSignInCode(email: string) {
   return signInWithOtp(email)

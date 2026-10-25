@@ -127,7 +127,7 @@ data class AuthUiState(
     /** Wrong codes so far in this session. The platform's cap is 3 (`OTP_MAX_ATTEMPTS`). */
     val attemptsUsed: Int = 0,
     /**
-     * Codes sent in this flow. The platform allows five per address per clock hour and the sixth is
+     * Codes sent in this flow. The platform allows twenty per address per clock hour and the 21st is
      * refused while still returning a normal-looking challenge — so the shopper would be shown a code
      * screen for an email that does not exist. Counting locally is the only honest defence.
      */
@@ -227,7 +227,7 @@ class AuthViewModel(
     /**
      * Send another code.
      *
-     * The ceiling is checked before the call. Past five sends in this flow the platform silently
+     * The ceiling is checked before the call. Past twenty sends in this flow the platform silently
      * refuses while still returning a normal challenge, so firing anyway would leave the shopper
      * waiting for an email that does not exist. Refusing here, out loud, is the only honest option.
      */
@@ -914,8 +914,8 @@ private fun TermsNotice(onNavigateLegal: (String) -> Unit) {
 }
 
 /**
- * The resend control and its countdown, the one line under the input. The ceiling matters: five sends per
- * address per hour, and the sixth still returns a normal-looking challenge, so without it the screen would
+ * The resend control and its countdown, the one line under the input. The ceiling matters: twenty sends per
+ * address per hour, and the 21st still returns a normal-looking challenge, so without it the screen would
  * announce a code never sent. Nothing here says whether an address is known.
  */
 @Composable
