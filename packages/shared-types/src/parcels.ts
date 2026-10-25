@@ -3,9 +3,11 @@
 // of N" counts this package's live bags only.
 
 import type { WireInt } from "./cart";
-import type { HandoverMethod } from "./driver";
 
 export type ParcelZone = "ambient" | "chilled" | "frozen";
+
+/** How a package was handed over: scanned from its label, its code typed (a torn label), or ticked by hand. */
+export type HandoverMethod = "scan" | "typed" | "manual";
 
 /** How a read was made. A bag ticked by hand is not a read: it is a hand-over with method `manual`. */
 export type ReadMethod = "scan" | "typed";

@@ -7,7 +7,8 @@
 
 import type { WireInt } from "./cart"
 import type { DeliveredBy } from "./delivery-type"
-import type { CourierPickupDTO, ShopNextCollectionDTO, ShopOrderCollectionDTO, StorageClass } from "./shop-order-console"
+import type { CourierPickupDTO } from "./shop-order"
+import type { ShopNextCollectionDTO, ShopOrderCollectionDTO, StorageClass } from "./shop-order-console"
 
 // Today: the live snapshot
 

@@ -330,9 +330,6 @@ export interface CollectionStopDTO {
 }
 
 /** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect: collect this shop's packages. */
-/** How a package was handed over: scanned from its label, its code typed (a torn label), or ticked by hand. */
-export type HandoverMethod = "scan" | "typed" | "manual";
-
 /** Which hand-over: shop → driver, driver → hub, hub → van, van → door, failed parcel → hub. */
 export type HandoverStep = "collect" | "checkin" | "load" | "deliver" | "return";
 

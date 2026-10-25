@@ -4,13 +4,12 @@
  * order-level total in any response (a total would reveal other shops' lines).
  */
 
+import type { DeliveredBy } from "./delivery-type";
+
 /**
  * The fulfilment state machine. `pending` is written at payment; `received` means a person opened it.
  * `collected` and `delivered` are written by the driver flow and are terminal.
  */
-import type { DeliveredBy } from "./delivery-type";
-import type { CourierPickupDTO } from "./shop-order-console";
-
 export type FulfillmentStatus =
   | "pending"
   | "received"
@@ -22,6 +21,22 @@ export type FulfillmentStatus =
   | "unfulfillable"
   /** Set by cancellation, never by a shop. Not `unfulfillable`: the shop failed nothing. */
   | "withdrawn";
+
+/** A courier will collect this package from the shop: the shop's own parcel only, never a fee, estimate, tracking link or another shop's parcel. */
+export interface CourierPickupDTO {
+  /** arranging: not booked yet; the parcel is prepared and marked ready as usual. */
+  state: "arranging" | "booked" | "handed_over" | "cancelled";
+  /** yyyy-mm-dd */
+  pickupDate: string | null;
+  /** "13:00" */
+  pickupFrom: string | null;
+  pickupTo: string | null;
+  courierName: string | null;
+  serviceName: string | null;
+  reference: string | null;
+  /** Short-lived presigned read of the label to attach; null when none was attached. */
+  labelUrl: string | null;
+}
 
 /** Which slice of the queue to read. */
 export type FulfillmentQueueState = "active" | "completed";

@@ -81,17 +81,6 @@ export interface StorefrontRailDTO {
 }
 
 /**
- * Where a promotion tile leads: a closed vocabulary (mobile has no URL router), mapped exhaustively by
- * each client; an unrecognised value renders the tile non-tappable.
- */
-export type BannerTarget =
-  | { kind: "search" }
-  | { kind: "sale" }
-  | { kind: "category"; categoryKey: string }
-  | { kind: "product"; productId: string }
-  | { kind: "promotion"; promotionId: string };
-
-/**
  * One promotion in full, the destination of a tap (`GET /storefront/v1/promotions/{id}`). Served through
  * the same visibility rule as Home, so one that ended meanwhile is 404, not stale terms (hence uncached).
  */
