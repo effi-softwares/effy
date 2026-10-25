@@ -31,7 +31,7 @@ function Strip({
 }) {
   return (
     <div
-      className={`flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-2.5 text-sm text-foreground ${tone === "warning" ? "font-medium" : ""}`}
+      className={`flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm text-foreground ${tone === "warning" ? "font-medium" : ""}`}
       role="status"
     >
       <span aria-hidden className="shrink-0">
@@ -108,7 +108,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
         <>
           <span className="font-medium">Add Effy Shop to your home screen</span>
           <span className="inline-flex items-center gap-1 opacity-90">
-            Tap <Share className="inline size-3.5" aria-label="Share" /> Share, then
+            Tap <Share className="inline size-4" aria-label="Share" /> Share, then
             <span className="font-medium">Add to Home Screen</span>. Notifications need this.
           </span>
           <div className="ml-auto">
@@ -122,7 +122,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
 
 function DismissButton() {
   return (
-    <Button size="sm" variant="ghost" aria-label="Dismiss" onClick={() => dismissInstall()} className="size-10 p-0">
+    <Button size="icon" variant="ghost" aria-label="Dismiss" onClick={() => dismissInstall()}>
       <X className="size-4" />
     </Button>
   )

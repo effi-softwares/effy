@@ -49,7 +49,7 @@ export function PasswordField({
           aria-describedby={[isNew ? hintId : null, describedBy].filter(Boolean).join(" ") || undefined}
           aria-invalid={tooShort || undefined}
           data-testid={name}
-          className="h-10 w-full rounded-md border border-input bg-background px-3 pr-12 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 md:h-9 md:text-sm"
+          className="h-10 w-full rounded-md border border-input bg-background px-3 pr-12 text-base shadow-xs outline-none focus-visible:border-ring md:h-9 md:text-sm"
         />
 
         <button

@@ -35,7 +35,7 @@ import { DistanceDialog } from "./DistanceDialog"
 import { GroupsPanel } from "./GroupsPanel"
 import { PostcodeChecker } from "./PostcodeChecker"
 
-const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs"
+const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs"
 
 export function CoveragePanel({ canManage }: { canManage: boolean }) {
   const [filters, setFilters] = useState<CoverageFilters>({})
@@ -135,8 +135,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
       />
 
       <Tabs defaultValue="postcodes">
-        <div className="bo-tabsbar">
-          <div className="bo-tabsbar__list">
+        <div className="ef-tabsbar">
+          <div className="ef-tabsbar__list">
             <TabsList aria-label="Coverage sections">
               <TabsTrigger value="postcodes">
                 Postcodes
@@ -149,7 +149,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
             </TabsList>
           </div>
           {first ? (
-            <p className="bo-sub" data-testid="coverage-counts">
+            <p className="ef-sub" data-testid="coverage-counts">
               {first.counts.listed} postcode{first.counts.listed === 1 ? "" : "s"} listed
               {first.counts.manualDistance > 0
                 ? ` · ${first.counts.manualDistance} with a distance entered by hand`
@@ -160,7 +160,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           ) : null}
         </div>
 
-        <TabsContent value="postcodes" className="bo-tabpanel">
+        <TabsContent value="postcodes" className="ef-tabpanel">
           <Toolbar>
             <form onSubmit={applySearch} className="contents">
               <SearchBox
@@ -226,7 +226,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           </Toolbar>
 
           {canManage && selected.size > 0 ? (
-            <div className="bo-bulkbar" data-testid="coverage-bulk">
+            <div className="ef-bulkbar" data-testid="coverage-bulk">
               <span className="text-sm font-medium">{selected.size} selected</span>
               <select
                 aria-label="Move to group"
@@ -283,7 +283,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           {coverage.isError ? (
             <ErrorState error={coverage.error} onRetry={() => void coverage.refetch()} />
           ) : coverage.isPending ? (
-            <div className="bo-table-wrap p-4" aria-busy="true">
+            <div className="ef-table-wrap p-4" aria-busy="true">
               <Skeleton className="mb-3 h-10" />
               <Skeleton className="h-10" />
             </div>
@@ -294,9 +294,9 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
               description={anyFilter ? undefined : "Effy delivers nowhere until a place is added."}
             />
           ) : (
-            <div className="bo-table-wrap">
-              <div className="bo-table-scroll">
-                <table className="bo-table bo-rtable">
+            <div className="ef-table-wrap">
+              <div className="ef-table-scroll">
+                <table className="ef-table ef-rtable">
                   <thead>
                     <tr>
                       {canManage ? (
@@ -331,8 +331,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                           </td>
                         ) : null}
                         <td data-m="primary">
-                          <span className="bo-code font-medium">{r.postcode}</span>
-                          <div className="bo-sub md:hidden">{r.places.slice(0, 3).join(", ")}</div>
+                          <span className="ef-code font-medium">{r.postcode}</span>
+                          <div className="ef-sub md:hidden">{r.places.slice(0, 3).join(", ")}</div>
                         </td>
                         <td data-m="meta" className="max-md:hidden">
                           {r.places.slice(0, 3).join(", ") || "—"}
@@ -347,7 +347,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                         <td data-m="trail">
                           <span className="flex flex-wrap items-center gap-2">
                             <span className="tabular-nums">{r.distanceKm} km</span>
-                            <span className="bo-sub">
+                            <span className="ef-sub">
                               {r.distanceSource === "manual" ? "entered by hand" : "worked out"}
                             </span>
                             {r.needsReview ? <StatusWord tone="waiting">Review</StatusWord> : null}
@@ -355,7 +355,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                         </td>
                         <td data-m="meta">
                           {r.todayOffered ? (
-                            <span className="bo-sub">Offered</span>
+                            <span className="ef-sub">Offered</span>
                           ) : (
                             <StatusWord tone="muted">Not offered</StatusWord>
                           )}
@@ -376,7 +376,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                 </table>
               </div>
               {coverage.hasNextPage ? (
-                <div className="bo-pager">
+                <div className="ef-pager">
                   <span>{rows.length} shown</span>
                   <Button
                     variant="outline"
@@ -394,8 +394,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
           <PostcodeChecker />
         </TabsContent>
 
-        <TabsContent value="groups" className="bo-tabpanel">
-          <div className="bo-settings">
+        <TabsContent value="groups" className="ef-tabpanel">
+          <div className="settings">
             {first ? <GroupsPanel groups={groups} ungrouped={first.ungrouped} canManage={canManage} /> : null}
           </div>
         </TabsContent>

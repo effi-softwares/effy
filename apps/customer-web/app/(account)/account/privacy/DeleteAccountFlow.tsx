@@ -104,7 +104,7 @@ export function DeleteAccountFlow() {
           {preview.retained.map((r) => (
             <li key={r.category}>
               <p className="text-sm font-medium text-foreground">{r.category}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{r.reason}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{r.reason}</p>
             </li>
           ))}
         </ul>
@@ -205,7 +205,7 @@ function ConfirmCodeModal({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        <form id="closure-code-form" onSubmit={submit} noValidate className="px-4 sm:px-0">
+        <form id="closure-code-form" onSubmit={submit} noValidate>
           {/* An explicit margin: the label heads a tall control; the message stays tight to it. */}
           <label htmlFor="closure-code" className="mb-4 block text-sm font-medium">
             Code from your email

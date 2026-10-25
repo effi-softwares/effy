@@ -382,6 +382,20 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
+⚠ **ONE THEME FOR EVERY APP (constitution v4.0.0, 2026-10-25).** `packages/design-system/src/tokens.css` is the
+only token file: customer-web imports it, the consoles import it through `console.css`, and the customer and driver
+apps, the emails and the Stripe card fields are generated from it. Every colour is a **Tailwind palette value** (zinc,
+blue, emerald, rose, orange; violet / pink / red only in the `--promo-*` set). ⚠ **(2026-10-25, operator) EACH COLOUR IS
+A FILL AND A TEXT SHADE**: `--primary-fill` blue-600 `#2563eb`, `--brand-fill` emerald-600 `#059669`, `--destructive-fill`
+rose-500 `#f43f5e` carry a **white label in BOTH appearances** (`bg-*-fill text-*-foreground`, held to 3:1 by the
+operator's choice); `--primary` / `--brand` / `--destructive` are the readable text shade (dark: blue-400, emerald-500
+`#10b981`, rose-400). Orange (`--accent2`) is attention only. Problems are rose. Mobile: Material `primary` is the fill,
+`EffyRoles.brandFill` the green under a white tick. One guard: `check-tokens.mjs`.
+⚠ **OVERLAYS (2026-10-25, operator): shadcn only, on ONE blurred backdrop** (`ui/overlay.ts`). `Dialog` and
+`AlertDialog` ARE shadcn's responsive dialog — centred from 768px, a bottom Drawer below (`ResponsiveModal` is now
+an alias). Side panels are the Drawer `direction="left|right"`, FLOATING (8px inset, rounded on all four corners);
+there is no Sheet. customer-web guest routes fetch them on demand (`components/overlays/lazy.ts`);
+`dependency-cruiser.first-load.cjs` fails a static path from a guest route to radix/vaul/sonner. The two-identity history below (console vs storefront) is superseded.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
 reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it —
@@ -435,9 +449,21 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   `#0b8577`→`#0a7d70` (4.08:1), `--ring` light `#8eadee`→`#7993ca` (2.24:1 — failed even the 3:1 UI
   bar). Dark passes unchanged at every pair. ⚠ The sign-in panel fills with `--primary`, **not**
   `--brand`: the reference's `background:var(--brand); color:#fff` measures **2.62:1 in dark**.
-- **Radius: a four-step scale** read off the design's own declarations, not its `--radius` literal —
-  **sm 4 (checkboxes) / md 6 (inputs, nav, in-row) / lg 8 (buttons, icon chips) / xl 10
-  (containers)**. Pills (badges, status chips, progress) are `rounded-full`, a shape not a step.
+- **Radius (the consoles):** **sm 4 (menu rows) / md 6 (buttons, inputs, selects, badges, checkboxes) /
+  lg 8 (cards, dialogs, panels)**. Avatars, switches, radios, dots and progress are `rounded-full`.
+  ⚠ **The console look lives IN the shared components** (`@effy/design-system/ui`, 2026-10-25) — one
+  button definition (sizes `default` 44 / `sm` 40 / `icon` 44), one badge, one input. The console stylesheet (`src/console.css`, which imports its tokens from `src/tokens.css`, the one console token file) only
+  restyles what customer-web also renders (dialog, drawer, OTP cells), the toasts, and the `ef-*` patterns (one set for both consoles; no `bo-`/`sh-` split)
+  and shell. A rule in `@layer components` cannot restyle a component: its own classes always win.
+- ⚠ **WHERE A CONSOLE STYLE GOES (back-office + shop-web) — one rule, no exceptions:**
+  1. **Both consoles use it** (or a shared `@effy/web-kit` component does) → it MUST go in
+     `packages/design-system/src/console.css`. Every common style lives there and nowhere else.
+  2. **Only one console uses it, in two or more places** → that app's own file:
+     `apps/back-office/src/styles.css` or `apps/shop-web/src/styles.css`.
+  3. **Used in one place only** → no CSS class at all: write Tailwind classes inline in that JSX.
+  Shared classes in `console.css` are `ef-*`. Classes in an app's `styles.css` have **no prefix** (`ticket`,
+  `link`); where a bare name would clash, prefix it `bo-` (back-office) or `sh-` (shop-web). A variant of a shared class (`ef-meter--lg`, `ef-st--done`) stays
+  beside it in `console.css` even if one app uses it. When a class's usage changes, move it to match.
 - **NO GRADIENTS. Flat fills only.** Cards are **bordered, never shadowed**; the only shadows are on
   floating layers (dialog, popover, sheet, select, dropdown, chart tooltip).
 - **Type: Geist / Geist Mono.** ⚠ NOT self-hosted (no woff2 to commit) — loaded from Google Fonts by
@@ -452,14 +478,14 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   `check-no-jade.sh`.
 - **Guards** (`pnpm --filter @effy/design-system test`): `check-tokens.mjs` (key-set parity, the
   four-step radius scale, **WCAG AA on every pair incl. each solid against its own `-soft` tint**,
-  the no-`-foreground` rule), `check-component-shape.mjs` (controls never pills, badge always is,
-  containers ≥ buttons ≥ controls), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
+  the no-`-foreground` rule), `check-component-shape.mjs` (controls and badges never pills,
+  cards one step above controls, surfaces ≥ their rows), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
   a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
   for an unknown utility** and the element renders as nothing with no error anywhere.
 - **Mobile**: the shop Compose theme regenerates from `tokens.css` and takes the cobalt accent and the
   neutral-grey ground; ⚠ the new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`) are
   **web-only** for it. ⚠ **THE DRIVER APP WEARS THE STOREFRONT IDENTITY (092, constitution v3.5.0)** — like
-  the customer app below: generated from `storefront/tokens.css`, Geist, Lucide, blue actions, green only for
+  the customer app below: generated from `tokens.css`, Geist, Lucide, blue actions, green only for
   done, problems black with an icon (no red), light and dark; its kit is `apps/driver-mobile/.../core/presentation/`
   and `scripts/driver-guard.sh` holds it. Mobile must still feel native (iOS HIG / Android
   Material); fat-finger targets + micro-animations are requirements. Design refs: Uber / Bolt /
@@ -467,10 +493,10 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
 - ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: Geist (bundled
   TTFs), Lucide icons, Effy blue for actions, Effy green for savings / "Delivered by Effy", no red. ⚠ **It
   has LIGHT AND DARK (constitution v3.4.0)**: the dark palette is the `.dark` block of
-  `storefront/tokens.css`, read ONLY by the mobile generator — the website stays light only and sets no
+  `tokens.css`, read ONLY by the mobile generator — the website stays light only and sets no
   dark class. The shopper picks Match my phone / Light / Dark in Account → Appearance (stored on the
   device, `AppearanceMode`); colour roles without an M3 slot are read through `EffyRoles` (which follows
-  the appearance), and promo panels with white type use the fixed `promoGround` / `promoBlue`. `gen-compose-theme.mjs` has a **per-target source** (customer → `storefront/tokens.css`,
+  the appearance), and promo panels with white type use the fixed `promoGround` / `promoBlue`. `gen-compose-theme.mjs` has a **per-target source** (customer → `tokens.css`,
   shop/driver → `tokens.css`) and `tokens:check` fails an undeclared hex in the customer theme. Its UI is the customer kit in `apps/customer-mobile/.../core/presentation/`
   (customer-local, never mobile-kit), drawn from the design canvas
   `docs/reference-screens/Effy Customer Mobile/`. ⚠ **No centred dialogs and no drop-down menus** —

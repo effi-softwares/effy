@@ -46,7 +46,6 @@ afterEach(() => {
 })
 
 describe("AddressFormModal — the container", () => {
-  // One native dialog at every width, centred or docked by CSS (`fx-responsive`).
   it("opens as one dialog, named for what it does", () => {
     render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
     expect(screen.getByRole("dialog", { name: "Add address" })).toBeInTheDocument()

@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, useDialogOpen } from "@/components/ui/dialog"
+import { Dialog } from "@/components/ui/dialog"
 
 /**
  * Delete an address, or be told why this one cannot go yet: the default cannot be deleted while others
@@ -21,15 +21,14 @@ export function DeleteAddressDialog(props: Props) {
 }
 
 function Question({ open, onOpenChange, blocked, busy, onConfirm }: Props) {
-  const dialog = useDialogOpen(open)
   const close = () => onOpenChange(false)
   return blocked ? (
     <Dialog
-      ref={dialog}
+      open={open}
+      onOpenChange={onOpenChange}
       alert
       title="Set another default first"
       description="This is your default delivery address. Choose another address as your default, then you can delete this one."
-      onClose={close}
       footer={
         <Button type="button" variant="outline" onClick={close}>
           Got it
@@ -38,11 +37,11 @@ function Question({ open, onOpenChange, blocked, busy, onConfirm }: Props) {
     />
   ) : (
     <Dialog
-      ref={dialog}
+      open={open}
+      onOpenChange={onOpenChange}
       alert
       title="Delete this address?"
       description="This removes the address from your account. Orders you’ve already placed keep their own delivery address and are unaffected."
-      onClose={close}
       footer={
         <>
           <Button type="button" variant="outline" disabled={busy} onClick={close}>

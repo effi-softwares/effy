@@ -128,14 +128,12 @@ function WindowPicker({
               {windows.map((w) => (
                 <div key={keyOf(w)} className="flex items-center gap-2 text-sm">
                   <RadioGroupItem id={`${idPrefix}-${keyOf(w)}`} value={keyOf(w)} />
-                  <Label htmlFor={`${idPrefix}-${keyOf(w)}`} className={w.anyTime ? "font-medium" : "font-normal"}>
-                    {w.label}
-                  </Label>
+                  <Label htmlFor={`${idPrefix}-${keyOf(w)}`}>{w.label}</Label>
                 </div>
               ))}
             </RadioGroup>
           </fieldset>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor={`${idPrefix}-reason`}>Why (staff only — the customer never sees this)</Label>
             <Textarea
               id={`${idPrefix}-reason`}

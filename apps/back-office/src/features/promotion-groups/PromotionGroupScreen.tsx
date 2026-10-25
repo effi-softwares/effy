@@ -104,8 +104,8 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <LookPanel group={g} skins={skins.data ?? []} canManage={canManage} onError={setError} />
           <Panel
             title="Promotions, in order"
@@ -122,10 +122,10 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                   <li key={m.promotionId} className="flex items-center gap-3 px-5 py-3">
                     <span className="w-6 text-right text-sm tabular-nums text-muted-foreground">{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <Link to="/promotions/$promoId" params={{ promoId: m.promotionId }} className="bo-link">
+                      <Link to="/promotions/$promoId" params={{ promoId: m.promotionId }} className="link">
                         {m.headline ?? m.name}
                       </Link>
-                      <div className="bo-sub">
+                      <div className="ef-sub">
                         {m.name} ·{" "}
                         {skinName(m.skinId) ??
                           `Default (${(m.resolved.code && g.defaultCodeSkin ? g.defaultCodeSkin : g.defaultSkin).name})`}
@@ -181,10 +181,10 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
             <Panel title="Add a promotion" description="Only promotions with a headline can be shown." flush>
               <ul className="divide-y divide-border">
                 {addable.slice(0, 20).map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+                  <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{p.name}</div>
-                      <div className="bo-sub">{p.gives}</div>
+                      <div className="ef-sub">{p.gives}</div>
                     </div>
                     <Button
                       size="sm"
@@ -201,7 +201,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
             </Panel>
           ) : null}
         </div>
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <Panel
             title="What a shopper sees now"
             description={`Signed out, in each promotion's skin (${SIZE_WORD[g.size].toLowerCase()} place). Personal offers appear only to the shoppers they are for.`}
@@ -210,7 +210,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
               <Skeleton className="h-24" />
             ) : preview.data ? (
               <div className="space-y-4">
-                {preview.data.shown.length === 0 ? <p className="bo-sub">Nothing — the place is not shown.</p> : null}
+                {preview.data.shown.length === 0 ? <p className="ef-sub">Nothing — the place is not shown.</p> : null}
                 <ol className="space-y-3" data-testid="group-preview">
                   {preview.data.shown.map((s) => (
                     <li key={s.id}>
@@ -219,7 +219,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                   ))}
                 </ol>
                 {preview.data.hidden.length > 0 ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="text-sm font-medium">Hidden right now</div>
                     {preview.data.hidden.map((h) => (
                       <div key={h.promotionId} className="flex items-center justify-between gap-2 text-sm">

@@ -74,10 +74,10 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
           description={`Up to ${MAX_PICTURES} per promotion — JPEG, PNG or WebP, up to 10 MB, at least 320 pixels on the shorter side. A wide one and a square one cover every layout.`}
         >
           {full ? (
-            <p className="bo-sub">This promotion has {MAX_PICTURES} pictures. Remove one to add another.</p>
+            <p className="ef-sub">This promotion has {MAX_PICTURES} pictures. Remove one to add another.</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="picture-file">Picture</Label>
                 <Input
                   id="picture-file"
@@ -87,7 +87,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
                   onChange={(e) => choose(e.target.files?.[0] ?? null)}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="picture-alt">Description</Label>
                 <Input
                   id="picture-alt"
@@ -96,7 +96,7 @@ export function PicturesSection({ promotion, canManage }: { promotion: Promotion
                   placeholder="A basket of oranges on a kitchen table"
                   onChange={(e) => setAlt(e.target.value)}
                 />
-                <p className="bo-sub">Read aloud to shoppers who can't see the picture.</p>
+                <p className="ef-sub">Read aloud to shoppers who can't see the picture.</p>
               </div>
               <div className="sm:col-span-2">
                 <Button disabled={!file || !alt.trim() || add.isPending} onClick={upload}>
@@ -178,13 +178,13 @@ function PictureItem({
         <img src={image.url} alt={image.alt} className="size-full object-contain" />
         <span
           aria-hidden="true"
-          className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow ring-2 ring-black/50"
+          className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
           style={{ left: `${image.focusX * 100}%`, top: `${image.focusY * 100}%` }}
         />
       </button>
-      <div className="bo-sub">
+      <div className="ef-sub">
         {image.width}×{image.height} ·{" "}
-        {image.usedIn.length ? `Chosen in ${image.usedIn.map((g) => g.name).join(", ")}` : "Used where it fits best"}
+        {image.usedIn.length ? `Chosen in ${image.usedIn.map((g) => g.name).join(",")}` : "Used where it fits best"}
         {canManage ? " · Click the picture to set what every crop keeps in view." : null}
       </div>
       {canManage ? (
@@ -241,7 +241,7 @@ function PictureItem({
             <AlertDialogTitle>Remove this picture?</AlertDialogTitle>
             <AlertDialogDescription>
               {image.usedIn.length
-                ? `It is chosen in ${image.usedIn.map((g) => g.name).join(", ")}. Those places show the next best picture instead — or the skin's colour if none is left.`
+                ? `It is chosen in ${image.usedIn.map((g) => g.name).join(",")}. Those places show the next best picture instead — or the skin's colour if none is left.`
                 : "Skins that use it show the next best picture instead."}
             </AlertDialogDescription>
           </AlertDialogHeader>

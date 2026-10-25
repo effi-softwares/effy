@@ -60,10 +60,10 @@ export default async function LegalVersionsPage({ params }: { params: Promise<{ 
           <tbody>
             {doc.versions.map((v) => (
               <tr key={v.version} className="border-b last:border-b-0">
-                <td className="px-2 py-2.5 font-medium">Version {v.version.replace(/^v/, "")}</td>
-                <td className="px-2 py-2.5">{EFFECTIVE.format(new Date(v.effectiveDate))}</td>
-                <td className="px-2 py-2.5">{v.status === "current" && <Badge variant="brand">Current</Badge>}</td>
-                <td className="px-2 py-2.5 text-right">
+                <td className="px-2 py-3 font-medium">Version {v.version.replace(/^v/, "")}</td>
+                <td className="px-2 py-3">{EFFECTIVE.format(new Date(v.effectiveDate))}</td>
+                <td className="px-2 py-3">{v.status === "current" && <Badge variant="brand">Current</Badge>}</td>
+                <td className="px-2 py-3 text-right">
                   <Link
                     href={v.status === "current" ? `/legal/${doc.slug}` : `/legal/${doc.slug}/versions/${v.version}`}
                     className={btnClass("ghost", "sm")}

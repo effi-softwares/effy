@@ -82,15 +82,15 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const pct = detail.lines.length > 0 ? (pickedFull / detail.lines.length) * 100 : 0
 
   return (
-    <section className="bo-panel min-w-0">
-      <div className="bo-panel__head">
+    <section className="ef-panel min-w-0">
+      <div className="ef-panel__head">
         <div className="grid min-w-0 flex-1 gap-2">
-          <h2 className="bo-panel__title">Items and fulfilment</h2>
+          <h2 className="ef-panel__title">Items and fulfilment</h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <div className="bo-meter bo-meter--lg w-full max-w-[260px]" aria-hidden="true">
-              <i className="bo-meter__booked" style={{ width: `${pct}%` }} />
+            <div className="ef-meter ef-meter--lg w-full max-w-65" aria-hidden="true">
+              <i className="ef-meter__booked" style={{ width: `${pct}%` }} />
             </div>
-            <p className="bo-panel__desc">
+            <p className="ef-panel__desc">
               {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
             </p>
           </div>
@@ -103,7 +103,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
       </div>
 
       {editable ? (
-        <div className="sh-scan">
+        <div className="flex flex-wrap items-center gap-3 border-b border-b-border px-5 py-3 max-md:px-4">
           <div className="min-w-0 flex-1">
             <ScanField
               accept={(t) => /^\d{8,14}$/.test(t.trim())}
@@ -113,7 +113,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
             />
           </div>
           {scan ? (
-            <p role="status" className="sh-scan__state basis-full">
+            <p role="status" className="scan__state basis-full">
               {scan.ok ? (
                 <CircleCheck aria-hidden="true" className="text-success" />
               ) : (
@@ -129,15 +129,15 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
         </div>
       ) : null}
 
-      <div className="sh-picklist">
+      <div className="flex flex-col">
         {zonesOf(detail.lines).map(({ zone, lines }) => {
           const Z = ZONE[zone]
           return (
             <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
-              <h3 className="sh-zone">
+              <h3 className="flex items-center gap-2 border-b border-b-border bg-muted/55 px-5 py-3 text-sm font-semibold tracking-[0.02em] max-md:px-4 max-md:py-3 [&_svg]:size-4">
                 <Z.icon aria-hidden="true" />
                 {STORAGE_CLASS_WORDS[zone].toUpperCase()}
-                <span className="sh-zone__hint">· {Z.hint}</span>
+                <span className="font-normal tracking-normal text-muted-foreground">· {Z.hint}</span>
               </h3>
               <ul>
                 {lines.map((l) => (
@@ -169,7 +169,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
       </div>
 
       {editable ? (
-        <div className="bo-panel__foot bo-panel__foot--between">
+        <div className="ef-panel__foot ef-panel__foot--between">
           <p className="min-w-0 flex-1 text-sm text-muted-foreground text-pretty">
             {pickedAny
               ? "Marks everything ticked above ready for an Effy driver to collect."

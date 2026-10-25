@@ -354,7 +354,7 @@ export function PaymentStep({
             laterAvailable={laterAvailable}
             busy={busy}
           >
-            <div className="flex flex-col gap-5 px-4.5 pb-5 pt-1">
+            <div className="flex flex-col gap-5 px-5 pb-5 pt-1">
               <div className="h-px bg-border" />
               <SavedCards
                 cards={cards}
@@ -382,13 +382,13 @@ export function PaymentStep({
             <span className="block text-xs font-medium uppercase tracking-[0.09em] text-muted-foreground">
               Total due
             </span>
-            <div className="mt-1.5 flex items-baseline gap-2">
+            <div className="mt-2 flex items-baseline gap-2">
               <span className="text-4xl leading-none font-bold tracking-tight tabular-nums">
                 {amount}
               </span>
               <span className="text-sm font-medium text-muted-foreground">{intent.currency}</span>
             </div>
-            <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Includes GST and delivery. This is the exact amount we will charge.
             </p>
           </div>
@@ -408,8 +408,8 @@ export function PaymentStep({
             >
                       {busy ? "Paying…" : `Pay ${amount}`}
             </ActionButton>
-            <p className="mt-3.5 flex items-center justify-center gap-2 text-center text-[13px] leading-relaxed text-muted-foreground">
-              <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+            <p className="mt-4 flex items-center justify-center gap-2 text-center text-sm leading-relaxed text-muted-foreground">
+              <Lock className="size-4 shrink-0" aria-hidden="true" />
               Encrypted end to end. Effy never sees or stores your card number.
             </p>
           </div>

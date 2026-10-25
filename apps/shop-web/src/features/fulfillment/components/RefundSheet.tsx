@@ -101,7 +101,7 @@ export function RefundSheet({
               key={l.orderItemId}
               className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border py-3"
             >
-              <div className="grid min-w-0 flex-1 gap-0.5">
+              <div className="grid min-w-0 flex-1 gap-1">
                 <div className="font-medium">
                   {l.name}
                   {l.variantLabel ? ` · ${l.variantLabel}` : ""}
@@ -130,7 +130,7 @@ export function RefundSheet({
                 >
                   {max === 0 ? "refunded" : `max ${max}`}
                 </Button>
-                <div className="w-[80px] text-right whitespace-nowrap tabular-nums">
+                <div className="w-20 text-right whitespace-nowrap tabular-nums">
                   {formatMoney(((Math.round(Number(l.unitPrice) * 100) * n) / 100).toFixed(2), detail.currency)}
                 </div>
               </div>
@@ -157,7 +157,7 @@ export function RefundSheet({
 
       <div className="flex items-baseline justify-between border-t border-border pt-3">
         <div className="font-semibold">Refund total</div>
-        <output className="text-[22px] leading-7 font-semibold tracking-[-.02em] tabular-nums">
+        <output className="text-2xl leading-7 font-semibold tracking-[-.02em] tabular-nums">
           {formatMoney((totalCents / 100).toFixed(2), detail.currency)}
         </output>
       </div>

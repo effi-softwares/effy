@@ -110,7 +110,7 @@ function Row({
       <div className="min-w-0">
         <p className="text-sm text-muted-foreground">{label}</p>
         <p className="truncate font-medium">{value || <span className="font-normal text-muted-foreground italic">Not set</span>}</p>
-        {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
+        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
       </div>
       {children}
     </li>

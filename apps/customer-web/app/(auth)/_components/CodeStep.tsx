@@ -215,7 +215,7 @@ export function CodeStep({
             onChange={(e) => onCodeChange(e.target.value)}
           />
           {tooLong ? (
-            <p id="code-too-long" className="text-[13px] font-medium leading-[18px] text-destructive">
+            <p id="code-too-long" className="text-sm font-medium leading-5 text-destructive">
               That&apos;s {code.length} digits. An Effy code is always {OTP_LENGTH}.
             </p>
           ) : (
@@ -224,7 +224,7 @@ export function CodeStep({
               <p
                 id="code-shortfall"
                 role="status"
-                className="text-[13px] leading-[18px] text-muted-foreground"
+                className="text-sm leading-5 text-muted-foreground"
               >
                 {hint}
               </p>
@@ -253,7 +253,7 @@ function ResendLine({
   onChangeEmail: () => void
 }) {
   return (
-    <div className="space-y-1.5 text-sm text-muted-foreground">
+    <div className="space-y-2 text-sm text-muted-foreground">
       {/* `aria-live="polite"`: the countdown is announced without moving focus off the field. */}
       <p aria-live="polite">
         {resend.atCeiling ? (

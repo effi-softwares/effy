@@ -195,7 +195,7 @@ function RefundHistory({ refunds, refundedAmount }: { refunds: readonly RefundDT
   return (
     <section className="space-y-3">
       <h3 className="font-medium">Refunds issued</h3>
-      <table className="bo-table bo-table--compact bo-table--plain rounded-lg border border-border">
+      <table className="ef-table ef-table--compact ef-table--plain rounded-lg border border-border">
         <thead className="text-left text-muted-foreground">
           <tr className="border-b">
             <th className="py-2 font-medium">When</th>

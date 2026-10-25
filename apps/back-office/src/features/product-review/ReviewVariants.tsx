@@ -23,8 +23,8 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
       }
       flush
     >
-      <div className="bo-table-scroll">
-        <table className="bo-table">
+      <div className="ef-table-scroll">
+        <table className="ef-table">
           <thead>
             <tr>
               {named ? <th>Size</th> : null}

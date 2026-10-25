@@ -94,8 +94,8 @@ export function StockTable({
       }
     >
       <div className="grid">
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-table--plain">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-table--plain">
             <thead>
               <tr>
                 <Th>{named ? "Size" : "Item"}</Th>
@@ -116,7 +116,7 @@ export function StockTable({
                   <tr key={v.id} className="align-top">
                     <Td>
                       <span className="font-medium">{label}</span>
-                      <span className="bo-sub">
+                      <span className="ef-sub">
                         <span className="font-mono">{v.code}</span>
                         {v.state === "inactive" ? " · Off sale" : ""}
                       </span>
@@ -144,15 +144,15 @@ export function StockTable({
                         }}
                       />
                       {plan.kind === "invalid" ? (
-                        <p className="mt-1 text-[13px] font-medium">Enter {plan.message}</p>
+                        <p className="mt-1 text-sm font-medium">Enter {plan.message}</p>
                       ) : null}
                       {errors[v.id] ? (
-                        <p role="alert" className="mt-1 text-[13px] leading-tight font-medium">
+                        <p role="alert" className="mt-1 text-sm leading-tight font-medium">
                           {errors[v.id]}
                         </p>
                       ) : null}
                       {!v.stock.tracked && after !== null ? (
-                        <p className="mt-1 text-[13px] text-muted-foreground">Starts counting this size</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Starts counting this size</p>
                       ) : null}
                     </Td>
                     <Td align="right" className="font-medium tabular-nums">
@@ -177,8 +177,8 @@ export function StockTable({
           </table>
         </div>
 
-        <div className="bo-panel__foot flex-wrap items-end! justify-between!">
-          <div className="grid min-w-[260px] flex-1 gap-1.5">
+        <div className="ef-panel__foot flex-wrap items-end! justify-between!">
+          <div className="grid min-w-65 flex-1 gap-2">
             <Label htmlFor="stock-note">Note (optional)</Label>
             <Input
               id="stock-note"
@@ -217,20 +217,20 @@ export function StockTable({
 }
 
 function StockBadge({ stock }: { stock: ProductDetail["variants"][number]["stock"] }) {
-  if (!stock.tracked) return <span className="bo-st bo-st--quiet">Not counted</span>
+  if (!stock.tracked) return <span className="ef-st ef-st--quiet">Not counted</span>
   if (stock.outOfStock)
     return (
-      <span className="bo-st bo-st--problem">
+      <span className="ef-st ef-st--problem">
         <PackageX aria-hidden="true" />
         Out of stock
       </span>
     )
   if (stock.low)
     return (
-      <span className="bo-st bo-st--waiting">
+      <span className="ef-st ef-st--waiting">
         <ArrowDown aria-hidden="true" />
         Low
       </span>
     )
-  return <span className="bo-st bo-st--done">In stock</span>
+  return <span className="ef-st ef-st--done">In stock</span>
 }

@@ -12,11 +12,11 @@ import { clsx } from "clsx"
 const PLACEHOLDER = "Search groceries and essentials…"
 
 const shell =
-  "flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background pr-1 pl-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20"
+  "flex min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background pr-1 pl-3 shadow-xs focus-within:border-ring"
 const field =
   "h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm [&::-webkit-search-cancel-button]:hidden"
 const submit =
-  "inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
+  "inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary-fill px-3 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary-fill/90"
 
 /* Recent searches: this device's own, kept on this device */
 
@@ -176,7 +176,7 @@ export function HeaderSearch({
     <form
       ref={form}
       role="search"
-      className={clsx(shell, "relative", size === "lg" ? "h-11" : "h-[42px]", className)}
+      className={clsx(shell, "relative", size === "lg" ? "h-11" : "h-11", className)}
       onSubmit={(e) => {
         e.preventDefault()
         const next = new URLSearchParams()
@@ -240,7 +240,7 @@ export function HeaderSearch({
           value={aisle}
           onChange={(e) => setAisle(e.target.value)}
           aria-label="Search in"
-          className="h-8 w-[136px] shrink-0 rounded-md border-0 bg-muted px-2 text-sm outline-none"
+          className="h-8 w-34 shrink-0 rounded-md border-0 bg-muted px-2 text-sm outline-none"
         >
           <option value="">All aisles</option>
           {aisles.map((a) => (
@@ -261,13 +261,13 @@ export function HeaderSearch({
         role="listbox"
         aria-label="Search suggestions"
         hidden={!showing}
-        className="absolute top-full left-0 z-50 mt-2 w-full max-w-[46.5rem] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
+        className="absolute top-full left-0 z-50 mt-2 w-full max-w-186 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
       >
         {groups.map((group, g) => {
           const offset = groups.slice(0, g).reduce((n, earlier) => n + earlier.options.length, 0)
           return (
             <div key={group.title} role="group" aria-label={group.title} className="border-b p-1 last:border-b-0">
-              <p aria-hidden="true" className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+              <p aria-hidden="true" className="px-2 py-2 text-xs font-medium text-muted-foreground">
                 {group.title}
               </p>
               {group.options.map((option, i) => {
@@ -283,7 +283,7 @@ export function HeaderSearch({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => go(option)}
                     onMouseMove={() => setActive(index)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm aria-selected:bg-accent"
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm aria-selected:bg-accent"
                   >
                     <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{option.label}</span>
@@ -304,7 +304,7 @@ export function HeaderSearch({
 /** The field before hydration and without JavaScript: a plain GET form to `/search`. */
 export function HeaderSearchFallback({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
   return (
-    <form role="search" action="/search" className={clsx(shell, size === "lg" ? "h-11" : "h-10.5", className)}>
+    <form role="search" action="/search" className={clsx(shell, size === "lg" ? "h-11" : "h-11", className)}>
       <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <input type="search" name="q" placeholder={PLACEHOLDER} aria-label="Search products" className={field} />
       {size === "md" && (

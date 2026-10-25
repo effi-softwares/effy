@@ -163,7 +163,7 @@ export function OrderListScreen({
         <OrderQueue search={search} now={now} />
       ) : (
         <>
-          <div role="tablist" aria-label="Order status" className="bo-tabs">
+          <div role="tablist" aria-label="Order status" className="ef-tabs">
             {SHOP_ORDER_TABS.map((t) => (
               <button
                 key={t}
@@ -171,14 +171,14 @@ export function OrderListScreen({
                 role="tab"
                 aria-selected={t === tab}
                 onClick={() => update({ tab: t })}
-                className={cn("bo-tabs__tab", t === tab && "is-active")}
+                className={cn("ef-tabs__tab", t === tab && "is-active")}
               >
                 {TAB_LABEL[t]}
                 {data ? (
                   <span
                     className={cn(
-                      "bo-tabs__count",
-                      t === "new" && t !== tab && data.counts[t] > 0 && "bo-tabs__count--primary",
+                      "ef-tabs__count",
+                      t === "new" && t !== tab && data.counts[t] > 0 && "ef-tabs__count--primary",
                     )}
                   >
                     {data.counts[t]}
@@ -188,11 +188,11 @@ export function OrderListScreen({
             ))}
           </div>
 
-          <div className="bo-toolbar">
+          <div className="ef-toolbar">
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
               label="Placed"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               anyLabel={RANGE_LABEL.any}
               value={search.range ?? null}
               options={SHOP_ORDER_RANGES.filter((r) => r !== "any").map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
@@ -200,7 +200,7 @@ export function OrderListScreen({
             />
             <Facet
               label="Goes with"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               anyLabel={DELIVERED_BY_FILTER_LABEL.any}
               value={search.deliveredBy ?? null}
               options={SHOP_ORDER_DELIVERED_BY.filter((d) => d !== "any").map((d) => ({
@@ -211,15 +211,15 @@ export function OrderListScreen({
             />
             <Facet
               label="Payment"
-              className="max-[1023px]:hidden"
+              className="max-lg:hidden"
               value={search.payment ?? null}
               options={SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] }))}
               onChange={(payment) => update({ payment: payment ?? undefined })}
             />
-            <Button variant="outline" className="min-[1024px]:hidden" onClick={() => setFiltersOpen(true)}>
+            <Button variant="outline" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
               <SlidersHorizontal aria-hidden="true" />
               Filters
-              {filterCount > 0 ? <span className="bo-tabs__count bo-tabs__count--primary">{filterCount}</span> : null}
+              {filterCount > 0 ? <span className="ef-tabs__count ef-tabs__count--primary">{filterCount}</span> : null}
             </Button>
             {dirty ? (
               <Button variant="ghost" onClick={clearAll}>
@@ -278,8 +278,8 @@ export function OrderListScreen({
 
 function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
   return (
-    <div className="bo-empty">
-      <span className="bo-empty__icon" aria-hidden="true">
+    <div className="ef-empty">
+      <span className="ef-empty__icon" aria-hidden="true">
         {filtered ? <SearchX /> : <Inbox />}
       </span>
       <h3>{filtered ? "No orders match these filters" : "No orders yet"}</h3>
@@ -299,13 +299,13 @@ function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => v
 
 function ListLoading() {
   return (
-    <div className="bo-table-wrap" aria-busy="true" aria-label="Loading orders">
+    <div className="ef-table-wrap" aria-busy="true" aria-label="Loading orders">
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
           <Skeleton className="size-5 rounded" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3.5 w-48" />
+            <Skeleton className="h-4 w-48" />
           </div>
           <Skeleton className="h-6 w-24 rounded-md" />
           <Skeleton className="h-4 w-16" />

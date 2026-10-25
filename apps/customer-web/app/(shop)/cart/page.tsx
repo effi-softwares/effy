@@ -2,9 +2,10 @@
 
 import { ArrowRight, CircleAlert, Lock, Minus, Plus, ShoppingCart } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { loadDialog, useLazyOverlay } from "@/components/overlays/lazy"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { Alert } from "@/components/ui/alert"
@@ -57,13 +58,13 @@ export default function CartPage() {
 
   const currency = cart.currency || lines[0]?.currency || "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
-  const confirmRef = useRef<HTMLDialogElement>(null)
+  const { Overlay: Confirm, open: confirming, setOpen: setConfirming, want: wantConfirm } = useLazyOverlay(loadDialog)
 
   /** Empty the cart, and hand back a way to undo it. The emptied lines live only as long as
    *  the toast: nothing is stored anywhere to make this possible. */
   function emptyCart() {
     const before = lines.map((l) => ({ ...l }))
-    confirmRef.current?.close()
+    setConfirming(false)
     clearAll()
     toast("Your cart was emptied", {
       action: { label: "Undo", run: () => before.forEach((l) => addItem(l)) },
@@ -96,7 +97,13 @@ export default function CartPage() {
                 · {count} {count === 1 ? "item" : "items"}
               </span>
             </h1>
-            <button type="button" onClick={() => confirmRef.current?.showModal()} className={btnClass("ghost", "sm")}>
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              onPointerEnter={wantConfirm}
+              onFocus={wantConfirm}
+              className={btnClass("ghost", "sm")}
+            >
               Empty cart
             </button>
           </div>
@@ -140,7 +147,7 @@ export default function CartPage() {
 
               {/* Offers that do not apply yet, each with the one thing to do about it. */}
               {(cart.promotionsNotApplied ?? []).length > 0 ? (
-                <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                   {cart.promotionsNotApplied!.map((n) => (
                     <li key={n.promotionId}>
                       <span className="font-medium text-foreground">{n.headline}:</span> {n.detail}
@@ -172,8 +179,8 @@ export default function CartPage() {
                   </span>
                 </>
               )}
-              <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <Lock aria-hidden="true" className="size-3.5" />
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Lock aria-hidden="true" className="size-4" />
                 Secure checkout. Sign in to complete your order.
               </p>
               <PaymentMarks className="mt-4 justify-center" />
@@ -198,29 +205,25 @@ export default function CartPage() {
 
       <OnSaleRail />
 
-      <dialog
-        ref={confirmRef}
-        aria-labelledby="empty-cart-title"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) confirmRef.current?.close()
-        }}
-        className="fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-6 text-foreground shadow-lg"
-      >
-        <h2 id="empty-cart-title" className="text-lg font-semibold">
-          Empty your cart?
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This removes all {count} {count === 1 ? "item" : "items"}. Anything saved for later stays.
-        </p>
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={() => confirmRef.current?.close()} className={btnClass("outline", "lg")}>
-            Keep my cart
-          </button>
-          <button type="button" onClick={emptyCart} className={btnClass("destructive", "lg")}>
-            Empty cart
-          </button>
-        </div>
-      </dialog>
+      {Confirm && (
+        <Confirm
+          alert
+          open={confirming}
+          onOpenChange={setConfirming}
+          title="Empty your cart?"
+          description={`This removes all ${count} ${count === 1 ? "item" : "items"}. Anything saved for later stays.`}
+          footer={
+            <>
+              <button type="button" onClick={() => setConfirming(false)} className={btnClass("outline", "lg")}>
+                Keep my cart
+              </button>
+              <button type="button" onClick={emptyCart} className={btnClass("destructive", "lg")}>
+                Empty cart
+              </button>
+            </>
+          }
+        />
+      )}
     </div>
   )
 }
@@ -283,8 +286,8 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
         </span>
         <UnitPrice unit={line.unitPrice} />
         {line.available === false ? (
-          <span className="mt-1 flex items-center gap-1.5 text-xs font-medium">
-            <CircleAlert aria-hidden="true" className="size-3.5" />
+          <span className="mt-1 flex items-center gap-2 text-xs font-medium">
+            <CircleAlert aria-hidden="true" className="size-4" />
             Unavailable — not included in your total
           </span>
         ) : null}
@@ -297,7 +300,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               className="grid h-full w-9 place-items-center rounded-l-md hover:bg-accent"
               aria-label="Decrease quantity"
             >
-              <Minus className="size-3.5" />
+              <Minus className="size-4" />
             </button>
             <span className="w-8 text-center text-sm font-medium tabular-nums" aria-live="polite">
               {line.quantity}
@@ -309,7 +312,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               disabled={line.quantity >= 99}
               aria-label="Increase quantity"
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-4" />
             </button>
           </div>
           <button type="button" onClick={remove} className={textAction}>

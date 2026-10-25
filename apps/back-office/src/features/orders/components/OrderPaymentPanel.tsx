@@ -17,7 +17,7 @@ export function OrderPaymentPanel({ order }: { order: OrderDetail }) {
       actions={<Badge variant={paid ? "success" : "secondary"}>{paid ? "Paid" : order.paymentStatus}</Badge>}
     >
       <div className="grid gap-6 lg:grid-cols-2">
-        <dl className="bo-dl">
+        <dl className="ef-dl">
           <MoneyRow label="Items" value={money(order.itemSubtotalAmount, order.currency)} />
           {Number(order.discountAmount) > 0 ? (
             <MoneyRow
@@ -59,7 +59,7 @@ export function OrderPaymentPanel({ order }: { order: OrderDetail }) {
 
 function MoneyRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="bo-dl__row">
+    <div className="ef-dl__row">
       <dt className={strong ? "font-semibold text-foreground!" : undefined}>{label}</dt>
       <dd className={`text-right tabular-nums${strong ? " font-semibold" : ""}`}>{value}</dd>
     </div>

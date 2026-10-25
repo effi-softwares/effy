@@ -17,14 +17,14 @@ export const authLayoutRoute = createRoute({
   component: () => (
     <div className="grid min-h-dvh bg-background lg:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-10 p-6 sm:p-11">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <img src="/icon.svg" alt="" className="size-10 rounded-lg" />
-          <span className="text-[15px] font-semibold">
+          <span className="text-base font-semibold">
             Effy <span className="font-normal text-muted-foreground">Shop</span>
           </span>
         </div>
         <div className="grid flex-1 place-items-center">
-          <div className="w-full max-w-[400px] [animation:effy-fade_.3s_ease]">
+          <div className="w-full max-w-100 [animation:effy-fade_.3s_ease]">
             <Outlet />
           </div>
         </div>
@@ -34,16 +34,16 @@ export const authLayoutRoute = createRoute({
       </div>
 
       <section className="flex min-w-0 flex-col gap-10 border-border bg-muted p-6 sm:p-11 lg:border-l">
-        <p aria-hidden="true" className="text-[56px] leading-none font-bold tracking-[-.06em] max-lg:hidden">
+        <p aria-hidden="true" className="text-6xl leading-none font-bold tracking-[-.06em] max-lg:hidden">
           effy<span className="text-success">.</span>
         </p>
         <ul className="grid flex-1 content-center gap-6">
           {LINES.map((l) => (
             <li key={l.title} className="flex items-start gap-4">
-              <span aria-hidden="true" className="bo-icon-tile bo-icon-tile--primary size-11">
+              <span aria-hidden="true" className="ef-icon-tile ef-icon-tile--primary size-11">
                 <l.icon />
               </span>
-              <span className="grid gap-0.5">
+              <span className="grid gap-1">
                 <span className="font-medium">{l.title}</span>
                 <span className="text-muted-foreground">{l.body}</span>
               </span>

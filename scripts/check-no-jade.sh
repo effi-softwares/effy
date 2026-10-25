@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# No-Jade sweep: the retired Jade brand values (#0FB57E accent, #047857 fill) must not
+# No-Jade sweep: the retired Jade accent (#0FB57E) must not (#047857 is emerald-700, adopted 2026-10-25)
 # appear in any live source/asset. Scans packages/ + apps/ code files, excluding node_modules, build
 # output, and the theme guard tests (which legitimately name the forbidden hex to forbid it).
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # grep -r with include/exclude; case-insensitive; the two retired hex values.
-hits="$(grep -rniE '0fb57e|047857' packages apps \
+hits="$(grep -rniE '0fb57e' packages apps \
   --include='*.css' --include='*.ts' --include='*.tsx' --include='*.kt' --include='*.svg' \
   --exclude='*.test.ts' --exclude='*.test.tsx' \
   --exclude-dir='node_modules' --exclude-dir='.next' --exclude-dir='dist' \

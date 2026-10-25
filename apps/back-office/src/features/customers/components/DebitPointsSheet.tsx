@@ -76,7 +76,7 @@ export function DebitPointsSheet({
           )
         }}
       >
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="debit-points">Points</Label>
           <Input
             id="debit-points"
@@ -93,7 +93,7 @@ export function DebitPointsSheet({
           ) : null}
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="debit-reason">Reason</Label>
           <Select value={reason} onValueChange={(v) => setReason(v as PointsDebitReason)}>
             <SelectTrigger id="debit-reason" className="w-full">
@@ -109,7 +109,7 @@ export function DebitPointsSheet({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="debit-note">Internal note{reason === "other" ? "" : " (optional)"}</Label>
           <Textarea id="debit-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} />
         </div>

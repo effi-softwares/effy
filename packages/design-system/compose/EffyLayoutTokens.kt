@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
 object EffyRadius {
     val sm = 4.dp
     val md = 6.dp
-    val default = 10.dp
+    val default = 8.dp
 }
 
 /** The Effy spacing scale (dp), mirroring the design tokens (xs 4 · s 8 · md 12 · lg 16 · xl 20 · 4xl 40 → xxxl). */

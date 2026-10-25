@@ -72,7 +72,7 @@ export function CardFields({ state }: { state: CardFieldsController }) {
   }, [])
 
   return (
-    <div className="flex flex-col gap-3.5 sm:grid sm:grid-cols-[2fr_1fr_1fr] sm:gap-3.5">
+    <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[2fr_1fr_1fr] sm:gap-4">
       <Field
         label="Card number"
         error={state.number.error}

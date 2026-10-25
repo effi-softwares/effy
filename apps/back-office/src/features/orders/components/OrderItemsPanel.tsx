@@ -17,8 +17,8 @@ export function OrderItemsPanel({ order }: { order: OrderDetail }) {
       }
       flush
     >
-      <div className="bo-table-scroll">
-        <table className="bo-table bo-rtable bo-table--compact bo-table--plain">
+      <div className="ef-table-scroll">
+        <table className="ef-table ef-rtable ef-table--compact ef-table--plain">
           <thead>
             <tr>
               <th>Product</th>
@@ -32,7 +32,7 @@ export function OrderItemsPanel({ order }: { order: OrderDetail }) {
               <tr key={i.orderItemId}>
                 <td data-m="primary">
                   <div className="flex items-center gap-3">
-                    <span className="bo-img size-9" aria-hidden="true">
+                    <span className="ef-img size-9" aria-hidden="true">
                       <Package />
                     </span>
                     <span>

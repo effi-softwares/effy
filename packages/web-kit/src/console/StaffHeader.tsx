@@ -46,13 +46,13 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
   const mobileTitle = detail ?? page ?? title;
 
   return (
-    <header className="bo-topbar">
-      <button type="button" className="bo-iconbtn md:hidden" aria-label="Open menu" onClick={() => setOpenMobile(true)}>
+    <header className="sticky top-0 z-10 flex h-(--header-h) flex-none items-center gap-3 border-b border-b-border bg-background pr-5 pl-4 max-md:gap-2 max-md:px-2">
+      <button type="button" className="ef-iconbtn md:hidden" aria-label="Open menu" onClick={() => setOpenMobile(true)}>
         <Menu aria-hidden="true" />
       </button>
       <button
         type="button"
-        className="bo-iconbtn max-md:hidden"
+        className="ef-iconbtn max-md:hidden"
         aria-label="Toggle sidebar"
         title="Toggle sidebar (⌘B)"
         onClick={toggleSidebar}
@@ -62,11 +62,14 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
       <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border max-md:hidden" />
 
       {back ? (
-        <Link {...back.link} className="bo-iconbtn" aria-label={`Back to ${back.label}`} title={`Back to ${back.label}`}>
+        <Link {...back.link} className="ef-iconbtn" aria-label={`Back to ${back.label}`} title={`Back to ${back.label}`}>
           <ArrowLeft aria-hidden="true" />
         </Link>
       ) : null}
-      <nav aria-label="Breadcrumb" className="bo-crumbs max-md:hidden">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex min-w-0 items-center gap-2 overflow-hidden text-base whitespace-nowrap text-muted-foreground max-md:hidden [&>svg]:size-4 [&>svg]:flex-none"
+      >
         {where && section && page ? (
           <>
             <span>{section}</span>
@@ -93,17 +96,22 @@ export function StaffHeader({ title, groups, defaultTabs, onOpenSearch, searchPr
           </span>
         )}
       </nav>
-      <span className="bo-topbar-title truncate md:hidden">{mobileTitle}</span>
+      <span className="truncate text-base font-semibold md:hidden">{mobileTitle}</span>
 
       <div className="ml-auto flex items-center gap-2">
         {actions}
         <LivePill />
-        <button type="button" className="bo-topbar-search max-lg:hidden" aria-label="Search and commands" onClick={onOpenSearch}>
+        <button
+          type="button"
+          className="inline-flex h-11 w-75 cursor-pointer items-center gap-3 rounded-md border border-input bg-background pr-3 pl-3 text-sm text-muted-foreground shadow-xs transition-[border-color] duration-(--dur-fast) ease-[ease] hover:border-muted-foreground max-lg:hidden [&>svg]:size-5 [&>svg]:flex-none"
+          aria-label="Search and commands"
+          onClick={onOpenSearch}
+        >
           <Search aria-hidden="true" />
           <span className="truncate">{searchPrompt}</span>
           <Kbd className="ml-auto">⌘K</Kbd>
         </button>
-        <button type="button" className="bo-iconbtn lg:hidden" aria-label="Search" onClick={onOpenSearch}>
+        <button type="button" className="ef-iconbtn lg:hidden" aria-label="Search" onClick={onOpenSearch}>
           <Search aria-hidden="true" />
         </button>
         {account}
@@ -141,11 +149,11 @@ function LivePill() {
   const at = clock.format(live.currentAsOf).replace(/[  ]/g, " ").toLowerCase();
   return (
     <>
-      <span role="status" className="bo-live">
+      <span role="status" className="ef-chip max-lg:hidden">
         {reconnecting ? <RefreshCcw aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
         {reconnecting ? "Reconnecting" : "Live updates off"} · last updated {at}
       </span>
-      <button type="button" className="bo-iconbtn" aria-label="Refresh now" onClick={live.refresh}>
+      <button type="button" className="ef-iconbtn" aria-label="Refresh now" onClick={live.refresh}>
         <RefreshCw aria-hidden="true" />
       </button>
     </>

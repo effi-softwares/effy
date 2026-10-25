@@ -116,7 +116,7 @@ export function HandoverReportScreen() {
               {data.refused.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No read was refused in this period.</p>
               ) : (
-                <table className="bo-table bo-table--compact bo-table--plain" aria-label="Refused reads">
+                <table className="ef-table ef-table--compact ef-table--plain" aria-label="Refused reads">
                   <thead>
                     <tr>
                       <th>Outcome</th>
@@ -140,7 +140,7 @@ export function HandoverReportScreen() {
               {data.missing.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No bag was declared missing in this period.</p>
               ) : (
-                <table className="bo-table bo-table--compact bo-table--plain" aria-label="Bags declared missing">
+                <table className="ef-table ef-table--compact ef-table--plain" aria-label="Bags declared missing">
                   <thead>
                     <tr>
                       <th>Reason</th>
@@ -176,7 +176,7 @@ function MixTable({
 }) {
   if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted-foreground">No hand-overs in this period.</p>
   return (
-    <table className="bo-table bo-table--compact bo-table--plain" aria-label={label}>
+    <table className="ef-table ef-table--compact ef-table--plain" aria-label={label}>
       <thead>
         <tr>
           <th>{first}</th>

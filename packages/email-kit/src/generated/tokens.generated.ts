@@ -7,28 +7,28 @@
 
 export const EMAIL_TOKENS = {
   light: {
-      "pageGround": "#edf2fd",
+      "pageGround": "#f4f4f5",
       "canvas": "#ffffff",
-      "ink": "#0b1220",
-      "mutedInk": "#5c6b86",
-      "hairline": "#e1e8f3",
-      "actionFill": "#1d4ed8",
+      "ink": "#09090b",
+      "mutedInk": "#52525b",
+      "hairline": "#e4e4e7",
+      "actionFill": "#2563eb",
       "actionLabel": "#ffffff",
-      "codeSurface": "#edf2fd",
-      "error": "#cf2b1f",
-      "success": "#0d8043"
+      "codeSurface": "#f4f4f5",
+      "error": "#be123c",
+      "success": "#047857"
   },
   dark: {
-      "pageGround": "#111111",
-      "canvas": "#151515",
+      "pageGround": "#18181b",
+      "canvas": "#09090b",
       "ink": "#fafafa",
-      "mutedInk": "#a3a3a3",
-      "hairline": "#2a2a2a",
-      "actionFill": "#60a5fa",
-      "actionLabel": "#111111",
-      "codeSurface": "#212121",
-      "error": "#f87171",
-      "success": "#4cd97b"
+      "mutedInk": "#a1a1aa",
+      "hairline": "#27272a",
+      "actionFill": "#2563eb",
+      "actionLabel": "#ffffff",
+      "codeSurface": "#27272a",
+      "error": "#fb7185",
+      "success": "#10b981"
   },
   radiusSm: "8px",
 } as const;

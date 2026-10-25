@@ -187,7 +187,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
 
       {canManage ? (
         <form onSubmit={exclude} className="flex flex-wrap items-end gap-2">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="exclude-postcode">Postcode</Label>
             <Input
               id="exclude-postcode"
@@ -198,7 +198,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
               onChange={(e) => setPostcode(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="exclude-reason">Why</Label>
             <Input
               id="exclude-reason"

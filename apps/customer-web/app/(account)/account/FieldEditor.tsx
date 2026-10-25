@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/dialog"
@@ -55,14 +55,9 @@ function OpenEditor({
   onSave: (values: Record<string, string>) => Promise<string | null>
   onClose: () => void
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.name, f.initialValue])))
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
-
-  useEffect(() => {
-    dialog.current?.showModal()
-  }, [])
 
   const dirty = fields.some((f) => values[f.name] !== f.initialValue)
 
@@ -85,7 +80,8 @@ function OpenEditor({
 
   return (
     <Dialog
-      ref={dialog}
+      open
+      onOpenChange={(next) => !next && onClose()}
       title={title}
       description={description}
       onDismiss={attemptClose}

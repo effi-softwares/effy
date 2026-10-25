@@ -35,8 +35,8 @@ export function TodaysWindows() {
       }
       flush
     >
-      <div className="bo-table-scroll">
-        <table className="bo-table bo-rtable bo-table--plain">
+      <div className="ef-table-scroll">
+        <table className="ef-table ef-rtable ef-table--plain">
           <thead>
             <tr>
               <th>Window</th>
@@ -72,17 +72,17 @@ export function TodaysWindows() {
                 return (
                   <tr key={s.id}>
                     <td data-m="primary">
-                      <span className="bo-code font-medium">
+                      <span className="ef-code font-medium">
                         {s.startTime.slice(0, 5)} – {s.endTime.slice(0, 5)}
                       </span>
                       {s.anyTime ? (
-                        <Badge variant="outline" className="ml-1.5">
+                        <Badge variant="outline" className="ml-2">
                           Any time
                         </Badge>
                       ) : null}
-                      <span className="bo-sub">Order by {ampm(s.cutoffTime)}</span>
+                      <span className="ef-sub">Order by {ampm(s.cutoffTime)}</span>
                     </td>
-                    <td data-m="full" className="min-w-[180px]">
+                    <td data-m="full" className="min-w-45">
                       <Meter
                         booked={pct}
                         label={`${s.bookedToday} booked`}
@@ -97,7 +97,7 @@ export function TodaysWindows() {
                         <>
                           {round.driver.name}
                           {w && w.rounds.length > 1 ? ` +${w.rounds.length - 1}` : ""}
-                          {round.opensAt ? <span className="bo-sub">Opens {at12(round.opensAt)}</span> : null}
+                          {round.opensAt ? <span className="ef-sub">Opens {at12(round.opensAt)}</span> : null}
                         </>
                       ) : (
                         <span className="text-muted-foreground">No round yet</span>

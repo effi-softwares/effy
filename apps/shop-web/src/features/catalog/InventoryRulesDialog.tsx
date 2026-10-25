@@ -86,12 +86,8 @@ function InventoryRulesForm({
       <div className="grid gap-5">
         <div className="border-border flex items-start justify-between gap-4 border-b pb-4">
           <div className="grid gap-1">
-            <Label htmlFor="rules-tracked" className="text-[13.5px] font-medium">
-              Track stock
-            </Label>
-            <p className="text-muted-foreground text-[12.5px]">
-              Deduct units on every paid order, and stop selling at zero.
-            </p>
+            <Label htmlFor="rules-tracked">Track stock</Label>
+            <p className="text-muted-foreground text-xs">Deduct units on every paid order, and stop selling at zero.</p>
           </div>
           <Switch
             id="rules-tracked"
@@ -102,7 +98,7 @@ function InventoryRulesForm({
         </div>
 
         {turningOn ? (
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="rules-opening">Opening count</Label>
             <Input
               id="rules-opening"
@@ -113,14 +109,14 @@ function InventoryRulesForm({
               value={openingCount}
               onChange={(e) => setOpeningCount(e.target.value)}
             />
-            <p className="text-muted-foreground text-[12.5px]">
+            <p className="text-muted-foreground text-xs">
               How many you have right now. Required — tracking cannot start from an unknown count.
             </p>
           </div>
         ) : null}
 
         {tracked ? (
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="rules-threshold">Low-stock threshold</Label>
             <Input
               id="rules-threshold"
@@ -131,7 +127,7 @@ function InventoryRulesForm({
               value={threshold}
               onChange={(e) => setThresholdValue(e.target.value)}
             />
-            <p className="text-muted-foreground text-[12.5px]">
+            <p className="text-muted-foreground text-xs">
               {threshold.trim() === ""
                 ? stock.effectiveThreshold === null
                   ? "Leave blank to use the shop default. Nothing is set for this shop yet, so only products that reach zero are reported."

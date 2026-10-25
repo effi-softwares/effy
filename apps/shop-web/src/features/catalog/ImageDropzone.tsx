@@ -101,9 +101,9 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           <div className="relative flex min-h-0 flex-1 items-center justify-center bg-muted/30">
             <img src={previewUrl} alt="Selected product" className="max-h-full max-w-full object-contain" />
             {uploading ? (
-              <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/10">
+              <div className="absolute inset-x-0 bottom-0 h-2 bg-black/10">
                 <div
-                  className="h-full bg-primary transition-all"
+                  className="h-full bg-primary-fill transition-all"
                   style={{ width: `${progress}%` }}
                   role="progressbar"
                   aria-valuenow={progress ?? 0}
@@ -153,7 +153,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           aria-label="Add primary image — click to browse, drag and drop, or paste"
           className={cn(
             "flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "",
             "disabled:cursor-not-allowed disabled:opacity-60",
             dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30",
           )}
@@ -161,7 +161,7 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
           <span
             className={cn(
               "flex size-16 items-center justify-center rounded-full transition-colors",
-              dragging ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+              dragging ? "bg-primary-fill text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
             <ImageUp className="size-8" />
@@ -173,14 +173,14 @@ export function ImageDropzone({ file, onChange, progress, disabled }: ImageDropz
             <span className="block text-sm text-muted-foreground">JPEG, PNG, or WebP · up to 10 MB</span>
           </span>
           <span className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <MousePointerClick className="size-3.5" /> Click to browse
+            <span className="flex items-center gap-2">
+              <MousePointerClick className="size-4" /> Click to browse
             </span>
-            <span className="flex items-center gap-1.5">
-              <Upload className="size-3.5" /> Drag &amp; drop
+            <span className="flex items-center gap-2">
+              <Upload className="size-4" /> Drag &amp; drop
             </span>
-            <span className="flex items-center gap-1.5">
-              <ClipboardPaste className="size-3.5" /> Paste
+            <span className="flex items-center gap-2">
+              <ClipboardPaste className="size-4" /> Paste
             </span>
           </span>
         </button>

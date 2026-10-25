@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { LucideIcon } from "lucide-react";
-import { CircleAlert, CircleCheck, Info } from "lucide-react";
+import { CircleAlert, Info } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 
@@ -22,8 +22,8 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="bo-empty">
-      <span className="bo-empty__icon" aria-hidden="true">
+    <div className="ef-empty">
+      <span className="ef-empty__icon" aria-hidden="true">
         <Icon />
       </span>
       <h3>{title}</h3>
@@ -36,11 +36,10 @@ export function EmptyState({
 const CALLOUT_ICON: Record<CalloutTone, LucideIcon> = {
   destructive: CircleAlert,
   info: Info,
-  success: CircleCheck,
   muted: Info,
 };
 
-type CalloutTone = "destructive" | "info" | "success" | "muted";
+type CalloutTone = "destructive" | "info" | "muted";
 
 /** A note in the page: a problem (black edge, an icon — no red), information (blue), done (green). */
 export function Callout({
@@ -56,10 +55,10 @@ export function Callout({
 }) {
   const Icon = CALLOUT_ICON[tone];
   return (
-    <div className={cn("bo-alert", `bo-alert--${tone}`)} role={role ?? (tone === "destructive" ? "alert" : undefined)}>
+    <div className={cn("ef-alert", `ef-alert--${tone}`)} role={role ?? (tone === "destructive" ? "alert" : undefined)}>
       <Icon aria-hidden="true" />
-      <div className="bo-alert__title">{title}</div>
-      {children ? <div className="bo-alert__description">{children}</div> : null}
+      <div className="ef-alert__title">{title}</div>
+      {children ? <div className="ef-alert__description">{children}</div> : null}
     </div>
   );
 }

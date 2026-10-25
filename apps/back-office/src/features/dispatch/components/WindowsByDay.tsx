@@ -28,7 +28,7 @@ export function WindowsByDay() {
       description="Parcels booked into each window, and the round that carries them."
       actions={
         data ? (
-          <div className="bo-seg max-w-full overflow-x-auto" role="group" aria-label="Day">
+          <div className="ef-seg max-w-full overflow-x-auto" role="group" aria-label="Day">
             {data.days.map((d) => (
               <button
                 key={d.date}
@@ -70,20 +70,20 @@ export function WindowsByDay() {
               <div key={w.windowStart} className="space-y-3 px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="bo-code text-sm font-semibold">{w.label}</span>
+                    <span className="ef-code text-sm font-semibold">{w.label}</span>
                     {w.anyTime ? <Badge variant="outline">Any time</Badge> : null}
                     <span className="text-sm text-muted-foreground">
                       {w.parcels.length} {w.parcels.length === 1 ? "parcel" : "parcels"}
                     </span>
                   </div>
-                  <div className="flex min-w-[220px] items-center gap-3">
+                  <div className="flex min-w-55 items-center gap-3">
                     <div
-                      className="bo-meter flex-1"
+                      className="ef-meter flex-1"
                       role="img"
                       aria-label={`${delivered} delivered, ${moving} on the way, of ${w.parcels.length}`}
                     >
-                      <i className="bo-meter__done" style={{ width: `${(delivered / n) * 100}%` }} />
-                      <i className="bo-meter__booked" style={{ width: `${(moving / n) * 100}%` }} />
+                      <i className="ef-meter__done" style={{ width: `${(delivered / n) * 100}%` }} />
+                      <i className="ef-meter__booked" style={{ width: `${(moving / n) * 100}%` }} />
                     </div>
                     <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                       {delivered} delivered
@@ -91,18 +91,18 @@ export function WindowsByDay() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Route aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  <Route aria-hidden="true" className="size-4 text-muted-foreground" />
                   <span>{roundLine(w, isToday)}</span>
                 </div>
                 {w.parcels.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="bo-table bo-rtable bo-table--compact bo-table--plain" aria-label={w.label}>
+                    <table className="ef-table ef-rtable ef-table--compact ef-table--plain" aria-label={w.label}>
                       <caption className="sr-only">{summary}</caption>
                       <tbody>
                         {w.parcels.map((p) => (
                           <tr key={p.packageId}>
                             <td data-m="primary" className="w-40">
-                              <span className="bo-code font-medium">{p.orderNumber}</span>
+                              <span className="ef-code font-medium">{p.orderNumber}</span>
                             </td>
                             <td data-m="badge">
                               <PackageStatusPill view={p.status} icons />
@@ -113,13 +113,13 @@ export function WindowsByDay() {
                             <td data-m="meta">
                               <span className="flex flex-wrap gap-2">
                                 {p.collectLate ? (
-                                  <span className="bo-late">
+                                  <span className="late">
                                     <Clock aria-hidden="true" />
                                     Late for its run
                                   </span>
                                 ) : null}
                                 {p.coldOvernight ? (
-                                  <span className="bo-tag">
+                                  <span className="ef-tag">
                                     <Snowflake aria-hidden="true" />
                                     Needs cold storage
                                   </span>

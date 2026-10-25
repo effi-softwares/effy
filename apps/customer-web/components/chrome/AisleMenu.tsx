@@ -127,7 +127,7 @@ export function AisleMenu({
         onClick={() => (open ? close() : setOpen(true))}
         {...stayOpen}
         className={clsx(
-          "inline-flex h-8 items-center gap-2 rounded-md border border-input pr-3 pl-2.5 text-sm font-medium whitespace-nowrap shadow-xs hover:bg-accent",
+          "inline-flex h-8 items-center gap-2 rounded-md border border-input pr-3 pl-3 text-sm font-medium whitespace-nowrap shadow-xs hover:bg-accent",
           open && "bg-accent",
         )}
       >

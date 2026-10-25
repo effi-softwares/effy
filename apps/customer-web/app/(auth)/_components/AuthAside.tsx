@@ -58,12 +58,12 @@ export function AuthAside() {
         </g>
       </svg>
       <div className="absolute inset-x-[12%] top-1/2 -translate-y-1/2">
-        <p className="text-[52px] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground">
+        <p className="text-5xl font-semibold leading-[1.02] tracking-[-0.03em] text-foreground">
           Groceries,
           <br />
           delivered.
         </p>
-        <p className="mt-6 max-w-[420px] text-lg leading-[1.55] text-foreground">{copy}</p>
+        <p className="mt-6 max-w-105 text-lg leading-[1.55] text-foreground">{copy}</p>
       </div>
     </aside>
   )

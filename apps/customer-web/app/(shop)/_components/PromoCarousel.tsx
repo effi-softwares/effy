@@ -89,7 +89,7 @@ export function PromoCarousel({
           <button type="button" aria-label="Previous slide" onClick={() => go(index - 1, -1)} className={control}>
             <ChevronLeft aria-hidden="true" className="size-4" />
           </button>
-          <span aria-hidden="true" className="flex gap-1.5">
+          <span aria-hidden="true" className="flex gap-2">
             {slides.map((_, i) => (
               <i
                 key={i}

@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils"
 type Tone = "warn" | "info" | "pos" | "neg" | "muted"
 
 const TONE_CLASS: Record<Tone, string> = {
-  warn: "bo-st--waiting",
-  info: "bo-st--moving",
-  pos: "bo-st--done",
-  neg: "bo-st--problem",
-  muted: "bo-st--muted",
+  warn: "ef-st--waiting",
+  info: "ef-st--moving",
+  pos: "ef-st--done",
+  neg: "ef-st--problem",
+  muted: "ef-st--muted",
 }
 
 const TONE_ICON: Record<Tone, LucideIcon | null> = {
@@ -25,7 +25,7 @@ const TONE_ICON: Record<Tone, LucideIcon | null> = {
 function TonePill({ tone, children }: { tone: Tone; children: ReactNode }) {
   const Icon = TONE_ICON[tone]
   return (
-    <span className={cn("bo-st", TONE_CLASS[tone])}>
+    <span className={cn("ef-st", TONE_CLASS[tone])}>
       {Icon ? <Icon aria-hidden="true" /> : null}
       {children}
     </span>

@@ -7,10 +7,10 @@ import { cn } from "../cn"
 type Tone = "brand" | "success" | "warning" | "destructive" | "violet" | "teal" | "muted"
 
 const FILL: Record<Tone, string> = {
-  brand: "bg-brand",
+  brand: "bg-primary-fill",
   success: "bg-success",
   warning: "bg-warning",
-  destructive: "bg-destructive",
+  destructive: "bg-destructive-fill",
   violet: "bg-violet",
   teal: "bg-teal",
   muted: "bg-muted-foreground",
@@ -68,8 +68,8 @@ function Meter({
 }) {
   const total = segments.reduce((a, s) => a + Math.max(0, s.value), 0)
   return (
-    <div data-slot="meter" className={cn("grid gap-2.5", className)} {...props}>
-      <div className="flex w-full gap-0.5" style={{ height }}>
+    <div data-slot="meter" className={cn("grid gap-3", className)} {...props}>
+      <div className="flex w-full gap-1" style={{ height }}>
         {total === 0 ? (
           <div className="h-full w-full rounded-full bg-muted" />
         ) : (
@@ -84,15 +84,15 @@ function Meter({
             ))
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {segments.map((s) => (
-          <div key={s.label} className="flex items-center gap-1.5">
+          <div key={s.label} className="flex items-center gap-2">
             <span
               aria-hidden="true"
               className={cn("size-2 shrink-0 rounded-full", FILL[s.tone])}
             />
-            <span className="text-[12.5px] text-muted-foreground">{s.label}</span>
-            <span className="font-mono text-[12.5px] font-semibold tabular-nums">{s.value}</span>
+            <span className="text-xs text-muted-foreground">{s.label}</span>
+            <span className="font-mono text-xs font-semibold tabular-nums">{s.value}</span>
           </div>
         ))}
       </div>

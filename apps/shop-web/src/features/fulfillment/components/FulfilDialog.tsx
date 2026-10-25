@@ -42,18 +42,18 @@ export function FulfilDialog({
       onSave={() => void save().catch(() => undefined)}
     >
       <div className="grid">
-        <div className="bo-eyebrow border-b border-border pb-2">In this parcel</div>
+        <div className="ef-eyebrow border-b border-border pb-2">In this parcel</div>
         {inParcel.map((l) => (
           <div
             key={l.orderItemId}
-            className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-2.5"
+            className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-3"
           >
-            <div className="grid min-w-0 flex-1 gap-0.5">
+            <div className="grid min-w-0 flex-1 gap-1">
               <div className="font-medium">
                 {l.name}
                 {l.variantLabel ? ` · ${l.variantLabel}` : ""}
               </div>
-              <div className="font-mono text-[13px] text-muted-foreground">{lineCodes(l.variantCode, l.sku)}</div>
+              <div className="font-mono text-sm text-muted-foreground">{lineCodes(l.variantCode, l.sku)}</div>
             </div>
             <div className="whitespace-nowrap tabular-nums">
               {l.gatheredQuantity} <span className="text-muted-foreground">of {l.orderedQuantity}</span>
@@ -62,12 +62,12 @@ export function FulfilDialog({
         ))}
       </div>
       {short > 0 ? (
-        <p className="bo-alert bo-alert--muted grid-cols-1! text-sm">
+        <p className="ef-alert ef-alert--muted grid-cols-1! text-sm">
           {short} {short === 1 ? "unit is" : "units are"} not in the package and {short === 1 ? "is" : "are"} recorded
           as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
         </p>
       ) : null}
-      <div className="grid gap-0.5">
+      <div className="grid gap-1">
         <div className="font-medium">The customer is told</div>
         <div className="text-sm text-muted-foreground">They get a notification as soon as it&apos;s ready.</div>
       </div>

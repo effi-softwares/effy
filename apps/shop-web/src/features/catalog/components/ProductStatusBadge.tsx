@@ -11,15 +11,15 @@ const PRODUCT_STATUS_WORD: Record<ProductStatus, string> = {
 }
 
 const LOOK: Record<ProductStatus, { tone: string; icon: LucideIcon }> = {
-  active: { tone: "bo-st--done", icon: CircleCheck },
-  draft: { tone: "bo-st--waiting", icon: Pencil },
-  unavailable: { tone: "bo-st--quiet", icon: CircleSlash },
-  archived: { tone: "bo-st--quiet", icon: Archive },
+  active: { tone: "ef-st--done", icon: CircleCheck },
+  draft: { tone: "ef-st--waiting", icon: Pencil },
+  unavailable: { tone: "ef-st--quiet", icon: CircleSlash },
+  archived: { tone: "ef-st--quiet", icon: Archive },
 }
 
 function Word({ tone, icon: Icon, children }: { tone: string; icon: LucideIcon; children: string }) {
   return (
-    <span className={cn("bo-st", tone)}>
+    <span className={cn("ef-st", tone)}>
       <Icon aria-hidden="true" />
       {children}
     </span>
@@ -30,13 +30,13 @@ export function ProductStatusBadge({ status, stock }: { status: ProductStatus; s
   if (status === "active" && stock?.tracked) {
     if (stock.outOfStock)
       return (
-        <Word tone="bo-st--problem" icon={PackageX}>
+        <Word tone="ef-st--problem" icon={PackageX}>
           Out of stock
         </Word>
       )
     if (stock.low)
       return (
-        <Word tone="bo-st--waiting" icon={ArrowDown}>
+        <Word tone="ef-st--waiting" icon={ArrowDown}>
           Low stock
         </Word>
       )

@@ -57,9 +57,9 @@
   /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
      NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
-      .e-bg-page { background-color: #111111 !important; }
-      .e-bg-canvas { background-color: #151515 !important; }
-      .e-bg-code { background-color: #212121 !important; }
+      .e-bg-page { background-color: #18181b !important; }
+      .e-bg-canvas { background-color: #09090b !important; }
+      .e-bg-code { background-color: #27272a !important; }
       .e-ink,
       .e-ink div,
       .e-ink p,
@@ -71,31 +71,31 @@
       .e-muted p,
       .e-muted span,
       .e-muted a,
-      .e-muted h1 { color: #a3a3a3 !important; }
-      .e-rule p { border-top-color: #2a2a2a !important; }
-      .e-btn-bg td { background-color: #60a5fa !important; }
+      .e-muted h1 { color: #a1a1aa !important; }
+      .e-rule p { border-top-color: #27272a !important; }
+      .e-btn-bg td { background-color: #2563eb !important; }
       .e-btn-fg,
       .e-btn-fg div,
       .e-btn-fg p,
       .e-btn-fg span,
       .e-btn-fg a,
-      .e-btn-fg h1 { color: #111111 !important; }
+      .e-btn-fg h1 { color: #ffffff !important; }
       .e-error,
       .e-error div,
       .e-error p,
       .e-error span,
       .e-error a,
-      .e-error h1 { color: #f87171 !important; }
+      .e-error h1 { color: #fb7185 !important; }
   }
 /* Dark, mechanism 2 of 2 — the SAME rules as the media query above, for Outlook.com and the
      Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
      (DARK_RULES) so they cannot drift. */
     [data-ogsc] .e-bg-page,
-    [data-ogsb] .e-bg-page { background-color: #111111 !important; }
+    [data-ogsb] .e-bg-page { background-color: #18181b !important; }
     [data-ogsc] .e-bg-canvas,
-    [data-ogsb] .e-bg-canvas { background-color: #151515 !important; }
+    [data-ogsb] .e-bg-canvas { background-color: #09090b !important; }
     [data-ogsc] .e-bg-code,
-    [data-ogsb] .e-bg-code { background-color: #212121 !important; }
+    [data-ogsb] .e-bg-code { background-color: #27272a !important; }
     [data-ogsc] .e-ink,
     [data-ogsc] .e-ink div,
     [data-ogsc] .e-ink p,
@@ -107,22 +107,22 @@
     [data-ogsc] .e-muted p,
     [data-ogsc] .e-muted span,
     [data-ogsc] .e-muted a,
-    [data-ogsc] .e-muted h1 { color: #a3a3a3 !important; }
-    [data-ogsc] .e-rule p { border-top-color: #2a2a2a !important; }
+    [data-ogsc] .e-muted h1 { color: #a1a1aa !important; }
+    [data-ogsc] .e-rule p { border-top-color: #27272a !important; }
     [data-ogsc] .e-btn-bg td,
-    [data-ogsb] .e-btn-bg td { background-color: #60a5fa !important; }
+    [data-ogsb] .e-btn-bg td { background-color: #2563eb !important; }
     [data-ogsc] .e-btn-fg,
     [data-ogsc] .e-btn-fg div,
     [data-ogsc] .e-btn-fg p,
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
-    [data-ogsc] .e-btn-fg h1 { color: #111111 !important; }
+    [data-ogsc] .e-btn-fg h1 { color: #ffffff !important; }
     [data-ogsc] .e-error,
     [data-ogsc] .e-error div,
     [data-ogsc] .e-error p,
     [data-ogsc] .e-error span,
     [data-ogsc] .e-error a,
-    [data-ogsc] .e-error h1 { color: #f87171 !important; }
+    [data-ogsc] .e-error h1 { color: #fb7185 !important; }
     </style>
     <meta name="color-scheme" content="light dark" />
   <meta name="supported-color-schemes" content="light dark" />
@@ -182,7 +182,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.01em;line-height:28px;text-align:left;color:#0b1220;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.01em;line-height:28px;text-align:left;color:#09090b;"
       >{{effyProductName}}</div>
     
                 </td>
@@ -244,7 +244,7 @@
                 >
                   
       <h1
-         style="margin:0;font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:24px;font-weight:600;letter-spacing:-0.01em;line-height:32px;text-align:left;color:#0b1220;"
+         style="margin:0;font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:24px;font-weight:600;letter-spacing:-0.01em;line-height:32px;text-align:left;color:#09090b;"
       >Confirm your email address</h1>
     
                 </td>
@@ -256,7 +256,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;font-weight:400;line-height:24px;text-align:left;color:#5c6b86;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;font-weight:400;line-height:24px;text-align:left;color:#52525b;"
       >Enter this code to finish creating your {{effyProductName}} account. It can only be used once.</div>
     
                 </td>
@@ -268,7 +268,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:36px;font-weight:500;letter-spacing:0.15em;line-height:44px;text-align:center;color:#0b1220;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:36px;font-weight:500;letter-spacing:0.15em;line-height:44px;text-align:center;color:#09090b;"
       >{####}</div>
     
                 </td>
@@ -280,7 +280,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#5c6b86;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#52525b;"
       >If you didn&rsquo;t create a {{effyProductName}} account, you can ignore this email.</div>
     
                 </td>
@@ -342,11 +342,11 @@
                 >
                   
       <p
-         style="border-top:solid 1px #e1e8f3;font-size:1px;margin:0px auto;width:100%;"
+         style="border-top:solid 1px #e4e4e7;font-size:1px;margin:0px auto;width:100%;"
       >
       </p>
       
-      <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" style="border-top:solid 1px #e1e8f3;font-size:1px;margin:0px auto;width:536px;" role="presentation" width="536px" ><tr><td style="height:0;line-height:0;"> &nbsp;
+      <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" style="border-top:solid 1px #e4e4e7;font-size:1px;margin:0px auto;width:536px;" role="presentation" width="536px" ><tr><td style="height:0;line-height:0;"> &nbsp;
 </td></tr></table><![endif]-->
     
     
@@ -359,7 +359,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#5c6b86;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#52525b;"
       >{{effyProductName}}{{#if effyPostalAddress}}<br />
       {{effyPostalAddress}}{{/if}}</div>
     
@@ -372,7 +372,7 @@
                 >
                   
       <div
-         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#5c6b86;"
+         style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#52525b;"
       >Questions? Reply to this email or write to {{effySupportEmail}}.</div>
     
                 </td>

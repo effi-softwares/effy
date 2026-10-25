@@ -50,7 +50,7 @@ export function InsightsScreen() {
         description={dto ? windowSubtitle(dto, now) : "\u00a0"}
         actions={
           <>
-            <div className="bo-seg" role="group" aria-label="Range">
+            <div className="ef-seg" role="group" aria-label="Range">
               {RANGES.map((r) => (
                 <button
                   key={r.value}
@@ -85,7 +85,7 @@ export function InsightsScreen() {
       {!dto ? (
         <div className="grid gap-6" aria-busy="true" aria-label="Loading insights">
           <Skeleton className="h-28 w-full rounded-lg" />
-          <div className="grid gap-6 min-[1024px]:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Skeleton className="h-64 rounded-lg" />
             <Skeleton className="h-64 rounded-lg" />
           </div>
@@ -94,7 +94,7 @@ export function InsightsScreen() {
         <>
           <MetricStrip dto={dto} backlog={today.data?.backlog} />
 
-          <div className="grid items-start gap-6 min-[1024px]:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2">
             <BarChart
               series="primary"
               title="Revenue"
@@ -122,7 +122,7 @@ export function InsightsScreen() {
           <TopProducts products={dto.topProducts} range={dto.range} currency={dto.currency} />
 
           <section className="grid gap-3">
-            <h2 className="bo-section-title">Behind the numbers</h2>
+            <h2 className="ef-section-title">Behind the numbers</h2>
             <SecondaryStrip dto={dto} backlog={today.data?.backlog} />
           </section>
         </>

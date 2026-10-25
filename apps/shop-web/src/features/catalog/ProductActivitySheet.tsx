@@ -35,23 +35,23 @@ export function ProductActivitySheet({
       description="Where this product stands, and every change made to its stock."
     >
       <section className="grid gap-2">
-        <h3 className="bo-eyebrow">Summary</h3>
-        <dl className="bo-dl bo-dl--tight">
-          <div className="bo-dl__row">
+        <h3 className="ef-eyebrow">Summary</h3>
+        <dl className="ef-dl ef-dl--tight">
+          <div className="ef-dl__row">
             <dt>Status</dt>
             <dd>
               <ProductStatusBadge status={detail.status} />
             </dd>
           </div>
-          <div className="bo-dl__row">
+          <div className="ef-dl__row">
             <dt>Sections</dt>
             <dd className="tabular-nums">{detail.sections.length}</dd>
           </div>
-          <div className="bo-dl__row">
+          <div className="ef-dl__row">
             <dt>Images</dt>
             <dd className="tabular-nums">{detail.media.length}</dd>
           </div>
-          <div className="bo-dl__row">
+          <div className="ef-dl__row">
             <dt>Updated</dt>
             <dd>
               {new Date(detail.updatedAt).toLocaleDateString(undefined, {
@@ -65,7 +65,7 @@ export function ProductActivitySheet({
       </section>
 
       <section className="grid gap-2">
-        <h3 className="bo-eyebrow">Change log</h3>
+        <h3 className="ef-eyebrow">Change log</h3>
         {stock.isPending ? (
           <div className="grid gap-3" aria-busy="true" aria-label="Loading change log">
             <Skeleton className="h-4 w-3/4" />
@@ -79,7 +79,7 @@ export function ProductActivitySheet({
             No changes recorded yet. Every change to the stock count appears here, with who made it.
           </p>
         ) : (
-          <ol className="bo-tl">
+          <ol className="ef-tl">
             {stock.data.movements.map((m) => (
               <ChangeLogEntry key={m.id} movement={m} />
             ))}
@@ -98,13 +98,13 @@ function ChangeLogEntry({ movement }: { movement: StockMovementDTO }) {
   })
   const down = movement.quantityDelta < 0
   return (
-    <li className="bo-tl__item">
-      <span aria-hidden="true" className={cn("bo-tl__mark", down && "bo-tl__mark--problem")}>
+    <li className="ef-tl__item">
+      <span aria-hidden="true" className={cn("ef-tl__mark", down && "ef-tl__mark--problem")}>
         {down ? <Minus /> : <Plus />}
       </span>
       <span className="min-w-0">
-        <span className="bo-tl__title block">{stockChangeTitle(movement)}</span>
-        <span className="bo-tl__body block">{who && who !== "—" ? `${when} · ${who}` : when}</span>
+        <span className="ef-tl__title block">{stockChangeTitle(movement)}</span>
+        <span className="ef-tl__body block">{who && who !== "—" ? `${when} · ${who}` : when}</span>
       </span>
     </li>
   )

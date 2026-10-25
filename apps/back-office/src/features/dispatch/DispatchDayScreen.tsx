@@ -42,19 +42,19 @@ export function DispatchDayScreen() {
         <>
           {data.failedParcels &&
           (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
-            <Link to="/exceptions" className="bo-alert bo-alert--destructive no-underline">
+            <Link to="/exceptions" className="ef-alert ef-alert--destructive no-underline">
               <PackageX aria-hidden="true" />
-              <div className="bo-alert__title">
+              <div className="ef-alert__title">
                 Failed deliveries: {data.failedParcels.withDrivers} still with drivers ·{" "}
                 {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting for a decision.
               </div>
-              <div className="bo-alert__description">See exceptions — each one has a customer still waiting.</div>
+              <div className="ef-alert__description">See exceptions — each one has a customer still waiting.</div>
             </Link>
           ) : null}
 
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Dispatch sections">
                   <TabsTrigger value="driver">
                     <UserX aria-hidden="true" />
@@ -77,7 +77,7 @@ export function DispatchDayScreen() {
               </span>
             </div>
 
-            <TabsContent value="driver" className="bo-tabpanel">
+            <TabsContent value="driver" className="ef-tabpanel">
               <UnassignedPanel
                 items={data.unassigned}
                 renderAssign={
@@ -103,10 +103,10 @@ export function DispatchDayScreen() {
                 }
               />
             </TabsContent>
-            <TabsContent value="windows" className="bo-tabpanel">
+            <TabsContent value="windows" className="ef-tabpanel">
               <WindowsByDay />
             </TabsContent>
-            <TabsContent value="rounds" className="bo-tabpanel">
+            <TabsContent value="rounds" className="ef-tabpanel">
               <RoundTable rounds={data.rounds} />
             </TabsContent>
           </Tabs>

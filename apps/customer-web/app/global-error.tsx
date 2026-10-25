@@ -11,14 +11,14 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   return (
     <html lang="en">
       <body>
-        <main className="mx-auto max-w-[520px] space-y-4 px-4 py-24 text-center">
+        <main className="mx-auto max-w-130 space-y-4 px-4 py-24 text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Something went wrong on our side</h1>
           <p className="text-base text-muted-foreground">It&apos;s not you. Please try again in a moment.</p>
           <div className="flex flex-wrap justify-center gap-2 pt-2">
             <button
               type="button"
               onClick={reset}
-              className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+              className="inline-flex h-9 items-center rounded-md bg-primary-fill px-4 text-sm font-medium text-primary-foreground"
             >
               Try again
             </button>

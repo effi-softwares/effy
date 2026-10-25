@@ -56,8 +56,8 @@ export function AdminAccessScreen() {
         description="Your back-office account, your role, and what each staff role is allowed to do."
       />
       <Tabs defaultValue="you">
-        <div className="bo-tabsbar">
-          <div className="bo-tabsbar__list">
+        <div className="ef-tabsbar">
+          <div className="ef-tabsbar__list">
             <TabsList aria-label="Access sections">
               <TabsTrigger value="you">Your access</TabsTrigger>
               <TabsTrigger value="roles">
@@ -67,20 +67,20 @@ export function AdminAccessScreen() {
             </TabsList>
           </div>
         </div>
-        <TabsContent value="you" className="bo-tabpanel">
+        <TabsContent value="you" className="ef-tabpanel">
           <div className="grid max-w-3xl gap-6">
             <ProvingScreen />
             <AdminOnlyScreen />
           </div>
         </TabsContent>
-        <TabsContent value="roles" className="bo-tabpanel">
+        <TabsContent value="roles" className="ef-tabpanel">
           <Panel
             title="Roles and permissions"
             description="Roles are granted in the admin sign-in pool; the platform's staff record decides."
             flush
           >
-            <div className="bo-table-scroll">
-              <table className="bo-table">
+            <div className="ef-table-scroll">
+              <table className="ef-table">
                 <thead>
                   <tr>
                     <th>Permission</th>

@@ -108,7 +108,7 @@ export function VariantBuyBox({
           <legend className="text-sm font-medium">
             {row.option.name}
             <span className="font-normal text-muted-foreground">
-              {": "}
+              {":"}
               {row.values.find((v) => v.selected)?.value ?? ""}
             </span>
           </legend>
@@ -120,7 +120,7 @@ export function VariantBuyBox({
                 aria-pressed={v.selected}
                 onClick={() => choose(pickValue(variants, selected.optionValueIds, row.slot, v.id))}
                 className={`inline-flex h-10 min-w-12 items-center justify-center rounded-md border px-3 text-sm font-medium shadow-xs transition hover:bg-accent ${
-                  v.selected ? "border-primary ring-1 ring-primary" : "border-input bg-background"
+                  v.selected ? "border-primary" : "border-input bg-background"
                 } ${v.state === "sold_out" ? "text-muted-foreground line-through" : ""}`}
               >
                 {v.value}

@@ -93,7 +93,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               {round.stageLabel ?? round.status.replace("_", " ")}
             </StatusWord>
             {late ? (
-              <span className="bo-late">
+              <span className="late">
                 <Clock aria-hidden="true" />
                 Late
               </span>
@@ -138,7 +138,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                       The whole round leaves their work at once. Nothing is cancelled for the customer.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <ul className="list-disc space-y-1.5 pl-5 text-sm">
+                  <ul className="list-disc space-y-2 pl-5 text-sm">
                     <li>
                       Packages not yet loaded go back to <span className="font-medium">Needs a driver</span>, and
                       auto-assign tries again on its next pass.
@@ -206,18 +206,18 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               const note = windowNoteFor(s, now)
               return (
                 <li key={id} className="flex items-center gap-3 border-b border-border px-5 py-3 last:border-b-0">
-                  <span className="bo-avatar bo-avatar--sq size-6.5! text-[11px]!" aria-hidden="true">
+                  <span className="avatar avatar--sq size-7! text-xs!" aria-hidden="true">
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{s.label}</span>
                       {s.orderNumber ? (
-                        <span className="bo-code text-xs text-muted-foreground">{s.orderNumber}</span>
+                        <span className="ef-code text-xs text-muted-foreground">{s.orderNumber}</span>
                       ) : null}
-                      {moved ? <span className="bo-tag">Moved</span> : null}
+                      {moved ? <span className="ef-tag">Moved</span> : null}
                     </div>
-                    <div className="bo-sub">
+                    <div className="ef-sub">
                       {[note?.text, s.zoneName ?? "No area", s.handovers ? handoverCounts(s.handovers) : null]
                         .filter(Boolean)
                         .join(" · ")}
@@ -231,7 +231,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                     <div className="flex gap-1">
                       <button
                         type="button"
-                        className="bo-iconbtn"
+                        className="ef-iconbtn"
                         aria-label={`Move stop ${i + 1} earlier`}
                         disabled={i === 0}
                         onClick={() => editing.move(i, -1)}
@@ -240,7 +240,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                       </button>
                       <button
                         type="button"
-                        className="bo-iconbtn"
+                        className="ef-iconbtn"
                         aria-label={`Move stop ${i + 1} later`}
                         disabled={i === editing.order.length - 1}
                         onClick={() => editing.move(i, 1)}

@@ -126,7 +126,7 @@ export function SizePicker({
     <div className="flex flex-wrap items-center gap-3">
       <Label htmlFor={id}>Size</Label>
       <Select value={variantId} onValueChange={onChange}>
-        <SelectTrigger id={id} className="w-[220px]">
+        <SelectTrigger id={id} className="w-55">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

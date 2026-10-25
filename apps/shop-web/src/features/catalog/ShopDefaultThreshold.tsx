@@ -33,7 +33,7 @@ function ThresholdForm({ saved }: { saved: string }) {
         as running low, though a product that reaches zero is still reported as out of stock.
       </p>
       <div className="flex items-end gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="default-threshold">Threshold</Label>
           <Input
             id="default-threshold"

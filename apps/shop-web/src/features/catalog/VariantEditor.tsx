@@ -112,7 +112,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         ) : null}
       </div>
 
-      <div className="grid max-w-[360px] gap-2">
+      <div className="grid max-w-90 gap-2">
         <Label htmlFor="v-basis">Unit pricing</Label>
         <Select
           value={value.unitBasis === "" ? NONE : value.unitBasis}
@@ -206,7 +206,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   {hasOptions ? (
                     <Td>
                       <span className="font-medium">{rowLabel(value, r)}</span>
-                      <span className="text-muted-foreground block font-mono text-[13px]">{r.code ?? "New"}</span>
+                      <span className="text-muted-foreground block font-mono text-sm">{r.code ?? "New"}</span>
                       {cell("optionValueIds") ? <CellError text={cell("optionValueIds")!} /> : null}
                     </Td>
                   ) : null}
@@ -223,7 +223,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                     />
                     {cell("shopPriceAmount") ? <CellError text={cell("shopPriceAmount")!} /> : null}
                     {unit ? (
-                      <p className="text-muted-foreground mt-1 text-[13px] tabular-nums">{unitPriceText(unit)}</p>
+                      <p className="text-muted-foreground mt-1 text-sm tabular-nums">{unitPriceText(unit)}</p>
                     ) : null}
                   </Td>
                   <Td>
@@ -277,11 +277,11 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                     {cell("weightGrams") ? <CellError text={cell("weightGrams")!} /> : null}
                   </Td>
                   <Td>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2">
                       <Input
                         aria-label={`Pack quantity for ${rowLabel(value, r)}`}
                         inputMode="decimal"
-                        className="w-[72px]"
+                        className="w-18"
                         value={r.packQuantity}
                         disabled={disabled}
                         aria-invalid={!!cell("packQuantity")}
@@ -295,7 +295,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                         }
                         disabled={disabled}
                       >
-                        <SelectTrigger aria-label={`Pack unit for ${rowLabel(value, r)}`} className="w-[86px]">
+                        <SelectTrigger aria-label={`Pack unit for ${rowLabel(value, r)}`} className="w-22">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -374,16 +374,14 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
 }
 
 function ColumnHelp({ children }: { children: string }) {
-  return (
-    <span className="text-muted-foreground block text-[12px] font-normal tracking-normal normal-case">{children}</span>
-  )
+  return <span className="text-muted-foreground block text-xs font-normal tracking-normal normal-case">{children}</span>
 }
 
 function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      className="text-primary mt-0.5 block text-[12px] font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
+      className="text-primary mt-1 block text-xs font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
       onClick={onClick}
       disabled={disabled}
       aria-label={`Use the first row's ${label} for every variant`}
@@ -394,7 +392,7 @@ function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => 
 }
 
 function CellError({ text }: { text: string }) {
-  return <p className="mt-1 text-[13px] font-medium leading-tight">{text}</p>
+  return <p className="mt-1 text-sm font-medium leading-tight">{text}</p>
 }
 
 function OptionRow({
@@ -427,9 +425,9 @@ function OptionRow({
   const valueError = Object.entries(errors).find(([k]) => k.startsWith(`${f}.values`))?.[1]
 
   return (
-    <div className="border-border grid gap-3 rounded-[var(--radius)] border p-3.5">
+    <div className="border-border grid gap-3 rounded-[var(--radius)] border p-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="grid min-w-[200px] flex-1 gap-1.5">
+        <div className="grid min-w-50 flex-1 gap-2">
           <Label htmlFor={`opt-${option.id}`}>Option {index + 1}</Label>
           <Input
             id={`opt-${option.id}`}
@@ -446,11 +444,11 @@ function OptionRow({
       </div>
       {errors[`${f}.name`] ? <p className="text-sm font-medium">{errors[`${f}.name`]}</p> : null}
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
         {option.values.map((v) => (
           <span
             key={v.id}
-            className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2.5 text-sm"
+            className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-1 pr-1 pl-3 text-sm"
           >
             {v.value}
             <Button
@@ -467,16 +465,16 @@ function OptionRow({
                 })
               }
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </Button>
           </span>
         ))}
         {option.values.length < VARIANT_LIMITS.valuesPerOption ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Input
               aria-label={`Add a value to ${option.name || `option ${index + 1}`}`}
               placeholder={index === 0 ? "500 g" : "Plain"}
-              className="w-[160px]"
+              className="w-40"
               value={adding}
               disabled={disabled}
               onChange={(e) => setAdding(e.target.value)}

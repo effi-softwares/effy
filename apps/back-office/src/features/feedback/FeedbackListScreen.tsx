@@ -86,13 +86,13 @@ export function FeedbackListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Status">
+        <nav className="ef-tabs" aria-label="Status">
           {VIEWS.map((v) => (
             <button
               key={v}
               type="button"
               aria-current={v === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v === view && "is-active")}
+              className={cn("ef-tabs__tab", v === view && "is-active")}
               onClick={() => {
                 setView(v)
                 reset()
@@ -150,7 +150,7 @@ export function FeedbackListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <Skeleton className="h-[480px]" />
+        <Skeleton className="h-120" />
       ) : items.length === 0 ? (
         <EmptyState
           icon={MessageSquareText}
@@ -160,8 +160,8 @@ export function FeedbackListScreen() {
           }
         />
       ) : (
-        <div className="bo-split">
-          <div className="bo-split__list">
+        <div className="grid min-h-160 grid-cols-[380px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-card max-lg:min-h-0 max-lg:grid-cols-[minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col border-r border-r-border max-lg:border-r-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs text-muted-foreground">
               <span>{data.total} total</span>
               <span className="flex items-center gap-1 max-lg:hidden">
@@ -187,7 +187,9 @@ export function FeedbackListScreen() {
               />
             </div>
           </div>
-          <div className="bo-split__detail">{selected ? <OpenSubmission referenceCode={selected} /> : null}</div>
+          <div className="flex min-w-0 flex-col max-lg:hidden">
+            {selected ? <OpenSubmission referenceCode={selected} /> : null}
+          </div>
         </div>
       )}
     </>
@@ -196,7 +198,7 @@ export function FeedbackListScreen() {
 
 function StatusCount({ status }: { status: FeedbackStatus }) {
   const { data } = useQuery(feedbackListQuery({ status, limit: 1 }))
-  return typeof data?.total === "number" ? <span className="bo-tabs__count">{data.total}</span> : null
+  return typeof data?.total === "number" ? <span className="ef-tabs__count">{data.total}</span> : null
 }
 
 function InboxItem({
@@ -219,25 +221,30 @@ function InboxItem({
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className="bo-inbox-item__who truncate text-sm">{i.submitter.name ?? i.submitter.email ?? "Guest"}</span>
+        <span className={cn("truncate text-sm", i.status === "new" && "font-semibold")}>
+          {i.submitter.name ?? i.submitter.email ?? "Guest"}
+        </span>
         <span className="text-xs whitespace-nowrap text-muted-foreground">
           {dayWord(i.createdAt) === "Today" ? moment(i.createdAt).replace("Today, ", "") : dayWord(i.createdAt)}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1">
-        <span className="bo-tag">{FEEDBACK_CATEGORY_LABELS[i.category]}</span>
+        <span className="ef-tag">{FEEDBACK_CATEGORY_LABELS[i.category]}</span>
         {i.rating ? (
-          <span className="bo-tag">
+          <span className="ef-tag">
             <Star aria-hidden="true" />
             {i.rating}
           </span>
         ) : null}
-        <span className="bo-code text-2xs text-muted-foreground">{i.referenceCode}</span>
+        <span className="ef-code text-xs text-muted-foreground">{i.referenceCode}</span>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">{i.preview}</p>
     </>
   )
-  const cls = cn("bo-inbox-item w-full text-left", active && "is-active", i.status === "new" && "is-unread")
+  const cls = cn(
+    "flex w-full flex-col gap-1 border-b border-b-border px-4 py-3 text-left text-inherit no-underline hover:bg-row-hover",
+    active && "bg-row-selected shadow-[inset_2px_0_0_var(--primary)] hover:bg-row-selected",
+  )
   return (
     <>
       <button type="button" className={cn(cls, "max-lg:hidden")} aria-current={active || undefined} onClick={onOpen}>

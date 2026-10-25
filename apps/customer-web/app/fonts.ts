@@ -12,7 +12,7 @@ import localFont from "next/font/local"
  * downloads a face only when it renders glyphs in it — a page without one never fetches it.
  */
 export const geist = localFont({
-  src: "../../../packages/design-system/src/storefront/fonts/Geist-Variable.woff2",
+  src: "../../../packages/design-system/src/fonts/Geist-Variable.woff2",
   weight: "100 900",
   style: "normal",
   display: "swap",
@@ -21,7 +21,7 @@ export const geist = localFont({
 })
 
 export const geistMono = localFont({
-  src: "../../../packages/design-system/src/storefront/fonts/GeistMono-Variable.woff2",
+  src: "../../../packages/design-system/src/fonts/GeistMono-Variable.woff2",
   weight: "100 900",
   style: "normal",
   display: "swap",

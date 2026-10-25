@@ -57,9 +57,9 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
   return (
     <section
       aria-label="Review"
-      className={cn("bo-alert gap-y-3!", sentBack ? "bo-alert--destructive" : "bo-alert--info")}
+      className={cn("ef-alert gap-y-3!", sentBack ? "ef-alert--destructive" : "ef-alert--info")}
     >
-      <Icon aria-hidden="true" className="mt-0.5" />
+      <Icon aria-hidden="true" className="mt-1" />
       <div className="grid gap-1">
         <h2 className="text-base font-semibold">{title}</h2>
         <p className="text-muted-foreground">{body}</p>
@@ -73,9 +73,9 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
       ) : null}
 
       {isChange && rows.length > 0 ? (
-        <div className="bo-table-wrap col-start-2">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-table--compact">
+        <div className="ef-table-wrap col-start-2">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-table--compact">
               <thead>
                 <tr>
                   <th>Detail</th>
@@ -86,7 +86,7 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.label} className="align-top">
-                    <th scope="row" className="h-auto! py-2.5! text-left font-medium text-foreground">
+                    <th scope="row" className="h-auto! py-3! text-left font-medium text-foreground">
                       {r.label}
                     </th>
                     <td className="break-words whitespace-pre-line text-muted-foreground">

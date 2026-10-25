@@ -185,7 +185,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
             id="saved-order"
             value={order}
             onChange={(e) => setOrder(e.target.value as typeof order)}
-            className={cn(select, "w-[180px]")}
+            className={cn(select, "w-45")}
           >
             <option value="recent">Recently saved</option>
             <option value="available">Available first</option>
@@ -231,11 +231,11 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                   href={`/product/${item.id}`}
                   aria-hidden="true"
                   tabIndex={-1}
-                  className={cn("w-[72px] shrink-0", !available && "opacity-50")}
+                  className={cn("w-18 shrink-0", !available && "opacity-50")}
                 >
                   <MediaFrame src={item.imageUrl} widths={item.imageWidths} alt="" sizes="72px" rounded="rounded-md" className="bg-secondary" />
                 </Link>
-                <div className="min-w-[200px] flex-1 space-y-1">
+                <div className="min-w-50 flex-1 space-y-1">
                   <Link href={savedHref(item)} className="font-medium hover:underline">
                     {item.name}
                     {/* The size remembered with the save. */}

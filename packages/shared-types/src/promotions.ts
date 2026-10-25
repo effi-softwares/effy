@@ -1,5 +1,4 @@
 import type { PagedDTO } from "./shop";
-import type { BannerTarget } from "./storefront";
 import type { DesignedLayout, GroupSize, SkinLayout, SkinSettings } from "./promotion-skins";
 
 /**
@@ -31,6 +30,17 @@ export const PROMOTION_STATES: readonly PromotionState[] = [
 
 export type PromotionAction = "publish" | "pause" | "resume" | "end" | "archive";
 // What a shopper is shown
+
+/**
+ * Where a promotion tile leads: a closed vocabulary (mobile has no URL router), mapped exhaustively by
+ * each client; an unrecognised value renders the tile non-tappable.
+ */
+export type BannerTarget =
+  | { kind: "search" }
+  | { kind: "sale" }
+  | { kind: "category"; categoryKey: string }
+  | { kind: "product"; productId: string }
+  | { kind: "promotion"; promotionId: string };
 
 /** One promotion as both customer clients show it, from either group read. */
 export interface ShopperPromotionDTO {

@@ -99,7 +99,6 @@ export function SectionsManager({ open, onOpenChange }: { open: boolean; onOpenC
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="h-8"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") saveEdit()
                       if (e.key === "Escape") setEditingId(null)

@@ -25,7 +25,7 @@ export function CourierPickup({
         <Truck aria-hidden="true" className="size-4 text-muted-foreground" />
         {courierPickupLine(pickup)}
       </p>
-      <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-[max-content_1fr]">
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
         {service ? (
           <>
             <dt className="text-muted-foreground">Courier</dt>
@@ -41,7 +41,7 @@ export function CourierPickup({
         {pickup.reference ? (
           <>
             <dt className="text-muted-foreground">Reference</dt>
-            <dd className="bo-code">{pickup.reference}</dd>
+            <dd className="ef-code">{pickup.reference}</dd>
           </>
         ) : null}
         {pickup.labelUrl ? (
@@ -67,7 +67,7 @@ export function CourierPickup({
       ) : null}
       {canHandOver(pickup, status) ? (
         <div>
-          <Button size="lg" className="w-full" disabled={handOver.isPending} onClick={() => handOver.mutate()}>
+          <Button className="w-full" disabled={handOver.isPending} onClick={() => handOver.mutate()}>
             Handed over to courier
           </Button>
         </div>

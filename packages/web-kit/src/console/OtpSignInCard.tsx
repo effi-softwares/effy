@@ -118,8 +118,8 @@ export function OtpSignInCard({
 
   if (chrome === "page") {
     const error = formError ? (
-      <p className="flex items-center gap-1.5 text-[13px] font-medium text-destructive" role="alert">
-        <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+      <p className="flex items-center gap-2 text-sm font-medium text-destructive" role="alert">
+        <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
         {formError}
       </p>
     ) : null;
@@ -130,7 +130,7 @@ export function OtpSignInCard({
           e.preventDefault();
           void emailForm.handleSubmit();
         }}
-        className="w-full max-w-[360px] space-y-6"
+        className="w-full max-w-90 space-y-6"
         noValidate
       >
         <div className="space-y-2">
@@ -149,7 +149,7 @@ export function OtpSignInCard({
                 autoFocus
                 required
                 aria-invalid={formError ? true : undefined}
-                className="h-11! text-[15px]"
+                className="h-11!"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -160,7 +160,7 @@ export function OtpSignInCard({
         {error}
         <emailForm.Subscribe selector={(st) => st.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Sending…" : "Send code"}
             </Button>
           )}
@@ -175,19 +175,19 @@ export function OtpSignInCard({
           e.preventDefault();
           void otpForm.handleSubmit();
         }}
-        className="w-full max-w-[360px] space-y-6"
+        className="w-full max-w-90 space-y-6"
         noValidate
       >
         <button
           type="button"
-          className="inline-flex w-fit items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           onClick={() => {
             setFormError(null);
             otpForm.reset();
             setStep("email");
           }}
         >
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-4" />
           Use a different email
         </button>
         <div className="space-y-2">
@@ -214,13 +214,13 @@ export function OtpSignInCard({
                 onBlur={field.handleBlur}
               />
               {error}
-              <p className="text-[13px] text-muted-foreground">Pasting the code works. It signs you in as soon as the sixth digit is in.</p>
+              <p className="text-sm text-muted-foreground">Pasting the code works. It signs you in as soon as the sixth digit is in.</p>
             </div>
           )}
         </otpForm.Field>
         <otpForm.Subscribe selector={(st) => st.isSubmitting}>
           {(isSubmitting) => (
-            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Verifying…" : "Verify & sign in"}
             </Button>
           )}

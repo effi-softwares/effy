@@ -160,9 +160,9 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
                   onClick={() => toggle(day)}
                   className={
                     "min-h-9 rounded-md border px-3 text-sm font-medium transition-colors " +
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 " +
+                    "disabled:opacity-50 " +
                     (pressed
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-primary bg-primary-fill text-primary-foreground"
                       : "border-border bg-background hover:bg-muted")
                   }
                 >

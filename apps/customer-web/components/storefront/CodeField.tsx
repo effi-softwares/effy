@@ -53,7 +53,7 @@ export function CodeField({
         data-slot="otp-input"
         className={cn(
           // 16px text even though it is invisible: below that, iOS zooms the page on focus.
-          "text-base outline-none focus-visible:outline-none",
+          "text-base outline-none",
           overflowing
             ? "h-11 w-full rounded-md border border-destructive bg-background px-3 font-mono text-foreground shadow-xs"
             : "absolute inset-0 z-10 size-full bg-transparent text-transparent caret-transparent selection:bg-transparent",
@@ -79,7 +79,7 @@ export function CodeField({
                       invalid && "border-destructive",
                       // The active slot, marked only while the field really has focus.
                       i === active &&
-                        "group-focus-within:relative group-focus-within:z-[1] group-focus-within:ring-2 group-focus-within:ring-ring",
+                        "group-focus-within:relative group-focus-within:z-[1]",
                     )}
                   >
                     {value[i] ?? ""}

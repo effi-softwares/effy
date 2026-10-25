@@ -47,7 +47,7 @@ export default function LegalIndexPage() {
               href={`/legal/${doc.slug}`}
               className="flex h-full flex-col gap-6 rounded-lg border bg-card py-6 shadow-xs hover:bg-accent/40"
             >
-              <span className="flex flex-col gap-1.5 px-6">
+              <span className="flex flex-col gap-2 px-6">
                 <FileText aria-hidden="true" className="size-5" />
                 <span className="leading-tight font-semibold">{doc.title}</span>
                 {ABOUT[doc.slug] && <span className="text-sm text-muted-foreground">{ABOUT[doc.slug]}</span>}

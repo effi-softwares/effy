@@ -14,13 +14,13 @@ export function DocumentStatusNote() {
         viewBox="0 0 20 20"
         fill="none"
         aria-hidden="true"
-        className="mt-0.5 shrink-0"
+        className="mt-1 shrink-0"
       >
         <circle cx="10" cy="10" r="8.2" className="stroke-muted-foreground" strokeWidth="1.5" />
         <path d="M10 9v5" className="stroke-muted-foreground" strokeWidth="1.6" strokeLinecap="round" />
         <circle cx="10" cy="6.2" r="1" className="fill-muted-foreground" />
       </svg>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         This is a record of payment. Prices include GST where it applies. If you need a{" "}
         <span className="font-medium text-foreground">tax invoice</span> for this order, request one at{" "}
         <a

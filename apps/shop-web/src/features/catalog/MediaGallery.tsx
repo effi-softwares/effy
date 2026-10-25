@@ -85,11 +85,11 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
         onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
       />
 
-      <div className="grid gap-4 pt-[18px]">
+      <div className="grid gap-4 pt-5">
         {progress != null ? (
-          <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
             <div
-              className="bg-primary h-full transition-all"
+              className="bg-primary-fill h-full transition-all"
               style={{ width: `${progress}%` }}
               role="progressbar"
               aria-valuenow={progress}
@@ -107,15 +107,15 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
         ) : (
           <ul className="flex flex-wrap gap-3">
             {media.map((m, i) => (
-              <li key={m.id} className="grid w-[110px] gap-1.5">
+              <li key={m.id} className="grid w-28 gap-2">
                 <div className="relative">
                   <img
                     src={m.url}
                     alt={m.altText ?? ""}
-                    className="border-border bg-muted size-[110px] rounded-[var(--radius)] border object-cover"
+                    className="border-border bg-muted size-28 rounded-[var(--radius)] border object-cover"
                   />
                   {m.isPrimary ? (
-                    <Badge variant="success" className="absolute top-1.5 left-1.5">
+                    <Badge variant="success" className="absolute top-2 left-2">
                       Primary
                     </Badge>
                   ) : null}
@@ -125,7 +125,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || i === 0}
                     onClick={() => move(i, -1)}
                     aria-label="Move earlier"
@@ -136,7 +135,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || i === media.length - 1}
                     onClick={() => move(i, 1)}
                     aria-label="Move later"
@@ -147,7 +145,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy || m.isPrimary}
                     onClick={() => setPrimary(m.id)}
                     aria-label="Set as primary"
@@ -158,7 +155,6 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6"
                     disabled={busy}
                     onClick={() => del(m.id)}
                     aria-label="Delete image"

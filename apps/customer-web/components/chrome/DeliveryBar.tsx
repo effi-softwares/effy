@@ -32,7 +32,7 @@ export async function DeliveryBar() {
 
   const place = [address.label ?? address.recipientName, `${address.city} ${address.postalCode}`]
     .filter(Boolean)
-    .join(" · ")
+    .join(" ·")
   const who =
     address.coverage === "effy"
       ? DELIVERY_TYPE_WORDS.effy
@@ -77,7 +77,7 @@ function Dot({ muted = false }: { muted?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`size-2 shrink-0 rounded-full ring-[3px] ring-white/20 ${muted ? "bg-muted-foreground" : "bg-brand"}`}
+      className={`size-2 shrink-0 rounded-full ${muted ? "bg-muted-foreground" : "bg-brand-fill"}`}
     />
   )
 }

@@ -167,11 +167,11 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
         </Callout>
       ) : null}
 
-      <div className="bo-detail">
-        <fieldset className="bo-detail__main min-w-0 space-y-4" disabled={!canManage}>
+      <div className="ef-detail">
+        <fieldset className="ef-detail__main min-w-0 space-y-4" disabled={!canManage}>
           <Panel title="Name and layout">
             <div className="space-y-4">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="skin-name">Name</Label>
                 <Input
                   id="skin-name"
@@ -180,9 +180,9 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   placeholder="Winter — photo"
                   className="max-w-md"
                 />
-                <p className="bo-sub">For staff only. Pick it by this name when placing a promotion.</p>
+                <p className="ef-sub">For staff only. Pick it by this name when placing a promotion.</p>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <span className="text-sm font-medium">Layout</span>
                 <div role="radiogroup" aria-label="Layout" className="grid gap-2 sm:grid-cols-3">
                   {DESIGNED_LAYOUTS.map((l) => (
@@ -198,12 +198,12 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                       }}
                       className={cn(
                         "rounded-lg border p-3 text-left text-sm",
-                        layout === l ? "border-primary ring-1 ring-primary" : "border-border hover:bg-accent",
+                        layout === l ? "border-primary" : "border-border hover:bg-accent",
                       )}
                     >
                       <div className="font-medium">{LAYOUT_WORD[l]}</div>
-                      <div className="bo-sub">
-                        Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(", ")} places
+                      <div className="ef-sub">
+                        Fits {LAYOUT_FITS[l].map((z) => SIZE_WORD[z].toLowerCase()).join(",")} places
                       </div>
                     </button>
                   ))}
@@ -237,7 +237,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                   }
                 />
               ) : (
-                <p className="bo-sub self-center">This layout always shows the promotion's picture when it has one.</p>
+                <p className="ef-sub self-center">This layout always shows the promotion's picture when it has one.</p>
               )}
               {showsPicture && wordsOverPicture(layout) ? (
                 <>
@@ -331,7 +331,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                 />
                 {s.label.show ? (
                   <>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <Label htmlFor="label-words">Label words</Label>
                       <Input
                         id="label-words"
@@ -409,7 +409,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
               />
               {s.button.style !== "none" ? (
                 <>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <Label htmlFor="btn-words">Button words</Label>
                     <Input
                       id="btn-words"
@@ -420,7 +420,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
                         patch("button", { ...s.button, words: e.target.value.trim() ? e.target.value : AUTO })
                       }
                     />
-                    <p className="bo-sub">With a code the button copies it; without one it opens the offer.</p>
+                    <p className="ef-sub">With a code the button copies it; without one it opens the offer.</p>
                   </div>
                   {s.button.style === "filled" ? (
                     <ColourField
@@ -615,7 +615,7 @@ function Editor({ current }: { current: AdminSkinDTO | null }) {
           </Panel>
         </fieldset>
 
-        <aside className="bo-detail__aside space-y-4">
+        <aside className="ef-detail__aside space-y-4">
           <Panel title="Preview" description="Exactly as the website draws it.">
             <SkinPreview layout={layout} settings={s} />
           </Panel>

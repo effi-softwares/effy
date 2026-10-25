@@ -128,11 +128,11 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
         }
       />
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Tabs defaultValue={item.kind === "change" ? "changes" : "details"}>
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Review sections">
                   {item.kind === "change" ? (
                     <TabsTrigger value="changes">
@@ -150,7 +150,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
             </div>
 
             {item.kind === "change" ? (
-              <TabsContent value="changes" className="bo-tabpanel">
+              <TabsContent value="changes" className="ef-tabpanel">
                 <Panel
                   title="What the shop is changing"
                   description={
@@ -163,8 +163,8 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   {item.changes.length === 0 && !item.images.proposed ? (
                     <p className="px-5 py-4 text-sm text-muted-foreground">No details differ from the live product.</p>
                   ) : (
-                    <div className="bo-table-scroll">
-                      <table className="bo-table">
+                    <div className="ef-table-scroll">
+                      <table className="ef-table">
                         <thead>
                           <tr>
                             <th>Detail</th>
@@ -196,7 +196,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </TabsContent>
             ) : null}
 
-            <TabsContent value="details" className="bo-tabpanel">
+            <TabsContent value="details" className="ef-tabpanel">
               <Panel title={item.kind === "change" ? "The product as it is live" : "What the shop submitted"}>
                 <DetailRows
                   rows={item.details.map((row) => ({
@@ -208,7 +208,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </Panel>
             </TabsContent>
 
-            <TabsContent value="images" className="bo-tabpanel">
+            <TabsContent value="images" className="ef-tabpanel">
               <Panel title="Images">
                 {item.images.proposed ? (
                   <div className="grid gap-6 sm:grid-cols-2">
@@ -224,7 +224,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
           <ReviewVariants variants={item.variants} entry={entry} />
         </div>
 
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <Panel title="Decision">
             {!canDecide ? (
               <p className="text-sm text-muted-foreground">
@@ -239,7 +239,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   onChange={setEntry}
                   disabled={busy}
                 />
-                <p className="bo-sub">
+                <p className="ef-sub">
                   {item.currentMargin
                     ? `Current margin: ${marginLabel(item.currentMargin)}.`
                     : "No margin has been set for this product."}
@@ -260,7 +260,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                     <Kbd className="ml-auto max-md:hidden">R</Kbd>
                   </Button>
                 </div>
-                <p className="bo-sub">
+                <p className="ef-sub">
                   Approving publishes {item.kind === "change" ? "the change" : "the product"} to customers at once.
                 </p>
               </div>
@@ -288,7 +288,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. The main image is a stock photo — use a photo of the product itself."
             />
-            <p className="bo-sub">The shop sees this, from Effy — not from you by name.</p>
+            <p className="ef-sub">The shop sees this, from Effy — not from you by name.</p>
           </div>
           {message ? (
             <p role="alert" className="text-sm font-medium">
@@ -317,7 +317,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
 function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) {
   return (
     <div className="space-y-2">
-      <h3 className="bo-sub font-medium">{title}</h3>
+      <h3 className="ef-sub font-medium">{title}</h3>
       {images.length === 0 ? (
         <p className="text-sm text-muted-foreground">No images.</p>
       ) : (

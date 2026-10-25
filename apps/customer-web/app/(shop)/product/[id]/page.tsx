@@ -297,7 +297,7 @@ function SpecTable({
       {showLabel && <h3 className="mb-2 text-sm font-medium text-muted-foreground">{group.groupLabel}</h3>}
       <dl className="divide-y overflow-hidden rounded-lg border shadow-xs">
         {group.items.map((item) => (
-          <div key={item.label} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 px-4 py-2.5 text-sm">
+          <div key={item.label} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 px-4 py-3 text-sm">
             <dt className="text-muted-foreground">{item.label}</dt>
             <dd>{item.value}</dd>
           </div>

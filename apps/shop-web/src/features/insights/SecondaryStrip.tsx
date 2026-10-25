@@ -52,18 +52,18 @@ export function SecondaryStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog
   ]
 
   return (
-    <div className="sh-kpis">
+    <div className="kpis">
       {cells.map((c) => (
         <Link
           key={c.label}
           to={c.to}
           search={c.search}
-          className="sh-kpi"
+          className="kpi"
           onClick={() => track({ name: "insights_drilled", metric: c.label })}
         >
-          <span className="sh-kpi__label">{c.label}</span>
+          <span className="kpi__label">{c.label}</span>
           <span className="text-lg font-semibold tabular-nums">{c.value}</span>
-          <span className="sh-kpi__sub">{c.note}</span>
+          <span className="kpi__sub">{c.note}</span>
         </Link>
       ))}
     </div>

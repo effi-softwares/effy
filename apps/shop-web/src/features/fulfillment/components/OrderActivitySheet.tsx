@@ -35,7 +35,7 @@ export function OrderActivitySheet({
               <Skeleton className="size-5 rounded-full" />
               <div className="grid flex-1 gap-2">
                 <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3.5 w-1/3" />
+                <Skeleton className="h-4 w-1/3" />
               </div>
             </div>
           ))}
@@ -45,22 +45,22 @@ export function OrderActivitySheet({
       ) : log.data.entries.length === 0 ? (
         <p className="text-muted-foreground">Nothing recorded yet.</p>
       ) : (
-        <ol className="bo-tl">
+        <ol className="ef-tl">
           {log.data.entries.map((e) => (
-            <li key={e.id} className="bo-tl__item">
+            <li key={e.id} className="ef-tl__item">
               <span
                 aria-hidden="true"
                 className={cn(
-                  "bo-tl__mark",
-                  e.tone === "negative" && "bo-tl__mark--problem",
-                  e.tone === "strong" && "bo-tl__mark--primary",
+                  "ef-tl__mark",
+                  e.tone === "negative" && "ef-tl__mark--problem",
+                  e.tone === "strong" && "ef-tl__mark--primary",
                 )}
               >
                 {e.tone === "negative" ? <CircleAlert /> : e.tone === "strong" ? <Check /> : <Dot />}
               </span>
               <span className="min-w-0">
-                <span className="bo-tl__title block text-pretty">{e.title}</span>
-                <span className="bo-tl__body block">
+                <span className="ef-tl__title block text-pretty">{e.title}</span>
+                <span className="ef-tl__body block">
                   {e.actorLabel ? `${e.actorLabel} · ${formatWhen(e.at)}` : formatWhen(e.at)}
                 </span>
               </span>

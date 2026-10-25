@@ -35,10 +35,10 @@ export function StoreBadges({ tone = "outline" }: { tone?: "outline" | "dark" })
             className={
               tone === "dark"
                 ? "inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3 text-xs font-semibold text-background"
-                : "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold"
+                : "inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-semibold"
             }
           >
-            <Smartphone aria-hidden="true" className="size-3.5" />
+            <Smartphone aria-hidden="true" className="size-4" />
             <span aria-hidden="true">{store} · Coming soon</span>
           </span>
         </li>

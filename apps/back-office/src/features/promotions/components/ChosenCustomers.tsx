@@ -54,7 +54,7 @@ export function ChosenCustomers({ promotionId, canManage }: { promotionId: strin
               Add
             </Button>
             {note ? (
-              <span role="status" className="bo-sub">
+              <span role="status" className="ef-sub">
                 {note}
               </span>
             ) : null}
@@ -65,7 +65,7 @@ export function ChosenCustomers({ promotionId, canManage }: { promotionId: strin
         <>
           <ul className="divide-y divide-border">
             {list.data.items.map((c) => (
-              <li key={c.customerId} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
+              <li key={c.customerId} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                 <span>
                   {c.name ?? c.email}
                   {c.name ? <span className="text-muted-foreground"> · {c.email}</span> : null}

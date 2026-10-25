@@ -1,5 +1,5 @@
 // Generates the mobile apps' Compose theme from the CSS tokens: colours, type and shapes from
-// src/storefront/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
+// src/tokens.css, and the layout scale (EffyRadius/EffySpacing, read by packages/mobile-kit)
 // from src/tokens.css. The output is committed; `tokens:check` regenerates it and fails on any
 // difference. Node stdlib only.
 //
@@ -12,7 +12,7 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CONSOLE_CSS = resolve(here, "../src/tokens.css");
-const STOREFRONT_CSS = resolve(here, "../src/storefront/tokens.css");
+const STOREFRONT_CSS = resolve(here, "../src/tokens.css");
 // An asset constraint, not a style token, so it lives beside the shared types.
 const BANNER_CANVAS = JSON.parse(readFileSync(resolve(here, "../../shared-types/src/banner-canvas.json"), "utf8"));
 
@@ -75,6 +75,7 @@ const COLOR_TOKENS = [
   ["popoverForeground", "popover-foreground"],
   ["primary", "primary"],
   ["primaryForeground", "primary-foreground"],
+  ["primaryFill", "primary-fill"], // the button blue: white type on it in both appearances
   ["secondary", "secondary"],
   ["secondaryForeground", "secondary-foreground"],
   ["muted", "muted"],
@@ -83,6 +84,7 @@ const COLOR_TOKENS = [
   ["accentForeground", "accent-foreground"],
   ["destructive", "destructive"],
   ["destructiveForeground", "destructive-foreground"],
+  ["destructiveFill", "destructive-fill"],
   // No Material 3 slot maps to these; screens read them from EffyColor.
   ["success", "success"],
   ["disabled", "disabled"],
@@ -94,6 +96,7 @@ const COLOR_TOKENS = [
   ["primaryMuted", "primary-muted"], // the light-blue search field, selection, info
   ["brand", "brand"], // Effy green: Sale, savings, "Delivered by Effy", paid. Never an action.
   ["brandForeground", "brand-foreground"],
+  ["brandFill", "brand-fill"], // the green a white tick or label sits on
   ["brandMuted", "brand-muted"],
   ["scrim", "scrim"], // sheet backdrop, with its alpha
 ];
@@ -109,7 +112,7 @@ const ALIASES = {
 // Authored token -> Material 3 ColorScheme slot. Reuse is deliberate: Material components get a
 // complete scheme from the CSS rather than library defaults.
 const M3_MAP = [
-  ["primary", "primary"],
+  ["primaryFill", "primary"],
   ["primaryForeground", "onPrimary"],
   ["primaryMuted", "primaryContainer"],
   ["primary", "onPrimaryContainer"],
@@ -128,7 +131,7 @@ const M3_MAP = [
   ["cardForeground", "onSurface"],
   ["muted", "surfaceVariant"],
   ["mutedForeground", "onSurfaceVariant"],
-  ["primary", "surfaceTint"],
+  ["primaryFill", "surfaceTint"],
   ["foreground", "inverseSurface"],
   ["background", "inverseOnSurface"],
   ["destructive", "error"],
@@ -145,7 +148,7 @@ const M3_MAP = [
   ["popover", "surfaceContainerHighest"],
   ["background", "surfaceContainerLow"],
   ["background", "surfaceContainerLowest"],
-  ["primary", "primaryFixed"],
+  ["primaryFill", "primaryFixed"],
   ["ring", "primaryFixedDim"],
   ["primaryForeground", "onPrimaryFixed"],
   ["primaryForeground", "onPrimaryFixedVariant"],
@@ -193,7 +196,7 @@ function generate(target) {
   const radiusSmDp = radiusRem("--radius-sm");
   const radiusMdDp = radiusRem("--radius-md");
 
-  const out = `${banner("src/storefront/tokens.css")}
+  const out = `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.ColorScheme
@@ -204,7 +207,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * The raw Effy storefront tokens, light and dark. Colour is rationed: black, white, zinc, Effy blue
  * (primary, every action) and Effy green (brand: Sale, savings, "Delivered by Effy", paid; never an
- * action). No red: destructive is the text colour.
+ * action). Rose for problems (destructive); a filled control (*Fill) carries white type in both appearances.
  */
 object EffyColor {
 ${colorObject("Light", light)}
@@ -280,7 +283,7 @@ object EffyBanner {
  *  label — 16 buttons · 14 chips · 12 badges / tab labels
  */
 function typography(target) {
-  return `${banner("src/storefront/tokens.css")}
+  return `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.material3.Typography
@@ -354,10 +357,10 @@ private fun effyTextStyle(
 function shape(target, css) {
   const rem = (name) => {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
-    if (!m) throw new Error(`gen-compose-theme: no ${name} in storefront/tokens.css`);
+    if (!m) throw new Error(`gen-compose-theme: no ${name} in tokens.css`);
     return Math.round(parseFloat(m[1]) * 16);
   };
-  return `${banner("src/storefront/tokens.css")}
+  return `${banner("src/tokens.css")}
 package ${target.pkg}
 
 import androidx.compose.foundation.shape.RoundedCornerShape

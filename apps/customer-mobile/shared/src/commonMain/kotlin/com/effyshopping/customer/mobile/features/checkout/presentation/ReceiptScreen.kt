@@ -507,11 +507,11 @@ private fun OrderTracker(stage: OrderStage) {
                         Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(if (done) EffyRoles.brand else MaterialTheme.colorScheme.background)
+                            .background(if (done) EffyRoles.brandFill else MaterialTheme.colorScheme.background)
                             .border(
                                 2.dp,
                                 when {
-                                    done -> EffyRoles.brand
+                                    done -> EffyRoles.brandFill
                                     isCurrent -> MaterialTheme.colorScheme.primary
                                     else -> MaterialTheme.colorScheme.outline
                                 },

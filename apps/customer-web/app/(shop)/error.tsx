@@ -29,7 +29,7 @@ export default function ShopError({
 
   return (
     <div className="container py-10">
-      <div className="mx-auto max-w-[520px] space-y-4 py-16 text-center">
+      <div className="mx-auto max-w-130 space-y-4 py-16 text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-lg bg-muted">
           <CloudOff aria-hidden="true" className="size-6" />
         </span>

@@ -42,13 +42,13 @@ export function ShopHistory({ shopId }: { shopId: string }) {
                 <li key={entry.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{actionWords(entry.action)}</div>
-                    <div className="bo-sub">
+                    <div className="ef-sub">
                       {entry.targetType}
                       {entry.targetId ? ` · ${entry.targetId}` : ""} · by{" "}
                       <span className="font-mono">{entry.actorSub}</span>
                     </div>
                   </div>
-                  <span className="bo-sub whitespace-nowrap">{moment(entry.createdAt)}</span>
+                  <span className="ef-sub whitespace-nowrap">{moment(entry.createdAt)}</span>
                 </li>
               ))}
             </ul>

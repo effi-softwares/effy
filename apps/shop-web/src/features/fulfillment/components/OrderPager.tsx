@@ -45,7 +45,7 @@ export function OrderPager({
         : null
 
   return (
-    <div className="flex shrink-0 items-center gap-1.5">
+    <div className="flex shrink-0 items-center gap-2">
       <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums max-md:hidden">
         {(page - 1) * pageSize + index + 1} of {total}
       </span>

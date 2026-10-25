@@ -20,7 +20,7 @@ export function CourierPage({ canManage }: { canManage: boolean }) {
       ) : !first ? (
         <Skeleton className="h-60" aria-busy="true" />
       ) : (
-        <div className="bo-settings">
+        <div className="settings">
           <CourierPanel courier={first.courier} canManage={canManage} />
         </div>
       )}

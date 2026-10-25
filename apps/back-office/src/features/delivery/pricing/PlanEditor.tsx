@@ -8,12 +8,12 @@ import {
   Button,
   Input,
   Label,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
 } from "@effy/design-system/ui"
 
 import { slotsQuery, useSavePlan } from "../queries"
@@ -63,7 +63,7 @@ export function PlanEditor({
 
   const title = saved ? saved.name : kind === "courier" ? "New courier table" : "New fee plan"
   const amount = (id: keyof PlanDraft, label: string, help?: string) => (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={`plan-${id}`}>{label}</Label>
       <Input
         id={`plan-${id}`}
@@ -78,25 +78,25 @@ export function PlanEditor({
   )
 
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-2xl">
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>
+    <Drawer open direction="right" handleOnly onOpenChange={(o) => !o && onClose()}>
+      <DrawerContent className="overflow-y-auto data-[vaul-drawer-direction=right]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+          <DrawerDescription>
             {saved?.state === "active"
               ? "In force. A plan that has been active can't be changed — copy it to a new draft."
               : saved?.state === "retired"
                 ? "Retired. Kept as the record of what was charged while it was in force."
                 : "A draft. Saving does not change any fee; activating does."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
         <form onSubmit={submit} className="space-y-8 px-4 pb-4">
           {saved && saved.state === "draft" ? <GapList gaps={saved.gaps} /> : null}
 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Amounts</h3>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="plan-name">Name</Label>
               <Input
                 id="plan-name"
@@ -185,13 +185,13 @@ export function PlanEditor({
                     .filter((s) => !s.anyTime)
                     .map((s, i) => (
                       <tr key={s.id} className="border-t">
-                        <td className="py-1.5 font-mono tabular-nums">
+                        <td className="py-2 font-mono tabular-nums">
                           {s.startTime}–{s.endTime}
                           {s.status !== "active" ? (
                             <span className="ml-2 font-sans text-muted-foreground">switched off</span>
                           ) : null}
                         </td>
-                        <td className="py-1.5">
+                        <td className="py-2">
                           <Input
                             aria-label={`Surcharge for ${s.startTime}–${s.endTime}`}
                             inputMode="decimal"
@@ -212,7 +212,7 @@ export function PlanEditor({
           ) : null}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <SheetFooter className="flex-row justify-end gap-2 p-0">
+          <DrawerFooter className="flex-row justify-end gap-2 p-0">
             <Button type="button" variant="ghost" onClick={onClose}>
               Close
             </Button>
@@ -221,10 +221,10 @@ export function PlanEditor({
                 {planId ? "Save draft" : "Create draft"}
               </Button>
             ) : null}
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   )
 }
 
@@ -264,7 +264,7 @@ function BandsSection({
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className="border-t">
-              <td className="py-1.5 pr-2">
+              <td className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} up to`}
                   inputMode="decimal"
@@ -275,7 +275,7 @@ function BandsSection({
                   onChange={(e) => update(i, { upper: e.target.value })}
                 />
               </td>
-              <td className="py-1.5 pr-2">
+              <td className="py-2 pr-2">
                 <Input
                   aria-label={`${title} ${i + 1} adds`}
                   inputMode="decimal"
@@ -285,7 +285,7 @@ function BandsSection({
                   onChange={(e) => update(i, { add: e.target.value })}
                 />
               </td>
-              <td className="py-1.5 text-right">
+              <td className="py-2 text-right">
                 {editable ? (
                   <Button
                     type="button"

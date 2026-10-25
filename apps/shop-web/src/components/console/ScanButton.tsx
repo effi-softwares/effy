@@ -53,14 +53,14 @@ export function ScanButton() {
         <span className="max-sm:hidden">Scan</span>
       </Button>
       <ResponsiveModal open={open} onOpenChange={(o) => !busy && setOpen(o)}>
-        <ResponsiveModalContent className="sm:max-w-[520px]">
+        <ResponsiveModalContent className="sm:max-w-130">
           <ResponsiveModalHeader>
             <ResponsiveModalTitle>Scan from anywhere</ResponsiveModalTitle>
             <ResponsiveModalDescription>
               Scan a bag label, or type an order number. The order opens by itself.
             </ResponsiveModalDescription>
           </ResponsiveModalHeader>
-          <div className="grid gap-3 max-md:px-4 max-md:pb-6">
+          <div className="grid gap-3 max-md:pb-2">
             {open ? (
               <ScanField
                 accept={(t) => t.trim().length >= 3}

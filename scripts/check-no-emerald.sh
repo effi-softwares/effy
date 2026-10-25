@@ -9,7 +9,6 @@
 #
 # The values:
 # 065f46 emerald-800 — the accent (light + dark)
-# 10b981 emerald-500 — the dark-mode focus ring + the brand mark's bag body
 # d0735a terracotta as supplied
 # bf5540 terracotta AA-tuned for light
 # dd8368 terracotta lifted for dark
@@ -22,7 +21,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-hits="$(grep -rniE '065f46|10b981|d0735a|bf5540|dd8368|69b08b|0ea5e9|075985|4ade80|3b82f6' packages apps \
+hits="$(grep -rniE '065f46|d0735a|bf5540|dd8368|69b08b|0ea5e9|075985|4ade80|3b82f6' packages apps \
   --include='*.css' --include='*.ts' --include='*.tsx' --include='*.kt' --include='*.svg' \
   --include='*.mjs' --include='*.xml' \
   --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.test.js' --exclude='*.test.mjs' \

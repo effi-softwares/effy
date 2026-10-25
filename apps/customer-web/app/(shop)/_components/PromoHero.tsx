@@ -157,7 +157,7 @@ function SideCard({ banner, theme }: { banner: Banner; theme: PromoTheme }) {
     <PromoBanner theme={theme} className="flex min-h-38 w-full flex-col justify-between rounded-xl p-6">
       <div className="max-w-[62%] space-y-1">
         <p className={cn(eyebrow, "tracking-[0.08em]")}>{banner.code ? "Code" : "Offer"}</p>
-        <h3 className="text-[22px] leading-[1.15] font-semibold tracking-[-0.02em]">{banner.title}</h3>
+        <h3 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em]">{banner.title}</h3>
         {detail && <p className="text-sm opacity-90">{detail}</p>}
       </div>
       {banner.code ? (

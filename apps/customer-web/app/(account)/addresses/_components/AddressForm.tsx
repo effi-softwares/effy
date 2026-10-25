@@ -165,7 +165,7 @@ export function AddressForm({
                 className={
                   "rounded-md border px-3 py-1 text-sm transition-colors " +
                   (selected
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-primary bg-primary-fill text-primary-foreground"
                     : "border-input hover:bg-accent")
                 }
               >
@@ -259,7 +259,7 @@ function Field({
   required?: boolean
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}

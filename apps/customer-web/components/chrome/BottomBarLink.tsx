@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { chromePrefetch } from "@/lib/account-routes"
 
 const base =
-  "flex min-h-12 flex-col items-center gap-0.5 py-1.5 text-[11px] leading-[14px] font-medium text-muted-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground [&_svg]:size-[22px]"
+  "flex min-h-12 flex-col items-center gap-1 py-2 text-xs leading-4 font-medium text-muted-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground [&_svg]:size-6"
 
 /**
  * One bottom-bar entry, knowing only whether it is the current one.

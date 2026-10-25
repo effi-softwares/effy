@@ -101,7 +101,7 @@ export function HubStationScreen() {
                 description={`${inCount} of ${run.bags.length} bags checked in`}
                 flush
               >
-                <table className="bo-table bo-table--compact bo-table--plain" aria-label={`${run.driverName}'s bags`}>
+                <table className="ef-table ef-table--compact ef-table--plain" aria-label={`${run.driverName}'s bags`}>
                   <thead>
                     <tr>
                       <th>Code</th>

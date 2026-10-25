@@ -76,26 +76,26 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
         }
       />
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           <Panel
             title="Points"
             icon={<Coins aria-hidden="true" />}
             description="Points are a way of paying, never a discount. The balance is worked out from the ledger, never stored."
           >
-            <dl className="bo-dl">
-              <div className="bo-dl__row">
+            <dl className="ef-dl">
+              <div className="ef-dl__row">
                 <dt>Usable</dt>
                 <dd>
                   <span className="text-xl font-semibold tabular-nums">{formatPoints(c.points.usable)}</span>{" "}
                   <span className="text-muted-foreground">· {money(c.points.valueAmount)}</span>
                 </dd>
               </div>
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Held at checkout</dt>
                 <dd className="tabular-nums">{c.points.held > 0 ? formatPoints(c.points.held) : "—"}</dd>
               </div>
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Next to expire</dt>
                 <dd className="tabular-nums">
                   {c.points.nextExpiry
@@ -107,8 +107,8 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           </Panel>
 
           <Tabs defaultValue="history">
-            <div className="bo-tabsbar">
-              <div className="bo-tabsbar__list">
+            <div className="ef-tabsbar">
+              <div className="ef-tabsbar__list">
                 <TabsList aria-label="Customer sections">
                   <TabsTrigger value="history">
                     <History aria-hidden="true" />
@@ -122,7 +122,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
                 </TabsList>
               </div>
             </div>
-            <TabsContent value="history" className="bo-tabpanel">
+            <TabsContent value="history" className="ef-tabpanel">
               <Panel
                 title="History"
                 icon={<History aria-hidden="true" />}
@@ -131,7 +131,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
                 <PointsHistoryTable customerId={c.id} />
               </Panel>
             </TabsContent>
-            <TabsContent value="orders" className="bo-tabpanel">
+            <TabsContent value="orders" className="ef-tabpanel">
               <Panel title="Recent orders" icon={<ShoppingBag aria-hidden="true" />} flush>
                 {c.recentOrders.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-muted-foreground">No orders yet.</p>
@@ -139,7 +139,7 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
                   <ul className="divide-y divide-border">
                     {c.recentOrders.map((o) => (
                       <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="bo-link bo-code">
+                        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="link ef-code">
                           {o.orderNumber}
                         </Link>
                         <span className="text-sm tabular-nums">{money(o.total)}</span>
@@ -152,16 +152,16 @@ export function CustomerDetailScreen({ customerId }: { customerId: string }) {
           </Tabs>
         </div>
 
-        <aside className="bo-detail__aside is-first">
+        <aside className="ef-detail__aside is-first">
           <Panel title="Customer">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="bo-avatar bo-avatar--lg bo-avatar--blue" aria-hidden="true">
+                <span className="avatar avatar--lg avatar--blue" aria-hidden="true">
                   {initialsOf(c.name || c.email)}
                 </span>
                 <div className="min-w-0">
                   <div className="truncate font-semibold">{c.name || c.email}</div>
-                  <div className="bo-sub truncate">{c.email}</div>
+                  <div className="ef-sub truncate">{c.email}</div>
                 </div>
               </div>
               <div className="grid gap-2">

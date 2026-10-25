@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
-    "depcruise": "depcruise app components lib --config .dependency-cruiser.cjs",
+    "depcruise": "depcruise app components lib --config scripts/dependency-cruiser.cjs && depcruise app components lib --config scripts/dependency-cruiser.first-load.cjs",
     "size": "node scripts/bundle-budget.mjs",
     "analyze": "next experimental-analyze"
   },

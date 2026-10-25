@@ -137,7 +137,7 @@ export function ScanField({
       {cameraOn ? (
         <video ref={video} muted className="border-border aspect-video w-full max-w-md rounded-[var(--radius)] border bg-black object-cover" />
       ) : null}
-      {cameraError ? <p className="text-destructive text-[12.5px]">{cameraError}</p> : null}
+      {cameraError ? <p className="text-destructive text-xs">{cameraError}</p> : null}
     </div>
   )
 }

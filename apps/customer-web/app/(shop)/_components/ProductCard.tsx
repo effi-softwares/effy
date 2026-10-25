@@ -128,13 +128,13 @@ export function ProductCard({
       </div>
 
       {product.brand && <p className="mt-3 truncate text-xs text-muted-foreground">{product.brand}</p>}
-      <h3 className={`line-clamp-2 text-sm leading-snug font-medium ${product.brand ? "mt-0.5" : "mt-3"}`}>
+      <h3 className={`line-clamp-2 text-sm leading-snug font-medium ${product.brand ? "mt-1" : "mt-3"}`}>
         {product.name}
       </h3>
 
       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
         <div className="min-w-0">
-          <p className="flex flex-wrap items-baseline gap-x-1.5">
+          <p className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-base font-semibold tabular-nums">
               {/* Sizes at different prices: the tile says the lowest, and says it is a lowest. */}
               {product.priceVaries ? <span className="text-xs font-normal text-muted-foreground">From </span> : null}

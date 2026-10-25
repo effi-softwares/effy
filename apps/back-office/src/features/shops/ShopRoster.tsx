@@ -45,14 +45,14 @@ export function ShopRoster({ shop, canManage, onAdd }: { shop: ShopDetail; canMa
         ) : null
       }
       footer={
-        <span className="bo-sub">
+        <span className="ef-sub">
           A role or status change applies straight away and is written to Activity. The last active manager can't be
           demoted or disabled.
         </span>
       }
       flush
     >
-      <div className="bo-table-scroll">
+      <div className="ef-table-scroll">
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,7 +107,7 @@ function RosterRow({
     <TableRow>
       <TableCell>
         <div className="flex items-center gap-3">
-          <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
+          <span className="avatar avatar--sq" aria-hidden="true">
             {initialsOf(user.name ?? user.email ?? "?")}
           </span>
           <div className="flex min-w-0 flex-col">

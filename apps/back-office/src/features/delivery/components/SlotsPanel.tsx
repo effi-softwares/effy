@@ -261,9 +261,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Checkbox id="slot-limited" checked={limited} onCheckedChange={(v) => setLimited(v === true)} />
-              <Label htmlFor="slot-limited" className="font-normal">
-                Limit how many deliveries this window takes
-              </Label>
+              <Label htmlFor="slot-limited">Limit how many deliveries this window takes</Label>
             </div>
             {limited ? (
               field("capacity", "Deliveries it can take", capacity, setCapacity, "20", { inputMode: "numeric" })

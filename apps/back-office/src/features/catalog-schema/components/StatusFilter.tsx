@@ -18,7 +18,7 @@ export function StatusFilter({
   onChange: (value: StatusFilterValue) => void
 }) {
   return (
-    <div role="group" aria-label="Status" className="bo-seg">
+    <div role="group" aria-label="Status" className="ef-seg">
       {OPTIONS.map((o) => (
         <button
           key={o.value}

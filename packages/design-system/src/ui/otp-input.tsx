@@ -35,7 +35,7 @@ function OtpInput({
       data-variant="plain"
       className={cn(
         // Squared, 36px: the same base as `input.tsx`, minus the `file:` affordances.
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary-fill selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
         // Tabular figures and a little tracking: codes are read back digit by digit.
         "font-mono tracking-[0.35em]",
         // No focus halo, as in `input.tsx`. The `cells` variant keeps its own per-cell indicator.
@@ -105,8 +105,6 @@ function OtpCells({
         data-variant="cells"
         className={cn(
           "absolute inset-0 z-10 h-full w-full rounded-md bg-transparent text-transparent caret-transparent outline-none",
-          // The focus indicator is on the cells.
-          "focus-visible:outline-none",
           // Selection stays visible, or select-all would look like an empty field.
           "selection:bg-primary/20",
           // An over-length value is shown as plain text: six cells would make it look like a valid code.
@@ -125,7 +123,7 @@ function OtpCells({
           // still flush with the label above (the group stays `w-full`, so the transparent input
           // overlay keeps covering the full field). The cell count still comes from `POSITIONS`
           // (derived from `OTP_LENGTH`), so no literal "six" is written down here.
-          className="pointer-events-none flex gap-1.5 sm:gap-2"
+          className="pointer-events-none flex gap-2 sm:gap-2"
         >
           {POSITIONS.map((i) => (
             <Cell
@@ -176,7 +174,7 @@ function Cell({
         // `border-ring` (the colour has no headroom above 3:1; the weight does). The same size in every
         // state, so the row never shifts while typing; a fixed 44/48px square set only here, large
         // because codes are typed under time pressure.
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-[1.5px] bg-background transition-colors sm:h-12 sm:w-12",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-2 bg-background transition-colors sm:h-12 sm:w-12",
         "font-mono text-lg tabular-nums text-foreground sm:text-xl",
         filled ? "border-foreground" : "border-ring",
         // The error is on the cells too, not only in the message.
@@ -184,7 +182,7 @@ function Cell({
         // The active position, revealed only while the field actually has focus.
         active &&
           !invalid &&
-          "group-focus-within:border-foreground group-focus-within:ring-2 group-focus-within:ring-ring group-focus-within:ring-offset-2 group-focus-within:ring-offset-background"
+          "group-focus-within:border-foreground"
       )}
     >
       {char ?? ""}
@@ -193,7 +191,7 @@ function Cell({
       {active && !filled && (
         <span
           data-slot="otp-caret"
-          className="hidden h-5 w-0.5 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-6"
+          className="hidden h-5 w-1 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-6"
         />
       )}
     </div>

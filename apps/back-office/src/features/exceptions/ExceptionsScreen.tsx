@@ -52,13 +52,13 @@ export function ExceptionsScreen() {
         <ErrorState error={open.error} onRetry={() => void open.refetch()} />
       ) : open.isPending || !data ? (
         <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-9 w-[28rem] max-w-full" />
+          <Skeleton className="h-9 w-112 max-w-full" />
           <Skeleton className="h-64" />
         </div>
       ) : (
         <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
-          <div className="bo-tabsbar">
-            <div className="bo-tabsbar__list">
+          <div className="ef-tabsbar">
+            <div className="ef-tabsbar__list">
               <TabsList aria-label="Exception kinds">
                 <TabsTrigger value="failed">
                   <PackageX aria-hidden="true" />
@@ -87,30 +87,30 @@ export function ExceptionsScreen() {
             </span>
           </div>
 
-          <TabsContent value="failed" className="bo-tabpanel">
+          <TabsContent value="failed" className="ef-tabpanel">
             <section className="space-y-3" aria-labelledby="failed-h">
-              <div className="bo-tabs" role="tablist" aria-label="Show">
+              <div className="ef-tabs" role="tablist" aria-label="Show">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={!showResolved}
-                  className={`bo-tabs__tab${!showResolved ? " is-active" : ""}`}
+                  className={`ef-tabs__tab${!showResolved ? " is-active" : ""}`}
                   onClick={() => setShowResolved(false)}
                 >
-                  Open<span className="bo-tabs__count">{data.openCount}</span>
+                  Open<span className="ef-tabs__count">{data.openCount}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
                   aria-selected={showResolved}
-                  className={`bo-tabs__tab${showResolved ? " is-active" : ""}`}
+                  className={`ef-tabs__tab${showResolved ? " is-active" : ""}`}
                   onClick={() => setShowResolved(true)}
                 >
-                  Dealt with{all.data ? <span className="bo-tabs__count">{resolved.length}</span> : null}
+                  Dealt with{all.data ? <span className="ef-tabs__count">{resolved.length}</span> : null}
                 </button>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 id="failed-h" className="bo-section-title">
+                <h2 id="failed-h" className="ef-section-title">
                   Failed deliveries
                 </h2>
                 <span className="text-xs text-muted-foreground">Open first, then newest · live</span>
@@ -126,9 +126,9 @@ export function ExceptionsScreen() {
                   description={showResolved ? undefined : "No driver has reported a delivery they could not complete."}
                 />
               ) : (
-                <div className="bo-table-wrap">
-                  <div className="bo-table-scroll">
-                    <table className="bo-table bo-rtable">
+                <div className="ef-table-wrap">
+                  <div className="ef-table-scroll">
+                    <table className="ef-table ef-rtable">
                       <thead>
                         <tr>
                           <th>Order</th>
@@ -146,11 +146,11 @@ export function ExceptionsScreen() {
                         {sortForTriage(failedRows).map((e) => (
                           <tr key={e.exceptionId}>
                             <td data-m="primary">
-                              <span className="bo-code font-medium">{e.orderNumber}</span>
+                              <span className="ef-code font-medium">{e.orderNumber}</span>
                             </td>
                             <td data-m="meta">
                               <span className="font-medium">{reasonLabel(e.reason)}</span>
-                              {e.note ? <span className="bo-sub">{e.note}</span> : null}
+                              {e.note ? <span className="ef-sub">{e.note}</span> : null}
                             </td>
                             <td data-m="meta" data-label="Driver">
                               {e.driverName}
@@ -174,7 +174,7 @@ export function ExceptionsScreen() {
                               {e.resolvedAt ? (
                                 <span className="text-xs text-muted-foreground">
                                   {e.resolution?.outcome ? OUTCOME_WORDS[e.resolution.outcome].label : "Dealt with"}
-                                  {e.resolution?.note ? <span className="bo-sub">{e.resolution.note}</span> : null}
+                                  {e.resolution?.note ? <span className="ef-sub">{e.resolution.note}</span> : null}
                                 </span>
                               ) : canResolve && e.packageLocation === "with_driver" ? (
                                 <RecordReturnButton exception={e} />
@@ -193,13 +193,13 @@ export function ExceptionsScreen() {
               )}
             </section>
           </TabsContent>
-          <TabsContent value="runs" className="bo-tabpanel">
+          <TabsContent value="runs" className="ef-tabpanel">
             <OverduePanel data={data} />
           </TabsContent>
-          <TabsContent value="vehicles" className="bo-tabpanel">
+          <TabsContent value="vehicles" className="ef-tabpanel">
             <VehicleChecksPanel data={data} canAct={canResolve} />
           </TabsContent>
-          <TabsContent value="missing" className="bo-tabpanel">
+          <TabsContent value="missing" className="ef-tabpanel">
             <HeldPanel data={data} canAct={canResolve} />
           </TabsContent>
         </Tabs>

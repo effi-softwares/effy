@@ -15,7 +15,7 @@ export function ReadabilityPanel({ issues, pairs }: Props) {
         <ul className="space-y-1 text-sm" data-testid="skin-issues">
           {issues.map((i) => (
             <li key={i.field} className="flex gap-2">
-              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+              <TriangleAlert aria-hidden="true" className="mt-1 size-4 shrink-0 text-destructive" />
               <span>
                 <span className="font-mono text-xs">{i.field}</span> — {i.message}
               </span>
@@ -23,10 +23,10 @@ export function ReadabilityPanel({ issues, pairs }: Props) {
           ))}
         </ul>
       ) : (
-        <ul className="space-y-1.5" data-testid="skin-contrast">
+        <ul className="space-y-2" data-testid="skin-contrast">
           {pairs.map((p) => (
             <li key={p.pair} className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-2">
                 {p.ok ? (
                   <Check aria-hidden="true" className="size-4 text-success" />
                 ) : (

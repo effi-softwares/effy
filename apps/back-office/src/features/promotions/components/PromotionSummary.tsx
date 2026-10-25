@@ -28,10 +28,10 @@ export function PromotionSummary({ d }: { d: Draft }) {
   return (
     <Panel title="Summary">
       <div className="space-y-4">
-        {d.label ? <div className="bo-sub font-semibold uppercase tracking-wide">{d.label}</div> : null}
+        {d.label ? <div className="ef-sub font-semibold uppercase tracking-wide">{d.label}</div> : null}
         <div className="text-base font-semibold">{d.headline || d.name || "Untitled promotion"}</div>
-        {d.supportingLine ? <p className="bo-sub">{d.supportingLine}</p> : null}
-        <ul className="space-y-1.5 text-sm">
+        {d.supportingLine ? <p className="ef-sub">{d.supportingLine}</p> : null}
+        <ul className="space-y-2 text-sm">
           <li>{value}</li>
           <li>{min}</li>
           <li>
@@ -54,7 +54,7 @@ export function PromotionSummary({ d }: { d: Draft }) {
           <li>
             {d.trigger === "code" ? (
               <>
-                With the code <span className="bo-code">{d.sharedCode || "…"}</span>
+                With the code <span className="ef-code">{d.sharedCode || "…"}</span>
               </>
             ) : (
               "Applies automatically"
@@ -65,7 +65,7 @@ export function PromotionSummary({ d }: { d: Draft }) {
             {d.combinable ? "Combines with other offers" : "Doesn't combine with other offers"}
           </li>
         </ul>
-        <p className="bo-sub">
+        <p className="ef-sub">
           Never takes delivery or a cart below zero. Once it is used, what it gives and who it is for are fixed.
         </p>
       </div>

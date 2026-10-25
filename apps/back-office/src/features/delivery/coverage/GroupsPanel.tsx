@@ -160,7 +160,7 @@ export function GroupsPanel({
 
       {canManage ? (
         <form onSubmit={add} className="flex items-end gap-2">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="new-group">New group</Label>
             <Input
               id="new-group"

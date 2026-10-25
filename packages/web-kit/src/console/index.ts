@@ -16,11 +16,6 @@ export {
   type DefaultTabs,
   type Where,
 } from "./staff-nav";
-export {
-  DashboardOverview,
-  type DashboardOverviewProps,
-  type OverviewStat,
-} from "./DashboardOverview";
 export { OtpSignInCard, type OtpSignInCardProps } from "./OtpSignInCard";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { DataTable, type DataTableProps } from "./DataTable";

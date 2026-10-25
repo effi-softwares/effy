@@ -78,11 +78,11 @@ export function AdjustLineDialog({
       <ChoiceCards label="Availability" value={mode} options={AVAILABILITY} onChange={setMode} />
       {mode === "part" ? (
         <div className="grid gap-2">
-          <label htmlFor="adjust-units" className="text-[15px] font-medium">
+          <label htmlFor="adjust-units" className="text-base font-medium">
             Units picked
           </label>
           <div className="flex items-center gap-3">
-            <div className="sh-count">
+            <div className="stepper">
               <button type="button" aria-label="One fewer" onClick={() => step(-1)} disabled={n <= 0}>
                 <Minus aria-hidden="true" />
               </button>

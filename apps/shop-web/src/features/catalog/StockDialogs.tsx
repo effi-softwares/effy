@@ -86,7 +86,7 @@ function ReceiveStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }:
 
       <div className="grid gap-4">
         {sizeControl}
-        <div className="grid gap-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="receive-units">Units received</Label>
           <Input
             id="receive-units"
@@ -99,7 +99,7 @@ function ReceiveStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }:
           />
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="receive-note">Note (optional)</Label>
           <Textarea
             id="receive-note"
@@ -110,8 +110,8 @@ function ReceiveStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }:
           />
         </div>
 
-        <div className="border-border flex items-baseline justify-between border-t pt-3.5">
-          <span className="text-muted-foreground text-[13px]">On hand after this</span>
+        <div className="border-border flex items-baseline justify-between border-t pt-4">
+          <span className="text-muted-foreground text-sm">On hand after this</span>
           <span className="text-base font-semibold tabular-nums">
             {valid ? `${onHand} → ${onHand + parsed}` : onHand}
           </span>
@@ -163,7 +163,7 @@ function StartTrackingForm({ variantId, sizeLabel, sizeControl, onClose }: Omit<
 
       <div className="grid gap-4">
         {sizeControl}
-        <div className="grid gap-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="start-units">Units in stock now</Label>
           <Input
             id="start-units"
@@ -174,13 +174,11 @@ function StartTrackingForm({ variantId, sizeLabel, sizeControl, onClose }: Omit<
             value={units}
             onChange={(e) => setUnits(e.target.value)}
           />
-          <p className="text-muted-foreground text-[12.5px]">
-            Required — counting cannot start from an unknown number.
-          </p>
+          <p className="text-muted-foreground text-xs">Required — counting cannot start from an unknown number.</p>
         </div>
 
-        <div className="border-border border-t pt-3.5">
-          <p className="text-muted-foreground text-[12.5px]">
+        <div className="border-border border-t pt-4">
+          <p className="text-muted-foreground text-xs">
             Stock tracking will be turned on: each paid order deducts a unit, and the product stops selling at zero. You
             can turn it off again, or set a low-stock threshold, under Edit rules.
           </p>
@@ -248,7 +246,7 @@ function AdjustStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }: 
       <div className="grid gap-4">
         {sizeControl}
         <div className="flex flex-wrap items-end gap-3">
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="adjust-mode">Change</Label>
             <Select
               value={mode}
@@ -267,7 +265,7 @@ function AdjustStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }: 
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="adjust-value">{mode === "set" ? "New count" : "Change by"}</Label>
             <Input
               id="adjust-value"
@@ -280,7 +278,7 @@ function AdjustStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }: 
             />
           </div>
 
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="adjust-reason">Reason</Label>
             <Select value={reason} onValueChange={(v) => setReason(v as OperatorStockReason)}>
               <SelectTrigger id="adjust-reason" className="w-44">
@@ -297,13 +295,13 @@ function AdjustStockForm({ variantId, stock, sizeLabel, sizeControl, onClose }: 
           </div>
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="adjust-note">Note (optional)</Label>
           <Textarea id="adjust-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 
-        <div className="border-border flex items-baseline justify-between border-t pt-3.5">
-          <span className="text-muted-foreground text-[13px]">On hand after this</span>
+        <div className="border-border flex items-baseline justify-between border-t pt-4">
+          <span className="text-muted-foreground text-sm">On hand after this</span>
           <span className="text-base font-semibold tabular-nums">
             {after === null ? onHand : `${onHand} → ${after}`}
           </span>

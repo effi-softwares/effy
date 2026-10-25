@@ -18,11 +18,11 @@ import { Kbd } from "./Kbd";
 
 /** The row above a list: search, faceted filters, and the list's own controls (Patterns board). */
 export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("bo-toolbar", className)}>{children}</div>;
+  return <div className={cn("ef-toolbar", className)}>{children}</div>;
 }
 
 export function ToolbarSpacer() {
-  return <span className="bo-toolbar__spacer" />;
+  return <span className="flex-auto" />;
 }
 
 /** The list's search. "/" focuses it from anywhere on the page (not while typing in another field). */
@@ -50,7 +50,7 @@ export function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className="bo-toolbar__search">
+    <label className="ef-toolbar__search">
       <Search aria-hidden="true" />
       <span className="sr-only">{label}</span>
       <Input
@@ -59,7 +59,7 @@ export function SearchBox({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8! pr-8! pl-[34px]! text-[13px]!"
+        className="h-8! pr-8! pl-9! text-sm!"
       />
       {value ? null : <Kbd className="absolute right-2 max-md:hidden">/</Kbd>}
     </label>
@@ -90,13 +90,20 @@ export function Facet<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className={cn("bo-facet", chosen && "is-set", className)}>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-4 text-sm font-medium whitespace-nowrap text-foreground hover:bg-accent max-md:flex-none [&_svg]:size-4 [&_svg]:text-muted-foreground",
+            chosen && "border-solid",
+            className,
+          )}
+        >
           <CirclePlus aria-hidden="true" />
           {label}
           {chosen ? (
             <>
-              <span className="bo-facet__sep" aria-hidden="true" />
-              <span className="bo-facet__val">{chosen.label}</span>
+              <span className="h-4 w-px bg-border" aria-hidden="true" />
+              <span className="inline-flex h-6 items-center rounded-sm bg-secondary px-2 text-sm font-medium">{chosen.label}</span>
             </>
           ) : null}
         </button>
@@ -154,17 +161,17 @@ export function Pager({
   onRows?: (n: number) => void;
 }) {
   return (
-    <div className="bo-pager">
+    <div className="ef-pager">
       <span>{summary}</span>
-      <div className="bo-pager__right">
+      <div className="ef-pager__right">
         {rows !== undefined && onRows ? (
-          <label className="bo-pager__rows flex items-center gap-2">
+          <label className="flex items-center gap-2 max-md:hidden">
             Rows
             <select
               aria-label="Rows per page"
               value={rows}
               onChange={(e) => onRows(Number(e.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 text-[13px] shadow-xs"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs"
             >
               {[25, 50, 100].map((n) => (
                 <option key={n} value={n}>
@@ -174,7 +181,7 @@ export function Pager({
             </select>
           </label>
         ) : null}
-        <div className="bo-pager__btns">
+        <div className="ef-pager__btns">
           <Button variant="outline" size="sm" disabled={!canBack} onClick={onBack}>
             Back
           </Button>

@@ -9,7 +9,7 @@ export function TotalRow({ label, value, strong }: { label: ReactNode; value: st
     <div
       className={cn(
         "flex items-baseline justify-between gap-4 py-1",
-        strong && "mt-1 border-t border-border pt-2.5 font-semibold",
+        strong && "mt-1 border-t border-border pt-3 font-semibold",
       )}
     >
       <span className={cn(!strong && "text-muted-foreground")}>{label}</span>

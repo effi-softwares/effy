@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
  * Text is 16px on phones so iOS does not zoom the page on focus, 14px from `md`.
  */
 const control =
-  "w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/10 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+  "w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return <input data-slot="input" className={cn(control, "h-10 md:h-9", className)} {...props} />
@@ -50,7 +50,7 @@ export function Switch({
       onClick={() => onCheckedChange?.(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "bg-primary" : "bg-input",
+        checked ? "bg-primary-fill" : "bg-input",
         className,
       )}
       {...props}
@@ -59,7 +59,7 @@ export function Switch({
         aria-hidden="true"
         className={cn(
           "pointer-events-none block size-4 rounded-full bg-background shadow-xs transition-transform",
-          checked ? "translate-x-[18px]" : "translate-x-0.5",
+          checked ? "translate-x-5" : "translate-x-1",
         )}
       />
     </button>

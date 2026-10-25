@@ -47,22 +47,22 @@ export function QualityStrip({ dto }: { dto: ShopInsightsDTO }) {
   ]
   return (
     <section className="grid gap-3" aria-labelledby="quality-heading">
-      <h2 id="quality-heading" className="bo-section-title">
+      <h2 id="quality-heading" className="ef-section-title">
         How well you fulfil
       </h2>
-      <dl className="sh-kpis">
+      <dl className="kpis">
         {cells.map((c) => (
-          <div key={c.label} className="sh-kpi">
-            <dt className="sh-kpi__label">{c.label}</dt>
-            <dd className="sh-kpi__value">{c.value ?? "—"}</dd>
-            <dd className="sh-kpi__sub">
+          <div key={c.label} className="kpi">
+            <dt className="kpi__label">{c.label}</dt>
+            <dd className="kpi__value">{c.value ?? "—"}</dd>
+            <dd className="kpi__sub">
               {c.figure
                 ? c.points
                   ? pointsText(c.figure, basis)
                   : deltaText(c.figure, basis)
                 : "No orders in this window yet"}
             </dd>
-            <dd className="sh-kpi__sub">{c.hint}</dd>
+            <dd className="kpi__sub">{c.hint}</dd>
           </div>
         ))}
       </dl>

@@ -91,7 +91,7 @@ export default function AboutPage() {
         </dl>
       </section>
 
-      <section className="max-w-[760px]">
+      <section className="max-w-190">
         <LegalBody slug="about" />
       </section>
     </div>
@@ -100,7 +100,7 @@ export default function AboutPage() {
 
 function Point({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border bg-card p-6 shadow-xs">
+    <div className="flex flex-col gap-2 rounded-lg border bg-card p-6 shadow-xs">
       <Icon aria-hidden="true" className="size-5" />
       <h2 className="leading-tight font-semibold">{title}</h2>
       <p className="text-sm text-muted-foreground">{children}</p>

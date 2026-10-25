@@ -104,14 +104,14 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
   const step = (z: ParcelZone, d: number) => setCounts({ ...shown, [z]: Math.max(0, Math.min(50, shown[z] + d)) })
 
   return (
-    <section aria-labelledby="bags-heading" className="bo-panel min-w-0">
-      <div className="bo-panel__head">
+    <section aria-labelledby="bags-heading" className="ef-panel min-w-0">
+      <div className="ef-panel__head">
         <div className="min-w-0 flex-1">
-          <h2 id="bags-heading" className="bo-panel__title">
+          <h2 id="bags-heading" className="ef-panel__title">
             <ShoppingBag aria-hidden="true" />
             Bags &amp; labels
           </h2>
-          <p className="bo-panel__desc">
+          <p className="ef-panel__desc">
             {detail.parcels.length} {detail.parcels.length === 1 ? "bag" : "bags"} ·{" "}
             {detail.parcels.length - unprinted.length} printed
             {packed > 0 ? ` · ${packed} packed` : ""}
@@ -122,12 +122,12 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
       <div className="grid gap-3 border-b border-border px-5 py-4 max-md:px-4">
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {ZONES.map((z) => (
-            <div key={z} className="grid gap-1.5">
+            <div key={z} className="grid gap-2">
               <MicroLabel>
                 {PARCEL_ZONE_WORDS[z]}
                 {detail.zonesNeeded.includes(z) ? " · needed" : ""}
               </MicroLabel>
-              <div className="sh-count">
+              <div className="stepper">
                 <button
                   type="button"
                   aria-label={`One less ${PARCEL_ZONE_WORDS[z].toLowerCase()} bag`}
@@ -185,7 +185,7 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
             rememberLayout(v as LabelLayout)
           }}
         >
-          <SelectTrigger aria-label="Label size" className="w-[260px]">
+          <SelectTrigger aria-label="Label size" className="w-65">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -224,15 +224,15 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
         </div>
         <ScanField accept={(t) => TOKEN.test(t)} onRead={onRead} placeholder="Scan a bag label, or type its code" />
         {lastRead ? (
-          <p className="sh-scan__state" role="status">
+          <p className="scan__state" role="status">
             {lastRead}
           </p>
         ) : null}
       </div>
 
-      <div className="grid gap-6 py-2 min-[1280px]:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="bo-table-scroll">
-          <table className="bo-table bo-table--plain">
+      <div className="grid gap-6 py-2 xl:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="ef-table-scroll">
+          <table className="ef-table ef-table--plain">
             <thead>
               <tr>
                 <th>Bag</th>
@@ -248,20 +248,20 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
                   <td className="whitespace-nowrap tabular-nums">
                     {p.seq} of {p.of} · {PARCEL_ZONE_WORDS[p.zone]}
                   </td>
-                  <td className="bo-code">{p.code}</td>
+                  <td className="ef-code">{p.code}</td>
                   <td>
                     {p.printed.current ? (
-                      <span className="bo-st bo-st--done">
+                      <span className="ef-st ef-st--done">
                         <Check aria-hidden="true" />
                         Printed
                       </span>
                     ) : p.printed.count > 0 ? (
-                      <span className="bo-st bo-st--problem">
+                      <span className="ef-st ef-st--problem">
                         <RotateCcw aria-hidden="true" />
                         Reprint needed
                       </span>
                     ) : (
-                      <span className="bo-st bo-st--waiting">
+                      <span className="ef-st ef-st--waiting">
                         <Printer aria-hidden="true" />
                         Not printed
                       </span>
@@ -287,9 +287,9 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
           </table>
         </div>
         {previewSvg ? (
-          <figure className="grid justify-items-center gap-1.5 px-5 pb-4">
+          <figure className="grid justify-items-center gap-2 px-5 pb-4">
             <div
-              className="border-border w-[220px] overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
+              className="border-border w-55 overflow-hidden rounded-[var(--radius)] border bg-white [&>svg]:h-auto [&>svg]:w-full"
               dangerouslySetInnerHTML={{ __html: previewSvg }}
             />
             <figcaption className="text-sm text-muted-foreground">Preview</figcaption>

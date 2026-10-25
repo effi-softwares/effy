@@ -8,9 +8,19 @@ TypeScript source and CSS (each consumer's bundler transpiles).
 
 | File (export) | Used by | Identity |
 |---|---|---|
-| `src/tokens.css` (`./tokens.css`) | shop-web; mobile layout scale | The console: cobalt `--brand`/`--primary` as the one action colour, neutral greys, near-black dark base, three bounded hues (`--accent2`, `--violet`, `--teal`), four states with `-soft` tints, radius 4/6/8/10, Geist |
-| `src/storefront/tokens.css` (`./storefront.css`) | customer-web; customer and driver apps | The storefront: black, white, zinc, Effy blue for actions, Effy green for savings and "done", no red; light only on the web, light and dark on mobile |
-| `src/backoffice/tokens.css` (`./backoffice.css`) | back-office | The storefront identity, declaring every console token name so the shared primitives resolve |
+| `src/tokens.css` (`./tokens.css`) | every app: customer-web, back-office and shop-web (through `console.css`), the customer and driver apps, emails, Stripe card fields | The one theme: every colour (Tailwind palette values only), size, shadow and timing token, light and dark, and the `@theme` mapping |
+| `src/console.css` (`./console.css`) | back-office, shop-web | Imports `tokens.css`, then the consoles' shared styles (dialogs, toasts, `ef-*` patterns, the shell). No tokens of its own. |
+
+### Where a console style goes
+
+Back-office and shop-web share one look. For any style:
+
+1. **Both consoles use it**, or a shared `@effy/web-kit` component does → `src/console.css`. All common styles live here.
+2. **Only one console uses it, in two or more places** → that app's `src/styles.css`
+   (`apps/back-office/src/styles.css`, `apps/shop-web/src/styles.css`).
+3. **Used in one place** → no class: inline Tailwind in that JSX.
+
+Shared classes in `console.css` use the `ef-` prefix; an app's own classes have no prefix, or `bo-` / `sh-` where a bare name would clash. A variant of a shared class stays next to it in `console.css`.
 
 Consumers import one of them after Tailwind:
 
@@ -26,9 +36,8 @@ Never hardcode a colour: edit the token file and regenerate (`tokens:gen`).
 
 `pnpm --filter @effy/design-system test` runs:
 
-- `check-tokens.mjs`, `check-storefront-tokens.mjs`, `check-backoffice-tokens.mjs`: key-set parity
-  between appearances, the radius scale, WCAG AA on every text pair, and every ratio written in a
-  comment matching the recomputed one.
+- `check-tokens.mjs`: the one theme — light/dark key parity, every colour a Tailwind palette value, no
+  red or orange outside the promo palette, the radius scale, and WCAG AA on every text pair.
 - `check-component-shape.mjs`: controls are never pills, badges always are, containers are at least
   as round as the controls inside them.
 - `check-token-usage.mjs`: every colour utility names a declared token (Tailwind emits nothing for an
@@ -51,7 +60,7 @@ To add a primitive, run `pnpm dlx shadcn@latest add <name>` inside a consuming a
 ## Mobile themes
 
 `scripts/gen-compose-theme.mjs` generates the Compose theme for each KMP app (customer, driver):
-colours, Geist type and `EffyStorefrontShape` from `src/storefront/tokens.css` (light and dark), and the
+colours, Geist type and `EffyStorefrontShape` from `src/tokens.css` (light and dark), and the
 layout scale (`EffyRadius`, `EffySpacing`) from `src/tokens.css`. `scripts/gen-stripe-appearance.mjs`
 themes the customer payment element on the web, Android and iOS (the iOS half is written to
 `apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift`) from the storefront file.

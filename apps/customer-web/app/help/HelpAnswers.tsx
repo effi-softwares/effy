@@ -29,7 +29,7 @@ export function HelpAnswers() {
 
   return (
     <div>
-      <label className="flex h-11 max-w-xl items-center gap-2 rounded-md border border-input bg-background px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
+      <label className="flex h-11 max-w-xl items-center gap-2 rounded-md border border-input bg-background px-3 shadow-xs focus-within:border-ring">
         <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <span className="sr-only">Search help</span>
         <input

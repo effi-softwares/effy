@@ -75,7 +75,7 @@ export function PaymentMethodList({
           <li
             key={card.id}
             className={cn(
-              "flex h-16 items-center gap-3 rounded-[10px] border border-input px-4",
+              "flex h-16 items-center gap-3 rounded-xl border border-input px-4",
               !card.usable && "opacity-60",
             )}
           >
@@ -95,7 +95,7 @@ export function PaymentMethodList({
             </span>
 
             {card.isDefault && card.usable ? (
-              <span className="shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+              <span className="shrink-0 rounded-md border px-2 py-1 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
                 Default
               </span>
             ) : null}
@@ -115,7 +115,7 @@ export function PaymentMethodList({
       </ul>
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <CreditCard className="size-3.5 shrink-0" aria-hidden="true" />
+        <CreditCard className="size-4 shrink-0" aria-hidden="true" />
         Effy never sees or stores your card number — only the last four digits, so you can tell your
         cards apart.
       </p>

@@ -187,7 +187,7 @@ private fun DutyToggle(onDuty: Boolean, busy: Boolean, onClick: () -> Unit) {
         if (onDuty) {
             Box(
                 Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 8.dp).size(12.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.background).padding(2.dp).clip(CircleShape).background(EffyRoles.brand),
+                    .background(MaterialTheme.colorScheme.background).padding(2.dp).clip(CircleShape).background(EffyRoles.brandFill),
             )
         }
     }

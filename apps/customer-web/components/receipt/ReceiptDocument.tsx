@@ -90,7 +90,7 @@ function Masthead({ order }: { order: OrderDTO }) {
 
   return (
     <div className="flex items-start justify-between gap-4 p-6">
-      <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-2">
         <h2 id="receipt-title" className="flex items-center gap-2 leading-none font-semibold">
           Receipt {paid ? <Badge variant="secondary">Paid</Badge> : null}
         </h2>
@@ -119,7 +119,7 @@ function LineItem({
 }) {
   return (
     <tr className="border-b last:border-b-0">
-      <td className="px-2 py-2.5">
+      <td className="px-2 py-3">
         <div className="flex items-center gap-3">
           {/*
             Decoration only. A missing picture is a plain tile and the line stays whole — nothing
@@ -130,7 +130,7 @@ function LineItem({
             {item.imageUrl ? (
               <CatalogImage src={item.imageUrl} widths={item.imageWidths} alt="" fill sizes="40px" className="object-cover" />
             ) : (
-              <Package aria-hidden="true" className="size-[18px]" />
+              <Package aria-hidden="true" className="size-5" />
             )}
           </div>
           <div className="min-w-0">
@@ -147,12 +147,12 @@ function LineItem({
           </div>
         </div>
       </td>
-      <td className={cn("px-2 py-2.5 text-right", unavailable && "text-muted-foreground")}>{item.quantity}</td>
-      <td className={cn("px-2 py-2.5 text-right", unavailable && "text-muted-foreground line-through")}>
+      <td className={cn("px-2 py-3 text-right", unavailable && "text-muted-foreground")}>{item.quantity}</td>
+      <td className={cn("px-2 py-3 text-right", unavailable && "text-muted-foreground line-through")}>
         {formatMoney(item.lineSubtotalAmount, currency)}
       </td>
       {buyAgain && (
-        <td className="px-2 py-2.5 text-right max-md:hidden print:hidden">
+        <td className="px-2 py-3 text-right max-md:hidden print:hidden">
           <BuyLineAgain
             variantId={item.variantId}
             variantLabel={item.variantLabel}

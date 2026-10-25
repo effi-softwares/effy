@@ -36,8 +36,8 @@ export function LiveStatus() {
       role="status"
       className={
         reconnecting
-          ? "bg-warning-soft text-warning flex items-center gap-2 rounded-full py-0.5 pr-1 pl-3 text-xs"
-          : "bg-muted text-muted-foreground flex items-center gap-2 rounded-full py-0.5 pr-1 pl-3 text-xs"
+          ? "bg-warning-soft text-warning flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-xs"
+          : "bg-muted text-muted-foreground flex items-center gap-2 rounded-full py-1 pr-1 pl-3 text-xs"
       }
     >
       <span className="whitespace-nowrap">
@@ -46,11 +46,11 @@ export function LiveStatus() {
       <Button
         type="button"
         variant="ghost"
-        size="icon-xs"
+        size="icon"
         aria-label="Refresh now"
         onClick={live.refresh}
       >
-        <RefreshCw className="size-3.5" aria-hidden="true" />
+        <RefreshCw className="size-4" aria-hidden="true" />
       </Button>
     </div>
   );

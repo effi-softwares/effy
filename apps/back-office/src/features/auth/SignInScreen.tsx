@@ -23,7 +23,7 @@ export function SignInScreen({ next }: { next?: string }) {
     <div className="grid min-h-dvh grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] bg-background">
       <section className="flex min-h-dvh flex-col p-8 max-sm:p-5">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="bo-logo">
+          <span aria-hidden="true" className="ef-logo">
             e<b>.</b>
           </span>
           <span className="font-semibold">Effy</span>
@@ -44,13 +44,13 @@ export function SignInScreen({ next }: { next?: string }) {
         </p>
       </section>
       <aside className="flex min-h-dvh flex-col justify-between border-l border-border bg-muted p-12 max-md:hidden">
-        <span className="text-[40px] leading-none font-bold tracking-[-0.04em]">
+        <span className="text-4xl leading-none font-bold tracking-[-0.04em]">
           effy<b className="text-success">.</b>
         </span>
-        <ul className="max-w-[440px] space-y-4">
+        <ul className="max-w-110 space-y-4">
           {ASIDE.map((a) => (
             <li key={a.title} className="flex gap-3">
-              <span className="bo-icon-tile bo-icon-tile--primary">
+              <span className="ef-icon-tile ef-icon-tile--primary">
                 <a.icon aria-hidden="true" />
               </span>
               <div>

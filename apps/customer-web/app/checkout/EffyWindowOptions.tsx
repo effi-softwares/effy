@@ -76,11 +76,11 @@ export function EffyWindowOptions({
   }
 
   const optionClass = (selected: boolean, closed = false) =>
-    "flex min-h-14 cursor-pointer flex-col justify-center rounded-md border px-3 py-2 text-sm shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring " +
+    "flex min-h-14 cursor-pointer flex-col justify-center rounded-md border px-3 py-2 text-sm shadow-xs " +
     (closed
       ? "cursor-not-allowed border-dashed bg-muted text-muted-foreground shadow-none"
       : selected
-        ? "border-primary bg-primary-muted ring-1 ring-primary"
+        ? "border-primary bg-primary-muted"
         : "hover:bg-accent")
 
   /** One window as a radio row. The radio is visually hidden but is the control; the label is the hit area. */
@@ -163,7 +163,7 @@ export function EffyWindowOptions({
                 aria-expanded={timesShown}
                 aria-controls={timesId}
                 onClick={() => toggleTimes(d)}
-                className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline underline-offset-4"
+                className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline underline-offset-4"
               >
                 {DELIVERY_WINDOW_WORDS.timeOptionOpen}
                 <ChevronDown aria-hidden="true" className={"size-4 transition-transform " + (timesShown ? "rotate-180" : "")} />

@@ -38,15 +38,15 @@ export function MetricStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog: S
   ]
 
   return (
-    <dl className="sh-kpis">
+    <dl className="kpis">
       {cells.map((c, i) => (
-        <div key={c.label} className={cn("sh-kpi", i >= 3 && "is-live")}>
-          <dt className="sh-kpi__label">
-            {i >= 3 ? <span aria-hidden="true" className="bo-dot bo-dot--busy" /> : null}
+        <div key={c.label} className={cn("kpi", i >= 3 && "is-live")}>
+          <dt className="kpi__label">
+            {i >= 3 ? <span aria-hidden="true" className="ef-dot ef-dot--busy" /> : null}
             {c.label}
           </dt>
-          <dd className="sh-kpi__value">{c.value}</dd>
-          <dd className={cn("sh-kpi__sub", "tone" in c && c.tone ? c.tone : null)}>{c.note}</dd>
+          <dd className="kpi__value">{c.value}</dd>
+          <dd className={cn("kpi__sub", "tone" in c && c.tone ? c.tone : null)}>{c.note}</dd>
         </div>
       ))}
     </dl>

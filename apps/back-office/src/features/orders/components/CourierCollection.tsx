@@ -49,7 +49,7 @@ function CourierCollectionRows({ order, canChange, formatDateTime, mode }: Props
         </dd>
       </dl>
       {(order.courierCollectionHistory ?? []).length > 0 ? (
-        <ol className="space-y-0.5 text-sm text-muted-foreground" aria-label="How it reaches the courier — changes">
+        <ol className="space-y-1 text-sm text-muted-foreground" aria-label="How it reaches the courier — changes">
           {order.courierCollectionHistory.map((h, i) => (
             <li key={`${h.at}-${i}`}>
               <span className="tabular-nums">{formatDateTime(h.at)}</span> · {MODE_LABEL[h.from]} → {MODE_LABEL[h.to]}

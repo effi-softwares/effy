@@ -498,8 +498,8 @@ private fun PackageRow(
                     .padding(top = 2.dp)
                     .size(28.dp)
                     .clip(EffyStorefrontShape.small)
-                    .background(if (ticked) EffyRoles.brand else if (problem != null) scheme.surfaceVariant else scheme.background)
-                    .border(if (ticked) 0.dp else 1.5.dp, if (ticked) EffyRoles.brand else scheme.outline, EffyStorefrontShape.small),
+                    .background(if (ticked) EffyRoles.brandFill else if (problem != null) scheme.surfaceVariant else scheme.background)
+                    .border(if (ticked) 0.dp else 1.5.dp, if (ticked) EffyRoles.brandFill else scheme.outline, EffyStorefrontShape.small),
                 contentAlignment = Alignment.Center,
             ) {
                 if (ticked) DriverIcon(Res.drawable.lucide_check, size = 18.dp, tint = EffyRoles.brandForeground)

@@ -1,4 +1,11 @@
-# app-local ignores (root .gitignore covers the monorepo-wide set)
-coverage/
-.vite/
+node_modules/
+dist/
+dist-ssr/
 *.local
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vite/
+/coverage/

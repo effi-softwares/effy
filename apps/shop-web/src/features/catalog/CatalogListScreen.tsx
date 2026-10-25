@@ -177,7 +177,7 @@ export function CatalogListScreen() {
         }
       />
 
-      <div role="tablist" aria-label="Filter by status" className="bo-tabs">
+      <div role="tablist" aria-label="Filter by status" className="ef-tabs">
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
@@ -185,15 +185,15 @@ export function CatalogListScreen() {
             role="tab"
             aria-selected={t.value === status}
             onClick={() => onFilter(setStatus, t.value)}
-            className={cn("bo-tabs__tab", t.value === status && "is-active")}
+            className={cn("ef-tabs__tab", t.value === status && "is-active")}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bo-toolbar">
-        <label className="bo-toolbar__search">
+      <div className="ef-toolbar">
+        <label className="ef-toolbar__search">
           <Search aria-hidden="true" />
           <Input
             aria-label="Search products"
@@ -231,7 +231,7 @@ export function CatalogListScreen() {
           onChange={(v) => onFilter(setReview, (v ?? ALL) as ShopReviewState | typeof ALL)}
           anyLabel="Any review state"
         />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <Input
             aria-label="Minimum price"
             placeholder="Min $"
@@ -273,7 +273,7 @@ export function CatalogListScreen() {
       </div>
 
       {activeFilters.length > 0 ? (
-        <div className="bo-chipbar items-center">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           <span className="text-sm whitespace-nowrap text-muted-foreground">Filtered by</span>
           {activeFilters.map((f) => (
             <Button
@@ -296,8 +296,8 @@ export function CatalogListScreen() {
       ) : isPending ? (
         <CatalogLoading />
       ) : data.items.length === 0 ? (
-        <div className="bo-empty">
-          <span className="bo-empty__icon" aria-hidden="true">
+        <div className="ef-empty">
+          <span className="ef-empty__icon" aria-hidden="true">
             {hasFilters ? <SearchX /> : <Package />}
           </span>
           <h3>{hasFilters ? "No products match your filter" : "No products yet"}</h3>
@@ -333,12 +333,12 @@ export function CatalogListScreen() {
           <tfoot>
             <tr>
               <td colSpan={6} className="p-0!">
-                <div className="bo-pager border-t-0">
+                <div className="ef-pager border-t-0">
                   <span className="tabular-nums">
                     {from}–{to} of {data.total} {data.total === 1 ? "product" : "products"} · page {data.page} of{" "}
                     {totalPages}
                   </span>
-                  <div className="bo-pager__btns">
+                  <div className="ef-pager__btns">
                     <Button
                       variant="outline"
                       size="sm"
@@ -400,7 +400,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
               className="size-12 shrink-0 rounded-lg border border-border object-cover"
             />
           ) : (
-            <div className="bo-img size-12 rounded-lg">
+            <div className="ef-img size-12 rounded-lg">
               <ImageOff aria-hidden="true" />
             </div>
           )}
@@ -413,7 +413,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
             >
               {product.name}
             </Link>
-            {product.brand ? <span className="bo-sub truncate">{product.brand}</span> : null}
+            {product.brand ? <span className="ef-sub truncate">{product.brand}</span> : null}
           </div>
         </div>
       </Td>
@@ -422,10 +422,10 @@ function ProductRow({ product }: { product: ProductListItem }) {
       </Td>
       <Td className="text-muted-foreground">{product.categoryName}</Td>
       <Td>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <ProductStatusBadge status={product.status} />
           {chip ? (
-            <span className={cn("bo-st", sentBack ? "bo-st--problem" : "bo-st--moving")}>
+            <span className={cn("ef-st", sentBack ? "ef-st--problem" : "ef-st--moving")}>
               {sentBack ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
               {chip.label}
             </span>
@@ -434,7 +434,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
       </Td>
       <Td>
         <span className="flex items-center gap-2 whitespace-nowrap">
-          <span aria-hidden="true" className={cn("bo-dot", available ? "bo-dot--on" : "bo-dot--off")} />
+          <span aria-hidden="true" className={cn("ef-dot", available ? "ef-dot--on" : "ef-dot--off")} />
           {available ? "Buyable" : "Not buyable"}
         </span>
       </Td>
@@ -448,13 +448,13 @@ function ProductRow({ product }: { product: ProductListItem }) {
 
 function CatalogLoading() {
   return (
-    <div className="bo-table-wrap" aria-busy="true" aria-label="Loading products">
+    <div className="ef-table-wrap" aria-busy="true" aria-label="Loading products">
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
           <Skeleton className="size-12 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-4 w-28" />
           </div>
           <Skeleton className="h-6 w-20 rounded-md" />
           <Skeleton className="h-4 w-16" />

@@ -36,7 +36,7 @@ export function SavedCards({
 
   return (
     <fieldset>
-      <legend className="mb-2.5 block text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+      <legend className="mb-3 block text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
         Your saved cards
       </legend>
 
@@ -47,7 +47,7 @@ export function SavedCards({
             <div
               key={card.id}
               className={cn(
-                "flex h-14 items-center gap-3 rounded-[10px] border px-3.5 transition-shadow",
+                "flex h-14 items-center gap-3 rounded-xl border px-4 transition-shadow",
                 selected ? "border-foreground shadow-[0_0_0_1px_var(--foreground)]" : "border-input",
                 // An unusable card is dimmed and not selectable. Dimming alone would still let a
                 // shopper choose a card that cannot work and find out from the bank.
@@ -81,7 +81,7 @@ export function SavedCards({
               </span>
 
               {card.isDefault && card.usable ? (
-                <span className="shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                <span className="shrink-0 rounded-md border px-2 py-1 text-xs font-semibold text-foreground">
                   Default
                 </span>
               ) : null}
@@ -109,7 +109,7 @@ export function SavedCards({
 
         <label
           className={cn(
-            "flex h-14 cursor-pointer items-center gap-3 rounded-[10px] border px-3.5 transition-shadow",
+            "flex h-14 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-shadow",
             selectedId === NEW_CARD
               ? "border-foreground shadow-[0_0_0_1px_var(--foreground)]"
               : "border-input",
@@ -124,7 +124,7 @@ export function SavedCards({
             disabled={busy}
             className="size-5 shrink-0 accent-foreground"
           />
-          <span className="flex size-[34px] shrink-0 items-center justify-center text-muted-foreground">
+          <span className="flex size-9 shrink-0 items-center justify-center text-muted-foreground">
             <CreditCard className="size-5" aria-hidden="true" />
           </span>
           <span className="text-sm font-medium">Use a new card</span>
@@ -153,20 +153,20 @@ export function SaveCardConsent({
   disabled?: boolean
 }) {
   return (
-    <label className="flex w-fit cursor-pointer items-center gap-2.5">
+    <label className="flex w-fit cursor-pointer items-center gap-3">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
-        className="size-[18px] rounded-[5px] accent-foreground"
+        className="size-5 rounded-md accent-foreground"
       />
-      <span className="text-[13px]">Save this card for next time</span>
+      <span className="text-sm">Save this card for next time</span>
     </label>
   )
 }
 
 /** A tick used to mark a completed field. Kept here so the payment step imports one place. */
 export function CompleteMark() {
-  return <Check className="size-3.5 text-brand" aria-hidden="true" />
+  return <Check className="size-4 text-brand" aria-hidden="true" />
 }

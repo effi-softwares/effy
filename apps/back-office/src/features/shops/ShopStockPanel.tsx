@@ -60,7 +60,7 @@ function LowStockTable({ rows }: { rows: LowStockRowDTO[] }) {
                 {row.name}
                 {row.variantLabel ? <span className="text-muted-foreground"> — {row.variantLabel}</span> : null}
               </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">{row.sku ?? "—"}</TableCell>
+              <TableCell className="font-mono text-muted-foreground">{row.sku ?? "—"}</TableCell>
               <TableCell className="tabular-nums">{row.onHand}</TableCell>
               <TableCell className="tabular-nums text-muted-foreground">{row.effectiveThreshold ?? "—"}</TableCell>
               <TableCell className={row.severity === "out" ? "font-semibold" : undefined}>
@@ -86,7 +86,7 @@ function ShopDefaultThreshold({ shopId }: { shopId: string }) {
         then reported as running low, though a product that reaches zero is still reported as out of stock.
       </p>
       <div className="flex items-end gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="shop-default-threshold">Threshold</Label>
           <Input
             id="shop-default-threshold"

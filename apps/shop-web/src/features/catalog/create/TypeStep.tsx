@@ -50,14 +50,14 @@ export function TypeStep({ types, selectedId, onSelect }: Props) {
               aria-pressed={selected}
               className={cn(
                 "flex h-full min-h-32 flex-col items-center justify-center gap-3 rounded-lg border bg-background p-4 text-center transition-colors",
-                "hover:bg-[var(--row-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                selected ? "border-primary ring-1 ring-primary" : "border-border",
+                "hover:bg-[var(--row-hover)]",
+                selected ? "border-primary" : "border-border",
               )}
             >
               <span
                 className={cn(
                   "flex size-12 shrink-0 items-center justify-center rounded-lg transition-colors",
-                  selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                  selected ? "bg-primary-fill text-primary-foreground" : "bg-muted text-muted-foreground",
                 )}
               >
                 <Icon className="size-6" />

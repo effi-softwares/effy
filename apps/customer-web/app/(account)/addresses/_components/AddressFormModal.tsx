@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, useDialogOpen } from "@/components/ui/dialog"
+import { Dialog } from "@/components/ui/dialog"
 import type { Address } from "@/lib/addresses/model"
 
 import { AddressForm } from "./AddressForm"
@@ -17,15 +17,14 @@ export function AddressFormModal({
   address?: Address
   onSaved: (address: Address) => void
 }) {
-  const dialog = useDialogOpen(open)
   const editing = !!address
   return (
     <Dialog
-      ref={dialog}
+      open={open}
+      onOpenChange={onOpenChange}
       size="lg"
       title={editing ? "Edit address" : "Add address"}
       description={editing ? "Changes apply to future orders only." : "Save a delivery address to your account."}
-      onClose={() => onOpenChange(false)}
     >
       {open && (
         <AddressForm

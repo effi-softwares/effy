@@ -84,7 +84,7 @@ export function RefundPanel({
         <dd className="tabular-nums">{refundableAmount}</dd>
       </dl>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="refund-kind">Kind</Label>
         <Select value={kind} onValueChange={(v) => setKind(v as "item" | "goodwill")}>
           <SelectTrigger id="refund-kind" className="w-56">
@@ -192,7 +192,7 @@ function ItemSelection({
             checked={Boolean(selected[l.orderItemId])}
             onCheckedChange={(on) => onToggle(l.orderItemId, on ? 1 : 0)}
           />
-          <Label htmlFor={`line-${l.orderItemId}`} className="flex-1 font-normal">
+          <Label htmlFor={`line-${l.orderItemId}`} className="flex-1">
             {l.productName}
             {l.variantLabel ? <span className="text-muted-foreground"> — {l.variantLabel}</span> : null}
             <span className="ml-2 text-muted-foreground">
@@ -211,7 +211,7 @@ function ItemSelection({
         </div>
       ))}
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="refund-reason">Reason</Label>
         <Select value={reason} onValueChange={(v) => onReason(v as RefundReason)}>
           <SelectTrigger id="refund-reason" className="w-64">
@@ -246,7 +246,7 @@ function GoodwillFields({
 }) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="goodwill-amount">Amount</Label>
         <Input
           id="goodwill-amount"
@@ -256,7 +256,7 @@ function GoodwillFields({
           onChange={(e) => onAmount(e.target.value)}
         />
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <Label htmlFor="goodwill-note">Why</Label>
         <Textarea
           id="goodwill-note"

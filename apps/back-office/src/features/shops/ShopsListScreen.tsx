@@ -61,20 +61,20 @@ export function ShopsListScreen() {
       />
 
       <div className="space-y-3">
-        <nav className="bo-tabs" aria-label="Shop views">
+        <nav className="ef-tabs" aria-label="Shop views">
           {VIEWS.map((v) => (
             <button
               key={v.key}
               type="button"
               aria-current={v.key === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              className={cn("ef-tabs__tab", v.key === view && "is-active")}
               onClick={() => {
                 setView(v.key)
                 setPage(1)
               }}
             >
               {v.label}
-              {v.key === view && data ? <span className="bo-tabs__count">{data.total}</span> : null}
+              {v.key === view && data ? <span className="ef-tabs__count">{data.total}</span> : null}
             </button>
           ))}
         </nav>
@@ -94,7 +94,7 @@ export function ShopsListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -106,9 +106,9 @@ export function ShopsListScreen() {
           description={search || view !== "all" ? undefined : "Create the first shop to give its operators a sign-in."}
         />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Code</th>
@@ -145,17 +145,17 @@ function ScanRate({ scanning }: { scanning?: { scanned: number; notScanned: numb
   if (!scanning) return <span className="text-muted-foreground">—</span>
   const total = scanning.scanned + scanning.notScanned
   if (total === 0) {
-    return <span className="bo-sub">No scanning yet · {scanning.sinceDays} days</span>
+    return <span className="ef-sub">No scanning yet · {scanning.sinceDays} days</span>
   }
   const pct = Math.round((scanning.scanned / total) * 100)
   return (
     <div className="min-w-32">
-      <div className="bo-progress-label">
+      <div className="ef-progress-label">
         <span>{pct}% scanned</span>
         <span>{scanning.sinceDays} days</span>
       </div>
-      <div className="bo-meter" role="img" aria-label={`${pct}% of labels scanned in ${scanning.sinceDays} days`}>
-        <i className={pct < 70 ? "bo-meter__over" : "bo-meter__booked"} style={{ width: `${pct}%` }} />
+      <div className="ef-meter" role="img" aria-label={`${pct}% of labels scanned in ${scanning.sinceDays} days`}>
+        <i className={pct < 70 ? "ef-meter__over" : "ef-meter__booked"} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -165,7 +165,7 @@ function ShopRow({ shop: s }: { shop: ShopListItem }) {
   return (
     <tr>
       <td data-m="primary">
-        <Link to="/shops/$shopId" params={{ shopId: s.id }} className="bo-link bo-code">
+        <Link to="/shops/$shopId" params={{ shopId: s.id }} className="link ef-code">
           {s.code}
         </Link>
       </td>

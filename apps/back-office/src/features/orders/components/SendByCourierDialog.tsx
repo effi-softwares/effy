@@ -148,7 +148,7 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
             ) : null}
           </dl>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="move-reason">Why (staff only — the customer never sees this)</Label>
             <Textarea id="move-reason" value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
           </div>
@@ -163,7 +163,7 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
               {p.choices.map((c) => (
                 <div key={c.kind} className="flex items-start gap-2 text-sm">
                   <RadioGroupItem id={`comp-${c.kind}`} value={c.kind} />
-                  <Label htmlFor={`comp-${c.kind}`} className="font-normal">
+                  <Label htmlFor={`comp-${c.kind}`}>
                     {choiceText(c)}
                     {c.default ? <span className="text-muted-foreground"> (recommended)</span> : null}
                     {c.lastResort ? <span className="text-muted-foreground"> (last resort)</span> : null}
@@ -178,7 +178,7 @@ function SendByCourierForm({ orderId, onClose }: { orderId: string; onClose: () 
               </p>
             ) : null}
             {choice === "none" ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="move-note">Why nothing is given</Label>
                 <Textarea id="move-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
               </div>

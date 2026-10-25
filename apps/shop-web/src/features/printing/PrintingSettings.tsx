@@ -45,7 +45,7 @@ export function PrintingSettingsScreen() {
         title="Printing"
         description="Choose how this computer prints bag labels; each computer keeps its own setting."
       />
-      <section className="bo-panel max-w-3xl">
+      <section className="ef-panel max-w-3xl">
         <div>
           <Row
             label="Printer"
@@ -59,7 +59,7 @@ export function PrintingSettingsScreen() {
                 if (device) save({ kind: "zebra", dpi: choice.dpi, device })
               }}
             >
-              <SelectTrigger aria-label="Printer" className="w-[280px] max-w-full">
+              <SelectTrigger aria-label="Printer" className="w-70 max-w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -98,7 +98,7 @@ export function PrintingSettingsScreen() {
             hint="Printed on the printer's own label or in its manual. Most label printers are 203 dpi."
           >
             <Select value={String(choice.dpi)} onValueChange={(v) => save({ ...choice, dpi: Number(v) as PrinterDpi })}>
-              <SelectTrigger aria-label="Printer resolution" className="w-[180px]">
+              <SelectTrigger aria-label="Printer resolution" className="w-45">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -119,7 +119,7 @@ export function PrintingSettingsScreen() {
                 rememberLayout(v as LabelLayout)
               }}
             >
-              <SelectTrigger aria-label="Label size" className="w-[280px] max-w-full">
+              <SelectTrigger aria-label="Label size" className="w-70 max-w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -158,7 +158,7 @@ export function PrintingSettingsScreen() {
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-x-6 gap-y-2 border-b border-border px-5 py-4 last:border-b-0 min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-center max-md:px-4">
-      <div className="grid gap-0.5">
+      <div className="grid gap-1">
         <div className="font-medium">{label}</div>
         <p className="text-sm text-muted-foreground">{hint}</p>
       </div>

@@ -2,25 +2,62 @@
 @import "tw-animate-css";
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
-@import "@effy/design-system/backoffice.css";
-@import "@effy/design-system/backoffice/primitives.css";
-@import "@effy/design-system/backoffice/patterns.css";
-@import "@effy/design-system/backoffice/touch.css";
-@import "@effy/design-system/backoffice/shell.css";
+@import "@effy/design-system/console.css";
 
-@layer base {
-  * {
-    border-color: var(--color-border);
+@layer components {
+  .ef-table a.link,
+  .link {
+    @apply font-medium text-foreground no-underline;
   }
-  html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  .ef-table a.link:hover,
+  .link:hover {
+    @apply underline underline-offset-3;
   }
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 22px;
+  .late {
+    @apply inline-flex items-center gap-1 text-sm font-semibold whitespace-nowrap text-foreground;
+  }
+  .late svg {
+    @apply size-3;
+  }
+  .avatar {
+    @apply inline-grid size-7 flex-none place-items-center rounded-full bg-muted text-xs font-semibold text-foreground;
+  }
+  .avatar--sq {
+    @apply rounded-md;
+  }
+  .avatar--lg {
+    @apply size-12 text-base;
+  }
+  .avatar--blue {
+    @apply bg-primary-muted text-primary;
+  }
+  .avatar--green {
+    @apply bg-success-soft text-success;
+  }
+}
+
+.settings {
+  @apply flex flex-col gap-6;
+}
+
+.settings section:not(section section):not(.ef-panel) {
+  @apply m-0 rounded-lg border border-solid border-border bg-card px-5 pt-4 pb-5;
+}
+
+.settings section:not(section section):not(.ef-panel) > h2,
+.settings section:not(section section):not(.ef-panel) > div:first-child > h2 {
+  @apply text-base leading-6 font-semibold;
+}
+
+.settings section section > h3 {
+  @apply text-sm font-semibold;
+}
+
+@media (max-width: 767px) {
+  .settings {
+    @apply gap-4;
+  }
+  .settings section:not(section section):not(.ef-panel) {
+    @apply px-4 pt-4 pb-4;
   }
 }

@@ -46,7 +46,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <form onSubmit={run} className="space-y-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="sim-plan">Plan</Label>
           <select id="sim-plan" className={SELECT} value={planId} onChange={(e) => setPlanId(e.target.value)}>
             <option value="">The one in force</option>
@@ -58,7 +58,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
           </select>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="sim-postcode">Postcode</Label>
             <Input
               id="sim-postcode"
@@ -68,18 +68,18 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
               onChange={(e) => setPostcode(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="sim-kg">Weight (kg)</Label>
             <Input id="sim-kg" inputMode="decimal" value={kg} onChange={(e) => setKg(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="sim-basket">Basket ($)</Label>
             <Input id="sim-basket" inputMode="decimal" value={basket} onChange={(e) => setBasket(e.target.value)} />
           </div>
         </div>
         {kind === "effy" ? (
           <div className="grid grid-cols-2 items-end gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="sim-window">Window</Label>
               <select id="sim-window" className={SELECT} value={slotId} onChange={(e) => setSlotId(e.target.value)}>
                 <option value="">None — a later day</option>
@@ -99,9 +99,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                 disabled={!slotId}
                 onCheckedChange={(v) => setToday(v === true)}
               />
-              <Label htmlFor="sim-today" className="font-normal">
-                The window is today
-              </Label>
+              <Label htmlFor="sim-today">The window is today</Label>
             </div>
           </div>
         ) : null}
@@ -121,14 +119,14 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                   <p className="font-medium">What the customer sees</p>
                   <dl className="mt-1 divide-y border-y">
                     {result.fee.lines.map((l, i) => (
-                      <div key={`${l.kind}-${i}`} className="flex justify-between py-1.5">
+                      <div key={`${l.kind}-${i}`} className="flex justify-between py-2">
                         <dt>{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
                         <dd className="tabular-nums">
                           {l.amount.startsWith("-") ? `−$${l.amount.slice(1)}` : `$${l.amount}`}
                         </dd>
                       </div>
                     ))}
-                    <div className="flex justify-between py-1.5 font-semibold">
+                    <div className="flex justify-between py-2 font-semibold">
                       <dt>Delivery total</dt>
                       <dd className="tabular-nums">${result.fee.totalAmount}</dd>
                     </div>
@@ -138,7 +136,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
                   <p className="font-medium">How it was built{result.plan ? ` — ${result.plan.name}` : ""}</p>
                   <dl className="mt-1 divide-y border-y">
                     {result.steps.map((s, i) => (
-                      <div key={`${s.label}-${i}`} className="grid grid-cols-[8rem_1fr_auto] gap-2 py-1.5">
+                      <div key={`${s.label}-${i}`} className="grid grid-cols-[8rem_1fr_auto] gap-2 py-2">
                         <dt className="text-muted-foreground">{s.label}</dt>
                         <dd>{s.detail}</dd>
                         <dd className="tabular-nums">

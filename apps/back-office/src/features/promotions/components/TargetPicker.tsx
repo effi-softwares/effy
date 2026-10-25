@@ -41,7 +41,7 @@ export function TargetPicker({
 
   return (
     <div className="space-y-4">
-      <div role="group" aria-label="Applies to" className="bo-seg">
+      <div role="group" aria-label="Applies to" className="ef-seg">
         {(["products", "categories", "brands"] as const).map((a) => (
           <button
             key={a}
@@ -166,14 +166,11 @@ function Chips({
   disabled: boolean
   empty: string
 }) {
-  if (items.length === 0) return <p className="bo-sub">{empty}</p>
+  if (items.length === 0) return <p className="ef-sub">{empty}</p>
   return (
     <ul className="flex flex-wrap gap-2">
       {items.map((i) => (
-        <li
-          key={i.key}
-          className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm"
-        >
+        <li key={i.key} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-sm">
           {i.label}
           {disabled ? null : (
             <button
@@ -182,7 +179,7 @@ function Chips({
               className="text-muted-foreground hover:text-foreground"
               onClick={() => onRemove(i.key)}
             >
-              <X className="size-3.5" aria-hidden="true" />
+              <X className="size-4" aria-hidden="true" />
             </button>
           )}
         </li>

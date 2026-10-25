@@ -18,7 +18,7 @@ export function SavedLink() {
     >
       <Heart aria-hidden="true" className="size-5" />
       {count > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] rounded-full border-2 border-background bg-primary px-1 text-center text-[11px] leading-[14px] font-semibold text-primary-foreground">
+        <span className="absolute -top-1 -right-1 min-w-5 rounded-full border-2 border-background bg-primary-fill px-1 text-center text-xs leading-4 font-semibold text-primary-foreground">
           {count > 99 ? "99+" : count}
         </span>
       )}

@@ -48,7 +48,7 @@ export async function AisleRow() {
               row: (
                 <Link
                   href={aisleHref(aisle.key)}
-                  className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm font-medium"
+                  className="flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium"
                 >
                   <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{aisle.name}</span>
@@ -152,7 +152,7 @@ function AislePanel({
                   {group.productCount > 0 && ` (${group.productCount})`}
                 </Link>
                 {leaves.length > 0 && (
-                  <ul className="mt-2 flex flex-col gap-1.5">
+                  <ul className="mt-2 flex flex-col gap-2">
                     {leaves.map((leaf) => (
                       <li key={leaf.key}>
                         <Link href={aisleHref(leaf.key)} className="text-sm text-muted-foreground hover:text-foreground">
@@ -189,7 +189,7 @@ function Slide({
     <div className="flex h-full flex-col rounded-lg bg-primary-muted p-4">
       <Badge className="self-start">{badge}</Badge>
       <p className="mt-3 text-base leading-snug font-semibold">{title}</p>
-      {text && <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>}
+      {text && <p className="mt-2 text-sm text-muted-foreground">{text}</p>}
       <Link href={href} prefetch={chromePrefetch(href)} className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-medium text-primary">
         {action}
         <ArrowRight aria-hidden="true" className="size-4" />
@@ -218,7 +218,7 @@ function OfferSlide({
   return (
     <PromoBanner theme={theme} className="flex h-full flex-col rounded-lg p-5">
       <p className="text-xs font-semibold tracking-[0.08em] uppercase opacity-85">{code ? "Code" : "Offer"}</p>
-      <p className="mt-2 text-[22px] leading-[1.15] font-semibold tracking-[-0.02em]">{title}</p>
+      <p className="mt-2 text-2xl leading-[1.15] font-semibold tracking-[-0.02em]">{title}</p>
       {text && <p className="mt-2 text-sm opacity-90">{text}</p>}
       {code && (
         <p className="mt-3 inline-flex h-8 items-center self-start rounded-md border border-dashed border-white/70 px-3 font-mono font-semibold">

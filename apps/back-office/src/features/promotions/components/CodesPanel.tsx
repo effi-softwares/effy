@@ -50,7 +50,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
     >
       {canManage ? (
         <div className="flex flex-wrap items-end gap-3 border-b border-border px-5 py-4">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="codes-count">How many</Label>
             <Input
               id="codes-count"
@@ -62,7 +62,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
               className="w-28"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="codes-prefix">Prefix (optional)</Label>
             <Input
               id="codes-prefix"
@@ -89,7 +89,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
             Generate codes
           </Button>
           {note ? (
-            <span role="status" className="bo-sub">
+            <span role="status" className="ef-sub">
               {note}
             </span>
           ) : null}
@@ -100,7 +100,7 @@ export function CodesPanel({ promotionId, canManage }: { promotionId: string; ca
           <ul className="divide-y divide-border">
             {list.data.items.map((c) => (
               <li key={c.code} className="flex items-center justify-between gap-3 px-5 py-2 text-sm">
-                <span className="bo-code">{c.code}</span>
+                <span className="ef-code">{c.code}</span>
                 <StatusWord tone={STATE[c.state].tone}>{STATE[c.state].word}</StatusWord>
               </li>
             ))}

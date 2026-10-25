@@ -37,7 +37,7 @@ export function CourierDelivery({ courier, currency }: { courier: CourierQuoteDT
         </Alert>
       ) : null}
       <div className="mt-4 flex gap-3 rounded-md bg-primary-muted p-4">
-        <Package aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+        <Package aria-hidden="true" className="mt-1 size-4 shrink-0 text-primary" />
         <div className="min-w-0 text-sm">
           <p className="font-medium">{partner}</p>
           <p className="text-muted-foreground">{estimate}</p>

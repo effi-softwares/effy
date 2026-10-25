@@ -36,38 +36,38 @@ export function DeliveryTypeSection({
 
   return (
     <>
-      <section className="bo-panel" aria-labelledby="delivery-h">
-        <div className="bo-panel__head">
-          <h2 id="delivery-h" className="bo-panel__title">
+      <section className="ef-panel" aria-labelledby="delivery-h">
+        <div className="ef-panel__head">
+          <h2 id="delivery-h" className="ef-panel__title">
             Delivery
           </h2>
         </div>
-        <div className="bo-panel__body space-y-4">
-          <dl className="bo-dl bo-dl--tight">
-            <div className="bo-dl__row">
+        <div className="ef-panel__body space-y-4">
+          <dl className="ef-dl ef-dl--tight">
+            <div className="ef-dl__row">
               <dt>Delivered by</dt>
               <dd className="font-semibold">{deliveryTypeText(order.deliveryType)}</dd>
             </div>
             {order.deliveryTypeReason ? (
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Why</dt>
                 <dd>{DELIVERY_REASON_LABEL[order.deliveryTypeReason]}</dd>
               </div>
             ) : null}
             {order.courierEstimate ? (
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Customer was told</dt>
                 <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
               </div>
             ) : null}
             {order.promise ? (
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Sold as</dt>
                 <dd>{PROMISE_LABEL[order.promise]}</dd>
               </div>
             ) : null}
             {order.promise === "asap" && order.asapEstimate ? (
-              <div className="bo-dl__row">
+              <div className="ef-dl__row">
                 <dt>Customer was told</dt>
                 <dd>{asapSentence(order.asapEstimate)}</dd>
               </div>
@@ -127,25 +127,25 @@ export function DeliveryTypeSection({
       </section>
 
       {order.deliveryTypeHistory.length > 0 ? (
-        <section className="bo-panel" aria-labelledby="delivery-type-h">
-          <div className="bo-panel__head">
-            <h2 id="delivery-type-h" className="bo-panel__title">
+        <section className="ef-panel" aria-labelledby="delivery-type-h">
+          <div className="ef-panel__head">
+            <h2 id="delivery-type-h" className="ef-panel__title">
               Delivery type history
             </h2>
           </div>
-          <table className="bo-table bo-table--compact bo-table--plain" aria-label="Delivery type history">
+          <table className="ef-table ef-table--compact ef-table--plain" aria-label="Delivery type history">
             <tbody>
               {order.deliveryTypeHistory.map((c, i) => (
                 <tr key={`${c.at}-${i}`}>
                   <td>
                     {deliveryChangeText(c)}
-                    <span className="bo-sub">
+                    <span className="ef-sub">
                       {DELIVERY_REASON_LABEL[c.reason]}
                       {c.note ? ` — ${c.note}` : ""}
                     </span>
-                    <span className="bo-sub">
+                    <span className="ef-sub">
                       {c.actor.kind === "staff" ? (
-                        <span className="bo-code">{c.actor.sub}</span>
+                        <span className="ef-code">{c.actor.sub}</span>
                       ) : (
                         "Decided at checkout"
                       )}

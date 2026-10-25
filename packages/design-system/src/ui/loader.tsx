@@ -4,7 +4,7 @@ import { cn } from "../cn"
 
 /**
  * The loader for large regions (a page, a table, a drawer body): an `--accent2` sun, a `--brand` planet
- * orbiting once a second and a moon orbiting it twice as fast (`--brand-mid` light, `--muted-foreground`
+ * orbiting once a second and a moon orbiting it twice as fast (`--primary` at 30% light, `--muted-foreground`
  * dark). Decorative, so `--accent2` carries no meaning here. Regions use this rather than a skeleton,
  * which would draw a layout the data may not have. Flat discs, every size a ratio of 70px, and
  * `data-effy-loader` slows it under reduced motion instead of freezing it.
@@ -33,12 +33,12 @@ function Loader({
         style={{ width: u(16), height: u(16) }}
       />
       <span
-        className="bg-brand absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
+        className="bg-primary-fill absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
         style={{ width: u(12), height: u(12) }}
       />
       <span
         data-effy-loader-moon=""
-        className="bg-brand-mid dark:bg-muted-foreground absolute inset-x-0 m-auto rounded-full [animation:effy-spin_0.5s_linear_infinite]"
+        className="bg-primary/30 dark:bg-muted-foreground absolute inset-x-0 m-auto rounded-full [animation:effy-spin_0.5s_linear_infinite]"
         style={{
           width: u(8),
           height: u(8),
@@ -52,16 +52,16 @@ function Loader({
 
 const AREA = {
   // A drawer's body: the sheet is narrow, the mark should not dominate it.
-  sheet: { loader: 44, className: "min-h-40", gap: "gap-3", title: "text-[13px]", text: "text-xs" },
+  sheet: { loader: 44, className: "min-h-40", gap: "gap-3", title: "text-sm", text: "text-xs" },
   // A table or a section: roughly the height of a short result set, so arrival does not jump.
-  region: { loader: 56, className: "min-h-72", gap: "gap-4", title: "text-sm", text: "text-[13px]" },
+  region: { loader: 56, className: "min-h-72", gap: "gap-4", title: "text-sm", text: "text-sm" },
   // A whole screen's content.
   page: {
     loader: 72,
     className: "min-h-[min(60vh,520px)]",
     gap: "gap-5",
-    title: "text-[15px]",
-    text: "text-[13px]",
+    title: "text-base",
+    text: "text-sm",
   },
 } as const
 

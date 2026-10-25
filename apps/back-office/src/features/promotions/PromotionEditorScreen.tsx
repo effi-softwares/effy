@@ -86,7 +86,7 @@ function Editor({ current }: { current: Promotion | null }) {
     )
   }
 
-  const locked = used ? <Lock aria-label="Fixed once used" className="size-3.5 text-muted-foreground" /> : null
+  const locked = used ? <Lock aria-label="Fixed once used" className="size-4 text-muted-foreground" /> : null
   const targeted = d.kind === "item" || d.kind === "bxgy"
   const freeAllowed = d.kind === "delivery" || d.kind === "bxgy"
 
@@ -109,10 +109,10 @@ function Editor({ current }: { current: Promotion | null }) {
           e.preventDefault()
           void save(false)
         }}
-        className="bo-detail"
+        className="ef-detail"
         noValidate
       >
-        <div className="bo-detail__main">
+        <div className="ef-detail__main">
           <Panel title="Basics">
             <div className="space-y-5">
               <Field
@@ -130,7 +130,7 @@ function Editor({ current }: { current: Promotion | null }) {
                 />
               </Field>
               <div className="space-y-2">
-                <span className="flex items-center gap-1.5 text-sm font-medium">How it applies {locked}</span>
+                <span className="flex items-center gap-2 text-sm font-medium">How it applies {locked}</span>
                 <Choice
                   label="How it applies"
                   value={d.trigger}
@@ -141,7 +141,7 @@ function Editor({ current }: { current: Promotion | null }) {
                     { value: "automatic", label: "Automatically" },
                   ]}
                 />
-                <p className="bo-sub">
+                <p className="ef-sub">
                   {d.trigger === "code"
                     ? "Shoppers type the code in their cart."
                     : "It applies by itself to every cart that qualifies."}
@@ -160,7 +160,7 @@ function Editor({ current }: { current: Promotion | null }) {
                     ]}
                   />
                   {d.codeMode === "single_use" ? (
-                    <p className="bo-sub">Generate the codes on the promotion's page once it is saved.</p>
+                    <p className="ef-sub">Generate the codes on the promotion's page once it is saved.</p>
                   ) : (
                     <Field
                       id="promo-code"
@@ -182,7 +182,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-1.5">What it gives {locked}</span>}>
+          <Panel title={<span className="flex items-center gap-2">What it gives {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Kind"
@@ -338,7 +338,7 @@ function Editor({ current }: { current: Promotion | null }) {
             </div>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-1.5">Who {locked}</span>}>
+          <Panel title={<span className="flex items-center gap-2">Who {locked}</span>}>
             <div className="space-y-5">
               <Choice
                 label="Who"
@@ -352,10 +352,10 @@ function Editor({ current }: { current: Promotion | null }) {
                 }))}
               />
               {d.audience === "chosen" ? (
-                <p className="bo-sub">Add the customers on the promotion's page once it is saved.</p>
+                <p className="ef-sub">Add the customers on the promotion's page once it is saved.</p>
               ) : null}
               {d.audience === "new_customers" ? (
-                <p className="bo-sub">Customers whose account was created on or after the start date.</p>
+                <p className="ef-sub">Customers whose account was created on or after the start date.</p>
               ) : null}
               <div className="space-y-2">
                 <span className="text-sm font-medium">Delivery</span>
@@ -402,7 +402,7 @@ function Editor({ current }: { current: Promotion | null }) {
                 <span className="text-sm font-medium">Days</span>
                 <div className="flex flex-wrap gap-3">
                   {DAYS.map((day, i) => (
-                    <label key={day} className="flex items-center gap-1.5 text-sm">
+                    <label key={day} className="flex items-center gap-2 text-sm">
                       <Checkbox
                         checked={d.daysOfWeek.includes(i + 1)}
                         onCheckedChange={(v) => set("daysOfWeek", toggleIn(d.daysOfWeek, i + 1, v === true))}
@@ -467,7 +467,7 @@ function Editor({ current }: { current: Promotion | null }) {
               />
               <span>
                 <span className="font-medium">Combines with other promotions</span>
-                <span className="bo-sub block">
+                <span className="ef-sub block">
                   Off: when another offer gives the shopper more, that one applies instead of this.
                 </span>
               </span>
@@ -534,14 +534,14 @@ function Editor({ current }: { current: Promotion | null }) {
                       />
                       <span>
                         <span className="font-medium">{g.name}</span>
-                        <span className="bo-sub block font-mono">{g.key}</span>
+                        <span className="ef-sub block font-mono">{g.key}</span>
                       </span>
                     </label>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="bo-sub">No display groups yet.</p>
+              <p className="ef-sub">No display groups yet.</p>
             )}
           </Panel>
 
@@ -551,8 +551,8 @@ function Editor({ current }: { current: Promotion | null }) {
             </p>
           ) : null}
 
-          <div className="bo-panel bo-panel__foot bo-panel__foot--between rounded-lg">
-            <span className="bo-sub">{current ? "Unsaved changes" : "Saved as a draft until you publish it."}</span>
+          <div className="ef-panel ef-panel__foot ef-panel__foot--between rounded-lg">
+            <span className="ef-sub">{current ? "Unsaved changes" : "Saved as a draft until you publish it."}</span>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => void navigate(backTo)}>
                 Cancel
@@ -569,7 +569,7 @@ function Editor({ current }: { current: Promotion | null }) {
           </div>
         </div>
 
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <PromotionSummary d={d} />
         </aside>
       </form>
@@ -596,7 +596,7 @@ function Field({
         {label}
       </Label>
       {children}
-      {hint ? <p className="bo-sub">{hint}</p> : null}
+      {hint ? <p className="ef-sub">{hint}</p> : null}
     </div>
   )
 }
@@ -617,7 +617,7 @@ function Choice<T extends string>({
   className?: string
 }) {
   return (
-    <div role="group" aria-label={label} className={cn("bo-seg", className)}>
+    <div role="group" aria-label={label} className={cn("ef-seg", className)}>
       {options.map((o) => (
         <button
           key={o.value}

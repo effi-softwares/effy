@@ -22,7 +22,7 @@ export function PeriodSelect({
       aria-label="Time period"
       value={value}
       onChange={(e) => router.push(hrefs[e.target.value] ?? "/orders")}
-      className={cn(select, "w-[180px]")}
+      className={cn(select, "w-45")}
     >
       {periods.map((p) => (
         <option key={p.key} value={p.key}>

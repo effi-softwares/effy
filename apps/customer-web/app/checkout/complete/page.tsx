@@ -136,7 +136,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
         <div aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-muted">
           <Check className="size-6 text-brand" strokeWidth={2.5} />
         </div>
-        <div className="flex flex-1 flex-col gap-1.5">
+        <div className="flex flex-1 flex-col gap-2">
           <p className="text-sm font-medium text-brand">Payment received</p>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Thank you</h1>
         </div>
@@ -162,7 +162,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
           <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />
 
           {/* One primary action, then the alternatives. */}
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3">
             <ActionLink href={`/orders/${dto.id}`} size="lg" className="w-full">
               Track this order
             </ActionLink>
@@ -176,7 +176,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
           <ResendReceipt orderId={dto.id} />
 
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Something wrong with this order?{" "}
             <Link href="/help?from=checkout" className="font-medium text-primary underline underline-offset-4">
               Get help

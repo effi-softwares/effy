@@ -7,26 +7,10 @@
 
 import type { WireInt } from "./cart"
 import type { RefundActorKind, RefundReason, RefundStatus } from "./refund"
-import type { FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
+import type { CourierPickupDTO, FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
 import type { PackageStatusView } from "./package-status"
 import type { DeliveredBy } from "./delivery-type"
 import type { ParcelCustody, ParcelZone } from "./parcels"
-
-/** A courier will collect this package from the shop: the shop's own parcel only, never a fee, estimate, tracking link or another shop's parcel. */
-export interface CourierPickupDTO {
-  /** arranging: not booked yet; the parcel is prepared and marked ready as usual. */
-  state: "arranging" | "booked" | "handed_over" | "cancelled"
-  /** yyyy-mm-dd */
-  pickupDate: string | null
-  /** "13:00" */
-  pickupFrom: string | null
-  pickupTo: string | null
-  courierName: string | null
-  serviceName: string | null
-  reference: string | null
-  /** Short-lived presigned read of the label to attach; null when none was attached. */
-  labelUrl: string | null
-}
 
 // The list
 

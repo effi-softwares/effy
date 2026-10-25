@@ -1,58 +1,10 @@
-/* Effy customer storefront — global styles.
-
-   The storefront carries the STOREFRONT identity (constitution v3.3.0, Principle V; feature 084):
-   zinc greys, Effy blue for actions, Effy green for brand, black for destructive, light only, Geist.
-   It lives in ONE place — `@effy/design-system/storefront.css` — and this file imports it INSTEAD OF
-   the console identity's `tokens.css`. ⚠ Never both: they declare the same variable names and the
-   second import would silently win. No brand colour is declared on this surface. */
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* ⚠ Tailwind scans only this app's own tree. The shared components the storefront still imports from
-   `@effy/design-system/ui` (the code field, the dialogs the account pages open) ship as raw TSX, so
-   without this line their classes are never generated and they render unstyled — which is what broke
-   the six code boxes on sign-in when 084 dropped it. */
 @source "../../../packages/design-system/src/ui";
 
-/* Tokens, the @theme mapping and the self-hosted Geist faces, all from the design system. */
-@import "@effy/design-system/storefront.css";
+@import "@effy/design-system/tokens.css";
 
-/* ── Promo banner colours ──────────────────────────────────────────────────────────────────────
- *
- * ⚠ FOR PROMO BANNERS ONLY (operator direction, 2026-10-12: the home hero row and the Offers cards).
- * The storefront identity is still five values; these six are the grounds a promotion is drawn on,
- * always with white type, and are read through `PROMO_COLORS` in `components/storefront/PromoBanner.tsx`
- * and nowhere else. They are not in the design system's storefront tokens on purpose, so no utility
- * (`bg-…`, `text-…`) exists for them and nothing else on the page can pick one up.
- */
-:root {
-  --promo-green: #15803d;
-  --promo-blue: #2563eb;
-  --promo-purple: #7c3aed;
-  --promo-orange: #c2410c;
-  --promo-rose: #db2777;
-  --promo-red: #dc2626;
-}
-
-/* ── The content column ────────────────────────────────────────────────────────────────────────
- *
- * ONE definition of "how wide is the page and how far off the edge does it sit", used by every
- * header row, section, page and footer, so left and right edges line up on every page.
- *
- * The reference's container: centred, gutters 16 / 24 (sm) / 32 (lg), capped at each breakpoint —
- * 640 / 768 / 1024 / 1280 / 1400.
- *
- * ── Why a custom `@utility`, not Tailwind's stock `container` ──────────────────────────────────
- *
- * Tailwind v4's built-in `container` centres nothing and pads nothing — it is a plain set of
- * breakpoint max-widths. Redefining it with `@utility container` is v4's supported override. Its
- * stock max-widths are kept on purpose (they ARE the reference's steps); the widest one is 1400
- * because the storefront theme sets `--breakpoint-2xl` to 87.5rem.
- *
- * ⚠ `e2e/container.spec.ts` holds the computed width and gutters, because the failure mode is
- * silent: a page that is simply wider or narrower looks like a design choice.
- */
 @utility container {
   width: 100%;
   margin-inline: auto;
@@ -67,55 +19,36 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-none;
   }
   body {
     @apply bg-background text-foreground text-sm;
   }
-  button:not(:disabled),
-  [role="button"]:not(:disabled),
-  summary {
-    cursor: pointer;
+  /* Everything clickable shows the pointer; anything disabled shows not-allowed. :where() keeps it at zero
+     specificity, so a component's own cursor utility still wins. */
+  :where(a[href], button, summary, select, label[for], [role="button"], [role="link"], [role="tab"], [role="menuitem"],
+    [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="checkbox"], [role="radio"], [role="switch"],
+    input:is([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="range"], [type="color"])) {
+    @apply cursor-pointer;
   }
-  /* One focus treatment everywhere: the blue ring, offset so it reads on white and on blue. Field
-     borders are a hairline by design, so the ring is what makes focus visible. */
-  :focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
+  :where(button, select, input, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"],
+    [role="radio"], [role="switch"]):is(:disabled, [aria-disabled="true"], [data-disabled]) {
+    @apply cursor-not-allowed;
   }
   html {
-    @apply font-sans;
-    /* The storefront is LIGHT ONLY. Pinning the color-scheme keeps native form controls, scrollbars
-     * and the browser address bar light even when the OS is set to dark. */
-    color-scheme: light;
-    /* No elastic overscroll (operator decision). ⚠ TRADE-OFF: this also disables PULL-TO-REFRESH in
-     * mobile browsers, since that gesture is overscroll. */
-    overscroll-behavior: none;
+    @apply font-sans scheme-light overscroll-none;
   }
 }
 
 @layer components {
-  /* ── THE storefront button (PERF-01) ───────────────────────────────────────────────────────────
-   *
-   * `btnClass` in components/storefront/actions.tsx returns these class names and nothing else.
-   *
-   * ⚠ WHY THE BUTTON IS COMPONENT CSS AND NOT A STRING OF UTILITIES. A call site may override the
-   * shape (`btnClass("primary", "md", "h-11 w-full")`). As utilities, `h-9` and `h-11` collide and the
-   * winner is stylesheet order, so the helper needed `tailwind-merge` to drop the loser — and because
-   * client components import the helper, 8 KB of it shipped on EVERY guest page. A utility always
-   * outranks a rule in the components layer, so here the call site's class wins by the cascade and
-   * nothing is merged in the browser.
-   *
-   * ⚠ ORDER IS THE RULE. Base, then variants, then sizes: a variant's border colour and a size's
-   * text size and gap replace the base's because they come later at the same specificity. */
   .btn {
     @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4;
   }
   .btn-primary {
-    @apply bg-primary text-primary-foreground shadow-xs hover:bg-primary/90;
+    @apply bg-primary-fill text-primary-foreground shadow-xs hover:bg-primary-fill/90;
   }
   .btn-brand {
-    @apply bg-brand text-brand-foreground shadow-xs hover:bg-brand/90;
+    @apply bg-brand-fill text-brand-foreground shadow-xs hover:bg-brand-fill/90;
   }
   .btn-outline {
     @apply border-input bg-background text-foreground shadow-xs hover:bg-accent;
@@ -127,12 +60,10 @@
     @apply text-foreground hover:bg-accent;
   }
   .btn-destructive {
-    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
+    @apply bg-destructive-fill text-destructive-foreground hover:bg-destructive-fill/90;
   }
-  /* The reference's button heights: sm 32 · md 36 · lg 40 · xl 48. Phone primary actions use lg or
-     xl, which is what keeps a 44px target there. */
   .btn-sm {
-    @apply h-8 gap-1.5 px-3 text-[13px];
+    @apply h-8 gap-2 px-3 text-sm;
   }
   .btn-md {
     @apply h-9 px-4;
@@ -141,13 +72,11 @@
     @apply h-10 px-6;
   }
   .btn-xl {
-    @apply h-12 px-6 text-[15px];
+    @apply h-12 px-6 text-base;
   }
-  /* After the sizes, and important: a text link has no box whatever size it was asked for. */
   .btn-link {
     @apply h-auto! p-0! text-primary underline underline-offset-4;
   }
-  /* A square icon-only button (32 / 36 / 40). */
   .btn-icon-sm {
     @apply size-8 p-0;
   }
@@ -158,12 +87,6 @@
     @apply size-10 p-0;
   }
 
-  /* ── Bases a call site may override (PERF-01) ──────────────────────────────────────────────────
-   *
-   * The same reason as the button above: these three take a `className` that replaces part of their
-   * base (`<Skeleton className="rounded-lg">`, `<MediaFrame className="bg-secondary w-24">`,
-   * `<EmptyState className="py-16">`). In the components layer the caller's utility wins by the
-   * cascade, so the modules that define them need no `tailwind-merge` in the browser. */
   .sf-skeleton {
     @apply block animate-pulse rounded-md bg-muted;
   }
@@ -172,141 +95,5 @@
   }
   .sf-empty-state {
     @apply flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center;
-  }
-
-  /* ── Native <dialog> transitions ───────────────────────────────────────────────────────────────
-   *
-   * The guest path forbids `radix-ui`, `sonner` and `vaul` (contracts/customer-ui.contract.md §1,
-   * enforced by dependency-cruiser), so every overlay on this surface is a native `<dialog>`. That
-   * buys focus trapping, Escape, an inert background and top-layer stacking for zero kilobytes — but
-   * a `<dialog>` opens and closes with NO motion at all, which on a slide-in drawer reads as broken
-   * rather than as minimal.
-   *
-   * ⚠ Two of the properties involved are DISCRETE, which is why this needs more than a `transition`:
-   *
-   *   - `display` flips none ↔ block with no intermediate value, so on close the element vanishes
-   *     before a transition can run.
-   *   - `overlay` (the top layer) is removed on close the same way, so an exiting dialog would drop
-   *     behind the page mid-animation.
-   *
-   * `transition-behavior: allow-discrete` makes both flip at the END of the transition instead of the
-   * start, which is what lets a close animate at all. And because an element that is entering has no
-   * previous style to interpolate from, the entry values live in `@starting-style` — without it the
-   * dialog would animate out but appear instantly.
-   *
-   * Browsers without either feature simply get today's behaviour (instant open/close). Nothing breaks.
-   */
-  .fx-dialog,
-  .fx-dialog::backdrop {
-    transition-property: opacity, translate, display, overlay;
-    transition-duration: 220ms;
-    /* The same ease vaul uses — decelerating, so the panel arrives rather than stops. */
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-    transition-behavior: allow-discrete;
-  }
-
-  .fx-dialog::backdrop {
-    opacity: 0;
-  }
-  .fx-dialog[open]::backdrop {
-    opacity: 1;
-  }
-  @starting-style {
-    .fx-dialog[open]::backdrop {
-      opacity: 0;
-    }
-  }
-
-  /* A centred modal rises slightly as it fades in — the mini-cart and the delivery dialog. */
-  .fx-dialog-modal {
-    opacity: 0;
-    translate: 0 0.5rem;
-  }
-  .fx-dialog-modal[open] {
-    opacity: 1;
-    translate: 0 0;
-  }
-  @starting-style {
-    .fx-dialog-modal[open] {
-      opacity: 0;
-      translate: 0 0.5rem;
-    }
-  }
-
-  /* An edge drawer slides, and ONLY slides.
-   * Deliberately no fade on the panel: the movement is the affordance — it is what tells you the
-   * thing came from the edge and can be sent back there. A drawer that fades in place looks like a
-   * dialog that landed in the wrong position. The backdrop above still fades. */
-  .fx-drawer-left {
-    translate: -100% 0;
-  }
-  .fx-drawer-left[open] {
-    translate: 0 0;
-  }
-  @starting-style {
-    .fx-drawer-left[open] {
-      translate: -100% 0;
-    }
-  }
-
-  /* The same drawer, hinged on the other edge — the cart.
-   *
-   * ⚠ Left and right are not interchangeable, and which side a panel comes from is a statement about
-   * what it is. The menu is where you are GOING (navigation reads from the left, with the mark); the
-   * cart is what you HAVE, and it lives under the control that opens it, in the header's right-hand
-   * cluster. A cart that flew in from the left would cross the whole viewport to arrive nowhere near
-   * the thing that summoned it. */
-  .fx-drawer-right {
-    translate: 100% 0;
-  }
-  .fx-drawer-right[open] {
-    translate: 0 0;
-  }
-  @starting-style {
-    .fx-drawer-right[open] {
-      translate: 100% 0;
-    }
-  }
-
-  /* FR-025: motion is decoration, never information. Collapse the duration rather than removing the
-   * transition — `allow-discrete` still has to run for the close to reach `display: none`. */
-  /* The reference's ResponsiveDialog, in CSS: a centred dialog from `md` up is a BOTTOM SHEET below
-   * it. Add `fx-responsive` to a `fx-dialog fx-dialog-modal` and the same native <dialog> docks to
-   * the bottom edge on a phone, slides up instead of fading, and stacks its actions full width —
-   * so no screen decides this for itself and no script is loaded to do it. */
-  @media (width < 48rem) {
-    .fx-dialog-modal.fx-responsive {
-      /* ⚠ !important: these must beat the dialog's own sizing UTILITIES (`m-auto`, `max-w-md`,
-         `rounded-lg`), and a utility always outranks a rule in the components layer. */
-      margin: auto 0 0 !important;
-      width: 100% !important;
-      max-width: none !important;
-      max-height: 92dvh;
-      border-radius: 1rem 1rem 0 0 !important;
-      border-bottom-width: 0;
-      padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
-      opacity: 1;
-      translate: 0 100%;
-    }
-    .fx-dialog-modal.fx-responsive[open] {
-      translate: 0 0;
-    }
-    @starting-style {
-      .fx-dialog-modal.fx-responsive[open] {
-        opacity: 1;
-        translate: 0 100%;
-      }
-    }
-  }
-
-  .fx-dialog::backdrop {
-    background: var(--scrim);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .fx-dialog,
-    .fx-dialog::backdrop {
-      transition-duration: 1ms;
-    }
   }
 }

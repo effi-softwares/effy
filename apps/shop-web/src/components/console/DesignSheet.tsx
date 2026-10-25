@@ -112,7 +112,7 @@ function SheetBody({
       {...(phone ? {} : { showCloseButton: false })}
       className={cn(
         "flex flex-col gap-0 overflow-hidden p-0",
-        phone ? "max-h-[92dvh]" : cn("max-h-[86vh]", wide ? "sm:max-w-[620px]" : "sm:max-w-[500px]"),
+        phone ? "max-h-[92dvh]" : cn("max-h-[86vh]", wide ? "sm:max-w-155" : "sm:max-w-125"),
       )}
     >
       <div className={cn("grid gap-1", phone ? "px-4 pt-3 pb-2" : "px-6 pt-6 pb-2")}>
@@ -131,7 +131,7 @@ function SheetBody({
 
       <div
         className={cn(
-          "flex gap-2.5 border-t border-border bg-background",
+          "flex gap-3 border-t border-border bg-background",
           phone ? "flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" : "justify-end px-6 py-4",
         )}
       >
@@ -164,7 +164,7 @@ export function SheetField({
 }) {
   return (
     <div className="grid gap-2">
-      <label htmlFor={htmlFor} className="text-[15px] font-medium">
+      <label htmlFor={htmlFor} className="text-base font-medium">
         {label}
       </label>
       {children}
@@ -183,9 +183,9 @@ export function SheetToggleRow({
   control: ReactNode
 }) {
   return (
-    <div className="bo-switch-row">
-      <div className="grid gap-0.5">
-        <div className="text-[15px] font-medium">{title}</div>
+    <div className="ef-switch-row">
+      <div className="grid gap-1">
+        <div className="text-base font-medium">{title}</div>
         <div className="text-sm text-muted-foreground">{detail}</div>
       </div>
       {control}

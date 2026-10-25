@@ -26,7 +26,7 @@ export function Spinner({ className = "size-6" }: { className?: string }) {
  */
 export function LoadingArea({
   label,
-  className = "min-h-[240px]",
+  className = "min-h-60",
   testId,
 }: {
   /** What is loading, said in a sentence. Announced; never shown. */

@@ -51,14 +51,14 @@ export function CourierScreen() {
           </Button>
         }
       />
-      <div className="bo-tabs" role="tablist" aria-label="Courier stages">
+      <div className="ef-tabs" role="tablist" aria-label="Courier stages">
         {VIEWS.map((v) => (
           <button
             key={v.value}
             type="button"
             role="tab"
             aria-selected={v.value === view}
-            className={cn("bo-tabs__tab", v.value === view && "is-active")}
+            className={cn("ef-tabs__tab", v.value === view && "is-active")}
             onClick={() => setView(v.value)}
           >
             {v.label}
@@ -68,7 +68,7 @@ export function CourierScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="bo-table-wrap p-4" aria-busy="true">
+        <div className="ef-table-wrap p-4" aria-busy="true">
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="mb-3 h-10" />
           <Skeleton className="h-10" />
@@ -76,9 +76,9 @@ export function CourierScreen() {
       ) : data.length === 0 ? (
         <EmptyState icon={Truck} title={current.empty} />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th>Order</th>
@@ -94,7 +94,7 @@ export function CourierScreen() {
                 {data.map((r) => (
                   <tr key={r.fulfillmentId}>
                     <td data-m="primary">
-                      <Link to="/orders/$orderId" params={{ orderId: r.orderId }} className="bo-link bo-code">
+                      <Link to="/orders/$orderId" params={{ orderId: r.orderId }} className="link ef-code">
                         {r.orderNumber}
                       </Link>
                     </td>
@@ -105,7 +105,7 @@ export function CourierScreen() {
                     <td data-m="badge">{whereWord(r)}</td>
                     <td data-m="meta">
                       {r.atRisk ? (
-                        <span className="bo-late">
+                        <span className="late">
                           <Clock aria-hidden="true" />
                           Late
                         </span>
@@ -116,7 +116,7 @@ export function CourierScreen() {
               </tbody>
             </table>
           </div>
-          <div className="bo-pager">
+          <div className="ef-pager">
             <span>
               {data.length} {data.length === 1 ? "parcel" : "parcels"} · {current.label}
             </span>

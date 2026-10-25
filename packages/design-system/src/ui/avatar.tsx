@@ -9,7 +9,7 @@ import { cn } from "../cn"
 
 /** The five-entry palette, in fixed order. Adding a sixth changes every existing person's colour. */
 const TINTS = [
-  "bg-brand-soft text-brand",
+  "bg-primary-muted text-primary",
   "bg-violet-soft text-violet",
   "bg-teal-soft text-teal",
   "bg-accent2-soft text-accent2",
@@ -71,7 +71,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-lg bg-muted text-[11.5px] font-semibold",
+        "flex size-full items-center justify-center rounded-lg bg-muted text-xs font-semibold",
         className
       )}
       {...props}

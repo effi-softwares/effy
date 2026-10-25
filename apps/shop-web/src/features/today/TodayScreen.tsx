@@ -76,8 +76,8 @@ export function TodayScreen() {
         }
       />
 
-      <div className="bo-detail">
-        <div className="bo-detail__main">
+      <div className="ef-detail">
+        <div className="ef-detail__main">
           {today.isPending || !data ? (
             <>
               <PanelSkeleton rows={4} />
@@ -95,7 +95,7 @@ export function TodayScreen() {
             </>
           )}
         </div>
-        <aside className="bo-detail__aside">
+        <aside className="ef-detail__aside">
           <NextCollection next={data?.nextCollection} timezone={data?.timezone} now={now} loading={today.isPending} />
           <TodayGlance backlog={data?.backlog} />
         </aside>
@@ -109,19 +109,19 @@ export function TodayScreen() {
 
 function PanelSkeleton({ rows }: { rows: number }) {
   return (
-    <section className="bo-panel" aria-busy="true" aria-label="Loading">
-      <div className="bo-panel__head">
+    <section className="ef-panel" aria-busy="true" aria-label="Loading">
+      <div className="ef-panel__head">
         <div className="grid flex-1 gap-2">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-64" />
         </div>
       </div>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="bo-attn">
+        <div key={i} className="ef-attn">
           <Skeleton className="size-9 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-3.5 w-1/3" />
+            <Skeleton className="h-4 w-1/3" />
           </div>
         </div>
       ))}

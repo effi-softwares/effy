@@ -107,7 +107,7 @@ export function AddPlacesDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="add-place">Place or postcode</Label>
             <Input
               id="add-place"
@@ -183,7 +183,7 @@ export function AddPlacesDialog({
           ) : null}
 
           {chosen.length > 0 ? (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="add-group">Group (optional)</Label>
               <select
                 id="add-group"

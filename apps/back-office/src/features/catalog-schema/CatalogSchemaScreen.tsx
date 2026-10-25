@@ -37,17 +37,17 @@ export function CatalogSchemaScreen() {
         description="Product types, the details each one asks for, and the category tree customers browse."
       />
       <div className="space-y-4">
-        <nav className="bo-tabs" aria-label="Schema views">
+        <nav className="ef-tabs" aria-label="Schema views">
           {views.map((v) => (
             <button
               key={v.key}
               type="button"
               aria-current={v.key === view ? "page" : undefined}
-              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              className={cn("ef-tabs__tab", v.key === view && "is-active")}
               onClick={() => setView(v.key)}
             >
               {v.label}
-              {v.count !== undefined ? <span className="bo-tabs__count">{v.count}</span> : null}
+              {v.count !== undefined ? <span className="ef-tabs__count">{v.count}</span> : null}
             </button>
           ))}
         </nav>

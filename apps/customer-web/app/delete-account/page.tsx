@@ -34,7 +34,7 @@ export default function DeleteAccountPage() {
         className="mb-6"
         items={[{ label: "Home", href: "/" }, { label: "Legal", href: "/legal" }, { label: "Deleting your account" }]}
       />
-      <article className="mx-auto max-w-[760px] space-y-8">
+      <article className="mx-auto max-w-190 space-y-8">
         <header className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight">Delete your Effy account</h1>
           <p className="text-base text-muted-foreground">
@@ -91,7 +91,7 @@ export default function DeleteAccountPage() {
 function Kept({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <Icon aria-hidden="true" className="size-5" />
         <h2 className="leading-tight font-semibold">{title}</h2>
       </div>

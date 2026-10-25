@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# No red on the storefront, and it is light only: an error is an icon and words, never a hue. Fails on, under
+# No raw red on the storefront, and it is light only: a problem is the destructive token (rose), never a
+# palette utility. Fails on, under
 # apps/customer-web (tests excluded):
 # - Tailwind's red-family utilities (red, rose, pink, orange, amber, yellow)
 # - a `dark:` variant
@@ -20,8 +21,8 @@ if [ -n "$hits" ]; then
 fi
 # The customer mobile app wears the storefront identity too. Its colours come only from the
 # generated storefront theme (packages/design-system/compose/EffyTokens.kt, which tokens:check holds to
-# storefront/tokens.css); a red-dominant colour literal anywhere in its Kotlin is a defect.
-mobile_red="$(grep -rnoE 'Color\(0x[0-9A-Fa-f]{8}\)' apps/customer-mobile/shared/src packages/design-system/compose \
+# tokens.css, where rose is the destructive token); a red-dominant colour literal in its own Kotlin is a defect.
+mobile_red="$(grep -rnoE 'Color\(0x[0-9A-Fa-f]{8}\)' apps/customer-mobile/shared/src \
   --include='*.kt' 2>/dev/null | python3 -c '
 import sys
 for line in sys.stdin:

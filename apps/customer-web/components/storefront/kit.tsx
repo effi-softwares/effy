@@ -214,8 +214,8 @@ export function Field({
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
       {error && (
-        <p role="alert" className="flex items-start gap-1.5 text-xs font-medium text-destructive">
-          <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+        <p role="alert" className="flex items-start gap-2 text-xs font-medium text-destructive">
+          <CircleAlert aria-hidden="true" className="mt-px size-4 shrink-0" />
           {error}
         </p>
       )}

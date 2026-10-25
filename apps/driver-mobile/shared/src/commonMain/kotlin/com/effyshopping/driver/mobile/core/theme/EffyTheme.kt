@@ -20,7 +20,7 @@ val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
  * The driver app's theme (092, constitution v3.5.0): the storefront identity, generated from
- * `packages/design-system/src/storefront/tokens.css` — Effy blue for the next action, Effy green for
+ * `packages/design-system/src/tokens.css` — Effy blue for the next action, Effy green for
  * done, a problem is black with an icon (no red, no orange), Geist, light and dark.
  */
 @Composable
@@ -59,6 +59,7 @@ object EffyRoles {
     val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)
     val brandForeground: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandForeground, EffyColor.Dark.brandForeground)
     val brandMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandMuted, EffyColor.Dark.brandMuted)
+    val brandFill: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandFill, EffyColor.Dark.brandFill)
     val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
     val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
 

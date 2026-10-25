@@ -491,16 +491,17 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] Record LCP / INP / CLS / TTFB for `/`, an aisle page and a product page from the existing
         web-vitals events (PostHog) before PERF-02..09 land. *(operator — query below)*
   - [x] Lighthouse (mobile, throttled) on the same three URLs against dev; keep the reports in the
-        feature's `specs/` folder. *(`docs/perf/lighthouse/` — there is no feature folder)*
-  - [ ] Re-measure after each P1 item. *(now one command; see below)*
+        feature's `specs/` folder. *(done once on 2026-10-14; script and reports removed 2026-10-25)*
+  - [ ] Re-measure after each P1 item. *(field data only now; see below)*
 - **2026-10-14 — the lab half is built, but it is an AFTER, not a before.** By the time it ran, dev
   was already on `84554373` (everything through PERF-19). A lab "before" cannot be taken for code no
   longer deployed; the field data is the only before there is.
-  - `make cw-lighthouse [BASE=…] [LABEL=…]` — Lighthouse 13.5, mobile, three runs per page, the median
-    run by LCP, summary to `docs/perf/lighthouse/<date>-<label>/` (`summary.md` + `.json`; the full
-    reports are not kept). Read-only.
-  - First run, `2026-10-14-after-p1-p2`: home score 72 / LCP 6.3 s, aisle 92 / 3.1 s, product 93 /
-    2.9 s, CLS 0 everywhere. Two findings, recorded in its summary:
+  - **Removed 2026-10-25.** The `make cw-lighthouse` script and its reports in `docs/perf/lighthouse/`
+    were deleted: it was run only on 2026-10-14, and its fixed product id did not survive the dev wipe.
+    Field data (PostHog web-vitals) and the bundle budget (`make cw-size`) are the measures now; git
+    history has the script.
+  - The one run, `2026-10-14-after-p1-p2` (Lighthouse 13.5, mobile, median of three): home score 72 /
+    LCP 6.3 s, aisle 92 / 3.1 s, product 93 / 2.9 s, CLS 0 everywhere. Two findings:
     - **Home's LCP is the promo hero's headline**, streamed once the home payload arrives — so home's
       LCP is the home read: fast from a warm server's cache, seconds on a cold one (runs 4.3–7.1 s).
       PERF-11's two-query home (deploy pending at the time) and PERF-15's cold starts are the levers.

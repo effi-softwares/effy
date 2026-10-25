@@ -42,7 +42,7 @@ export function AisleLink({
       href={href}
       aria-current={active ? "page" : undefined}
       className={clsx(
-        "inline-flex h-8 shrink-0 items-center gap-2 rounded-md pr-3 pl-2.5 text-sm font-medium whitespace-nowrap hover:bg-accent",
+        "inline-flex h-8 shrink-0 items-center gap-2 rounded-md pr-3 pl-3 text-sm font-medium whitespace-nowrap hover:bg-accent",
         "[&_svg]:size-4",
         // One icon colour, chosen here: two `[&_svg]:text-*` on one element is decided by stylesheet order.
         tone === "brand" ? "text-brand [&_svg]:text-brand" : "[&_svg]:text-muted-foreground",
@@ -71,7 +71,7 @@ export function AisleLinkFallback({
     <Link
       href={href}
       className={clsx(
-        "inline-flex h-8 shrink-0 items-center gap-2 rounded-md pr-3 pl-2.5 text-sm font-medium whitespace-nowrap hover:bg-accent",
+        "inline-flex h-8 shrink-0 items-center gap-2 rounded-md pr-3 pl-3 text-sm font-medium whitespace-nowrap hover:bg-accent",
         "[&_svg]:size-4",
         // One icon colour, chosen here: two `[&_svg]:text-*` on one element is decided by stylesheet order.
         tone === "brand" ? "text-brand [&_svg]:text-brand" : "[&_svg]:text-muted-foreground",

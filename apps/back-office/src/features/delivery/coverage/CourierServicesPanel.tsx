@@ -232,11 +232,11 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
             </Field>
           </div>
           <div className="flex flex-wrap items-start gap-3">
-            <fieldset className="space-y-1.5">
+            <fieldset className="space-y-2">
               <legend className="text-sm font-medium">Pickup days</legend>
               <div className="flex flex-wrap gap-3">
                 {WEEKDAYS.map(([d, w]) => (
-                  <label key={d} className="flex items-center gap-1.5 text-sm">
+                  <label key={d} className="flex items-center gap-2 text-sm">
                     <Checkbox
                       checked={draft.pickupWeekdays.includes(d)}
                       onCheckedChange={(on) =>
@@ -264,7 +264,7 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
                 onChange={(e) => setDraft({ ...draft, pickupCutoff: e.target.value })}
               />
             </Field>
-            <label className="flex items-center gap-1.5 self-end pb-2 text-sm">
+            <label className="flex items-center gap-2 self-end pb-2 text-sm">
               <Checkbox
                 checked={draft.collectsFromSupplier}
                 onCheckedChange={(on) => setDraft({ ...draft, collectsFromSupplier: on === true })}
@@ -303,7 +303,7 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

@@ -13,8 +13,8 @@ import type {
   RefundRequestDTO,
 } from "./refund";
 import type { WireInt } from "./cart";
-import type { HandoverMethod, HandoverStep } from "./driver";
-import type { ParcelCustody, ParcelZone } from "./parcels";
+import type { HandoverStep } from "./driver";
+import type { HandoverMethod, ParcelCustody, ParcelZone } from "./parcels";
 import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delivery-type";

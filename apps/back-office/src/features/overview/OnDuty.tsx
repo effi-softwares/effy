@@ -73,12 +73,12 @@ export function OnDuty() {
                 : "Nothing assigned yet"
             return (
               <li key={d.driverId} className="flex items-center gap-3 px-5 py-3">
-                <span className="bo-avatar bo-avatar--sq">{initialsOf(d.driverName)}</span>
+                <span className="avatar avatar--sq">{initialsOf(d.driverName)}</span>
                 <div className="min-w-0 flex-1">
-                  <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="bo-link">
+                  <Link to="/drivers/$driverId" params={{ driverId: d.driverId }} className="link">
                     {d.driverName}
                   </Link>
-                  <span className="bo-sub truncate">{doing}</span>
+                  <span className="ef-sub truncate">{doing}</span>
                 </div>
                 {isBlocked ? (
                   <DotWord tone="alert">Blocked</DotWord>

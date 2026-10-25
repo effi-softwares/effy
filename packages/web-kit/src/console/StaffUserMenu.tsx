@@ -55,16 +55,23 @@ export function StaffUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="bo-iconbtn bo-account" aria-label={`Account and appearance — ${name}`}>
-          <span aria-hidden="true" className="bo-account-avatar">
+        <button
+          type="button"
+          className="ef-iconbtn group ml-1 rounded-full hover:bg-transparent data-[state=open]:bg-transparent"
+          aria-label={`Account and appearance — ${name}`}
+        >
+          <span
+            aria-hidden="true"
+            className="ef-account-avatar group-hover:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--border)] group-data-[state=open]:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--border)]"
+          >
             {initialsOf(name)}
           </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-70" side="bottom" align="end" sideOffset={8}>
-        <DropdownMenuLabel className="p-0 font-normal text-foreground">
+        <DropdownMenuLabel className="p-0">
           <div className="flex items-center gap-3 px-2 py-2">
-            <span aria-hidden="true" className="bo-account-avatar">
+            <span aria-hidden="true" className="ef-account-avatar">
               {initialsOf(name)}
             </span>
             <div className="min-w-0">
@@ -88,7 +95,7 @@ export function StaffUserMenu({
         ) : null}
         {/* Appearance as three icons in one row — the current one filled. Each stays a menu item (arrow
             keys reach it, Enter picks it) and keeps the menu open, so the change is seen in place. */}
-        <div role="group" aria-label="Appearance" className="bo-theme-switch">
+        <div role="group" aria-label="Appearance" className="mx-2 my-1 grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
           {MODES.map(({ value, label, Icon }) => (
             <DropdownMenuItem
               key={value}
@@ -97,7 +104,7 @@ export function StaffUserMenu({
               aria-label={`${label} appearance`}
               title={label}
               data-current={theme === value ? "true" : undefined}
-              className="bo-theme-switch__opt"
+              className="min-h-8 justify-center rounded-md p-0 text-muted-foreground data-[current=true]:bg-background data-[current=true]:text-foreground data-[current=true]:shadow-xs [&>svg]:size-4 [&>svg]:text-inherit!"
               onSelect={(event) => {
                 event.preventDefault();
                 onSetTheme(value);

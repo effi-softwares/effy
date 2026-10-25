@@ -20,7 +20,7 @@ export function CheckoutHeader({ showFeedbackPrompt = true }: { showFeedbackProm
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
       <div className="container flex h-14 items-center justify-between gap-4 lg:h-16">
-        <BrandMark href="/" className="max-lg:text-[22px]!" />
+        <BrandMark href="/" className="max-lg:text-2xl!" />
         {/* `usePathname` suspends while a dynamic route prerenders; the steps are decoration there. */}
         <Suspense fallback={null}>
           <CheckoutSteps />

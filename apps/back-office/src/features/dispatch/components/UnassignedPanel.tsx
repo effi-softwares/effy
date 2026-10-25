@@ -37,8 +37,8 @@ export function UnassignedPanel({
       description="Ready at a shop or waiting at the hub. Each says why auto-assign couldn't place it."
       flush
     >
-      <div className="bo-table-scroll">
-        <table className="bo-table bo-rtable bo-table--plain">
+      <div className="ef-table-scroll">
+        <table className="ef-table ef-rtable ef-table--plain">
           <thead>
             <tr>
               <th>Package</th>
@@ -54,8 +54,8 @@ export function UnassignedPanel({
             {items.map((item) => (
               <tr key={item.packageId}>
                 <td data-m="primary">
-                  <span className="bo-code font-medium">{item.orderNumber}</span>
-                  <span className="bo-sub">{item.shopName}</span>
+                  <span className="ef-code font-medium">{item.orderNumber}</span>
+                  <span className="ef-sub">{item.shopName}</span>
                 </td>
                 <td data-m="meta">
                   <span className="font-medium">{describeReasons(item.reasons)}</span>
@@ -63,7 +63,7 @@ export function UnassignedPanel({
                 <td data-m="meta">
                   <span>{waitingFor(item, new Date())}</span>
                   {item.collectLate ? (
-                    <span className="bo-late ml-2">
+                    <span className="late ml-2">
                       <Clock aria-hidden="true" />
                       Late for its run
                     </span>

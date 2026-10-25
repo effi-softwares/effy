@@ -8,6 +8,7 @@ import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProduc
 import { ChevronUp, CloudOff, SearchX, SlidersHorizontal, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
+import { useLazyOverlay } from "@/components/overlays/lazy"
 import { btnClass } from "@/components/storefront/actions"
 import { useOnDemand } from "@/lib/use-on-demand"
 import { Breadcrumb, type Crumb } from "@/components/ui/misc"
@@ -29,7 +30,7 @@ import type { SelectedFilters } from "./filters/FilterControls"
  */
 
 const loadFilterControls = () => import("./filters/FilterControls").then((m) => m.default)
-const loadFilterSheet = () => import("./filters/FilterControls").then((m) => m.FilterSheet)
+const loadFilterSheet = () => import("./filters/FilterSheet").then((m) => m.FilterSheet)
 
 const SORT_LABELS: Record<ProductSort, string> = {
   relevance: "Best match",
@@ -128,7 +129,6 @@ export function SearchExperience({
   const [facetSet, setFacetSet] = useState<FacetSetDTO | null>(start?.facets ?? null)
   const facetsShown = useRef(start?.facets ? facetsFor : null)
   const [facetsLoading, setFacetsLoading] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
 
   const go = useCallback(
     (next: URLSearchParams) => {
@@ -355,7 +355,7 @@ export function SearchExperience({
   }, [loadMore])
 
   const FilterControls = useOnDemand(loadFilterControls)
-  const FilterSheet = useOnDemand(loadFilterSheet)
+  const { Overlay: FilterSheet, open: sheetOpen, setOpen: setSheetOpen, want: wantSheet } = useLazyOverlay(loadFilterSheet)
   const controls = FilterControls ? (
     <FilterControls
       facetSet={facetSet}
@@ -421,12 +421,14 @@ export function SearchExperience({
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
+              onPointerEnter={wantSheet}
+              onFocus={wantSheet}
               className={btnClass("outline", "lg", "lg:hidden")}
             >
               <SlidersHorizontal aria-hidden="true" />
               Filters
               {activeCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary-fill px-2 text-xs text-primary-foreground">
                   {activeCount}
                 </span>
               )}
@@ -437,7 +439,7 @@ export function SearchExperience({
                 key={chip.key}
                 type="button"
                 onClick={chip.remove}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium hover:bg-accent max-lg:hidden"
+                className="inline-flex h-7 items-center gap-2 rounded-md border px-2 text-xs font-medium hover:bg-accent max-lg:hidden"
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}
@@ -481,7 +483,7 @@ export function SearchExperience({
                   key={chip.key}
                   type="button"
                   onClick={chip.remove}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium"
                   aria-label={`Remove filter: ${chip.label}`}
                 >
                   {chip.label}
@@ -548,8 +550,8 @@ export function SearchExperience({
         </div>
       </div>
 
-      {sheetOpen && FilterSheet && (
-        <FilterSheet total={total} onClose={() => setSheetOpen(false)}>
+      {FilterSheet && (
+        <FilterSheet open={sheetOpen} onOpenChange={setSheetOpen} total={total}>
           {controls}
         </FilterSheet>
       )}

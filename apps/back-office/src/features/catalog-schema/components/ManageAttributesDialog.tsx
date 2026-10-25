@@ -99,7 +99,7 @@ export function ManageAttributesDialog({ productType, open, onOpenChange }: Mana
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Label className="flex items-center gap-2 text-xs">
+                      <Label className="flex items-center gap-2">
                         Mandatory
                         <Switch
                           checked={attr.isMandatory}
@@ -186,7 +186,7 @@ export function ManageAttributesDialog({ productType, open, onOpenChange }: Mana
           </div>
           <form.Field name="isMandatory">
             {(field) => (
-              <Label className="flex items-center gap-2 text-sm">
+              <Label className="flex items-center gap-2">
                 <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
                 Mandatory on this type
               </Label>

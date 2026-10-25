@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/dialog"
@@ -13,7 +13,7 @@ import { Dialog } from "@/components/ui/dialog"
  */
 export function CancelOrder({ orderId }: { orderId: string }) {
   const router = useRouter()
-  const dialog = useRef<HTMLDialogElement>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,7 +23,7 @@ export function CancelOrder({ orderId }: { orderId: string }) {
     const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" })
     setBusy(false)
     if (res.ok) {
-      dialog.current?.close()
+      setDialogOpen(false)
       router.refresh()
       return
     }
@@ -37,17 +37,18 @@ export function CancelOrder({ orderId }: { orderId: string }) {
 
   return (
     <>
-      <Button type="button" variant="ghost" onClick={() => dialog.current?.showModal()}>
+      <Button type="button" variant="ghost" onClick={() => setDialogOpen(true)}>
         Cancel this order
       </Button>
       <Dialog
-        ref={dialog}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         alert
         title="Cancel this order?"
         description="We'll refund everything you paid, including delivery, to your original payment method."
         footer={
           <>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => dialog.current?.close()}>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setDialogOpen(false)}>
               Keep my order
             </Button>
             <Button type="button" variant="destructive" disabled={busy} onClick={cancel}>

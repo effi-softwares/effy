@@ -49,10 +49,10 @@ export function FeedbackPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4 max-md:px-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="bo-code text-lg font-semibold">{detail.referenceCode}</h2>
+            <h2 className="ef-code text-lg font-semibold">{detail.referenceCode}</h2>
             <StatusWord tone={STATUS_TONE[detail.status]}>{FEEDBACK_STATUS_LABELS[detail.status]}</StatusWord>
           </div>
-          <p className="bo-sub">
+          <p className="ef-sub">
             {FEEDBACK_CATEGORY_LABELS[detail.category]}
             {detail.rating ? ` · ${detail.rating}/5` : ""}
             {s.name ? ` · ${s.name}` : ""}
@@ -61,7 +61,7 @@ export function FeedbackPanel({
         <div className="flex items-center gap-2">
           <StatusControl detail={detail} />
           {showOpenLink ? (
-            <Button variant="ghost" size="icon-sm" asChild>
+            <Button variant="ghost" size="icon" asChild>
               <Link
                 to="/feedback/$referenceCode"
                 params={{ referenceCode: detail.referenceCode }}
@@ -79,21 +79,21 @@ export function FeedbackPanel({
           <p className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">{detail.message}</p>
 
           {timeline.length > 0 ? (
-            <ol className="bo-tl">
+            <ol className="ef-tl">
               {timeline.map((t, i) => (
-                <li key={i} className="bo-tl__item">
-                  <span className={cn("bo-tl__mark", t.kind === "reply" && "bo-tl__mark--done")} aria-hidden="true">
+                <li key={i} className="ef-tl__item">
+                  <span className={cn("ef-tl__mark", t.kind === "reply" && "ef-tl__mark--done")} aria-hidden="true">
                     {t.kind === "note" ? <Lock /> : <Reply />}
                   </span>
                   <div>
-                    <div className="bo-tl__title">
+                    <div className="ef-tl__title">
                       {t.kind === "note" ? "Internal note" : "Reply sent"} · {t.who}
                     </div>
-                    <div className={cn("bo-tl__note whitespace-pre-wrap", t.kind === "note" && "bg-primary-muted!")}>
+                    <div className={cn("ef-tl__note whitespace-pre-wrap", t.kind === "note" && "bg-primary-muted!")}>
                       {t.body}
                     </div>
                   </div>
-                  <span className="bo-tl__time">{moment(t.at)}</span>
+                  <span className="ef-tl__time">{moment(t.at)}</span>
                 </li>
               ))}
             </ol>
@@ -103,8 +103,8 @@ export function FeedbackPanel({
         </div>
 
         <div className="min-w-0 space-y-4 p-6 max-md:p-4">
-          <h3 className="bo-eyebrow">Details</h3>
-          <dl className="bo-dl bo-dl--stack">
+          <h3 className="ef-eyebrow">Details</h3>
+          <dl className="ef-dl [&_.ef-dl__row]:grid-cols-[minmax(0,1fr)] [&_.ef-dl__row]:gap-1">
             <Row label="Category">{FEEDBACK_CATEGORY_LABELS[detail.category]}</Row>
             <Row label="Rating">{detail.rating ? `${detail.rating}/5` : "—"}</Row>
             <Row label="From">
@@ -133,7 +133,7 @@ export function FeedbackPanel({
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="bo-dl__row">
+    <div className="ef-dl__row">
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
@@ -181,7 +181,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
 
   return (
     <div className="space-y-2">
-      <div className="bo-seg" role="tablist" aria-label="Write">
+      <div className="ef-seg" role="tablist" aria-label="Write">
         <button
           type="button"
           role="tab"
@@ -210,13 +210,14 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
           This submission has no email address, so there is nowhere to send a reply.
         </p>
       ) : (
-        <div className={cn("bo-composer", mode === "note" && "bo-composer--note")}>
+        <div className={cn("rounded-lg border border-input bg-background shadow-xs", mode === "note" && "bg-muted")}>
           <label className="sr-only" htmlFor="fb-compose">
             {mode === "reply" ? "Reply" : "Internal note"}
           </label>
           <textarea
             id="fb-compose"
             rows={4}
+            className="min-h-16 w-full resize-none border-0 bg-transparent px-3 py-3 text-sm text-foreground outline-none"
             value={body}
             maxLength={max}
             onChange={(e) => setBody(e.target.value)}
@@ -224,7 +225,7 @@ function Composer({ detail, mayReply }: { detail: FeedbackDetailDTO; mayReply: b
               mode === "reply" ? "Write a reply — it will be emailed to the submitter…" : "Add an internal note…"
             }
           />
-          <div className="bo-composer__bar">
+          <div className="flex items-center justify-between gap-2 border-t border-t-border py-2 pr-2 pl-3">
             <span className="text-xs text-muted-foreground">
               {mode === "reply" && detail.submitter.email ? `To ${detail.submitter.email} · ` : "Staff only · "}
               {body.length} / {max}

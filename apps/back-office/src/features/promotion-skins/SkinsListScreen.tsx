@@ -41,9 +41,9 @@ export function SkinsListScreen() {
       ) : data.length === 0 ? (
         <EmptyState icon={Palette} title="No skins yet." description="Create one to give promotions their own look." />
       ) : (
-        <div className="bo-table-wrap">
-          <div className="bo-table-scroll">
-            <table className="bo-table bo-rtable">
+        <div className="ef-table-wrap">
+          <div className="ef-table-scroll">
+            <table className="ef-table ef-rtable">
               <thead>
                 <tr>
                   <th className="w-56">Looks like</th>
@@ -90,7 +90,7 @@ function SkinRow({ skin }: { skin: AdminSkinListItemDTO }) {
         </div>
       </td>
       <td data-m="primary">
-        <Link to="/promotions/skins/$skinId" params={{ skinId: skin.id }} className="bo-link">
+        <Link to="/promotions/skins/$skinId" params={{ skinId: skin.id }} className="link">
           {skin.name}
         </Link>
         {skin.builtIn ? (
