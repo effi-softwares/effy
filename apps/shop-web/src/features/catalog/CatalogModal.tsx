@@ -15,7 +15,7 @@ export function CatalogModal({ open, onOpenChange, className, children }: Props)
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
         className={cn(
-          "max-md:max-h-[92dvh] max-md:overflow-y-auto max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4",
+          "max-md:max-h-[92dvh] max-md:overflow-y-auto",
           className,
         )}
       >

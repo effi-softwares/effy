@@ -60,7 +60,7 @@ export function ScanButton() {
               Scan a bag label, or type an order number. The order opens by itself.
             </ResponsiveModalDescription>
           </ResponsiveModalHeader>
-          <div className="grid gap-3 max-md:px-4 max-md:pb-6">
+          <div className="grid gap-3 max-md:pb-2">
             {open ? (
               <ScanField
                 accept={(t) => t.trim().length >= 3}

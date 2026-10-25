@@ -40,19 +40,19 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).not.toMatch(/font-size\s*:\s*clamp\(/)
   })
 
-  it("resolves the cobalt action colour from the shared source, lifting (not inverting) in dark", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/) // light
-    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/) // dark — brighter, same hue
-    expect(tokensCss).toMatch(/--brand:\s*#15803d/)
-    expect(tokensCss).toMatch(/--brand:\s*#22c55e/)
+  it("resolves the action blue from the shared source: one fill, a lifted text blue in dark", () => {
+    expect(tokensCss.match(/--primary-fill:\s*#2563eb/g)).toHaveLength(2) // the same fill in both
+    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/) // dark text — brighter, same hue
+    expect(tokensCss.match(/--brand-fill:\s*#059669/g)).toHaveLength(2)
+    expect(tokensCss).toMatch(/--brand:\s*#10b981/)
   })
 
-  it("has no red and no orange: problems are the foreground, attention is blue", () => {
+  it("says a problem in rose, attention in orange, a warning in the foreground", () => {
     const val = (name: string) =>
       [...tokensCss.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "g"))].map((m) => m[1])
-    expect(val("destructive")).toEqual(val("foreground"))
+    expect(val("destructive-fill")).toEqual(["#f43f5e", "#f43f5e"])
+    expect(val("accent2")).toEqual(["#c2410c", "#f97316"])
     expect(val("warning")).toEqual(val("foreground"))
-    expect(val("accent2")).toEqual(val("primary"))
   })
 
   // Charts carry hues, and never as text-on-fill.
@@ -66,8 +66,8 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(tokensCss).not.toContain("--warning-foreground")
   })
 
-  it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {
-    for (const hex of ["#0fb57e", "#047857", "#065f46", "#d0735a", "#bf5540", "#dd8368"]) {
+  it("has retired the prior brand palettes (emerald-700 #047857 was adopted again on 2026-10-25)", () => {
+    for (const hex of ["#0fb57e", "#065f46", "#d0735a", "#bf5540", "#dd8368"]) {
       expect(tokensCss, `retired brand value ${hex} is still present`).not.toContain(hex)
     }
   })

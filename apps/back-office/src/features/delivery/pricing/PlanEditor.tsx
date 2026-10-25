@@ -8,12 +8,12 @@ import {
   Button,
   Input,
   Label,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
 } from "@effy/design-system/ui"
 
 import { slotsQuery, useSavePlan } from "../queries"
@@ -78,18 +78,18 @@ export function PlanEditor({
   )
 
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-2xl">
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>
+    <Drawer open direction="right" handleOnly onOpenChange={(o) => !o && onClose()}>
+      <DrawerContent className="overflow-y-auto data-[vaul-drawer-direction=right]:w-[calc(100%-1rem)] data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+        <DrawerHeader>
+          <DrawerTitle>{title}</DrawerTitle>
+          <DrawerDescription>
             {saved?.state === "active"
               ? "In force. A plan that has been active can't be changed — copy it to a new draft."
               : saved?.state === "retired"
                 ? "Retired. Kept as the record of what was charged while it was in force."
                 : "A draft. Saving does not change any fee; activating does."}
-          </SheetDescription>
-        </SheetHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
         <form onSubmit={submit} className="space-y-8 px-4 pb-4">
           {saved && saved.state === "draft" ? <GapList gaps={saved.gaps} /> : null}
@@ -212,7 +212,7 @@ export function PlanEditor({
           ) : null}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <SheetFooter className="flex-row justify-end gap-2 p-0">
+          <DrawerFooter className="flex-row justify-end gap-2 p-0">
             <Button type="button" variant="ghost" onClick={onClose}>
               Close
             </Button>
@@ -221,10 +221,10 @@ export function PlanEditor({
                 {planId ? "Save draft" : "Create draft"}
               </Button>
             ) : null}
-          </SheetFooter>
+          </DrawerFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   )
 }
 

@@ -66,7 +66,7 @@ export function ChangePasswordDialog({
         </ResponsiveModalHeader>
 
         {/* The form is addressed by id from the footer's submit, keeping Enter-to-submit. */}
-        <form id="change-password-form" onSubmit={submit} className="space-y-4 px-4 sm:px-0">
+        <form id="change-password-form" onSubmit={submit} className="space-y-4">
           <PasswordField
             name="currentPassword"
             label="Current password"

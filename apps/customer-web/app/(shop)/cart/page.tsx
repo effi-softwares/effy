@@ -2,9 +2,10 @@
 
 import { ArrowRight, CircleAlert, Lock, Minus, Plus, ShoppingCart } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { loadDialog, useLazyOverlay } from "@/components/overlays/lazy"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { Alert } from "@/components/ui/alert"
@@ -57,13 +58,14 @@ export default function CartPage() {
 
   const currency = cart.currency || lines[0]?.currency || "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
-  const confirmRef = useRef<HTMLDialogElement>(null)
+  // The question is shadcn's AlertDialog, fetched when the shopper reaches for "Empty cart".
+  const { Overlay: Confirm, open: confirming, setOpen: setConfirming, want: wantConfirm } = useLazyOverlay(loadDialog)
 
   /** Empty the cart, and hand back a way to undo it. The emptied lines live only as long as
    *  the toast: nothing is stored anywhere to make this possible. */
   function emptyCart() {
     const before = lines.map((l) => ({ ...l }))
-    confirmRef.current?.close()
+    setConfirming(false)
     clearAll()
     toast("Your cart was emptied", {
       action: { label: "Undo", run: () => before.forEach((l) => addItem(l)) },
@@ -96,7 +98,13 @@ export default function CartPage() {
                 · {count} {count === 1 ? "item" : "items"}
               </span>
             </h1>
-            <button type="button" onClick={() => confirmRef.current?.showModal()} className={btnClass("ghost", "sm")}>
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              onPointerEnter={wantConfirm}
+              onFocus={wantConfirm}
+              className={btnClass("ghost", "sm")}
+            >
               Empty cart
             </button>
           </div>
@@ -198,29 +206,25 @@ export default function CartPage() {
 
       <OnSaleRail />
 
-      <dialog
-        ref={confirmRef}
-        aria-labelledby="empty-cart-title"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) confirmRef.current?.close()
-        }}
-        className="fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-6 text-foreground shadow-lg"
-      >
-        <h2 id="empty-cart-title" className="text-lg font-semibold">
-          Empty your cart?
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This removes all {count} {count === 1 ? "item" : "items"}. Anything saved for later stays.
-        </p>
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={() => confirmRef.current?.close()} className={btnClass("outline", "lg")}>
-            Keep my cart
-          </button>
-          <button type="button" onClick={emptyCart} className={btnClass("destructive", "lg")}>
-            Empty cart
-          </button>
-        </div>
-      </dialog>
+      {Confirm && (
+        <Confirm
+          alert
+          open={confirming}
+          onOpenChange={setConfirming}
+          title="Empty your cart?"
+          description={`This removes all ${count} ${count === 1 ? "item" : "items"}. Anything saved for later stays.`}
+          footer={
+            <>
+              <button type="button" onClick={() => setConfirming(false)} className={btnClass("outline", "lg")}>
+                Keep my cart
+              </button>
+              <button type="button" onClick={emptyCart} className={btnClass("destructive", "lg")}>
+                Empty cart
+              </button>
+            </>
+          }
+        />
+      )}
     </div>
   )
 }

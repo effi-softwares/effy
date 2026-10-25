@@ -1,9 +1,10 @@
 "use client"
 
-import { ShoppingCart, X } from "lucide-react"
+import { ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useRef, useState } from "react"
+import { useCallback } from "react"
 
+import { loadSideDrawer, useLazyOverlay } from "@/components/overlays/lazy"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
@@ -12,37 +13,35 @@ import { useOnDemand } from "@/lib/use-on-demand"
 const loadBody = () => import("./MiniCartBody").then((m) => m.MiniCartBody)
 
 /**
- * The cart drawer: review and adjust the cart without navigating away. A right-edge drawer by the header
- * control that opens it, built from a native `<dialog>` (`showModal`: focus trap, Escape, inert
- * background) and `.fx-drawer-right`; shadcn's Drawer (vaul + radix, ~25 KB gz) is barred from public
- * routes by dependency-cruiser. It sits in the shared chrome chunk, so every icon import here costs every
- * guest route: measure before adding one.
+ * The cart drawer: review and adjust the cart without navigating away. shadcn's Drawer from the right
+ * edge (`SideDrawer`), by the header control that opens it. The drawer and its contents are fetched on
+ * demand — vaul and radix are barred from the guest first load by dependency-cruiser. The button sits
+ * in the shared chrome chunk, so every icon import here costs every guest route: measure before adding
+ * one.
  */
 export function MiniCart() {
   const lines = useCart()
-  const dialogRef = useRef<HTMLDialogElement>(null)
   const router = useRouter()
   const totals = computeCartTotals(lines)
   const currency = lines[0]?.currency ?? "AUD"
   const count = lines.reduce((n, l) => n + l.quantity, 0)
 
-  // The drawer's contents are fetched once the shopper shows they want them — pointer or focus on
-  // the button, or the press itself — and stay loaded. See `MiniCartBody`.
-  const [wanted, setWanted] = useState(false)
-  const want = useCallback(() => setWanted(true), [])
+  // The drawer and its contents are fetched once the shopper shows they want them — pointer or focus
+  // on the button, or the press itself — and stay loaded. See `MiniCartBody`.
+  const { Overlay: Drawer, open, setOpen, want, wanted } = useLazyOverlay(loadSideDrawer)
   const Body = useOnDemand(loadBody, wanted)
 
-  const close = useCallback(() => dialogRef.current?.close(), [])
+  const close = useCallback(() => setOpen(false), [setOpen])
 
   /**
    * "Go to cart" — the one control here that is supposed to navigate, and the drawer must be out of
    * the way when it lands.
    *
    * It drives the router itself rather than leaving `<Link>` to do it after an `onClick` that
-   * closes the dialog. Both handlers fire on the same click, and the order in which a top-layer
+   * closes the drawer. Both handlers fire on the same click, and the order in which a top-layer
    * dismissal and a client-side navigation resolve is not something to leave to chance on the
-   * storefront's primary conversion path: `close` returns focus to the trigger and runs a
-   * `allow-discrete` exit transition while Next is starting a route change. Ordering it explicitly
+   * storefront's primary conversion path: `close` returns focus to the trigger and runs the
+   * exit animation while Next is starting a route change. Ordering it explicitly
    * close, then push — makes "press it and you are on the cart page" true by construction.
    *
    * It stays an `<a>` with a real `href` (hence `<Link>`, not a button): cmd/ctrl-click, middle-click,
@@ -64,8 +63,7 @@ export function MiniCart() {
       <button
         type="button"
         onClick={() => {
-          want()
-          dialogRef.current?.showModal()
+          setOpen(true)
         }}
         onPointerEnter={want}
         onFocus={want}
@@ -85,49 +83,28 @@ export function MiniCart() {
         <span className="sr-only">{count === 1 ? "item" : "items"}</span>
       </button>
 
-      {/* `ml-auto` + `h-full` pins the panel to the right edge at full height; without them a
-          <dialog> centres itself, which is the one thing a drawer must not do. `max-h-none` and
-          `max-w-none` undo the UA's default
-          `max-width: calc(100% - 6px - 2em)` box, or the panel stops short of the edge. */}
-      <dialog
-        ref={dialogRef}
-        // `backdrop:bg-black/50` matches the design-system overlays (Dialog/Sheet/Drawer). It was
-        // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
-        // appearance, so that scrim rendered as a white film on a dark surface. A scrim must darken.
-        className="fx-dialog fx-drawer-right ml-auto h-full max-h-none w-full max-w-105 border-l bg-background p-0 text-foreground shadow-lg"
-        aria-labelledby="mini-cart-title"
-        // Light dismiss. A native <dialog> closes on Escape and nothing else — which on a phone,
-        // where there is no Escape key, leaves the close button as the only way out. A click whose
-        // target is the dialog element itself landed on the backdrop (the panel's children cover the
-        // whole box, `p-0`), so this closes on tap-outside without swallowing any interior click.
-        // Not the `closedby="any"` attribute: still too new to rely on as the only exit.
-        onClick={(e) => {
-          if (e.target === e.currentTarget) close()
-        }}
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between px-4 pt-4 pb-3">
-            <h2 id="mini-cart-title" className="text-base font-semibold">
+      {Drawer && (
+        <Drawer
+          open={open}
+          onOpenChange={setOpen}
+          side="right"
+          width="calc(100% - 1rem)"
+          maxWidth="26.25rem"
+          headerClassName="pt-4 pb-3"
+          title={
+            <>
               Your cart
               {count > 0 && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   {count} {count === 1 ? "item" : "items"}
                 </span>
               )}
-            </h2>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="-mr-1 inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-
+            </>
+          }
+        >
           {Body ? <Body close={close} goToCart={goToCart} /> : <div className="flex-1" aria-busy="true" />}
-        </div>
-      </dialog>
+        </Drawer>
+      )}
     </>
   )
 }

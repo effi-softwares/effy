@@ -1,4 +1,7 @@
-/** Fails the build when a guest route can reach the auth SDK or the heavy UI libraries, or when imports form a cycle. */
+/**
+ * Fails the build when a guest route can reach the auth SDK, or when imports form a cycle. The heavy UI
+ * libraries are held to the first load only, in `dependency-cruiser.first-load.cjs`.
+ */
 const GUEST_PATHS = [
   "^app/layout\\.tsx$",
   "^app/page\\.tsx$",
@@ -16,13 +19,6 @@ module.exports = {
       comment: "Configure Amplify in app/(auth)/layout.tsx only; read the session server-side on guest pages.",
       from: { path: GUEST_PATHS },
       to: { reachable: true, path: "aws-amplify|@aws-amplify" },
-    },
-    {
-      name: "no-heavy-ui-deps-on-guest-path",
-      severity: "error",
-      comment: "radix-ui, sonner and vaul are too heavy for the guest bundle budget.",
-      from: { path: [...GUEST_PATHS, "^components/theme/"] },
-      to: { reachable: true, path: "^(radix-ui|@radix-ui|sonner|vaul)($|/)" },
     },
     {
       name: "no-circular",

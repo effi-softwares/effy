@@ -13,32 +13,30 @@ describe("back-office identity tokens", () => {
     expect(stylesCss).not.toContain("customer-web.css")
   })
 
-  it("uses Effy blue as the single action colour, lifted in dark, and Effy green as the brand", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/)
-    expect(tokensCss).toMatch(/--ring:\s*#1d4ed8/)
+  it("fills an action in blue-600 with white type in both appearances, and lifts blue text in dark", () => {
+    expect(tokensCss).toMatch(/--primary-fill:\s*#2563eb/)
+    expect(tokensCss).toMatch(/--primary:\s*#2563eb/)
+    expect(tokensCss).toMatch(/--ring:\s*#2563eb/)
     expect(tokensCss).toMatch(/--primary:\s*#60a5fa/)
-    expect(tokensCss).toMatch(/--brand:\s*#15803d/)
-    expect(tokensCss).toMatch(/--brand:\s*#22c55e/)
+    expect(tokensCss.match(/--primary-foreground:\s*#ffffff/g)).toHaveLength(2)
   })
 
-  it("says done in green, and keeps green off every fill with a label on it", () => {
-    expect(tokensCss).toMatch(/--success:\s*#15803d/)
-    expect(tokensCss).toMatch(/--success:\s*#22c55e/)
+  it("says done in emerald, and keeps the label colour off success and warning", () => {
+    expect(tokensCss).toMatch(/--brand-fill:\s*#059669/)
+    expect(tokensCss).toMatch(/--success:\s*#047857/)
+    expect(tokensCss).toMatch(/--success:\s*#10b981/)
     expect(tokensCss).not.toContain("--success-foreground")
     expect(tokensCss).not.toContain("--warning-foreground")
   })
 
-  // No red, no orange. A problem is the foreground with an icon and its words.
-  it("says a problem in black (white in dark), never red or orange", () => {
-    expect(tokensCss).toMatch(/--destructive:\s*#09090b/)
-    expect(tokensCss).toMatch(/--destructive:\s*#fafafa/)
-    for (const hex of ["#cf2b1f", "#f87171", "#b4550a", "#fb923c", "#a85c05", "#fbbf24"]) {
-      expect(tokensCss, `the console's red/orange ${hex} reached the back-office`).not.toContain(hex)
-    }
+  it("says a problem in rose: a rose-500 fill, a readable rose for text", () => {
+    expect(tokensCss).toMatch(/--destructive-fill:\s*#f43f5e/)
+    expect(tokensCss).toMatch(/--destructive:\s*#be123c/)
+    expect(tokensCss).toMatch(/--destructive:\s*#fb7185/)
   })
 
-  it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {
-    for (const hex of ["#0fb57e", "#047857", "#065f46", "#d0735a", "#bf5540", "#dd8368", "#69b08b"]) {
+  it("has retired the prior brand palettes (emerald-700 #047857 was adopted again on 2026-10-25)", () => {
+    for (const hex of ["#0fb57e", "#065f46", "#d0735a", "#bf5540", "#dd8368", "#69b08b"]) {
       expect(tokensCss, `retired brand value ${hex} is still present`).not.toContain(hex)
     }
   })

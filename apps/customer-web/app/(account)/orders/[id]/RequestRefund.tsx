@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { MessageSquare, Send } from "lucide-react"
 
 import { Field, select } from "@/components/storefront/kit"
@@ -25,7 +25,7 @@ export function RequestRefund({
   items: { orderItemId: string; productName: string; quantity: number }[]
 }) {
   const router = useRouter()
-  const dialog = useRef<HTMLDialogElement>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [reason, setReason] = useState<string>(REASONS[0])
   const [details, setDetails] = useState("")
   const [selected, setSelected] = useState<Record<string, number>>({})
@@ -49,7 +49,7 @@ export function RequestRefund({
     setBusy(false)
     if (res.ok) {
       setSent(true)
-      dialog.current?.close()
+      setDialogOpen(false)
       router.refresh()
       return
     }
@@ -71,19 +71,20 @@ export function RequestRefund({
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => dialog.current?.showModal()}>
+      <Button type="button" variant="outline" onClick={() => setDialogOpen(true)}>
         <MessageSquare aria-hidden="true" />
         Report a problem
       </Button>
 
       <Dialog
-        ref={dialog}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         size="lg"
         title="Something wrong with this order?"
         description={`${orderNumber ? `Order ${orderNumber} · ` : ""}Tell us what happened and we'll look into it.`}
         footer={
           <>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => dialog.current?.close()}>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" form="report-problem-form" disabled={busy || details.trim() === ""}>

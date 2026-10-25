@@ -390,7 +390,12 @@ A FILL AND A TEXT SHADE**: `--primary-fill` blue-600 `#2563eb`, `--brand-fill` e
 rose-500 `#f43f5e` carry a **white label in BOTH appearances** (`bg-*-fill text-*-foreground`, held to 3:1 by the
 operator's choice); `--primary` / `--brand` / `--destructive` are the readable text shade (dark: blue-400, emerald-500
 `#10b981`, rose-400). Orange (`--accent2`) is attention only. Problems are rose. Mobile: Material `primary` is the fill,
-`EffyRoles.brandFill` the green under a white tick. One guard: `check-tokens.mjs`. The two-identity history below (console vs storefront) is superseded.
+`EffyRoles.brandFill` the green under a white tick. One guard: `check-tokens.mjs`.
+⚠ **OVERLAYS (2026-10-25, operator): shadcn only, on ONE blurred backdrop** (`ui/overlay.ts`). `Dialog` and
+`AlertDialog` ARE shadcn's responsive dialog — centred from 768px, a bottom Drawer below (`ResponsiveModal` is now
+an alias). Side panels are the Drawer `direction="left|right"`, FLOATING (8px inset, rounded on all four corners);
+there is no Sheet. customer-web guest routes fetch them on demand (`components/overlays/lazy.ts`);
+`dependency-cruiser.first-load.cjs` fails a static path from a guest route to radix/vaul/sonner. The two-identity history below (console vs storefront) is superseded.
 ⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
 `theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
 reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it —

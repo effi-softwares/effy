@@ -26,7 +26,7 @@ export function FocusedEditDialog({ open, onOpenChange, size = "default", childr
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
         className={cn(
-          "max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh] max-md:pb-[env(safe-area-inset-bottom)] max-md:[&>*:not([data-slot])]:px-4",
+          "max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh]",
           WIDTH[size],
         )}
       >

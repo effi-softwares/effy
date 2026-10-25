@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 import { LIST_NAME_MAX, type SavedListDTO } from "@effy/shared-types"
 
 import { btnClass } from "@/components/storefront/actions"
+import { Dialog } from "@/components/ui/dialog"
 import {
   addToList,
   createList,
@@ -18,8 +19,8 @@ import {
 
 /**
  * The list chooser: which of the shopper's lists a product is in, a tick box each, and a way to make a
- * new one. Reached only through `import` (the heart is on the guest path). A native `<dialog>`
- * (`showModal` gives the focus trap, Escape, backdrop and focus return).
+ * new one. Reached only through `import` (the heart is on the guest path), so the shadcn dialog it is
+ * built on never reaches a guest route's first load.
  */
 export function openListChooser(productId: string, onClose?: () => void, variantId?: string | null): void {
   const host = document.createElement("div")
@@ -54,7 +55,7 @@ export function ListChooser({
   variantId?: string | null
   onClosed: () => void
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
+  const [open, setOpen] = useState(true)
   const [state, setState] = useState<State>({ phase: "loading" })
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -68,8 +69,14 @@ export function ListChooser({
     else setState({ phase: result.reason === "guest" ? "guest" : "failed" })
   }
 
+  // Its own React root is removed once the closing animation has played (the Drawer's is the longer).
   useEffect(() => {
-    dialogRef.current?.showModal()
+    if (open) return
+    const t = window.setTimeout(onClosed, 500)
+    return () => window.clearTimeout(t)
+  }, [open, onClosed])
+
+  useEffect(() => {
     void load()
     // Loaded once, when the chooser opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,29 +114,17 @@ export function ListChooser({
   const remaining = nameRemaining(name, LIST_NAME_MAX)
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="list-chooser-title"
-      className="fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-0 text-foreground shadow-lg"
-      onClose={onClosed}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) dialogRef.current?.close()
-      }}
-    >
-      <div className="flex items-center justify-between border-b px-5 py-4">
-        <h2 id="list-chooser-title" className="text-base font-semibold">
-          Add to a list
-        </h2>
-        <button
-          type="button"
-          onClick={() => dialogRef.current?.close()}
-          className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent"
-        >
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Add to a list"
+      footer={
+        <button type="button" onClick={() => setOpen(false)} className={btnClass("outline", "md")}>
           Done
         </button>
-      </div>
-
-      <div className="px-5 py-4">
+      }
+    >
+      <div>
         {state.phase === "loading" && <p className="text-sm text-muted-foreground">Loading your lists…</p>}
 
         {state.phase === "failed" && (
@@ -218,6 +213,6 @@ export function ListChooser({
           </>
         )}
       </div>
-    </dialog>
+    </Dialog>
   )
 }

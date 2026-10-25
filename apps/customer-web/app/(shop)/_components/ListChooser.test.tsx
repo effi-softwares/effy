@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { SavedListDTO } from "@effy/shared-types"
 
@@ -33,16 +33,6 @@ const LISTS = `GET /api/lists?productId=${PRODUCT}`
 const IDS = "GET /api/saved/ids"
 
 describe("068 — the list chooser", () => {
-  beforeAll(() => {
-    // jsdom has no modal dialog. `open` is what makes the contents reachable by role.
-    HTMLDialogElement.prototype.showModal = function () {
-      this.setAttribute("open", "")
-    }
-    HTMLDialogElement.prototype.close = function () {
-      this.removeAttribute("open")
-      this.dispatchEvent(new Event("close"))
-    }
-  })
   beforeEach(() => window.localStorage.clear())
   afterEach(() => vi.unstubAllGlobals())
 
@@ -179,6 +169,7 @@ describe("068 — the list chooser", () => {
     render(<ListChooser productId={PRODUCT} onClosed={onClosed} />)
 
     await userEvent.click(await screen.findByRole("button", { name: "Done" }))
-    expect(onClosed).toHaveBeenCalledOnce()
+    // Once the closing animation has had its time, so its own root can be removed.
+    await waitFor(() => expect(onClosed).toHaveBeenCalledOnce(), { timeout: 1500 })
   })
 })

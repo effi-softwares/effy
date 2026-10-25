@@ -85,8 +85,6 @@
 html,
 html * { @apply overscroll-x-none; }
 
-[data-slot="dialog-overlay"],
-[data-slot="drawer-overlay"] { @apply bg-scrim; }
 [data-slot="dialog-content"] {
   @apply gap-4 rounded-lg border border-solid border-border bg-background p-6;
   box-shadow: var(--shadow-lg);
@@ -98,10 +96,6 @@ html * { @apply overscroll-x-none; }
 [data-slot="dialog-description"] { @apply text-base leading-6 text-muted-foreground; }
 [data-slot="drawer-description"] { @apply text-base leading-6; }
 [data-slot="dialog-close"] { @apply grid size-11 place-items-center; }
-
-[data-slot="drawer-content"][data-vaul-drawer-direction="bottom"] { @apply rounded-t-2xl rounded-b-none border-t border-t-border; }
-
-[data-slot="dialog-overlay"][data-state="open"] { animation: ef-fade-in var(--dur-standard) ease-out; }
 
 [data-sonner-toast] {
   @apply rounded-lg! border! border-solid! border-border! bg-background! px-4! py-4! font-sans! text-sm! text-foreground!;
@@ -121,10 +115,6 @@ html * { @apply overscroll-x-none; }
 @keyframes ef-dialog-out {
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(0.96); }
-}
-@keyframes ef-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 [data-slot="otp-cell"] {

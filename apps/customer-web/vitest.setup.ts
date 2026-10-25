@@ -26,19 +26,6 @@ if (typeof window !== "undefined") {
     }
   }
 
-  // jsdom has no <dialog> behaviour. The storefront's dialogs are native ones opened with
-  // `showModal`, so tests get the part of it they can observe: open, and closed again.
-  const dialog = window.HTMLDialogElement?.prototype
-  if (dialog && !dialog.showModal) {
-    dialog.showModal = function (this: HTMLDialogElement) {
-      this.open = true
-    }
-    dialog.close = function (this: HTMLDialogElement) {
-      this.open = false
-      this.dispatchEvent(new Event("close"))
-    }
-  }
-
   const proto = window.HTMLElement.prototype
   proto.scrollIntoView ??= () => {}
   proto.hasPointerCapture ??= () => false

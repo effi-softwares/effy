@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { SavedListDTO } from "@effy/shared-types"
 
@@ -15,14 +15,6 @@ const saved: SavedListDTO = { id: "default", isDefault: true, name: null, count:
 const weekly: SavedListDTO = { id: WEEKLY, isDefault: false, name: "Weekly Items", count: 5, onlyHereCount: 2 }
 
 describe("068 — the lists tab row", () => {
-  beforeAll(() => {
-    HTMLDialogElement.prototype.showModal = function () {
-      this.setAttribute("open", "")
-    }
-    HTMLDialogElement.prototype.close = function () {
-      this.removeAttribute("open")
-    }
-  })
   beforeEach(() => {
     push.mockReset()
     refresh.mockReset()

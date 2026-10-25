@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 
 import { LIST_NAME_MAX, type SavedListDTO } from "@effy/shared-types"
@@ -106,7 +106,7 @@ function NameField({
 
 function NewList() {
   const router = useRouter()
-  const ref = useRef<HTMLDialogElement>(null)
+  const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -122,7 +122,7 @@ function NewList() {
       setError(refusalText(result.reason))
       return
     }
-    ref.current?.close()
+    setOpen(false)
     setName("")
     router.push(`/saved/${result.value.id}`)
     router.refresh()
@@ -130,17 +130,18 @@ function NewList() {
 
   return (
     <>
-      <Button type="button" onClick={() => ref.current?.showModal()}>
+      <Button type="button" onClick={() => setOpen(true)}>
         <Plus aria-hidden="true" />
         New list
       </Button>
       <Dialog
-        ref={ref}
+        open={open}
+        onOpenChange={setOpen}
         title="New list"
         description="Group items you buy together, like a weekly shop."
         footer={
           <>
-            <Button type="button" variant="outline" onClick={() => ref.current?.close()}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" form="new-list-form" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0}>
@@ -159,8 +160,8 @@ function NewList() {
 
 function ManageList({ list }: { list: SavedListDTO }) {
   const router = useRouter()
-  const renameRef = useRef<HTMLDialogElement>(null)
-  const deleteRef = useRef<HTMLDialogElement>(null)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [name, setName] = useState(list.name ?? "")
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -176,7 +177,7 @@ function ManageList({ list }: { list: SavedListDTO }) {
       setError(refusalText(result.reason))
       return
     }
-    renameRef.current?.close()
+    setRenameOpen(false)
     router.refresh()
   }
 
@@ -195,21 +196,22 @@ function ManageList({ list }: { list: SavedListDTO }) {
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => renameRef.current?.showModal()}>
+      <Button type="button" variant="outline" onClick={() => setRenameOpen(true)}>
         <Pencil aria-hidden="true" />
         Rename
       </Button>
-      <Button type="button" variant="outline" onClick={() => deleteRef.current?.showModal()}>
+      <Button type="button" variant="outline" onClick={() => setDeleteOpen(true)}>
         <Trash2 aria-hidden="true" />
         Delete list
       </Button>
 
       <Dialog
-        ref={renameRef}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
         title="Rename list"
         footer={
           <>
-            <Button type="button" variant="outline" onClick={() => renameRef.current?.close()}>
+            <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" form="rename-list-form" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0}>
@@ -224,14 +226,15 @@ function ManageList({ list }: { list: SavedListDTO }) {
       </Dialog>
 
       <Dialog
-        ref={deleteRef}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         alert
         title={`Delete "${listLabel(list)}"?`}
         // Both numbers: what is in the list, and how much lives nowhere else (the delete un-saves exactly that).
         description={deleteSummary(list)}
         footer={
           <>
-            <Button type="button" variant="outline" onClick={() => deleteRef.current?.close()}>
+            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)}>
               Cancel
             </Button>
             <Button type="button" variant="destructive" onClick={remove} disabled={busy}>

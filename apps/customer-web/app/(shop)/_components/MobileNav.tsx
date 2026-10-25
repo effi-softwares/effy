@@ -1,15 +1,17 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useState } from "react"
 
 import { clsx } from "clsx"
 
+import { loadSideDrawer, useLazyOverlay } from "@/components/overlays/lazy"
+
 /**
- * The small-screen navigation drawer: a native `<dialog>` (`showModal` gives the focus trap, Escape, an
- * inert background and the top layer; vaul and radix are barred from the guest path). `lg:hidden`, the
+ * The small-screen navigation drawer: shadcn's Drawer from the left edge (`SideDrawer`), fetched on
+ * demand because vaul and radix are barred from the guest first load. `lg:hidden`, the
  * mirror of `PrimaryNav`'s `hidden lg:flex`, so the links are never in the accessibility tree twice.
  *
  * The account drill-in is a stack of panels in one clipped viewport, each `absolute inset-0`:
@@ -64,7 +66,7 @@ export function MobileNav({
    */
   accountRoots?: readonly string[]
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
+  const { Overlay: Drawer, open, setOpen, want } = useLazyOverlay(loadSideDrawer)
   const pathname = usePathname()
   const params = useSearchParams()
   const saleOnly = params.get("saleOnly") === "true"
@@ -79,11 +81,16 @@ export function MobileNav({
   const level = chosen ?? (inAccount ? "account" : "root")
   const atRoot = level === "root"
 
-  const close = useCallback(() => dialogRef.current?.close(), [])
-
   // Reset on close, not on open. Reopening the drawer must start at the route's own level — a menu
   // that remembers where it was left reopens showing something the shopper did not ask for.
-  const handleClose = useCallback(() => setChosen(null), [])
+  const onOpenChange = useCallback(
+    (next: boolean) => {
+      setOpen(next)
+      if (!next) setChosen(null)
+    },
+    [setOpen],
+  )
+  const close = useCallback(() => onOpenChange(false), [onOpenChange])
 
   function isActive(href: string): boolean {
     const [path, query] = href.split("?")
@@ -96,45 +103,26 @@ export function MobileNav({
     <div className={clsx("lg:hidden", className)}>
       <button
         type="button"
-        onClick={() => dialogRef.current?.showModal()}
+        onClick={() => setOpen(true)}
+        onPointerEnter={want}
+        onFocus={want}
         aria-label="Open menu"
         className="-ml-2 inline-flex size-10 items-center justify-center rounded-md hover:bg-accent"
       >
         <Menu className="size-5" aria-hidden="true" />
       </button>
 
-      {/* The drawer. `mr-auto` + `h-full` pins it to the left edge and full height; without them a
-          <dialog> centres itself, which is the one thing a drawer must not do. */}
-      <dialog
-        ref={dialogRef}
-        aria-label="Menu"
-        onClose={handleClose}
-        // Light dismiss. A native <dialog> closes on Escape and nothing else — which on a phone,
-        // where there is no Escape key, leaves the close button as the only way out. A click whose
-        // target is the dialog element itself landed on the backdrop (the panel's children cover the
-        // whole box, `p-0`), so this closes on tap-outside without swallowing any interior click.
-        // Not the `closedby="any"` attribute: still too new to rely on as the only exit.
-        onClick={(e) => {
-          if (e.target === e.currentTarget) close()
-        }}
-        // `backdrop:bg-black/50` matches the design-system overlays and the cart drawer. It was
-        // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
-        // appearance, so that scrim rendered as a white film on a dark surface. A scrim must darken.
-        className="fx-dialog fx-drawer-left mr-auto h-full max-h-none w-[85%] max-w-90 border-r bg-background p-0 text-foreground shadow-lg"
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <span className="text-base font-semibold">Menu</span>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close menu"
-              className="inline-flex size-9 items-center justify-center rounded-md hover:bg-accent"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </button>
-          </div>
-
+      {Drawer && (
+        <Drawer
+          open={open}
+          onOpenChange={onOpenChange}
+          side="left"
+          width="85%"
+          maxWidth="22.5rem"
+          title="Menu"
+          closeLabel="Close menu"
+          headerClassName="border-b py-3"
+        >
           {/* The stack's viewport: `relative` to position the levels, `overflow-hidden` so the
               off-stage one is clipped rather than widening the drawer. */}
           <div className="relative flex-1 overflow-hidden">
@@ -231,8 +219,8 @@ export function MobileNav({
               )}
             </div>
           )}
-        </div>
-      </dialog>
+        </Drawer>
+      )}
     </div>
   )
 }

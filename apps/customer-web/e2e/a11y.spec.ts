@@ -27,9 +27,8 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
 
     const postcode = page.getByLabel("Suburb or postcode")
     await expect(postcode).toBeFocused({ timeout: 2000 }).catch(async () => {
-      // A native <dialog> focuses its first focusable child; if the browser chose the close button
-      // instead, focus must still be inside the dialog.
-      const active = await page.evaluate(() => document.activeElement?.closest("dialog") !== null)
+      // If the dialog focused another control first (its close button), focus must still be inside it.
+      const active = await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)
       expect(active).toBe(true)
     })
 
@@ -112,10 +111,9 @@ test.describe("home page accessibility (039, SC-009)", () => {
 
     await expect(page.locator("h1")).toHaveCount(1)
 
-    // Visible headings only. The mini-cart <dialog> carries an `h2` that sits before the page's
-    // sr-only `h1` in document order — but a closed <dialog> is `display:none`, so it is not in the
-    // accessibility tree and no screen reader ever meets it. Counting it made this test fail on a
-    // document outline that is, to any real user, correct.
+    // Visible headings only (plus sr-only ones): a heading that is `display:none` is not in the
+    // accessibility tree and no screen reader ever meets it, so counting it would fail an outline that
+    // is, to any real user, correct.
     const levels = await page
       .locator("h1, h2, h3, h4, h5, h6")
       .evaluateAll((els) =>

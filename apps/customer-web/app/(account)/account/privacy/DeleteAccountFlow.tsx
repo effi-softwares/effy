@@ -205,7 +205,7 @@ function ConfirmCodeModal({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        <form id="closure-code-form" onSubmit={submit} noValidate className="px-4 sm:px-0">
+        <form id="closure-code-form" onSubmit={submit} noValidate>
           {/* An explicit margin: the label heads a tall control; the message stays tight to it. */}
           <label htmlFor="closure-code" className="mb-4 block text-sm font-medium">
             Code from your email

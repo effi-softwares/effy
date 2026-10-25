@@ -129,7 +129,7 @@ export function SetPasswordDialog({
         {step === "intro" && (
           <>
             {error && (
-              <div className="px-4 sm:px-0">
+              <div>
                 <ErrorText>{error}</ErrorText>
               </div>
             )}
@@ -151,7 +151,7 @@ export function SetPasswordDialog({
         {/* Step 2: enter the code (client-only) */}
         {step === "code" && (
           <>
-            <form id="set-password-code-form" onSubmit={continueToPassword} className="px-4 sm:px-0">
+            <form id="set-password-code-form" onSubmit={continueToPassword}>
               {/* An explicit margin: the label heads a tall control, the message below stays tight. */}
               <label htmlFor="stepup-code" className="mb-4 block text-sm font-medium">
                 Code from your email
@@ -226,7 +226,7 @@ export function SetPasswordDialog({
         {step === "password" && (
           <>
             {/* The form is addressed by id from the footer's submit, keeping Enter-to-submit. */}
-            <form id="set-password-form" onSubmit={submit} className="space-y-4 px-4 sm:px-0">
+            <form id="set-password-form" onSubmit={submit} className="space-y-4">
               <PasswordField
                 name="newPassword"
                 label="New password"
