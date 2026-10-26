@@ -269,6 +269,36 @@ edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|adm
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
+# Every stack, in the order a deploy must go: admin first (it frees the route keys other stacks may claim,
+# and admin-promotions is split from it), then the rest. Override with SERVICES="a b c" to deploy a subset.
+EDGE_ALL_SERVICES := admin admin-promotions catalog shop storefront commerce fleet orders driver notifications \
+	customer inventory inventory-staff media live auth
+
+edge-deploy-all: ## OPERATOR: deploy EVERY edge stack in order, one confirmation (YES=1 skips it; SERVICES="..." for a subset; FROM=<svc> to resume)
+	@services="$(or $(SERVICES),$(EDGE_ALL_SERVICES))"; \
+	if [ -n "$(FROM)" ]; then \
+		case " $$services " in *" $(FROM) "*) ;; *) echo "edge-deploy-all: FROM=$(FROM) is not in: $$services"; exit 1;; esac; \
+		rest=""; on=""; for s in $$services; do [ "$$s" = "$(FROM)" ] && on=1; [ -n "$$on" ] && rest="$$rest $$s"; done; \
+		services="$${rest# }"; \
+	fi; \
+	printf 'serverless DEPLOY ALL  →  stage=%s, profile=%s (live AWS), in this order:\n  %s\n' "$(ENV)" "$(AWS_PROFILE)" "$$services"; \
+	if [ "$(YES)" != "1" ]; then printf 'Continue? [y/N] '; read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; fi; \
+	done=""; \
+	for svc in $$services; do \
+		echo ""; echo "━━━ $$svc ━━━"; \
+		dir="apis/edge-api/$$svc"; config="serverless.yml"; \
+		case "$$svc" in \
+			inventory-staff) dir="apis/edge-api/inventory"; config="serverless.staff.yml";; \
+			admin-promotions) dir="apis/edge-api/admin"; config="serverless.promotions.yml";; \
+		esac; \
+		test -f "$$dir/$$config" || { echo "edge-deploy-all: no stack file $$dir/$$config"; exit 1; }; \
+		( cd "$$dir" && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config "$$config" --stage $(ENV) ) || { \
+			echo ""; echo "✗ $$svc failed. Deployed so far:$${done:- none}"; \
+			echo "  Fix it, then resume with: make edge-deploy-all ENV=$(ENV) FROM=$$svc"; exit 1; }; \
+		done="$$done $$svc"; \
+	done; \
+	echo ""; echo "✓ deployed:$$done"
+
 edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack (SERVICE=.. ENV=dev)
 	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|shop|...|fleet ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-remove: no such service directory: $(EDGE_DIR)"; exit 1; }

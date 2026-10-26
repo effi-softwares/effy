@@ -1,7 +1,7 @@
 -- 101 — empty the catalogue so the category-driven catalogue migration can run. DEV ONLY, operator-run.
 --
 --     make purge-orders ENV=dev                                   -- orders first (this script refuses otherwise)
---     psql "$(bash infra/scripts/db-dsn.sh dev)" -f db/reset/101_purge_catalogue_dev.sql
+--     psql "$(AWS_PROFILE=ef bash infra/scripts/db-dsn.sh dev)" -f db/reset/101_purge_catalogue_dev.sql
 --     make db-up ENV=dev                                          -- <ts>_category_catalogue.sql refuses a non-empty catalogue
 --
 -- Removes every product and everything that points at one: cart and saved lines, saved items and their list
@@ -32,21 +32,26 @@ UNION ALL SELECT 'promotions targeting products or categories',
 DELETE FROM public.promotion
  WHERE id IN (SELECT promotion_id FROM public.promotion_target WHERE target_type IN ('product', 'category'));
 
-TRUNCATE public.customer_list_entry,
-         public.customer_saved_item,
-         public.cart_item,
-         public.cart_saved_item,
-         public.stock_movement,
-         public.shop_product_sales_day,
-         public.product_change_media,
-         public.product_change,
-         public.product_gst_change,
-         public.product_attribute_value,
-         public.product_section,
-         public.product_variant,
-         public.product_option_value,
-         public.product_option,
-         public.product_media,
-         public.product;
+-- DELETE, children before parents, not TRUNCATE: TRUNCATE refuses any table another table's foreign key
+-- names (order_item → product_variant) even when that table is empty, and with no orders left nothing
+-- points here any more. A row something still references stops the whole transaction, removing nothing.
+DELETE FROM public.customer_list_entry;
+DELETE FROM public.customer_saved_item;
+DELETE FROM public.cart_item;
+DELETE FROM public.cart_saved_item;
+DELETE FROM public.stock_movement;
+DELETE FROM public.shop_product_sales_day;
+DELETE FROM public.product_change_media;
+DELETE FROM public.product_change;
+DELETE FROM public.product_gst_change;
+DELETE FROM public.product_attribute_value;
+DELETE FROM public.product_section;
+DELETE FROM public.product_variant;
+DELETE FROM public.product_option_value;
+DELETE FROM public.product_option;
+DELETE FROM public.product_media;
+DELETE FROM public.product;
+
+SELECT 'products left' AS what, count(*) FROM public.product;
 
 COMMIT;

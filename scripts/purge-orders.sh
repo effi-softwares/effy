@@ -66,6 +66,8 @@ DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")" || {
 # purged `delivery_proof` row leaves its image under `proof/`.
 read -r -d '' TARGETS <<'LIST' || true
 package_handover|
+package_hold|
+round_sequence_waiver|
 delivery_proof|
 delivery_attempt_failure|
 assignment_exclusion|
@@ -83,6 +85,7 @@ delivery_override|
 points_allocation|debit_entry_id IN (SELECT id FROM public.points_entry WHERE order_id IS NOT NULL OR refund_id IS NOT NULL) OR credit_entry_id IN (SELECT id FROM public.points_entry WHERE order_id IS NOT NULL OR refund_id IS NOT NULL)
 points_entry|order_id IS NOT NULL OR refund_id IS NOT NULL
 refund_line|
+tax_document|
 refund|
 refund_request_item|
 refund_request|
@@ -94,6 +97,9 @@ fulfillment_tag|
 shop_fulfillment|
 receipt_dispatch|
 promo_redemption|
+promotion_use|
+order_promotion|
+order_business_identity|
 order_package_delivery|
 order_delivery_type_change|
 order_courier_collection_change|
