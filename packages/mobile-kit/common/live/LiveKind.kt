@@ -24,7 +24,10 @@ enum class LiveKind(val wire: String) {
     PRICING("pricing"),
 
     /** A promotion or display group changed. Back-office only. */
-    PROMOTIONS("promotions");
+    PROMOTIONS("promotions"),
+
+    /** The category tree, the attribute library or an attachment changed (101). Back-office and every shop. */
+    TAXONOMY("taxonomy");
 
     companion object {
         /** `null` for a kind this build has never heard of (a newer backend). */

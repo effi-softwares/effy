@@ -38,6 +38,8 @@ data class ProductCard(
     val priceVaries: Boolean = false,
     /** The comparison price of [priceAmount], when the platform gave one. */
     val unitPrice: UnitPrice? = null,
+    /** Sold to adults only: labelled 18+ (101). Labelling only — no age check yet. */
+    val ageRestricted: Boolean = false,
 )
 
 data class Banner(
@@ -145,8 +147,14 @@ data class Category(
     val parentKey: String?,
     /** Active products in this category. Drives "N items" and the empty-category case. */
     val productCount: Int,
-    /** Derived from a product in the category — categories store no imagery. Null → a brand tile. */
+    /** Staff's picture, else one of its products'. Null → a brand tile. */
     val imageUrl: String?,
+    /** 1 for a department, down to 5 (101). */
+    val depth: Int = 1,
+    /** No sub-categories: opening it lists products. */
+    val isLeaf: Boolean = false,
+    /** The icon key staff chose (`categoryIcon`); null for none. */
+    val icon: String? = null,
 )
 
 data class Media(val imageUrl: String, val alt: String?)
@@ -160,7 +168,6 @@ data class ProductDetail(
     val card: ProductCard,
     val longDescription: String?,
     val gallery: List<Media>,
-    val attributes: List<AttributeGroup>,
     val categoryPath: List<String>,
     /** The primary category's key — drives the related-products rail. */
     val categoryKey: String,
@@ -191,6 +198,8 @@ data class Variant(
     val available: Boolean,
     /** The size's own picture, or null — the product's gallery stands. */
     val imageUrl: String?,
+    /** What a shopper is told about this size, by section (101): a detail that differs by size is its own. */
+    val details: List<AttributeGroup> = emptyList(),
 )
 
 /** The orderings a result set can be presented in. */
@@ -234,16 +243,22 @@ enum class FacetControl {
     SINGLE_SELECT,
     MULTI_SELECT,
     TOGGLE,
+    /** A number from–to in the facet's unit (101). */
+    RANGE,
     ;
 
     companion object {
         fun fromWire(wire: String): FacetControl = when (wire) {
             "single_select" -> SINGLE_SELECT
             "toggle" -> TOGGLE
+            "range" -> RANGE
             else -> MULTI_SELECT
         }
     }
 }
+
+/** A number facet's smallest and largest value in view, in [unit] (null when it has none). */
+data class FacetRange(val min: String, val max: String, val unit: String?)
 
 /** One selectable value with its count in the current set (count ≥ 1 — zero-count options are omitted). */
 data class FacetOption(val value: String, val label: String, val count: Int)
@@ -254,7 +269,12 @@ data class Facet(
     val label: String,
     val control: FacetControl,
     val options: List<FacetOption>,
+    /** [FacetControl.RANGE] only. */
+    val range: FacetRange? = null,
 )
+
+/** A number filter as chosen, in its facet's unit; either end may be blank (open). */
+data class NumberRange(val min: String, val max: String)
 
 /** Min/max price of the current set, driving the price control's range. */
 data class PriceBounds(val min: String, val max: String)
@@ -279,6 +299,7 @@ interface CatalogRepository {
         attributes: Map<String, List<String>> = emptyMap(),
         minPrice: String? = null,
         maxPrice: String? = null,
+        ranges: Map<String, NumberRange> = emptyMap(),
     ): ProductPage
 
     /** The available facets + per-option counts for a query + applied filters. */
@@ -290,6 +311,7 @@ interface CatalogRepository {
         attributes: Map<String, List<String>> = emptyMap(),
         minPrice: String? = null,
         maxPrice: String? = null,
+        ranges: Map<String, NumberRange> = emptyMap(),
     ): FacetSet
 
     /** One advertised promotion in full — the destination of a banner tap. */

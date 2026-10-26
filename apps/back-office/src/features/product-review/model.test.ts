@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { canDecideReview } from "./access"
-import { marginLabel, previewCustomerPrice, priceRange, toMargin, waitingLabel } from "./model"
+import { attentionLines, marginLabel, previewCustomerPrice, priceRange, toMargin, waitingLabel } from "./model"
 
 describe("previewCustomerPrice", () => {
   it("adds a fixed amount", () => {
@@ -58,5 +58,33 @@ describe("priceRange (098)", () => {
     expect(priceRange(["4.00", "4.0"])).toBe("4.00")
     expect(priceRange(["5.50", "3.00", "4.25"])).toBe("3.00–5.50")
     expect(priceRange([])).toBe("—")
+  })
+})
+
+describe("attention lines (101)", () => {
+  const base = {
+    facts: { storage: "chilled" as const, gstStatus: "taxable" as const, ageRestricted: false },
+    factOverrides: [] as ("storage" | "gstStatus" | "ageRestricted")[],
+    missingRequired: [] as string[],
+    missingRecommended: [] as string[],
+  }
+
+  it("nothing to say for a product that follows its category", () => {
+    expect(attentionLines(base)).toEqual({ blocking: [], notes: [] })
+  })
+
+  it("names overridden facts and empty details; only required ones block", () => {
+    const out = attentionLines({
+      ...base,
+      factOverrides: ["storage", "ageRestricted"],
+      missingRequired: ["Allergens"],
+      missingRecommended: ["Brand", "Organic"],
+    })
+    expect(out.blocking).toEqual(["Required details are empty: Allergens."])
+    expect(out.notes).toEqual([
+      "Storage is chilled, not its category's default.",
+      "Not marked 18+, though its category is.",
+      "Recommended details left empty: Brand, Organic.",
+    ])
   })
 })

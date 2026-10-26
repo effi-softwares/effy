@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.catalog
 
+import com.effyshopping.customer.mobile.features.catalog.domain.NumberRange
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
@@ -51,6 +52,7 @@ private class FakePromoCatalog(private val result: () -> Promotion) : CatalogRep
         attributes: Map<String, List<String>>,
         minPrice: String?,
         maxPrice: String?,
+        ranges: Map<String, NumberRange>,
     ): ProductPage = throw NotImplementedError()
 
     override suspend fun facets(
@@ -61,6 +63,7 @@ private class FakePromoCatalog(private val result: () -> Promotion) : CatalogRep
         attributes: Map<String, List<String>>,
         minPrice: String?,
         maxPrice: String?,
+        ranges: Map<String, NumberRange>,
     ): FacetSet = throw NotImplementedError()
 
     override suspend fun promotion(id: String): Promotion {

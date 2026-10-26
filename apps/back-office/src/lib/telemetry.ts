@@ -23,8 +23,8 @@ type AnalyticsEvent =
   | { name: "shop_user_provisioned"; shopId: string }
   | { name: "shop_user_role_changed"; shopId: string }
   | { name: "shop_user_status_changed"; shopId: string }
-  | { name: "schema_type_created"; productTypeId: string }
-  | { name: "schema_attribute_created"; attributeId: string }
+  | { name: "taxonomy_category_created"; categoryId: string; depth: number }
+  | { name: "taxonomy_attribute_created"; attributeId: string }
   | { name: "driver_created"; driverId: string }
   | { name: "driver_status_changed"; driverId: string; status: string }
   | { name: "driver_exception_resolved"; kind: string }

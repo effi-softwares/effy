@@ -83,15 +83,7 @@ locals {
       statistic   = "Sum"
       period      = 3600
       threshold   = 1
-      description = "096 - a customer asked for a tax invoice and was told it is not available yet, because Effy's tax details are not set. Set the legal name, ABN and fee treatment in back-office > Settings > Tax, classify every product's GST status, then turn invoices on. (FR-084: nothing is issued until then; a placeholder is never printed.)"
-    }
-    unclassified-product-refused = {
-      metric      = "UnclassifiedProductRefused"
-      dimensions  = {}
-      statistic   = "Sum"
-      period      = 900
-      threshold   = 1
-      description = "096 - a checkout was refused because a product in the cart has no GST status while tax invoices are on. The customer was told only that it is unavailable. Set its status in back-office > Product review > GST missing."
+      description = "096 - a customer asked for a tax invoice and was told it is not available yet, because Effy's tax details are not set. Set the legal name, ABN and fee treatment in back-office > Settings > Tax, then turn invoices on (every product has a GST status since 101). (FR-084: nothing is issued until then; a placeholder is never printed.)"
     }
     webhook-failing = {
       metric      = "WebhookFailures"

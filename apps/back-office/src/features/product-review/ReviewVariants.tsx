@@ -13,6 +13,8 @@ const CHANGE_WORD: Record<ReviewVariantDTO["change"], { word: string; tone: Stat
 
 export function ReviewVariants({ variants, entry }: { variants: readonly ReviewVariantDTO[]; entry: MarginEntry }) {
   const named = variants.some((v) => v.label !== null)
+  // Attributes marked "may differ by size" (101): each size's own values, sizes being removed left out.
+  const perSize = variants.filter((v) => v.change !== "removed" && v.details.length > 0)
   return (
     <Panel
       title="Sizes and prices"
@@ -77,6 +79,24 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
           </tbody>
         </table>
       </div>
+      {perSize.length > 0 ? (
+        <div className="space-y-3 border-t border-border px-5 py-4">
+          <h3 className="ef-section-title">Details that differ by size</h3>
+          {perSize.map((v) => (
+            <div key={v.id} className="space-y-1">
+              <p className="text-sm font-medium">{v.label ?? "This size"}</p>
+              <dl className="ef-dl ef-dl--tight">
+                {v.details.map((d) => (
+                  <div key={d.label} className="ef-dl__row">
+                    <dt>{d.label}</dt>
+                    <dd className="whitespace-pre-line wrap-break-word">{d.value ?? "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </Panel>
   )
 }

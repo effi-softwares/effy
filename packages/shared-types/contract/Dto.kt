@@ -1,6 +1,6 @@
 // GENERATED FROM packages/shared-types/src/customer.ts (+ problem.ts) — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types contract:gen
-// the wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded.
+// The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded.
 // NOTE: PasswordWriteDTO is flattened by design (research D15) — the sealed domain type lives in the app.
 
 package com.effyshopping.customer.mobile.contract
@@ -251,11 +251,11 @@ data class CustomerDTO (
  *
  * The platform's conclusion about reaching an address, from per-message outcomes (a
  * successful `SendEmail` proves nothing):
- * - `reachable`      the last outcome was a delivery, or nothing is known.
- * - `soft_failing`   a transient failure; informational, gates nothing.
- * - `undeliverable`  a permanent failure; a lockout for the passwordless audiences.
- * - `complained`     marked as spam; surfaced, but never bars sign-in (it usually means
- * someone typed                    a stranger's address).
+ * - `reachable` the last outcome was a delivery, or nothing is known.
+ * - `soft_failing` a transient failure; informational, gates nothing.
+ * - `undeliverable` a permanent failure; a lockout for the passwordless audiences.
+ * - `complained` marked as spam; surfaced, but never bars sign-in (it usually means someone
+ * typed  a stranger's address).
  */
 @Serializable
 enum class EmailDeliveryState(val value: String) {

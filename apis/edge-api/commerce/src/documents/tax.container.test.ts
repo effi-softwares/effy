@@ -50,7 +50,7 @@ d("096 US8 — the customer's tax documents", () => {
   it("owner only; not available while disabled; the business identity is set before issue; a PDF by number", async () => {
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('CTX', 'Shop') RETURNING id`);
     const product = await one<{ id: string }>(
-      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Soap', 'A thing', 'test', 'active', now(), 'taxable') RETURNING *),
+      `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, age_restricted, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', false, 'Soap', 'A thing', 'test', 'active', now(), 'taxable') RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(1100, 1100)::numeric, (1100)::numeric FROM p RETURNING id)
 SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email, given_name) VALUES ('me', 'me@effyshopping.com', 'Ada') RETURNING id`);

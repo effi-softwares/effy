@@ -5,7 +5,7 @@
 // the only builder, and it refuses any key outside the set. Those are read through `presignRead`.
 import { logger } from "./logger";
 
-export const PUBLIC_MEDIA_PREFIXES = ["products", "promotions", "renditions"] as const;
+export const PUBLIC_MEDIA_PREFIXES = ["products", "promotions", "categories", "renditions"] as const;
 
 /** Where the worker writes smaller copies. Public; never notified. */
 export const RENDITION_PREFIX = "renditions";

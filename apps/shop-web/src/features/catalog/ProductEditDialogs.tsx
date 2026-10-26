@@ -1,29 +1,31 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { Input, Label, Textarea } from "@effy/design-system/ui"
 import {
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
-} from "@effy/design-system/ui"
-import { GST_STATUS_WORDS, type GstStatus } from "@effy/shared-types"
+  formRows,
+  recategorise,
+  validateDetails,
+  type DetailInput,
+  type DetailVariant,
+  type FactKey,
+  type ProductFacts,
+  type UpdateProductRequest,
+} from "@effy/shared-types"
+import { ErrorState } from "@effy/web-kit/console"
 
-import { AttributeField } from "./AttributeField"
+import { CategoryPicker } from "./create/CategoryPicker"
+import { RecategoriseDialog } from "./create/RecategoriseDialog"
+import { DetailField } from "./DetailField"
+import { FactsSection } from "./FactsSection"
 import { FocusedEditDialog, FocusedEditForm } from "./FocusedEditDialog"
-import { orderCategories } from "./categories"
-import type { AttributeDraftValue } from "./draft"
-import { buildAttributeUpdate, buildProductUpdate, diffScalarFields, seedAttributeDraft } from "./focusedEdit"
+import { buildProductUpdate, diffScalarFields } from "./focusedEdit"
+import { pathText, type ProductDetail } from "./model"
+import { categoryFormQuery, taxonomyQuery } from "./queries"
 import { isApproved } from "./review"
-import type { ProductDetail, ProductType } from "./model"
-import { catalogSchemaQuery } from "./queries"
 import { useFocusedEdit } from "./useFocusedEdit"
-import { attributeErrors, attributesValid } from "./validation"
+import { sendableDetails, setDetail } from "./validation"
 import { VariantEditor } from "./VariantEditor"
 import { draftFromDetail, toInputs, variantSetErrors, type VariantSetDraft } from "./variants"
 import { track } from "@/lib/telemetry"
@@ -32,11 +34,20 @@ interface EditProps {
   detail: ProductDetail
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Details a save removed (a new category, one size left): the screen says which. */
+  onDropped?: (names: string[]) => void
 }
 
 interface FormProps {
   detail: ProductDetail
   onClose: () => void
+  onDropped?: (names: string[]) => void
+}
+
+/** After a save, report any details the server dropped, then close. */
+const finish = (onClose: () => void, onDropped?: (names: string[]) => void) => (saved: ProductDetail) => {
+  if (saved.droppedDetails && saved.droppedDetails.length > 0) onDropped?.(saved.droppedDetails)
+  onClose()
 }
 
 export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
@@ -47,26 +58,39 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   )
 }
 
-export function SizesEditDialog({ detail, open, onOpenChange }: EditProps) {
+export function SizesEditDialog({ detail, open, onOpenChange, onDropped }: EditProps) {
   return (
     <FocusedEditDialog open={open} onOpenChange={onOpenChange} size="full">
-      <SizesForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} />
+      <SizesForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} onDropped={onDropped} />
     </FocusedEditDialog>
   )
 }
 
-export function CategorizationEditDialog({ detail, open, onOpenChange }: EditProps) {
-  return (
-    <FocusedEditDialog open={open} onOpenChange={onOpenChange}>
-      <CategorizationForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} />
-    </FocusedEditDialog>
-  )
-}
-
-export function AttributesEditDialog({ detail, open, onOpenChange }: EditProps) {
+export function CategoryEditDialog({ detail, open, onOpenChange, onDropped }: EditProps) {
   return (
     <FocusedEditDialog open={open} onOpenChange={onOpenChange} size="wide">
-      <AttributesForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} />
+      <CategoryForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} onDropped={onDropped} />
+    </FocusedEditDialog>
+  )
+}
+
+export function DetailsEditDialog({ detail, open, onOpenChange, section }: EditProps & { section: string | null }) {
+  return (
+    <FocusedEditDialog open={open} onOpenChange={onOpenChange} size="wide">
+      <DetailsForm
+        key={`${detail.updatedAt}:${section}`}
+        detail={detail}
+        section={section}
+        onClose={() => onOpenChange(false)}
+      />
+    </FocusedEditDialog>
+  )
+}
+
+export function FactsEditDialog({ detail, open, onOpenChange }: EditProps) {
+  return (
+    <FocusedEditDialog open={open} onOpenChange={onOpenChange} size="wide">
+      <FactsForm key={detail.updatedAt} detail={detail} onClose={() => onOpenChange(false)} />
     </FocusedEditDialog>
   )
 }
@@ -78,7 +102,6 @@ function BasicsForm({ detail, onClose }: FormProps) {
   const [brand, setBrand] = useState(detail.brand ?? "")
   const [shortDescription, setShort] = useState(detail.shortDescription)
   const [longDescription, setLong] = useState(detail.longDescription ?? "")
-  const [gstStatus, setGst] = useState<"" | GstStatus>(detail.gstStatus ?? "")
 
   const canSave = name.trim().length > 0 && shortDescription.trim().length > 0
 
@@ -88,7 +111,6 @@ function BasicsForm({ detail, onClose }: FormProps) {
       brand: brand.trim() || null,
       shortDescription: shortDescription.trim(),
       longDescription: longDescription.trim() || null,
-      gstStatus: gstStatus || undefined,
     })
     void edit.save(buildProductUpdate(detail.updatedAt, changed), onClose)
   }
@@ -99,7 +121,7 @@ function BasicsForm({ detail, onClose }: FormProps) {
       title="Edit basics"
       description={reviewNote(
         detail,
-        "Name, brand, GST and descriptions. Prices, codes and weights are each size's — under Sizes and prices.",
+        "Name, brand and descriptions. Prices, codes and weights are each size's — under Sizes and prices.",
       )}
       canSave={canSave}
       saving={edit.saving}
@@ -117,17 +139,6 @@ function BasicsForm({ detail, onClose }: FormProps) {
         <Field id="e-brand" label="Brand">
           <Input id="e-brand" value={brand} onChange={(e) => setBrand(e.target.value)} />
         </Field>
-        <Field id="e-gst" label="GST">
-          <Select value={gstStatus} onValueChange={(v) => setGst(v as GstStatus)}>
-            <SelectTrigger id="e-gst">
-              <SelectValue placeholder="Not set — choose" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gst_free">{GST_STATUS_WORDS.gst_free}</SelectItem>
-              <SelectItem value="taxable">{GST_STATUS_WORDS.taxable}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
       </div>
       <Field id="e-short" label="Short description" required>
         <Textarea id="e-short" value={shortDescription} onChange={(e) => setShort(e.target.value)} />
@@ -139,8 +150,9 @@ function BasicsForm({ detail, onClose }: FormProps) {
   )
 }
 
-function SizesForm({ detail, onClose }: FormProps) {
+function SizesForm({ detail, onClose, onDropped }: FormProps) {
   const edit = useFocusedEdit(detail.id)
+  const form = useQuery(categoryFormQuery(detail.primaryCategoryId))
   const [set, setSet] = useState<VariantSetDraft>(() => draftFromDetail(detail))
   const [touched, setTouched] = useState(false)
 
@@ -158,9 +170,9 @@ function SizesForm({ detail, onClose }: FormProps) {
         variants: inputs.variants,
         unitBasis: inputs.unitBasis,
       },
-      () => {
+      (saved) => {
         track({ name: "product_variants_saved", productId: detail.id, variantCount: inputs.variants.length })
-        onClose()
+        finish(onClose, onDropped)(saved)
       },
     )
   }
@@ -173,142 +185,235 @@ function SizesForm({ detail, onClose }: FormProps) {
         detail,
         "What you are paid for each size, and its codes, weight and pack size. Turning a size off is immediate — use the Off sale action on the size's row.",
       )}
-      canSave={!touched || valid}
+      canSave={(!touched || valid) && !!form.data}
       saving={edit.saving}
       error={edit.error}
       stale={edit.stale}
       onReload={edit.reload}
       onSave={onSave}
     >
-      <VariantEditor
-        value={set}
-        onChange={setSet}
-        errors={errors}
-        showErrors={touched}
-        media={(detail.pendingChange?.media ?? detail.media).map((m) => ({
-          storageKey: m.storageKey,
-          url: m.url,
-          altText: m.altText,
-        }))}
-        disabled={edit.saving}
-      />
-    </FocusedEditForm>
-  )
-}
-
-function CategorizationForm({ detail, onClose }: FormProps) {
-  const edit = useFocusedEdit(detail.id)
-  const schema = useQuery(catalogSchemaQuery)
-
-  const [productTypeId, setTypeId] = useState(detail.productTypeId)
-  const [primaryCategoryId, setCategoryId] = useState(detail.primaryCategoryId)
-
-  const types = schema.data?.productTypes ?? []
-  const orderedCategories = useMemo(() => orderCategories(schema.data?.categories ?? []), [schema.data])
-  const canSave = !!productTypeId && !!primaryCategoryId
-
-  function onSave() {
-    const changed = diffScalarFields(detail, { productTypeId, primaryCategoryId })
-    void edit.save(buildProductUpdate(detail.updatedAt, changed), onClose)
-  }
-
-  return (
-    <FocusedEditForm
-      onCancel={onClose}
-      title="Edit categorization"
-      description={reviewNote(detail, "Changing the type may change which attributes apply.")}
-      canSave={canSave}
-      saving={edit.saving}
-      error={edit.error}
-      stale={edit.stale}
-      onReload={edit.reload}
-      onSave={onSave}
-    >
-      <Field id="e-type" label="Product type" required>
-        <Select value={productTypeId} onValueChange={setTypeId}>
-          <SelectTrigger id="e-type">
-            <SelectValue placeholder="Choose a type…" />
-          </SelectTrigger>
-          <SelectContent>
-            {types.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field id="e-category" label="Category" required>
-        <Select value={primaryCategoryId} onValueChange={setCategoryId}>
-          <SelectTrigger id="e-category">
-            <SelectValue placeholder="Choose a category…" />
-          </SelectTrigger>
-          <SelectContent>
-            {orderedCategories.map(({ category, depth }) => (
-              <SelectItem key={category.id} value={category.id}>
-                {`${" ".repeat(depth * 2)}${category.name}`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-    </FocusedEditForm>
-  )
-}
-
-function AttributesForm({ detail, onClose }: FormProps) {
-  const edit = useFocusedEdit(detail.id)
-  const schema = useQuery(catalogSchemaQuery)
-
-  const type: ProductType | undefined = schema.data?.productTypes.find((t) => t.id === detail.productTypeId)
-
-  const [values, setValues] = useState<Record<string, AttributeDraftValue>>(() => seedAttributeDraft(detail))
-
-  const errors = type ? attributeErrors(type, values) : {}
-  const canSave = !!type && attributesValid(type, values)
-
-  function onSave() {
-    if (!type) return
-    void edit.save(buildAttributeUpdate(detail.updatedAt, type, values), onClose)
-  }
-
-  return (
-    <FocusedEditForm
-      onCancel={onClose}
-      title="Edit attributes"
-      description={reviewNote(detail, "The details specific to this product's type.")}
-      canSave={canSave}
-      saving={edit.saving}
-      error={edit.error}
-      stale={edit.stale}
-      onReload={edit.reload}
-      onSave={onSave}
-    >
-      {!type ? (
-        <p className="text-sm text-muted-foreground">Loading attributes…</p>
-      ) : type.attributes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">This product type has no extra attributes.</p>
+      {form.isError ? (
+        <ErrorState error={form.error} onRetry={() => void form.refetch()} />
       ) : (
-        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-          {[...type.attributes]
-            .sort((a, b) => a.displayOrder - b.displayOrder)
-            .map((attr) => (
-              <div
-                key={attr.attributeId}
-                className={
-                  attr.dataType === "long_text" || attr.dataType === "multi_select" ? "sm:col-span-2" : undefined
-                }
-              >
-                <AttributeField
-                  attr={attr}
-                  value={values[attr.attributeId]}
-                  error={errors[attr.attributeId]}
-                  onChange={(next) => setValues((v) => ({ ...v, [attr.attributeId]: next }))}
+        <VariantEditor
+          value={set}
+          onChange={setSet}
+          rows={form.data ? formRows(form.data) : []}
+          errors={errors}
+          showErrors={touched}
+          media={(detail.pendingChange?.media ?? detail.media).map((m) => ({
+            storageKey: m.storageKey,
+            url: m.url,
+            altText: m.altText,
+          }))}
+          disabled={edit.saving}
+        />
+      )}
+    </FocusedEditForm>
+  )
+}
+
+/** Facts the shop chose itself: those that differ from the current leaf's defaults. They survive a move. */
+function touchedFacts(detail: ProductDetail): FactKey[] {
+  const keys: FactKey[] = ["storage", "gstStatus", "ageRestricted"]
+  return keys.filter((k) => detail.factDefaults[k] !== null && detail[k] !== detail.factDefaults[k])
+}
+
+function CategoryForm({ detail, onClose, onDropped }: FormProps) {
+  const edit = useFocusedEdit(detail.id)
+  const queryClient = useQueryClient()
+  const taxonomy = useQuery(taxonomyQuery)
+  const current = useQuery(categoryFormQuery(detail.primaryCategoryId))
+  const [leafId, setLeafId] = useState(detail.primaryCategoryId)
+  const [confirm, setConfirm] = useState<{ path: string; dropped: string[] } | null>(null)
+  const [checkError, setCheckError] = useState<string | null>(null)
+
+  function save() {
+    const body: UpdateProductRequest = {
+      expectedUpdatedAt: detail.updatedAt,
+      primaryCategoryId: leafId,
+      factsTouched: touchedFacts(detail),
+    }
+    void edit.save(body, finish(onClose, onDropped))
+  }
+
+  async function onSave() {
+    if (leafId === detail.primaryCategoryId) return onClose()
+    setCheckError(null)
+    try {
+      const next = await queryClient.fetchQuery(categoryFormQuery(leafId))
+      const facts: ProductFacts = {
+        storage: detail.storage,
+        gstStatus: detail.gstStatus,
+        ageRestricted: detail.ageRestricted,
+      }
+      const moved = recategorise(
+        { details: detail.details, facts, factsTouched: touchedFacts(detail) },
+        current.data ? formRows(current.data) : [],
+        formRows(next),
+        next.defaults,
+      )
+      if (moved.dropped.length > 0) setConfirm({ path: pathText(next.path), dropped: moved.dropped })
+      else save()
+    } catch {
+      setCheckError("Couldn't load that category's form. Try again.")
+    }
+  }
+
+  return (
+    <FocusedEditForm
+      onCancel={onClose}
+      title="Change category"
+      description={reviewNote(detail, "The category decides the details asked for and where shoppers find it.")}
+      canSave={!!leafId && !!current.data}
+      saving={edit.saving}
+      error={edit.error ?? checkError}
+      stale={edit.stale}
+      onReload={edit.reload}
+      onSave={() => void onSave()}
+    >
+      {taxonomy.isError ? (
+        <ErrorState error={taxonomy.error} onRetry={() => void taxonomy.refetch()} />
+      ) : taxonomy.data ? (
+        <CategoryPicker
+          categories={taxonomy.data.categories}
+          recentLeafIds={taxonomy.data.recentLeafIds}
+          productName={detail.name}
+          value={leafId}
+          onChange={setLeafId}
+          disabled={edit.saving}
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">Loading categories…</p>
+      )}
+      {confirm ? (
+        <RecategoriseDialog
+          toPath={confirm.path}
+          dropped={confirm.dropped}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null)
+            save()
+          }}
+        />
+      ) : null}
+    </FocusedEditForm>
+  )
+}
+
+/** The product's sizes as the details rules see them. */
+export function detailVariants(detail: ProductDetail): DetailVariant[] {
+  return detail.variants.filter((v) => v.state !== "removed").map((v) => ({ id: v.id, label: v.label ?? "This size" }))
+}
+
+const optionAttributeIdsOf = (detail: ProductDetail) =>
+  detail.options.flatMap((o) => (o.attributeId ? [o.attributeId] : []))
+
+function DetailsForm({ detail, section, onClose }: FormProps & { section: string | null }) {
+  const edit = useFocusedEdit(detail.id)
+  const form = useQuery(categoryFormQuery(detail.primaryCategoryId))
+  const [details, setDetails] = useState<DetailInput[]>(() => detail.details)
+  const [touched, setTouched] = useState(false)
+  const variants = detailVariants(detail)
+  const optionIds = optionAttributeIdsOf(detail)
+  const rows = form.data ? formRows(form.data) : []
+  const errorList = validateDetails(rows, sendableDetails(details), variants, { optionAttributeIds: optionIds })
+  const errors = Object.fromEntries(errorList.map((e) => [e.field, e.message]))
+  const sections = (form.data?.sections ?? [])
+    .filter((s) => section === null || s.title === section)
+    .map((s) => ({ ...s, rows: s.rows.filter((r) => !optionIds.includes(r.attributeId)) }))
+    .filter((s) => s.rows.length > 0)
+
+  function onSave() {
+    setTouched(true)
+    if (errorList.length > 0) return
+    void edit.save({ expectedUpdatedAt: detail.updatedAt, details: sendableDetails(details) }, onClose)
+  }
+
+  return (
+    <FocusedEditForm
+      onCancel={onClose}
+      title={section ? `Edit ${section.toLowerCase()}` : "Edit details"}
+      description={reviewNote(detail, `What ${pathText(detail.categoryPath)} asks for. Required ones are marked.`)}
+      canSave={!!form.data && (!touched || errorList.length === 0)}
+      saving={edit.saving}
+      error={edit.error}
+      stale={edit.stale}
+      onReload={edit.reload}
+      onSave={onSave}
+    >
+      {form.isError ? (
+        <ErrorState error={form.error} onRetry={() => void form.refetch()} />
+      ) : !form.data ? (
+        <p className="text-sm text-muted-foreground">Loading the form…</p>
+      ) : (
+        <div className="grid gap-6">
+          {sections.map((s) => (
+            <section key={s.title} className="grid gap-5" aria-label={s.title}>
+              {section === null ? <h3 className="text-sm font-semibold">{s.title}</h3> : null}
+              {s.rows.map((row) => (
+                <DetailField
+                  key={row.attributeId}
+                  row={row}
+                  entry={details.find((d) => d.attributeId === row.attributeId)}
+                  variants={variants}
+                  errors={touched ? errors : {}}
+                  disabled={edit.saving}
+                  onChange={(next) => setDetails((d) => setDetail(d, next, row.attributeId))}
                 />
-              </div>
-            ))}
+              ))}
+            </section>
+          ))}
         </div>
       )}
+    </FocusedEditForm>
+  )
+}
+
+function FactsForm({ detail, onClose }: FormProps) {
+  const edit = useFocusedEdit(detail.id)
+  const [facts, setFacts] = useState<ProductFacts>({
+    storage: detail.storage,
+    gstStatus: detail.gstStatus,
+    ageRestricted: detail.ageRestricted,
+  })
+  const [touched, setTouched] = useState<FactKey[]>(() => touchedFacts(detail))
+
+  function onSave() {
+    const body: UpdateProductRequest = { expectedUpdatedAt: detail.updatedAt }
+    if (facts.storage !== null && facts.storage !== detail.storage) body.storage = facts.storage
+    if (facts.gstStatus !== null && facts.gstStatus !== detail.gstStatus) body.gstStatus = facts.gstStatus
+    if (facts.ageRestricted !== null && facts.ageRestricted !== detail.ageRestricted)
+      body.ageRestricted = facts.ageRestricted
+    if (Object.keys(body).length === 1) return onClose()
+    void edit.save(body, onClose)
+  }
+
+  return (
+    <FocusedEditForm
+      onCancel={onClose}
+      title="Edit storage, GST and age"
+      description={reviewNote(
+        detail,
+        "Each starts from the category's default. A change is shown to Effy's reviewers.",
+      )}
+      canSave
+      saving={edit.saving}
+      error={edit.error}
+      stale={edit.stale}
+      onReload={edit.reload}
+      onSave={onSave}
+    >
+      <FactsSection
+        facts={facts}
+        defaults={detail.factDefaults}
+        touched={touched}
+        onChange={(f, t) => {
+          setFacts(f)
+          setTouched(t)
+        }}
+        disabled={edit.saving}
+      />
     </FocusedEditForm>
   )
 }

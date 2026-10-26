@@ -1,0 +1,357 @@
+{
+  "_note": "101 (R11, SC-007): an everyday product name and the leaf the picker must suggest FIRST. Leaves are the seeded taxonomy (db/migrations/*_catalogue_taxonomy.sql), by key. Covers all 25 departments.",
+  "cases": [
+    {
+      "name": "Pink Lady Apples 1kg",
+      "leaf": "apples-and-pears"
+    },
+    {
+      "name": "Cavendish Bananas",
+      "leaf": "bananas"
+    },
+    {
+      "name": "Strawberries 250g Punnet",
+      "leaf": "berries"
+    },
+    {
+      "name": "Navel Oranges",
+      "leaf": "citrus"
+    },
+    {
+      "name": "Broccoli",
+      "leaf": "broccoli-and-cauliflower"
+    },
+    {
+      "name": "Brown Onions 1kg",
+      "leaf": "potatoes-onions-and-garlic"
+    },
+    {
+      "name": "Washed Potatoes 2kg",
+      "leaf": "potatoes-onions-and-garlic"
+    },
+    {
+      "name": "Cherry Tomatoes 250g",
+      "leaf": "tomatoes"
+    },
+    {
+      "name": "Baby Spinach 120g",
+      "leaf": "leafy-greens"
+    },
+    {
+      "name": "Beef Mince 500g",
+      "leaf": "beef-mince"
+    },
+    {
+      "name": "Chicken Breast Fillets",
+      "leaf": "chicken-breast"
+    },
+    {
+      "name": "Lamb Loin Chops",
+      "leaf": "lamb-chops-and-cutlets"
+    },
+    {
+      "name": "Atlantic Salmon Fillets",
+      "leaf": "fish-fillets"
+    },
+    {
+      "name": "Raw Prawns",
+      "leaf": "prawns"
+    },
+    {
+      "name": "Full Cream Milk 2L",
+      "leaf": "full-cream-milk"
+    },
+    {
+      "name": "Greek Yoghurt 1kg",
+      "leaf": "greek-and-natural-yoghurt"
+    },
+    {
+      "name": "Tasty Cheddar Cheese Block",
+      "leaf": "block-cheese"
+    },
+    {
+      "name": "Salted Butter 250g",
+      "leaf": "butter"
+    },
+    {
+      "name": "Free Range Eggs 12 Pack",
+      "leaf": "free-range-eggs"
+    },
+    {
+      "name": "Sourdough Loaf",
+      "leaf": "sourdough"
+    },
+    {
+      "name": "Wholemeal Bread",
+      "leaf": "wholemeal-and-multigrain"
+    },
+    {
+      "name": "Croissants 4 Pack",
+      "leaf": "pastries-and-croissants"
+    },
+    {
+      "name": "Basmati Rice 5kg",
+      "leaf": "rice"
+    },
+    {
+      "name": "Spaghetti Pasta 500g",
+      "leaf": "pasta"
+    },
+    {
+      "name": "Extra Virgin Olive Oil 1L",
+      "leaf": "olive-oil"
+    },
+    {
+      "name": "Tomato Pasta Sauce",
+      "leaf": "pasta-sauce"
+    },
+    {
+      "name": "Rolled Oats 1kg",
+      "leaf": "oats-and-porridge"
+    },
+    {
+      "name": "Peanut Butter Smooth",
+      "leaf": "peanut-butter-and-nut-spreads"
+    },
+    {
+      "name": "Strawberry Jam",
+      "leaf": "jam-and-marmalade"
+    },
+    {
+      "name": "Plain Flour 1kg",
+      "leaf": "flour"
+    },
+    {
+      "name": "White Sugar 2kg",
+      "leaf": "sugar-and-sweeteners"
+    },
+    {
+      "name": "Baked Beans Can",
+      "leaf": "canned-beans-and-legumes"
+    },
+    {
+      "name": "Frozen Peas 1kg",
+      "leaf": "frozen-vegetables"
+    },
+    {
+      "name": "Vanilla Ice Cream Tub 2L",
+      "leaf": "ice-cream-tubs"
+    },
+    {
+      "name": "Frozen Pizza Margherita",
+      "leaf": "frozen-pizza"
+    },
+    {
+      "name": "Potato Chips Salt and Vinegar",
+      "leaf": "potato-chips"
+    },
+    {
+      "name": "Milk Chocolate Block 200g",
+      "leaf": "chocolate-blocks"
+    },
+    {
+      "name": "Gummy Bears",
+      "leaf": "lollies"
+    },
+    {
+      "name": "Sparkling Mineral Water 1.25L",
+      "leaf": "sparkling-water"
+    },
+    {
+      "name": "Cola Soft Drink 24 Pack",
+      "leaf": "cola"
+    },
+    {
+      "name": "Orange Juice 2L",
+      "leaf": "fruit-juice"
+    },
+    {
+      "name": "Ground Coffee 1kg",
+      "leaf": "ground-coffee"
+    },
+    {
+      "name": "English Breakfast Tea Bags",
+      "leaf": "black-tea"
+    },
+    {
+      "name": "Shiraz Red Wine 750ml",
+      "leaf": "red-wine"
+    },
+    {
+      "name": "Vodka 700ml",
+      "leaf": "vodka"
+    },
+    {
+      "name": "Paracetamol Tablets 20 Pack",
+      "leaf": "pain-relief"
+    },
+    {
+      "name": "Multivitamin Tablets",
+      "leaf": "multivitamins"
+    },
+    {
+      "name": "Shampoo 400ml",
+      "leaf": "shampoo"
+    },
+    {
+      "name": "Toothpaste",
+      "leaf": "toothpaste"
+    },
+    {
+      "name": "Deodorant Spray",
+      "leaf": "deodorant"
+    },
+    {
+      "name": "Sunscreen SPF50",
+      "leaf": "sun-care"
+    },
+    {
+      "name": "Nappies Size 4",
+      "leaf": "nappies"
+    },
+    {
+      "name": "Baby Wipes",
+      "leaf": "baby-wipes"
+    },
+    {
+      "name": "Infant Formula 900g",
+      "leaf": "infant-formula"
+    },
+    {
+      "name": "Dry Dog Food 10kg",
+      "leaf": "dry-dog-food"
+    },
+    {
+      "name": "Cat Litter",
+      "leaf": "cat-litter"
+    },
+    {
+      "name": "Laundry Liquid 2L",
+      "leaf": "laundry-liquid"
+    },
+    {
+      "name": "Dishwashing Liquid",
+      "leaf": "dishwashing-liquid"
+    },
+    {
+      "name": "Toilet Paper 24 Rolls",
+      "leaf": "toilet-paper"
+    },
+    {
+      "name": "Paper Towels",
+      "leaf": "paper-towels"
+    },
+    {
+      "name": "Garbage Bags",
+      "leaf": "bin-liners"
+    },
+    {
+      "name": "Non-stick Frying Pan 28cm",
+      "leaf": "frying-pans"
+    },
+    {
+      "name": "Bath Towel",
+      "leaf": "towels"
+    },
+    {
+      "name": "USB-C Charger 20W",
+      "leaf": "chargers-and-cables"
+    },
+    {
+      "name": "Wireless Earbuds",
+      "leaf": "headphones-and-earbuds"
+    },
+    {
+      "name": "AA Batteries 10 Pack",
+      "leaf": "batteries"
+    },
+    {
+      "name": "LED Light Bulb",
+      "leaf": "light-globes"
+    },
+    {
+      "name": "Lego Building Set",
+      "leaf": "building-and-construction"
+    },
+    {
+      "name": "Jigsaw Puzzle 1000 Pieces",
+      "leaf": "jigsaw-puzzles"
+    },
+    {
+      "name": "Men's Cotton T-Shirt",
+      "leaf": "t-shirts-and-polos"
+    },
+    {
+      "name": "Women's Socks 3 Pack",
+      "leaf": "womens-underwear-and-socks"
+    },
+    {
+      "name": "Potting Mix 25L",
+      "leaf": "soil-and-potting-mix"
+    },
+    {
+      "name": "Garden Hose 20m",
+      "leaf": "hoses-and-watering"
+    },
+    {
+      "name": "Cordless Drill 18V",
+      "leaf": "drills-and-drivers"
+    },
+    {
+      "name": "Screwdriver Set",
+      "leaf": "screwdrivers-and-spanners"
+    },
+    {
+      "name": "A4 Copy Paper 500 Sheets",
+      "leaf": "copy-paper"
+    },
+    {
+      "name": "Ballpoint Pens 10 Pack",
+      "leaf": "pens"
+    },
+    {
+      "name": "Yoga Mat",
+      "leaf": "yoga-and-pilates"
+    },
+    {
+      "name": "Dumbbells 5kg",
+      "leaf": "weights-and-dumbbells"
+    },
+    {
+      "name": "Engine Oil 5L",
+      "leaf": "engine-oil"
+    },
+    {
+      "name": "Car Wash Shampoo",
+      "leaf": "car-wash-and-wax"
+    },
+    {
+      "name": "Hummus Dip",
+      "leaf": "dips-and-pate"
+    },
+    {
+      "name": "Birthday Card",
+      "leaf": "greeting-cards"
+    },
+    {
+      "name": "Chicken Liver Pâté",
+      "leaf": "dips-and-pate"
+    },
+    {
+      "name": "Party Balloons 25 Pack",
+      "leaf": "balloons"
+    },
+    {
+      "name": "Paper Plates 20 Pack",
+      "leaf": "party-plates-cups-and-napkins"
+    },
+    {
+      "name": "Birthday Candles",
+      "leaf": "candles-and-cake-toppers"
+    },
+    {
+      "name": "Fresh Sushi Pack",
+      "leaf": "sushi"
+    }
+  ]
+}

@@ -1,9 +1,13 @@
 import {
+  PACK_SIZE_OPTION_NAME,
   optionCombinations,
+  packLabel,
   packUnitCompatible,
   unitPrice,
   validateVariantSet,
   variantLabel,
+  type CategoryFormRow,
+  type DetailVariant,
   type OptionInputDTO,
   type OptionValueIds,
   type PackUnit,
@@ -29,9 +33,17 @@ export interface VariantRowDraft {
   mediaStorageKey: string | null
 }
 
+export interface PackSizeDraft {
+  quantity: string
+  unit: "" | PackUnit
+}
+
 export interface VariantSetDraft {
   unitBasis: "" | UnitBasis
+  /** Pack size, or a variant-option attribute of the leaf (101); values from the attribute's list. */
   options: OptionInputDTO[]
+  /** Each Pack size value's size, by value id: every variant naming it gets this pack size. */
+  packs: Record<string, PackSizeDraft>
   variants: VariantRowDraft[]
 }
 
@@ -57,7 +69,57 @@ export function emptyRow(position: number, optionValueIds: OptionValueIds = [nul
 }
 
 export function emptyVariantSet(): VariantSetDraft {
-  return { unitBasis: "", options: [], variants: [emptyRow(0)] }
+  return { unitBasis: "", options: [], packs: {}, variants: [emptyRow(0)] }
+}
+
+export interface LabelledOption {
+  id: string
+  position: number
+  kind: OptionInputDTO["kind"]
+  attributeId: string | null
+  name: string
+  values: { id: string; value: string; position: number; allowedValueId: string | null }[]
+}
+
+/** The options with names and value labels: an attribute's from the leaf's form, a pack size's from its size. */
+export function labelledOptions(
+  set: Pick<VariantSetDraft, "options" | "packs">,
+  rows: readonly CategoryFormRow[],
+): LabelledOption[] {
+  const byAttr = new Map(rows.map((r) => [r.attributeId, r]))
+  return [...set.options]
+    .sort((a, b) => a.position - b.position)
+    .map((o) => {
+      const row = o.attributeId ? byAttr.get(o.attributeId) : undefined
+      const label = (v: OptionInputDTO["values"][number]) => {
+        if (o.kind === "pack_size") {
+          const p = set.packs[v.id]
+          return (p && p.unit !== "" && packLabel(p.quantity, p.unit)) || "Pack size not set"
+        }
+        return row?.values.find((x) => x.id === v.allowedValueId)?.label ?? "A value no longer offered"
+      }
+      return {
+        id: o.id,
+        position: o.position,
+        kind: o.kind,
+        attributeId: o.attributeId ?? null,
+        name: o.kind === "pack_size" ? PACK_SIZE_OPTION_NAME : (row?.name ?? "Option"),
+        values: [...o.values]
+          .sort((a, b) => a.position - b.position)
+          .map((v) => ({ ...v, value: label(v), allowedValueId: v.allowedValueId ?? null })),
+      }
+    })
+}
+
+/** The leaf's attributes a shop may build variants from, beside Pack size. */
+export function optionAttributes(rows: readonly CategoryFormRow[]): CategoryFormRow[] {
+  return rows.filter((r) => r.variantOption && r.values.length > 0)
+}
+
+/** Active variants as the details rules need them: id and label. */
+export function variantLabels(set: VariantSetDraft, rows: readonly CategoryFormRow[]): DetailVariant[] {
+  const options = labelledOptions(set, rows)
+  return set.variants.map((r) => ({ id: r.id, label: variantLabel(options, r.optionValueIds) ?? "This size" }))
 }
 
 const key = (ids: OptionValueIds) => `${ids[0] ?? ""}|${ids[1] ?? ""}`
@@ -122,8 +184,28 @@ export function applyToAll(set: VariantSetDraft, field: "shopPriceAmount" | "wei
   return set.variants.map((r) => ({ ...r, [field]: first[field] }))
 }
 
-export function rowLabel(set: Pick<VariantSetDraft, "options">, row: Pick<VariantRowDraft, "optionValueIds">): string {
-  return variantLabel(set.options, row.optionValueIds) ?? "The product"
+export function rowLabel(
+  set: Pick<VariantSetDraft, "options" | "packs">,
+  row: Pick<VariantRowDraft, "optionValueIds">,
+  rows: readonly CategoryFormRow[],
+): string {
+  return variantLabel(labelledOptions(set, rows), row.optionValueIds) ?? "The product"
+}
+
+/** The pack size option's position (0 or 1) in the value pair, or -1 without one. */
+export function packIndex(set: Pick<VariantSetDraft, "options">): number {
+  return [...set.options].sort((a, b) => a.position - b.position).findIndex((o) => o.kind === "pack_size")
+}
+
+/** A row's pack size as sent: from its Pack size value when the product has that option, else its own. */
+export function rowPack(set: VariantSetDraft, row: VariantRowDraft): { packQuantity: string; packUnit: "" | PackUnit } {
+  const k = packIndex(set)
+  const id = k >= 0 ? row.optionValueIds[k] : null
+  if (id) {
+    const p = set.packs[id]
+    return { packQuantity: p?.quantity ?? "", packUnit: p?.unit ?? "" }
+  }
+  return { packQuantity: row.packQuantity, packUnit: row.packUnit }
 }
 
 const strOrNull = (s: string) => (s.trim() === "" ? null : s.trim())
@@ -136,28 +218,39 @@ export function toInputs(set: VariantSetDraft): {
   const used = new Set(set.variants.flatMap((r) => r.optionValueIds.filter((x): x is string => x !== null)))
   const options = set.options
     .map((o) => ({
-      ...o,
-      name: o.name.trim(),
-      values: o.values.filter((v) => used.has(v.id)).map((v, i) => ({ ...v, value: v.value.trim(), position: i })),
+      id: o.id,
+      position: o.position,
+      kind: o.kind,
+      attributeId: o.kind === "attribute" ? (o.attributeId ?? null) : null,
+      values: o.values
+        .filter((v) => used.has(v.id))
+        .map((v, i) => ({
+          id: v.id,
+          allowedValueId: o.kind === "attribute" ? (v.allowedValueId ?? null) : null,
+          position: i,
+        })),
     }))
     .filter((o) => o.values.length > 0)
     .map((o, i) => ({ ...o, position: i + 1 }))
   return {
     unitBasis: set.unitBasis === "" ? null : set.unitBasis,
     options,
-    variants: set.variants.map((r, i) => ({
-      id: r.id,
-      position: i,
-      optionValueIds: r.optionValueIds,
-      sku: strOrNull(r.sku),
-      gtin: strOrNull(r.gtin),
-      shopPriceAmount: r.shopPriceAmount.trim(),
-      shopCompareAtAmount: strOrNull(r.shopCompareAtAmount),
-      weightGrams: r.weightGrams.trim() === "" ? null : Number(r.weightGrams.trim()),
-      packQuantity: strOrNull(r.packQuantity),
-      packUnit: r.packUnit === "" ? null : r.packUnit,
-      mediaStorageKey: r.mediaStorageKey,
-    })),
+    variants: set.variants.map((r, i) => {
+      const pack = rowPack(set, r)
+      return {
+        id: r.id,
+        position: i,
+        optionValueIds: r.optionValueIds,
+        sku: strOrNull(r.sku),
+        gtin: strOrNull(r.gtin),
+        shopPriceAmount: r.shopPriceAmount.trim(),
+        shopCompareAtAmount: strOrNull(r.shopCompareAtAmount),
+        weightGrams: r.weightGrams.trim() === "" ? null : Number(r.weightGrams.trim()),
+        packQuantity: strOrNull(pack.packQuantity),
+        packUnit: pack.packUnit === "" ? null : pack.packUnit,
+        mediaStorageKey: r.mediaStorageKey,
+      }
+    }),
   }
 }
 
@@ -183,8 +276,9 @@ export function unitsFor(basis: "" | UnitBasis): PackUnit[] {
 }
 
 export function previewUnitPrice(set: VariantSetDraft, row: VariantRowDraft): UnitPriceDTO | null {
-  if (set.unitBasis === "" || row.packUnit === "") return null
-  return unitPrice(row.shopPriceAmount.trim(), row.packQuantity.trim(), row.packUnit, set.unitBasis)
+  const pack = rowPack(set, row)
+  if (set.unitBasis === "" || pack.packUnit === "") return null
+  return unitPrice(row.shopPriceAmount.trim(), pack.packQuantity.trim(), pack.packUnit, set.unitBasis)
 }
 
 function rowFromVariant(
@@ -221,6 +315,26 @@ function rowFromVariant(
   }
 }
 
+/** Each Pack size value's size, read from a variant naming it. */
+function packsOf(
+  options: readonly OptionInputDTO[],
+  variants: readonly {
+    optionValueIds: readonly (string | null)[]
+    packQuantity?: string | null
+    packUnit?: PackUnit | null
+  }[],
+): Record<string, PackSizeDraft> {
+  const ordered = [...options].sort((a, b) => a.position - b.position)
+  const k = ordered.findIndex((o) => o.kind === "pack_size")
+  if (k < 0) return {}
+  const out: Record<string, PackSizeDraft> = {}
+  for (const v of variants) {
+    const id = v.optionValueIds[k]
+    if (id && !out[id]) out[id] = { quantity: v.packQuantity ?? "", unit: v.packUnit ?? "" }
+  }
+  return out
+}
+
 export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
   const proposed = detail.pendingChange?.proposed
   const basis = proposed && "unitBasis" in proposed ? (proposed.unitBasis ?? null) : detail.unitBasis
@@ -229,6 +343,7 @@ export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
     return {
       unitBasis: basis ?? "",
       options: proposed.options,
+      packs: packsOf(proposed.options, proposed.variants),
       variants: proposed.variants.map((v, i) => ({
         id: v.id,
         code: codes.get(v.id) ?? null,
@@ -246,10 +361,19 @@ export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
     }
   }
   const mediaKey = (id: string | null) => (id ? (detail.media.find((m) => m.id === id)?.storageKey ?? null) : null)
+  const options: OptionInputDTO[] = detail.options.map((o) => ({
+    id: o.id,
+    position: o.position,
+    kind: o.kind,
+    attributeId: o.attributeId,
+    values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
+  }))
+  const live = detail.variants.filter((v) => v.state !== "removed")
   return {
     unitBasis: basis ?? "",
-    options: detail.options.map((o) => ({ id: o.id, position: o.position, name: o.name, values: o.values })),
-    variants: detail.variants.filter((v) => v.state !== "removed").map((v) => rowFromVariant(v, mediaKey(v.mediaId))),
+    options,
+    packs: packsOf(options, live),
+    variants: live.map((v) => rowFromVariant(v, mediaKey(v.mediaId))),
   }
 }
 

@@ -23,24 +23,14 @@ export const GATHER_COLLECTION = `
          sf.state_changed_at                     AS ready_since,
          COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint                    AS item_count,
-         COALESCE(bool_or(st.chilled), false) AS requires_chilled,
-         COALESCE(bool_or(st.frozen),  false) AS requires_frozen
+         COALESCE(bool_or(oi.storage_class = 'chilled'), false) AS requires_chilled,
+         COALESCE(bool_or(oi.storage_class = 'frozen'),  false) AS requires_frozen
     FROM public.shop_fulfillment sf
     JOIN public."order"        o  ON o.id = sf.order_id
     JOIN public.shop           s  ON s.id = sf.shop_id
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-    LEFT JOIN public.product    p  ON p.id = oi.product_id
     LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
-    -- ⚠ ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES: a join over every attribute value
-    -- would count a line's weight once per value in the SUM above.
-    LEFT JOIN LATERAL (
-      SELECT bool_or(pav.value_text = 'chilled') AS chilled,
-             bool_or(pav.value_text = 'frozen')  AS frozen
-        FROM public.product_attribute_value pav
-        JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
-       WHERE pav.product_id = p.id
-    ) st ON TRUE
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
@@ -67,8 +57,8 @@ export const GATHER_COLLECTION = `
 /**
  * Parcels Effy delivers (by delivery type, never the method) that have been checked in at the hub
  * (the check-in row's existence is the fact), whose day has come ($2 = the end of the local day), and
- * that are not out for delivery. Refrigeration is the `storage` product attribute
- * (`product_attribute_value.value_text`); the address is the order's jsonb snapshot.
+ * that are not out for delivery. Refrigeration is each order line's storage as sold
+ * (`order_item.storage_class`); the address is the order's jsonb snapshot.
  */
 export const GATHER_DELIVERY = `
   SELECT sf.id                       AS package_id,
@@ -93,8 +83,8 @@ export const GATHER_DELIVERY = `
          opd.window_end              AS window_end,
          COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint        AS item_count,
-         COALESCE(bool_or(st.chilled), false) AS requires_chilled,
-         COALESCE(bool_or(st.frozen),  false) AS requires_frozen
+         COALESCE(bool_or(oi.storage_class = 'chilled'), false) AS requires_chilled,
+         COALESCE(bool_or(oi.storage_class = 'frozen'),  false) AS requires_frozen
     FROM public.round_package rp
     JOIN public.round_stop     rs ON rs.id = rp.stop_id
     JOIN public.driver_round   dr ON dr.id = rs.round_id AND dr.kind = 'collection'
@@ -104,17 +94,7 @@ export const GATHER_DELIVERY = `
     JOIN public.shop           s  ON s.id = sf.shop_id
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-    LEFT JOIN public.product    p  ON p.id = oi.product_id
     LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
-    -- ⚠ ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES: a join over every attribute value
-    -- would count a line's weight once per value in the SUM above.
-    LEFT JOIN LATERAL (
-      SELECT bool_or(pav.value_text = 'chilled') AS chilled,
-             bool_or(pav.value_text = 'frozen')  AS frozen
-        FROM public.product_attribute_value pav
-        JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
-       WHERE pav.product_id = p.id
-    ) st ON TRUE
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE rp.state = 'picked_up'

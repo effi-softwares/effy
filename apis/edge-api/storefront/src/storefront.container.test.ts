@@ -37,7 +37,6 @@ async function product(name: string, o: {
   const one = async (sql: string, args: unknown[]) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
   const created = await insertTestProduct(pool, {
     shopId: await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`, []),
-    productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key = 'sft-type'`, []),
     primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key = $1`, [o.category ?? "sft-dairy"]),
     name, brand: o.brand ?? null, price: o.price, compareAt: o.compareAt ?? null,
     shortDescription: o.shortDescription ?? `${name} description`,
@@ -56,9 +55,10 @@ d("070 — storefront reads against the real schema", () => {
     await pool.query(migrationSql());
 
     await pool.query(`INSERT INTO public.shop (code, name) VALUES ('SFT', 'Storefront test shop')`);
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('sft-type', 'Storefront test type')`);
-    await pool.query(`INSERT INTO public.category (key, name, display_order) VALUES
+    await pool.query(`INSERT INTO public.category (key, name, "position") VALUES
       ('sft-dairy', 'Test Dairy', 9001), ('sft-bakery', 'Test Bakery', 9002), ('sft-empty', 'Test Empty', 9003)`);
+    // Test departments beside the seeded taxonomy; the derived closure makes them aisles.
+    await pool.query(`SELECT public.rebuild_category_derived()`);
 
     await product("Oat Milk", { price: "4.50", brand: "Oatly", ageDays: 1 });
     await product("Soy Milk", { price: "3.00", brand: "Vitasoy", compareAt: "4.00", ageDays: 5 });
@@ -86,7 +86,7 @@ d("070 — storefront reads against the real schema", () => {
 
   const search = () => createSearchService(createSearchRepository(pool), noImage);
   const q = (over: object = {}) => ({
-    q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {},
+    q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {},
     sort: "newest" as const, cursor: "", limit: 0, ...over,
   });
 
@@ -144,8 +144,8 @@ d("070 — storefront reads against the real schema", () => {
   });
 
   it("facets: own-selection exclusion, numeric counts, price bounds as text", async () => {
-    const facets = createFacetService(createFacetRepository(pool));
-    const base = { q: "", minPrice: "", maxPrice: "", saleOnly: false, attributes: {} };
+    const facets = createFacetService(createFacetRepository(pool), (keys) => createSearchRepository(pool).rangeUnits(keys));
+    const base = { q: "", minPrice: "", maxPrice: "", saleOnly: false, attributes: {}, ranges: {} };
 
     const set = await facets.facets({ ...base, categoryKey: "sft-dairy", brands: ["Oatly"] });
     const brand = set.facets.find((f) => f.key === "brand")!;
@@ -162,23 +162,56 @@ d("070 — storefront reads against the real schema", () => {
     expect(set.priceBounds).toEqual({ min: "4.50", max: "5.25" });
   });
 
-  it("the attribute facet count runs against a real engine (the GROUP BY that once shipped broken)", async () => {
-    await pool.query(
-      `INSERT INTO public.attribute_definition (key, name, data_type) VALUES ('sft-diet', 'Test Dietary', 'multi_select')`,
-    );
-    await pool.query(
-      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_options)
-       SELECT $1::uuid, id, ARRAY['vegan','organic'] FROM public.attribute_definition WHERE key = 'sft-diet'`,
-      [ids["Oat Milk"]],
-    );
-    const set = await createFacetService(createFacetRepository(pool)).facets({
-      q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {},
-    });
-    const diet = set.facets.find((f) => f.key === "sft-diet")!;
-    expect(diet.options.map((o) => [o.value, o.count]).sort()).toEqual([["organic", 1], ["vegan", 1]]);
+  it("101 — attribute facets follow the aisle's form: AND across, ranges in base units, hidden and internal never count", async () => {
+    const one = async (sql: string, args: unknown[] = []) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
+    const dairy = await one(`SELECT id::text FROM public.category WHERE key = 'sft-dairy'`);
+    const attr = (key: string) => one(`SELECT id::text FROM public.attribute_definition WHERE key = $1`, [key]);
+    const val = (key: string, label: string) => one(
+      `SELECT v.id::text FROM public.attribute_allowed_value v JOIN public.attribute_definition ad ON ad.id = v.attribute_definition_id
+        WHERE ad.key = $1 AND v.label = $2`, [key, label]);
+    const [dietary, weight, organic, supplier] = await Promise.all([attr("dietary"), attr("weight"), attr("organic"), attr("supplier_code")]);
+    const [vegan, glutenFree] = await Promise.all([val("dietary", "Vegan"), val("dietary", "Gluten free")]);
+    for (const [a, level] of [[dietary, "optional"], [weight, "optional"], [organic, "optional"], [supplier, "optional"]] as const) {
+      await pool.query(`INSERT INTO public.category_attribute (category_id, attribute_id, level) VALUES ($1, $2, $3)`, [dairy, a, level]);
+    }
+    await pool.query(`SELECT public.rebuild_category_derived()`);
+    const put = (product: string, a: string, col: string, v: unknown, extra = "") =>
+      pool.query(`INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, ${col}${extra ? ", value_unit, value_base" : ""})
+                  VALUES ($1, $2, $3${extra})`, [ids[product], a, v]);
+    await put("Oat Milk", dietary, "allowed_value_ids", [vegan, glutenFree]);
+    await put("Soy Milk", dietary, "allowed_value_ids", [vegan]);
+    await put("Oat Milk", weight, "value_number", "1", ", 'kg', 1000");
+    await put("Soy Milk", weight, "value_number", "500", ", 'g', 500");
+    await put("Almond Milk", organic, "value_boolean", true);
+    await put("Oat Milk", supplier, "value_text", "SUP-1");
 
-    const filtered = await search().search(q({ attributes: { "sft-diet": ["vegan"] } }));
-    expect(filtered.items.map((i) => i.name)).toEqual(["Oat Milk"]);
+    const facets = createFacetService(createFacetRepository(pool), (keys) => createSearchRepository(pool).rangeUnits(keys));
+    const base = { q: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {} };
+    const set = await facets.facets({ ...base, categoryKey: "sft-dairy" });
+    const diet = set.facets.find((f) => f.key === "dietary")!;
+    expect(diet.options.map((o) => [o.label, o.count])).toEqual([["Vegan", 2], ["Gluten free", 1]]);
+    expect(set.facets.find((f) => f.key === "weight")).toMatchObject({ type: "range", range: { min: "0.5", max: "1", unit: "kg" } });
+    expect(set.facets.find((f) => f.key === "organic")?.options).toEqual([{ value: "true", label: "Yes", count: 1 }]);
+    expect(set.facets.find((f) => f.key === "supplier_code")).toBeUndefined();
+
+    // OR within one attribute, AND across: Vegan or Gluten free, AND weight from 0.75 kg.
+    const both = await search().search(q({ categoryKey: "sft-dairy", attributes: { dietary: [vegan, glutenFree] }, ranges: { weight: { min: "0.75", max: "" } } }));
+    expect(both.items.map((i) => i.name)).toEqual(["Oat Milk"]);
+    const veganOnly = await search().search(q({ categoryKey: "sft-dairy", attributes: { dietary: [vegan] } }));
+    expect(veganOnly.items.map((i) => i.name).sort()).toEqual(["Oat Milk", "Soy Milk"]);
+
+    // Staff hide Dietary on the aisle: the values stay stored but no longer filter or show.
+    await pool.query(`UPDATE public.category_attribute SET level = NULL, hidden = true WHERE category_id = $1 AND attribute_id = $2`, [dairy, dietary]);
+    await pool.query(`SELECT public.rebuild_category_derived()`);
+    expect((await facets.facets({ ...base, categoryKey: "sft-dairy" })).facets.find((f) => f.key === "dietary")).toBeUndefined();
+    expect((await search().search(q({ attributes: { dietary: [vegan] } }))).items).toEqual([]);
+
+    // The product page shows customer-visible details only.
+    const page = await createCatalogService(createCatalogRepository(pool), noImage).productDetail(ids["Oat Milk"]!);
+    const labels = page!.variants[0]!.details.flatMap((g) => g.items.map((i) => i.label));
+    expect(labels).toContain("Weight");
+    expect(labels).not.toContain("Supplier code");
+    expect(labels).not.toContain("Dietary labels");
   });
 
   it("home rails carry only purchasable products; an empty category gets no rail", async () => {
@@ -247,11 +280,10 @@ d("070 — storefront reads against the real schema", () => {
     try {
       await client.query("BEGIN");
       await client.query(`
-        INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, brand,
+        INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, brand,
                                     short_description, created_by, status, approved_at)
         SELECT (SELECT id FROM public.shop WHERE code = 'SFT'),
-               (SELECT id FROM public.product_type WHERE key = 'sft-type'),
-               (SELECT id FROM public.category WHERE key = 'sft-bakery'),
+               (SELECT id FROM public.category WHERE key = 'sft-bakery'), 'ambient', 'gst_free', false,
                (array['Oat','Soy','Rye','Full cream','Greek','Spelt','Basil','Apple','Cheddar','Rice'])[1 + g % 10] || ' ' ||
                (array['loaf','yoghurt','roll','bunch','block','juice','pasta','butter'])[1 + (g / 10) % 8] || ' ' || g,
                'Maker ' || (g % 400), 'x', 'seed', 'active', now()
@@ -332,7 +364,7 @@ d("070 — storefront reads against the real schema", () => {
     const one = async (sql: string, args: unknown[] = []) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
     const shopId = await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`);
     const { productId } = await insertTestProduct(pool, {
-      shopId, productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key = 'sft-type'`),
+      shopId,
       primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key = 'sft-bakery'`),
       name: "Basmati Rice", price: "1.00", status: "draft", approved: false,
     });
@@ -343,11 +375,11 @@ d("070 — storefront reads against the real schema", () => {
       await client.query(`UPDATE public.product SET unit_basis = 'per_kg' WHERE id = $1`, [productId]);
       await applyVariantSet(client, {
         productId, shopId, mode: "draft",
-        options: [{ id: u(1), position: 1, name: "Size", values: [{ id: u(2), value: "500 g", position: 0 }, { id: u(3), value: "1 kg", position: 1 }, { id: u(4), value: "5 kg", position: 2 }] }],
+        options: [{ id: u(1), position: 1, kind: "pack_size", values: [{ id: u(2), position: 0 }, { id: u(3), position: 1 }, { id: u(4), position: 2 }] }],
         variants: [
           { id: u(10), position: 0, optionValueIds: [u(2), null], shopPriceAmount: "3.20", sku: "RICE-500", packQuantity: "500", packUnit: "g" },
           { id: u(11), position: 1, optionValueIds: [u(3), null], shopPriceAmount: "5.50", gtin: "9300000000011", packQuantity: "1", packUnit: "kg" },
-          { id: u(12), position: 2, optionValueIds: [u(4), null], shopPriceAmount: "2.00" },
+          { id: u(12), position: 2, optionValueIds: [u(4), null], shopPriceAmount: "2.00", packQuantity: "5", packUnit: "kg" },
         ],
       });
       await client.query(`UPDATE public.product SET status = 'active', approved_at = now() WHERE id = $1`, [productId]);
@@ -362,17 +394,18 @@ d("070 — storefront reads against the real schema", () => {
     }
 
     const search = createSearchService(createSearchRepository(pool), noImage);
-    const found = await search.search({ q: "basmati", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, sort: "relevance", cursor: "", limit: 20 } as never);
+    const found = await search.search({ q: "basmati", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {}, sort: "relevance", cursor: "", limit: 20 } as never);
     const tiles = found.items.filter((c) => c.id === productId);
     expect(tiles).toHaveLength(1);
     expect(tiles[0]).toMatchObject({ priceAmount: "3.52", priceVaries: true, variantCount: 2, unitPrice: { amount: "7.04", basis: "per_kg" } });
 
     // A query that IS a stock code finds the product and opens it on that size.
-    const byCode = await search.search({ q: "RICE-500", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, sort: "relevance", cursor: "", limit: 20 } as never);
+    const byCode = await search.search({ q: "RICE-500", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {}, sort: "relevance", cursor: "", limit: 20 } as never);
     expect(byCode.items.find((c) => c.id === productId)?.variantId).toBe(u(10));
 
     const page = await createCatalogService(createCatalogRepository(pool), noImage).productDetail(productId);
     expect(page?.variants.map((v) => [v.label, v.priceAmount])).toEqual([["500 g", "3.52"], ["1 kg", "6.05"]]);
+    expect(page?.options[0]).toMatchObject({ kind: "pack_size", name: "Pack size" });
     expect(page?.options[0]?.values.map((v) => v.value)).toEqual(["500 g", "1 kg"]);
     expect(page?.defaultVariantId).toBe(u(10));
   });

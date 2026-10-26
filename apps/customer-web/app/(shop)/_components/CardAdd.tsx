@@ -22,6 +22,7 @@ export function CardAdd({
     variantCount: number
     productId: string
     name: string
+    ageRestricted?: boolean
     imageUrl: string | null
     imageWidths?: number[]
     unitPriceAmount: string

@@ -13,6 +13,7 @@ import { nonDeliveryDates } from "./slots";
 const SCHEDULE = `
 SELECT EXTRACT(HOUR FROM r.run_time)::int AS hour, EXTRACT(MINUTE FROM r.run_time)::int AS minute
   FROM public.delivery_collection_run r
+ -- availability-exempt: delivery_collection_run — a run's schedule status, not whether anything can be bought.
  WHERE r.status = 'active'
  ORDER BY r.run_time
 `;

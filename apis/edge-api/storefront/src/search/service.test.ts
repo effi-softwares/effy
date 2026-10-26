@@ -12,7 +12,7 @@ const row = (n: number, over: Partial<SearchRow> = {}): SearchRow => ({
   id: id(n), name: `P${n}`, brand: null, price_amount: `${n}.00`, currency: "AUD",
   compare_at_amount: null, storage_key: null, alt_text: null, image_widths: null,
   created_at: new Date("2020-01-01T00:00:00Z"), created_at_key: `2020-01-01T00:00:00.00000${n % 10}Z`,
-  available: true, score: 0.5, price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, ...over,
+  available: true, age_restricted: false, score: 0.5, price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, ...over,
 });
 
 function fake(rows: SearchRow[], total = rows.length) {
@@ -24,12 +24,13 @@ function fake(rows: SearchRow[], total = rows.length) {
     },
     countCards: async () => total,
     cardsByIds: async (ids) => rows.filter((r) => ids.includes(r.id)) as CardRow[],
+    rangeUnits: async (keys) => new Map(keys.map((k) => [k, { unitFamily: "mass" as const, unit: "kg" }])),
   };
   return { svc: createSearchService(repo, async () => null), seen };
 }
 
 const query = (over: Partial<SearchQuery> = {}): SearchQuery => ({
-  q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {},
+  q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {},
   sort: "newest", cursor: "", limit: 0, ...over,
 });
 

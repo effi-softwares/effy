@@ -1,51 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import type { ProductAttributeValue, ProductDetail, ProductMedia } from "./model"
-import {
-  discountText,
-  formatAttributeValue,
-  formatMoney,
-  orderedMedia,
-  primaryMedia,
-  storefrontText,
-} from "./detailFormat"
-
-function attr(over: Partial<ProductAttributeValue>): ProductAttributeValue {
-  return {
-    attributeId: "a1",
-    key: "k1",
-    name: "Attr",
-    dataType: "short_text",
-    unit: null,
-    valueText: null,
-    valueNumber: null,
-    valueBoolean: null,
-    valueOptions: null,
-    ...over,
-  }
-}
-
-describe("formatAttributeValue", () => {
-  it("renders text / select values", () => {
-    expect(formatAttributeValue(attr({ dataType: "short_text", valueText: "Kenya" }))).toBe("Kenya")
-    expect(formatAttributeValue(attr({ dataType: "single_select", valueText: "hot" }))).toBe("hot")
-  })
-  it("appends the unit to a number", () => {
-    expect(formatAttributeValue(attr({ dataType: "number", unit: "g", valueNumber: 250 }))).toBe("250 g")
-    expect(formatAttributeValue(attr({ dataType: "number", unit: null, valueNumber: 3 }))).toBe("3")
-  })
-  it("renders a boolean as Yes/No", () => {
-    expect(formatAttributeValue(attr({ dataType: "boolean", valueBoolean: true }))).toBe("Yes")
-    expect(formatAttributeValue(attr({ dataType: "boolean", valueBoolean: false }))).toBe("No")
-  })
-  it("joins multi-select options", () => {
-    expect(formatAttributeValue(attr({ dataType: "multi_select", valueOptions: ["vegan", "gf"] }))).toBe("vegan, gf")
-  })
-  it("shows an em dash for an unset value", () => {
-    expect(formatAttributeValue(attr({ dataType: "short_text", valueText: null }))).toBe("—")
-    expect(formatAttributeValue(attr({ dataType: "number", valueNumber: null }))).toBe("—")
-  })
-})
+import type { ProductDetail, ProductMedia } from "./model"
+import { discountText, formatMoney, orderedMedia, primaryMedia, storefrontText } from "./detailFormat"
 
 describe("formatMoney", () => {
   it("prefixes the currency and dashes an empty amount", () => {

@@ -40,8 +40,9 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
-    # Reviewers see the shop's images, so this service presigns reads.
+    # Reviewers see the shop's images, so this service presigns reads; staff upload category pictures (101).
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
   iam:
     role:
       statements:
@@ -54,6 +55,10 @@ provider:
         - Effect: Allow
           Action: s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+        # Presigned PUTs of category pictures only (101).
+        - Effect: Allow
+          Action: s3:PutObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/categories/*
   layers:
     - ${param:secretsExtensionArn}
 
@@ -81,6 +86,182 @@ functions:
           method: GET
           path: /catalog/healthz
 
+  taxonomyCategoriesListV1:
+    handler: src/functions/taxonomy-categories-list-v1-get.handler
+    description: The category tree, retired categories included, with counts and resolved defaults (101). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/taxonomy/categories
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoriesCreateV1:
+    handler: src/functions/taxonomy-categories-create-v1-post.handler
+    description: Add a category or sub-category (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/categories
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoriesUpdateV1:
+    handler: src/functions/taxonomy-categories-update-v1-patch.handler
+    description: Rename a category, set its icon, picture, synonyms or defaults (101). Admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /catalog/v1/taxonomy/categories/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoriesMoveV1:
+    handler: src/functions/taxonomy-categories-move-v1-post.handler
+    description: Move or reorder a category within the five levels (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/categories/{id}/move
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoriesStatusV1:
+    handler: src/functions/taxonomy-categories-status-v1-post.handler
+    description: Retire or restore a category (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/categories/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoriesImageV1:
+    handler: src/functions/taxonomy-categories-image-v1-post.handler
+    description: A presigned upload for a category's picture (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/categories/{id}/image
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoryFormV1:
+    handler: src/functions/taxonomy-category-form-v1-get.handler
+    description: A category's resolved form with each row's source, and its own attachments (101). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/taxonomy/categories/{id}/form
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoryAttributePutV1:
+    handler: src/functions/taxonomy-category-attribute-put-v1-put.handler
+    description: Attach, tighten or hide an attribute on a category (101). Admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /catalog/v1/taxonomy/categories/{id}/attributes/{attributeId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyCategoryAttributeDeleteV1:
+    handler: src/functions/taxonomy-category-attribute-delete-v1-delete.handler
+    description: Remove a category's own attachment (101). Admin/manager.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /catalog/v1/taxonomy/categories/{id}/attributes/{attributeId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyAttributesListV1:
+    handler: src/functions/taxonomy-attributes-list-v1-get.handler
+    description: The attribute library with usage (101). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/taxonomy/attributes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyAttributesGetV1:
+    handler: src/functions/taxonomy-attributes-get-v1-get.handler
+    description: One attribute with its values and their usage (101). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/taxonomy/attributes/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyAttributesCreateV1:
+    handler: src/functions/taxonomy-attributes-create-v1-post.handler
+    description: Define an attribute in the library (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/attributes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyAttributesUpdateV1:
+    handler: src/functions/taxonomy-attributes-update-v1-patch.handler
+    description: Change an attribute and its values (101). Admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /catalog/v1/taxonomy/attributes/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  taxonomyAttributesStatusV1:
+    handler: src/functions/taxonomy-attributes-status-v1-post.handler
+    description: Retire or restore an attribute (101). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/taxonomy/attributes/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productPlacementsV1:
+    handler: src/functions/product-placements-v1-put.handler
+    description: Place a product in up to five extra leaves for browsing; replaces the list (101). Admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /catalog/v1/products/{productId}/placements
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productsMissingDetailsV1:
+    handler: src/functions/products-missing-details-v1-get.handler
+    description: Products on sale with a required detail empty (101). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/products/missing-details
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   reviewListV1:
     handler: src/functions/review-list-v1-get.handler
     description: The review queue — new products and pending changes, oldest first (067 FR-006). Read = any active staff incl. csa.
@@ -99,28 +280,6 @@ functions:
       - httpApi:
           method: GET
           path: /catalog/v1/review/margin-not-set
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-  gstMissingV1:
-    handler: src/functions/gst-missing-v1-get.handler
-    description: Live products with no GST status yet (096 FR-092). Read = any active staff incl. csa.
-    events:
-      - httpApi:
-          method: GET
-          path: /catalog/v1/gst/missing
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-  gstBulkV1:
-    handler: src/functions/gst-bulk-v1-post.handler
-    description: Set one GST status on many products, recorded per product (096 FR-092). Decide = admin/manager.
-    events:
-      - httpApi:
-          method: POST
-          path: /catalog/v1/gst/bulk
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

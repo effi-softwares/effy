@@ -38,7 +38,7 @@ describe("renditionKey names what clients ask for", () => {
 });
 
 describe("isOriginalKey", () => {
-  it.each(["products/o/a.jpg", "promotions/p/a.png"])("accepts %s", (k) => expect(isOriginalKey(k)).toBe(true));
+  it.each(["products/o/a.jpg", "promotions/p/a.png", "categories/c/a.webp"])("accepts %s", (k) => expect(isOriginalKey(k)).toBe(true));
   it.each(["renditions/products/o/a/w160.webp", "proof/d/a.jpg", "courier-label/p/a.pdf", "products/../proof/a.jpg", ""])(
     "refuses %j",
     (k) => expect(isOriginalKey(k)).toBe(false),

@@ -73,6 +73,7 @@ export interface ItemRow {
   product_name: string;
   /** As sold. */
   variant_label: string | null;
+  age_restricted: boolean;
   unit_price_amount: string;
   quantity: number;
   line_subtotal_amount: string;
@@ -232,6 +233,7 @@ WHERE o.id = $1 AND o.customer_id = $2`,
 SELECT oi.id::text AS order_item_id,
        oi.product_id::text AS product_id, oi.product_name AS product_name,
        oi.variant_id::text AS variant_id, oi.variant_label AS variant_label,
+       COALESCE((SELECT p.age_restricted FROM public.product p WHERE p.id = oi.product_id), false) AS age_restricted,
        oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
        oi.line_subtotal_amount::text AS line_subtotal_amount,
        oi.discount_amount::text AS discount_amount,

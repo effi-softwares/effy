@@ -1,37 +1,35 @@
-import { emptyVariantSet, type VariantSetDraft } from "./variants"
+import type { DetailInput, FactKey, ProductFacts } from "@effy/shared-types"
 
-export interface AttributeDraftValue {
-  text?: string
-  number?: string
-  boolean?: boolean
-  options?: string[]
-}
+import { emptyVariantSet, type VariantSetDraft } from "./variants"
 
 export interface ProductDraft {
   step: number
-  productTypeId: string | null
   name: string
+  /** The home leaf. */
   primaryCategoryId: string | null
   shortDescription: string
   brand: string
   longDescription: string
   variantSet: VariantSetDraft
-  gstStatus: "" | "taxable" | "gst_free"
-  attributes: Record<string, AttributeDraftValue>
+  /** Storage, GST and 18+: the leaf's defaults until the shop changes one (then it is in `factsTouched`). */
+  facts: ProductFacts
+  factsTouched: FactKey[]
+  /** Values for the leaf's form; per variant where a detail differs by size. */
+  details: DetailInput[]
 }
 
 export function emptyDraft(): ProductDraft {
   return {
     step: 0,
-    productTypeId: null,
     name: "",
     primaryCategoryId: null,
     shortDescription: "",
     brand: "",
     longDescription: "",
     variantSet: emptyVariantSet(),
-    gstStatus: "",
-    attributes: {},
+    facts: { storage: null, gstStatus: null, ageRestricted: null },
+    factsTouched: [],
+    details: [],
   }
 }
 
@@ -45,13 +43,23 @@ export function loadDraft(shopId: string, subject: string): ProductDraft | null 
   try {
     const raw = window.localStorage.getItem(draftKey(shopId, subject))
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<ProductDraft>
+    const parsed = JSON.parse(raw) as Partial<ProductDraft> & { attributes?: unknown }
     if (typeof parsed !== "object" || parsed === null) return null
+    // A draft saved before 101 kept its details as `attributes` of a type: it cannot be carried over.
+    if ("attributes" in parsed) return null
     const variantSet =
       parsed.variantSet && Array.isArray(parsed.variantSet.variants) && parsed.variantSet.variants.length > 0
-        ? parsed.variantSet
+        ? { ...parsed.variantSet, packs: parsed.variantSet.packs ?? {} }
         : emptyVariantSet()
-    return { ...emptyDraft(), ...parsed, variantSet, attributes: parsed.attributes ?? {} }
+    const base = emptyDraft()
+    return {
+      ...base,
+      ...parsed,
+      variantSet,
+      facts: { ...base.facts, ...(parsed.facts ?? {}) },
+      factsTouched: Array.isArray(parsed.factsTouched) ? parsed.factsTouched : [],
+      details: Array.isArray(parsed.details) ? parsed.details : [],
+    }
   } catch {
     return null
   }

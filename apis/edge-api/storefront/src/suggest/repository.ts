@@ -107,7 +107,7 @@ SELECT c.key AS key, c.name AS name
 FROM public.category c
 -- availability-exempt: public.category — the taxonomy's own lifecycle.
 WHERE c.status = 'active' AND c.name ILIKE $1 || '%'
-ORDER BY (c.parent_id IS NULL) DESC, c.display_order ASC, c.name ASC
+ORDER BY (c.parent_id IS NULL) DESC, c."position" ASC, c.name ASC
 LIMIT $2`,
         [likeLiteral(q), limit],
       ),

@@ -25,7 +25,7 @@ import {
 } from "@effy/design-system/ui"
 import { ErrorState, useHeaderBack, useHeaderDetail } from "@effy/web-kit/console"
 
-import { Kbd, PageHeader, DetailRows, Panel, StatusWord } from "@effy/web-kit/patterns"
+import { Callout, Kbd, PageHeader, DetailRows, Panel, StatusWord } from "@effy/web-kit/patterns"
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles"
 import { track } from "@/lib/telemetry"
@@ -34,7 +34,8 @@ import { canDecideReview } from "./access"
 import { reviewActionError } from "./errorText"
 import { MarginField } from "./MarginField"
 import { ReviewVariants } from "./ReviewVariants"
-import { KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model"
+import { attentionLines, KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model"
+import { Placements } from "./Placements"
 import { reviewItemQuery, useApprove, useSendBack } from "./queries"
 
 export function ReviewItemScreen({ productId }: { productId: string }) {
@@ -71,6 +72,8 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
 
   const margin = toMargin(entry)
   const busy = approve.isPending || sendBack.isPending
+  const attention = attentionLines(item)
+  const incomplete = item.missingRequired.length > 0
 
   async function run(decision: "approved" | "sent_back", action: () => Promise<unknown>) {
     setMessage(null)
@@ -93,7 +96,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
   useHotkey(
     "A",
     () => {
-      if (canDecide && !busy && !(item.marginRequired && !margin)) void doApprove()
+      if (canDecide && !busy && !incomplete && !(item.marginRequired && !margin)) void doApprove()
     },
     { ignoreInputs: true },
   )
@@ -124,12 +127,22 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
             <Store aria-hidden="true" />
             {item.shop.name}
             {item.shop.status !== "active" ? ` · this shop is ${item.shop.status}` : ""}
+            <span className="text-muted-foreground"> · {item.categoryPath.join(" › ")}</span>
           </span>
         }
       />
 
       <div className="ef-detail">
         <div className="ef-detail__main">
+          {attention.blocking.length > 0 || attention.notes.length > 0 ? (
+            <Callout tone={attention.blocking.length > 0 ? "destructive" : "info"} title="Attention">
+              <ul className="space-y-1">
+                {[...attention.blocking, ...attention.notes].map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </Callout>
+          ) : null}
           <Tabs defaultValue={item.kind === "change" ? "changes" : "details"}>
             <div className="ef-tabsbar">
               <div className="ef-tabsbar__list">
@@ -251,7 +264,15 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
                   </p>
                 ) : null}
                 <div className="grid gap-2">
-                  <Button disabled={busy || (item.marginRequired && !margin)} onClick={() => void doApprove()}>
+                  {incomplete ? (
+                    <p className="ef-sub">
+                      It can't be approved until the shop fills in the required details. Send it back to ask.
+                    </p>
+                  ) : null}
+                  <Button
+                    disabled={busy || incomplete || (item.marginRequired && !margin)}
+                    onClick={() => void doApprove()}
+                  >
                     {item.kind === "change" ? "Approve change" : "Approve and put on sale"}
                     <Kbd className="ml-auto max-md:hidden">A</Kbd>
                   </Button>
@@ -266,6 +287,12 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </div>
             )}
           </Panel>
+          <Placements
+            productId={item.productId}
+            homePath={item.categoryPath}
+            placements={item.placements}
+            canDecide={canDecide}
+          />
         </aside>
       </div>
 

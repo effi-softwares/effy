@@ -1,29 +1,24 @@
 // Every product query is scoped `where shop_id =:actorShopId` (the authz-resolved value). Returns
 // storage keys; the service swaps them for presigned URLs before the DTO leaves the process.
-import type { PoolClient } from "pg";
-
-import { query, withTransaction } from "@effy/edge-shared";
-import { applyVariantSet, readVariantSets, VariantSetInvalid } from "@effy/edge-shared/catalog";
-import { setGstStatus } from "@effy/edge-shared/documents";
-import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
+import { query, withTransaction, type Queryable } from "@effy/edge-shared";
+import {
+  applyVariantSet, DetailsInvalid, missingRequired, readProductDetails, readResolved, readVariantSets, reconcileDetails,
+  VariantSetInvalid, writeProductDetails,
+} from "@effy/edge-shared/catalog";
+import { recordGstOnCreate, setGstStatus } from "@effy/edge-shared/documents";
+import type {
+  CategoryIcon, DetailInput, GstStatus, OptionInputDTO, ShopTaxonomyDTO, Storage, UnitBasis, VariantInputDTO,
+} from "@effy/shared-types";
 
 import {
-  type AllowedValue,
-  type AttributeDataType,
-  type AttributeValidation,
-  type CatalogSchema,
   type CreateProductInput,
   type ListParams,
   type Paged,
-  type ProductAttributeValue,
   type ProductDetail,
   ProductError,
   type ProductListItem,
   type ProductMedia,
   type ProductStatus,
-  type SchemaAttribute,
-  type SchemaCategory,
-  type SchemaProductType,
   type ShopReviewState,
 } from "./types";
 
@@ -34,177 +29,55 @@ function asConflict(err: unknown, message: string): ProductError {
   throw err;
 }
 
-/** The one writer refused the option/variant set; each refusal points at its input. */
-function asVariantError(err: unknown): never {
+/** The one writers refused the option/variant set or the details; each refusal points at its input. */
+function asWriterError(err: unknown): never {
   if (err instanceof VariantSetInvalid) throw new ProductError("validation", "the sizes and options are not valid", err.errors);
+  if (err instanceof DetailsInvalid) throw new ProductError("validation", "the details are not valid", err.errors);
   throw err;
 }
 
-interface SchemaTypeRow {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  status: "active" | "retired";
-  created_at: Date;
-  updated_at: Date;
+/** Every active category for the shop's picker, and the leaves this shop used most recently (101). */
+export async function readShopTaxonomy(shopId: string): Promise<ShopTaxonomyDTO> {
+  const [categories, recent] = await Promise.all([
+    query<{ id: string; parent_id: string | null; name: string; path: string[]; is_leaf: boolean; synonyms: string[]; icon: CategoryIcon | null }>(
+      `SELECT c.id::text, c.parent_id::text, c.name, r.path_names AS path, r.is_leaf, c.synonyms, c.icon
+         FROM public.category c
+         JOIN public.category_resolved r ON r.category_id = c.id
+        ORDER BY r.depth, c."position", c.name`,
+    ),
+    query<{ id: string }>(
+      `SELECT x.id FROM (
+         SELECT p.primary_category_id::text AS id, max(p.updated_at) AS at
+           FROM public.product p
+           JOIN public.category_resolved r ON r.category_id = p.primary_category_id AND r.is_leaf
+          WHERE p.shop_id = $1
+          GROUP BY p.primary_category_id) x
+        ORDER BY x.at DESC LIMIT 5`,
+      [shopId],
+    ),
+  ]);
+  return {
+    categories: categories.rows.map((c) => ({
+      id: c.id, parentId: c.parent_id, name: c.name, path: c.path, isLeaf: c.is_leaf, synonyms: c.synonyms, icon: c.icon,
+    })),
+    recentLeafIds: recent.rows.map((r) => r.id),
+  };
 }
 
-interface SchemaAssignmentRow {
-  product_type_id: string;
-  attribute_id: string;
-  key: string;
-  name: string;
-  data_type: AttributeDataType;
-  unit: string | null;
-  help_text: string | null;
-  validation: AttributeValidation | null;
-  is_mandatory: boolean;
-  display_order: number;
-  group_label: string | null;
+export type LeafCheck =
+  | { kind: "leaf"; defaults: { storage: Storage | null; gstStatus: GstStatus | null; ageRestricted: boolean | null } }
+  | { kind: "not_leaf" }
+  | { kind: "unknown" };
+
+/** An active category, and whether a product may be filed in it (only a leaf). */
+export async function checkLeaf(categoryId: string, db: Queryable = { query }): Promise<LeafCheck> {
+  const resolved = await readResolved(db, categoryId).catch(() => null);
+  if (!resolved) return { kind: "unknown" };
+  if (!resolved.isLeaf) return { kind: "not_leaf" };
+  return { kind: "leaf", defaults: resolved.defaults };
 }
 
-interface AllowedRow {
-  id: string;
-  attribute_definition_id: string;
-  value: string;
-  label: string;
-  display_order: number;
-}
-
-interface SchemaCategoryRow {
-  id: string;
-  parent_id: string | null;
-  key: string;
-  name: string;
-  display_order: number;
-  status: "active" | "retired";
-}
-
-function mapAllowed(rows: AllowedRow[], attributeId: string): AllowedValue[] {
-  return rows
-    .filter((r) => r.attribute_definition_id === attributeId)
-    .sort((a, b) => a.display_order - b.display_order)
-    .map((r) => ({ id: r.id, value: r.value, label: r.label, displayOrder: r.display_order }));
-}
-
-export async function readCatalogSchema(): Promise<CatalogSchema> {
-  const types = await query<SchemaTypeRow>(
-    `SELECT id, key, name, description, status, created_at, updated_at FROM public.product_type
-      WHERE status = 'active' ORDER BY name`,
-  );
-  const assignments = await query<SchemaAssignmentRow>(
-    `SELECT pta.product_type_id, ad.id AS attribute_id, ad.key, ad.name, ad.data_type,
-            ad.unit, ad.help_text, ad.validation,
-            pta.is_mandatory, pta.display_order, pta.group_label
-       FROM public.product_type_attribute pta
-       JOIN public.attribute_definition ad ON ad.id = pta.attribute_definition_id
-      WHERE ad.status = 'active'
-        AND pta.product_type_id IN (SELECT id FROM public.product_type WHERE status = 'active')
-      ORDER BY pta.display_order`,
-  );
-  const attrIds = [...new Set(assignments.rows.map((a) => a.attribute_id))];
-  const allowed = attrIds.length
-    ? (
-        await query<AllowedRow>(
-          `SELECT id, attribute_definition_id, value, label, display_order
-             FROM public.attribute_allowed_value WHERE attribute_definition_id = ANY($1) ORDER BY display_order`,
-          [attrIds],
-        )
-      ).rows
-    : [];
-  const categories = await query<SchemaCategoryRow>(
-    `SELECT id, parent_id, key, name, display_order, status FROM public.category
-      WHERE status = 'active' ORDER BY display_order, name`,
-  );
-
-  const productTypes: SchemaProductType[] = types.rows.map((t) => ({
-    id: t.id,
-    key: t.key,
-    name: t.name,
-    description: t.description,
-    status: t.status,
-    createdAt: t.created_at.toISOString(),
-    updatedAt: t.updated_at.toISOString(),
-    attributes: assignments.rows
-      .filter((a) => a.product_type_id === t.id)
-      .map(
-        (a): SchemaAttribute => ({
-          attributeId: a.attribute_id,
-          key: a.key,
-          name: a.name,
-          dataType: a.data_type,
-          unit: a.unit,
-          helpText: a.help_text,
-          validation: a.validation,
-          allowedValues: mapAllowed(allowed, a.attribute_id),
-          isMandatory: a.is_mandatory,
-          displayOrder: a.display_order,
-          groupLabel: a.group_label,
-        }),
-      ),
-  }));
-  const cats: SchemaCategory[] = categories.rows.map((c) => ({
-    id: c.id,
-    parentId: c.parent_id,
-    key: c.key,
-    name: c.name,
-    displayOrder: c.display_order,
-    status: c.status,
-  }));
-  return { productTypes, categories: cats };
-}
-
-/** For typed-value validation (data type and allowed set). */
-export async function assignmentsForType(productTypeId: string): Promise<SchemaAttribute[]> {
-  const schema = await readCatalogSchema();
-  const type = schema.productTypes.find((t) => t.id === productTypeId);
-  return type ? type.attributes : [];
-}
-
-export async function productTypeIsActive(id: string): Promise<boolean> {
-  const res = await query<{ ok: boolean }>(
-    `SELECT EXISTS (SELECT 1 FROM public.product_type WHERE id = $1 AND status = 'active') AS ok`,
-    [id],
-  );
-  return res.rows[0]?.ok ?? false;
-}
-
-export async function categoryIsActive(id: string): Promise<boolean> {
-  const res = await query<{ ok: boolean }>(
-    `SELECT EXISTS (SELECT 1 FROM public.category WHERE id = $1 AND status = 'active') AS ok`,
-    [id],
-  );
-  return res.rows[0]?.ok ?? false;
-}
-
-async function insertAttributeValues(
-  client: PoolClient,
-  productId: string,
-  attributes: CreateProductInput["attributes"],
-): Promise<void> {
-  for (const a of attributes) {
-    await client.query(
-      `INSERT INTO public.product_attribute_value
-           (product_id, attribute_definition_id, value_text, value_number, value_boolean, value_options)
-           VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (product_id, attribute_definition_id)
-         DO UPDATE SET value_text = EXCLUDED.value_text, value_number = EXCLUDED.value_number,
-                       value_boolean = EXCLUDED.value_boolean, value_options = EXCLUDED.value_options,
-                       updated_at = now()`,
-      [
-        productId,
-        a.attributeId,
-        a.valueText ?? null,
-        a.valueNumber ?? null,
-        a.valueBoolean ?? null,
-        a.valueOptions ?? null,
-      ],
-    );
-  }
-}
-
-/** One transaction with its attribute values, media and sections. A duplicate SKU is 409. */
+/** One transaction: the product, its variants, its details, media and sections. A duplicate SKU is 409. */
 export async function createProduct(
   shopId: string,
   input: CreateProductInput,
@@ -216,13 +89,12 @@ export async function createProduct(
       // Prices, codes, weight and stock are the variants' (written below).
       const ins = await client.query<{ id: string }>(
         `INSERT INTO public.product
-             (shop_id, product_type_id, primary_category_id, name, brand,
-              short_description, long_description, created_by, unit_basis)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             (shop_id, primary_category_id, name, brand, short_description, long_description, created_by, unit_basis,
+              gst_status, storage, age_restricted)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING id`,
         [
           shopId,
-          input.productTypeId,
           input.primaryCategoryId,
           input.name,
           input.brand,
@@ -230,16 +102,16 @@ export async function createProduct(
           input.longDescription,
           createdBy,
           input.unitBasis,
+          input.gstStatus,
+          input.storage,
+          input.ageRestricted,
         ],
       );
       productId = ins.rows[0]!.id;
     } catch (err) {
       throw asConflict(err, "this product could not be created");
     }
-
-    await insertAttributeValues(client, productId, input.attributes);
-    // Through the one writer, so the status has history from the start.
-    await setGstStatus(client, productId, input.gstStatus, { kind: "shop_staff", sub: createdBy }, "create");
+    await recordGstOnCreate(client, productId, { kind: "shop_staff", sub: createdBy });
 
     for (const m of input.media) {
       await client.query(
@@ -255,17 +127,20 @@ export async function createProduct(
         [productId, sectionId],
       );
     }
-    // Variants through the one writer, after the pictures (a variant may name one).
+    // Variants through the one writer, after the pictures (a variant may name one); details after the
+    // variants (a detail may name one).
     await applyVariantSet(client, {
       productId, shopId, options: input.options, variants: input.variants, unitBasis: input.unitBasis, mode: "draft",
-    }).catch(asVariantError);
+    }).catch(asWriterError);
+    await writeProductDetails(client, productId, input.details).catch(asWriterError);
     return productId;
   });
 }
 
 /**
- * Under `WHERE id AND shop_id AND updated_at = expectedUpdatedAt`; zero rows is "stale". The token is
- * compared with millisecond truncation (`date_trunc`), since the driver returns ms-precision Dates.
+ * A draft, under `WHERE id AND shop_id AND updated_at = expectedUpdatedAt`; zero rows is "stale". The token is
+ * compared with millisecond truncation (`date_trunc`), since the driver returns ms-precision Dates. Returns the
+ * details that no longer had a place (a new leaf, or one variant left).
  */
 export async function updateProduct(
   shopId: string,
@@ -273,73 +148,80 @@ export async function updateProduct(
   expectedUpdatedAt: string,
   values: {
     name: string;
-    productTypeId: string;
     primaryCategoryId: string;
     brand: string | null;
     shortDescription: string;
     longDescription: string | null;
-    /** null leaves it as it stands. */
-    gstStatus: GstStatus | null;
+    gstStatus: GstStatus;
+    storage: Storage;
+    ageRestricted: boolean;
     /** undefined leaves it as it stands. */
     unitBasis: UnitBasis | null | undefined;
     /** Both or neither; null leaves them as they stand. */
     variantSet: { options: OptionInputDTO[]; variants: VariantInputDTO[] } | null;
+    /** The complete set; null leaves them as they stand. */
+    details: DetailInput[] | null;
   },
-  attributes: CreateProductInput["attributes"],
   actorSub: string,
-): Promise<"updated" | "stale"> {
+): Promise<{ outcome: "updated"; droppedDetails: string[] } | { outcome: "stale" }> {
   return withTransaction(async (client) => {
+    const before = await client.query<{ leaf: string }>(
+      `SELECT primary_category_id::text AS leaf FROM public.product WHERE id = $1 AND shop_id = $2`,
+      [id, shopId],
+    );
     let res;
     try {
       res = await client.query<{ id: string }>(
         `UPDATE public.product SET
-             name = $3, product_type_id = $4, primary_category_id = $5,
-             brand = $6, short_description = $7, long_description = $8, updated_at = now()
+             name = $3, primary_category_id = $4, brand = $5, short_description = $6, long_description = $7,
+             storage = $8, age_restricted = $9, updated_at = now()
           WHERE id = $1 AND shop_id = $2
             -- ⚠ The guard is IN the statement: even a caller that skipped the service cannot write
             -- an approved product's live details from here.
             AND approved_at IS NULL
-            AND date_trunc('milliseconds', updated_at) = $9::timestamptz
+            AND date_trunc('milliseconds', updated_at) = $10::timestamptz
           RETURNING id`,
         [
-          id,
-          shopId,
-          values.name,
-          values.productTypeId,
-          values.primaryCategoryId,
-          values.brand,
-          values.shortDescription,
-          values.longDescription,
-          expectedUpdatedAt,
+          id, shopId, values.name, values.primaryCategoryId, values.brand, values.shortDescription,
+          values.longDescription, values.storage, values.ageRestricted, expectedUpdatedAt,
         ],
       );
     } catch (err) {
       throw asConflict(err, "this product could not be saved");
     }
-    if (res.rowCount === 0) return "stale";
-    await insertAttributeValues(client, id, attributes);
+    if (res.rowCount === 0) return { outcome: "stale" };
+    await setGstStatus(client, id, values.gstStatus, { kind: "shop_staff", sub: actorSub }, "direct");
+
+    const dropped: string[] = [];
+    // A new leaf: every detail it does not ask for goes, hidden ones included (FR-024).
+    if (before.rows[0]?.leaf !== values.primaryCategoryId) dropped.push(...(await reconcileDetails(client, id, { dropHidden: true })));
+
     // A draft's variants are written as they are, through the one writer.
     if (values.variantSet) {
-      await applyVariantSet(client, {
+      const r = await applyVariantSet(client, {
         productId: id, shopId, options: values.variantSet.options, variants: values.variantSet.variants,
         unitBasis: values.unitBasis, mode: "draft",
-      }).catch(asVariantError);
+      }).catch(asWriterError);
+      dropped.push(...r.droppedDetails);
     } else if (values.unitBasis !== undefined) {
       // A basis alone must still agree with the variants' pack units.
       const current = (await readVariantSets(client, [id])).get(id)!;
       await applyVariantSet(client, {
         productId: id, shopId, unitBasis: values.unitBasis, mode: "draft",
-        options: current.options.map((o) => ({ id: o.id, position: o.position, name: o.name, values: o.values })),
+        options: current.options.map((o) => ({
+          id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
+          values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
+        })),
         variants: current.variants.filter((v) => v.state !== "removed").map((v) => ({
           id: v.id, position: v.position, optionValueIds: v.optionValueIds, sku: v.sku, gtin: v.gtin,
           shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
           weightGrams: v.weightIsAssumed ? null : v.weightGrams, packQuantity: v.packQuantity, packUnit: v.packUnit,
           mediaStorageKey: v.mediaStorageKey,
         })),
-      }).catch(asVariantError);
+      }).catch(asWriterError);
     }
-    if (values.gstStatus) await setGstStatus(client, id, values.gstStatus, { kind: "shop_staff", sub: actorSub }, "direct");
-    return "updated";
+    if (values.details) await writeProductDetails(client, id, values.details).catch(asWriterError);
+    return { outcome: "updated", droppedDetails: [...new Set(dropped)] };
   });
 }
 
@@ -561,12 +443,12 @@ interface ProductListRow {
   name: string;
   brand: string | null;
   primary_storage_key: string | null;
-  type_name: string;
   category_name: string;
   price_amount: string | null;
   customer_price_amount: string | null;
   price_varies: boolean;
   variant_count: number;
+  missing_required: number;
   review_state_shown: ShopReviewState;
   currency: string;
   status: ProductStatus;
@@ -592,7 +474,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
     `SELECT p.id, p.name, p.brand,
             (SELECT storage_key FROM public.product_media m
               WHERE m.product_id = p.id AND m.is_primary LIMIT 1) AS primary_storage_key,
-            pt.name AS type_name, c.name AS category_name,
+            c.name AS category_name,
             -- A shop is shown what IT is paid; the customer's price rides beside it. The cheapest
             -- active variant's, with "From" when they differ.
             ${SHOP_FROM_PRICE}::text AS price_amount,
@@ -601,11 +483,11 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
               WHERE v.product_id = p.id AND v.state = 'active') AS price_varies,
             (SELECT count(*)::int FROM public.product_variant v
               WHERE v.product_id = p.id AND v.state <> 'removed') AS variant_count,
+            (SELECT count(*)::int FROM public.product_missing_required(p.id)) AS missing_required,
             ${REVIEW_STATE_SQL} AS review_state_shown,
             p.currency, p.status, p.updated_at,
             count(*) OVER() AS total
        FROM public.product p
-       JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
        LEFT JOIN public.product_change pc ON pc.product_id = p.id
       WHERE p.shop_id = $1
@@ -617,8 +499,8 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
              OR EXISTS (SELECT 1 FROM public.product_variant sv
                          WHERE sv.product_id = p.id AND sv.state <> 'removed'
                            AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2 OR sv.code = upper($2))))
-        AND ($3::uuid IS NULL OR p.product_type_id = $3)
-        AND ($4::uuid IS NULL OR p.primary_category_id = $4)
+        AND (NOT $3::boolean OR EXISTS (SELECT 1 FROM public.product_missing_required(p.id)))
+        AND ($4::uuid IS NULL OR p.primary_category_id IN (SELECT ca.category_id FROM public.category_ancestor ca WHERE ca.ancestor_id = $4))
         AND ($5::text IS NULL OR p.status = $5)
         AND ($6::numeric IS NULL OR ${SHOP_FROM_PRICE} >= $6)
         AND ($7::numeric IS NULL OR ${SHOP_FROM_PRICE} <= $7)
@@ -630,7 +512,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
     [
       shopId,
       params.q,
-      params.type,
+      params.missing,
       params.category,
       params.status,
       params.priceMin,
@@ -648,7 +530,6 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       name: r.name,
       brand: r.brand,
       primaryImageUrl: r.primary_storage_key,
-      typeName: r.type_name,
       categoryName: r.category_name,
       priceAmount: r.price_amount ?? "0.00",
       currency: r.currency,
@@ -658,6 +539,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       customerPriceAmount: r.customer_price_amount,
       priceVaries: r.price_varies === true,
       variantCount: Number(r.variant_count),
+      missingRequired: Number(r.missing_required),
     })),
     total,
     page: params.page,
@@ -668,16 +550,20 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
 interface ProductRow {
   id: string;
   shop_id: string;
-  product_type_id: string;
-  type_name: string;
   primary_category_id: string;
   category_name: string;
+  category_path: string[] | null;
   name: string;
   brand: string | null;
   currency: string;
   short_description: string;
   long_description: string | null;
-  gst_status: GstStatus | null;
+  gst_status: GstStatus;
+  storage: Storage;
+  age_restricted: boolean;
+  default_storage: Storage | null;
+  default_gst_status: GstStatus | null;
+  default_age_restricted: boolean | null;
   unit_basis: UnitBasis | null;
   shop_default_threshold: number | null;
   status: ProductStatus;
@@ -688,18 +574,6 @@ interface ProductRow {
   approved: boolean;
 }
 
-interface AttrValueRow {
-  attribute_definition_id: string;
-  key: string;
-  name: string;
-  data_type: AttributeDataType;
-  unit: string | null;
-  value_text: string | null;
-  value_number: string | null;
-  value_boolean: boolean | null;
-  value_options: string[] | null;
-}
-
 interface MediaRow {
   id: string;
   storage_key: string;
@@ -708,16 +582,18 @@ interface MediaRow {
   alt_text: string | null;
 }
 
-/** If not this shop's. `missingMandatoryAttributes` is a non-blocking schema-drift notice. */
+/** null if not this shop's. */
 export async function getProductDetail(shopId: string, id: string): Promise<ProductDetail | null> {
   const res = await query<ProductRow>(
-    `SELECT p.id, p.shop_id, p.product_type_id, pt.name AS type_name,
-            p.primary_category_id, c.name AS category_name,
+    `SELECT p.id, p.shop_id, p.primary_category_id::text AS primary_category_id, c.name AS category_name,
+            r.path_names AS category_path,
             -- Named columns only — never p.*, which would carry Effy's margin to a shop (a guard
             -- test fails on it). Prices, codes, weight and stock are read per VARIANT below.
             p.name, p.brand, p.currency,
             p.short_description, p.long_description,
-            p.gst_status, p.unit_basis,
+            p.gst_status, p.storage, p.age_restricted,
+            r.storage AS default_storage, r.gst_status AS default_gst_status, r.age_restricted AS default_age_restricted,
+            p.unit_basis,
             (SELECT default_low_stock_threshold FROM public.shop_stock_settings WHERE shop_id = p.shop_id) AS shop_default_threshold,
             p.status,
             p.created_at, p.updated_at,
@@ -725,8 +601,8 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
             COALESCE(pc.reason, p.review_reason) AS review_reason,
             p.approved_at IS NOT NULL AS approved
        FROM public.product p
-       JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
+       LEFT JOIN public.category_resolved r ON r.category_id = p.primary_category_id
        LEFT JOIN public.product_change pc ON pc.product_id = p.id
       WHERE p.id = $1 AND p.shop_id = $2`,
     [id, shopId],
@@ -734,50 +610,25 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
   const row = res.rows[0];
   if (!row) return null;
 
-  const attrs = await query<AttrValueRow>(
-    `SELECT pav.attribute_definition_id, ad.key, ad.name, ad.data_type, ad.unit,
-            pav.value_text, pav.value_number::text AS value_number, pav.value_boolean, pav.value_options
-       FROM public.product_attribute_value pav
-       JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
-      WHERE pav.product_id = $1
-      ORDER BY ad.name`,
-    [id],
-  );
-  const media = await query<MediaRow>(
-    `SELECT id, storage_key, is_primary, display_order, alt_text
-       FROM public.product_media WHERE product_id = $1 ORDER BY is_primary DESC, display_order`,
-    [id],
-  );
-  const variantSet = (await readVariantSets({ query }, [id])).get(id)!;
-  const sections = await query<{ name: string }>(
-    `SELECT s.name FROM public.product_section ps
-       JOIN public.shop_section s ON s.id = ps.shop_section_id
-      WHERE ps.product_id = $1 ORDER BY s.display_order, s.name`,
-    [id],
-  );
-  const missing = await query<{ name: string }>(
-    `SELECT ad.name
-       FROM public.product_type_attribute pta
-       JOIN public.attribute_definition ad ON ad.id = pta.attribute_definition_id
-      WHERE pta.product_type_id = $1 AND pta.is_mandatory = true
-        AND NOT EXISTS (
-          SELECT 1 FROM public.product_attribute_value pav
-           WHERE pav.product_id = $2 AND pav.attribute_definition_id = pta.attribute_definition_id)
-      ORDER BY ad.name`,
-    [row.product_type_id, id],
-  );
+  const db: Queryable = { query };
+  const [media, variantSets, sections, details, missing] = await Promise.all([
+    query<MediaRow>(
+      `SELECT id, storage_key, is_primary, display_order, alt_text
+         FROM public.product_media WHERE product_id = $1 ORDER BY is_primary DESC, display_order`,
+      [id],
+    ),
+    readVariantSets(db, [id]),
+    query<{ name: string }>(
+      `SELECT s.name FROM public.product_section ps
+         JOIN public.shop_section s ON s.id = ps.shop_section_id
+        WHERE ps.product_id = $1 ORDER BY s.display_order, s.name`,
+      [id],
+    ),
+    readProductDetails(db, [id], { excludeOptions: true }),
+    missingRequired(db, [id]),
+  ]);
+  const variantSet = variantSets.get(id)!;
 
-  const attributes: ProductAttributeValue[] = attrs.rows.map((a) => ({
-    attributeId: a.attribute_definition_id,
-    key: a.key,
-    name: a.name,
-    dataType: a.data_type,
-    unit: a.unit,
-    valueText: a.value_text,
-    valueNumber: a.value_number !== null ? Number(a.value_number) : null,
-    valueBoolean: a.value_boolean,
-    valueOptions: a.value_options,
-  }));
   const mediaOut: ProductMedia[] = media.rows.map((m) => ({
     id: m.id,
     url: m.storage_key,
@@ -790,25 +641,27 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
   return {
     id: row.id,
     shopId: row.shop_id,
-    productTypeId: row.product_type_id,
-    typeName: row.type_name,
     primaryCategoryId: row.primary_category_id,
     categoryName: row.category_name,
+    categoryPath: row.category_path ?? [row.category_name],
     name: row.name,
     brand: row.brand,
     currency: row.currency,
     shortDescription: row.short_description,
     longDescription: row.long_description,
     gstStatus: row.gst_status,
+    storage: row.storage,
+    ageRestricted: row.age_restricted,
+    factDefaults: { storage: row.default_storage, gstStatus: row.default_gst_status, ageRestricted: row.default_age_restricted },
     unitBasis: row.unit_basis,
     options: variantSet.options,
     variants: variantSet.variants,
     shopDefaultThreshold: row.shop_default_threshold === null ? null : Number(row.shop_default_threshold),
     status: row.status,
-    attributes,
+    details: details.get(id) ?? [],
     media: mediaOut,
     sections: sections.rows.map((s) => s.name),
-    missingMandatoryAttributes: missing.rows.map((m) => m.name),
+    missingRequired: missing.get(id) ?? [],
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     reviewState: row.review_state_shown,

@@ -1,15 +1,16 @@
 import type {
   SetVariantStateRequest,
-  CatalogSchemaDTO,
   ChangeProductStatusRequest,
   CreatePresignedUploadResponse,
   CreateProductRequest,
+  CategoryFormDTO,
   CreateShopSectionRequest,
   ProductDetailDTO,
   ProductListDTO,
   ProductMediaDTO,
   SetProductSectionsRequest,
   ShopSectionDTO,
+  ShopTaxonomyDTO,
   UpdateMediaRequest,
   UpdateProductRequest,
   UpdateShopSectionRequest,
@@ -17,18 +18,26 @@ import type {
 
 import { api } from "@/lib/api"
 
-import type { CatalogSchema, ProductDetail, ProductList, ProductListParams, ProductMedia, ShopSection } from "./model"
+import type {
+  CategoryForm,
+  ProductDetail,
+  ProductList,
+  ProductListParams,
+  ProductMedia,
+  ShopSection,
+  ShopTaxonomy,
+} from "./model"
 
 export function encodeProductListQuery(p: ProductListParams): string {
   const params = new URLSearchParams()
   params.set("page", String(p.page))
   params.set("pageSize", String(p.pageSize))
   if (p.q && p.q.trim()) params.set("q", p.q.trim())
-  if (p.type) params.set("type", p.type)
   if (p.category) params.set("category", p.category)
   if (p.section) params.set("section", p.section)
   if (p.status) params.set("status", p.status)
   if (p.reviewState) params.set("reviewState", p.reviewState)
+  if (p.missing) params.set("missing", "true")
   if (p.priceMin && p.priceMin.trim()) params.set("priceMin", p.priceMin.trim())
   if (p.priceMax && p.priceMax.trim()) params.set("priceMax", p.priceMax.trim())
   if (p.sort) params.set("sort", p.sort)
@@ -36,8 +45,14 @@ export function encodeProductListQuery(p: ProductListParams): string {
   return params.toString()
 }
 
-export async function getCatalogSchema(): Promise<CatalogSchema> {
-  return api.get<CatalogSchemaDTO>("/shop/v1/catalog/schema")
+/** Every active category (paths, synonyms, icons) and the shop's recently used leaves (101). */
+export async function getShopTaxonomy(): Promise<ShopTaxonomy> {
+  return api.get<ShopTaxonomyDTO>("/shop/v1/catalog/categories")
+}
+
+/** A leaf's resolved form: the details step is built from it. */
+export async function getCategoryForm(categoryId: string): Promise<CategoryForm> {
+  return api.get<CategoryFormDTO>(`/shop/v1/catalog/categories/${categoryId}/form`)
 }
 
 export async function listProducts(params: ProductListParams): Promise<ProductList> {

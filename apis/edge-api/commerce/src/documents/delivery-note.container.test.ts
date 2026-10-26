@@ -33,7 +33,7 @@ d("096 US7 — the customer's delivery note", () => {
   it("is the owner's only, waits for delivery, and comes as a PDF", async () => {
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('CDN', 'Shop') RETURNING id`);
     const product = await one<{ id: string }>(
-      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Milk', 'A thing', 'test', 'active', now()) RETURNING *),
+      `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, 'Milk', 'A thing', 'test', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
 SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('me', 'me@effyshopping.com') RETURNING id`);

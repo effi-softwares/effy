@@ -29,10 +29,8 @@ const WINDOW_PARCELS = `
             JOIN public.round_stop crs ON crs.id = crp.stop_id
             JOIN public.hub_checkin hc ON hc.round_id = crs.round_id
            WHERE crp.shop_fulfillment_id = sf.id AND crp.state = 'picked_up') AS hub_date,
-         COALESCE((SELECT bool_or(pav.value_text IN ('chilled', 'frozen'))
+         COALESCE((SELECT bool_or(oi.storage_class IN ('chilled', 'frozen'))
                      FROM public.order_item oi
-                     JOIN public.product_attribute_value pav ON pav.product_id = oi.product_id
-                     JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
                     WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id), false) AS cold
     FROM public.shop_fulfillment sf
     JOIN public."order" o ON o.id = sf.order_id

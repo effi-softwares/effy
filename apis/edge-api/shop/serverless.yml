@@ -121,13 +121,24 @@ functions:
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
   # Product catalog: any active shop member, every query shop-scoped.
-  catalogSchemaV1:
-    handler: src/functions/catalog-schema-v1-get.handler
-    description: Catalog schema-read — active types + attributes + category tree (drives the create form) — 016
+  catalogCategoriesV1:
+    handler: src/functions/catalog-categories-v1-get.handler
+    description: Every active category for the product form's picker, and this shop's recent leaves — 101
     events:
       - httpApi:
           method: GET
-          path: /shop/v1/catalog/schema
+          path: /shop/v1/catalog/categories
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  catalogCategoryFormV1:
+    handler: src/functions/catalog-category-form-v1-get.handler
+    description: A leaf category's resolved details form (sections, levels, units, values) — 101
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/catalog/categories/{id}/form
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}

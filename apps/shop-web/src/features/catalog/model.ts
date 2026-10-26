@@ -1,26 +1,22 @@
 import type {
-  CatalogSchemaDTO,
-  CategoryDTO,
-  ProductAttributeValueDTO,
+  CategoryFormDTO,
   ProductDetailDTO,
   ProductListDTO,
   ProductListItemDTO,
   ProductMediaDTO,
   ProductStatus,
   ShopReviewState,
-  ProductTypeAttributeDTO,
-  ProductTypeDTO,
   ShopSectionDTO,
+  ShopTaxonomyCategoryDTO,
+  ShopTaxonomyDTO,
 } from "@effy/shared-types"
 
-export type CatalogSchema = CatalogSchemaDTO
-export type ProductType = ProductTypeDTO
-export type ProductTypeAttribute = ProductTypeAttributeDTO
-export type Category = CategoryDTO
+export type ShopTaxonomy = ShopTaxonomyDTO
+export type ShopCategory = ShopTaxonomyCategoryDTO
+export type CategoryForm = CategoryFormDTO
 export type ProductListItem = ProductListItemDTO
 export type ProductList = ProductListDTO
 export type ProductDetail = ProductDetailDTO
-export type ProductAttributeValue = ProductAttributeValueDTO
 export type ProductMedia = ProductMediaDTO
 export type ShopSection = ShopSectionDTO
 
@@ -31,13 +27,18 @@ export interface ProductListParams {
   page: number
   pageSize: number
   q?: string
-  type?: string
+  /** A category id: products filed in it or beneath it. */
   category?: string
   section?: string
   status?: ProductStatus
   reviewState?: ShopReviewState
+  /** Only products with a required detail empty. */
+  missing?: boolean
   priceMin?: string
   priceMax?: string
   sort?: ProductSort
   order?: ProductOrder
 }
+
+/** "Dairy, Eggs & Fridge › Yoghurt" — the one way a category path is written. */
+export const pathText = (path: readonly string[]) => path.join(" › ")

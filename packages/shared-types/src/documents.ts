@@ -42,18 +42,6 @@ export const GST_STATUS_WORDS: Record<GstStatus, string> = {
   gst_free: "GST-free",
 }
 
-/** `GET /catalog/v1/gst/missing`: live products nobody has classified yet. */
-export interface GstMissingDTO {
-  total: number
-  items: Array<{ productId: string; name: string; shopName: string; categoryName: string }>
-}
-
-/** `POST /catalog/v1/gst/bulk`: one status on many products. */
-export interface GstBulkRequest {
-  productIds: string[]
-  gstStatus: GstStatus
-}
-
 /** A tax invoice or adjustment note exactly as issued: the frozen snapshot the PDF renders. Money is a decimal string; it never changes. */
 export interface TaxDocumentDTO {
   kind: "invoice" | "adjustment"

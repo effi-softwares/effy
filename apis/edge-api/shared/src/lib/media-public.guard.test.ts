@@ -60,7 +60,7 @@ describe("the public picture set ↔ the bucket policy (086)", () => {
   it("only original uploads notify the worker — never its own copies, never proof or labels", () => {
     const notification = block('resource "aws_s3_bucket_notification" "product_media"');
     const prefixes = [...notification.matchAll(/filter_prefix\s*=\s*"([^"]*)"/g)].map((m) => m[1]);
-    expect(prefixes.sort()).toEqual(["products/", "promotions/"]);
+    expect(prefixes.sort()).toEqual(["categories/", "products/", "promotions/"]);
   });
 });
 
@@ -100,7 +100,9 @@ describe("who may build a public address (086 FR-014)", () => {
           .filter(({ text }) => /\bpublicImageUrl\b/.test(text))
           .map(({ file }) => file)
           // Back-office previews a promotion's pictures at the shopper address (public `promotions/` prefix).
-          .filter((file) => !file.endsWith("admin/src/promotions/images.ts"));
+          .filter((file) => !file.endsWith("admin/src/promotions/images.ts"))
+          // Back-office shows a category's picture at the shopper address (public `categories/` prefix, 101).
+          .filter((file) => !file.endsWith("catalog/src/taxonomy/images.ts"));
       } catch {
         return [];
       }

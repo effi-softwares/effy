@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { Boxes, CircleAlert, Eye, FileText, Hourglass, ImageOff, Images, type LucideIcon } from "lucide-react"
 
 import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
-import { GST_STATUS_WORDS } from "@effy/shared-types"
+import { formatAttributeValue, GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 import { DetailRows, PageHeader } from "@effy/web-kit/patterns"
 
@@ -13,21 +13,28 @@ import { DetailSection, Page, SectionAction } from "@/components/console/primiti
 import { cn } from "@/lib/utils"
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge"
-import { formatAttributeValue, formatMoney, orderedMedia, storefrontText } from "./detailFormat"
+import { formatMoney, orderedMedia, storefrontText } from "./detailFormat"
 import { InventorySection } from "./InventorySection"
 import { MediaGallery } from "./MediaGallery"
-import type { ProductDetail } from "./model"
+import { pathText, type ProductDetail } from "./model"
 import { ProductActivitySheet } from "./ProductActivitySheet"
 import { ProductHeaderActions } from "./ProductActions"
-import { AttributesEditDialog, BasicsEditDialog, CategorizationEditDialog, SizesEditDialog } from "./ProductEditDialogs"
-import { productDetailQuery } from "./queries"
+import {
+  BasicsEditDialog,
+  CategoryEditDialog,
+  DetailsEditDialog,
+  detailVariants,
+  FactsEditDialog,
+  SizesEditDialog,
+} from "./ProductEditDialogs"
+import { categoryFormQuery, productDetailQuery } from "./queries"
 import { reviewChip, workingDetail } from "./review"
 import { ReviewPanel } from "./ReviewPanel"
 import { SectionAssignment } from "./SectionAssignment"
 import { defaultStockVariantId, shopPriceSummary } from "./variants"
 import { VariantsSection } from "./VariantsSection"
 
-type EditTarget = "basics" | "sizes" | "categorization" | "attributes" | null
+type EditTarget = "basics" | "sizes" | "category" | "facts" | { section: string } | null
 
 type DetailTab = "details" | "inventory" | "media" | "visibility"
 
@@ -38,6 +45,8 @@ export function ProductDetailScreen({ productId, initialSize }: { productId: str
 function ProductDetailBody({ productId, initialSize }: { productId: string; initialSize?: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId))
   const [editing, setEditing] = useState<EditTarget>(null)
+  // Details a save removed (a new category, a size gone): said once, until dismissed.
+  const [dropped, setDropped] = useState<string[]>([])
   const [tab, setTab] = useState<DetailTab>("details")
   const [activityOpen, setActivityOpen] = useState(false)
   // The size whose stock the Inventory tab, Receive stock and Activity show.
@@ -81,6 +90,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   const onSale = detail.variants.filter((v) => v.state === "active")
   const soldOut = onSale.length > 0 && onSale.every((v) => v.stock.outOfStock)
   const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target)
+  const editingSection = editing !== null && typeof editing === "object" ? editing.section : null
 
   const sizes = detail.variants.filter((v) => v.state !== "removed")
 
@@ -109,7 +119,8 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             meta={
               <>
                 {detail.brand ? <span>{detail.brand}</span> : null}
-                <span>{detail.categoryName}</span>
+                <span>{pathText(detail.categoryPath)}</span>
+                {detail.ageRestricted ? <span className="ef-st ef-st--muted">18+</span> : null}
                 <span>{sizes.length === 1 ? "One size" : `${sizes.length} sizes`}</span>
                 {sizes.length === 1 && sizes[0]?.code ? (
                   <span>
@@ -135,14 +146,28 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
 
       <ReviewPanel detail={detail} />
 
-      {detail.missingMandatoryAttributes.length > 0 ? (
+      {detail.missingRequired.length > 0 ? (
         <div role="status" className="ef-alert ef-alert--destructive">
           <CircleAlert aria-hidden="true" />
           <div className="ef-alert__title">Missing required details</div>
           <div className="ef-alert__description">
-            This product&apos;s type now requires attributes it doesn&apos;t have:{" "}
-            {detail.missingMandatoryAttributes.join(", ")}. It stays visible — add them under Details → Attributes to
-            keep it complete.
+            Its category asks for {detail.missingRequired.join(", ")}. It stays on sale — fill{" "}
+            {detail.missingRequired.length === 1 ? "it" : "them"} in under Details; your next change can't be sent to
+            Effy without {detail.missingRequired.length === 1 ? "it" : "them"}.
+          </div>
+        </div>
+      ) : null}
+
+      {dropped.length > 0 ? (
+        <div role="status" className="ef-alert ef-alert--info">
+          <CircleAlert aria-hidden="true" />
+          <div className="ef-alert__title">Some details were removed</div>
+          <div className="ef-alert__description">
+            {dropped.join(", ")} no longer had a place: the new category doesn't ask for{" "}
+            {dropped.length === 1 ? "it" : "them"}, or it only differed between sizes.{" "}
+            <button type="button" className="underline" onClick={() => setDropped([])}>
+              Dismiss
+            </button>
           </div>
         </div>
       ) : null}
@@ -166,41 +191,37 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
 
           <DetailSection
             title="Product details"
-            subtitle="Name, brand and how this product is taxed. Codes and weights are each size's."
+            subtitle="Name, brand and descriptions. Codes and weights are each size's."
             action={<SectionAction onClick={edit("basics")}>Edit</SectionAction>}
           >
             <DetailRows
               rows={[
                 { label: "Name", value: detail.name },
                 { label: "Brand", value: detail.brand ?? "—" },
-                { label: "Type", value: detail.typeName },
                 { label: "Short description", value: detail.shortDescription },
                 {
                   label: "Long description",
                   value: <span className="whitespace-pre-line">{detail.longDescription ?? "—"}</span>,
                 },
-                { label: "GST", value: detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set" },
               ]}
             />
           </DetailSection>
 
           <DetailSection
-            title="Attributes"
-            subtitle="The details this product type asks for."
-            action={<SectionAction onClick={edit("attributes")}>Edit</SectionAction>}
+            title="Storage, GST and age"
+            subtitle="Fixed facts Effy acts on. Each starts from the category's default."
+            action={<SectionAction onClick={edit("facts")}>Edit</SectionAction>}
           >
-            {detail.attributes.length === 0 ? (
-              <p className="text-muted-foreground">This product&apos;s type has no extra attributes.</p>
-            ) : (
-              <DetailRows
-                rows={detail.attributes.map((a) => ({
-                  key: a.name,
-                  label: a.unit ? `${a.name} (${a.unit})` : a.name,
-                  value: formatAttributeValue(a),
-                }))}
-              />
-            )}
+            <DetailRows
+              rows={[
+                { label: "Storage", value: STORAGE_WORDS[detail.storage] },
+                { label: "GST", value: GST_STATUS_WORDS[detail.gstStatus] },
+                { label: "Age restriction", value: detail.ageRestricted ? "18+ only" : "Not age-restricted" },
+              ]}
+            />
           </DetailSection>
+
+          <FormSections detail={detail} onEdit={(section) => setEditing({ section })} />
         </TabsContent>
 
         <TabsContent value="inventory" className="ef-tabpanel">
@@ -215,13 +236,12 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           <DetailSection
             title="Visibility and placement"
             subtitle="Whether shoppers can see this product, and where it is filed."
-            action={<SectionAction onClick={edit("categorization")}>Edit</SectionAction>}
+            action={<SectionAction onClick={edit("category")}>Change category</SectionAction>}
           >
             <DetailRows
               rows={[
                 { label: "Storefront", value: storefrontText(detail.status) },
-                { label: "Type", value: detail.typeName },
-                { label: "Category", value: detail.categoryName },
+                { label: "Category", value: pathText(detail.categoryPath) },
                 { label: "Sections", value: <SectionAssignment detail={detail} /> },
               ]}
             />
@@ -245,16 +265,24 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         detail={working}
         open={editing === "sizes"}
         onOpenChange={(o) => setEditing(o ? "sizes" : null)}
+        onDropped={setDropped}
       />
-      <CategorizationEditDialog
+      <CategoryEditDialog
         detail={working}
-        open={editing === "categorization"}
-        onOpenChange={(o) => setEditing(o ? "categorization" : null)}
+        open={editing === "category"}
+        onOpenChange={(o) => setEditing(o ? "category" : null)}
+        onDropped={setDropped}
       />
-      <AttributesEditDialog
+      <FactsEditDialog
         detail={working}
-        open={editing === "attributes"}
-        onOpenChange={(o) => setEditing(o ? "attributes" : null)}
+        open={editing === "facts"}
+        onOpenChange={(o) => setEditing(o ? "facts" : null)}
+      />
+      <DetailsEditDialog
+        detail={working}
+        section={editingSection}
+        open={editingSection !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
       />
     </Page>
   )
@@ -279,5 +307,51 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
     <div className="ef-img size-24 rounded-lg max-md:size-20">
       <ImageOff aria-hidden="true" />
     </div>
+  )
+}
+
+/** The category's form, section by section, with this product's values; each section edits on its own. */
+function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit: (section: string) => void }) {
+  const form = useQuery(categoryFormQuery(detail.primaryCategoryId))
+  if (form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
+  if (!form.data) return <Skeleton className="h-32 w-full rounded-lg" />
+  const options = new Set(detail.options.flatMap((o) => (o.attributeId ? [o.attributeId] : [])))
+  const sections = form.data.sections
+    .map((s) => ({ ...s, rows: s.rows.filter((r) => !options.has(r.attributeId)) }))
+    .filter((s) => s.rows.length > 0)
+  if (sections.length === 0) return null
+  return (
+    <>
+      {sections.map((s) => (
+        <DetailSection
+          key={s.title}
+          title={s.title}
+          subtitle={`What ${detail.categoryPath[detail.categoryPath.length - 1]} asks for.`}
+          action={<SectionAction onClick={() => onEdit(s.title)}>Edit</SectionAction>}
+        >
+          <DetailRows
+            rows={s.rows.map((row) => ({
+              key: row.attributeId,
+              label: row.name,
+              value: valueText(detail, form.data, row.attributeId),
+            }))}
+          />
+        </DetailSection>
+      ))}
+    </>
+  )
+}
+
+function valueText(detail: ProductDetail, form: CategoryFormDTO, attributeId: string): string {
+  const row = form.sections.flatMap((s) => s.rows).find((r) => r.attributeId === attributeId)!
+  const d = detail.details.find((x) => x.attributeId === attributeId)
+  const empty = row.level === "required" ? "Missing — required" : "—"
+  if (!d) return empty
+  if (d.value) return formatAttributeValue(row, d.value) || empty
+  const labels = new Map(detailVariants(detail).map((v) => [v.id, v.label]))
+  return (
+    (d.perVariant ?? [])
+      .map((p) => `${labels.get(p.variantId) ?? "A size"}: ${formatAttributeValue(row, p.value)}`)
+      .join(" · ") || empty
   )
 }

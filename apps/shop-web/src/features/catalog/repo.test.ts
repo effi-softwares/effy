@@ -20,7 +20,7 @@ describe("encodeProductListQuery", () => {
       page: 1,
       pageSize: 20,
       q: "  latte ",
-      type: "t1",
+      missing: true,
       category: "c1",
       section: "s1",
       status: "active",
@@ -31,7 +31,7 @@ describe("encodeProductListQuery", () => {
     }
     const qs = new URLSearchParams(encodeProductListQuery(params))
     expect(qs.get("q")).toBe("latte")
-    expect(qs.get("type")).toBe("t1")
+    expect(qs.get("missing")).toBe("true")
     expect(qs.get("category")).toBe("c1")
     expect(qs.get("section")).toBe("s1")
     expect(qs.get("status")).toBe("active")

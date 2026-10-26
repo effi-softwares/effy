@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -13,7 +14,7 @@ import { btnClass } from "@/components/storefront/actions"
 import { useOnDemand } from "@/lib/use-on-demand"
 import { Breadcrumb, type Crumb } from "@/components/ui/misc"
 import { edgeApiBaseUrl } from "@/lib/config"
-import { facetsQuery, productsQuery, readRefinement, type SearchInitial } from "@/lib/search-query"
+import { facetsQuery, productsQuery, rangeValue, readRefinement, type SearchInitial } from "@/lib/search-query"
 
 import { FIRST_ROW, ProductCard, ProductGridSkeleton, productGridNarrow } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
@@ -91,6 +92,8 @@ export interface CategoryName {
   key: string
   name: string
   parentKey: string | null
+  /** Products under it (placements included); a sub-aisle with none is not offered. */
+  productCount?: number
 }
 
 export function SearchExperience({
@@ -105,7 +108,7 @@ export function SearchExperience({
 
   // Refinement state, read from the URL
   const refinement = useMemo(() => readRefinement(params), [params])
-  const { q, category, saleOnly, minPrice, maxPrice, sort, brands, attributes } = refinement
+  const { q, category, saleOnly, minPrice, maxPrice, sort, brands, attributes, ranges } = refinement
   const query = useMemo(() => productsQuery(refinement), [refinement])
   const facetsFor = useMemo(() => facetsQuery(refinement), [refinement])
 
@@ -169,7 +172,8 @@ export function SearchExperience({
     (saleOnly ? 1 : 0) +
     (minPrice || maxPrice ? 1 : 0) +
     brands.length +
-    Object.values(attributes).reduce((n, vals) => n + vals.length, 0)
+    Object.values(attributes).reduce((n, vals) => n + vals.length, 0) +
+    Object.keys(ranges).length
 
   const clearAllFilters = useCallback(() => {
     const next = new URLSearchParams()
@@ -179,8 +183,8 @@ export function SearchExperience({
   }, [q, sort, go])
 
   const selected: SelectedFilters = useMemo(
-    () => ({ category, brands, attributes, saleOnly }),
-    [category, brands, attributes, saleOnly],
+    () => ({ category, brands, attributes, ranges, saleOnly }),
+    [category, brands, attributes, ranges, saleOnly],
   )
 
   // value → label lookup per facet, so a chip reads "Vegan", not "vegan". A selected value is
@@ -218,13 +222,19 @@ export function SearchExperience({
     for (const [k, vals] of Object.entries(attributes))
       for (const v of vals)
         out.push({ key: `attr:${k}:${v}`, label: facetLabel[k]?.[v] ?? v, remove: () => toggleParamValue(`attr.${k}`, v) })
+    for (const [k, r] of Object.entries(ranges)) {
+      const facet = facetSet?.facets.find((f) => f.key === k)
+      const unit = facet?.range?.unit ? ` ${facet.range.unit}` : ""
+      const words = r.min && r.max ? `${r.min}–${r.max}${unit}` : r.min ? `from ${r.min}${unit}` : `up to ${r.max}${unit}`
+      out.push({ key: `range:${k}`, label: `${facet?.label ?? k} ${words}`, remove: () => setParam({ [`range.${k}`]: null }) })
+    }
     if (saleOnly) out.push({ key: "sale", label: "On sale", remove: () => setParam({ saleOnly: null }) })
     if (minPrice || maxPrice) {
       const label = minPrice && maxPrice ? `$${minPrice}–$${maxPrice}` : minPrice ? `From $${minPrice}` : `Up to $${maxPrice}`
       out.push({ key: "price", label, remove: () => setParam({ minPrice: null, maxPrice: null }) })
     }
     return out
-  }, [category, categoryTrail, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
+  }, [category, categoryTrail, brands, attributes, ranges, saleOnly, minPrice, maxPrice, facetLabel, facetSet, setParam, toggleParamValue])
 
   // Reading
   const show = useCallback(
@@ -364,11 +374,16 @@ export function SearchExperience({
       priceMin={minPrice}
       priceMax={maxPrice}
       onCategory={(value) => setParam({ category: value })}
-      onToggleValue={(facetKey, value) =>
+      onToggleValue={(facetKey, value) => {
         toggleParamValue(facetKey === "brand" ? "brand" : `attr.${facetKey}`, value)
-      }
+        void import("@/lib/telemetry").then(({ capture }) => capture({ name: "filter_applied", props: { facet: facetKey, kind: "choice" } }))
+      }}
       onToggleSale={() => setParam({ saleOnly: saleOnly ? null : "true" })}
       onApplyPrice={(lo, hi) => setParam({ minPrice: lo || null, maxPrice: hi || null })}
+      onApplyRange={(key, lo, hi) => {
+        setParam({ [`range.${key}`]: rangeValue(lo, hi) })
+        void import("@/lib/telemetry").then(({ capture }) => capture({ name: "filter_applied", props: { facet: key, kind: "range" } }))
+      }}
       onClearAll={clearAllFilters}
       activeCount={activeCount}
     />
@@ -377,6 +392,7 @@ export function SearchExperience({
   )
 
   const aisleName = category ? (categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? null) : null
+  const subAisles = category ? categories.filter((c) => c.parentKey === category && (c.productCount ?? 1) > 0) : []
   const heading = q.trim()
     ? `Results for “${q.trim()}”`
     : aisleName
@@ -402,6 +418,21 @@ export function SearchExperience({
       <p role="status" aria-live="polite" className="mt-1 min-h-5 text-sm text-muted-foreground">
         {total === null ? (loading ? "Searching…" : "") : `${total.toLocaleString()} ${total === 1 ? "result" : "results"}`}
       </p>
+
+      {/* The aisle's sub-aisles as links, so every level of the tree (up to five) can be reached (101). */}
+      {subAisles.length > 0 && (
+        <nav aria-label={`In ${aisleName ?? "this aisle"}`} className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
+          {subAisles.map((c) => (
+            <Link
+              key={c.key}
+              href={`/search?category=${encodeURIComponent(c.key)}`}
+              className={btnClass("outline", "sm", "shrink-0 whitespace-nowrap")}
+            >
+              {c.name}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
         <aside className="hidden lg:sticky lg:top-40 lg:block lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:pr-1">

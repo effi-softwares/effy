@@ -7,7 +7,7 @@ import { AccountNavLink } from "@/components/chrome/AccountNavLink"
 import { ACCOUNT_LINKS, ACCOUNT_SECTIONS } from "@/components/header/account-links"
 import { getSession } from "@/lib/session"
 
-import { aisleIcon } from "@/components/chrome/aisle-icon"
+import { categoryIcon } from "@/components/chrome/category-icon"
 import { btnClass } from "@/components/storefront/actions"
 import { aisleHref, getCategoriesSafe, topLevel } from "@/lib/categories"
 
@@ -31,7 +31,7 @@ export async function MobileNavIsland() {
         <p className="mt-4 mb-1 px-3 text-xs font-medium text-muted-foreground">Aisles</p>
         <ul className="flex flex-col gap-1">
           {top.map((aisle) => {
-            const Icon = aisleIcon(aisle.name)
+            const Icon = categoryIcon(aisle.icon)
             return (
               <li key={aisle.key}>
                 <Link

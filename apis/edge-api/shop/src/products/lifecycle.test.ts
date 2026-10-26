@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const repo = vi.hoisted(() => ({
   getProductDetail: vi.fn(),
-  productTypeIsActive: vi.fn(),
-  categoryIsActive: vi.fn(),
-  assignmentsForType: vi.fn(),
+  checkLeaf: vi.fn(),
   updateProduct: vi.fn(),
   changeStatus: vi.fn(),
   hasPrimaryImage: vi.fn(),
@@ -23,6 +21,10 @@ const changeMod = vi.hoisted(() => ({
 const mediaMod = vi.hoisted(() => ({ presignRead: vi.fn() }));
 vi.mock("./repository", () => repo);
 vi.mock("./media", () => mediaMod);
+vi.mock("@effy/edge-shared/catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared/catalog")>()),
+  readFormRows: vi.fn(async (_db: unknown, ids: string[]) => new Map(ids.map((id) => [id, []]))),
+}));
 // The pure helpers (diff, overlay, merge) are real; only database-touching ones are mocked.
 vi.mock("./change", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("./change");
@@ -30,7 +32,7 @@ vi.mock("./change", async () => {
 });
 
 import { changeStatus, deleteProduct, setSections, submitForReview, updateProduct, withdraw } from "./service";
-import { diffProposal, mergeAttributes, overlay } from "./change";
+import { diffProposal, overlay } from "./change";
 import { isProductError } from "./types";
 
 async function kindOf(p: Promise<unknown>): Promise<string> {
@@ -51,11 +53,13 @@ const variantRow = {
   stockTracked: false, stockOnHand: null, lowStockThreshold: null, state: "active",
 };
 const detail = {
-  id: "p1", shopId: "shop-1", productTypeId: "t1", typeName: "T", primaryCategoryId: "c1", categoryName: "C",
+  id: "p1", shopId: "shop-1", primaryCategoryId: "c1", categoryName: "C", categoryPath: ["D", "C"],
   name: "X", brand: null, currency: "AUD",
-  shortDescription: "d", longDescription: null, status: "draft", attributes: [], media: [], sections: [],
-  missingMandatoryAttributes: [], createdAt: "t", updatedAt: "2026-07-16T00:00:00.000Z",
-  unitBasis: null, options: [], variants: [variantRow], shopDefaultThreshold: null, gstStatus: null,
+  shortDescription: "d", longDescription: null, status: "draft", details: [], media: [], sections: [],
+  missingRequired: [], createdAt: "t", updatedAt: "2026-07-16T00:00:00.000Z",
+  unitBasis: null, options: [], variants: [variantRow], shopDefaultThreshold: null,
+  gstStatus: "gst_free", storage: "chilled", ageRestricted: false,
+  factDefaults: { storage: "chilled", gstStatus: "gst_free", ageRestricted: false },
 };
 /** As a shop would send it, with its price changed. */
 const repriced = (price: string) => ({ options: [], variants: [{ id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: price }] });
@@ -64,9 +68,7 @@ describe("updateProduct — optimistic concurrency (FR-023a)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo.getProductDetail.mockResolvedValue({ ...detail });
-    repo.productTypeIsActive.mockResolvedValue(true);
-    repo.categoryIsActive.mockResolvedValue(true);
-    repo.assignmentsForType.mockResolvedValue([]);
+    repo.checkLeaf.mockResolvedValue({ kind: "leaf", defaults: { storage: "frozen", gstStatus: "taxable", ageRestricted: true } });
     mediaMod.presignRead.mockResolvedValue("url");
   });
 
@@ -81,20 +83,36 @@ describe("updateProduct — optimistic concurrency (FR-023a)", () => {
   });
 
   it("409s a stale expectedUpdatedAt (product changed elsewhere)", async () => {
-    repo.updateProduct.mockResolvedValue("stale");
+    repo.updateProduct.mockResolvedValue({ outcome: "stale" });
     expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "New" }, "sub-1"))).toBe("conflict");
   });
 
   it("patches only the supplied subset (merges the rest from current)", async () => {
-    repo.updateProduct.mockResolvedValue("updated");
+    repo.updateProduct.mockResolvedValue({ outcome: "updated", droppedDetails: [] });
     await updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "Renamed" }, "sub-1");
     const values = repo.updateProduct.mock.calls[0]![3];
     expect(values.name).toBe("Renamed");
     expect(values.shortDescription).toBe("d");
+    expect(values.details).toBeNull();
+  });
+
+  it("101 — a new leaf re-defaults the facts the shop never changed, and keeps the one it did", async () => {
+    repo.updateProduct.mockResolvedValue({ outcome: "updated", droppedDetails: ["Allergens"] });
+    const NEW = "00000000-0000-4000-8000-0000000000c2";
+    const out = await updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", primaryCategoryId: NEW, factsTouched: ["storage"] }, "sub-1");
+    const values = repo.updateProduct.mock.calls[0]![3];
+    expect(values).toMatchObject({ primaryCategoryId: NEW, storage: "chilled", gstStatus: "taxable", ageRestricted: true });
+    expect(out.droppedDetails).toEqual(["Allergens"]);
+  });
+
+  it("101 — refuses a category with sub-categories", async () => {
+    repo.checkLeaf.mockResolvedValue({ kind: "not_leaf" });
+    expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", primaryCategoryId: "00000000-0000-4000-8000-0000000000c3" }, "sub-1"))).toBe("validation");
+    expect(repo.updateProduct).not.toHaveBeenCalled();
   });
 });
 
-describe("changeStatus — publish re-validates mandatory (FR-010)", () => {
+describe("changeStatus — back on sale (FR-010, 101 FR-016)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaMod.presignRead.mockResolvedValue("url");
@@ -119,11 +137,11 @@ describe("changeStatus — publish re-validates mandatory (FR-010)", () => {
     expect(repo.changeStatus).toHaveBeenCalledWith("shop-1", "p1", "unavailable");
   });
 
-  it("rejects publish when a mandatory attribute is missing", async () => {
-    repo.getProductDetail.mockResolvedValue({ ...detail, missingMandatoryAttributes: ["Allergens"] });
+  it("a required detail staff added after approval does not keep an approved product off sale", async () => {
+    repo.getProductDetail.mockResolvedValue({ ...detail, missingRequired: ["Allergens"] });
     repo.hasPrimaryImage.mockResolvedValue(true);
-    expect(await kindOf(changeStatus("shop-1", "p1", { status: "active" }))).toBe("validation");
-    expect(repo.changeStatus).not.toHaveBeenCalled();
+    await changeStatus("shop-1", "p1", { status: "active" });
+    expect(repo.changeStatus).toHaveBeenCalledWith("shop-1", "p1", "active");
   });
 
   it("rejects publish without a primary image", async () => {
@@ -196,9 +214,12 @@ describe("067 — submitting a new product for review", () => {
     expect(repo.submitForReview).toHaveBeenCalledWith("shop-1", "p1");
   });
 
-  it("refuses one with a mandatory detail missing, naming it", async () => {
-    repo.getProductDetail.mockResolvedValue({ ...detail, approved: false, missingMandatoryAttributes: ["Allergens"] });
-    expect(await kindOf(submitForReview("shop-1", "p1"))).toBe("validation");
+  it("missing_required_details: refuses one with a required detail missing, naming it per variant", async () => {
+    repo.getProductDetail.mockResolvedValue({ ...detail, approved: false, missingRequired: ["Allergens (Mango)"] });
+    await expect(submitForReview("shop-1", "p1")).rejects.toMatchObject({
+      kind: "validation",
+      fields: [{ field: "details", message: expect.stringContaining("Allergens (Mango)") }],
+    });
     expect(repo.submitForReview).not.toHaveBeenCalled();
   });
 
@@ -252,9 +273,7 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     vi.clearAllMocks();
     mediaMod.presignRead.mockResolvedValue("url");
     repo.getProductDetail.mockResolvedValue({ ...approvedDetail });
-    repo.productTypeIsActive.mockResolvedValue(true);
-    repo.categoryIsActive.mockResolvedValue(true);
-    repo.assignmentsForType.mockResolvedValue([]);
+    repo.checkLeaf.mockResolvedValue({ kind: "leaf", defaults: { storage: "frozen", gstStatus: "taxable", ageRestricted: false } });
     changeMod.readChange.mockResolvedValue(null);
     changeMod.saveProposal.mockResolvedValue("saved");
   });
@@ -299,52 +318,37 @@ describe("067 — editing an APPROVED product proposes a change", () => {
 });
 
 describe("067 — the proposal diff", () => {
-  const live = { ...approvedDetail, attributes: [
-    { attributeId: "a1", key: "storage", name: "Storage", dataType: "single_select", unit: null,
-      valueText: "chilled", valueNumber: null, valueBoolean: null, valueOptions: null },
-  ] } as never;
+  const live = { ...approvedDetail, details: [{ attributeId: "a1", value: { valueIds: ["chilled"] } }] } as never;
   const sameVariants = [{ id: V1, position: 0, optionValueIds: [null, null] as [null, null], sku: null, gtin: null, shopPriceAmount: "1.00", shopCompareAtAmount: null, weightGrams: 500, packQuantity: null, packUnit: null, mediaStorageKey: null }];
   const same = {
-    name: "X", productTypeId: "t1", primaryCategoryId: "c1", brand: null,
-    shortDescription: "d", longDescription: null, gstStatus: null, unitBasis: null, options: [], variants: sameVariants,
+    name: "X", primaryCategoryId: "c1", brand: null, shortDescription: "d", longDescription: null,
+    gstStatus: "gst_free" as const, storage: "chilled" as const, ageRestricted: false, unitBasis: null,
+    options: [], variants: sameVariants, details: [{ attributeId: "a1", value: { valueIds: ["chilled"] } }],
   };
 
   it("is empty when nothing differs", () => {
-    expect(diffProposal(live, same, [])).toEqual({});
+    expect(diffProposal(live, same)).toEqual({});
   });
 
   it("treats 1 and 1.00 as the same price", () => {
-    expect(diffProposal(live, { ...same, variants: [{ ...sameVariants[0]!, shopPriceAmount: "1" }] }, [])).toEqual({});
+    expect(diffProposal(live, { ...same, variants: [{ ...sameVariants[0]!, shopPriceAmount: "1" }] })).toEqual({});
   });
 
   it("carries only what changed — and a variant change carries the WHOLE set (098)", () => {
     const changed = [{ ...sameVariants[0]!, shopCompareAtAmount: "2.00", weightGrams: 750 }];
-    expect(diffProposal(live, { ...same, name: "Y", variants: changed }, [])).toEqual({
+    expect(diffProposal(live, { ...same, name: "Y", variants: changed })).toEqual({
       name: "Y", options: [], variants: changed,
     });
   });
 
-  it("includes an attribute only when its value differs", () => {
-    expect(diffProposal(live, same, [{ attributeId: "a1", valueText: "chilled" }])).toEqual({});
-    expect(diffProposal(live, same, [{ attributeId: "a1", valueText: "frozen" }])).toEqual({
-      attributes: [{ attributeId: "a1", valueText: "frozen" }],
-    });
+  it("101 — details travel as the complete set, only when they differ; facts one by one", () => {
+    expect(diffProposal(live, { ...same, details: [{ attributeId: "a1", value: { valueIds: ["chilled"] } }] })).toEqual({});
+    const frozen = [{ attributeId: "a1", value: { valueIds: ["frozen"] } }];
+    expect(diffProposal(live, { ...same, details: frozen, storage: "frozen" })).toEqual({ details: frozen, storage: "frozen" });
   });
 
   it("lays a proposal over the live product, including an explicit null", () => {
-    const merged = overlay(live, { name: "Y", brand: null, unitBasis: "per_kg" });
-    expect(merged).toMatchObject({ name: "Y", brand: null, unitBasis: "per_kg", shortDescription: "d" });
-  });
-
-  it("merges proposed attributes by attribute", () => {
-    expect(
-      mergeAttributes([{ attributeId: "a1", valueText: "frozen" }], [
-        { attributeId: "a1", valueText: "ambient" },
-        { attributeId: "a2", valueNumber: 5 },
-      ]),
-    ).toEqual([
-      { attributeId: "a1", valueText: "ambient" },
-      { attributeId: "a2", valueNumber: 5 },
-    ]);
+    const merged = overlay(live, { name: "Y", brand: null, unitBasis: "per_kg", ageRestricted: true });
+    expect(merged).toMatchObject({ name: "Y", brand: null, unitBasis: "per_kg", shortDescription: "d", ageRestricted: true });
   });
 });

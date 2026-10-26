@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { CategoryFormRow } from "@effy/shared-types";
+
 const repo = vi.hoisted(() => ({
-  readCatalogSchema: vi.fn(),
-  assignmentsForType: vi.fn(),
-  productTypeIsActive: vi.fn(),
-  categoryIsActive: vi.fn(),
+  checkLeaf: vi.fn(),
   createProduct: vi.fn(),
   getProductDetail: vi.fn(),
   listProducts: vi.fn(),
@@ -15,11 +14,17 @@ const mediaMod = vi.hoisted(() => ({
   presignUpload: vi.fn(),
   presignRead: vi.fn(),
 }));
+/** The leaf's form the service validates details against. */
+const form = vi.hoisted(() => ({ rows: [] as unknown[] }));
 vi.mock("./repository", () => repo);
 vi.mock("./media", () => mediaMod);
+vi.mock("@effy/edge-shared/catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared/catalog")>()),
+  readFormRows: vi.fn(async (_db: unknown, ids: string[]) => new Map(ids.map((id) => [id, form.rows]))),
+}));
 
 import { createProduct, listProducts, presignUpload } from "./service";
-import { ProductError, isProductError, type SchemaAttribute } from "./types";
+import { ProductError, isProductError } from "./types";
 
 async function kindOf(p: Promise<unknown>): Promise<string> {
   try {
@@ -30,50 +35,67 @@ async function kindOf(p: Promise<unknown>): Promise<string> {
   }
 }
 
-const numberAttr: SchemaAttribute = {
-  attributeId: "attr-prep",
-  key: "prep_time",
-  name: "Prep Time",
-  dataType: "number",
-  unit: "min",
-  helpText: null,
-  validation: { min: 0, max: 1000 },
-  allowedValues: [],
-  isMandatory: true,
-  displayOrder: 0,
-  groupLabel: null,
+const prepTime: CategoryFormRow = {
+  attributeId: "00000000-0000-4000-8000-00000000a77e", key: "prep_time", name: "Prep time", helpText: null,
+  inputType: "number", unitFamily: "duration", units: ["min"], min: "0", max: "1000", decimals: 0, maxLength: null,
+  values: [], level: "required", section: "Details", position: 0, filterable: false, customerVisible: true,
+  variesByVariant: false, variantOption: false,
 };
 
+const LEAF = "00000000-0000-4000-8000-0000000000c1";
 const V1 = "00000000-0000-4000-8000-0000000000a1";
 /** A product with no options is created with exactly one variant, which carries the price. */
 const baseVariant = { id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: "9.99" };
 const baseBody = {
-  productTypeId: "type-1",
-  primaryCategoryId: "cat-1",
+  primaryCategoryId: LEAF,
   name: "Test Product",
   shortDescription: "A tasty thing",
-  gstStatus: "gst_free",
   options: [],
   variants: [baseVariant],
 };
 const withVariant = (over: Record<string, unknown>) => ({ ...baseBody, variants: [{ ...baseVariant, ...over }] });
+const DEFAULTS = { storage: "chilled", gstStatus: "gst_free", ageRestricted: false };
 
-describe("createProduct (validation, draft-first)", () => {
-  it("096 — refuses a product with no GST status, naming the field", async () => {
-    const { gstStatus: _omit, ...noGst } = baseBody;
-    await expect(createProduct("shop-1", noGst, "u1")).rejects.toMatchObject({
+function ready() {
+  vi.clearAllMocks();
+  form.rows = [];
+  repo.checkLeaf.mockResolvedValue({ kind: "leaf", defaults: DEFAULTS });
+  repo.createProduct.mockResolvedValue("prod-1");
+  repo.getProductDetail.mockResolvedValue({ id: "prod-1", media: [] });
+}
+
+describe("createProduct (validation, draft-first, 101 facts and details)", () => {
+  beforeEach(ready);
+
+  it("takes storage, GST and 18+ from the leaf when they are not sent", async () => {
+    await createProduct("shop-1", baseBody, "sub");
+    expect(repo.createProduct).toHaveBeenCalledWith(
+      "shop-1",
+      expect.objectContaining({ storage: "chilled", gstStatus: "gst_free", ageRestricted: false }),
+      "sub",
+    );
+  });
+
+  it("keeps a fact the shop sends over the leaf's default", async () => {
+    await createProduct("shop-1", { ...baseBody, storage: "frozen", ageRestricted: true }, "sub");
+    expect(repo.createProduct).toHaveBeenCalledWith("shop-1", expect.objectContaining({ storage: "frozen", ageRestricted: true }), "sub");
+  });
+
+  it("fact_required: refuses a fact the leaf has no default for and the shop did not choose", async () => {
+    repo.checkLeaf.mockResolvedValue({ kind: "leaf", defaults: { storage: null, gstStatus: "taxable", ageRestricted: false } });
+    await expect(createProduct("shop-1", baseBody, "sub")).rejects.toMatchObject({
       kind: "validation",
-      fields: expect.arrayContaining([{ field: "gstStatus", message: "choose Taxable or GST-free" }]),
+      fields: expect.arrayContaining([expect.objectContaining({ field: "storage" })]),
     });
   });
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    repo.productTypeIsActive.mockResolvedValue(true);
-    repo.categoryIsActive.mockResolvedValue(true);
-    repo.assignmentsForType.mockResolvedValue([]);
-    repo.createProduct.mockResolvedValue("prod-1");
-    repo.getProductDetail.mockResolvedValue({ id: "prod-1", media: [] });
+  it("category_not_leaf: refuses a category that has sub-categories, and an unknown one", async () => {
+    repo.checkLeaf.mockResolvedValue({ kind: "not_leaf" });
+    await expect(createProduct("shop-1", baseBody, "sub")).rejects.toMatchObject({
+      fields: expect.arrayContaining([expect.objectContaining({ field: "primaryCategoryId", message: expect.stringContaining("category_not_leaf") })]),
+    });
+    repo.checkLeaf.mockResolvedValue({ kind: "unknown" });
+    expect(await kindOf(createProduct("shop-1", baseBody, "sub"))).toBe("validation");
   });
 
   it("098 — refuses a product with no variant, and a variant with no price", async () => {
@@ -83,48 +105,36 @@ describe("createProduct (validation, draft-first)", () => {
   });
 
   it("rejects a missing name / price / short description", async () => {
-    expect(await kindOf(createProduct("shop-1", { productTypeId: "t", primaryCategoryId: "c" }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", { primaryCategoryId: LEAF }, "sub"))).toBe("validation");
     expect(repo.createProduct).not.toHaveBeenCalled();
   });
 
-  it("rejects an inactive product type", async () => {
-    repo.productTypeIsActive.mockResolvedValue(false);
-    expect(await kindOf(createProduct("shop-1", baseBody, "sub"))).toBe("validation");
-  });
-
-  it("creates a DRAFT with no image (primary image is a publish-time requirement)", async () => {
+  it("creates a DRAFT with no image and no details (required details are a submit-time check)", async () => {
+    form.rows = [prepTime];
     await createProduct("shop-1", baseBody, "sub");
+    expect(repo.createProduct).toHaveBeenCalledWith("shop-1", expect.objectContaining({ name: "Test Product", media: [], details: [] }), "sub");
+  });
+
+  it("checks each detail against the leaf's form: type, unit and limits", async () => {
+    form.rows = [prepTime];
+    const typed = (value: unknown) => ({ ...baseBody, details: [{ attributeId: prepTime.attributeId, value }] });
+    expect(await kindOf(createProduct("shop-1", typed({ text: "heavy" }), "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", typed({ number: "5000", unit: "min" }), "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", typed({ number: "20" }), "sub"))).toBe("validation");
+    await createProduct("shop-1", typed({ number: "20", unit: "min" }), "sub");
     expect(repo.createProduct).toHaveBeenCalledWith(
       "shop-1",
-      expect.objectContaining({ name: "Test Product", media: [] }),
+      expect.objectContaining({ details: [{ attributeId: prepTime.attributeId, value: { number: "20", unit: "min" } }] }),
       "sub",
     );
   });
 
-  it("enforces attribute value TYPING (a string for a number attribute is rejected)", async () => {
-    repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueText: "heavy" }] };
+  it("refuses a detail the leaf does not ask for", async () => {
+    const body = { ...baseBody, details: [{ attributeId: "00000000-0000-4000-8000-00000000ffff", value: { text: "x" } }] };
     expect(await kindOf(createProduct("shop-1", body, "sub"))).toBe("validation");
   });
 
-  it("enforces number range from the attribute validation", async () => {
-    repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueNumber: 5000 }] };
-    expect(await kindOf(createProduct("shop-1", body, "sub"))).toBe("validation");
-  });
-
-  it("accepts a well-typed attribute value and writes it", async () => {
-    repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueNumber: 250 }] };
-    await createProduct("shop-1", body, "sub");
-    expect(repo.createProduct).toHaveBeenCalledWith(
-      "shop-1",
-      expect.objectContaining({ attributes: [expect.objectContaining({ attributeId: "attr-prep", valueNumber: 250 })] }),
-      "sub",
-    );
-  });
-
-  it("writes brand to the first-class column (never as an attribute)", async () => {
+  it("writes brand to the first-class column (never as a detail)", async () => {
     await createProduct("shop-1", { ...baseBody, brand: "Acme" }, "sub");
     expect(repo.createProduct).toHaveBeenCalledWith("shop-1", expect.objectContaining({ brand: "Acme" }), "sub");
   });
@@ -157,7 +167,7 @@ describe("listProducts (param clamp, shop-scope, presign)", () => {
 
   it("presigns the primary image storage key into a url", async () => {
     repo.listProducts.mockResolvedValue({
-      items: [{ id: "p1", primaryImageUrl: "products/p1/abc.jpg", name: "x", brand: null, typeName: "T", categoryName: "C", priceAmount: "1.00", currency: "AUD", status: "draft", updatedAt: "t", priceVaries: false, variantCount: 1 }],
+      items: [{ id: "p1", primaryImageUrl: "products/p1/abc.jpg", name: "x", brand: null, categoryName: "C", priceAmount: "1.00", currency: "AUD", status: "draft", updatedAt: "t", priceVaries: false, variantCount: 1, missingRequired: 0 }],
       total: 1, page: 1, pageSize: 20,
     });
     mediaMod.presignRead.mockResolvedValue("https://s3/signed");
@@ -185,14 +195,7 @@ describe("presignUpload (ownership + type/size validation)", () => {
 
 // "Measured" must mean measured: the flag comes from supplying a weight, never from the client.
 describe("createProduct — shipping weight", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    repo.productTypeIsActive.mockResolvedValue(true);
-    repo.categoryIsActive.mockResolvedValue(true);
-    repo.assignmentsForType.mockResolvedValue([]);
-    repo.createProduct.mockResolvedValue("prod-1");
-    repo.getProductDetail.mockResolvedValue({ id: "prod-1", media: [] });
-  });
+  beforeEach(ready);
 
   it("passes a supplied weight through to the repository", async () => {
     await createProduct("shop-1", withVariant({ weightGrams: 750 }), "sub");

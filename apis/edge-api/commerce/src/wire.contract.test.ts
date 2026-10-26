@@ -153,14 +153,14 @@ describe("an order line", () => {
           delivery_handover: null, delivery_note: null, item_subtotal_amount: "13.00", discount_amount: "0.00", promo_code: null, delivery_discount_amount: "0.00", promotions: null,
           delivery_fee_amount: "0.00", delivery_fee_lines: [], delivery_type: "effy", delivery_promise: "window", grand_total_amount: "13.00", currency: "AUD", payment_status: "succeeded",
         }),
-        items: async () => [{ order_item_id: "1a2b3c4d-0000-0000-0000-000000000009", product_id: EGGS, variant_id: "v1", variant_label: null, product_name: "Free Range Eggs 12pk", unit_price_amount: "6.50", quantity: 2, line_subtotal_amount: "13.00", discount_amount: "0.00", image_key: null, image_widths: null }],
+        items: async () => [{ order_item_id: "1a2b3c4d-0000-0000-0000-000000000009", product_id: EGGS, variant_id: "v1", variant_label: null, age_restricted: false, product_name: "Free Range Eggs 12pk", unit_price_amount: "6.50", quantity: 2, line_subtotal_amount: "13.00", discount_amount: "0.00", image_key: null, image_widths: null }],
         fulfillments: async () => [], shortfalls: async () => [], arrivals: async () => [], paymentMethod: async () => null, refunds: async () => [], list: async () => [],
       },
       imageAddress: async () => null,
     });
     const order = await orders.get({ log: { warn: () => undefined } } as never, "c", "11111111-1111-4111-8111-111111111111");
     expect(JSON.stringify(order.items[0])).toBe(
-      `{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"${EGGS}","productName":"Free Range Eggs 12pk","variantId":"v1","variantLabel":null,"unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00","discountAmount":"0.00"}`,
+      `{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"${EGGS}","productName":"Free Range Eggs 12pk","variantId":"v1","variantLabel":null,"ageRestricted":false,"unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00","discountAmount":"0.00"}`,
     );
   });
 });

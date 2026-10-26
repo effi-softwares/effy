@@ -161,6 +161,7 @@ fun EffyProductCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        if (product.ageRestricted) AgeBadge(Modifier.padding(top = EffySpacing.xs))
 
         if (fillHeight) Spacer(Modifier.weight(1f))
 

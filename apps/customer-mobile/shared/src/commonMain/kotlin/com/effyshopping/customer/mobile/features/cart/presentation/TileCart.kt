@@ -33,6 +33,7 @@ class TileCart internal constructor(
                     productId = product.id,
                     unitPrice = product.unitPrice,
                     name = product.name,
+                    ageRestricted = product.ageRestricted,
                     imageUrl = product.imageUrl,
                     unitPriceAmount = product.priceAmount,
                     currency = product.currency,

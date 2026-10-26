@@ -57,11 +57,10 @@ d("096 US9 — a product's GST status, set by the shop", () => {
     const shopId = (await pool.query<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('GSH', 'Shop') RETURNING id`)).rows[0]!.id;
     const staff = (await pool.query<{ id: string }>(
       `INSERT INTO public.shop_staff (shop_id, cognito_sub, email) VALUES ($1, 'sub-sam', 'sam@effyshopping.com') RETURNING id`, [shopId])).rows[0]!.id;
-    const ids = (await pool.query<{ t: string; c: string }>(
-      `SELECT (SELECT id FROM public.product_type LIMIT 1) AS t, (SELECT id FROM public.category WHERE status = 'active' LIMIT 1) AS c`)).rows[0]!;
+    const leaf = (await pool.query<{ c: string }>(`SELECT id::text AS c FROM public.category WHERE key = 'full-cream-milk'`)).rows[0]!.c;
 
     const created = await createProduct(shopId, {
-      productTypeId: ids.t, primaryCategoryId: ids.c, name: "Milk", shortDescription: "Full cream", options: [],
+      primaryCategoryId: leaf, name: "Milk", shortDescription: "Full cream", options: [],
       variants: [{ id: randomUUID(), position: 0, optionValueIds: [null, null], sku: null, gtin: null, shopPriceAmount: "4.50", shopCompareAtAmount: null, weightGrams: null, packQuantity: null, packUnit: null, mediaStorageKey: null }],
       unitBasis: null, gstStatus: "gst_free",
     }, "sub-sam");
@@ -90,9 +89,11 @@ d("096 US9 — a product's GST status, set by the shop", () => {
       { from_status: "gst_free", to_status: "taxable", actor_kind: "shop_staff", shop_staff_id: staff, via: "direct" },
     ]);
 
-    // Creating without one is refused.
-    await expect(createProduct(shopId, {
-      productTypeId: ids.t, primaryCategoryId: ids.c, name: "Bread", priceAmount: "5.00", shortDescription: "Loaf",
-    }, "sub-sam")).rejects.toMatchObject({ kind: "validation" });
+    // 101: created without one, it takes its leaf's default (Dairy → GST-free).
+    const defaulted = await createProduct(shopId, {
+      primaryCategoryId: leaf, name: "Cream", shortDescription: "Pouring", options: [],
+      variants: [{ id: randomUUID(), position: 0, optionValueIds: [null, null], shopPriceAmount: "3.00" }],
+    }, "sub-sam");
+    expect(defaulted).toMatchObject({ gstStatus: "gst_free", storage: "chilled", ageRestricted: false });
   });
 });

@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import com.effyshopping.customer.mobile.features.catalog.domain.NumberRange
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
@@ -23,6 +24,8 @@ data class SearchUiState(
     val brands: List<String> = emptyList(),
     /** Selected attribute values, keyed by attribute key — OR within a key, and across. */
     val attributes: Map<String, List<String>> = emptyMap(),
+    /** Number filters by facet key, in each facet's unit (101). */
+    val ranges: Map<String, NumberRange> = emptyMap(),
     val minPrice: String? = null,
     val maxPrice: String? = null,
     /** The ordering the server applied — may differ from the request (see [applySort]). */
@@ -44,7 +47,8 @@ data class SearchUiState(
             (if (saleOnly) 1 else 0) +
             (if (minPrice != null || maxPrice != null) 1 else 0) +
             brands.size +
-            attributes.values.sumOf { it.size }
+            attributes.values.sumOf { it.size } +
+            ranges.size
 }
 
 /**
@@ -140,6 +144,18 @@ class SearchViewModel(
         reload()
     }
 
+    /** Set or clear one number filter (101); both ends blank removes it. A reversed range is put right. */
+    fun applyRange(key: String, min: String, max: String) {
+        var lo = min.trim()
+        var hi = max.trim()
+        if (lo.isNotEmpty() && hi.isNotEmpty() && (lo.toDoubleOrNull() ?: 0.0) > (hi.toDoubleOrNull() ?: 0.0)) lo = hi.also { hi = lo }
+        val next = _state.value.ranges.toMutableMap()
+        if (lo.isEmpty() && hi.isEmpty()) next.remove(key) else next[key] = NumberRange(lo, hi)
+        if (next == _state.value.ranges) return
+        _state.value = _state.value.copy(ranges = next)
+        reload()
+    }
+
     fun applySort(sort: ProductSortOption) {
         if (_state.value.sort == sort) return
         _state.value = _state.value.copy(sort = sort)
@@ -153,6 +169,7 @@ class SearchViewModel(
             categoryKey = null,
             brands = emptyList(),
             attributes = emptyMap(),
+            ranges = emptyMap(),
             minPrice = null,
             maxPrice = null,
         )
@@ -190,6 +207,7 @@ class SearchViewModel(
                     attributes = s.attributes,
                     minPrice = s.minPrice,
                     maxPrice = s.maxPrice,
+                    ranges = s.ranges,
                 )
                 _state.value = _state.value.copy(
                     items = page.items,
@@ -224,6 +242,7 @@ class SearchViewModel(
                     attributes = s.attributes,
                     minPrice = s.minPrice,
                     maxPrice = s.maxPrice,
+                    ranges = s.ranges,
                 )
                 _state.value = _state.value.copy(facetSet = facetSet, facetsLoading = false)
             } catch (e: CancellationException) {
@@ -251,6 +270,7 @@ class SearchViewModel(
                     attributes = s.attributes,
                     minPrice = s.minPrice,
                     maxPrice = s.maxPrice,
+                    ranges = s.ranges,
                 )
                 _state.value = _state.value.copy(
                     items = _state.value.items + page.items,

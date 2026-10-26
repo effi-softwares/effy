@@ -81,6 +81,8 @@ data class ReceiptItem(
     val productName: String,
     /** The size as it was sold ("1 kg"); null for a product sold one way. */
     val variantLabel: String? = null,
+    /** Sold to adults only: the line says 18+ (101). */
+    val ageRestricted: Boolean = false,
     val quantity: Int,
     val unitPriceAmount: String,
     val lineSubtotalAmount: String,

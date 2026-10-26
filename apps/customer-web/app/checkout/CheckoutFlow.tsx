@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
+  AGE_RESTRICTED_CART_SENTENCE,
   COVERAGE_REFUSAL_SENTENCE,
   DELIVERY_FEE_CHANGED_CODE,
   PROMOTIONS_CHANGED_CODE,
@@ -47,6 +48,8 @@ import {
 import { formatMoney } from "@/lib/money"
 import { getStripe, paymentElementsOptions } from "@/lib/stripe"
 import { capture } from "@/lib/telemetry"
+
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
@@ -560,7 +563,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{line.name}</p>
+                    <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                      <span className="truncate">{line.name}</span>
+                      {line.ageRestricted ? <AgeBadge /> : null}
+                    </p>
                     {/* The size chosen, beside the quantity. */}
                     <p className="text-xs text-muted-foreground">
                       {line.variantLabel ? `${line.variantLabel} · ` : ""}Qty {line.quantity}
@@ -572,6 +578,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 </li>
               ))}
             </ul>
+            {guestLines.some((l) => l.ageRestricted) ? (
+              <p className="mt-2 text-sm text-muted-foreground">{AGE_RESTRICTED_CART_SENTENCE}</p>
+            ) : null}
           </section>
         )}
 

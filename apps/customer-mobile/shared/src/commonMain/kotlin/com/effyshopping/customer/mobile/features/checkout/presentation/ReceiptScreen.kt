@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.AgeBadge
 import com.effyshopping.customer.mobile.resources.lucide_mail
 import com.effyshopping.customer.mobile.resources.lucide_message_square
 import com.effyshopping.customer.mobile.resources.lucide_x
@@ -653,6 +654,7 @@ private fun ReceiptLine(
             Text(item.productName, style = MaterialTheme.typography.bodyMedium)
             // The size as it was sold.
             item.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (item.ageRestricted) AgeBadge(Modifier.padding(top = 2.dp))
             // The unit price. It has been on the wire since 019 and this screen never showed it
             // it is what makes a line checkable rather than merely stated.
             Text(

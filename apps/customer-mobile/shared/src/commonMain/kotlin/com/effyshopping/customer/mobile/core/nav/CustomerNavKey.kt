@@ -27,8 +27,9 @@ sealed interface CustomerNavKey : NavKey {
 
     // Commerce
 
+    /** [variantId]: the size to open on — a filtered result's matching size (101 FR-031); null = the default. */
     @Serializable
-    data class Product(val productId: String) : CustomerNavKey
+    data class Product(val productId: String, val variantId: String? = null) : CustomerNavKey
 
     /**
      * A scoped result set (Home's "see all", a category shortcut): the ordinary Search screen with an entry
@@ -41,6 +42,13 @@ sealed interface CustomerNavKey : NavKey {
         val categoryKey: String? = null,
         val saleOnly: Boolean = false,
     ) : CustomerNavKey
+
+    /**
+     * One level of the category tree (101): the categories under [parentKey], down to five levels. A leaf (or
+     * "All in …") opens [Results] scoped to it.
+     */
+    @Serializable
+    data class CategoryBrowse(val parentKey: String, val title: String) : CustomerNavKey
 
     /**
      * One promotion in full. Carries the id only: the screen re-reads it, so an offer that ended meanwhile
@@ -195,6 +203,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Account::class, CustomerNavKey.Account.serializer())
             subclass(CustomerNavKey.Product::class, CustomerNavKey.Product.serializer())
             subclass(CustomerNavKey.Results::class, CustomerNavKey.Results.serializer())
+            subclass(CustomerNavKey.CategoryBrowse::class, CustomerNavKey.CategoryBrowse.serializer())
             subclass(CustomerNavKey.Promotion::class, CustomerNavKey.Promotion.serializer())
             subclass(CustomerNavKey.Cart::class, CustomerNavKey.Cart.serializer())
             subclass(CustomerNavKey.Checkout::class, CustomerNavKey.Checkout.serializer())
@@ -237,6 +246,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Account,
     CustomerNavKey.Product("p1"),
     CustomerNavKey.Results(title = "On sale", categoryKey = null, saleOnly = true),
+    CustomerNavKey.CategoryBrowse(parentKey = "dairy", title = "Dairy"),
     CustomerNavKey.Promotion("promo1"),
     CustomerNavKey.Cart,
     CustomerNavKey.Checkout,

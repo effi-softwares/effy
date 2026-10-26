@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { CatalogSchema, ProductList } from "./model"
+import type { ProductList, ShopTaxonomy } from "./model"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
@@ -18,11 +18,11 @@ vi.mock("@/features/shop-identity/queries", () => ({
 }))
 vi.mock("@/lib/telemetry", () => ({ track: vi.fn() }))
 
-const getCatalogSchema = vi.hoisted(() => vi.fn())
+const getShopTaxonomy = vi.hoisted(() => vi.fn())
 const listProducts = vi.hoisted(() => vi.fn())
 const listSections = vi.hoisted(() => vi.fn(async () => []))
 vi.mock("./repo", () => ({
-  getCatalogSchema,
+  getShopTaxonomy,
   listProducts,
   listSections,
   getProduct: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock("./repo", () => ({
 
 import { CatalogListScreen } from "./CatalogListScreen"
 
-const SCHEMA: CatalogSchema = { productTypes: [], categories: [] }
+const SCHEMA: ShopTaxonomy = { categories: [], recentLeafIds: [] }
 
 const ONE_PAGE: ProductList = {
   items: [
@@ -41,13 +41,13 @@ const ONE_PAGE: ProductList = {
       name: "Flat White",
       brand: "Effy Roastery",
       primaryImageUrl: null,
-      typeName: "Prepared Food",
       categoryName: "Coffee",
       priceAmount: "4.50",
       currency: "AUD",
       status: "active",
       priceVaries: false,
       variantCount: 1,
+      missingRequired: 0,
       updatedAt: "2026-07-16T00:00:00Z",
     },
   ],
@@ -63,7 +63,7 @@ function wrap(children: ReactNode) {
 
 describe("CatalogListScreen columns", () => {
   it("renders name/type/category/price/status/sizes from the paged response", async () => {
-    getCatalogSchema.mockResolvedValue(SCHEMA)
+    getShopTaxonomy.mockResolvedValue(SCHEMA)
     listProducts.mockResolvedValue(ONE_PAGE)
 
     wrap(<CatalogListScreen />)
@@ -81,7 +81,7 @@ describe("CatalogListScreen columns", () => {
   })
 
   it("shows the empty state when the shop has no products", async () => {
-    getCatalogSchema.mockResolvedValue(SCHEMA)
+    getShopTaxonomy.mockResolvedValue(SCHEMA)
     listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 })
 
     wrap(<CatalogListScreen />)

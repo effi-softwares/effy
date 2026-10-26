@@ -208,6 +208,7 @@ private fun CartLineDTO.toDomain(cartCurrency: String) = GuestCartLine(
     productId = productID,
     name = name,
     variantLabel = variantLabel,
+    ageRestricted = ageRestricted,
     unitPrice = unitPrice?.toDomain(),
     imageUrl = imageURL,
     unitPriceAmount = unitPriceAmount,

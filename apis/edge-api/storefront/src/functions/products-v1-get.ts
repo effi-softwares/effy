@@ -1,10 +1,12 @@
 // ?ids=a,b,c hydrates a set in the caller's order; otherwise search with filters, a total and keyset
-// paging. `brand` and `attr.<key>` may repeat (OR within one, and across).
+// paging. `brand` and `attr.<key>` may repeat (OR within one key, AND across keys); `range.<key>=<min>..<max>`
+// filters a number attribute in its facet's unit.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
 import { cacheable } from "../lib/cache";
 import { attributeFacets, badRequest, nonEmptyValues, queryOf, splitCsv, validPrice } from "../lib/request";
 import { parseSort, SORT_NEWEST } from "../search/cursor";
+import { rangeParams } from "../search/ranges";
 import { CursorSortMismatchError } from "../search/service";
 import { searchService } from "../lib/wiring";
 
@@ -27,6 +29,9 @@ export const handler = shopperHandler(async (event, context) => {
     const maxPrice = q.get("maxPrice") ?? "";
     if (!validPrice(minPrice) || !validPrice(maxPrice)) return badRequest("invalid_price", scope.requestId);
 
+    const ranges = rangeParams(q);
+    if (ranges === "invalid") return badRequest("invalid_range", scope.requestId);
+
     const limit = Number.parseInt(q.get("limit") ?? "", 10);
 
     const result = await searchService.search({
@@ -37,6 +42,7 @@ export const handler = shopperHandler(async (event, context) => {
       saleOnly: q.get("saleOnly") === "true",
       brands: nonEmptyValues(q.getAll("brand")) ?? [],
       attributes: attributeFacets(q) ?? {},
+      ranges: ranges ?? {},
       sort,
       cursor: q.get("cursor") ?? "",
       limit: Number.isNaN(limit) ? 0 : limit,

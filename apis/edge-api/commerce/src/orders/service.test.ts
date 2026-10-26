@@ -18,7 +18,7 @@ function repoWith(over: Partial<OrdersRepository> = {}): OrdersRepository {
       grand_total_amount: "26.00", currency: "AUD", payment_status: "succeeded",
     }),
     items: async () => [
-      { order_item_id: "i1", product_id: "p1", variant_id: "v1", variant_label: null, product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", discount_amount: "0.00", image_key: null, image_widths: null },
+      { order_item_id: "i1", product_id: "p1", variant_id: "v1", variant_label: null, age_restricted: false, product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", discount_amount: "0.00", image_key: null, image_widths: null },
     ],
     fulfillments: async () => [{ id: "f1", status: "pending", item_count: 2, subtotal_amount: "20.00" }],
     shortfalls: async () => [],

@@ -78,8 +78,9 @@ describe("071 — the channel's infrastructure", () => {
   });
 
   it("watches send failures for every kind the code can publish", () => {
-    // `promotions` is not watched: an alarm holds at most 10 metrics, and a stale back-office screen is the only cost.
-    expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => k !== "promotions"));
+    // `promotions` and `taxonomy` (101) are not watched: an alarm holds at most 10 metrics, and a stale back-office
+    // screen or category picker is the only cost.
+    expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => k !== "promotions" && k !== "taxonomy"));
   });
 
   it("publishes the three parameters the services read", () => {

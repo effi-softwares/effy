@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CircleAlert } from "lucide-react"
 
-import type { CreateProductRequest, GstStatus } from "@effy/shared-types"
+import { formRows, recategorise, type CreateProductRequest, type FactKey, type ProductFacts } from "@effy/shared-types"
 import { Button, Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
@@ -14,20 +14,20 @@ import { meQuery } from "@/features/shop-identity/queries"
 import { track } from "@/lib/telemetry"
 import { useObjectUrl } from "@/lib/useObjectUrl"
 
-import { orderCategories } from "./categories"
-import { AttributesStep } from "./create/AttributesStep"
-import { BasicsStep } from "./create/BasicsStep"
+import { DetailsStep } from "./create/DetailsStep"
+import { NameCategoryStep } from "./create/NameCategoryStep"
+import { RecategoriseDialog } from "./create/RecategoriseDialog"
 import { ReviewStep } from "./create/ReviewStep"
 import { ShopperPreview } from "./create/ShopperPreview"
 import { StepTabs } from "./create/StepTabs"
-import { canAdvance, SIZES_STEP, STEPS } from "./create/steps"
-import { TypeStep } from "./create/TypeStep"
+import { canAdvance, DETAILS_STEP, SIZES_STEP, STEPS } from "./create/steps"
 import { clearDraft, emptyDraft, loadDraft, saveDraft, type ProductDraft } from "./draft"
 import { productMutationError } from "./errorText"
 import { ImageDropzone } from "./ImageDropzone"
-import { catalogSchemaQuery, useCreateProduct } from "./queries"
+import { pathText } from "./model"
+import { categoryFormQuery, taxonomyQuery, useCreateProduct } from "./queries"
 import { submitProductForReview, uploadProductMedia } from "./repo"
-import { attributeErrors, collectAttributeInputs } from "./validation"
+import { detailErrors, draftMissing, draftVariants, optionAttributeIds, sendableDetails, setDetail } from "./validation"
 import { VariantEditor } from "./VariantEditor"
 import { toInputs, variantSetErrors } from "./variants"
 
@@ -70,25 +70,31 @@ export function ProductCreateFlow(props: Props) {
 }
 
 function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: string; subject: string }) {
-  const schema = useQuery(catalogSchemaQuery)
+  const taxonomy = useQuery(taxonomyQuery)
+  const queryClient = useQueryClient()
   const createProduct = useCreateProduct()
 
   const [draft, setDraft] = useState<ProductDraft>(() => loadDraft(shopId, subject) ?? emptyDraft())
+  const form = useQuery({
+    ...categoryFormQuery(draft.primaryCategoryId ?? ""),
+    enabled: draft.primaryCategoryId !== null,
+  })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [variantsAttempted, setVariantsAttempted] = useState(false)
+  const [detailsAttempted, setDetailsAttempted] = useState(false)
+  const [pendingMove, setPendingMove] = useState<{
+    leafId: string
+    path: string
+    dropped: string[]
+    apply: () => void
+  } | null>(null)
   const imageUrl = useObjectUrl(imageFile)
 
   useEffect(() => {
     track({ name: "product_create_started" })
   }, [])
-
-  const selectedType = useMemo(
-    () => schema.data?.productTypes.find((t) => t.id === draft.productTypeId),
-    [schema.data, draft.productTypeId],
-  )
-  const categories = useMemo(() => orderCategories(schema.data?.categories ?? []), [schema.data])
 
   function change(next: (d: ProductDraft) => ProductDraft) {
     setDraft((d) => {
@@ -100,10 +106,48 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
   const update = (patch: Partial<ProductDraft>) => change((d) => ({ ...d, ...patch }))
   const goToStep = (step: number) => update({ step })
 
+  // Facts the shop has not changed follow the leaf's defaults.
+  useEffect(() => {
+    const defaults = form.data?.defaults
+    if (!defaults) return
+    change((d) => {
+      const pick = <K extends FactKey>(k: K): ProductFacts[K] => (d.factsTouched.includes(k) ? d.facts[k] : defaults[k])
+      const facts: ProductFacts = {
+        storage: pick("storage"),
+        gstStatus: pick("gstStatus"),
+        ageRestricted: pick("ageRestricted"),
+      }
+      return facts.storage === d.facts.storage &&
+        facts.gstStatus === d.facts.gstStatus &&
+        facts.ageRestricted === d.facts.ageRestricted
+        ? d
+        : { ...d, facts }
+    })
+  }, [form.data])
+
+  /** Choosing a leaf: when entered details would be dropped, ask first. */
+  async function chooseCategory(leafId: string) {
+    if (leafId === draft.primaryCategoryId) return
+    if (draft.details.length === 0 || !form.data) {
+      update({ primaryCategoryId: leafId })
+      return
+    }
+    try {
+      const next = await queryClient.fetchQuery(categoryFormQuery(leafId))
+      const moved = recategorise(draft, formRows(form.data), formRows(next), next.defaults)
+      const apply = () => update({ primaryCategoryId: leafId, details: moved.details, facts: moved.facts })
+      if (moved.dropped.length === 0) apply()
+      else setPendingMove({ leafId, path: pathText(next.path), dropped: moved.dropped, apply })
+    } catch (err) {
+      setFormError(productMutationError(err))
+    }
+  }
+
   const { step } = draft
   const last = step === STEPS.length - 1
-  const advanceable = canAdvance(step, draft, selectedType, !!imageFile)
+  const advanceable = canAdvance(step, draft, form.data, !!imageFile)
   const busy = createProduct.isPending || uploadProgress != null
+  const missing = form.data ? draftMissing(form.data, draft) : []
 
   function discard() {
     clearDraft(shopId, subject)
@@ -112,23 +156,33 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
 
   function next() {
     if (step === SIZES_STEP && !advanceable) setVariantsAttempted(true)
+    else if (step === DETAILS_STEP && !advanceable) setDetailsAttempted(true)
     else goToStep(step + 1)
   }
 
   async function publish() {
-    if (!selectedType || !draft.primaryCategoryId || !imageFile) return
+    const f = draft.facts
+    if (
+      !draft.primaryCategoryId ||
+      !imageFile ||
+      f.storage === null ||
+      f.gstStatus === null ||
+      f.ageRestricted === null
+    )
+      return
     setFormError(null)
     try {
       const set = toInputs(draft.variantSet)
       const body: CreateProductRequest = {
-        productTypeId: selectedType.id,
         primaryCategoryId: draft.primaryCategoryId,
         name: draft.name.trim(),
         shortDescription: draft.shortDescription.trim(),
         brand: draft.brand.trim() || null,
         longDescription: draft.longDescription.trim() || null,
-        gstStatus: draft.gstStatus as GstStatus,
-        attributes: collectAttributeInputs(selectedType, draft.attributes),
+        storage: f.storage,
+        gstStatus: f.gstStatus,
+        ageRestricted: f.ageRestricted,
+        details: sendableDetails(draft.details),
         unitBasis: set.unitBasis,
         options: set.options,
         variants: set.variants,
@@ -154,48 +208,67 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
   }
 
   function stepBody() {
-    if (schema.isError) return <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
-    if (schema.isPending) return <LoadingBlock />
+    if (taxonomy.isError) return <ErrorState error={taxonomy.error} onRetry={() => void taxonomy.refetch()} />
+    if (taxonomy.isPending) return <LoadingBlock />
+    if (step > 0 && form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
+    if (step > 0 && !form.data) return <LoadingBlock />
+    const rows = form.data ? formRows(form.data) : []
     switch (step) {
       case 0:
         return (
-          <TypeStep
-            types={schema.data.productTypes}
-            selectedId={draft.productTypeId}
-            onSelect={(id) => update({ productTypeId: id })}
+          <NameCategoryStep
+            draft={draft}
+            taxonomy={taxonomy.data}
+            onField={update}
+            onCategory={(id) => void chooseCategory(id)}
+            disabled={busy}
           />
         )
       case 1:
-        return <BasicsStep draft={draft} categories={categories} onField={update} />
-      case 2:
         return (
           <VariantEditor
             value={draft.variantSet}
             onChange={(variantSet) => update({ variantSet })}
+            rows={rows}
             errors={variantSetErrors(draft.variantSet)}
             showErrors={variantsAttempted}
             disabled={busy}
           />
         )
-      case 3:
+      case 2:
         return <ImageDropzone file={imageFile} onChange={setImageFile} disabled={busy} />
-      case 4:
+      case 3:
         return (
-          <AttributesStep
-            type={selectedType}
-            values={draft.attributes}
-            errors={selectedType ? attributeErrors(selectedType, draft.attributes) : {}}
-            onChange={(id, value) => change((d) => ({ ...d, attributes: { ...d.attributes, [id]: value } }))}
-          />
+          <>
+            <DetailsStep
+              form={form.data!}
+              details={draft.details}
+              variants={draftVariants(draft, form.data!)}
+              optionAttributeIds={optionAttributeIds(draft)}
+              errors={detailsAttempted ? detailErrors(form.data!, draft) : {}}
+              facts={draft.facts}
+              factsTouched={draft.factsTouched}
+              onDetail={(attributeId, entry) =>
+                change((d) => ({ ...d, details: setDetail(d.details, entry, attributeId) }))
+              }
+              onFacts={(facts, factsTouched) => update({ facts, factsTouched })}
+              disabled={busy}
+            />
+            {detailsAttempted && missing.length > 0 ? (
+              <p role="alert" className="text-sm font-medium">
+                Still required: {missing.join(", ")}.
+              </p>
+            ) : null}
+          </>
         )
       default:
         return (
           <ReviewStep
             draft={draft}
-            type={selectedType}
-            categories={categories}
+            form={form.data}
             imageUrl={imageUrl}
             uploadProgress={uploadProgress}
+            missing={missing}
           />
         )
     }
@@ -227,7 +300,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
           </div>
         </section>
         <aside className="ef-detail__aside">
-          <ShopperPreview draft={draft} type={selectedType} imageUrl={imageUrl} />
+          <ShopperPreview draft={draft} path={form.data?.path ?? null} imageUrl={imageUrl} />
         </aside>
       </div>
 
@@ -236,6 +309,18 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
           <CircleAlert aria-hidden="true" />
           <div className="ef-alert__title">{formError}</div>
         </div>
+      ) : null}
+
+      {pendingMove ? (
+        <RecategoriseDialog
+          toPath={pendingMove.path}
+          dropped={pendingMove.dropped}
+          onCancel={() => setPendingMove(null)}
+          onConfirm={() => {
+            pendingMove.apply()
+            setPendingMove(null)
+          }}
+        />
       ) : null}
 
       <div className="actionbar">
@@ -253,11 +338,15 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
             </Button>
           ) : null}
           {last ? (
-            <Button type="button" onClick={() => void publish()} disabled={busy}>
+            <Button type="button" onClick={() => void publish()} disabled={busy || missing.length > 0}>
               {busy ? "Submitting…" : "Submit for review"}
             </Button>
           ) : (
-            <Button type="button" onClick={next} disabled={!advanceable && step !== SIZES_STEP}>
+            <Button
+              type="button"
+              onClick={next}
+              disabled={!advanceable && step !== SIZES_STEP && step !== DETAILS_STEP}
+            >
               Next
             </Button>
           )}

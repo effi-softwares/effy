@@ -135,7 +135,7 @@ import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.core.presentation.discountPercent
 import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.core.session.SessionState
-import com.effyshopping.customer.mobile.features.catalog.domain.AttributeGroup
+import com.effyshopping.customer.mobile.core.presentation.AgeBadge
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 
 /**
@@ -147,6 +147,8 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 fun ProductDetailScreen(
     container: AppContainer,
     productId: String,
+    /** The size to open on (a filtered result's); null = the product's default. */
+    variantId: String? = null,
     session: SessionState,
     onRequireSignIn: () -> Unit,
     onBack: () -> Unit,
@@ -156,6 +158,7 @@ fun ProductDetailScreen(
     val vm = viewModel(key = productId) {
         ProductDetailViewModel(
             productId = productId,
+            requestedVariantId = variantId,
             getProductDetail = container.getProductDetail,
             addToCart = container.addToCart,
         )
@@ -287,6 +290,7 @@ private fun ProductBody(
         }
         card.brand?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
         Text(card.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = EffySpacing.xs))
+        if (card.ageRestricted) AgeBadge(Modifier.padding(top = EffySpacing.s))
 
         // The price: what is charged largest, the old price struck, the saving as a green badge — and
         // said in words, so nobody has to do the sum.
@@ -413,20 +417,29 @@ private fun ProductBody(
             Text(it, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.md))
         }
 
-        // Item specifics — a bordered two-column table (Product board), the brand first.
-        val specifics = buildList {
-            card.brand?.let { add("Brand" to it) }
-            product.attributes.forEach { group -> group.items.forEach { add(it.label to it.value) } }
+        // Item specifics — bordered two-column tables (Product board), one per section, the brand first. They
+        // are the selected size's (101): a detail that differs by size (a flavour's allergens) follows the selector.
+        val groups = (selected ?: product.variants.firstOrNull())?.details.orEmpty()
+        val sections = buildList {
+            val brand = card.brand?.let { listOf("Brand" to it) }.orEmpty()
+            if (groups.isEmpty()) {
+                if (brand.isNotEmpty()) add("Item specifics" to brand)
+            } else {
+                groups.forEachIndexed { i, g ->
+                    val rows = g.items.map { it.label to it.value }
+                    add((if (groups.size == 1) "Item specifics" else g.groupLabel) to (if (i == 0) brand + rows else rows))
+                }
+            }
         }
-        if (specifics.isNotEmpty()) {
-            Text("Item specifics", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl, bottom = EffySpacing.md))
+        sections.forEach { (title, rows) ->
+            Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl, bottom = EffySpacing.md))
             EffyGroup {
-                specifics.forEachIndexed { index, (label, value) ->
+                rows.forEachIndexed { index, (label, value) ->
                     Row(modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = EffySpacing.md, vertical = EffySpacing.s), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     }
-                    if (index < specifics.lastIndex) EffyGroupDivider()
+                    if (index < rows.lastIndex) EffyGroupDivider()
                 }
             }
         }

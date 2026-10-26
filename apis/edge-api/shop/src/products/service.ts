@@ -1,18 +1,18 @@
-// Validation, attribute typing and the presign boundary (keys → short-lived urls). `shopId` is always the resolved actor shop.
-import { emitMetric, metricNamespace, withTransaction } from "@effy/edge-shared";
-import { setVariantState as writeVariantState } from "@effy/edge-shared/catalog";
+// Validation, the details form and the presign boundary (keys → short-lived urls). `shopId` is always the resolved actor shop.
+import { emitMetric, metricNamespace, query, withTransaction } from "@effy/edge-shared";
+import { readForm, readFormRows, setVariantState as writeVariantState } from "@effy/edge-shared/catalog";
 import { isGstStatus } from "@effy/edge-shared/documents";
 import { announce } from "@effy/edge-shared/live";
 import {
-  UNIT_BASES, validateVariantSet,
-  type GstStatus, type OptionInputDTO, type UnitBasis, type VariantInputDTO,
+  recategorise, STORAGES, UNIT_BASES, validateDetails, validateOptionsAgainstForm, validateVariantSet,
+  type CategoryFormDTO, type DetailInput, type DetailValue, type FactKey, type GstStatus, type OptionInputDTO,
+  type ShopTaxonomyDTO, type Storage, type UnitBasis, type VariantInputDTO,
 } from "@effy/shared-types";
 
 import * as media from "./media";
 import * as repo from "./repository";
 import * as change from "./change";
 import {
-  type CatalogSchema,
   type CreateProductInput,
   type FieldIssue,
   type ListParams,
@@ -22,7 +22,6 @@ import {
   type ProductListItem,
   PRODUCT_STATUSES,
   type ProductStatus,
-  type SchemaAttribute,
   type ShopReviewState,
 } from "./types";
 
@@ -38,8 +37,19 @@ const REVIEW_STATES: readonly ShopReviewState[] = [
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 const SORTS = ["name", "price", "recent"] as const;
 
-export function getCatalogSchema(): Promise<CatalogSchema> {
-  return repo.readCatalogSchema();
+export function getShopTaxonomy(shopId: string): Promise<ShopTaxonomyDTO> {
+  return repo.readShopTaxonomy(shopId);
+}
+
+/** A leaf's form for the details step; a parent is `category_not_leaf` (a product is filed in a leaf). */
+export async function getCategoryForm(categoryId: string): Promise<CategoryFormDTO> {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const form = UUID.test(categoryId) ? await readForm({ query }, categoryId) : null;
+  if (!form) throw new ProductError("not_found", "category not found");
+  if (!form.isLeaf) {
+    throw new ProductError("validation", "category_not_leaf", [{ field: "primaryCategoryId", message: "choose a category with no sub-categories" }]);
+  }
+  return form;
 }
 
 function optText(v: unknown): string | null {
@@ -55,75 +65,87 @@ function requireNonEmpty(value: unknown, field: string, fields: FieldIssue[]): s
   return value.trim();
 }
 
-/** Normalised to a single column, or a field error. */
-function normaliseAttribute(
-  raw: { attributeId?: unknown; valueText?: unknown; valueNumber?: unknown; valueBoolean?: unknown; valueOptions?: unknown },
-  schema: Map<string, SchemaAttribute>,
-  fields: FieldIssue[],
-): CreateProductInput["attributes"][number] | null {
-  const attributeId = typeof raw.attributeId === "string" ? raw.attributeId : "";
-  const def = schema.get(attributeId);
-  if (!def) {
-    fields.push({ field: "attributes", message: `unknown attribute ${attributeId || "(missing id)"}` });
-    return null;
+/** One value in wire shape; `null` when it is not one of the six value shapes. Its fit is `validateDetails`'s. */
+function parseValue(raw: unknown): DetailValue | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const keys = Object.keys(r).filter((k) => r[k] !== undefined);
+  if (typeof r.text === "string" && keys.length === 1) return { text: r.text };
+  if ((typeof r.number === "string" || typeof r.number === "number") && keys.every((k) => k === "number" || k === "unit")) {
+    return { number: String(r.number), unit: typeof r.unit === "string" ? r.unit : null };
   }
-  const f = `attributes.${def.key}`;
-  const empty = { attributeId, valueText: null, valueNumber: null, valueBoolean: null, valueOptions: null };
-  switch (def.dataType) {
-    case "short_text":
-    case "long_text": {
-      const t = optText(raw.valueText);
-      if (t === null) return failMissing(f, fields, def);
-      if (def.validation?.maxLength && t.length > def.validation.maxLength) {
-        fields.push({ field: f, message: `must be at most ${def.validation.maxLength} characters` });
-        return null;
-      }
-      return { ...empty, valueText: t };
-    }
-    case "number": {
-      const n = typeof raw.valueNumber === "number" ? raw.valueNumber : Number(raw.valueNumber);
-      if (!Number.isFinite(n)) return failMissing(f, fields, def);
-      if (def.validation?.min != null && n < def.validation.min) {
-        fields.push({ field: f, message: `must be ≥ ${def.validation.min}` });
-        return null;
-      }
-      if (def.validation?.max != null && n > def.validation.max) {
-        fields.push({ field: f, message: `must be ≤ ${def.validation.max}` });
-        return null;
-      }
-      return { ...empty, valueNumber: n };
-    }
-    case "boolean": {
-      if (typeof raw.valueBoolean !== "boolean") return failMissing(f, fields, def);
-      return { ...empty, valueBoolean: raw.valueBoolean };
-    }
-    case "single_select": {
-      const t = optText(raw.valueText);
-      if (t === null) return failMissing(f, fields, def);
-      if (!def.allowedValues.some((a) => a.value === t)) {
-        fields.push({ field: f, message: "not an allowed value" });
-        return null;
-      }
-      return { ...empty, valueText: t };
-    }
-    case "multi_select": {
-      if (!Array.isArray(raw.valueOptions) || raw.valueOptions.some((o) => typeof o !== "string")) {
-        return failMissing(f, fields, def);
-      }
-      const opts = raw.valueOptions as string[];
-      const allowed = new Set(def.allowedValues.map((a) => a.value));
-      if (opts.some((o) => !allowed.has(o))) {
-        fields.push({ field: f, message: "contains a value that is not allowed" });
-        return null;
-      }
-      return { ...empty, valueOptions: opts };
-    }
-  }
+  if (typeof r.boolean === "boolean" && keys.length === 1) return { boolean: r.boolean };
+  if (Array.isArray(r.valueIds) && keys.length === 1 && r.valueIds.every((x) => typeof x === "string")) return { valueIds: r.valueIds as string[] };
+  if (typeof r.date === "string" && keys.length === 1) return { date: r.date };
+  if (typeof r.time === "string" && keys.length === 1) return { time: r.time };
+  return null;
 }
 
-function failMissing(field: string, fields: FieldIssue[], def: SchemaAttribute): null {
-  fields.push({ field, message: `${def.name} has a value of the wrong type or is empty` });
-  return null;
+/** `details` as sent, or null when absent. Shape only: whether each value fits its attribute is `validateDetails`'s. */
+function parseDetails(body: Record<string, unknown>, fields: FieldIssue[]): DetailInput[] | null {
+  if (!("details" in body) || body.details === undefined) return null;
+  if (!Array.isArray(body.details)) {
+    fields.push({ field: "details", message: "must be a list" });
+    return null;
+  }
+  const out: DetailInput[] = [];
+  (body.details as unknown[]).forEach((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const attributeId = typeof r.attributeId === "string" ? r.attributeId : "";
+    if (!attributeId) {
+      fields.push({ field: `details[${i}].attributeId`, message: "is required" });
+      return;
+    }
+    if (r.value !== undefined) {
+      const value = parseValue(r.value);
+      if (!value) fields.push({ field: `details[${i}].value`, message: "is not a value" });
+      else out.push({ attributeId, value });
+      return;
+    }
+    if (Array.isArray(r.perVariant)) {
+      const perVariant: { variantId: string; value: DetailValue }[] = [];
+      for (const [j, p] of (r.perVariant as unknown[]).entries()) {
+        const pr = (p ?? {}) as Record<string, unknown>;
+        const value = parseValue(pr.value);
+        if (typeof pr.variantId !== "string" || !value) fields.push({ field: `details[${i}].perVariant[${j}]`, message: "needs a variant and a value" });
+        else perVariant.push({ variantId: pr.variantId, value });
+      }
+      out.push({ attributeId, perVariant });
+      return;
+    }
+    fields.push({ field: `details[${i}]`, message: "send a value or one per variant" });
+  });
+  return out;
+}
+
+const isStorage = (v: unknown): v is Storage => typeof v === "string" && (STORAGES as readonly string[]).includes(v);
+const FACT_KEYS: readonly FactKey[] = ["storage", "gstStatus", "ageRestricted"];
+
+/** The three facts as sent: `undefined` = not sent. */
+function parseFacts(body: Record<string, unknown>, fields: FieldIssue[]): { storage?: Storage; gstStatus?: GstStatus; ageRestricted?: boolean } {
+  const out: { storage?: Storage; gstStatus?: GstStatus; ageRestricted?: boolean } = {};
+  if ("storage" in body && body.storage !== undefined) {
+    if (isStorage(body.storage)) out.storage = body.storage;
+    else fields.push({ field: "storage", message: "choose Room temperature, Chilled or Frozen" });
+  }
+  if ("gstStatus" in body && body.gstStatus !== undefined) {
+    if (isGstStatus(body.gstStatus)) out.gstStatus = body.gstStatus;
+    else fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
+  }
+  if ("ageRestricted" in body && body.ageRestricted !== undefined) {
+    if (typeof body.ageRestricted === "boolean") out.ageRestricted = body.ageRestricted;
+    else fields.push({ field: "ageRestricted", message: "must be yes or no" });
+  }
+  return out;
+}
+
+/** A leaf the shop may file in, with its defaults; a field error otherwise. */
+async function leafOrError(categoryId: string, fields: FieldIssue[]): Promise<repo.LeafCheck & { kind: "leaf" } | null> {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const check: repo.LeafCheck = UUID.test(categoryId) ? await repo.checkLeaf(categoryId) : { kind: "unknown" };
+  if (check.kind === "unknown") fields.push({ field: "primaryCategoryId", message: "is not an active category" });
+  else if (check.kind === "not_leaf") fields.push({ field: "primaryCategoryId", message: "category_not_leaf: choose a category with no sub-categories" });
+  return check.kind === "leaf" ? check : null;
 }
 
 /** The sets in wire shape, or null when neither is sent; both must come together. Rules are `validateVariantSet`'s. */
@@ -141,11 +163,13 @@ function parseVariantSet(body: Record<string, unknown>, fields: FieldIssue[]): {
   const options: OptionInputDTO[] = (body.options as unknown[]).map((o) => {
     const r = (o ?? {}) as Record<string, unknown>;
     return {
-      id: str(r.id), position: int(r.position), name: str(r.name),
+      id: str(r.id), position: int(r.position),
+      kind: (r.kind === "pack_size" ? "pack_size" : r.kind === "attribute" ? "attribute" : str(r.kind)) as OptionInputDTO["kind"],
+      attributeId: typeof r.attributeId === "string" ? r.attributeId : null,
       values: Array.isArray(r.values)
         ? (r.values as unknown[]).map((v) => {
             const x = (v ?? {}) as Record<string, unknown>;
-            return { id: str(x.id), value: str(x.value), position: int(x.position) };
+            return { id: str(x.id), allowedValueId: typeof x.allowedValueId === "string" ? x.allowedValueId : null, position: int(x.position) };
           })
         : [],
     };
@@ -188,10 +212,9 @@ export async function createProduct(
   const shortDescription = optText(body.shortDescription);
   if (!shortDescription) fields.push({ field: "shortDescription", message: "must be a non-empty string" });
 
-  const productTypeId = typeof body.productTypeId === "string" ? body.productTypeId : "";
   const primaryCategoryId = typeof body.primaryCategoryId === "string" ? body.primaryCategoryId : "";
-  if (!productTypeId) fields.push({ field: "productTypeId", message: "is required" });
   if (!primaryCategoryId) fields.push({ field: "primaryCategoryId", message: "is required" });
+  const leaf = primaryCategoryId ? await leafOrError(primaryCategoryId, fields) : null;
 
   // Every product is created with its variants: one when it has no options.
   const unitBasis = parseUnitBasis(body, fields) ?? null;
@@ -199,43 +222,42 @@ export async function createProduct(
   if (!variantSet) fields.push({ field: "variants", message: "a product needs at least one variant with a price" });
   else fields.push(...validateVariantSet(variantSet.options, variantSet.variants, unitBasis));
 
-  // Media is optional at create (a draft; the image follows). Primary image and mandatory attributes are checked at publish.
+  // Media is optional at create (a draft; the image follows). Required details and a primary image are checked at submit.
   const mediaInput = normaliseMedia(body.media, body.primaryMediaStorageKey, fields);
+  const details = parseDetails(body, fields) ?? [];
 
-  if (productTypeId && !(await repo.productTypeIsActive(productTypeId))) {
-    fields.push({ field: "productTypeId", message: "is not an active product type" });
+  // Facts left out take the leaf's defaults; one with no default must be chosen.
+  const facts = parseFacts(body, fields);
+  const storage = facts.storage ?? leaf?.defaults.storage ?? null;
+  const gstStatus = facts.gstStatus ?? leaf?.defaults.gstStatus ?? null;
+  const ageRestricted = facts.ageRestricted ?? leaf?.defaults.ageRestricted ?? null;
+  if (leaf) {
+    if (storage === null) fields.push({ field: "storage", message: "fact_required: choose how it is kept" });
+    if (gstStatus === null) fields.push({ field: "gstStatus", message: "fact_required: choose Taxable or GST-free" });
+    if (ageRestricted === null) fields.push({ field: "ageRestricted", message: "fact_required: say whether it is 18+" });
+    // The pure rules against the leaf's form before anything is written.
+    const rows = (await readFormRows({ query }, [primaryCategoryId])).get(primaryCategoryId) ?? [];
+    if (variantSet) fields.push(...validateOptionsAgainstForm(variantSet.options, rows));
+    const optionIds = (variantSet?.options ?? []).flatMap((o) => (o.attributeId ? [o.attributeId] : []));
+    const variants = (variantSet?.variants ?? []).map((v) => ({ id: v.id, label: "" }));
+    fields.push(...validateDetails(rows, details, variants, { optionAttributeIds: optionIds }));
   }
-  if (primaryCategoryId && !(await repo.categoryIsActive(primaryCategoryId))) {
-    fields.push({ field: "primaryCategoryId", message: "is not an active category" });
-  }
-
-  // Values must match their data type; completeness is a publish check.
-  const schemaAttrs = productTypeId ? await repo.assignmentsForType(productTypeId) : [];
-  const schemaMap = new Map(schemaAttrs.map((a) => [a.attributeId, a]));
-  const rawAttrs = Array.isArray(body.attributes) ? (body.attributes as Record<string, unknown>[]) : [];
-  const attributes: CreateProductInput["attributes"] = [];
-  for (const raw of rawAttrs) {
-    const norm = normaliseAttribute(raw, schemaMap, fields);
-    if (norm) attributes.push(norm);
-  }
-
-  // Taxable or GST-free from the start.
-  if (!isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
 
   if (fields.length > 0) throw new ProductError("validation", "invalid product", fields);
 
   const input: CreateProductInput = {
-    productTypeId,
     primaryCategoryId,
     name: name!,
     brand: optText(body.brand),
     shortDescription: shortDescription!,
     longDescription: optText(body.longDescription),
-    gstStatus: body.gstStatus as GstStatus,
+    gstStatus: gstStatus!,
+    storage: storage!,
+    ageRestricted: ageRestricted!,
     unitBasis,
     options: variantSet!.options,
     variants: variantSet!.variants,
-    attributes,
+    details,
     sectionIds: Array.isArray(body.sectionIds) ? (body.sectionIds as unknown[]).filter((s): s is string => typeof s === "string") : [],
     media: mediaInput,
   };
@@ -323,7 +345,7 @@ export async function listProducts(
     page?: unknown;
     pageSize?: unknown;
     q?: unknown;
-    type?: unknown;
+    missing?: unknown;
     category?: unknown;
     section?: unknown;
     status?: unknown;
@@ -348,7 +370,6 @@ export async function listProducts(
     page,
     pageSize,
     q: optText(params.q),
-    type: optText(params.type),
     category: optText(params.category),
     section: optText(params.section),
     status,
@@ -357,6 +378,7 @@ export async function listProducts(
       : null,
     priceMin: numericStr(params.priceMin),
     priceMax: numericStr(params.priceMax),
+    missing: params.missing === "true" || params.missing === true,
     sort,
     order,
   };
@@ -396,8 +418,10 @@ export async function updateProduct(
   const name = "name" in body ? requireNonEmpty(body.name, "name", fields) ?? current.name : current.name;
   const shortDescription =
     "shortDescription" in body ? requireNonEmpty(body.shortDescription, "shortDescription", fields) ?? current.shortDescription : current.shortDescription;
-  const productTypeId = "productTypeId" in body && typeof body.productTypeId === "string" ? body.productTypeId : current.productTypeId;
   const primaryCategoryId = "primaryCategoryId" in body && typeof body.primaryCategoryId === "string" ? body.primaryCategoryId : current.primaryCategoryId;
+  const recategorised = primaryCategoryId !== current.primaryCategoryId;
+  const leaf = recategorised ? await leafOrError(primaryCategoryId, fields) : null;
+
   // Variant sets, when sent, are the complete target; the basis likewise.
   const unitBasisSent = parseUnitBasis(body, fields);
   const unitBasis = unitBasisSent === undefined ? current.unitBasis : unitBasisSent;
@@ -406,77 +430,80 @@ export async function updateProduct(
   const targetSet = sentSet ?? baseSet;
   if (sentSet || unitBasisSent !== undefined) fields.push(...validateVariantSet(targetSet.options, targetSet.variants, unitBasis));
 
-  if (productTypeId !== current.productTypeId && !(await repo.productTypeIsActive(productTypeId))) {
-    fields.push({ field: "productTypeId", message: "is not an active product type" });
-  }
-  if (primaryCategoryId !== current.primaryCategoryId && !(await repo.categoryIsActive(primaryCategoryId))) {
-    fields.push({ field: "primaryCategoryId", message: "is not an active category" });
-  }
+  // Facts: as sent; on a new leaf those the shop never changed by hand take its defaults (FR-024).
+  const facts = parseFacts(body, fields);
+  const touched = new Set<FactKey>(Array.isArray(body.factsTouched) ? (body.factsTouched as unknown[]).filter((k): k is FactKey => FACT_KEYS.includes(k as FactKey)) : []);
+  const fact = <K extends FactKey>(k: K, sent: ProductDetail[K] | undefined): ProductDetail[K] => {
+    if (sent !== undefined) return sent;
+    if (leaf && !touched.has(k) && leaf.defaults[k] !== null) return leaf.defaults[k] as ProductDetail[K];
+    return current[k];
+  };
+  const storage = fact("storage", facts.storage);
+  const gstStatus = fact("gstStatus", facts.gstStatus);
+  const ageRestricted = fact("ageRestricted", facts.ageRestricted);
 
-  // Re-typed against the (possibly new) type; a mandatory attribute cannot be cleared.
-  const schemaAttrs = await repo.assignmentsForType(productTypeId);
-  const schemaMap = new Map(schemaAttrs.map((a) => [a.attributeId, a]));
-  const rawAttrs = Array.isArray(body.attributes) ? (body.attributes as Record<string, unknown>[]) : [];
-  const attributes: CreateProductInput["attributes"] = [];
-  for (const raw of rawAttrs) {
-    const norm = normaliseAttribute(raw, schemaMap, fields);
-    if (norm) attributes.push(norm);
+  // Details: as sent (the complete set), else the current ones; a new leaf drops what it does not ask for.
+  const sentDetails = parseDetails(body, fields);
+  let targetDetails = sentDetails ?? current.details;
+  const rows = (await readFormRows({ query }, [primaryCategoryId])).get(primaryCategoryId) ?? [];
+  if (recategorised && sentDetails === null) {
+    const oldRows = (await readFormRows({ query }, [current.primaryCategoryId])).get(current.primaryCategoryId) ?? [];
+    targetDetails = recategorise({ details: targetDetails, facts: { storage, gstStatus, ageRestricted }, factsTouched: [...touched] }, oldRows, rows, leaf?.defaults ?? current.factDefaults).details;
   }
-
-  // Absent leaves it; present must be one of the two.
-  if ("gstStatus" in body && !isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
-  const gstStatus = isGstStatus(body.gstStatus) ? body.gstStatus : null;
+  if (sentSet || recategorised) fields.push(...validateOptionsAgainstForm(targetSet.options, rows));
+  if (sentDetails !== null || recategorised) {
+    const optionIds = targetSet.options.flatMap((o) => (o.attributeId ? [o.attributeId] : []));
+    const variants = targetSet.variants.map((v) => ({ id: v.id, label: "" }));
+    fields.push(...validateDetails(rows, targetDetails, variants, { optionAttributeIds: optionIds }));
+  }
 
   if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
 
   if (live.approved) {
     const target: change.TargetValues = {
       name,
-      productTypeId,
       primaryCategoryId,
       brand: "brand" in body ? optText(body.brand) : current.brand,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
-      // On a live product the GST status is proposed and reviewed.
-      gstStatus: gstStatus ?? current.gstStatus,
+      // On a live product the facts, the category and the details are proposed and reviewed.
+      gstStatus,
+      storage,
+      ageRestricted,
       // So are options and variants.
       unitBasis,
       options: targetSet.options,
       variants: targetSet.variants,
+      details: targetDetails,
     };
-    if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
-    const proposal = change.diffProposal(
-      live,
-      target,
-      change.mergeAttributes(pending?.proposed.attributes, attributes),
-    );
-    const saved = await change.saveProposal(shopId, id, proposal);
+    const saved = await change.saveProposal(shopId, id, change.diffProposal(live, target));
     if (saved === "not_found") throw new ProductError("not_found", "product not found");
     return getProduct(shopId, id);
   }
 
-  const outcome = await repo.updateProduct(
+  const result = await repo.updateProduct(
     shopId,
     id,
     expectedUpdatedAt,
     {
       name,
-      productTypeId,
       primaryCategoryId,
       brand: "brand" in body ? optText(body.brand) : current.brand,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
       gstStatus,
+      storage,
+      ageRestricted,
       unitBasis: unitBasisSent,
       variantSet: sentSet,
+      details: sentDetails ?? (recategorised ? targetDetails : null),
     },
-    attributes,
     actorSub,
   );
-  if (outcome === "stale") {
+  if (result.outcome === "stale") {
     throw new ProductError("conflict", "product changed since you loaded it — reload and try again");
   }
-  return getProduct(shopId, id);
+  return { ...(await getProduct(shopId, id)), droppedDetails: result.droppedDetails };
 }
 
 export async function changeStatus(
@@ -498,16 +525,12 @@ export async function changeStatus(
       throw new ProductError("conflict", "submit this product for review — Effy approves a product before it goes on sale");
     }
   }
-  // Going active re-validates every mandatory attribute and a primary image.
-  if (status === "active") {
-    const detail = await repo.getProductDetail(shopId, id);
-    if (!detail) throw new ProductError("not_found", "product not found");
-    const missing = detail.missingMandatoryAttributes;
-    const fields: FieldIssue[] = missing.map((m) => ({ field: "attributes", message: `${m} is required to publish` }));
-    if (!(await repo.hasPrimaryImage(shopId, id))) {
-      fields.push({ field: "media", message: "a primary image is required to publish" });
-    }
-    if (fields.length > 0) throw new ProductError("validation", "cannot publish — missing required fields", fields);
+  // Back on sale needs a primary image. A required detail staff added after approval does not block it:
+  // the product stays sellable and is listed as missing that detail (101 FR-016).
+  if (status === "active" && !(await repo.hasPrimaryImage(shopId, id))) {
+    throw new ProductError("validation", "cannot publish — missing required fields", [
+      { field: "media", message: "a primary image is required to publish" },
+    ]);
   }
   const ok = await repo.changeStatus(shopId, id, status as ProductStatus);
   if (!ok) throw new ProductError("not_found", "product not found");
@@ -649,10 +672,11 @@ export async function submitForReview(shopId: string, id: string): Promise<Produ
   if (detail.approved) {
     throw new ProductError("conflict", "this product is already approved — changes to it are reviewed as you save them");
   }
-  const fields: FieldIssue[] = detail.missingMandatoryAttributes.map((m) => ({
-    field: "attributes",
-    message: `${m} is required before this can be reviewed`,
+  const fields: FieldIssue[] = detail.missingRequired.map((m) => ({
+    field: "details",
+    message: `missing_required_details: ${m} is required before this can be reviewed`,
   }));
+  if (fields.length > 0) emitMetric(metricNamespace(), "ProductSubmitRefused", 1, { reason: "missing_required_details" });
   if (!(await repo.hasPrimaryImage(shopId, id))) {
     fields.push({ field: "media", message: "a primary image is required before this can be reviewed" });
   }

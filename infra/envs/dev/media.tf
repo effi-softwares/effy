@@ -114,7 +114,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
 # agree. Only these prefixes are readable through the CDN. `proof/` and `courier-label/` — a door
 # photo, a customer's name and address — must never be added; the guard fails if they are.
 locals {
-  public_media_prefixes = ["products", "promotions", "renditions"]
+  public_media_prefixes = ["products", "promotions", "categories", "renditions"]
   media_host            = "media.${module.dns.zone_name}"
 }
 
@@ -328,7 +328,7 @@ resource "aws_ssm_parameter" "media_public_base_url" {
 
 # ── The rendition queue — the bucket says a picture arrived; the media worker makes its copies ─────
 #
-# only products/ and promotions/ are notified. The worker writes under renditions/, which is never
+# only products/, promotions/ and categories/ (101) are notified. The worker writes under renditions/, which is never
 # notified — so it cannot trigger itself — and proof/ and courier-label/ are never sent to it at all.
 # sse-SQS below; a CMK adds cost and IAM surface with no requirement behind it
 # trivy:ignore:avd-aws-0096
@@ -398,6 +398,13 @@ resource "aws_s3_bucket_notification" "product_media" {
     queue_arn     = aws_sqs_queue.media_renditions.arn
     events        = ["s3:ObjectCreated:*"]
     filter_prefix = "promotions/"
+  }
+
+  queue {
+    id            = "renditions-categories"
+    queue_arn     = aws_sqs_queue.media_renditions.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "categories/"
   }
 
   depends_on = [aws_sqs_queue_policy.media_renditions]

@@ -38,7 +38,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
     const p = products[pid]!;
     return {
       // Each fake product is its own single variant, keyed by the same id.
-      id: `line-${pid}`, product_id: pid, variant_id: pid, variant_label: null, variant_state: "active",
+      id: `line-${pid}`, product_id: pid, variant_id: pid, variant_label: null, age_restricted: false, variant_state: "active",
       pack_quantity: null, pack_unit: null, unit_basis: null,
       shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,
       unit_price_amount: p.price, currency: "AUD", status: p.status ?? "active", stock_tracked: p.tracked ?? false,
@@ -524,7 +524,7 @@ describe("dedupe / payableCents", () => {
 
   it("payableCents counts only what can be bought, at the quantity that can be supplied", () => {
     const row = (over: Partial<CartLineRow>): CartLineRow => ({
-      id: "l", product_id: A, variant_id: A, variant_label: null, variant_state: "active", pack_quantity: null, pack_unit: null, unit_basis: null,
+      id: "l", product_id: A, variant_id: A, variant_label: null, age_restricted: false, variant_state: "active", pack_quantity: null, pack_unit: null, unit_basis: null,
       shop_id: "s", quantity: 2, name: "n", unit_price_amount: "10.00", currency: "AUD",
       status: "active", stock_tracked: false, stock_on_hand: null, storage_key: null, image_widths: null, unit_price_at_add: null, ...over,
     });

@@ -60,7 +60,11 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 let shopId: string;
 let otherShopId: string;
-let storageAttrId: string;
+/** A seeded Household leaf with no required details, and its optional single-choice Scent. */
+let leafId: string;
+let scentId: string;
+let lavender: string;
+let lemon: string;
 
 const kindOf = async (p: Promise<unknown>): Promise<string> => {
   try {
@@ -81,10 +85,10 @@ async function makeShop(code: string): Promise<string> {
 async function makeProduct(opts: { approved?: boolean; image?: boolean; shop?: string } = {}): Promise<string> {
   const approved = opts.approved ?? false;
   const id = (await pool.query<{ id: string }>(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type WHERE key = 'general' LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Sourdough', 'A loaf', 'seed', $2, $3) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, $4, 'ambient', 'gst_free', false, 'Sourdough', 'A loaf', 'seed', $2, $3) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 10.00)::numeric, (10.00)::numeric FROM p RETURNING id)
 SELECT id FROM p`,
-    [opts.shop ?? shopId, approved ? "active" : "draft", approved ? new Date() : null],
+    [opts.shop ?? shopId, approved ? "active" : "draft", approved ? new Date() : null, leafId],
   )).rows[0]!.id;
   if (opts.image ?? true) {
     await pool.query(
@@ -99,7 +103,7 @@ SELECT id FROM p`,
 /** Everything a customer could be shown. */
 async function liveSnapshot(id: string): Promise<string> {
   const p = (await pool.query(
-    `SELECT name, brand, short_description, long_description, primary_category_id, product_type_id, status
+    `SELECT name, brand, short_description, long_description, primary_category_id, storage, gst_status, age_restricted, status
        FROM public.product WHERE id = $1`, [id],
   )).rows[0];
   // Prices, codes and weight are the variants'.
@@ -108,7 +112,7 @@ async function liveSnapshot(id: string): Promise<string> {
        FROM public.product_variant WHERE product_id = $1 ORDER BY position, id`, [id],
   )).rows;
   const a = (await pool.query(
-    `SELECT attribute_definition_id, value_text, value_number::text, value_boolean, value_options
+    `SELECT attribute_definition_id, variant_id, value_text, value_number::text, value_boolean, allowed_value_ids
        FROM public.product_attribute_value WHERE product_id = $1 ORDER BY attribute_definition_id`, [id],
   )).rows;
   const m = (await pool.query(
@@ -139,21 +143,14 @@ d("067 — shop product review against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
     await pool.query(migrationSql());
-    // No mandatory attributes, so readiness is about the image alone.
-    await pool.query(
-      `INSERT INTO public.product_type (key, name, description) VALUES ('general', 'General', 'Test type')
-       ON CONFLICT DO NOTHING`,
-    );
-    storageAttrId = (await pool.query<{ id: string }>(
-      `SELECT id FROM public.attribute_definition WHERE key = 'storage'`,
+    // No required details on this leaf, so readiness is about the image alone.
+    leafId = (await pool.query<{ id: string }>(`SELECT id::text FROM public.category WHERE key = 'laundry-liquid'`)).rows[0]!.id;
+    scentId = (await pool.query<{ id: string }>(`SELECT id::text FROM public.attribute_definition WHERE key = 'scent'`)).rows[0]!.id;
+    const value = async (label: string) => (await pool.query<{ id: string }>(
+      `SELECT id::text FROM public.attribute_allowed_value WHERE attribute_definition_id = $1 AND label = $2`, [scentId, label],
     )).rows[0]!.id;
-    // The storage attribute is assigned (optional), so a shop may set and change it.
-    await pool.query(
-      `INSERT INTO public.product_type_attribute (product_type_id, attribute_definition_id, is_mandatory, display_order)
-       SELECT pt.id, $1, false, 1 FROM public.product_type pt WHERE pt.key = 'general'
-       ON CONFLICT DO NOTHING`,
-      [storageAttrId],
-    );
+    lavender = await value("Lavender");
+    lemon = await value("Lemon");
   }, 300_000);
 
   afterAll(async () => {
@@ -268,13 +265,13 @@ d("067 — shop product review against real PostgreSQL", () => {
   it("⚠ editing an approved product leaves every live row byte-identical and creates ONE change", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(
-      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_text)
-       VALUES ($1, $2, 'chilled')`, [id, storageAttrId],
+      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, allowed_value_ids)
+       VALUES ($1, $2, ARRAY[$3]::uuid[])`, [id, scentId, lavender],
     );
     const before = await liveSnapshot(id);
 
     await updateProduct(shopId, id, { name: "Rye", ...(await repriced(id, "12.50")) }, "staff-sub");
-    await updateProduct(shopId, id, { brand: "Acme", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] }, "staff-sub");
+    await updateProduct(shopId, id, { brand: "Acme", storage: "chilled", details: [{ attributeId: scentId, value: { valueIds: [lemon] } }] }, "staff-sub");
     await registerMedia(shopId, id, { storageKey: "new/three.jpg", isPrimary: true });
 
     expect(await liveSnapshot(id)).toBe(before);
@@ -283,10 +280,9 @@ d("067 — shop product review against real PostgreSQL", () => {
     const shown = await getProduct(shopId, id);
     expect(shown.name).toBe("Sourdough");
     expect(shown.reviewState).toBe("live_change_pending");
-    expect(shown.pendingChange!.proposed).toMatchObject({ name: "Rye", brand: "Acme" });
+    expect(shown.pendingChange!.proposed).toMatchObject({ name: "Rye", brand: "Acme", storage: "chilled" });
     expect(shown.pendingChange!.proposed.variants![0]).toMatchObject({ shopPriceAmount: "12.50" });
-    expect(shown.pendingChange!.proposed.attributes).toHaveLength(1);
-    expect(shown.pendingChange!.proposed.attributes![0]).toMatchObject({ attributeId: storageAttrId, valueText: "frozen" });
+    expect(shown.pendingChange!.proposed.details).toEqual([{ attributeId: scentId, value: { valueIds: [lemon] } }]);
     expect(shown.pendingChange!.media!.map((m) => [m.storageKey, m.isPrimary])).toEqual([
       ["new/three.jpg", true],
       ["live/one.jpg", false],

@@ -1,21 +1,26 @@
 // One read of a product's options and variants for every service, so label, order and shape agree.
 // Rows only: each service maps its own DTO.
 
-import type { PackUnit, VariantState } from "@effy/shared-types";
+import { PACK_SIZE_OPTION_NAME, type OptionKind, type PackUnit, type VariantState } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 import { variantLabelSql } from "./label";
 
 export interface OptionValueRow {
   id: string;
+  /** The label copy: the allowed value's label, or the pack size. */
   value: string;
   position: number;
+  allowedValueId: string | null;
 }
 
 export interface OptionRow {
   id: string;
   productId: string;
   position: number;
+  kind: OptionKind;
+  attributeId: string | null;
+  /** The attribute's name, or "Pack size". */
   name: string;
   values: OptionValueRow[];
 }
@@ -69,11 +74,13 @@ export async function readVariantSets(
   if (productIds.length === 0) return out;
 
   const [options, variants] = await Promise.all([
-    db.query<{ id: string; product_id: string; position: number; name: string; values: OptionValueRow[] | null }>(
-      `SELECT o.id::text, o.product_id::text, o.position, o.name,
-              (SELECT json_agg(json_build_object('id', ov.id, 'value', ov.value, 'position', ov.position) ORDER BY ov.position)
+    db.query<{ id: string; product_id: string; position: number; kind: OptionKind; attribute_id: string | null; name: string | null; values: OptionValueRow[] | null }>(
+      `SELECT o.id::text, o.product_id::text, o.position, o.kind, o.attribute_id::text, ad.name,
+              (SELECT json_agg(json_build_object('id', ov.id, 'value', ov.value, 'position', ov.position,
+                                                 'allowedValueId', ov.allowed_value_id) ORDER BY ov.position)
                  FROM public.product_option_value ov WHERE ov.option_id = o.id) AS values
          FROM public.product_option o
+         LEFT JOIN public.attribute_definition ad ON ad.id = o.attribute_id
         WHERE o.product_id = ANY($1::uuid[])
         ORDER BY o.product_id, o.position`,
       [productIds],
@@ -105,8 +112,12 @@ export async function readVariantSets(
       id: r.id,
       productId: r.product_id,
       position: Number(r.position),
-      name: r.name,
-      values: (r.values ?? []).map((v) => ({ id: String(v.id), value: v.value, position: Number(v.position) })),
+      kind: r.kind,
+      attributeId: r.attribute_id,
+      name: r.kind === "pack_size" ? PACK_SIZE_OPTION_NAME : (r.name ?? ""),
+      values: (r.values ?? []).map((v) => ({
+        id: String(v.id), value: v.value, position: Number(v.position), allowedValueId: v.allowedValueId ? String(v.allowedValueId) : null,
+      })),
     });
   }
   for (const r of variants.rows) {

@@ -42,7 +42,7 @@ import { SectionsManager } from "./SectionsManager"
 import { StockSettingsDialog } from "./ShopDefaultThreshold"
 import type { ProductListItem, ProductListParams, ProductSort } from "./model"
 import { REVIEW_FILTERS, reviewChip } from "./review"
-import { catalogSchemaQuery, productListQuery, sectionsQuery } from "./queries"
+import { productListQuery, sectionsQuery, taxonomyQuery } from "./queries"
 
 const PAGE_SIZE = 20
 const ALL = "all"
@@ -56,12 +56,12 @@ const STATUS_TABS: readonly { value: ProductStatus | typeof ALL; label: string }
 ]
 
 export function CatalogListScreen() {
-  const schema = useQuery(catalogSchemaQuery)
+  const taxonomy = useQuery(taxonomyQuery)
   const sections = useQuery(sectionsQuery)
 
   const [page, setPage] = useState(1)
   const [q, setQ] = useState("")
-  const [type, setType] = useState<string>(ALL)
+  const [missingOnly, setMissingOnly] = useState(false)
   const [category, setCategory] = useState<string>(ALL)
   const [section, setSection] = useState<string>(ALL)
   const [status, setStatus] = useState<ProductStatus | typeof ALL>(ALL)
@@ -77,7 +77,7 @@ export function CatalogListScreen() {
       page,
       pageSize: PAGE_SIZE,
       q: q.trim() || undefined,
-      type: type === ALL ? undefined : type,
+      missing: missingOnly || undefined,
       category: category === ALL ? undefined : category,
       section: section === ALL ? undefined : section,
       status: status === ALL ? undefined : status,
@@ -87,14 +87,16 @@ export function CatalogListScreen() {
       sort,
       order: sort === "recent" ? "desc" : "asc",
     }),
-    [page, q, type, category, section, status, review, priceMin, priceMax, sort],
+    [page, q, missingOnly, category, section, status, review, priceMin, priceMax, sort],
   )
 
   const { data, error, isPending, isError, refetch } = useQuery(productListQuery(params))
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
-  const types = schema.data?.productTypes ?? []
-  const categories = schema.data?.categories ?? []
+  // Departments: the filter takes everything filed beneath one.
+  const departments = (taxonomy.data?.categories ?? []).filter((c) => c.parentId === null)
+  // How many products lack a required detail Effy added after they went on sale.
+  const missingCount = useQuery(productListQuery({ page: 1, pageSize: 1, missing: true })).data?.total ?? 0
   const sectionList = sections.data ?? []
 
   function onSearch(value: string) {
@@ -110,17 +112,11 @@ export function CatalogListScreen() {
 
   const activeFilters = [
     q.trim() ? { key: "q", label: `"${q.trim()}"`, clear: () => onSearch("") } : null,
-    type !== ALL
-      ? {
-          key: "type",
-          label: types.find((t) => t.id === type)?.name ?? "Type",
-          clear: () => onFilter(setType, ALL),
-        }
-      : null,
+    missingOnly ? { key: "missing", label: "Missing details", clear: () => onFilter(setMissingOnly, false) } : null,
     category !== ALL
       ? {
           key: "category",
-          label: categories.find((c) => c.id === category)?.name ?? "Category",
+          label: departments.find((c) => c.id === category)?.name ?? "Category",
           clear: () => onFilter(setCategory, ALL),
         }
       : null,
@@ -206,7 +202,7 @@ export function CatalogListScreen() {
         <Facet
           label="Category"
           value={category === ALL ? null : category}
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          options={departments.map((c) => ({ value: c.id, label: c.name }))}
           onChange={(v) => onFilter(setCategory, v ?? ALL)}
           anyLabel="All categories"
         />
@@ -217,13 +213,18 @@ export function CatalogListScreen() {
           onChange={(v) => onFilter(setSection, v ?? ALL)}
           anyLabel="All sections"
         />
-        <Facet
-          label="Type"
-          value={type === ALL ? null : type}
-          options={types.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(v) => onFilter(setType, v ?? ALL)}
-          anyLabel="All types"
-        />
+        {missingCount > 0 || missingOnly ? (
+          <Button
+            type="button"
+            variant={missingOnly ? "secondary" : "outline"}
+            aria-pressed={missingOnly}
+            onClick={() => onFilter(setMissingOnly, !missingOnly)}
+          >
+            <CircleAlert aria-hidden="true" />
+            Missing details
+            <span className="ef-count ml-0">{missingCount}</span>
+          </Button>
+        ) : null}
         <Facet
           label="Review"
           value={review === ALL ? null : review}
@@ -420,7 +421,15 @@ function ProductRow({ product }: { product: ProductListItem }) {
       <Td className="whitespace-nowrap text-muted-foreground">
         {product.variantCount === 1 ? "One size" : `${product.variantCount} sizes`}
       </Td>
-      <Td className="text-muted-foreground">{product.categoryName}</Td>
+      <Td className="text-muted-foreground">
+        {product.categoryName}
+        {product.missingRequired > 0 ? (
+          <span className="mt-1 flex items-center gap-1 text-xs font-medium text-foreground">
+            <CircleAlert aria-hidden="true" className="size-3.5" />
+            {product.missingRequired === 1 ? "1 detail missing" : `${product.missingRequired} details missing`}
+          </span>
+        ) : null}
+      </Td>
       <Td>
         <div className="flex flex-wrap items-center gap-2">
           <ProductStatusBadge status={product.status} />

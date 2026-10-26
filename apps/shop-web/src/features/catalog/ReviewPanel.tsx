@@ -12,18 +12,18 @@ import { track } from "@/lib/telemetry"
 
 import { productMutationError } from "./errorText"
 import type { ProductDetail } from "./model"
-import { catalogSchemaQuery, useWithdrawReview } from "./queries"
+import { taxonomyQuery, useWithdrawReview } from "./queries"
 import { proposedRows } from "./review"
 
 export function ReviewPanel({ detail }: { detail: ProductDetail }) {
-  const schema = useQuery(catalogSchemaQuery)
+  const taxonomy = useQuery(taxonomyQuery)
   const withdraw = useWithdrawReview(detail.id)
   const [error, setError] = useState<string | null>(null)
 
   const state = detail.reviewState
   if (!state || state === "draft" || state === "live") return null
 
-  const rows = proposedRows(detail, schema.data)
+  const rows = proposedRows(detail, taxonomy.data?.categories)
   const isChange = state === "live_change_pending" || state === "live_change_sent_back"
   const sentBack = state === "sent_back" || state === "live_change_sent_back"
 

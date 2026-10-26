@@ -25,6 +25,9 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class VariantSelected(productId: String, variantId: String) :
         AnalyticsEvent("variant_selected", mapOf("productId" to productId, "variantId" to variantId))
     data object SearchPerformed : AnalyticsEvent("search_performed")
+    /** A listing filter applied (101): which facet, and a choice or a number range. No values. */
+    class FilterApplied(facet: String, kind: String) :
+        AnalyticsEvent("filter_applied", mapOf("facet" to facet, "kind" to kind))
 
     /**
      * An order was placed with (or without) delivery instructions. `handover` is

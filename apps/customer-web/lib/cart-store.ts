@@ -38,6 +38,8 @@ export interface GuestCartLine {
   name: string
   /** The size's words ("1 kg"), null for a product sold one way. */
   variantLabel?: string | null
+  /** Sold to adults only: the line says 18+ (101). */
+  ageRestricted?: boolean
   /** The comparison price, when the platform gave one (never computed here). */
   unitPrice?: UnitPriceDTO | null
   imageUrl: string | null
@@ -319,6 +321,7 @@ function fromDTO(dto: CartDTO): CartMirror {
     productId: l.productId,
     name: l.name,
     variantLabel: l.variantLabel,
+    ageRestricted: l.ageRestricted,
     unitPrice: l.unitPrice ?? null,
     imageUrl: l.imageUrl,
     ...(l.imageWidths?.length ? { imageWidths: l.imageWidths } : {}),

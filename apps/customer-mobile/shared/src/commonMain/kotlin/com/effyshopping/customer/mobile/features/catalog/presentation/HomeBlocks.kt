@@ -44,9 +44,9 @@ const val MAX_OFFERS = 6
  * Deliberately carries NO icon. `data-model.md` §5 sketched `icon: DrawableResource`, but that
  * would drag a Compose resource type into the pure layer and make this whole function untestable in
  * `commonTest` — for a value the render site can resolve from [key] in one call. The icon is looked
- * up at render time by `categoryIcon(key)`, which is itself pure and separately tested.
+ * up at render time by `categoryIcon(icon)`, which is itself pure and separately tested.
  */
-data class CategoryShortcut(val key: String, val label: String)
+data class CategoryShortcut(val key: String, val label: String, val icon: String? = null)
 
 /**
  * Resolve [HomeContent] and the categories into Home's ordered blocks. Pure. Category shortcuts first, then
@@ -61,7 +61,7 @@ fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> 
     // Categories with something to sell (`productCount` counts a category's own products).
     val shortcuts = categories
         .filter { it.productCount > 0 }
-        .map { CategoryShortcut(key = it.key, label = it.name) }
+        .map { CategoryShortcut(key = it.key, label = it.name, icon = it.icon) }
 
     // Exclusive placement: a banner is in the carousel OR between sections, never both.
     val carousel = home.banners

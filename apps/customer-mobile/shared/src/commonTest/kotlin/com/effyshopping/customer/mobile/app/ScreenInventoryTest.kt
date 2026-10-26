@@ -38,8 +38,8 @@ class CustomerNavKeySerializationTest {
         // added to CustomerNavKey and forgotten here, this count drifts and the failure is loud.
         assertEquals(
             // 051 US6 adds PaymentMethods (33 → 34); wiring the payment screen adds Payment (34 → 35);
-            // Adds Points (35 → 36).
-            36,
+            // Adds Points (35 → 36). 101 adds CategoryBrowse (36 → 37).
+            37,
             ALL_CUSTOMER_ROUTES.size,
             "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
         )

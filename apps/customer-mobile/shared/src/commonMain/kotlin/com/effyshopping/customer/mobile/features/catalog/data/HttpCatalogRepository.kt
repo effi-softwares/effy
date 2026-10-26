@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.catalog.data
 
+import com.effyshopping.customer.mobile.features.catalog.domain.NumberRange
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductSearchResultDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
@@ -93,9 +94,10 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         attributes: Map<String, List<String>>,
         minPrice: String?,
         maxPrice: String?,
+        ranges: Map<String, NumberRange>,
     ): ProductPage = request {
         val dto = edge.get("storefront/v1/products") {
-            applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice)
+            applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice, ranges)
             parameter("sort", sort.wire)
             // A cursor is minted under one ordering and the server rejects it under another (400
             // cursor_sort_mismatch, FR-016b). Callers must drop the cursor when the sort changes
@@ -120,9 +122,10 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         attributes: Map<String, List<String>>,
         minPrice: String?,
         maxPrice: String?,
+        ranges: Map<String, NumberRange>,
     ): FacetSet = request {
         edge.get("storefront/v1/facets") {
-            applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice)
+            applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice, ranges)
         }.ensureSuccess().body<FacetSetDTO>().toDomain()
     }
 
@@ -138,6 +141,7 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         attributes: Map<String, List<String>>,
         minPrice: String?,
         maxPrice: String?,
+        ranges: Map<String, NumberRange>,
     ) {
         if (query.isNotBlank()) parameter("q", query)
         if (saleOnly) parameter("saleOnly", "true")
@@ -146,6 +150,10 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         if (maxPrice != null) parameter("maxPrice", maxPrice)
         brands.forEach { parameter("brand", it) }
         attributes.forEach { (key, values) -> values.forEach { parameter("attr.$key", it) } }
+        // `range.<key>=<min>..<max>` in the facet's unit (101); an emptied range is not sent.
+        ranges.forEach { (key, r) ->
+            if (r.min.isNotBlank() || r.max.isNotBlank()) parameter("range.$key", "${r.min.trim()}..${r.max.trim()}")
+        }
     }
 
     /** Run [block]; turn a transport failure into AppError.Network, re-raise a mapped AppException. */

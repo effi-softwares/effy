@@ -37,6 +37,8 @@ export interface StorefrontProductCardDTO {
   badges: ProductBadge[];
   /** Some variant can be bought now (the one availability rule). */
   available: boolean;
+  /** Sold to adults only: show the 18+ label. */
+  ageRestricted: boolean;
   /** An item or buy-X-get-Y promotion open to everyone that covers this product. */
   offer?: ProductOfferDTO | null;
   /** Active variants' prices differ: show "From". */
@@ -49,17 +51,13 @@ export interface StorefrontProductCardDTO {
   unitPrice: UnitPriceDTO | null;
 }
 
-/** A labelled group of attribute rows on the product detail page (never laid out as cards). */
-export interface ProductAttributeGroupDTO {
-  groupLabel: string;
-  items: { label: string; value: string }[];
-}
+/** Declared beside the variant that carries it (a size's details); re-exported here where it was. */
+export type { ProductAttributeGroupDTO } from "./variants";
 
-/** Full product detail (gallery, description, grouped attributes, category path). */
+/** Full product detail (gallery, description, category path; each variant carries its own details). */
 export interface StorefrontProductDetailDTO extends StorefrontProductCardDTO {
   longDescription: string | null;
   gallery: MediaDTO[];
-  attributes: ProductAttributeGroupDTO[];
   categoryPath: string[];
   /** The primary category's key, for the related-products rail (`categoryPath` carries display names,
    * which cannot be queried). */
@@ -104,17 +102,22 @@ export interface StorefrontHomeDTO {
   rails: StorefrontRailDTO[];
 }
 
-/** A browse category, customer projection (GET /storefront/v1/categories); unlike catalog.ts's
- * `CategoryDTO` it carries no internal id, status or order. */
+/** A browse category, customer projection (GET /storefront/v1/categories): no internal id, status or order. */
 export interface StorefrontCategoryDTO {
   key: string;
   name: string;
   parentKey: string | null;
+  /** 1 for a department, up to 5. */
+  depth: WireInt;
+  /** No sub-categories: its page lists products only. */
+  isLeaf: boolean;
+  /** A `CATEGORY_ICONS` key (a Lucide name); null shows the fallback glyph. Unknown keys also show it. */
+  icon: string | null;
   /** Purchasable products in this category and everything under it, so an aisle's number is what its
    * page shows. */
   productCount: number;
-  /** A representative image derived from a product in the category (categories store none), chosen
-   * deterministically; null renders a brand tile. */
+  /** The category's own picture, else one derived from a product in it, chosen deterministically; null
+   * renders a brand tile. */
   imageUrl: string | null;
   /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];
@@ -157,10 +160,11 @@ export interface ProductSearchResultDTO {
 
 /** The control a facet drives:
  * `single_select` pick one (category; reuses the `categoryKey` filter).
- * `multi_select` tick many, OR within (brand, select and boolean attributes).
+ * `multi_select` tick many, OR within one facet, AND across facets (brand, choice and yes/no attributes).
  * `toggle` on/off (offers).
+ * `range` a minimum and maximum (number attributes), sent as `range.<key>=<min>..<max>` in `range.unit`.
  * A client meeting an unknown value renders nothing for that facet. */
-export type FacetType = "single_select" | "multi_select" | "toggle";
+export type FacetType = "single_select" | "multi_select" | "toggle" | "range";
 
 /** One value within a facet, with its count in the current result set. Zero-count options are omitted, so `count` is ≥ 1. */
 export interface FacetOptionDTO {
@@ -172,11 +176,14 @@ export interface FacetOptionDTO {
 
 /** One refinable dimension: category, brand, an attribute key, or `offers`. */
 export interface FacetDTO {
-  /** `"category"`, `"brand"`, `"offers"`, or an attribute-definition key (e.g. `"diet"`). */
+  /** `"category"`, `"brand"`, `"offers"`, or an attribute key (e.g. `"allergens"`). Choice values are allowed-value ids. */
   key: string;
   label: string;
   type: FacetType;
+  /** Empty for a `range` facet. */
   options: FacetOptionDTO[];
+  /** `range` facets only: the smallest and largest value in view, in `unit` (null when the attribute has none). */
+  range?: { min: string; max: string; unit: string | null };
 }
 
 /** The facets for a query and its filters, with per-option counts. Computed on filter change, not per

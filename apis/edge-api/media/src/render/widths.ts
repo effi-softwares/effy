@@ -21,7 +21,7 @@ export function renditionKey(storageKey: string, width: number): string {
 }
 
 /** The bucket notifies only these. */
-export const ORIGINAL_PREFIXES = ["products/", "promotions/"] as const;
+export const ORIGINAL_PREFIXES = ["products/", "promotions/", "categories/"] as const;
 
 export function isOriginalKey(key: string): boolean {
   return ORIGINAL_PREFIXES.some((p) => key.startsWith(p)) && !key.includes("..") && !key.includes("//");

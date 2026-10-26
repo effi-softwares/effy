@@ -40,13 +40,12 @@ d("070 — saved items and lists against the real schema", () => {
     await pool.query(migrationSql());
 
     await pool.query(`INSERT INTO public.shop (code, name) VALUES ('SVD', 'Saved test shop')`);
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('svd-type', 'Saved test type')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('svd-cat', 'Saved test category')`);
     for (let i = 0; i < 12; i += 1) {
       products.push(
         (
           await pool.query<{ id: string }>(
-            `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ((SELECT id FROM public.shop WHERE code='SVD'), (SELECT id FROM public.product_type WHERE key='svd-type'), (SELECT id FROM public.category WHERE key='svd-cat'), $1, 'd', 'seed', 'active', now()) RETURNING *),
+            `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ((SELECT id FROM public.shop WHERE code='SVD'), (SELECT id FROM public.category WHERE key='svd-cat'), 'ambient', 'gst_free', false, $1, 'd', 'seed', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 10.00)::numeric, (10.00)::numeric FROM p RETURNING id)
 SELECT id::text AS id FROM p`,
             [`Saved product ${i}`],

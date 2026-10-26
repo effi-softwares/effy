@@ -5,12 +5,18 @@ import type { OptionDTO, StorefrontVariantDTO } from "@effy/shared-types"
 import { initialVariantId, pickValue, selectorRows, valueState } from "./variant-selection"
 
 const options: OptionDTO[] = [
-  { id: "o1", position: 1, name: "Size", values: [{ id: "s5", value: "500 g", position: 0 }, { id: "s1", value: "1 kg", position: 1 }] },
-  { id: "o2", position: 2, name: "Type", values: [{ id: "tw", value: "White", position: 0 }, { id: "tb", value: "Brown", position: 1 }] },
+  {
+    id: "o1", position: 1, kind: "pack_size", attributeId: null, name: "Pack size",
+    values: [{ id: "s5", value: "500 g", position: 0, allowedValueId: null }, { id: "s1", value: "1 kg", position: 1, allowedValueId: null }],
+  },
+  {
+    id: "o2", position: 2, kind: "attribute", attributeId: "a-colour", name: "Colour",
+    values: [{ id: "tw", value: "White", position: 0, allowedValueId: "white" }, { id: "tb", value: "Brown", position: 1, allowedValueId: "brown" }],
+  },
 ]
 
 const v = (id: string, a: string, b: string, available = true): StorefrontVariantDTO => ({
-  id, optionValueIds: [a, b], label: id, priceAmount: "1.00", compareAtAmount: null, unitPrice: null, available, imageUrl: null,
+  id, optionValueIds: [a, b], label: id, priceAmount: "1.00", compareAtAmount: null, unitPrice: null, available, imageUrl: null, details: [],
 })
 
 // G White, 500 g Brown (sold out), 1 kg White. No 1 kg Brown.
@@ -41,7 +47,7 @@ describe("variant selection (098)", () => {
 
   it("draws every option in order with its values' states and the selection", () => {
     const rows = selectorRows(options, variants, variants[0]!)
-    expect(rows.map((r) => r.option.name)).toEqual(["Size", "Type"])
+    expect(rows.map((r) => r.option.name)).toEqual(["Pack size", "Colour"])
     expect(rows[1]!.values).toEqual([
       { id: "tw", value: "White", state: "available", selected: true },
       { id: "tb", value: "Brown", state: "sold_out", selected: false },

@@ -40,8 +40,6 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql } from "@effy/edge-shared/testing";
 
-import { bulkSet, missing } from "../gst/service";
-
 import { ReviewError } from "./errors";
 import { approve, item, marginNotSet, oldestWaitingHours, queue, sendBack, setMargin } from "./service";
 
@@ -53,7 +51,10 @@ const ADMIN = "staff-sub-admin";
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 let shopId: string;
-let storageAttrId: string;
+/** The seeded Scent attribute (optional on Household leaves) and two of its values. */
+let scentId: string;
+let lavender: string;
+let lemon: string;
 
 const kindOf = async (p: Promise<unknown>): Promise<string> => {
   try {
@@ -98,7 +99,7 @@ async function makeProduct(o: Opts = {}): Promise<string> {
   const approved = o.approved ?? false;
   const inReview = o.inReview ?? !approved;
   const id = (await pool.query<{ id: string }>(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, review_state, submitted_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category ORDER BY name LIMIT 1), $2, 'A thing', 'seed', $5, $6, $7, CASE WHEN $7 = 'in_review' THEN now() - $8::interval ELSE NULL END) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at, review_state, submitted_at) VALUES ($1, (SELECT id FROM public.category WHERE key = 'laundry-liquid'), 'ambient', 'taxable', false, $2, 'A thing', 'seed', $5, $6, $7, CASE WHEN $7 = 'in_review' THEN now() - $8::interval ELSE NULL END) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, compare_at_amount, shop_compare_at_amount) SELECT p.id, p.shop_id, COALESCE($3::numeric, $3::numeric)::numeric, ($3::numeric)::numeric, $4::numeric, $4::numeric FROM p RETURNING id)
 SELECT id FROM p`,
     [
@@ -141,7 +142,7 @@ async function live(id: string) {
     `SELECT storage_key, is_primary FROM public.product_media WHERE product_id = $1 ORDER BY display_order, storage_key`, [id],
   )).rows;
   const attrs = (await pool.query(
-    `SELECT value_text FROM public.product_attribute_value WHERE product_id = $1`, [id],
+    `SELECT allowed_value_ids::text[] AS allowed_value_ids FROM public.product_attribute_value WHERE product_id = $1`, [id],
   )).rows;
   return { p, media, attrs };
 }
@@ -176,9 +177,12 @@ d("067 — product review against real PostgreSQL", () => {
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
     await pool.query(migrationSql());
-    storageAttrId = (await pool.query<{ id: string }>(
-      `SELECT id FROM public.attribute_definition WHERE key = 'storage'`,
+    scentId = (await pool.query<{ id: string }>(`SELECT id::text FROM public.attribute_definition WHERE key = 'scent'`)).rows[0]!.id;
+    const value = async (label: string) => (await pool.query<{ id: string }>(
+      `SELECT id::text FROM public.attribute_allowed_value WHERE attribute_definition_id = $1 AND label = $2`, [scentId, label],
     )).rows[0]!.id;
+    lavender = await value("Lavender");
+    lemon = await value("Lemon");
   }, 300_000);
 
   afterAll(async () => {
@@ -362,12 +366,12 @@ d("067 — product review against real PostgreSQL", () => {
   it("shows ONLY what the shop is changing, before and after", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(
-      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_text) VALUES ($1, $2, 'chilled')`,
-      [id, storageAttrId],
+      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, allowed_value_ids) VALUES ($1, $2, ARRAY[$3]::uuid[])`,
+      [id, scentId, lavender],
     );
     await proposeChange(
       id,
-      { name: "Rye", ...(await repriced(id, "12.50")), attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
+      { name: "Rye", ...(await repriced(id, "12.50")), details: [{ attributeId: scentId, value: { valueIds: [lemon] } }] },
       ["new/three.jpg", "live/one.jpg"],
     );
     const out = await item(id);
@@ -377,7 +381,7 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.changes).toEqual([
       { field: "name", label: "Name", before: "Sourdough", after: "Rye" },
       { field: `variant:${await variantIdOf(id)}:shopPriceAmount`, label: "The product — Shop price", before: "10.00", after: "12.50" },
-      { field: "attribute:storage", label: "Storage", before: "chilled", after: "frozen" },
+      { field: "detail:scent", label: "Scent", before: "Lavender", after: "Lemon" },
     ]);
     expect(out.images.proposed!.map((i) => [i.url, i.isNew, i.isPrimary])).toEqual([
       ["signed:new/three.jpg", true, true],
@@ -393,7 +397,7 @@ d("067 — product review against real PostgreSQL", () => {
     await setCustomerPrice(id, "12.00");
     await proposeChange(
       id,
-      { name: "Rye", brand: "Acme", ...(await repriced(id, "20.00")), attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
+      { name: "Rye", brand: "Acme", ...(await repriced(id, "20.00")), details: [{ attributeId: scentId, value: { valueIds: [lemon] } }] },
       ["new/three.jpg", "live/one.jpg"],
     );
     const { version } = await item(id);
@@ -405,7 +409,7 @@ d("067 — product review against real PostgreSQL", () => {
       { storage_key: "new/three.jpg", is_primary: true },
       { storage_key: "live/one.jpg", is_primary: false },
     ]);
-    expect(after.attrs).toEqual([{ value_text: "frozen" }]);
+    expect(after.attrs).toEqual([{ allowed_value_ids: [lemon] }]);
     expect((await pool.query(`SELECT count(*) AS n FROM public.product_change`)).rows[0].n).toBe("0");
   });
 
@@ -500,20 +504,26 @@ d("067 — product review against real PostgreSQL", () => {
     expect(history.rows).toEqual([{ from_status: "taxable", to_status: "gst_free", actor_kind: "admin_staff", admin_sub: ADMIN, via: "review" }]);
   });
 
-  it("096 — lists live products with no GST status, and sets many at once, each recorded", async () => {
-    const a = await makeProduct({ approved: true, name: "Unclassified A" });
-    const b = await makeProduct({ approved: true, name: "Unclassified B" });
-    const draft = await makeProduct({ name: "Draft, not listed" });
-    const before = await missing();
-    expect(before.items.map((i) => i.productId)).toEqual(expect.arrayContaining([a, b]));
-    expect(before.items.map((i) => i.productId)).not.toContain(draft);
-    expect(await bulkSet(ADMIN, [a, b, a], "gst_free")).toEqual({ changed: 2 });
-    expect(await bulkSet(ADMIN, [a], "gst_free")).toEqual({ changed: 0 });
-    expect((await missing()).items.map((i) => i.productId)).not.toContain(a);
-    const history = await pool.query(`SELECT via FROM public.product_gst_change WHERE product_id = ANY($1::uuid[])`, [[a, b]]);
-    expect(history.rows.map((r) => r.via)).toEqual(["bulk", "bulk"]);
-    await expect(bulkSet(ADMIN, [a], "zero")).rejects.toMatchObject({ kind: "validation" });
-    await expect(bulkSet(ADMIN, ["00000000-0000-4000-8000-000000000000"], "taxable")).rejects.toMatchObject({ kind: "not_found" });
+  it("101 — the item shows path, facts, overrides and empty recommended details; approval refuses a missing required one", async () => {
+    const id = await makeProduct({});
+    // Household defaults to taxable and room temperature: chilled is an override.
+    await pool.query(`UPDATE public.product SET storage = 'chilled' WHERE id = $1`, [id]);
+    const out = await item(id);
+    expect(out.categoryPath).toEqual(["Household & Cleaning", "Laundry", "Laundry Liquid"]);
+    expect(out.facts).toEqual({ storage: "chilled", gstStatus: "taxable", ageRestricted: false });
+    expect(out.factOverrides).toEqual(["storage"]);
+    expect(out.missingRequired).toEqual([]);
+    expect(out.placements).toEqual([]);
+
+    // Staff make Scent required on the leaf: the product cannot be approved without it.
+    const leaf = (await pool.query<{ id: string }>(`SELECT id::text FROM public.category WHERE key = 'laundry-liquid'`)).rows[0]!.id;
+    await pool.query(`INSERT INTO public.category_attribute (category_id, attribute_id, level) VALUES ($1, $2, 'required')`, [leaf, scentId]);
+    await pool.query(`SELECT public.rebuild_category_derived()`);
+    const now = await item(id);
+    expect(now.missingRequired).toEqual(["Scent"]);
+    await expect(approve(id, { version: now.version, margin: { kind: "percent", value: "10" } }, ADMIN)).rejects.toMatchObject({ message: "missing_required_details" });
+    await pool.query(`DELETE FROM public.category_attribute WHERE category_id = $1 AND attribute_id = $2`, [leaf, scentId]);
+    await pool.query(`SELECT public.rebuild_category_derived()`);
   });
 
   it("a product that never had a margin needs one before its change is approved", async () => {

@@ -21,7 +21,7 @@ describe("back-office sidebar — who sees what", () => {
         "/customers",
         "/drivers",
         "/shops",
-        "/catalog",
+        "/taxonomy",
         "/delivery",
       ]) {
         expect(paths, `${to} for [${roles.join(",")}]`).toContain(to)

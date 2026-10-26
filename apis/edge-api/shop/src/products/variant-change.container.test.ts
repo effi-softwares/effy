@@ -63,10 +63,13 @@ const kindOf = async (p: Promise<unknown>): Promise<string> => {
   }
 };
 
+/** A Pack size value's pack, by position in the option: 500 g, 1 kg, 2 kg. */
+const PACKS = [{ packQuantity: "500", packUnit: "g" }, { packQuantity: "1", packUnit: "kg" }, { packQuantity: "2", packUnit: "kg" }] as const;
+
 function variant(position: number, valueId: string, shopPriceAmount: string, id = randomUUID()): VariantInputDTO {
   return {
     id, position, optionValueIds: [valueId, null], sku: null, gtin: null, shopPriceAmount, shopCompareAtAmount: null,
-    weightGrams: 500, packQuantity: null, packUnit: null, mediaStorageKey: null,
+    weightGrams: 500, ...PACKS[position]!, mediaStorageKey: null,
   };
 }
 
@@ -87,18 +90,16 @@ const proposedVariantIds = async (productId: string): Promise<string[] | null> =
 
 /** Live and approved, in two sizes at 10% over the shop's price. */
 async function liveProduct(): Promise<{ id: string; options: OptionInputDTO[]; small: VariantInputDTO; large: VariantInputDTO; values: string[] }> {
-  const ids = (await pool.query<{ t: string; c: string }>(
-    `SELECT (SELECT id FROM public.product_type LIMIT 1) AS t, (SELECT id FROM public.category WHERE status = 'active' LIMIT 1) AS c`,
-  )).rows[0]!;
+  const leaf = (await pool.query<{ c: string }>(`SELECT id::text AS c FROM public.category WHERE key = 'laundry-liquid'`)).rows[0]!.c;
   const values = [randomUUID(), randomUUID(), randomUUID()];
   const options: OptionInputDTO[] = [{
-    id: randomUUID(), position: 1, name: "Size",
-    values: [{ id: values[0]!, value: "500 g", position: 0 }, { id: values[1]!, value: "1 kg", position: 1 }],
+    id: randomUUID(), position: 1, kind: "pack_size",
+    values: [{ id: values[0]!, position: 0 }, { id: values[1]!, position: 1 }],
   }];
   const small = variant(0, values[0]!, "3.00");
   const large = variant(1, values[1]!, "5.00");
   const created = await createProduct(shopId, {
-    productTypeId: ids.t, primaryCategoryId: ids.c, name: "Rice", shortDescription: "Long grain",
+    primaryCategoryId: leaf, name: "Laundry liquid", shortDescription: "Concentrated",
     options, variants: [small, large], unitBasis: null, gstStatus: "gst_free",
   }, "sub-sam");
   await pool.query(
@@ -133,7 +134,7 @@ d("098 US6 — a live product's sizes against real PostgreSQL", () => {
     const p = await liveProduct();
     const before = await liveRows(p.id);
 
-    const withTwoKg: OptionInputDTO[] = [{ ...p.options[0]!, values: [...p.options[0]!.values, { id: p.values[2]!, value: "2 kg", position: 2 }] }];
+    const withTwoKg: OptionInputDTO[] = [{ ...p.options[0]!, values: [...p.options[0]!.values, { id: p.values[2]!, position: 2 }] }];
     const twoKg = variant(2, p.values[2]!, "9.00");
     await updateProduct(shopId, p.id, { options: withTwoKg, variants: [{ ...p.small, shopPriceAmount: "3.20" }, p.large, twoKg] }, "sub-sam");
 

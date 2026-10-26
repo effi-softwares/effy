@@ -29,11 +29,10 @@ import { canDecideReview } from "./access"
 import { reviewActionError } from "./errorText"
 import { MarginField } from "./MarginField"
 import { KIND_LABEL, toMargin, waitingLabel, type MarginEntry } from "./model"
-import { GstMissing } from "./GstMissing"
-import { gstMissingQuery, marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries"
+import { marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries"
 
 export function ReviewQueueScreen() {
-  const [view, setView] = useState<"waiting" | "margin" | "gst">("waiting")
+  const [view, setView] = useState<"waiting" | "margin">("waiting")
   const [q, setQ] = useState("")
   const [kind, setKind] = useState<ReviewKind | null>(null)
   const [shopId, setShopId] = useState<string | null>(null)
@@ -42,7 +41,6 @@ export function ReviewQueueScreen() {
   const queue = useQuery(reviewQueueQuery({ q, kind, shopId, cursor }))
   const oldest = useQuery(reviewQueueQuery({ q: "", kind: null, shopId: null, cursor: null }))
   const marginFirst = useQuery(marginNotSetQuery(null))
-  const gstMissing = useQuery(gstMissingQuery())
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }))
 
   function filter<T>(set: (v: T) => void, value: T) {
@@ -77,7 +75,6 @@ export function ReviewQueueScreen() {
             [
               { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
               { key: "margin", label: "Margin not set", count: marginCount },
-              { key: "gst", label: "GST missing", count: gstMissing.data?.total },
             ] as const
           ).map((v) => (
             <button
@@ -129,8 +126,6 @@ export function ReviewQueueScreen() {
 
       {view === "margin" ? (
         <MarginNotSet />
-      ) : view === "gst" ? (
-        <GstMissing />
       ) : queue.isError ? (
         <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
       ) : queue.isPending ? (

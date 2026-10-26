@@ -3,6 +3,7 @@
 import { ShoppingCart } from "lucide-react"
 import Link from "next/link"
 
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { removeItem, setItemQuantity } from "@/lib/cart-actions"
@@ -65,6 +66,7 @@ export function MiniCartBody({
                 {line.name}
                 {/* The size chosen. */}
                 {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
+            {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
               </span>
               <span className="mt-1 text-xs text-muted-foreground">
                 {formatMoney(line.unitPriceAmount, line.currency)} each

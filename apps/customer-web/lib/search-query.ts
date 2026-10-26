@@ -17,8 +17,19 @@ export interface Refinement {
   maxPrice: string
   sort: ProductSort
   brands: string[]
-  /** Every `attr.<key>` param, collapsed to key → values[]. */
+  /** Every `attr.<key>` param, collapsed to key → value ids (OR within a key, AND across keys). */
   attributes: Record<string, string[]>
+  /** Every `range.<key>=<min>..<max>` param, in the unit its facet showed; either end may be empty. */
+  ranges: Record<string, { min: string; max: string }>
+}
+
+const RANGE = /^(-?\d*(?:\.\d+)?)\.\.(-?\d*(?:\.\d+)?)$/
+
+/** `{min, max}` as a `range.<key>` value; null when both ends are empty. */
+export function rangeValue(min: string, max: string): string | null {
+  const a = min.trim()
+  const b = max.trim()
+  return a === "" && b === "" ? null : `${a}..${b}`
 }
 
 export const PAGE_SIZE = 24
@@ -36,8 +47,14 @@ export interface SearchInitial {
 
 export function readRefinement(params: URLSearchParams): Refinement {
   const attributes: Record<string, string[]> = {}
+  const ranges: Record<string, { min: string; max: string }> = {}
   for (const [key, value] of params.entries()) {
     if (key.startsWith("attr.") && value) (attributes[key.slice(5)] ??= []).push(value)
+    if (key.startsWith("range.")) {
+      // A malformed range is left out, never sent (the server would refuse the whole listing).
+      const m = RANGE.exec(value.trim())
+      if (m && (m[1] !== "" || m[2] !== "")) ranges[key.slice(6)] = { min: m[1]!, max: m[2]! }
+    }
   }
   return {
     q: params.get("q") ?? "",
@@ -48,6 +65,7 @@ export function readRefinement(params: URLSearchParams): Refinement {
     sort: (params.get("sort") as ProductSort | null) ?? "newest",
     brands: params.getAll("brand"),
     attributes,
+    ranges,
   }
 }
 
@@ -60,6 +78,10 @@ function filters(r: Refinement): URLSearchParams {
   if (r.maxPrice) p.set("maxPrice", r.maxPrice)
   for (const b of r.brands) p.append("brand", b)
   for (const [key, vals] of Object.entries(r.attributes)) for (const v of vals) p.append(`attr.${key}`, v)
+  for (const [key, { min, max }] of Object.entries(r.ranges)) {
+    const v = rangeValue(min, max)
+    if (v) p.set(`range.${key}`, v)
+  }
   return p
 }
 

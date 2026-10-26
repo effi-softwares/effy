@@ -20,6 +20,8 @@ interface AddToCartProduct {
   name: string
   /** The size's words, carried onto the line ("1 kg"). */
   variantLabel?: string | null
+  /** Sold to adults only: the line says 18+. */
+  ageRestricted?: boolean
   unitPrice?: UnitPriceDTO | null
   imageUrl: string | null
   imageWidths?: number[]
@@ -57,6 +59,7 @@ export function AddToCartControl({
       productId: product.productId,
       name: product.name,
       variantLabel: product.variantLabel ?? null,
+      ...(product.ageRestricted ? { ageRestricted: true } : {}),
       unitPrice: product.unitPrice ?? null,
       imageUrl: product.imageUrl,
       ...(product.imageWidths ? { imageWidths: product.imageWidths } : {}),

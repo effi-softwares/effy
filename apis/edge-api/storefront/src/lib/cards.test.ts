@@ -8,7 +8,7 @@ const DAY = 24 * 3600_000;
 
 const row = (over: Partial<CardRow> = {}): CardRow => ({
   id: "p1", name: "Oat milk", brand: "Oatly", price_amount: "4.50", currency: "AUD", compare_at_amount: null,
-  storage_key: null, alt_text: null, image_widths: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true,
+  storage_key: null, alt_text: null, image_widths: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true, age_restricted: false,
   price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, ...over,
 });
 
@@ -33,7 +33,7 @@ describe("toCards", () => {
     const [card] = await toCards([row({ storage_key: "products/a.jpg" })], async (k) => `signed:${k}`);
     expect(card).toEqual({
       id: "p1", name: "Oat milk", brand: "Oatly", imageUrl: "signed:products/a.jpg", priceAmount: "4.50",
-      currency: "AUD", compareAtAmount: null, badges: [], available: true,
+      currency: "AUD", compareAtAmount: null, badges: [], available: true, ageRestricted: false,
       priceVaries: false, variantId: "v1", variantCount: 1, unitPrice: null,
     });
   });

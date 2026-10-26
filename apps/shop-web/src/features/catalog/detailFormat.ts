@@ -1,29 +1,8 @@
-import type { ProductAttributeValue, ProductDetail, ProductMedia } from "./model"
+import type { ProductDetail, ProductMedia } from "./model"
 
 export function formatMoney(amount: string | null, currency: string): string {
   if (!amount) return "—"
   return `${currency} ${amount}`
-}
-
-export function formatAttributeValue(attr: ProductAttributeValue): string {
-  switch (attr.dataType) {
-    case "short_text":
-    case "long_text":
-      return attr.valueText?.trim() || "—"
-    case "single_select":
-      return attr.valueText?.trim() || "—"
-    case "number": {
-      if (attr.valueNumber == null) return "—"
-      return attr.unit ? `${attr.valueNumber} ${attr.unit}` : String(attr.valueNumber)
-    }
-    case "boolean":
-      if (attr.valueBoolean == null) return "—"
-      return attr.valueBoolean ? "Yes" : "No"
-    case "multi_select":
-      return attr.valueOptions && attr.valueOptions.length ? attr.valueOptions.join(", ") : "—"
-    default:
-      return "—"
-  }
 }
 
 export function orderedMedia(detail: ProductDetail): ProductMedia[] {

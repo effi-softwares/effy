@@ -43,7 +43,7 @@ async function NamedSearch({ searchParams }: { searchParams: Search }) {
   const [categories, initial] = await Promise.all([getCategoriesSafe(), firstPage(await searchParams)])
   return (
     <SearchExperience
-      categories={categories.map((c) => ({ key: c.key, name: c.name, parentKey: c.parentKey }))}
+      categories={categories.map((c) => ({ key: c.key, name: c.name, parentKey: c.parentKey, productCount: c.productCount }))}
       initial={initial}
     />
   )

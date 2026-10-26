@@ -3,9 +3,17 @@
 //  priceVariants write every variant's customer price from its shop price and the product's margin.
 //  setVariantState activate, deactivate or remove one variant, immediately (never reviewed).
 // Each recomputes the listing summary in the same transaction. Stock columns belong to the stock
-// writers. The rules are `validateVariantSet` in @effy/shared-types, the same as the shop console runs.
+// writers. The rules are `validateVariantSet` and `validateOptionsAgainstForm` in @effy/shared-types, the same
+// as the shop console runs.
+//
+// Options are library attributes the product's leaf offers as variant options, or "Pack size" (101). Each
+// option value keeps a label copy (`product_option_value.value`) that every order line, manifest and
+// document reads through variantLabelSql: the allowed value's label, or the variants' pack size. This writer
+// and the attribute library's label rename (taxonomy.ts) are the only writers of that copy.
 
 import {
+  packLabel,
+  validateOptionsAgainstForm,
   validateVariantSet,
   type OptionInputDTO,
   type UnitBasis,
@@ -16,6 +24,8 @@ import {
 
 import type { Queryable } from "../lib/db";
 import { customerPrice, type Margin } from "../lib/margin";
+import { reconcileDetails, writeOptionDetails } from "./details";
+import { readFormRows } from "./form";
 import { refreshListing } from "./listing";
 
 /** Every refusal points at one input (`variants[2].sku`, `options[0].name`, …). */
@@ -39,12 +49,17 @@ export interface ApplyVariantSetInput {
 
 const PG_UNIQUE = "23505";
 
+export interface ApplyVariantSetResult {
+  /** Details that no longer had a place (one active variant left): shown to the shop. */
+  droppedDetails: string[];
+}
+
 /** Inside the caller's transaction. New ids are the client's; existing ones are updated in place, keeping stock and carts. */
-export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput): Promise<void> {
+export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput): Promise<ApplyVariantSetResult> {
   const { productId, shopId, options, variants, mode } = input;
 
-  const product = await tx.query<{ unit_basis: UnitBasis | null }>(
-    `SELECT unit_basis FROM public.product WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
+  const product = await tx.query<{ unit_basis: UnitBasis | null; leaf: string }>(
+    `SELECT unit_basis, primary_category_id::text AS leaf FROM public.product WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
     [productId, shopId],
   );
   if (product.rowCount === 0) throw new Error(`applyVariantSet: no product ${productId} in shop ${shopId}`);
@@ -53,6 +68,20 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
   const errors = validateVariantSet(options, variants, basis);
   // The pure rules first: a malformed id would fail a query and abort the caller's transaction.
   if (errors.length > 0) throw new VariantSetInvalid(errors);
+
+  const leaf = product.rows[0]!.leaf;
+  const rows = (await readFormRows(tx, [leaf])).get(leaf) ?? [];
+  errors.push(...validateOptionsAgainstForm(options, rows));
+  if (errors.length > 0) throw new VariantSetInvalid(errors);
+  const allowedLabel = new Map(rows.flatMap((r) => r.values.map((v) => [v.id, v.label] as const)));
+  const packLabelOf = new Map<string, string>();
+  for (const v of variants) {
+    for (const id of v.optionValueIds) {
+      if (id && v.packQuantity && v.packUnit) packLabelOf.set(id, packLabel(String(v.packQuantity), v.packUnit) ?? "");
+    }
+  }
+  const labelOf = (o: OptionInputDTO, v: OptionInputDTO["values"][number]) =>
+    o.kind === "attribute" ? allowedLabel.get(v.allowedValueId ?? "") ?? "" : packLabelOf.get(v.id) ?? "";
 
   const optionIds = options.map((o) => o.id);
   const valueIds = options.flatMap((o) => o.values.map((v) => v.id));
@@ -105,6 +134,16 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
 
   if (errors.length > 0) throw new VariantSetInvalid(errors);
 
+  // Details held per variant on variants about to go, when at most one is left: their values cannot stay.
+  const losing = variants.length > 1 ? [] : (await tx.query<{ name: string }>(
+    `SELECT DISTINCT ad.name
+       FROM public.product_attribute_value pav
+       JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
+      WHERE pav.product_id = $1 AND pav.variant_id IS NOT NULL AND NOT (pav.variant_id = ANY($2::uuid[]))
+        AND NOT EXISTS (SELECT 1 FROM public.product_option o WHERE o.product_id = $1 AND o.attribute_id = pav.attribute_definition_id)`,
+    [productId, variantIds],
+  )).rows.map((r) => r.name);
+
   try {
     await tx.query(`SET CONSTRAINTS public.product_option_position_uq, public.product_option_value_position_uq DEFERRED`);
 
@@ -130,15 +169,16 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
     // 3. Options and values, upserted by id.
     for (const o of options) {
       await tx.query(
-        `INSERT INTO public.product_option (id, product_id, position, name) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, name = EXCLUDED.name`,
-        [o.id, productId, o.position, o.name.trim()],
+        `INSERT INTO public.product_option (id, product_id, position, kind, attribute_id) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET position = EXCLUDED.position, kind = EXCLUDED.kind, attribute_id = EXCLUDED.attribute_id`,
+        [o.id, productId, o.position, o.kind, o.kind === "attribute" ? o.attributeId : null],
       );
       for (const v of o.values) {
         await tx.query(
-          `INSERT INTO public.product_option_value (id, option_id, value, position) VALUES ($1, $2, $3, $4)
-           ON CONFLICT (id) DO UPDATE SET option_id = EXCLUDED.option_id, value = EXCLUDED.value, position = EXCLUDED.position`,
-          [v.id, o.id, v.value.trim(), v.position],
+          `INSERT INTO public.product_option_value (id, option_id, value, position, allowed_value_id) VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET option_id = EXCLUDED.option_id, value = EXCLUDED.value, position = EXCLUDED.position,
+                                          allowed_value_id = EXCLUDED.allowed_value_id`,
+          [v.id, o.id, labelOf(o, v), v.position, o.kind === "attribute" ? v.allowedValueId : null],
         );
       }
     }
@@ -188,12 +228,16 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
       const c = (e as { constraint?: string }).constraint ?? "";
       if (c.includes("sku")) throw new VariantSetInvalid([{ field: "variants", message: "a stock code is already used in your shop" }]);
       if (c.includes("combination")) throw new VariantSetInvalid([{ field: "variants", message: "two variants have the same combination" }]);
-      if (c.includes("name") || c.includes("value")) throw new VariantSetInvalid([{ field: "options", message: "two options or values have the same name" }]);
+      if (c.includes("attribute") || c.includes("pack_size")) throw new VariantSetInvalid([{ field: "options", message: "two options are the same" }]);
+      if (c.includes("value")) throw new VariantSetInvalid([{ field: "options", message: "two values of one option are the same" }]);
     }
     throw e;
   }
 
+  await writeOptionDetails(tx, productId);
+  const droppedDetails = [...new Set([...losing, ...(await reconcileDetails(tx, productId))])];
   await refreshListing(tx, productId);
+  return { droppedDetails };
 }
 
 /** From each shop price and the product's one margin (`customerPrice`); a null margin means the shop price. */

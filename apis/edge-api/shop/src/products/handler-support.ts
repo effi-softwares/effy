@@ -2,28 +2,11 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, stockState, subject, unavailable } from "@effy/edge-shared";
-import type {
-  CatalogSchemaDTO,
-  CategoryDTO,
-  ProductDetailDTO,
-  ProductListDTO,
-  ProductListItemDTO,
-  ProductMediaDTO,
-  ProductTypeAttributeDTO,
-  ProductTypeDTO,
-} from "@effy/shared-types";
+import type { ProductDetailDTO, ProductListDTO, ProductListItemDTO, ProductMediaDTO } from "@effy/shared-types";
 
 import { authorizeShopMember } from "./authz";
 import { isProductError } from "./types";
-import type {
-  CatalogSchema,
-  Paged,
-  ProductDetail,
-  ProductListItem,
-  ProductMedia,
-  SchemaAttribute,
-  SchemaProductType,
-} from "./types";
+import type { Paged, ProductDetail, ProductListItem, ProductMedia } from "./types";
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
@@ -72,70 +55,27 @@ export function mapProductError(err: unknown, scope: RequestScope): APIGatewayPr
   return unavailable(scope);
 }
 
-function toAssignmentDTO(a: SchemaAttribute): ProductTypeAttributeDTO {
-  return {
-    attributeId: a.attributeId,
-    key: a.key,
-    name: a.name,
-    dataType: a.dataType,
-    unit: a.unit,
-    helpText: a.helpText,
-    validation: a.validation,
-    allowedValues: a.allowedValues.map((v) => ({ id: v.id, value: v.value, label: v.label, displayOrder: v.displayOrder })),
-    isMandatory: a.isMandatory,
-    displayOrder: a.displayOrder,
-    groupLabel: a.groupLabel,
-  };
-}
-
-function toSchemaTypeDTO(t: SchemaProductType): ProductTypeDTO {
-  return {
-    id: t.id,
-    key: t.key,
-    name: t.name,
-    description: t.description,
-    status: t.status,
-    attributes: t.attributes.map(toAssignmentDTO),
-    createdAt: t.createdAt,
-    updatedAt: t.updatedAt,
-  };
-}
-
-export function toCatalogSchemaDTO(s: CatalogSchema): CatalogSchemaDTO {
-  return {
-    productTypes: s.productTypes.map(toSchemaTypeDTO),
-    categories: s.categories.map(
-      (c): CategoryDTO => ({
-        id: c.id,
-        parentId: c.parentId,
-        key: c.key,
-        name: c.name,
-        displayOrder: c.displayOrder,
-        status: c.status,
-      }),
-    ),
-  };
-}
-
 export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
   return {
     id: d.id,
     shopId: d.shopId,
-    productTypeId: d.productTypeId,
-    typeName: d.typeName,
     primaryCategoryId: d.primaryCategoryId,
     categoryName: d.categoryName,
+    categoryPath: d.categoryPath,
     name: d.name,
     brand: d.brand,
     currency: d.currency,
     shortDescription: d.shortDescription,
     longDescription: d.longDescription,
     gstStatus: d.gstStatus,
+    storage: d.storage,
+    ageRestricted: d.ageRestricted,
+    factDefaults: d.factDefaults,
     unitBasis: d.unitBasis,
     // Options and every variant, each with shop price, customer price and stock.
     options: d.options.map((o) => ({
-      id: o.id, position: o.position, name: o.name,
-      values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position })),
+      id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId, name: o.name,
+      values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position, allowedValueId: v.allowedValueId })),
     })),
     variants: d.variants.map((v) => ({
       id: v.id,
@@ -161,17 +101,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
       }),
     })),
     status: d.status,
-    attributes: d.attributes.map((a) => ({
-      attributeId: a.attributeId,
-      key: a.key,
-      name: a.name,
-      dataType: a.dataType,
-      unit: a.unit,
-      valueText: a.valueText,
-      valueNumber: a.valueNumber,
-      valueBoolean: a.valueBoolean,
-      valueOptions: a.valueOptions,
-    })),
+    details: d.details,
     media: d.media.map((m) => ({
       id: m.id,
       url: m.url,
@@ -181,7 +111,8 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
       altText: m.altText,
     })),
     sections: d.sections,
-    missingMandatoryAttributes: d.missingMandatoryAttributes,
+    missingRequired: d.missingRequired,
+    ...(d.droppedDetails ? { droppedDetails: d.droppedDetails } : {}),
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     // Review state.
@@ -222,7 +153,6 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
         name: i.name,
         brand: i.brand,
         primaryImageUrl: i.primaryImageUrl,
-        typeName: i.typeName,
         categoryName: i.categoryName,
         priceAmount: i.priceAmount,
         currency: i.currency,
@@ -233,6 +163,7 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
         customerPriceAmount: i.customerPriceAmount,
         priceVaries: i.priceVaries,
         variantCount: i.variantCount,
+        missingRequired: i.missingRequired,
       }),
     ),
     total: p.total,

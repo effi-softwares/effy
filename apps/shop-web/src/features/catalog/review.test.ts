@@ -27,21 +27,12 @@ const live = {
       state: "active",
     },
   ],
-  typeName: "Drink",
-  categoryName: "Dairy alternatives",
-  attributes: [
-    {
-      attributeId: "a1",
-      key: "storage",
-      name: "Storage",
-      dataType: "single_select",
-      unit: null,
-      valueText: "chilled",
-      valueNumber: null,
-      valueBoolean: null,
-      valueOptions: null,
-    },
-  ],
+  categoryName: "Plant Milk",
+  categoryPath: ["Dairy, Eggs & Fridge", "Plant Milk"],
+  storage: "chilled",
+  gstStatus: "gst_free",
+  ageRestricted: false,
+  details: [{ attributeId: "a1", value: { valueIds: ["oat"] } }],
   media: [{ id: "m1" }],
   pendingChange: {
     state: "in_review",
@@ -51,9 +42,10 @@ const live = {
       name: "Oat milk barista",
       options: [],
       variants: [{ id: "v1", position: 0, optionValueIds: [null, null], shopPriceAmount: "4.50" }],
-      attributes: [
-        { attributeId: "a1", valueText: "ambient" },
-        { attributeId: "a2", valueNumber: 12 },
+      storage: "ambient",
+      details: [
+        { attributeId: "a1", value: { valueIds: ["oat"] } },
+        { attributeId: "a2", value: { number: "12", unit: "g" } },
       ],
     },
     media: null,
@@ -99,14 +91,11 @@ describe("workingDetail", () => {
     expect(w.brand).toBe("Oatly")
   })
 
-  it("carries proposed attribute values, including one the live product never had", () => {
+  it("carries the proposed details and facts, including a detail the live product never had", () => {
     const w = workingDetail(live)
-    const a1 = w.attributes.find((a) => a.attributeId === "a1")
-    const a2 = w.attributes.find((a) => a.attributeId === "a2")
-    expect(a1?.valueText).toBe("ambient")
-    expect(a1?.dataType).toBe("single_select")
-    expect(a2?.valueNumber).toBe(12)
-    expect(a2?.dataType).toBe("number")
+    expect(w.details.map((d) => d.attributeId)).toEqual(["a1", "a2"])
+    expect(w.storage).toBe("ambient")
+    expect(w.gstStatus).toBe("gst_free")
   })
 
   it("uses the proposed image set only when images are part of the change", () => {
@@ -127,11 +116,33 @@ describe("workingDetail", () => {
 describe("proposedRows", () => {
   it("lists only what differs, with the SHOP's price on both sides", () => {
     const rows = proposedRows(live)
-    expect(rows.map((r) => r.label)).toEqual(["Name", "Price", "Attributes"])
+    expect(rows.map((r) => r.label)).toEqual(["Name", "Price", "Storage", "Details"])
+    expect(rows[2]).toEqual({ label: "Storage", now: "Chilled", proposed: "Room temperature" })
     expect(rows[1]).toEqual({ label: "Price", now: "AUD 4.00", proposed: "AUD 4.50" })
   })
   it("never shows the customer price or a margin", () => {
     expect(JSON.stringify(proposedRows(live))).not.toContain("4.60")
+  })
+  it("names a proposed category by its path when the tree is loaded", () => {
+    const moved = {
+      ...live,
+      pendingChange: { ...live.pendingChange!, proposed: { primaryCategoryId: "c9" } },
+    } as ProductDetail
+    const tree = [
+      {
+        id: "c9",
+        parentId: "d",
+        name: "Oat Milk",
+        path: ["Dairy, Eggs & Fridge", "Oat Milk"],
+        isLeaf: true,
+        synonyms: [],
+        icon: null,
+      },
+    ]
+    expect(proposedRows(moved, tree)).toEqual([
+      { label: "Category", now: "Dairy, Eggs & Fridge › Plant Milk", proposed: "Dairy, Eggs & Fridge › Oat Milk" },
+    ])
+    expect(proposedRows(moved)[0]!.proposed).toBe("A different category")
   })
   it("is empty when nothing is pending", () => {
     expect(proposedRows({ ...live, pendingChange: null } as ProductDetail)).toEqual([])

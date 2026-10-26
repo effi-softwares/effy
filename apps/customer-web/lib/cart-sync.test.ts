@@ -33,6 +33,7 @@ const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
 })
 
 const dtoLine = (productId: string, quantity: number, over: Partial<CartDTO["lines"][number]> = {}) => ({
+    ageRestricted: false,
   id: `line-${productId}`,
   productId,
   variantId: productId,

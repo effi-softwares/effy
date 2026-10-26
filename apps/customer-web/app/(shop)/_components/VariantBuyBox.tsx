@@ -7,6 +7,7 @@ import type { OptionDTO, ProductOfferDTO, StorefrontVariantDTO } from "@effy/sha
 
 import { Badge } from "@/components/ui/badge"
 import { formatMoney, isDiscounted } from "@/lib/money"
+import { setSelectedVariant } from "@/lib/selected-variant"
 import { pickValue, selectorRows, variantById } from "@/lib/variant-selection"
 
 import { AddToCartControl } from "./AddToCartControl"
@@ -36,7 +37,7 @@ export function VariantBuyBox({
   currency,
   gallery,
 }: {
-  product: { id: string; name: string; imageUrl: string | null; imageWidths?: number[] }
+  product: { id: string; name: string; imageUrl: string | null; imageWidths?: number[]; ageRestricted?: boolean }
   options: OptionDTO[]
   variants: StorefrontVariantDTO[]
   initialVariantId: string
@@ -52,6 +53,7 @@ export function VariantBuyBox({
   function choose(next: StorefrontVariantDTO | undefined) {
     if (!next || next.id === selectedId) return
     setSelectedId(next.id)
+    setSelectedVariant(product.id, next.id)
     try {
       const url = new URL(window.location.href)
       url.searchParams.set("variant", next.id)
@@ -140,6 +142,7 @@ export function VariantBuyBox({
             productId: product.id,
             name: product.name,
             variantLabel: selected.label,
+            ageRestricted: product.ageRestricted,
             unitPrice: selected.unitPrice,
             // The size's own picture when it has one, so the cart line shows what was chosen.
             imageUrl: selected.imageUrl ?? product.imageUrl,

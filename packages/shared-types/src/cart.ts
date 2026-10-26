@@ -28,6 +28,8 @@ export interface CartLineDTO {
   name: string;
   /** "Spiced / 500 g"; null for a product with no options. */
   variantLabel: string | null;
+  /** Sold to adults only: show the 18+ label. */
+  ageRestricted: boolean;
   imageUrl: string | null;
   /** Widths (px) of this picture's smaller copies, ascending; absent or [] means only `imageUrl`. Build each with `renditionUrl`. */
   imageWidths?: number[];

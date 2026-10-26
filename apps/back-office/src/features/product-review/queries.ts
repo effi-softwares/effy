@@ -5,11 +5,11 @@ import type { ApproveReviewRequest, SendBackReviewRequest, SetMarginRequest } fr
 import {
   approve,
   getItem,
-  listGstMissing,
   listMarginNotSet,
+  listMissingDetails,
+  setPlacements,
   listQueue,
   sendBack,
-  setGstBulk,
   setMargin,
   type QueueParams,
 } from "./repo"
@@ -18,8 +18,8 @@ const reviewKeys = {
   all: ["product-review"] as const,
   queue: (params: QueueParams) => ["product-review", "queue", params] as const,
   marginNotSet: ["product-review", "margin-not-set"] as const,
-  gstMissing: ["product-review", "gst-missing"] as const,
   item: (productId: string) => ["product-review", "item", productId] as const,
+  missingDetails: ["product-review", "missing-details"] as const,
 }
 
 export const reviewQueueQuery = (params: QueueParams) =>
@@ -30,16 +30,6 @@ export const marginNotSetQuery = (cursor: string | null = null) =>
     queryKey: [...reviewKeys.marginNotSet, cursor] as const,
     queryFn: () => listMarginNotSet(cursor),
   })
-
-export const gstMissingQuery = () => queryOptions({ queryKey: reviewKeys.gstMissing, queryFn: listGstMissing })
-
-export function useSetGstBulk() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: setGstBulk,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: reviewKeys.gstMissing }),
-  })
-}
 
 export const reviewItemQuery = (productId: string) =>
   queryOptions({
@@ -70,5 +60,16 @@ export function useSetMargin() {
   return useMutation({
     mutationFn: (v: { productId: string; body: SetMarginRequest }) => setMargin(v.productId, v.body),
     onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.all }),
+  })
+}
+
+export const missingDetailsQuery = (cursor: string | null = null) =>
+  queryOptions({ queryKey: [...reviewKeys.missingDetails, cursor] as const, queryFn: () => listMissingDetails(cursor) })
+
+export function useSetPlacements(productId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (categoryIds: string[]) => setPlacements(productId, categoryIds),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.item(productId) }),
   })
 }

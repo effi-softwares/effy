@@ -42,7 +42,7 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
   });
 
   beforeEach(async () => {
-    await pool.query(`TRUNCATE public.customer, public.shop, public.product_type, public.category RESTART IDENTITY CASCADE`);
+    await pool.query(`TRUNCATE public.customer, public.shop, public.category RESTART IDENTITY CASCADE`);
     await pool.query(
       `INSERT INTO public.customer (id, cognito_sub, email) VALUES ($1,'sub-1','a@b.c')`, [CUST]);
     await pool.query(
@@ -54,16 +54,13 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
     await pool.query(
       `INSERT INTO public.payment (order_id, stripe_payment_intent_id, amount, status)
        VALUES ($1,'pi_r1',30,'succeeded')`, [ORDER]);
-    // A real product, type and category: `order_item.product_id` has a foreign key.
-    await pool.query(
-      `INSERT INTO public.product_type (id, key, name) VALUES (gen_random_uuid(),'grocery','Grocery')
-       ON CONFLICT DO NOTHING`);
+    // A real product and category: `order_item.product_id` has a foreign key.
     await pool.query(
       `INSERT INTO public.category (id, key, name) VALUES (gen_random_uuid(),'dairy','Dairy')
        ON CONFLICT DO NOTHING`);
     await pool.query(
-      `WITH p AS (INSERT INTO public.product (id, shop_id, product_type_id, primary_category_id, name, short_description, created_by) SELECT $1, $2, pt.id, c.id, 'Milk', 'Fresh milk', 'seed' FROM public.product_type pt, public.category c
-        WHERE pt.key = 'grocery' AND c.key = 'dairy' RETURNING *),
+      `WITH p AS (INSERT INTO public.product (id, shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by) SELECT $1, $2, c.id, 'ambient', 'gst_free', false, 'Milk', 'Fresh milk', 'seed' FROM public.category c
+        WHERE c.key = 'dairy' RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric FROM p RETURNING id)
 SELECT p.id FROM p`, [PRODUCT, SHOP]);
     await pool.query(

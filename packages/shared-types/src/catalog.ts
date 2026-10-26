@@ -1,10 +1,12 @@
 /**
- * Product catalog contracts: the schema-authority DTOs back-office edits (product types, attributes,
- * categories) and the shop-facing DTOs (products, media, sections), served by the admin and shop
- * services. Enum unions mirror the SQL check sets.
+ * Shop-facing product contracts (products, media, sections), served by the shop service. The taxonomy —
+ * categories, the attribute library and each leaf's form — is in taxonomy.ts (101). Enum unions mirror the
+ * SQL check sets.
  */
 import type { GstStatus } from "./documents";
+import type { FactKey } from "./product-form";
 import type { PagedDTO } from "./shop";
+import type { DetailInput, FactDefaults, Storage } from "./taxonomy";
 import type { UnitBasis } from "./unit-price";
 import type { OptionDTO, OptionInputDTO, ShopVariantDTO, VariantInputDTO } from "./variants";
 
@@ -21,173 +23,13 @@ export const PRODUCT_STATUSES: readonly ProductStatus[] = [
   "archived",
 ];
 
-/** The data type of an attribute: drives the form input and the value column. */
-export type AttributeDataType =
-  | "short_text"
-  | "long_text"
-  | "number"
-  | "boolean"
-  | "single_select"
-  | "multi_select";
-export const ATTRIBUTE_DATA_TYPES: readonly AttributeDataType[] = [
-  "short_text",
-  "long_text",
-  "number",
-  "boolean",
-  "single_select",
-  "multi_select",
-];
-
-/** Lifecycle of the managed schema entities. */
-export type SchemaStatus = "active" | "retired";
-export const SCHEMA_STATUSES: readonly SchemaStatus[] = ["active", "retired"];
-
-/** Optional per-attribute validation (jsonb `validation`). */
-export interface AttributeValidationDTO {
-  min?: number | null;
-  max?: number | null;
-  maxLength?: number | null;
-}
-
-// Schema-authority DTOs (back-office)
-
-/** An option for a select-typed attribute. */
-export interface AttributeAllowedValueDTO {
-  id: string;
-  value: string;
-  label: string;
-  displayOrder: number;
-}
-
-/** A reusable attribute definition. */
-export interface AttributeDefinitionDTO {
-  id: string;
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit: string | null;
-  helpText: string | null;
-  validation: AttributeValidationDTO | null;
-  status: SchemaStatus;
-  allowedValues: AttributeAllowedValueDTO[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** An attribute assigned to a product type, with the per-type facts. */
-export interface ProductTypeAttributeDTO {
-  attributeId: string;
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit: string | null;
-  helpText: string | null;
-  validation: AttributeValidationDTO | null;
-  allowedValues: AttributeAllowedValueDTO[];
-  isMandatory: boolean;
-  displayOrder: number;
-  groupLabel: string | null;
-}
-
-/** A product classification, with its assigned attributes. */
-export interface ProductTypeDTO {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  status: SchemaStatus;
-  attributes: ProductTypeAttributeDTO[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** A category node (a flat list; the tree is built from parentId). */
-export interface CategoryDTO {
-  id: string;
-  parentId: string | null;
-  key: string;
-  name: string;
-  displayOrder: number;
-  status: SchemaStatus;
-}
-
-// Schema-authority request bodies
-
-export interface CreateProductTypeRequest {
-  key: string;
-  name: string;
-  description?: string | null;
-}
-
-export interface UpdateProductTypeRequest {
-  name?: string;
-  description?: string | null;
-}
-
-export interface AssignAttributeRequest {
-  attributeId: string;
-  isMandatory?: boolean;
-  displayOrder?: number;
-  groupLabel?: string | null;
-}
-
-export interface UpdateAssignmentRequest {
-  isMandatory?: boolean;
-  displayOrder?: number;
-  groupLabel?: string | null;
-}
-
-export interface CreateAttributeDefinitionRequest {
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit?: string | null;
-  helpText?: string | null;
-  validation?: AttributeValidationDTO | null;
-  allowedValues?: { value: string; label: string; displayOrder?: number }[];
-}
-
-export interface UpdateAttributeDefinitionRequest {
-  name?: string;
-  unit?: string | null;
-  helpText?: string | null;
-  validation?: AttributeValidationDTO | null;
-  allowedValues?: { value: string; label: string; displayOrder?: number }[];
-}
-
-export interface CreateCategoryRequest {
-  key: string;
-  name: string;
-  parentId?: string | null;
-  displayOrder?: number;
-}
-
-export interface UpdateCategoryRequest {
-  name?: string;
-  parentId?: string | null;
-  displayOrder?: number;
-}
-
-/** Retire/activate a schema entity (product type, attribute, category). */
-export interface ChangeSchemaStatusRequest {
-  status: SchemaStatus;
-}
-
-// Shop-facing DTOs
-
-/** Bootstraps the create form: the active types with their attributes, and the active category list. */
-export interface CatalogSchemaDTO {
-  productTypes: ProductTypeDTO[];
-  categories: CategoryDTO[];
-}
-
 /** A row in the shop catalog table (server-paginated). */
 export interface ProductListItemDTO {
   id: string;
   name: string;
   brand: string | null;
   primaryImageUrl: string | null;
-  typeName: string;
+  /** The home leaf's name. */
   categoryName: string;
   /** The lowest shop price among active variants (say "From" when `priceVaries`); equals `shopPriceAmount`. */
   priceAmount: string;
@@ -204,19 +46,8 @@ export interface ProductListItemDTO {
   priceVaries: boolean;
   /** Variants that are not removed. */
   variantCount: number;
-}
-
-/** A typed attribute value (EAV, one value shape per data type). */
-export interface ProductAttributeValueDTO {
-  attributeId: string;
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit: string | null;
-  valueText: string | null;
-  valueNumber: number | null;
-  valueBoolean: boolean | null;
-  valueOptions: string[] | null;
+  /** Required details still empty (staff may have added a requirement after approval). */
+  missingRequired: number;
 }
 
 /** A media object on a product (lists and detail carry short-lived presigned GET URLs). */
@@ -229,22 +60,27 @@ export interface ProductMediaDTO {
   altText: string | null;
 }
 
-/** Full product detail. `updatedAt` is the optimistic-concurrency token; `missingMandatoryAttributes`
- *  is a non-blocking notice. */
+/** Full product detail. `updatedAt` is the optimistic-concurrency token. */
 export interface ProductDetailDTO {
   id: string;
   shopId: string;
-  productTypeId: string;
-  typeName: string;
+  /** The home leaf. */
   primaryCategoryId: string;
   categoryName: string;
+  /** Names from the department to the home leaf. */
+  categoryPath: string[];
   name: string;
   brand: string | null;
   currency: string;
   shortDescription: string;
   longDescription: string | null;
-  /** Taxable or GST-free; null until classified. */
-  gstStatus: GstStatus | null;
+  gstStatus: GstStatus;
+  /** How it is kept; decides cold-chain handling. */
+  storage: Storage;
+  /** Sold to adults only (labelled 18+ to customers). */
+  ageRestricted: boolean;
+  /** The home leaf's defaults for the three facts, so the form can say "from category". */
+  factDefaults: FactDefaults;
   /** How this product's sizes are compared (unit pricing); null = no unit price. */
   unitBasis: UnitBasis | null;
   /** Up to two options ("Size", "Flavour") with their values in the shop's order; empty with no options. */
@@ -255,10 +91,14 @@ export interface ProductDetailDTO {
    */
   variants: ShopVariantDTO[];
   status: ProductStatus;
-  attributes: ProductAttributeValueDTO[];
+  /** Values for the leaf's form, for the whole product or per variant. */
+  details: DetailInput[];
   media: ProductMediaDTO[];
   sections: string[];
-  missingMandatoryAttributes: string[];
+  /** Required details still empty ("Allergens", "Allergens (Mango)"); submission is refused while any are. */
+  missingRequired: string[];
+  /** On the response to a save only: details that no longer had a place (a new category, one variant left). */
+  droppedDetails?: string[];
   createdAt: string;
   updatedAt: string;
 
@@ -290,9 +130,11 @@ export interface ProductChangeProposalDTO {
   longDescription?: string | null;
   brand?: string | null;
   primaryCategoryId?: string;
-  productTypeId?: string;
   gstStatus?: GstStatus;
-  attributes?: AttributeValueInputDTO[];
+  storage?: Storage;
+  ageRestricted?: boolean;
+  /** The complete proposed details, only when they differ from live. */
+  details?: DetailInput[];
   unitBasis?: UnitBasis | null;
   /** The complete proposed option set, only when it differs from live. */
   options?: OptionInputDTO[];
@@ -309,25 +151,18 @@ export interface ProductPendingChangeDTO {
   media: ProductMediaDTO[] | null;
 }
 
-/** A value for one attribute on create/edit (only the field matching the data type is set). */
-export interface AttributeValueInputDTO {
-  attributeId: string;
-  valueText?: string | null;
-  valueNumber?: number | null;
-  valueBoolean?: boolean | null;
-  valueOptions?: string[] | null;
-}
-
 /** POST /shop/v1/products: create a shop-owned product. */
 export interface CreateProductRequest {
-  productTypeId: string;
+  /** Must be an active leaf. */
   primaryCategoryId: string;
   name: string;
   brand?: string | null;
   shortDescription: string;
   longDescription?: string | null;
-  /** Required: every product is taxable or GST-free from the start. */
-  gstStatus: GstStatus;
+  /** Omitted facts take the leaf's defaults; refused when the leaf has none (`fact_required`). */
+  gstStatus?: GstStatus;
+  storage?: Storage;
+  ageRestricted?: boolean;
   /** How sizes are compared; omit for no unit price. */
   unitBasis?: UnitBasis | null;
   /** 0 to 2 options. Ids are client-generated UUIDs. */
@@ -337,7 +172,7 @@ export interface CreateProductRequest {
    * price, codes and shipping weight (omit a weight to record the platform default as an assumption).
    */
   variants: VariantInputDTO[];
-  attributes?: AttributeValueInputDTO[];
+  details?: DetailInput[];
   sectionIds?: string[];
   primaryMediaStorageKey?: string | null;
   media?: { storageKey: string; isPrimary?: boolean; altText?: string | null; displayOrder?: number }[];
@@ -348,14 +183,18 @@ export interface CreateProductRequest {
 export interface UpdateProductRequest {
   expectedUpdatedAt: string;
   name?: string;
-  productTypeId?: string;
+  /** A draft moving leaf drops details the new leaf does not ask for; facts not in `factsTouched` re-default. */
   primaryCategoryId?: string;
+  factsTouched?: FactKey[];
   brand?: string | null;
   shortDescription?: string;
   longDescription?: string | null;
-  /** On a live product this is proposed and reviewed, like every other detail. */
+  /** On a live product these are proposed and reviewed, like every other detail. */
   gstStatus?: GstStatus;
-  attributes?: AttributeValueInputDTO[];
+  storage?: Storage;
+  ageRestricted?: boolean;
+  /** The complete set of details when present. */
+  details?: DetailInput[];
   unitBasis?: UnitBasis | null;
   /**
    * When present, both are the complete target sets, sent together: written as-is on a draft, part of the

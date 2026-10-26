@@ -6,7 +6,7 @@ import type { Queryable } from "../lib/db";
 
 export interface TestProductInput {
   shopId: string;
-  productTypeId: string;
+  /** A leaf: `testLeafId` finds one of the seeded taxonomy's. */
   primaryCategoryId: string;
   name: string;
   /** The customer price (the variant's price_amount). */
@@ -19,7 +19,9 @@ export interface TestProductInput {
   approved?: boolean;
   brand?: string | null;
   shortDescription?: string;
-  gstStatus?: "taxable" | "gst_free" | null;
+  gstStatus?: "taxable" | "gst_free";
+  storage?: "frozen" | "chilled" | "ambient";
+  ageRestricted?: boolean;
   tracked?: boolean;
   onHand?: number | null;
   lowStockThreshold?: number | null;
@@ -34,19 +36,30 @@ export interface TestProduct {
   variantId: string;
 }
 
+/** A leaf of the seeded taxonomy (the migrations seed it), by key; any leaf when no key is given. */
+export async function testLeafId(db: Queryable, key?: string): Promise<string> {
+  const r = await db.query<{ id: string }>(
+    `SELECT c.id::text FROM public.category c JOIN public.category_resolved r ON r.category_id = c.id
+      WHERE r.is_leaf AND ($1::text IS NULL OR c.key = $1) ORDER BY c.key LIMIT 1`,
+    [key ?? null],
+  );
+  if (!r.rows[0]) throw new Error(`no seeded leaf ${key ?? ""}`);
+  return r.rows[0].id;
+}
+
 /** A product with exactly one (option-less) variant, its listing summary refreshed. */
 export async function insertTestProduct(db: Queryable, p: TestProductInput): Promise<TestProduct> {
   const status = p.status ?? "active";
   const approved = p.approved ?? status === "active";
   const product = await db.query<{ id: string }>(
     `INSERT INTO public.product
-         (shop_id, product_type_id, primary_category_id, name, brand, short_description, created_by,
-          status, approved_at, gst_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $9::boolean THEN now() END, $10)
+         (shop_id, primary_category_id, name, brand, short_description, created_by,
+          status, approved_at, gst_status, storage, age_restricted)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::boolean THEN now() END, $9, $10, $11)
      RETURNING id::text`,
     [
-      p.shopId, p.productTypeId, p.primaryCategoryId, p.name, p.brand ?? null, p.shortDescription ?? "d",
-      p.createdBy ?? "seed", status, approved, p.gstStatus === undefined ? "gst_free" : p.gstStatus,
+      p.shopId, p.primaryCategoryId, p.name, p.brand ?? null, p.shortDescription ?? "d",
+      p.createdBy ?? "seed", status, approved, p.gstStatus ?? "gst_free", p.storage ?? "ambient", p.ageRestricted ?? false,
     ],
   );
   const productId = product.rows[0]!.id;
@@ -58,7 +71,7 @@ export async function insertTestProduct(db: Queryable, p: TestProductInput): Pro
 export async function insertTestVariant(
   db: Queryable,
   productId: string,
-  p: Omit<TestProductInput, "productTypeId" | "primaryCategoryId" | "name" | "status" | "approved" | "brand" | "shortDescription" | "gstStatus" | "createdBy"> & {
+  p: Omit<TestProductInput, "primaryCategoryId" | "name" | "status" | "approved" | "brand" | "shortDescription" | "gstStatus" | "storage" | "ageRestricted" | "createdBy"> & {
     optionValueIds?: [string | null, string | null];
     position?: number;
     state?: "active" | "inactive" | "removed";

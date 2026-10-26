@@ -51,12 +51,13 @@ describe("shop product handlers — gate + shop-scope + no leakage", () => {
   it("create returns 201 with the detail DTO", async () => {
     authorizeShopMember.mockResolvedValue("shop-1");
     service.createProduct.mockResolvedValue({
-      id: "p1", shopId: "shop-1", productTypeId: "t", typeName: "T", primaryCategoryId: "c", categoryName: "C",
+      id: "p1", shopId: "shop-1", primaryCategoryId: "c", categoryName: "C", categoryPath: ["C"],
       name: "X", brand: null, currency: "AUD", unitBasis: null, options: [], variants: [], shopDefaultThreshold: null,
-      shortDescription: "d", longDescription: null, status: "draft", attributes: [], media: [], sections: [],
-      missingMandatoryAttributes: [], createdAt: "t", updatedAt: "t",
+      gstStatus: "gst_free", storage: "ambient", ageRestricted: false, factDefaults: { storage: null, gstStatus: null, ageRestricted: null },
+      shortDescription: "d", longDescription: null, status: "draft", details: [], media: [], sections: [],
+      missingRequired: [], createdAt: "t", updatedAt: "t",
     });
-    const res = await createHandler(event("sub-1", { productTypeId: "t", primaryCategoryId: "c", name: "X", priceAmount: "1.00", shortDescription: "d" }), ctx);
+    const res = await createHandler(event("sub-1", { primaryCategoryId: "c", name: "X", priceAmount: "1.00", shortDescription: "d" }), ctx);
     expect(res.statusCode).toBe(201);
     expect(JSON.parse(res.body as string).id).toBe("p1");
   });

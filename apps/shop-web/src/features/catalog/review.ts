@@ -1,14 +1,6 @@
-import {
-  GST_STATUS_WORDS,
-  UNIT_BASIS_LABELS,
-  variantLabel,
-  type AttributeDataType,
-  type ProductAttributeValueDTO,
-  type ProductChangeProposalDTO,
-  type ShopReviewState,
-} from "@effy/shared-types"
+import { GST_STATUS_WORDS, STORAGE_WORDS, UNIT_BASIS_LABELS, type ShopReviewState } from "@effy/shared-types"
 
-import type { CatalogSchema, ProductDetail } from "./model"
+import { pathText, type ProductDetail, type ShopCategory } from "./model"
 
 type ReviewTone = "brand" | "warning" | "muted"
 
@@ -44,44 +36,12 @@ export const REVIEW_FILTERS: readonly { value: ShopReviewState; label: string }[
   { value: "live_change_sent_back", label: "Change sent back" },
 ]
 
-function inferDataType(a: NonNullable<ProductChangeProposalDTO["attributes"]>[number]): AttributeDataType {
-  if (a.valueOptions != null) return "multi_select"
-  if (a.valueBoolean != null) return "boolean"
-  if (a.valueNumber != null) return "number"
-  return "short_text"
-}
-
+/** The product as the shop is editing it: the live product with its pending change laid over. */
 export function workingDetail(detail: ProductDetail): ProductDetail {
   const pending = detail.pendingChange
   if (!pending) return detail
-  const { attributes: proposedAttributes, options: _options, variants: _variants, ...scalars } = pending.proposed
-
-  let attributes: ProductAttributeValueDTO[] = detail.attributes
-  if (proposedAttributes) {
-    const byId = new Map(detail.attributes.map((a) => [a.attributeId, a]))
-    for (const p of proposedAttributes) {
-      const live = byId.get(p.attributeId)
-      byId.set(p.attributeId, {
-        attributeId: p.attributeId,
-        key: live?.key ?? "",
-        name: live?.name ?? "",
-        dataType: live?.dataType ?? inferDataType(p),
-        unit: live?.unit ?? null,
-        valueText: p.valueText ?? null,
-        valueNumber: p.valueNumber ?? null,
-        valueBoolean: p.valueBoolean ?? null,
-        valueOptions: p.valueOptions ?? null,
-      } as ProductAttributeValueDTO)
-    }
-    attributes = [...byId.values()]
-  }
-
-  return {
-    ...detail,
-    ...scalars,
-    attributes,
-    media: pending.media ?? detail.media,
-  } as ProductDetail
+  const { options: _options, variants: _variants, ...scalars } = pending.proposed
+  return { ...detail, ...scalars, media: pending.media ?? detail.media } as ProductDetail
 }
 
 interface ProposedRow {
@@ -92,20 +52,8 @@ interface ProposedRow {
 
 const text = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : String(v))
 
-function categoryName(schema: CatalogSchema | undefined, id: string): string {
-  type Node = { id: string; name: string; children?: Node[] }
-  const walk = (nodes: readonly Node[]): string | null => {
-    for (const n of nodes) {
-      if (n.id === id) return n.name
-      const found = n.children ? walk(n.children) : null
-      if (found) return found
-    }
-    return null
-  }
-  return (schema ? walk(schema.categories as unknown as Node[]) : null) ?? "A different category"
-}
-
-export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): ProposedRow[] {
+/** What a pending change proposes, as rows. `categories` names a proposed category when the tree is loaded. */
+export function proposedRows(detail: ProductDetail, categories?: readonly ShopCategory[]): ProposedRow[] {
   const p = detail.pendingChange?.proposed
   if (!p) return []
   const rows: ProposedRow[] = []
@@ -127,9 +75,9 @@ export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): Pro
     const live = new Map(liveSets.map((v) => [v.id, v]))
     const kept = new Set(p.variants.map((v) => v.id))
     for (const v of p.variants) {
-      const label = variantLabel(p.options, v.optionValueIds) ?? "Price"
       const was = live.get(v.id)
-      if (!was) add(`${label} (new)`, "—", `${detail.currency} ${v.shopPriceAmount}`)
+      const label = was?.label ?? "Price"
+      if (!was) add("A new size", "—", `${detail.currency} ${v.shopPriceAmount}`)
       else if (Number(was.shopPriceAmount) !== Number(v.shopPriceAmount))
         add(label, `${detail.currency} ${was.shopPriceAmount}`, `${detail.currency} ${v.shopPriceAmount}`)
       else if ((was.sku ?? "") !== (v.sku ?? "") || (was.gtin ?? "") !== (v.gtin ?? ""))
@@ -138,18 +86,14 @@ export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): Pro
     for (const v of liveSets)
       if (!kept.has(v.id)) add(`${v.label ?? "Variant"} (removed)`, `${detail.currency} ${v.shopPriceAmount}`, "—")
   }
-  if (p.gstStatus !== undefined)
-    add("GST", detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set", GST_STATUS_WORDS[p.gstStatus])
-  if (p.productTypeId !== undefined) {
-    const type = schema?.productTypes.find((t) => t.id === p.productTypeId)
-    add("Type", detail.typeName, type?.name ?? "A different type")
-  }
   if (p.primaryCategoryId !== undefined) {
-    add("Category", detail.categoryName, categoryName(schema, p.primaryCategoryId))
+    const to = categories?.find((c) => c.id === p.primaryCategoryId)
+    add("Category", pathText(detail.categoryPath), to ? pathText(to.path) : "A different category")
   }
-  if (p.attributes !== undefined) {
-    add("Attributes", `${detail.attributes.length} set`, `${p.attributes.length} changed`)
-  }
+  if (p.storage !== undefined) add("Storage", STORAGE_WORDS[detail.storage], STORAGE_WORDS[p.storage])
+  if (p.gstStatus !== undefined) add("GST", GST_STATUS_WORDS[detail.gstStatus], GST_STATUS_WORDS[p.gstStatus])
+  if (p.ageRestricted !== undefined) add("18+", detail.ageRestricted ? "Yes" : "No", p.ageRestricted ? "Yes" : "No")
+  if (p.details !== undefined) add("Details", `${detail.details.length} set`, `${p.details.length} set (changed)`)
   if (detail.pendingChange?.media) {
     add("Images", `${detail.media.length}`, `${detail.pendingChange.media.length} (changed)`)
   }

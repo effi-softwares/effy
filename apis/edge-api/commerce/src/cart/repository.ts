@@ -17,6 +17,8 @@ export interface CartLineRow {
   product_id: string;
   variant_id: string;
   variant_label: string | null;
+  /** Sold to adults only. */
+  age_restricted: boolean;
   variant_state: string;
   shop_id: string;
   quantity: number;
@@ -74,6 +76,7 @@ const LINE_PROJECTION = `
        ci.variant_id::text    AS variant_id,
        ${variantLabelSql("v")} AS variant_label,
        v.state                AS variant_state,
+       p.age_restricted       AS age_restricted,
        p.shop_id::text        AS shop_id,
        ci.quantity            AS quantity,
        p.name                 AS name,
@@ -254,6 +257,7 @@ SELECT ''::text              AS id,
        v.id::text            AS variant_id,
        ${variantLabelSql("v")} AS variant_label,
        v.state               AS variant_state,
+       p.age_restricted      AS age_restricted,
        p.shop_id::text       AS shop_id,
        0                     AS quantity,
        p.name                AS name,

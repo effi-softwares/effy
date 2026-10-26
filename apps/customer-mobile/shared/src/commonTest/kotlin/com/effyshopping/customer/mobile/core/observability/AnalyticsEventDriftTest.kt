@@ -29,6 +29,7 @@ class AnalyticsEventDriftTest {
         "checkout_started",
         "order_placed",
         "search_performed",
+        "filter_applied",
         // commerce-events.md — Points
         "points_viewed",
         "checkout_points_toggled",
@@ -44,6 +45,7 @@ class AnalyticsEventDriftTest {
         AnalyticsEvent.CheckoutStarted,
         AnalyticsEvent.OrderPlaced("o1"),
         AnalyticsEvent.SearchPerformed,
+        AnalyticsEvent.FilterApplied("allergens", "choice"),
         AnalyticsEvent.PushPermissionPrompted,
         AnalyticsEvent.PushPermissionGranted,
         AnalyticsEvent.PushPermissionDenied,

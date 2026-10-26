@@ -17,7 +17,7 @@ import { aisleHref, childrenOf, getCategoriesSafe, topLevel } from "@/lib/catego
 
 import { AisleLink, AisleLinkFallback } from "./AisleLink"
 import { AisleMenu } from "./AisleMenu"
-import { aisleIcon } from "./aisle-icon"
+import { categoryIcon } from "./category-icon"
 import { MenuCarousel } from "./MenuCarousel"
 
 const SALE_HREF = "/search?saleOnly=true"
@@ -42,7 +42,7 @@ export async function AisleRow() {
       {aisles.length > 0 && (
         <AisleMenu
           items={aisles.map((aisle) => {
-            const Icon = aisleIcon(aisle.name)
+            const Icon = categoryIcon(aisle.icon)
             return {
               key: aisle.key,
               row: (
@@ -98,7 +98,7 @@ export async function AisleRow() {
         </Suspense>
         {aisles.length > 0 && <Separator orientation="vertical" className="mx-1" />}
         {aisles.map((aisle) => {
-          const Icon = aisleIcon(aisle.name)
+          const Icon = categoryIcon(aisle.icon)
           const inner = (
             <>
               <Icon aria-hidden="true" />

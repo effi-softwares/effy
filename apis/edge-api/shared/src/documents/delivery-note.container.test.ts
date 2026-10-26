@@ -39,7 +39,7 @@ async function shop(code: string) {
 }
 async function product(shopId: string, name: string) {
   return (await one<{ id: string }>(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now()) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, $2, 'A thing', 'test', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
 SELECT id FROM p`, [shopId, name])).id;
 }

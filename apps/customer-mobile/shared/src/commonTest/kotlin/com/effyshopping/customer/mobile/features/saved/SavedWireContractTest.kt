@@ -186,7 +186,7 @@ class SavedWireContractTest {
     @Test
     fun `an order line carries the product id a save needs`() {
         val orderItemJson =
-            """{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","variantId":"9f2c1d4e-0000-0000-0000-0000000000a1","variantLabel":"12 pack","unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
+            """{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","variantId":"9f2c1d4e-0000-0000-0000-0000000000a1","variantLabel":"12 pack","ageRestricted":false,"unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
 
         val dto = json.decodeFromString<OrderItemDTO>(orderItemJson)
 

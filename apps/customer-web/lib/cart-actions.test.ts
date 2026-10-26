@@ -40,6 +40,7 @@ const dtoLine = (productId: string, quantity: number, over: Record<string, unkno
   available: true,
   priceChangedFrom: null,
   packageKey: "pkg_a",
+  ageRestricted: false,
   ...over,
 })
 

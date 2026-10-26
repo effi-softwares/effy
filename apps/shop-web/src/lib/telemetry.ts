@@ -10,6 +10,9 @@ type ShopAnalyticsEvent =
   | { name: "shop_auth_signed_out" }
   | { name: "shop_assignment_missing" }
   | { name: "product_create_started" }
+  | { name: "category_suggestion_chosen"; rank: number }
+  | { name: "category_searched" }
+  | { name: "category_browsed"; depth: number }
   | { name: "product_created"; productId: string }
   | { name: "product_edit_saved"; productId: string }
   | { name: "product_variants_saved"; productId: string; variantCount: number }

@@ -183,21 +183,13 @@ export const ROUND_WORK = `
     SELECT rs.id AS stop_id,
            rs.zone_id,
            COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
-           COALESCE(bool_or(st.chilled), false) AS chilled,
-           COALESCE(bool_or(st.frozen),  false) AS frozen
+           COALESCE(bool_or(oi.storage_class = 'chilled'), false) AS chilled,
+           COALESCE(bool_or(oi.storage_class = 'frozen'),  false) AS frozen
       FROM public.round_stop rs
       JOIN public.round_package   rp ON rp.stop_id = rs.id AND rp.state IN ('assigned', 'picked_up')
       JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
       LEFT JOIN public.order_item  oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-      LEFT JOIN public.product     p  ON p.id = oi.product_id
       LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- weight is the VARIANT's
-      LEFT JOIN LATERAL (
-        SELECT bool_or(pav.value_text = 'chilled') AS chilled,
-               bool_or(pav.value_text = 'frozen')  AS frozen
-          FROM public.product_attribute_value pav
-          JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
-         WHERE pav.product_id = p.id
-      ) st ON TRUE
      WHERE rs.round_id = $1
      GROUP BY rs.id, rs.zone_id, sf.id
   )

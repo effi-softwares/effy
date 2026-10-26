@@ -34,12 +34,10 @@ d("070 — cart repository against the real schema", () => {
     await pool.query(migrationSql());
 
     await pool.query(`INSERT INTO public.shop (code, name) VALUES ('CRT', 'Cart test shop')`);
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('crt-type', 'Cart test type')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('crt-cat', 'Cart test category')`);
     const one = async (sql: string) => (await pool.query<{ id: string }>(sql)).rows[0]!.id;
     const ids = {
       shopId: await one(`SELECT id::text FROM public.shop WHERE code='CRT'`),
-      productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key='crt-type'`),
       primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key='crt-cat'`),
     };
     for (const [name, price, status, tracked, onHand] of [
@@ -53,7 +51,7 @@ d("070 — cart repository against the real schema", () => {
       prod[name] = t.productId;
     }
     // A second size of Milk: same product, its own line.
-    const size = await one(`INSERT INTO public.product_option (product_id, position, name) VALUES ('${prod.Milk}', 1, 'Size') RETURNING id::text`);
+    const size = await one(`INSERT INTO public.product_option (product_id, position, kind) VALUES ('${prod.Milk}', 1, 'pack_size') RETURNING id::text`);
     const [oneL, twoL] = (await pool.query<{ id: string }>(
       `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '1 L', 0), ($1, '2 L', 1) RETURNING id::text`, [size],
     )).rows.map((r) => r.id);

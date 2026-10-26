@@ -32,7 +32,14 @@ class ProductDetailViewModel(
     private val productId: String,
     private val getProductDetail: GetProductDetail,
     private val addToCart: AddToCart,
+    /** The size the page was opened on (a filtered result's); it opens there when that size is on sale. */
+    private val requestedVariantId: String? = null,
 ) : ViewModel() {
+
+    private fun ready(product: ProductDetail, keep: String? = null) = ProductDetailUiState.Ready(
+        product,
+        VariantSelection.initialVariantId(product.variants, product.defaultVariantId, keep ?: requestedVariantId),
+    )
 
     private val _state = MutableStateFlow<ProductDetailUiState>(ProductDetailUiState.Loading)
     val state: StateFlow<ProductDetailUiState> = _state.asStateFlow()
@@ -51,7 +58,8 @@ class ProductDetailViewModel(
      */
     suspend fun refresh() {
         try {
-            _state.value = ProductDetailUiState.Ready(getProductDetail(productId))
+            // A refresh keeps the size the shopper is looking at.
+            _state.value = ready(getProductDetail(productId), (_state.value as? ProductDetailUiState.Ready)?.selectedVariantId)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Throwable) {
@@ -63,7 +71,7 @@ class ProductDetailViewModel(
         viewModelScope.launch {
             _state.value = ProductDetailUiState.Loading
             try {
-                _state.value = ProductDetailUiState.Ready(getProductDetail(productId))
+                _state.value = ready(getProductDetail(productId))
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {
@@ -91,6 +99,7 @@ class ProductDetailViewModel(
                 productId = product.card.id,
                 name = product.card.name,
                 variantLabel = variant.label,
+                ageRestricted = product.card.ageRestricted,
                 unitPrice = variant.unitPrice,
                 imageUrl = variant.imageUrl ?: product.card.imageUrl,
                 unitPriceAmount = variant.priceAmount,

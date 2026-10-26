@@ -10,10 +10,11 @@ vi.mock("@tanstack/react-router", () => ({
 }))
 
 const updateProduct = vi.hoisted(() => vi.fn())
-const getCatalogSchema = vi.hoisted(() => vi.fn())
+const getCategoryForm = vi.hoisted(() => vi.fn())
 vi.mock("../repo", () => ({
   updateProduct,
-  getCatalogSchema,
+  getCategoryForm,
+  getShopTaxonomy: vi.fn(),
   listSections: vi.fn(),
   listProducts: vi.fn(),
   getProduct: vi.fn(),
@@ -36,9 +37,7 @@ const DETAIL = {
   id: "p1",
   name: "Barossa Free-Range Eggs 700g",
   brand: "Barossa",
-  productTypeId: "t1",
   primaryCategoryId: "c1",
-  typeName: "Grocery",
   categoryName: "Pantry",
   shortDescription: "Free-range eggs.",
   longDescription: null,
@@ -85,6 +84,14 @@ const DETAIL = {
   updatedAt: "2026-09-02T00:00:00.123456Z",
 } as unknown as ProductDetail
 
+const FORM = {
+  categoryId: "c1",
+  path: ["Pantry", "Eggs"],
+  isLeaf: true,
+  sections: [],
+  defaults: { storage: "chilled", gstStatus: "gst_free", ageRestricted: false },
+}
+
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>)
@@ -97,7 +104,7 @@ describe("product edit and persist", () => {
 
   it("sends the whole set of sizes, with the changed price", async () => {
     updateProduct.mockResolvedValue(DETAIL)
-    getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
+    getCategoryForm.mockResolvedValue(FORM)
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
@@ -120,7 +127,7 @@ describe("product edit and persist", () => {
 
   it("returns the concurrency token exactly as the server sent it", async () => {
     updateProduct.mockResolvedValue(DETAIL)
-    getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
+    getCategoryForm.mockResolvedValue(FORM)
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
@@ -135,7 +142,7 @@ describe("product edit and persist", () => {
   })
 
   it("refuses to save an invalid price, and says why", async () => {
-    getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
+    getCategoryForm.mockResolvedValue(FORM)
 
     wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
@@ -151,5 +158,20 @@ describe("product edit and persist", () => {
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
     expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled()
     expect(updateProduct).not.toHaveBeenCalled()
+  })
+
+  it("101 — says which details a save removed (one size left, a detail only differed by size)", async () => {
+    updateProduct.mockResolvedValue({ ...DETAIL, droppedDetails: ["Allergens"] })
+    getCategoryForm.mockResolvedValue(FORM)
+    const onDropped = vi.fn()
+
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} onDropped={onDropped} />)
+
+    const price = await screen.findByLabelText(/^price for/i)
+    await userEvent.clear(price)
+    await userEvent.type(price, "9.10")
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
+
+    await waitFor(() => expect(onDropped).toHaveBeenCalledWith(["Allergens"]))
   })
 })

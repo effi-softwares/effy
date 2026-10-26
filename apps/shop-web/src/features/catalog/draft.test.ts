@@ -11,7 +11,14 @@ describe("catalog draft store", () => {
   })
 
   it("round-trips a saved draft", () => {
-    const draft = { ...emptyDraft(), step: 2, name: "Flat White", priceAmount: "4.50" }
+    const draft = {
+      ...emptyDraft(),
+      step: 2,
+      name: "Flat White",
+      facts: { storage: "chilled" as const, gstStatus: "taxable" as const, ageRestricted: false },
+      factsTouched: ["storage" as const],
+      details: [{ attributeId: "a1", value: { text: "Oat" } }],
+    }
     saveDraft("shop-1", "sub-a", draft)
     expect(loadDraft("shop-1", "sub-a")).toEqual(draft)
   })
@@ -36,9 +43,15 @@ describe("catalog draft store", () => {
     window.localStorage.setItem(draftKey("shop-1", "sub-a"), JSON.stringify({ name: "Old" }))
     const loaded = loadDraft("shop-1", "sub-a")
     expect(loaded?.name).toBe("Old")
-    expect(loaded?.attributes).toEqual({})
+    expect(loaded?.details).toEqual([])
+    expect(loaded?.facts).toEqual({ storage: null, gstStatus: null, ageRestricted: null })
     // A pre-variants draft starts with one empty variant.
     expect(loaded?.variantSet.variants).toHaveLength(1)
+  })
+
+  it("drops a draft saved before 101 (its details were a type's attributes)", () => {
+    window.localStorage.setItem(draftKey("shop-1", "sub-a"), JSON.stringify({ name: "Old", attributes: {} }))
+    expect(loadDraft("shop-1", "sub-a")).toBeNull()
   })
 
   it("clears a draft on publish/discard", () => {

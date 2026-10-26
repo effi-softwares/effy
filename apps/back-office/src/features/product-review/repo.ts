@@ -1,14 +1,14 @@
 import type {
   ApproveReviewRequest,
   MarginNotSetDTO,
+  MissingDetailsPageDTO,
+  PlacementsDTO,
   ReviewDecisionDTO,
   ReviewItemDetailDTO,
   ReviewKind,
   ReviewQueueDTO,
   SendBackReviewRequest,
   SetMarginRequest,
-  GstBulkRequest,
-  GstMissingDTO,
 } from "@effy/shared-types"
 
 import { api } from "@/lib/api"
@@ -36,14 +36,6 @@ export async function listMarginNotSet(cursor?: string | null): Promise<MarginNo
   )
 }
 
-export async function listGstMissing(): Promise<GstMissingDTO> {
-  return api.get<GstMissingDTO>("/catalog/v1/gst/missing")
-}
-
-export async function setGstBulk(body: GstBulkRequest): Promise<{ changed: number }> {
-  return api.post<{ changed: number }>("/catalog/v1/gst/bulk", body)
-}
-
 export async function getItem(productId: string): Promise<ReviewItemDetailDTO> {
   return api.get<ReviewItemDetailDTO>(`/catalog/v1/review/items/${productId}`)
 }
@@ -58,4 +50,16 @@ export async function sendBack(productId: string, body: SendBackReviewRequest): 
 
 export async function setMargin(productId: string, body: SetMarginRequest): Promise<ReviewDecisionDTO> {
   return api.post<ReviewDecisionDTO>(`/catalog/v1/products/${productId}/margin`, body)
+}
+
+/** Products on sale with a required detail empty (101): a requirement added after they were approved. */
+export async function listMissingDetails(cursor?: string | null): Promise<MissingDetailsPageDTO> {
+  return api.get<MissingDetailsPageDTO>(
+    `/catalog/v1/products/missing-details${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+  )
+}
+
+/** Replace a product's extra "also shown in" leaves (101). */
+export async function setPlacements(productId: string, categoryIds: string[]): Promise<PlacementsDTO> {
+  return api.put<PlacementsDTO>(`/catalog/v1/products/${productId}/placements`, { categoryIds })
 }

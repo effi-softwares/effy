@@ -349,7 +349,7 @@
       "type": "string"
     },
     "EmailDeliveryState": {
-      "description": "The platform's conclusion about reaching an address, from per-message outcomes (a successful `SendEmail` proves nothing):\n- `reachable`      the last outcome was a delivery, or nothing is known.\n- `soft_failing`   a transient failure; informational, gates nothing.\n- `undeliverable`  a permanent failure; a lockout for the passwordless audiences.\n- `complained`     marked as spam; surfaced, but never bars sign-in (it usually means someone typed                    a stranger's address).",
+      "description": "The platform's conclusion about reaching an address, from per-message outcomes (a successful `SendEmail` proves nothing):\n- `reachable` the last outcome was a delivery, or nothing is known.\n- `soft_failing` a transient failure; informational, gates nothing.\n- `undeliverable` a permanent failure; a lockout for the passwordless audiences.\n- `complained` marked as spam; surfaced, but never bars sign-in (it usually means someone typed  a stranger's address).",
       "enum": [
         "reachable",
         "soft_failing",
@@ -461,7 +461,7 @@
     },
     "PointsHistoryEntryDTO": {
       "additionalProperties": false,
-      "description": "One history line as the CUSTOMER sees it.",
+      "description": "One history line as the customer sees it.",
       "properties": {
         "at": {
           "type": "string"

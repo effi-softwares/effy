@@ -137,12 +137,11 @@ d("070 — refunds and cancellation against the real schema", () => {
     [shopA, shopB] = (
       await pool.query<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('RFA', 'Refund A'), ('RFB', 'Refund B') RETURNING id::text AS id`)
     ).rows.map((r) => r.id) as [string, string];
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('rf-type', 'Refund type')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('rf-cat', 'Refund category')`);
     for (const [name, shop, price, tracked] of [["Tracked", shopA, "5.00", true], ["Plain", shopB, "10.00", false]] as const) {
       product[name] = (
         await one<{ id: string }>(
-          `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type WHERE key='rf-type'), (SELECT id FROM public.category WHERE key='rf-cat'), $2, 'd', 'seed', 'active', now()) RETURNING *),
+          `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category WHERE key='rf-cat'), 'ambient', 'gst_free', false, $2, 'd', 'seed', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, stock_tracked, stock_on_hand) SELECT p.id, p.shop_id, COALESCE($3::numeric, $3::numeric)::numeric, ($3::numeric)::numeric, $4, $5 FROM p RETURNING id)
 SELECT id::text AS id FROM p`,
           [shop, name, price, tracked, tracked ? 1000 : null],

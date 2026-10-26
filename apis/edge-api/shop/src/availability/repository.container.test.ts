@@ -35,9 +35,8 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
   });
 
   beforeEach(async () => {
-    await pool.query(`TRUNCATE public.shop, public.product_type, public.category RESTART IDENTITY CASCADE`);
+    await pool.query(`TRUNCATE public.shop, public.category RESTART IDENTITY CASCADE`);
     await pool.query(`INSERT INTO public.shop (id, code, name) VALUES ($1,'S1','Shop One'), ($2,'S2','Shop Two')`, [SHOP, OTHER_SHOP]);
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('grocery','Grocery')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
@@ -49,16 +48,16 @@ describe.skipIf(!RUN)("Availability — real PostgreSQL, real migrations", () =>
   ): Promise<string[]> {
     const status = opts.status ?? "active";
     const p = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at)
-       SELECT $1, pt.id, c.id, $2, 'x', 'seed', $3, CASE WHEN $3 = 'draft' THEN NULL ELSE now() END
-         FROM public.product_type pt, public.category c RETURNING id`,
+      `INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at)
+       SELECT $1, c.id, 'ambient', 'gst_free', false, $2, 'x', 'seed', $3, CASE WHEN $3 = 'draft' THEN NULL ELSE now() END
+         FROM (SELECT id FROM public.category ORDER BY created_at, id LIMIT 1) c RETURNING id`,
       [opts.shop ?? SHOP, name, status],
     );
     // One size: no options. Several: a "Size" option with one value per size, as the editor writes them.
     const option =
       sizes.length > 1
         ? (await pool.query<{ id: string }>(
-            `INSERT INTO public.product_option (product_id, "position", name) VALUES ($1, 1, 'Size') RETURNING id`,
+            `INSERT INTO public.product_option (product_id, "position", kind) VALUES ($1, 1, 'pack_size') RETURNING id`,
             [p.rows[0]!.id],
           )).rows[0]!.id
         : null;

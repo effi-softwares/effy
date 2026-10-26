@@ -3,8 +3,9 @@
 import { ArrowRight, CircleAlert, Lock, Minus, Plus, ShoppingCart } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
+import { AGE_RESTRICTED_CART_SENTENCE, type ProductSearchResultDTO, type StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { loadDialog, useLazyOverlay } from "@/components/overlays/lazy"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
@@ -113,6 +114,9 @@ export default function CartPage() {
               {lines.map((line) => (
                 <CartLineRow key={line.variantId} line={line} />
               ))}
+              {lines.some((l) => l.ageRestricted) ? (
+                <li className="p-4 text-sm text-muted-foreground">{AGE_RESTRICTED_CART_SENTENCE}</li>
+              ) : null}
             </ul>
 
             <aside className="rounded-lg border p-6 shadow-xs lg:sticky lg:top-40">
@@ -275,6 +279,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
             {line.name}
             {/* The size chosen, said beside the name. */}
             {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
+            {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
           </Link>
           <span className="text-sm font-semibold tabular-nums">
             {formatMoney((parseFloatSafe(line.unitPriceAmount) * line.quantity).toFixed(2), line.currency)}
@@ -342,6 +347,7 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
         <Link href={lineHref(line)} className="text-sm font-medium hover:underline">
           {line.name}
           {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
+            {line.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
         </Link>
         <span className="text-sm text-muted-foreground">{formatMoney(line.unitPriceAmount, line.currency)} each</span>
         <div className="mt-3 flex flex-wrap items-center gap-4">

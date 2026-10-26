@@ -1,11 +1,12 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { X } from "lucide-react"
 
 import { Button, Checkbox, Input } from "@effy/design-system/ui"
 
-import { categoriesQuery } from "@/features/catalog-schema/queries"
+import { index, pathOf, pathText } from "@/features/taxonomy/model"
+import { treeQuery } from "@/features/taxonomy/queries"
 
 import { searchPromotionProducts } from "../repo"
 
@@ -37,7 +38,22 @@ export function TargetPicker({
     queryFn: () => searchPromotionProducts(q),
     enabled: q.trim().length >= 2,
   })
-  const categories = useQuery({ ...categoriesQuery(), enabled: appliesTo === "categories" })
+  const [categoryQ, setCategoryQ] = useState("")
+  const tree = useQuery({ ...treeQuery(), enabled: appliesTo === "categories" })
+  // A category target covers everything beneath it, so any active level can be chosen; found by its full path.
+  const categories = useMemo(() => {
+    const all = tree.data ?? []
+    const byId = index(all)
+    return all
+      .filter((c) => c.status === "active")
+      .map((c) => ({ id: c.id, path: pathText(pathOf(c.id, byId)) }))
+      .sort((a, b) => a.path.localeCompare(b.path))
+  }, [tree.data])
+  const words = categoryQ.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const shownCategories = categories.filter(
+    (c) =>
+      value.categoryIds.includes(c.id) || (words.length > 0 && words.every((w) => c.path.toLowerCase().includes(w))),
+  )
 
   return (
     <div className="space-y-4">
@@ -98,10 +114,17 @@ export function TargetPicker({
           />
         </div>
       ) : appliesTo === "categories" ? (
-        <ul className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
-          {(categories.data ?? [])
-            .filter((c) => c.status === "active")
-            .map((c) => (
+        <div className="space-y-3">
+          <Input
+            aria-label="Find categories"
+            placeholder="Search categories, e.g. dairy yoghurt…"
+            value={categoryQ}
+            disabled={disabled}
+            onChange={(e) => setCategoryQ(e.target.value)}
+            className="max-w-md"
+          />
+          <ul className="max-h-64 space-y-2 overflow-y-auto">
+            {shownCategories.slice(0, 60).map((c) => (
               <li key={c.id}>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
@@ -115,11 +138,17 @@ export function TargetPicker({
                       })
                     }
                   />
-                  {c.name}
+                  {c.path}
                 </label>
               </li>
             ))}
-        </ul>
+            {shownCategories.length === 0 ? (
+              <li className="text-sm text-muted-foreground">
+                {words.length > 0 ? "No category matches." : "Type to find categories."}
+              </li>
+            ) : null}
+          </ul>
+        </div>
       ) : (
         <div className="space-y-3">
           <form

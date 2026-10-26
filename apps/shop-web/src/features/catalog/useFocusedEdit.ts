@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import type { UpdateProductRequest } from "@effy/shared-types"
+import type { ProductDetailDTO, UpdateProductRequest } from "@effy/shared-types"
 
 import { track } from "@/lib/telemetry"
 
@@ -19,12 +19,12 @@ export function useFocusedEdit(id: string) {
     setStale(false)
   }
 
-  async function save(body: UpdateProductRequest, onDone: () => void) {
+  async function save(body: UpdateProductRequest, onDone: (saved: ProductDetailDTO) => void) {
     reset()
     try {
-      await mutation.mutateAsync(body)
+      const saved = await mutation.mutateAsync(body)
       track({ name: "product_edit_saved", productId: id })
-      onDone()
+      onDone(saved)
     } catch (err) {
       if (isConflict(err)) {
         setStale(true)

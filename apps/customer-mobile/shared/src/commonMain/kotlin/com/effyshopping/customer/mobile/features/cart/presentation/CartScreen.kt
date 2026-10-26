@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.cart.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.AgeBadge
+import com.effyshopping.customer.mobile.core.presentation.AgeWords
 import com.effyshopping.customer.mobile.core.presentation.UnitPriceText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -191,6 +193,16 @@ fun CartScreen(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
+                    if (lines.any { it.ageRestricted }) {
+                        item(key = "age") {
+                            Text(
+                                AgeWords.CART_SENTENCE,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = EffySpacing.md),
+                            )
+                        }
+                    }
                     item(key = "summary") {
                         Column(
                             modifier = Modifier.padding(top = EffySpacing.xl, bottom = EffySpacing.xl),
@@ -349,6 +361,7 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                     Text(line.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     // The size chosen.
                     line.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (line.ageRestricted) AgeBadge(Modifier.padding(top = 2.dp))
                     // A price that moved is said, with what it was.
                     Text(
                         money(line.unitPriceAmount, line.currency) + " each" + (line.priceChangedFrom?.let { " · was ${money(it, line.currency)}" } ?: ""),

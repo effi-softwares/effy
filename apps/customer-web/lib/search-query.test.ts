@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { facetsQuery, productsQuery, readRefinement } from "./search-query"
+import { facetsQuery, productsQuery, rangeValue, readRefinement } from "./search-query"
 
 const from = (search: string) => readRefinement(new URLSearchParams(search))
 
@@ -15,7 +15,14 @@ describe("a listing's query", () => {
       sort: "price_asc",
       brands: ["A", "B"],
       attributes: { diet: ["vegan", "kosher"] },
+      ranges: {},
     })
+  })
+
+  it("101 — reads and writes number ranges, either end open, and drops a malformed one", () => {
+    const r = from("range.net_weight=0.5..2&range.age=..12&range.bad=abc")
+    expect(r.ranges).toEqual({ net_weight: { min: "0.5", max: "2" }, age: { min: "", max: "12" } })
+    expect(facetsQuery(r)).toBe("range.net_weight=0.5..2&range.age=..12")
   })
 
   it("an address with nothing on it is the newest of everything", () => {
@@ -35,5 +42,10 @@ describe("a listing's query", () => {
   // The browser shows the server's first page only when both built the same string.
   it("is the same string however the address ordered its parameters", () => {
     expect(productsQuery(from("brand=A&category=dairy&q=milk"))).toBe(productsQuery(from("q=milk&category=dairy&brand=A")))
+  })
+
+  it("an emptied range is no range", () => {
+    expect(rangeValue(" ", "")).toBeNull()
+    expect(rangeValue("1", "")).toBe("1..")
   })
 })

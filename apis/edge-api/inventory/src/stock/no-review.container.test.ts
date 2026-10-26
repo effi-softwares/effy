@@ -86,7 +86,7 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
     actor = { sub: "sub-shop", shopId, kind: "shop" };
     // An approved product, on sale, with a change to its name and price waiting on Effy.
     productId = (await pool.query<{ id: string }>(
-      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Sourdough', 'A loaf', 'seed', 'active', now()) RETURNING *),
+      `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, 'Sourdough', 'A loaf', 'seed', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 11.50)::numeric, (11.50)::numeric FROM p RETURNING id)
 SELECT id FROM p`, [shopId],
     )).rows[0]!.id;

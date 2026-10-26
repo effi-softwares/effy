@@ -21,6 +21,8 @@ import { RecordView } from "../../_components/RecordView"
 import { ProductDeliveryNote, ProductDeliveryNoteFallback } from "../../_components/ProductDeliveryNote"
 import { MoreFromBrand, RelatedProducts } from "../../_components/RelatedProducts"
 import { VariantBuyBox } from "../../_components/VariantBuyBox"
+import { VariantDetails } from "../../_components/VariantDetails"
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 
 /** The fields stock, pricing or a size's sale state can change: stripped from the kept content and read live (`getProductLive`), so a size taken off sale vanishes at once. */
 const LIVE_FIELDS = [
@@ -28,7 +30,7 @@ const LIVE_FIELDS = [
   "priceVaries", "variantId", "variantCount", "unitPrice", "options", "variants", "defaultVariantId",
 ] as const
 
-/** What a product page says that stock and pricing cannot change: its words, pictures, attributes and aisle. */
+/** What a product page says that stock and pricing cannot change: its words, pictures and aisle. Details are each size's, so they come with the live read. */
 type ProductContent = Omit<StorefrontProductDetailDTO, (typeof LIVE_FIELDS)[number]>
 
 /** The part of a product page that must be current: read live on every view. */
@@ -140,6 +142,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
         <div className="flex min-w-0 flex-col">
           {product.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
+          {product.ageRestricted ? <AgeBadge className="mt-2 self-start" /> : null}
 
           {/* The current tier: prices, sizes and availability stream in from a live read
               beside the kept content — one request per render. */}
@@ -159,7 +162,7 @@ async function ProductDetail({ params, searchParams }: { params: Promise<{ id: s
         </div>
       </div>
 
-      <ProductSections product={product} />
+      <ProductSections product={product} searchParams={searchParams} />
 
       {product.categoryKey && (
         <Suspense fallback={<div className="h-72" aria-hidden="true" />}>
@@ -208,7 +211,7 @@ async function LiveBuy({ product, searchParams }: { product: ProductContent; sea
         </p>
       )}
       <VariantBuyBox
-        product={{ id: product.id, name: product.name, imageUrl: product.imageUrl, imageWidths: product.imageWidths }}
+        product={{ id: product.id, name: product.name, imageUrl: product.imageUrl, imageWidths: product.imageWidths, ageRestricted: product.ageRestricted }}
         options={live.options}
         variants={live.variants}
         initialVariantId={initialVariantId(live.variants, live.defaultVariantId, requested)}
@@ -232,78 +235,50 @@ function PriceSkeleton() {
 /**
  * Everything below the buy box, on one page with no tabs (reference: Product detail — single page).
  *
- * A section with nothing to show is absent, never an empty heading: Description needs a
- * description; Item specifics needs attributes; the Nutrition table appears only when the product
- * carries an attribute group by that name. The allergen notice is always shown — it is advice about
- * the label, not a fact about this product.
+ * A section with nothing to show is absent, never an empty heading: Description needs a description; the
+ * details (Item specifics, Nutrition) are the selected size's and follow the selector (101). The allergen
+ * notice is always shown — it is advice about the label, not a fact about this product.
  */
-function ProductSections({ product }: { product: ProductContent }) {
-  const nutrition = product.attributes.filter((g) => /nutrition/i.test(g.groupLabel))
-  const specifics = product.attributes.filter((g) => !/nutrition/i.test(g.groupLabel))
-
+function ProductSections({ product, searchParams }: { product: ProductContent; searchParams: SearchParams }) {
   return (
-    <div className={`mt-12 grid gap-10 ${nutrition.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
-      <div className="min-w-0 max-w-3xl space-y-10">
-        {product.longDescription && (
-          <section>
-            <h2 className="text-xl font-semibold">Description</h2>
-            <p className="mt-4 text-sm leading-7 whitespace-pre-line">{product.longDescription}</p>
-          </section>
-        )}
-
-        {specifics.length > 0 && (
-          <section>
-            <h2 className="text-xl font-semibold">Item specifics</h2>
-            {specifics.map((group) => (
-              <SpecTable key={group.groupLabel} group={group} showLabel={specifics.length > 1} />
-            ))}
-          </section>
-        )}
-
-        <section>
-          <h2 className="text-xl font-semibold">Allergens &amp; safety</h2>
-          <Alert title="Allergen & ingredient information" live={false} className="mt-4">
-            Always read the label on the physical product — online information may not be complete or
-            current. See our{" "}
-            <Link href="/legal/food-safety-allergens" className="text-foreground underline underline-offset-4">
-              Food Safety &amp; Allergen Notice
-            </Link>
-            .
-          </Alert>
-        </section>
-      </div>
-
-      {nutrition.length > 0 && (
-        <section>
-          <h2 className="text-xl font-semibold">Nutrition</h2>
-          {nutrition.map((group) => (
-            <SpecTable key={group.groupLabel} group={group} showLabel={false} />
-          ))}
+    <div className="mt-12 space-y-10">
+      {product.longDescription && (
+        <section className="max-w-3xl">
+          <h2 className="text-xl font-semibold">Description</h2>
+          <p className="mt-4 text-sm leading-7 whitespace-pre-line">{product.longDescription}</p>
         </section>
       )}
+
+      <Suspense fallback={null}>
+        <LiveDetails productId={product.id} searchParams={searchParams} />
+      </Suspense>
+
+      <section className="max-w-3xl">
+        <h2 className="text-xl font-semibold">Allergens &amp; safety</h2>
+        <Alert title="Allergen & ingredient information" live={false} className="mt-4">
+          Always read the label on the physical product — online information may not be complete or
+          current. See our{" "}
+          <Link href="/legal/food-safety-allergens" className="text-foreground underline underline-offset-4">
+            Food Safety &amp; Allergen Notice
+          </Link>
+          .
+        </Alert>
+      </section>
     </div>
   )
 }
 
-function SpecTable({
-  group,
-  showLabel,
-}: {
-  group: StorefrontProductDetailDTO["attributes"][number]
-  showLabel: boolean
-}) {
+/** Each size's details from the same live read as the buy box (one request per render: `cache`). */
+async function LiveDetails({ productId, searchParams }: { productId: string; searchParams: SearchParams }) {
+  const [live, query] = await Promise.all([getProductLive(productId).catch(() => undefined), searchParams])
+  if (!live || live.variants.length === 0) return null
+  const requested = typeof query.variant === "string" ? query.variant : null
   return (
-    <div className="mt-4">
-      {showLabel && <h3 className="mb-2 text-sm font-medium text-muted-foreground">{group.groupLabel}</h3>}
-      <dl className="divide-y overflow-hidden rounded-lg border shadow-xs">
-        {group.items.map((item) => (
-          <div key={item.label} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 px-4 py-3 text-sm">
-            <dt className="text-muted-foreground">{item.label}</dt>
-            <dd>{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
+    <VariantDetails
+      productId={productId}
+      detailsByVariant={Object.fromEntries(live.variants.map((v) => [v.id, v.details]))}
+      initialVariantId={initialVariantId(live.variants, live.defaultVariantId, requested)}
+    />
   )
 }
 

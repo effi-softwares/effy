@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+const REPO = fileURLToPath(new URL("../../../../..", import.meta.url));
+
 /**
  * One writer each: the product listing summary only by `refreshListing`; options, values and non-stock
  * variant columns only by variants.ts (stock-only updates are allowed anywhere). No query may name the
@@ -60,7 +62,9 @@ describe("098 — variant writers and the dropped product columns", () => {
         const bad = cols.filter((c) => !STOCK.has(c));
         if (bad.length > 0) offenders.push(`${rel(f)} sets ${bad.join(", ")}`);
       }
-      if (/UPDATE\s+public\.product_(option|option_value)\b/.test(body)) offenders.push(`${rel(f)} updates options`);
+      // 101: the attribute library rewrites the label copy when a value is renamed.
+      const renames = f.endsWith("shared/src/catalog/taxonomy.ts") ? /UPDATE\s+public\.product_option\b/ : /UPDATE\s+public\.product_(option|option_value)\b/;
+      if (renames.test(body)) offenders.push(`${rel(f)} updates options`);
     }
     expect(offenders, "write variants through applyVariantSet / priceVariants / setVariantState").toEqual([]);
   });
@@ -76,5 +80,80 @@ describe("098 — variant writers and the dropped product columns", () => {
       });
     }
     expect(offenders, "these lines read a column that moved to product_variant (alias it v, or mark `variant-alias:` if p is not a product)").toEqual([]);
+  });
+});
+
+/** Every TS/TSX source under a directory (tests and generated bundles excluded). */
+function tsSources(dir: string): string[] {
+  const out: string[] = [];
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return out;
+  }
+  for (const name of names) {
+    if (["node_modules", "dist", "build", ".next", ".serverless", ".turbo"].includes(name) || name.startsWith(".")) continue;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) out.push(...tsSources(full));
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full);
+  }
+  return out;
+}
+
+const writes = (table: string) => new RegExp(`(INSERT INTO|DELETE FROM|UPDATE|TRUNCATE)\\s+(public\\.)?${table}\\b`);
+const offendersOf = (table: string, allowed: (f: string) => boolean) =>
+  files.filter((f) => !allowed(f)).filter((f) => writes(table).test(readFileSync(f, "utf8"))).map(rel);
+
+describe("101 — the category-driven catalogue has one writer per fact and no product types", () => {
+  it("(a) no product types anywhere", () => {
+    const roots = ["apis/edge-api", "apps/shop-web/src", "apps/back-office/src", "apps/customer-web", "packages/shared-types/src", "packages/web-kit/src"];
+    const offenders = roots
+      .flatMap((r) => tsSources(join(REPO, r)))
+      .filter((f) => !f.endsWith("catalog.guard.test.ts"))
+      .filter((f) => /\bproduct_type\b|\bproductType(Id)?\b|\bProductType(DTO|Attribute)/.test(readFileSync(f, "utf8")))
+      .map((f) => relative(REPO, f));
+    expect(offenders, "product types are gone (101): classify by the home leaf category").toEqual([]);
+  });
+
+  it("(b) storage is a product column, never an attribute looked up by key", () => {
+    const offenders = files.filter((f) => /key\s*=\s*'storage'/.test(readFileSync(f, "utf8"))).map(rel);
+    expect(offenders, "read p.storage").toEqual([]);
+  });
+
+  it("(c) only details.ts writes product details", () => {
+    expect(offendersOf("product_attribute_value", (f) => f.endsWith("shared/src/catalog/details.ts"))).toEqual([]);
+  });
+
+  it("(d) nothing in TypeScript writes the derived taxonomy (rebuild_category_derived does)", () => {
+    for (const t of ["category_ancestor", "category_resolved", "category_form"]) expect(offendersOf(t, () => false), t).toEqual([]);
+  });
+
+  it("(e) only the taxonomy writer writes categories, the library and attachments", () => {
+    const taxonomy = (f: string) => f.endsWith("shared/src/catalog/taxonomy.ts");
+    for (const t of ["category", "attribute_definition", "attribute_allowed_value", "category_attribute"]) {
+      expect(offendersOf(t, taxonomy), t).toEqual([]);
+    }
+  });
+
+  it("(f) only the placements repository writes extra placements", () => {
+    expect(offendersOf("product_placement", (f) => f.endsWith("catalog/src/placements/repository.ts") || f.endsWith("shared/src/catalog/taxonomy.ts"))).toEqual([]);
+  });
+
+  it("(g) every storefront read of the attribute library filters to customer-visible attributes", () => {
+    const offenders: string[] = [];
+    for (const f of files.filter((x) => rel(x).startsWith("storefront/src/"))) {
+      for (const m of readFileSync(f, "utf8").matchAll(/`[^`]*attribute_definition[^`]*`/g)) {
+        if (!/customer_visible/.test(m[0])) offenders.push(rel(f));
+      }
+    }
+    expect(offenders, "an internal-only attribute must never reach a customer (FR-032)").toEqual([]);
+  });
+
+  it("(h) the old catalogue routes stay deleted", () => {
+    const offenders = files
+      .map(rel)
+      .filter((f) => /^admin\/src\/functions\/catalog-/.test(f) || /^catalog\/src\/functions\/gst-/.test(f) || /^shop\/src\/functions\/catalog-schema-/.test(f));
+    expect(offenders).toEqual([]);
   });
 });

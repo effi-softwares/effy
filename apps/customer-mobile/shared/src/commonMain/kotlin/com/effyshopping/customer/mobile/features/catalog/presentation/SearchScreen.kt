@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -129,7 +130,8 @@ import androidx.compose.foundation.layout.width
 @Composable
 fun SearchScreen(
     container: AppContainer,
-    onProductClick: (String) -> Unit,
+    /** A result opens on the size that matched the filters (101 FR-031). */
+    onProductClick: (productId: String, variantId: String?) -> Unit,
     onCart: () -> Unit = {},
     /**
      * Open with the field focused and the keyboard up.
@@ -219,10 +221,10 @@ fun SearchScreen(
     val categories by produceState(emptyList<Category>()) { value = runCatching { container.getCategories() }.getOrDefault(emptyList()) }
     val aisleKey = entryCategoryKey?.let { aisleOf(it, categories) }
     val subAisles = aisleKey?.let { subAislesOf(it, categories) }.orEmpty()
-    val openProduct: (String) -> Unit = { id ->
+    val openProduct: (String, String?) -> Unit = { id, variantId ->
         // Opening a result is as good a signal as the search key that this search was worth keeping.
         record(state.query)
-        onProductClick(id)
+        onProductClick(id, variantId)
     }
 
     // 087 (Search board): the Search tab with nothing typed and nothing applied is a start page
@@ -399,7 +401,7 @@ fun SearchScreen(
                     // the tallest name in the row sets the height and the prices stay level.
                     EffyProductCard(
                         product,
-                        openProduct,
+                        { id -> openProduct(id, product.variantId.ifBlank { null }) },
                         modifier = Modifier.fillMaxHeight(),
                         fillHeight = true,
                         // Save from the tile, without opening the product first. Unlike
@@ -437,8 +439,15 @@ fun SearchScreen(
                 onToggleSale = vm::toggleSale,
                 onCategory = vm::applyCategory,
                 onToggleBrand = vm::toggleBrand,
-                onToggleAttribute = vm::toggleAttribute,
+                onToggleAttribute = { key, value ->
+                    vm.toggleAttribute(key, value)
+                    container.analyticsDriver.capture(AnalyticsEvent.FilterApplied(key, "choice"))
+                },
                 onApplyPrice = vm::applyPrice,
+                onApplyRange = { key, lo, hi ->
+                    vm.applyRange(key, lo, hi)
+                    container.analyticsDriver.capture(AnalyticsEvent.FilterApplied(key, "range"))
+                },
                 onClearAll = vm::clearRefinements,
             )
         }
@@ -537,7 +546,7 @@ private fun SearchStart(
                 horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
             ) {
                 Box(Modifier.size(48.dp).clip(CircleShape).background(EffySurface.tint), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(categoryIcon("${aisle.key} ${aisle.name}")), contentDescription = null, modifier = Modifier.size(22.dp))
+                    Icon(painterResource(categoryIcon(aisle.icon)), contentDescription = null, modifier = Modifier.size(22.dp))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(aisle.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -674,6 +683,16 @@ private fun appliedFilterPills(state: SearchUiState, aisleScoped: Boolean): List
     }
     state.brands.forEach { b -> add(AppliedFilter("brand:$b", labelOf("brand", b)) { it.toggleBrand(b) }) }
     state.attributes.forEach { (k, vs) -> vs.forEach { v -> add(AppliedFilter("attr:$k:$v", labelOf(k, v)) { it.toggleAttribute(k, v) }) } }
+    state.ranges.forEach { (k, r) ->
+        val facet = state.facetSet?.facets?.firstOrNull { it.key == k }
+        val unit = facet?.range?.unit?.let { " $it" }.orEmpty()
+        val words = when {
+            r.min.isNotBlank() && r.max.isNotBlank() -> "${r.min}–${r.max}$unit"
+            r.min.isNotBlank() -> "from ${r.min}$unit"
+            else -> "up to ${r.max}$unit"
+        }
+        add(AppliedFilter("range:$k", "${facet?.label ?: k} $words") { it.applyRange(k, "", "") })
+    }
 }
 
 /** "Sort by" (087 — every choice is a bottom sheet; no drop-down menus). */

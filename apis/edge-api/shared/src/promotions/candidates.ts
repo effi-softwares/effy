@@ -373,7 +373,7 @@ export async function candidatesFor(
   return { candidates, records, enteredRefusal };
 }
 
-/** The basket lines with what the engine needs to match targets: categories with ancestors, brand. */
+/** The basket lines with what the engine needs to match targets: the categories it is in (with ancestors), brand. */
 export async function basketLinesFor(
   db: Queryable,
   lines: readonly { lineId: string; productId: string; unitCents: number; quantity: number }[],
@@ -381,15 +381,12 @@ export async function basketLinesFor(
   if (lines.length === 0) return [];
   const ids = [...new Set(lines.map((l) => l.productId))];
   const res = await db.query<{ id: string; brand: string | null; category_ids: string[] }>(
-    `WITH RECURSIVE up AS (
-       SELECT p.id AS product_id, c.id AS category_id, c.parent_id
-         FROM public.product p JOIN public.category c ON c.id = p.primary_category_id
-        WHERE p.id = ANY($1::uuid[])
-       UNION ALL
-       SELECT up.product_id, c.id, c.parent_id FROM up JOIN public.category c ON c.id = up.parent_id
-     )
-     SELECT p.id::text, lower(btrim(p.brand)) AS brand,
-            coalesce((SELECT array_agg(up.category_id::text) FROM up WHERE up.product_id = p.id), '{}') AS category_ids
+    // A product is in its home leaf, its extra placements and every category above them (101 FR-009).
+    `SELECT p.id::text, lower(btrim(p.brand)) AS brand,
+            coalesce((SELECT array_agg(DISTINCT a.ancestor_id::text)
+                        FROM public.category_ancestor a
+                       WHERE a.category_id = p.primary_category_id
+                          OR a.category_id IN (SELECT pp.category_id FROM public.product_placement pp WHERE pp.product_id = p.id)), '{}') AS category_ids
        FROM public.product p WHERE p.id = ANY($1::uuid[])`,
     [ids],
   );

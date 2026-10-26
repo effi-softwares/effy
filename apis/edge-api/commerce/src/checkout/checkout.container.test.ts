@@ -109,7 +109,6 @@ let slotId: string;
 const product: Record<string, string> = {};
 /** The ids every test product is filed under. */
 const catalogIds = async () => ({
-  productTypeId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.product_type WHERE key='chk-type'`)).id,
   primaryCategoryId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.category WHERE key='chk-cat'`)).id,
 });
 const PLAN = "00000000-0000-0000-0000-0000000000d1";
@@ -176,7 +175,6 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     shopId = (await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('CHK', 'Checkout shop') RETURNING id::text AS id`)).id;
     await pool.query(`INSERT INTO public.shop_staff (shop_id, cognito_sub, email, role, status)
                       VALUES ($1, 'chk-staff', 'staff@example.test', 'shop_manager', 'active')`, [shopId]).catch(() => undefined);
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('chk-type', 'Checkout type')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('chk-cat', 'Checkout category')`);
     for (const [name, price, shopPrice, tracked, onHand] of [
       ["Milk", "4.50", "4.00", false, null],

@@ -12,7 +12,8 @@ import { createSuggestService } from "../suggest/service";
 
 export const promotionService = createPromotionService();
 export const homeService = createHomeService(createHomeRepository());
-export const searchService = createSearchService(createSearchRepository());
+const searchRepository = createSearchRepository();
+export const searchService = createSearchService(searchRepository);
 export const suggestService = createSuggestService(createSuggestRepository());
-export const facetService = createFacetService(createFacetRepository());
+export const facetService = createFacetService(createFacetRepository(), (keys) => searchRepository.rangeUnits(keys));
 export const catalogService = createCatalogService(createCatalogRepository());

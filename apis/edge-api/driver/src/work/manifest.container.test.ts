@@ -61,26 +61,16 @@ async function makeShop(code: string): Promise<string> {
 
 async function makeProduct(shopId: string, name: string): Promise<string> {
   return (await one<{ id: string }>(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now()) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, $2, 'A thing', 'test', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
 SELECT id FROM p`,
     [shopId, name],
   )).id;
 }
 
-/** The live storage attribute a shop edits, as opposed to the order's snapshot. */
+/** The live product's storage (a shop edits it), as opposed to the order line's snapshot. */
 async function setLiveStorage(productId: string, value: string): Promise<void> {
-  await pool.query(
-    `DELETE FROM public.product_attribute_value
-      WHERE product_id = $1
-        AND attribute_definition_id = (SELECT id FROM public.attribute_definition WHERE key = 'storage')`,
-    [productId],
-  );
-  await pool.query(
-    `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_text)
-     VALUES ($1, (SELECT id FROM public.attribute_definition WHERE key = 'storage'), $2)`,
-    [productId, value],
-  );
+  await pool.query(`UPDATE public.product SET storage = $2 WHERE id = $1`, [productId, value]);
 }
 
 async function makeOrder(number: string, type: "effy" | "courier" = "effy"): Promise<string> {

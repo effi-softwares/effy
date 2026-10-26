@@ -9,6 +9,8 @@ import { migrationSql } from "../testing/migrations";
 import { finalizeSucceeded } from "../payments/finalize";
 import { applyVariantSet, priceVariants, setVariantState, VariantSetInvalid } from "./variants";
 import { readVariantSets } from "./read";
+import { DetailsInvalid, writeProductDetails } from "./details";
+import { updateAttribute } from "./taxonomy";
 
 /** The variant writers against the real migrations: partial uniqueness, the listing summary, per-variant row locks. */
 
@@ -21,30 +23,48 @@ let shopId: string;
 
 const uuid = () => crypto.randomUUID();
 
+/** The seeded leaf these products are filed in: its form offers Flavour as a variant option. */
+let leafId: string;
+let flavourId: string;
+let plainId: string;
+let naturalId: string;
+
 async function newProduct(): Promise<string> {
   return (await pool.query<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by)
-     VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Rice', 'Long grain', 'seed')
-     RETURNING id`, [shopId],
+    `INSERT INTO public.product (shop_id, primary_category_id, name, short_description, created_by, gst_status, storage, age_restricted)
+     VALUES ($1, $2, 'Yoghurt', 'Thick and creamy', 'seed', 'gst_free', 'chilled', false)
+     RETURNING id`, [shopId, leafId],
   )).rows[0]!.id;
 }
 
+/** A pack size option value's size, by value id ("500 g" → 500 g): `row` fills it in for the variants naming it. */
+const packOf = new Map<string, { packQuantity: string; packUnit: "g" | "kg" }>();
+function pack(id: string, label: string): string {
+  const [q, u] = label.split(" ");
+  packOf.set(id, { packQuantity: q!, packUnit: u as "g" | "kg" });
+  return id;
+}
+
 function row(position: number, ids: [string | null, string | null], shopPriceAmount: string, extra: Partial<VariantInputDTO> = {}): VariantInputDTO {
+  const sized = ids.map((i) => (i ? packOf.get(i) : undefined)).find((x) => x) ?? { packQuantity: null, packUnit: null };
   return {
     id: uuid(), position, optionValueIds: ids, sku: null, gtin: null, shopPriceAmount, shopCompareAtAmount: null,
-    weightGrams: null, packQuantity: null, packUnit: null, mediaStorageKey: null, ...extra,
+    weightGrams: null, mediaStorageKey: null, ...sized, ...extra,
   };
 }
 
-/** Size: 500 g / 1 kg; Type: White / Brown. */
+/** Pack size: 500 g / 1 kg; Flavour (from the library): Plain / Natural. */
 function twoOptions(): { options: OptionInputDTO[]; size: [string, string]; type: [string, string] } {
-  const size: [string, string] = [uuid(), uuid()];
+  const size: [string, string] = [pack(uuid(), "500 g"), pack(uuid(), "1 kg")];
   const type: [string, string] = [uuid(), uuid()];
   return {
     size, type,
     options: [
-      { id: uuid(), position: 1, name: "Size", values: [{ id: size[0], value: "500 g", position: 0 }, { id: size[1], value: "1 kg", position: 1 }] },
-      { id: uuid(), position: 2, name: "Type", values: [{ id: type[0], value: "White", position: 0 }, { id: type[1], value: "Brown", position: 1 }] },
+      { id: uuid(), position: 1, kind: "pack_size", values: [{ id: size[0], position: 0 }, { id: size[1], position: 1 }] },
+      {
+        id: uuid(), position: 2, kind: "attribute", attributeId: flavourId,
+        values: [{ id: type[0], allowedValueId: plainId, position: 0 }, { id: type[1], allowedValueId: naturalId, position: 1 }],
+      },
     ],
   };
 }
@@ -66,8 +86,8 @@ async function tx<T>(fn: (c: { query: Pool["query"] }) => Promise<T>): Promise<T
 }
 
 function sizes(...names: string[]): { options: OptionInputDTO[]; ids: string[] } {
-  const ids = names.map(() => uuid());
-  return { ids, options: [{ id: uuid(), position: 1, name: "Size", values: names.map((value, i) => ({ id: ids[i]!, value, position: i })) }] };
+  const ids = names.map((n) => pack(uuid(), n));
+  return { ids, options: [{ id: uuid(), position: 1, kind: "pack_size", values: ids.map((id, i) => ({ id, position: i })) }] };
 }
 
 const listing = async (productId: string) =>
@@ -91,6 +111,14 @@ d("098 — product variants against real PostgreSQL", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     await pool.query(migrationSql());
+    leafId = (await pool.query<{ id: string }>(`SELECT id::text FROM public.category WHERE key = 'greek-and-natural-yoghurt'`)).rows[0]!.id;
+    const flavour = await pool.query<{ attr: string; plain: string; natural: string }>(
+      `SELECT ad.id::text AS attr,
+              (SELECT v.id::text FROM public.attribute_allowed_value v WHERE v.attribute_definition_id = ad.id AND v.label = 'Plain') AS plain,
+              (SELECT v.id::text FROM public.attribute_allowed_value v WHERE v.attribute_definition_id = ad.id AND v.label = 'Natural') AS natural
+         FROM public.attribute_definition ad WHERE ad.key = 'flavour'`,
+    );
+    ({ attr: flavourId, plain: plainId, natural: naturalId } = flavour.rows[0]!);
   }, 300_000);
 
   afterAll(async () => {
@@ -110,7 +138,7 @@ d("098 — product variants against real PostgreSQL", () => {
 
     const sized = await newProduct();
     const { options, size, type } = twoOptions();
-    // Three of the four combinations: the shop does not sell 1 kg brown.
+    // Three of the four combinations: the shop does not sell 1 kg natural.
     const variants = [row(0, [size[0], type[0]], "3.00"), row(1, [size[0], type[1]], "3.50"), row(2, [size[1], type[0]], "5.50")];
     await tx((c) => applyVariantSet(c, { productId: sized, shopId, options, variants, mode: "draft" }));
 
@@ -121,7 +149,7 @@ d("098 — product variants against real PostgreSQL", () => {
     expect(codes.every((c) => /^V[2-9A-HJKMNP-TV-Z]{6}$/.test(c))).toBe(true);
     expect(new Set(codes).size).toBe(4);
     expect(sets.get(plain)!.variants[0]!.label).toBeNull();
-    expect(sets.get(sized)!.variants.map((v) => v.label)).toEqual(["500 g / White", "500 g / Brown", "1 kg / White"]);
+    expect(sets.get(sized)!.variants.map((v) => v.label)).toEqual(["500 g / Plain", "500 g / Natural", "1 kg / Plain"]);
     // A draft has no customer price yet, so nothing is listed.
     expect(await listing(sized)).toEqual({ list: null, was: null, varies: false });
   });
@@ -134,7 +162,7 @@ d("098 — product variants against real PostgreSQL", () => {
       variants: [row(0, [size[0], type[0]], "3.00"), row(1, [size[0], type[0]], "3.10")],
     })))).toContain("variants[1].optionValueIds");
 
-    const third: OptionInputDTO = { id: uuid(), position: 3, name: "Brand", values: [{ id: uuid(), value: "Acme", position: 0 }] };
+    const third: OptionInputDTO = { id: uuid(), position: 3, kind: "pack_size", values: [{ id: uuid(), position: 0 }] };
     expect((await refusal(tx((c) => applyVariantSet(c, {
       productId: id, shopId, options: [...options, third], mode: "draft",
       variants: [row(0, [size[0], type[0]], "3.00")],
@@ -169,15 +197,15 @@ d("098 — product variants against real PostgreSQL", () => {
 
     // The same size and code may be sold again as a new variant; the removed id stays history.
     const back = uuid();
-    const withBack: OptionInputDTO[] = [{ ...one.options[0]!, values: [...one.options[0]!.values, { id: back, value: "1 kg", position: 1 }] }];
+    const withBack: OptionInputDTO[] = [{ ...one.options[0]!, values: [...one.options[0]!.values, { id: pack(back, "1 kg"), position: 1 }] }];
     const again = row(1, [back, null], "5.75", { sku: "R-1K" });
     await tx((c) => applyVariantSet(c, { productId: id, shopId, options: withBack, variants: [kept, again], mode: "live" }));
 
     const third = uuid();
-    const withThird: OptionInputDTO[] = [{ ...withBack[0]!, values: [...withBack[0]!.values, { id: third, value: "2 kg", position: 2 }] }];
+    const withThird: OptionInputDTO[] = [{ ...withBack[0]!, values: [...withBack[0]!.values, { id: pack(third, "2 kg"), position: 2 }] }];
     expect(await refusal(tx((c) => applyVariantSet(c, {
       productId: id, shopId, options: withThird, mode: "live",
-      variants: [kept, again, { ...dropped, position: 2, optionValueIds: [third, null], sku: null }],
+      variants: [kept, again, { ...dropped, position: 2, optionValueIds: [third, null], sku: null, packQuantity: "2", packUnit: "kg" }],
     })))).toEqual(["variants[2].id"]);
   });
 
@@ -284,5 +312,49 @@ d("098 — product variants against real PostgreSQL", () => {
     expect(stock).toEqual([{ id: small.id, stock_on_hand: 0 }, { id: large.id, stock_on_hand: 1 }]);
     const moves = (await pool.query(`SELECT variant_id::text AS v, quantity_before AS b, quantity_after AS a FROM public.stock_movement WHERE product_id = $1 ORDER BY quantity_before DESC`, [id])).rows;
     expect(moves).toEqual([{ v: small.id, b: 1, a: 0 }, { v: small.id, b: 0, a: 0 }]);
+  });
+
+  it("101 — an option must be a variant option on the leaf's form; pack sizes may not repeat", async () => {
+    const id = await newProduct();
+    // Scent is a library attribute but not on the yoghurt leaf's form.
+    const scent = (await pool.query<{ id: string; v: string }>(
+      `SELECT ad.id::text, (SELECT v.id::text FROM public.attribute_allowed_value v WHERE v.attribute_definition_id = ad.id LIMIT 1) AS v
+         FROM public.attribute_definition ad WHERE ad.key = 'scent'`,
+    )).rows[0]!;
+    const value = uuid();
+    const off: OptionInputDTO = { id: uuid(), position: 1, kind: "attribute", attributeId: scent.id, values: [{ id: value, allowedValueId: scent.v, position: 0 }] };
+    expect((await refusal(tx((c) => applyVariantSet(c, { productId: id, shopId, options: [off], mode: "draft", variants: [row(0, [value, null], "3.00")] })))).length).toBeGreaterThan(0);
+
+    const twice = sizes("500 g", "500 g");
+    expect((await refusal(tx((c) => applyVariantSet(c, {
+      productId: id, shopId, options: twice.options, mode: "draft",
+      variants: [row(0, [twice.ids[0]!, null], "3.00"), row(1, [twice.ids[1]!, null], "3.10")],
+    })))).length).toBeGreaterThan(0);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM public.product_option WHERE product_id = $1`, [id])).rows[0].n).toBe(0);
+  });
+
+  it("101 — option values are each variant's filterable values, the label copy follows a rename, and the option is not a product detail", async () => {
+    const id = await newProduct();
+    const { options, size, type } = twoOptions();
+    const variants = [row(0, [size[0], type[0]], "3.00"), row(1, [size[1], type[1]], "5.50")];
+    await tx((c) => applyVariantSet(c, { productId: id, shopId, options, variants, mode: "draft" }));
+
+    const perVariant = await pool.query<{ ids: string[] }>(
+      `SELECT allowed_value_ids::text[] AS ids FROM public.product_attribute_value
+        WHERE product_id = $1 AND attribute_definition_id = $2 AND variant_id IS NOT NULL ORDER BY allowed_value_ids[1] = $3 DESC`,
+      [id, flavourId, plainId],
+    );
+    expect(perVariant.rows.map((r) => r.ids)).toEqual([[plainId], [naturalId]]);
+    const copy = async () => (await pool.query<{ value: string }>(`SELECT value FROM public.product_option_value WHERE allowed_value_id = $1 AND option_id IN (SELECT id FROM public.product_option WHERE product_id = $2)`, [plainId, id])).rows[0]!.value;
+    expect(await copy()).toBe("Plain");
+
+    await tx(async (c) => {
+      const values = (await c.query<{ id: string; label: string }>(`SELECT id::text, label FROM public.attribute_allowed_value WHERE attribute_definition_id = $1 ORDER BY "position"`, [flavourId])).rows;
+      await updateAttribute(c, flavourId, { values: values.map((v) => ({ id: v.id, label: v.id === plainId ? "Plain (unflavoured)" : v.label })) });
+    });
+    expect(await copy()).toBe("Plain (unflavoured)");
+    expect((await readVariantSets(pool, [id])).get(id)!.variants.map((v) => v.label)).toEqual(["500 g / Plain (unflavoured)", "1 kg / Natural"]);
+
+    await expect(tx((c) => writeProductDetails(c, id, [{ attributeId: flavourId, value: { valueIds: [plainId] } }]))).rejects.toBeInstanceOf(DetailsInvalid);
   });
 });

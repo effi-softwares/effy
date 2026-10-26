@@ -71,6 +71,8 @@ export interface OrderItemDTO {
   productName: string;
   /** The variant's label as sold ("Spiced / 500 g"); null for a product with no options. */
   variantLabel: string | null;
+  /** Sold to adults only (from the live catalogue): show the 18+ label. */
+  ageRestricted: boolean;
   unitPriceAmount: string;
   quantity: number;
   lineSubtotalAmount: string;

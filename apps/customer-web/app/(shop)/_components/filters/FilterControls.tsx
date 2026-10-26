@@ -5,6 +5,8 @@ import { useEffect, useState } from "react"
 
 import { ActionButton, btnClass } from "@/components/storefront/actions"
 
+import { RangeFilter } from "./RangeFilter"
+
 /**
  * The advanced filter controls, shared by the desktop side panel and the phone filter sheet. Loaded via
  * `next/dynamic` from SearchExperience, off the first-load chunk, and built from native inputs (the
@@ -15,6 +17,7 @@ export interface SelectedFilters {
   category: string | null
   brands: string[]
   attributes: Record<string, string[]>
+  ranges: Record<string, { min: string; max: string }>
   saleOnly: boolean
 }
 
@@ -28,6 +31,7 @@ interface Props {
   onToggleValue: (facetKey: string, value: string) => void
   onToggleSale: () => void
   onApplyPrice: (min: string, max: string) => void
+  onApplyRange: (facetKey: string, min: string, max: string) => void
   onClearAll: () => void
   activeCount: number
 }
@@ -42,12 +46,14 @@ export default function FilterControls({
   onToggleValue,
   onToggleSale,
   onApplyPrice,
+  onApplyRange,
   onClearAll,
   activeCount,
 }: Props) {
   const category = facetSet?.facets.find((f) => f.key === "category")
-  // Brand + attribute facets are all multi_select; category is handled on its own above the rest.
-  const multiFacets = (facetSet?.facets ?? []).filter((f) => f.type === "multi_select")
+  // Brand and choice facets are checkbox lists, number facets ranges, in the server's order; category is
+  // handled on its own above the rest.
+  const facets = (facetSet?.facets ?? []).filter((f) => f.type === "multi_select" || (f.type === "range" && f.range))
 
   return (
     <div>
@@ -102,14 +108,27 @@ export default function FilterControls({
         </Section>
       )}
 
-      {multiFacets.map((facet) => (
-        <FacetSection
-          key={facet.key}
-          facet={facet}
-          selectedValues={facet.key === "brand" ? selected.brands : (selected.attributes[facet.key] ?? [])}
-          onToggle={(value) => onToggleValue(facet.key, value)}
-        />
-      ))}
+      {facets.map((facet) =>
+        facet.type === "range" && facet.range ? (
+          <Section key={facet.key} title={facet.label}>
+            <RangeFilter
+              label={facet.label}
+              unit={facet.range.unit}
+              bounds={facet.range}
+              min={selected.ranges[facet.key]?.min ?? ""}
+              max={selected.ranges[facet.key]?.max ?? ""}
+              onApply={(lo, hi) => onApplyRange(facet.key, lo, hi)}
+            />
+          </Section>
+        ) : (
+          <FacetSection
+            key={facet.key}
+            facet={facet}
+            selectedValues={facet.key === "brand" ? selected.brands : (selected.attributes[facet.key] ?? [])}
+            onToggle={(value) => onToggleValue(facet.key, value)}
+          />
+        ),
+      )}
 
       {loading && !facetSet && <p className="text-sm text-muted-foreground">Loading filters…</p>}
       {!loading && facetSet && facetSet.facets.length === 0 && (

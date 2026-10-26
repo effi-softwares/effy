@@ -16,6 +16,7 @@ const SOURCES = [
   "customers",
   "promotions",
   "promotion-groups",
+  "taxonomy",
 ].map((slice) => readFileSync(resolve(features, slice, "queries.ts"), "utf8"))
 
 describe("LIVE_ROUTES", () => {
@@ -45,6 +46,7 @@ describe("LIVE_ROUTES", () => {
       "promotions",
       "review",
       "slots",
+      "taxonomy",
     ])
   })
 })

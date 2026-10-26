@@ -71,7 +71,6 @@ const SILENT: Record<string, string> = {
   "shop/shop-notification-prefs-v1-patch": "the operator's own notification preferences",
   "commerce/order-business-identity-v1-put": "096 — the buyer's business details for a tax invoice not yet issued; no screen shows them live",
   "orders/admin-tax-settings-v1-put": "096 — Effy's tax identity and the invoice switch; read when a document is asked for, shown live nowhere",
-  "catalog/gst-bulk-v1-post": "096 — a product's GST status; no live screen shows it (the GST missing list re-reads on its own mutation)",
   "fleet/shop-pack-scanning-v1-put": "096 — a shop rule read only when the shop next marks an order ready; no screen shows it live, so nothing is announced",
   "shop/team-deactivate-v1-post": "team administration; a deactivated operator's own channel closes at the next epoch (research R5), which needs no announcement",
   "shop/team-invite-v1-post": "team administration",
@@ -98,7 +97,7 @@ const SILENT: Record<string, string> = {
 /** Every admin function is configuration or administration. */
 const SILENT_SERVICES: Record<string, string> = {
   admin:
-    "back-office administration and configuration — catalogue taxonomy, delivery zones and plans, promotions, shops and their users, feedback, order policy. FR-029 lists orders, dispatch and drivers, slot load and the review queue; none of those is written here (they are written by `orders`, `fleet` and `catalog`).",
+    "back-office administration and configuration — delivery zones and plans, promotions, shops and their users, feedback, order policy. FR-029 lists orders, dispatch and drivers, slot load and the review queue; none of those is written here (they are written by `orders`, `fleet` and `catalog`).",
 };
 
 function reaches(file: string, seen = new Set<string>()): boolean {

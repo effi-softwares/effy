@@ -166,24 +166,18 @@ let skuSeq = 0;
 async function addLine(sfId: string, shopId: string, grams: number, storage: "chilled" | "frozen" | null = null) {
   skuSeq += 1;
   const p = await q(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now()) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, $2, 'A thing', 'test', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, sku, weight_grams) SELECT p.id, p.shop_id, COALESCE(1, 1)::numeric, (1)::numeric, $3, $4 FROM p RETURNING id)
 SELECT id FROM p`,
     [shopId, `Thing ${skuSeq}`, `SKU-L${skuSeq}`, grams],
   );
   const o = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+  // What the line was sold as: the planner reads the order line's storage, never the product's.
   await q(
-    `INSERT INTO public.order_item (order_id, shop_id, product_id, variant_id, product_name, quantity, unit_price_amount, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount)
-     VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), 'Thing', 1, 1, 1, 1, 1)`,
-    [o.rows[0].order_id, shopId, p.rows[0].id],
+    `INSERT INTO public.order_item (order_id, shop_id, product_id, variant_id, product_name, quantity, unit_price_amount, line_subtotal_amount, shop_unit_price_amount, shop_line_subtotal_amount, storage_class)
+     VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), 'Thing', 1, 1, 1, 1, 1, $4)`,
+    [o.rows[0].order_id, shopId, p.rows[0].id, storage ?? "ambient"],
   );
-  if (storage) {
-    await q(
-      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_text)
-       VALUES ($1, (SELECT id FROM public.attribute_definition WHERE key = 'storage'), $2)`,
-      [p.rows[0].id, storage],
-    );
-  }
   return p.rows[0].id as string;
 }
 
@@ -481,7 +475,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     const sf = await makeReadyPackage(shop);
     // 5 kg of goods against a 1 kg van.
     await q(
-      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Heavy', 'A heavy thing', 'test', 'active', now()) RETURNING *),
+      `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', 'gst_free', false, 'Heavy', 'A heavy thing', 'test', 'active', now()) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, sku, weight_grams) SELECT p.id, p.shop_id, COALESCE(1, 1)::numeric, (1)::numeric, 'SKU-H', 5000 FROM p RETURNING id)
 SELECT id FROM p`,
       [shop],
@@ -638,16 +632,11 @@ SELECT id FROM p`,
     expect(assigned.rows.map((r) => r.shop_fulfillment_id)).toEqual([viaHub]);
   });
 
-  it("weighs an order line once, however many attributes its product has", async () => {
+  it("weighs an order line once, and reads its storage from the line", async () => {
     const shop = await makeShop("Shop One", "S1");
     await makeZone("Inner North", "3065");
     const sf = await makeReadyPackage(shop);
-    const product = await addLine(sf, shop, 4000, "chilled");
-    await q(
-      `INSERT INTO public.product_attribute_value (product_id, attribute_definition_id, value_text)
-       SELECT $1, id, 'x' FROM public.attribute_definition WHERE key <> 'storage' ORDER BY key LIMIT 2`,
-      [product],
-    );
+    await addLine(sf, shop, 4000, "chilled");
 
     const [pkg] = await repo.gatherCollectionWork();
     expect(pkg!.weightGrams).toBe(4000);

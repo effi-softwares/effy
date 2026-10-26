@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { AttrRow, CatalogRepository, DetailRow, MediaRow, VariantPageRow } from "./repository";
-import { createCatalogService, formatAttrValue, groupAttributes } from "./service";
+import type { CatalogRepository, DetailRow, DetailValueRow, MediaRow, VariantPageRow } from "./repository";
+import { createCatalogService, variantDetails } from "./service";
 
 const ID = "00000000-0000-0000-0000-000000000001";
 
-const attr = (over: Partial<AttrRow>): AttrRow => ({
-  label: "L", data_type: "short_text", unit: null, value_text: null, value_number: null, value_boolean: null,
-  value_options: null, group_label: "Details", ...over,
+const value = (over: Partial<DetailValueRow>): DetailValueRow => ({
+  attribute_id: "a1", variant_id: null, name: "L", section: "Product details", position: 10, input_type: "short_text",
+  value_text: null, value_number: null, value_unit: null, value_boolean: null, values: null, value_date: null, value_time: null,
+  ...over,
 });
 
 const variantRow = (over: Partial<VariantPageRow> = {}): VariantPageRow => ({
@@ -18,7 +19,7 @@ const variantRow = (over: Partial<VariantPageRow> = {}): VariantPageRow => ({
 const detail = (over: Partial<DetailRow> = {}): DetailRow => ({
   id: ID, name: "Oat milk", brand: "Oatly", price_amount: "4.50", currency: "AUD", compare_at_amount: null,
   short_description: "Short", long_description: null, primary_category_id: "cat-1", primary_category_key: "dairy",
-  is_new: false, available: true, unit_basis: null, ...over,
+  is_new: false, available: true, age_restricted: false, unit_basis: null, ...over,
 });
 
 /** The page's parts, faked one by one; `productPage` is assembled from them as the statement would. */
@@ -26,7 +27,7 @@ interface Parts {
   categories: CatalogRepository["categories"];
   productDetail: (id: string) => Promise<DetailRow | null>;
   productMedia: () => Promise<MediaRow[]>;
-  productAttributes: () => Promise<AttrRow[]>;
+  details: () => Promise<DetailValueRow[]>;
   categoryPath: () => Promise<string[]>;
   variants: () => Promise<VariantPageRow[]>;
 }
@@ -37,8 +38,8 @@ function repo(over: Partial<Parts> = {}) {
     categories: async () => [],
     productDetail: async () => detail(),
     productMedia: async () => [],
-    productAttributes: async () => [],
-    categoryPath: async () => ["Food", "Dairy"],
+    details: async () => [],
+    categoryPath: async () => ["Dairy, Eggs & Fridge", "Milk"],
     variants: async () => [variantRow()],
     ...over,
   };
@@ -47,45 +48,31 @@ function repo(over: Partial<Parts> = {}) {
     productPage: async (id) => {
       calls.push(`page:${id}`);
       const row = await parts.productDetail(id);
-      return row && { ...row, media: await parts.productMedia(), attributes: await parts.productAttributes(), category_path: await parts.categoryPath(), variants: await parts.variants(), options: [] };
+      return row && { ...row, media: await parts.productMedia(), details: await parts.details(), category_path: await parts.categoryPath(), variants: await parts.variants(), options: [] };
     },
   };
   return { svc: createCatalogService(r, async (k) => (k ? `signed:${k}` : null)), calls };
 }
 
-describe("formatAttrValue", () => {
-  it.each([
-    [attr({ data_type: "boolean", value_boolean: true }), "Yes"],
-    [attr({ data_type: "boolean", value_boolean: false }), "No"],
-    [attr({ data_type: "boolean" }), ""],
-    [attr({ data_type: "number", value_number: "500", unit: "g" }), "500 g"],
-    [attr({ data_type: "number", value_number: "2" }), "2"],
-    [attr({ data_type: "number" }), ""],
-    [attr({ data_type: "multi_select", value_options: ["vegan", "", "halal"] }), "vegan, halal"],
-    [attr({ data_type: "single_select", value_text: "Large" }), "Large"],
-    [attr({ data_type: "short_text", value_options: ["a", "b"] }), "a, b"],
-    [attr({ data_type: "short_text" }), ""],
-  ])("%#", (row, want) => {
-    expect(formatAttrValue(row)).toBe(want);
-  });
-});
+describe("variantDetails (101)", () => {
+  const rows = [
+    value({ attribute_id: "weight", name: "Weight", input_type: "number", value_number: "1.5", value_unit: "kg", section: "Specifications", position: 5 }),
+    value({ attribute_id: "allergens", name: "Allergens", input_type: "multi_select", variant_id: "v1", section: "Ingredients & allergens", position: 10, values: [{ id: "m", label: "Milk" }] }),
+    value({ attribute_id: "allergens", name: "Allergens", input_type: "multi_select", variant_id: "v2", section: "Ingredients & allergens", position: 10, values: [{ id: "e", label: "Eggs" }, { id: "m", label: "Milk" }] }),
+    value({ attribute_id: "organic", name: "Certified organic", input_type: "boolean", value_boolean: true, section: "Specifications", position: 20 }),
+  ];
 
-describe("groupAttributes", () => {
-  it("groups contiguous rows by label and drops empty values", () => {
-    expect(
-      groupAttributes([
-        attr({ label: "Weight", data_type: "number", value_number: "500", unit: "g", group_label: "Details" }),
-        attr({ label: "Empty", group_label: "Details" }),
-        attr({ label: "Organic", data_type: "boolean", value_boolean: true, group_label: "Dietary" }),
-        attr({ label: "Vegan", data_type: "boolean", value_boolean: false, group_label: "Dietary" }),
-      ]),
-    ).toEqual([
-      { groupLabel: "Details", items: [{ label: "Weight", value: "500 g" }] },
-      { groupLabel: "Dietary", items: [{ label: "Organic", value: "Yes" }, { label: "Vegan", value: "No" }] },
+  it("merges the product's values with the variant's own, grouped by section in form order", () => {
+    expect(variantDetails(rows, "v1")).toEqual([
+      { groupLabel: "Specifications", items: [{ label: "Weight", value: "1.5 kg" }, { label: "Certified organic", value: "Yes" }] },
+      { groupLabel: "Ingredients & allergens", items: [{ label: "Allergens", value: "Milk" }] },
     ]);
+    expect(variantDetails(rows, "v2")[1]).toEqual({ groupLabel: "Ingredients & allergens", items: [{ label: "Allergens", value: "Eggs, Milk" }] });
   });
-  it("no attributes is []", () => {
-    expect(groupAttributes([])).toEqual([]);
+
+  it("a variant with no value of its own shows none for that detail", () => {
+    expect(variantDetails(rows, "v3").map((g) => g.groupLabel)).toEqual(["Specifications"]);
+    expect(variantDetails([], "v1")).toEqual([]);
   });
 });
 
@@ -93,17 +80,19 @@ describe("productDetail", () => {
   it("composes the page: card fields, gallery, attributes, path and the category key", async () => {
     const { svc } = repo({
       productMedia: async () => [{ storage_key: "a.jpg", alt_text: "Front", image_widths: [640, 160, 320] }, { storage_key: "b.jpg", alt_text: null, image_widths: null }],
-      productAttributes: async () => [attr({ label: "Size", data_type: "single_select", value_text: "1L" })],
+      details: async () => [value({ name: "Country of origin", input_type: "short_text", value_text: "Australia" })],
     });
     expect(await svc.productDetail(ID)).toEqual({
       id: ID, name: "Oat milk", brand: "Oatly", imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], priceAmount: "4.50", currency: "AUD",
-      compareAtAmount: null, badges: [], available: true, longDescription: "Short",
+      compareAtAmount: null, badges: [], available: true, ageRestricted: false, longDescription: "Short",
       // Copies listed ascending; a picture with none carries no field.
       gallery: [{ imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], alt: "Front" }, { imageUrl: "signed:b.jpg", alt: null }],
-      attributes: [{ groupLabel: "Details", items: [{ label: "Size", value: "1L" }] }],
-      categoryPath: ["Food", "Dairy"], categoryKey: "dairy",
+      categoryPath: ["Dairy, Eggs & Fridge", "Milk"], categoryKey: "dairy",
       priceVaries: false, variantId: "v1", variantCount: 1, unitPrice: null, options: [], unitBasis: null,
-      variants: [{ id: "v1", optionValueIds: [null, null], label: null, priceAmount: "4.50", compareAtAmount: null, unitPrice: null, available: true, imageUrl: null }],
+      variants: [{
+        id: "v1", optionValueIds: [null, null], label: null, priceAmount: "4.50", compareAtAmount: null, unitPrice: null, available: true, imageUrl: null,
+        details: [{ groupLabel: "Product details", items: [{ label: "Country of origin", value: "Australia" }] }],
+      }],
       defaultVariantId: "v1",
     });
   });
@@ -159,13 +148,13 @@ describe("categories", () => {
   it("maps the tree with counts and a public or null image", async () => {
     const { svc } = repo({
       categories: async () => [
-        { key: "dairy", name: "Dairy", parent_key: null, product_count: 3, image_key: "c.jpg", image_widths: [160] },
-        { key: "milk", name: "Milk", parent_key: "dairy", product_count: 0, image_key: null, image_widths: null },
+        { key: "dairy", name: "Dairy", parent_key: null, depth: 1, is_leaf: false, icon: "milk", product_count: 3, image_key: "c.jpg", image_widths: [160] },
+        { key: "milk", name: "Milk", parent_key: "dairy", depth: 2, is_leaf: true, icon: null, product_count: 0, image_key: null, image_widths: null },
       ],
     });
     expect(await svc.categories()).toEqual([
-      { key: "dairy", name: "Dairy", parentKey: null, productCount: 3, imageUrl: "signed:c.jpg", imageWidths: [160] },
-      { key: "milk", name: "Milk", parentKey: "dairy", productCount: 0, imageUrl: null },
+      { key: "dairy", name: "Dairy", parentKey: null, depth: 1, isLeaf: false, icon: "milk", productCount: 3, imageUrl: "signed:c.jpg", imageWidths: [160] },
+      { key: "milk", name: "Milk", parentKey: "dairy", depth: 2, isLeaf: true, icon: null, productCount: 0, imageUrl: null },
     ]);
   });
 });

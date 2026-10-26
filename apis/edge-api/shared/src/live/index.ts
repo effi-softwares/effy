@@ -25,3 +25,4 @@ export {
   type PackageMove,
 } from "./order-moves";
 export { announceCollectionShops, announceDispatch, announceSlots } from "./dispatch";
+export { announceTaxonomy } from "./taxonomy";

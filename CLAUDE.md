@@ -151,6 +151,30 @@ couriers**. They are Effy employees working typed tasks, not roles:
   `PackageStatusPill`. Back-office can **Assign to…** or **Unassign**; area clearance and "may run late"
   are a person's call, the rest are refused.
 
+### Catalogue (101 — one category tree decides each product's form)
+⚠ **THERE ARE NO PRODUCT TYPES (101).** The only classification is ONE category tree (≤ 5 levels, staff-managed in
+back-office › Categories & attributes, the `catalog` service on the staff gateway). Every product sits in exactly ONE
+**home leaf** (`product.primary_category_id`, a category with no active children); staff may add up to five extra
+"also shown in" leaves (`product_placement`) that never change its form. `catalog.guard.test.ts` (a) fails any
+`product_type` / `productTypeId` anywhere in the tree.
+- ⚠ **INHERITANCE IS DEFINED ONCE** — `public.rebuild_category_derived()` writes `category_ancestor` (the closure),
+  `category_resolved` (depth, leaf, paths, resolved storage/GST/18+ defaults) and `category_form` (each leaf's
+  resolved form: set → tighten → hide down the tree, never loosen). Readers read those tables; nothing re-derives
+  inheritance. The ONE writer of the taxonomy is `@effy/edge-shared/catalog` `taxonomy.ts` (lock, rules, rebuild in
+  the same transaction); the service audits and calls `announceTaxonomy()` (live kind `taxonomy`).
+- ⚠ **STORAGE, GST AND 18+ ARE COLUMNS, NOT ATTRIBUTES** — `product.storage` (frozen | chilled | ambient, said
+  "Room temperature" through `STORAGE_WORDS`), `gst_status`, `age_restricted`, defaulted from the leaf; a change is
+  the shop's and review sees it. 18+ is a LABEL only (`AGE_RESTRICTED_LABEL`; Kotlin twin `AgeWords`) — no age check yet.
+  Stock dates (expiry, packed, batch) are never details (`isStockDateName`).
+- ⚠ **ONE WRITER PER FACT**: `writeProductDetails` (a product's details, typed, per variant where an attribute
+  "may differ by size") and `applyVariantSet` (options: Pack size, or a library attribute the leaf offers as a
+  variant option — its values are also each variant's detail). A value's label is copied to
+  `product_option_value.value` for order lines; a rename rewrites the copy.
+- Submission (and approval) is refused while a required detail is empty (`missing_required_details`); a
+  requirement added later leaves products on sale and lists them (back-office › Product review › Missing details,
+  the shop's Missing details filter). Category icons are keys from `CATEGORY_ICONS` (one list: the migration CHECK,
+  `@effy/web-kit/category-icon`, the app's `CategoryIcons.kt`, all pinned to `category-icons.fixtures.json`).
+
 ## Platform shape (the vision)
 The full platform is **five active client surfaces + one backend + DB migrations + infrastructure**.
 The customer audience gets **two surfaces kept at parity** (a native mobile build and a native web
@@ -591,6 +615,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **101-category-driven-catalogue** — Category-Driven Catalogue (no product types; one ≤5-level tree; attribute library and attachments; facts as columns; per-variant details; library options; placements; 18+ label) — built 2026-10-26; not migrated, deployed or walked
 - **099-shop-floor-signals** — Shop Floor Signals (next collection per shop and order, pick list in walking order, Availability, quality figures on Insights) — built 2026-10-24, spec signed off; not migrated, deployed or walked
 - **098-product-variants** — Product Variants (up to two options, per-variant price/codes/weight/stock, one margin per product, unit pricing, sizes on every surface; carts from before 098 dropped) — complete in dev (migrated, deployed, walked)
 - **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — complete in dev (migrated, deployed, walked)
@@ -668,5 +693,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/099-shop-floor-signals/plan.md
+at specs/101-category-driven-catalogue/plan.md
 <!-- SPECKIT END -->

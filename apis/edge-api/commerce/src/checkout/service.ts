@@ -30,7 +30,6 @@ export { AddressNotFoundError };
 
 export class EmptyCartError extends Error {}
 /** While tax invoices are on, a product with no GST class is not sold; the customer sees only "unavailable". */
-export class ProductUnavailableError extends Error {}
 export class NotServiceableError extends Error {}
 export class OrderNotFoundError extends Error {}
 /** "No such card" and "not yours" alike, so the route reveals nothing about card ids. */
@@ -226,10 +225,6 @@ export function createCheckoutService(deps: {
       if (!address) throw new AddressNotFoundError();
       // Refused here: the provider would fail a zero amount without explanation.
       if (lines.length === 0) throw new EmptyCartError();
-      if (lines.some((l) => l.gstClassified === false) && (await store.invoicesEnabled())) {
-        emitMetric(ns(), "UnclassifiedProductRefused");
-        throw new ProductUnavailableError();
-      }
 
       // Out-of-stock lines are already gone and partial lines capped, so the charge covers only stock.
       const itemSubtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.quantity, 0);

@@ -3,6 +3,7 @@ import Link from "next/link"
 
 import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { Badge } from "@/components/ui/badge"
 import { formatMoney, isDiscounted } from "@/lib/money"
@@ -131,6 +132,7 @@ export function ProductCard({
       <h3 className={`line-clamp-2 text-sm leading-snug font-medium ${product.brand ? "mt-1" : "mt-3"}`}>
         {product.name}
       </h3>
+      {product.ageRestricted ? <AgeBadge className="mt-1 self-start" /> : null}
 
       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
         <div className="min-w-0">
@@ -160,6 +162,7 @@ export function ProductCard({
               variantCount: product.variantCount,
               productId: product.id,
               name: product.name,
+              ageRestricted: product.ageRestricted,
               imageUrl: product.imageUrl,
               imageWidths: product.imageWidths,
               unitPriceAmount: product.priceAmount,

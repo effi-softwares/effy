@@ -132,11 +132,17 @@ export interface ProductRow {
   brand: string | null;
   short_description: string;
   long_description: string | null;
-  product_type_id: string;
-  type_name: string;
   primary_category_id: string;
   category_name: string;
-  gst_status: "taxable" | "gst_free" | null;
+  /** The home leaf, department first. */
+  category_path: string[] | null;
+  gst_status: "taxable" | "gst_free";
+  storage: "frozen" | "chilled" | "ambient";
+  age_restricted: boolean;
+  /** The home leaf's resolved defaults. */
+  default_storage: "frozen" | "chilled" | "ambient" | null;
+  default_gst_status: "taxable" | "gst_free" | null;
+  default_age_restricted: boolean | null;
   unit_basis: string | null;
   status: string;
   margin_kind: "percent" | "amount" | null;
@@ -150,16 +156,18 @@ export interface ProductRow {
 const PRODUCT = `
   SELECT p.id, p.shop_id, s.name AS shop_name, s.status AS shop_status,
          p.name, p.brand, p.short_description, p.long_description,
-         p.product_type_id, pt.name AS type_name, p.primary_category_id, c.name AS category_name,
-         p.gst_status, p.unit_basis, p.status,
+         p.primary_category_id::text AS primary_category_id, c.name AS category_name, r.path_names AS category_path,
+         p.gst_status, p.storage, p.age_restricted,
+         r.storage AS default_storage, r.gst_status AS default_gst_status, r.age_restricted AS default_age_restricted,
+         p.unit_basis, p.status,
          -- Prices, codes and weights are the VARIANTS' (readVariantSets).
          p.margin_kind, p.margin_value::text AS margin_value,
          p.approved_at IS NOT NULL AS approved, p.review_state, p.submitted_at,
          p.updated_at::text AS version
     FROM public.product p
     JOIN public.shop s ON s.id = p.shop_id
-    JOIN public.product_type pt ON pt.id = p.product_type_id
     JOIN public.category c ON c.id = p.primary_category_id
+    LEFT JOIN public.category_resolved r ON r.category_id = p.primary_category_id
    WHERE p.id = $1
 `;
 
@@ -174,24 +182,14 @@ export async function readProduct(productId: string, tx: Runner = null, lock = f
   return res.rows[0] ?? null;
 }
 
-export interface AttributeRow {
-  attribute_definition_id: string;
-  key: string;
-  name: string;
-  value_text: string | null;
-  value_number: string | null;
-  value_boolean: boolean | null;
-  value_options: string[] | null;
-}
-
-export async function readAttributes(productId: string): Promise<AttributeRow[]> {
-  const res = await query<AttributeRow>(
-    `SELECT pav.attribute_definition_id, ad.key, ad.name,
-            pav.value_text, pav.value_number::text AS value_number, pav.value_boolean, pav.value_options
-       FROM public.product_attribute_value pav
-       JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
-      WHERE pav.product_id = $1
-      ORDER BY ad.name`,
+/** Staff-made extra placements, with each leaf's path. */
+export async function readPlacements(productId: string): Promise<{ category_id: string; path: string[] }[]> {
+  const res = await query<{ category_id: string; path: string[] }>(
+    `SELECT pp.category_id::text AS category_id, r.path_names AS path
+       FROM public.product_placement pp
+       JOIN public.category_resolved r ON r.category_id = pp.category_id
+      WHERE pp.product_id = $1
+      ORDER BY r.path_names`,
     [productId],
   );
   return res.rows;
@@ -246,24 +244,26 @@ export async function readChangeMedia(changeId: string, tx: Runner = null): Prom
   return res.rows;
 }
 
+export interface CategoryFacts {
+  id: string;
+  isLeaf: boolean;
+  path: string[];
+  defaults: { storage: "frozen" | "chilled" | "ambient" | null; gstStatus: "taxable" | "gst_free" | null; ageRestricted: boolean | null };
+}
+
 /**
- * Names for a proposal's ids ("Bakery → Dairy"). Inside a decision pass the transaction: the pool's
- * one connection is held by it.
+ * A proposed category, as it stands now: null when retired or unknown. Inside a decision pass the
+ * transaction: the pool's one connection is held by it.
  */
-export async function namesFor(typeIds: string[], categoryIds: string[], attributeIds: string[], tx: Runner = null) {
-  const [types, categories, attributes] = await Promise.all([
-    run<{ id: string; name: string; status: string }>(
-      tx, `SELECT id::text, name, status FROM public.product_type WHERE id = ANY($1::uuid[])`, [typeIds]),
-    run<{ id: string; name: string; status: string }>(
-      tx, `SELECT id::text, name, status FROM public.category WHERE id = ANY($1::uuid[])`, [categoryIds]),
-    run<{ id: string; name: string; key: string }>(
-      tx, `SELECT id::text, name, key FROM public.attribute_definition WHERE id = ANY($1::uuid[])`, [attributeIds]),
-  ]);
-  return {
-    types: new Map(types.rows.map((r) => [r.id, r])),
-    categories: new Map(categories.rows.map((r) => [r.id, r])),
-    attributes: new Map(attributes.rows.map((r) => [r.id, r])),
-  };
+export async function categoryFacts(categoryId: string, tx: Runner = null): Promise<CategoryFacts | null> {
+  const res = await run<{ id: string; is_leaf: boolean; path_names: string[]; storage: CategoryFacts["defaults"]["storage"]; gst_status: CategoryFacts["defaults"]["gstStatus"]; age_restricted: boolean | null }>(
+    tx,
+    `SELECT category_id::text AS id, is_leaf, path_names, storage, gst_status, age_restricted
+       FROM public.category_resolved WHERE category_id = $1`,
+    [categoryId],
+  );
+  const r = res.rows[0];
+  return r ? { id: r.id, isLeaf: r.is_leaf, path: r.path_names, defaults: { storage: r.storage, gstStatus: r.gst_status, ageRestricted: r.age_restricted } } : null;
 }
 
 export type ReviewAuditAction =
@@ -374,22 +374,16 @@ export interface AppliedValues {
   brand: string | null;
   shortDescription: string;
   longDescription: string | null;
-  productTypeId: string;
   primaryCategoryId: string;
+  storage: "frozen" | "chilled" | "ambient";
+  ageRestricted: boolean;
   unitBasis: string | null;
-}
-
-export interface AttributeWrite {
-  attributeId: string;
-  valueText: string | null;
-  valueNumber: number | null;
-  valueBoolean: boolean | null;
-  valueOptions: string[] | null;
 }
 
 /**
  * Inside the decision transaction with the change row locked and the version checked. The caller
- * applies the variant set afterwards (a variant may name one of these images), then prices it.
+ * applies the variant set and the details afterwards (a variant may name one of these images, a detail
+ * one of the variants), then prices it.
  */
 export async function applyChange(
   tx: pg.PoolClient,
@@ -397,35 +391,21 @@ export async function applyChange(
   changeId: string,
   values: AppliedValues,
   margin: MarginWrite,
-  attributes: AttributeWrite[],
   mediaChanged: boolean,
 ): Promise<void> {
   await tx.query(
     `UPDATE public.product
         SET name = $2, brand = $3, short_description = $4, long_description = $5,
-            product_type_id = $6, primary_category_id = $7, unit_basis = $8,
-            margin_kind = $9, margin_value = $10::numeric,
+            primary_category_id = $6, storage = $7, age_restricted = $8, unit_basis = $9,
+            margin_kind = $10, margin_value = $11::numeric,
             updated_at = now()
       WHERE id = $1`,
     [
       productId, values.name, values.brand, values.shortDescription, values.longDescription,
-      values.productTypeId, values.primaryCategoryId, values.unitBasis,
+      values.primaryCategoryId, values.storage, values.ageRestricted, values.unitBasis,
       margin.marginKind, margin.marginValue,
     ],
   );
-
-  for (const a of attributes) {
-    await tx.query(
-      `INSERT INTO public.product_attribute_value
-           (product_id, attribute_definition_id, value_text, value_number, value_boolean, value_options)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (product_id, attribute_definition_id)
-         DO UPDATE SET value_text = EXCLUDED.value_text, value_number = EXCLUDED.value_number,
-                       value_boolean = EXCLUDED.value_boolean, value_options = EXCLUDED.value_options,
-                       updated_at = now()`,
-      [productId, a.attributeId, a.valueText, a.valueNumber, a.valueBoolean, a.valueOptions],
-    );
-  }
 
   if (mediaChanged) {
     // The only place a proposed image becomes live: the whole set is replaced here.

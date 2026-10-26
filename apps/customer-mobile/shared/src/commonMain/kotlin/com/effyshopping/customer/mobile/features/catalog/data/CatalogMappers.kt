@@ -23,6 +23,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.Facet
 import com.effyshopping.customer.mobile.features.catalog.domain.FacetControl
 import com.effyshopping.customer.mobile.features.catalog.domain.FacetOption
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetRange
 import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.Media
@@ -57,6 +58,7 @@ internal fun StorefrontProductCardDTO.toDomain(): ProductCard = ProductCard(
     variantCount = variantCount.toInt(),
     priceVaries = priceVaries,
     unitPrice = unitPrice?.toDomain(),
+    ageRestricted = ageRestricted,
 )
 
 internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
@@ -127,6 +129,9 @@ internal fun StorefrontCategoryDTO.toDomain(): Category = Category(
     key = key,
     name = name,
     parentKey = parentKey,
+    depth = depth.toInt(),
+    isLeaf = isLeaf,
+    icon = icon,
 )
 
 internal fun MediaDTO.toDomain(): Media = Media(imageUrl = imageURL, alt = alt)
@@ -152,10 +157,10 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
         variantCount = variantCount.toInt(),
         priceVaries = priceVaries,
         unitPrice = unitPrice?.toDomain(),
+        ageRestricted = ageRestricted,
     ),
     longDescription = longDescription,
     gallery = gallery.map { it.toDomain() },
-    attributes = attributes.map { it.toDomain() },
     categoryPath = categoryPath,
     categoryKey = categoryKey,
     options = options.map { o ->
@@ -176,6 +181,7 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
             unitPrice = v.unitPrice?.toDomain(),
             available = v.available,
             imageUrl = v.imageURL,
+            details = v.details.map { it.toDomain() },
         )
     },
     defaultVariantId = defaultVariantID,
@@ -194,4 +200,5 @@ internal fun FacetDTO.toDomain(): Facet = Facet(
     // `type.value` is the wire string; fromWire is tolerant of an unknown control (→ MULTI_SELECT).
     control = FacetControl.fromWire(type.value),
     options = options.map { FacetOption(value = it.value, label = it.label, count = it.count.toInt()) },
+    range = range?.let { FacetRange(min = it.min, max = it.max, unit = it.unit) },
 )

@@ -5,7 +5,7 @@ import { StatusPage } from "./components/patterns/StatusPage"
 import { rootRoute } from "./routes/__root"
 import { adminRoute, appIndexRoute, appRoute } from "./routes/app"
 import { authLayoutRoute, signInRoute } from "./routes/auth"
-import { catalogSchemaRoute } from "./routes/catalog-schema"
+import { taxonomyRoute } from "./routes/taxonomy"
 import { customerDetailRoute, customersIndexRoute } from "./routes/customers"
 import { deliverabilityDetailRoute, deliverabilityIndexRoute } from "./routes/deliverability"
 import { deliveryIndexRoute } from "./routes/delivery"
@@ -20,7 +20,11 @@ import {
   ordersHandoverRoute,
   ordersIndexRoute,
 } from "./routes/orders"
-import { productReviewIndexRoute, productReviewItemRoute } from "./routes/product-review"
+import {
+  productReviewIndexRoute,
+  productReviewItemRoute,
+  productReviewMissingDetailsRoute,
+} from "./routes/product-review"
 import {
   createPromotionRoute,
   createSkinRoute,
@@ -63,10 +67,11 @@ const routeTree = rootRoute.addChildren([
     deliverabilityDetailRoute,
     deliveryIndexRoute,
     productReviewIndexRoute,
+    productReviewMissingDetailsRoute,
     productReviewItemRoute,
     feedbackIndexRoute,
     feedbackDetailRoute,
-    catalogSchemaRoute,
+    taxonomyRoute,
     promotionsIndexRoute,
     orderRulesRoute,
     createPromotionRoute,

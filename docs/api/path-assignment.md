@@ -98,10 +98,17 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > are keyed by `{variantId}` (`/commerce/v1/cart/items/{variantId}`, `/commerce/v1/cart/saved/{variantId}`); saved items
 > and lists stay keyed by `{productId}`. One new shop route: `POST /shop/v1/products/{id}/variants/{variantId}/state`
 > (`shop`, shared gateway). Renames replaced routes one for one — no gateway integrations were added by them.
+
+> **101 — the category-driven catalogue.** Product types are gone. `admin`'s 18 `/admin/v1/catalog/…` schema routes
+> were deleted; `catalog` (staff) gained 14 `/catalog/v1/taxonomy/…` routes (categories, move, status, picture,
+> resolved form, attachments, attribute library), `PUT /catalog/v1/products/{productId}/placements` and
+> `GET /catalog/v1/products/missing-details`, and lost the two GST bulk routes (staff −4 net). `shop` (shared)
+> replaced `GET /shop/v1/catalog/schema` with `GET /shop/v1/catalog/categories` and
+> `GET /shop/v1/catalog/categories/{id}/form` (+1).
 | `driver` | shared | driver | driver app |
-| `admin` | **staff** | back-office | staff, shops, catalogue admin, delivery configuration |
+| `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) — split out at CloudFormation's 500-resource limit |
-| `catalog` | **staff** | back-office | product review and margin |
+| `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`) |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation |
 | `notifications` | shared | none (workers) | push and receipt drains |

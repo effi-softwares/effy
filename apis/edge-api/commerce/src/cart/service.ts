@@ -133,6 +133,7 @@ export function createCartService(deps: {
           variantId: row.variant_id,
           name: row.name,
           variantLabel: row.variant_label,
+          ageRestricted: row.age_restricted,
           imageUrl: await imageAddress(row.storage_key),
           ...imageWidthsField(row.image_widths),
           unitPriceAmount: row.unit_price_amount,

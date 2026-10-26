@@ -16,7 +16,7 @@ export const handler = async (
   const qp = event.queryStringParameters ?? {};
   try {
     const page = await listProducts(g.shopId, {
-      page: qp.page, pageSize: qp.pageSize, q: qp.q, type: qp.type, category: qp.category,
+      page: qp.page, pageSize: qp.pageSize, q: qp.q, missing: qp.missing, category: qp.category,
       section: qp.section, status: qp.status, reviewState: qp.reviewState,
       priceMin: qp.priceMin, priceMax: qp.priceMax,
       sort: qp.sort, order: qp.order,

@@ -121,6 +121,7 @@ describe("the cart mirror — persistence and adoption", () => {
   })
 
   const dtoLine = (productId: string, quantity: number, over: Partial<CartDTO["lines"][number]> = {}) => ({
+    ageRestricted: false,
     id: `line-${productId}`,
     productId,
     variantId: productId,

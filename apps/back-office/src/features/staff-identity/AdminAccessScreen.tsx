@@ -4,7 +4,7 @@ import type { BackOfficeRole } from "@effy/shared-types"
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
 
 import { PageHeader, Panel } from "@effy/web-kit/patterns"
-import { canManageCatalog } from "@/features/catalog-schema/access"
+import { canManageTaxonomy } from "@/features/taxonomy/access"
 import { canDebitPoints, canEditPointsSettings } from "@/features/customers/access"
 import { canRepairDelivery } from "@/features/deliverability/access"
 import { canManageDelivery } from "@/features/delivery/access"
@@ -35,7 +35,7 @@ const PERMISSIONS: readonly { what: string; rule: Rule }[] = [
   { what: "Manage vehicles", rule: canManageVehicles },
   { what: "Manage shops and their operators", rule: canManageShops },
   { what: "Approve products and set margins", rule: canDecideReview },
-  { what: "Edit the catalogue schema", rule: canManageCatalog },
+  { what: "Edit categories and attributes", rule: canManageTaxonomy },
   { what: "Manage promotion codes and order rules", rule: canManagePromotions },
   { what: "Change delivery settings", rule: canManageDelivery },
   { what: "Re-enable email to an address", rule: canRepairDelivery },

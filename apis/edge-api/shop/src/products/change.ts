@@ -5,29 +5,25 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
-import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
+import type { DetailInput, GstStatus, OptionInputDTO, Storage, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
-import type {
-  AttributeValueInput,
-  ProductAttributeValue,
-  ProductChangeProposal,
-  ProductDetail,
-  ProductMedia,
-} from "./types";
+import type { ProductChangeProposal, ProductDetail, ProductMedia } from "./types";
 
 /** After merging this edit over what was already proposed. */
 export interface TargetValues {
   name: string;
-  productTypeId: string;
   primaryCategoryId: string;
   brand: string | null;
   shortDescription: string;
   longDescription: string | null;
-  gstStatus: GstStatus | null;
+  gstStatus: GstStatus;
+  storage: Storage;
+  ageRestricted: boolean;
   unitBasis: UnitBasis | null;
   /** The complete target sets: live, overlaid with the proposal, overlaid with this edit. */
   options: OptionInputDTO[];
   variants: VariantInputDTO[];
+  details: DetailInput[];
 }
 
 /**
@@ -37,8 +33,8 @@ export interface TargetValues {
 export function liveVariantInputs(live: ProductDetail): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
   return {
     options: live.options.map((o) => ({
-      id: o.id, position: o.position, name: o.name,
-      values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position })),
+      id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
+      values: o.values.map((v) => ({ id: v.id, allowedValueId: v.allowedValueId, position: v.position })),
     })),
     variants: live.variants
       .filter((v) => v.state !== "removed")
@@ -60,7 +56,10 @@ function canonicalSet(options: readonly OptionInputDTO[], variants: readonly Var
   return JSON.stringify({
     options: [...options]
       .sort((a, b) => a.position - b.position)
-      .map((o) => ({ id: o.id, p: o.position, n: o.name.trim(), v: [...o.values].sort((a, b) => a.position - b.position).map((v) => [v.id, v.value.trim(), v.position]) })),
+      .map((o) => ({
+        id: o.id, p: o.position, k: o.kind, a: o.attributeId ?? null,
+        v: [...o.values].sort((a, b) => a.position - b.position).map((v) => [v.id, v.allowedValueId ?? null, v.position]),
+      })),
     variants: [...variants]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((v) => [
@@ -78,41 +77,50 @@ export function sameVariantSet(
   return canonicalSet(a.options, a.variants) === canonicalSet(b.options, b.variants);
 }
 
-function sameAttribute(live: ProductAttributeValue | undefined, next: AttributeValueInput): boolean {
-  if (!live) return false;
-  const options = (v: string[] | null | undefined) => JSON.stringify([...(v ?? [])].sort());
-  return (
-    (live.valueText ?? null) === (next.valueText ?? null) &&
-    (live.valueNumber ?? null) === (next.valueNumber ?? null) &&
-    (live.valueBoolean ?? null) === (next.valueBoolean ?? null) &&
-    options(live.valueOptions) === options(next.valueOptions)
+/** Canonical details: attribute order, variant order and number spelling ("1.50" vs "1.5") do not count. */
+function canonicalDetails(details: readonly DetailInput[]): string {
+  const value = (v: DetailInput["value"]) => {
+    if (!v) return null;
+    if ("number" in v) return { number: String(Number(v.number)), unit: v.unit ?? null };
+    if ("valueIds" in v) return { valueIds: [...v.valueIds].sort() };
+    if ("text" in v) return { text: v.text.trim() };
+    return v;
+  };
+  return JSON.stringify(
+    [...details]
+      .sort((a, b) => a.attributeId.localeCompare(b.attributeId))
+      .map((d) => ({
+        a: d.attributeId,
+        v: value(d.value),
+        p: d.perVariant
+          ? [...d.perVariant].sort((x, y) => x.variantId.localeCompare(y.variantId)).map((x) => [x.variantId, value(x.value)])
+          : null,
+      })),
   );
 }
 
+export function sameDetails(a: readonly DetailInput[], b: readonly DetailInput[]): boolean {
+  return canonicalDetails(a) === canonicalDetails(b);
+}
+
 /** Only what differs from live; empty means nothing proposed (including a change undone). */
-export function diffProposal(
-  live: ProductDetail,
-  target: TargetValues,
-  attributes: readonly AttributeValueInput[],
-): ProductChangeProposal {
+export function diffProposal(live: ProductDetail, target: TargetValues): ProductChangeProposal {
   const out: ProductChangeProposal = {};
   if (target.name !== live.name) out.name = target.name;
   if (target.shortDescription !== live.shortDescription) out.shortDescription = target.shortDescription;
   if ((target.longDescription ?? null) !== (live.longDescription ?? null)) out.longDescription = target.longDescription;
   if ((target.brand ?? null) !== (live.brand ?? null)) out.brand = target.brand;
   if (target.primaryCategoryId !== live.primaryCategoryId) out.primaryCategoryId = target.primaryCategoryId;
-  if (target.productTypeId !== live.productTypeId) out.productTypeId = target.productTypeId;
-  if (target.gstStatus !== null && target.gstStatus !== live.gstStatus) out.gstStatus = target.gstStatus;
+  if (target.gstStatus !== live.gstStatus) out.gstStatus = target.gstStatus;
+  if (target.storage !== live.storage) out.storage = target.storage;
+  if (target.ageRestricted !== live.ageRestricted) out.ageRestricted = target.ageRestricted;
   if ((target.unitBasis ?? null) !== (live.unitBasis ?? null)) out.unitBasis = target.unitBasis;
-  // The option and variant sets travel whole, together, or not at all.
+  // The option and variant sets travel whole, together, or not at all; details likewise.
   if (!sameVariantSet(target, liveVariantInputs(live))) {
     out.options = target.options;
     out.variants = target.variants;
   }
-
-  const liveById = new Map(live.attributes.map((a) => [a.attributeId, a]));
-  const changed = attributes.filter((a) => !sameAttribute(liveById.get(a.attributeId), a));
-  if (changed.length > 0) out.attributes = changed;
+  if (!sameDetails(target.details, live.details)) out.details = target.details;
   return out;
 }
 
@@ -126,9 +134,11 @@ export function overlay(live: ProductDetail, proposed: ProductChangeProposal | n
     longDescription: "longDescription" in proposed ? (proposed.longDescription ?? null) : live.longDescription,
     brand: "brand" in proposed ? (proposed.brand ?? null) : live.brand,
     primaryCategoryId: proposed.primaryCategoryId ?? live.primaryCategoryId,
-    productTypeId: proposed.productTypeId ?? live.productTypeId,
     gstStatus: proposed.gstStatus ?? live.gstStatus,
+    storage: proposed.storage ?? live.storage,
+    ageRestricted: proposed.ageRestricted ?? live.ageRestricted,
     unitBasis: "unitBasis" in proposed ? (proposed.unitBasis ?? null) : live.unitBasis,
+    details: proposed.details ?? live.details,
     // Variant sets are not overlaid here (live rows carry stock and state); see `proposedVariantInputs`.
   };
 }
@@ -140,15 +150,6 @@ export function proposedVariantInputs(
 ): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
   if (proposed?.options && proposed.variants) return { options: proposed.options, variants: proposed.variants };
   return liveVariantInputs(live);
-}
-
-export function mergeAttributes(
-  earlier: readonly AttributeValueInput[] | undefined,
-  next: readonly AttributeValueInput[],
-): AttributeValueInput[] {
-  const byId = new Map((earlier ?? []).map((a) => [a.attributeId, a]));
-  for (const a of next) byId.set(a.attributeId, a);
-  return [...byId.values()];
 }
 
 export interface ChangeRow {

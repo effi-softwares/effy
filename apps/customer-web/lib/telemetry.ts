@@ -175,6 +175,8 @@ export type StorefrontEvent =
   | { name: "product_added_to_cart"; props: { productId: string; quantity: number; variantId?: string } }
   /** A size chosen on the product page (ids only). */
   | { name: "variant_selected"; props: { productId: string; variantId: string } }
+  // A listing filter applied (101): which facet, and whether it was a choice or a number range. No values.
+  | { name: "filter_applied"; props: { facet: string; kind: "choice" | "range" } }
   | { name: "cart_viewed"; props?: Record<string, never> }
   | { name: "checkout_started"; props?: Record<string, never> }
   | { name: "order_placed"; props: { orderId: string } }

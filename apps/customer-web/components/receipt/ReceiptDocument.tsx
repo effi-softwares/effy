@@ -3,6 +3,7 @@ import { Package } from "lucide-react"
 import { sellerIdentity } from "@effy/legal-content"
 import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO } from "@effy/shared-types"
 
+import { AgeBadge } from "@/components/storefront/AgeBadge"
 import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { BuyLineAgain, PrintReceipt } from "@/components/receipt/ReceiptActions"
 import { Badge } from "@/components/ui/badge"
@@ -138,6 +139,7 @@ function LineItem({
               {item.productName}
               {/* The size as it was sold. */}
               {item.variantLabel ? <span className="font-normal text-muted-foreground"> · {item.variantLabel}</span> : null}
+              {item.ageRestricted ? <AgeBadge className="ml-2 align-middle" /> : null}
             </div>
             {/* The unit price beside the line total: what makes a line checkable, not merely stated. */}
             <div className="text-xs text-muted-foreground">

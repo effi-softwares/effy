@@ -1,8 +1,11 @@
-// The customer projection never says which shop fulfils a product.
+// The customer projection never says which shop fulfils a product, nor any internal-only detail.
 import { imageWidthsField } from "@effy/edge-shared";
 import { productOffer } from "@effy/edge-shared/promotions";
 import {
+  formatAttributeValue,
+  PACK_SIZE_OPTION_NAME,
   unitPrice,
+  type DetailValue,
   type MediaDTO,
   type OptionDTO,
   type ProductAttributeGroupDTO,
@@ -14,35 +17,45 @@ import {
 
 import { imageUrl, type ImageAddress } from "../lib/cards";
 import { isUuid } from "../lib/request";
-import type { AttrRow, CatalogRepository } from "./repository";
+import type { CatalogRepository, DetailValueRow } from "./repository";
 
-const joinNonEmpty = (vals: readonly string[] | null): string => (vals ?? []).filter((v) => v !== "").join(", ");
-
-/** Empty means show nothing. */
-export function formatAttrValue(row: AttrRow): string {
-  switch (row.data_type) {
-    case "boolean":
-      return row.value_boolean === null ? "" : row.value_boolean ? "Yes" : "No";
-    case "number":
-      if (row.value_number === null) return "";
-      return row.unit ? `${row.value_number} ${row.unit}` : row.value_number;
-    case "multi_select":
-      return joinNonEmpty(row.value_options);
-    default:
-      return row.value_text ?? joinNonEmpty(row.value_options);
-  }
+function valueOf(row: DetailValueRow): DetailValue | null {
+  if (row.value_text !== null) return { text: row.value_text };
+  if (row.value_number !== null) return { number: row.value_number, unit: row.value_unit };
+  if (row.value_boolean !== null) return { boolean: row.value_boolean };
+  if (row.values !== null) return { valueIds: row.values.map((v) => String(v.id)) };
+  if (row.value_date !== null) return { date: row.value_date };
+  if (row.value_time !== null) return { time: row.value_time };
+  return null;
 }
 
-export function groupAttributes(rows: readonly AttrRow[]): ProductAttributeGroupDTO[] {
-  const groups: ProductAttributeGroupDTO[] = [];
-  for (const row of rows) {
-    const value = formatAttrValue(row);
-    if (value === "") continue;
-    const last = groups[groups.length - 1];
-    if (last && last.groupLabel === row.group_label) last.items.push({ label: row.label, value });
-    else groups.push({ groupLabel: row.group_label, items: [{ label: row.label, value }] });
+/**
+ * One variant's details: the product's values with this variant's own in their place, grouped by section in
+ * form order (a section comes where its first row comes). Empty values are left out.
+ */
+export function variantDetails(rows: readonly DetailValueRow[], variantId: string): ProductAttributeGroupDTO[] {
+  const chosen = new Map<string, DetailValueRow>();
+  for (const r of rows) {
+    if (r.variant_id === null && !chosen.has(r.attribute_id)) chosen.set(r.attribute_id, r);
+    if (r.variant_id !== null && String(r.variant_id) === variantId) chosen.set(r.attribute_id, r);
   }
-  return groups;
+  const sections = new Map<string, { first: number; items: { position: number; name: string; label: string; value: string }[] }>();
+  for (const r of chosen.values()) {
+    const value = valueOf(r);
+    if (!value) continue;
+    const text = formatAttributeValue({ inputType: r.input_type, values: (r.values ?? []).map((v) => ({ id: String(v.id), label: v.label })) }, value);
+    if (text === "") continue;
+    const section = sections.get(r.section) ?? { first: Number(r.position), items: [] };
+    section.first = Math.min(section.first, Number(r.position));
+    section.items.push({ position: Number(r.position), name: r.name, label: r.name, value: text });
+    sections.set(r.section, section);
+  }
+  return [...sections.entries()]
+    .sort(([ta, a], [tb, b]) => a.first - b.first || ta.localeCompare(tb))
+    .map(([groupLabel, sec]) => ({
+      groupLabel,
+      items: sec.items.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)).map(({ label, value }) => ({ label, value })),
+    }));
 }
 
 export function createCatalogService(repo: CatalogRepository, imageAddress: ImageAddress = imageUrl) {
@@ -53,8 +66,11 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
           key: c.key,
           name: c.name,
           parentKey: c.parent_key,
+          depth: Number(c.depth),
+          isLeaf: c.is_leaf,
+          icon: c.icon,
           productCount: c.product_count,
-          // Null when no product has media; the client renders a brand tile.
+          // The category's own picture, else a product's; null renders a brand tile.
           imageUrl: await imageAddress(c.image_key),
           ...imageWidthsField(c.image_widths),
         })),
@@ -66,7 +82,7 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
       if (!isUuid(id)) return null;
       const row = await repo.productPage(id);
       if (!row) return null;
-      const { media: mediaRows, attributes: attrRows, category_path: categoryPath } = row;
+      const { media: mediaRows, details, category_path: categoryPath } = row;
 
       const gallery: MediaDTO[] = (
         await Promise.all(
@@ -85,14 +101,20 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
           available: v.available,
           imageUrl: await imageAddress(v.storage_key),
           ...imageWidthsField(v.image_widths),
+          details: variantDetails(details, String(v.id)),
         })),
       );
       const options: OptionDTO[] = row.options
         .map((o) => ({
           id: String(o.id),
           position: Number(o.position),
-          name: o.name,
-          values: o.values.map((x) => ({ id: String(x.id), value: x.value, position: Number(x.position) })),
+          kind: o.kind,
+          attributeId: o.attribute_id === null ? null : String(o.attribute_id),
+          name: o.kind === "pack_size" ? PACK_SIZE_OPTION_NAME : (o.name ?? "Option"),
+          values: o.values.map((x) => ({
+            id: String(x.id), value: x.value, position: Number(x.position),
+            allowedValueId: x.allowed_value_id === null ? null : String(x.allowed_value_id),
+          })),
         }))
         .filter((o) => o.values.length > 0);
       // Opens on the first buyable variant; a link naming a variant is honoured by the client, so this stays cacheable.
@@ -117,10 +139,10 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
         badges,
         // Computed: the page renders for an out-of-stock product and says so.
         available: row.available,
+        ageRestricted: row.age_restricted,
         longDescription: row.long_description ? row.long_description : row.short_description,
         gallery,
-        attributes: groupAttributes(attrRows),
-        categoryPath,
+        categoryPath: categoryPath ?? [],
         categoryKey: row.primary_category_key,
         priceVaries: new Set(variants.map((v) => Number(v.priceAmount))).size > 1,
         variantId: defaultVariant.id,

@@ -4,6 +4,7 @@ import { toCards, type ImageAddress } from "../lib/cards";
 import { isUuid } from "../lib/request";
 import { decodeCursor, encodeCursor, SORT_NEWEST, type Cursor } from "./cursor";
 import type { SearchParams } from "./filters";
+import { toBaseRanges, type RawRange } from "./ranges";
 import type { SearchRepository, SearchRow } from "./repository";
 
 export const SEARCH_LIMIT = 24;
@@ -25,6 +26,8 @@ export interface SearchQuery {
   saleOnly: boolean;
   brands: readonly string[];
   attributes: Readonly<Record<string, readonly string[]>>;
+  /** `range.<key>` bounds as sent, in the facet's unit. */
+  ranges: Readonly<Record<string, RawRange>>;
   sort: ProductSort;
   /** Empty for the first page. */
   cursor: string;
@@ -62,7 +65,8 @@ export function createSearchService(repo: SearchRepository, imageAddress?: Image
 
       const params: SearchParams = {
         q: q.q, categoryKey: q.categoryKey, minPrice: q.minPrice, maxPrice: q.maxPrice,
-        saleOnly: q.saleOnly, brands: q.brands, attributes: q.attributes, sort, cursor,
+        saleOnly: q.saleOnly, brands: q.brands, attributes: q.attributes,
+        ranges: await toBaseRanges(q.ranges, (keys) => repo.rangeUnits(keys)), sort, cursor,
         limit: limit + 1,
       };
 

@@ -1,7 +1,16 @@
-import type { AttributeValueInputDTO } from "@effy/shared-types"
+import {
+  formRows,
+  missingDetails,
+  validateDetails,
+  type CategoryFormDTO,
+  type DetailError,
+  type DetailInput,
+  type DetailVariant,
+  type ProductFacts,
+} from "@effy/shared-types"
 
-import type { ProductType, ProductTypeAttribute } from "./model"
-import type { AttributeDraftValue, ProductDraft } from "./draft"
+import type { ProductDraft } from "./draft"
+import { variantLabels } from "./variants"
 
 export function isValidPrice(raw: string): boolean {
   const s = raw.trim()
@@ -9,110 +18,52 @@ export function isValidPrice(raw: string): boolean {
   return Number(s) > 0
 }
 
-export function attributeError(attr: ProductTypeAttribute, value: AttributeDraftValue | undefined): string | null {
-  const v = value ?? {}
-  const req = attr.isMandatory
-
-  switch (attr.dataType) {
-    case "short_text":
-    case "long_text": {
-      const text = (v.text ?? "").trim()
-      if (!text) return req ? "Required" : null
-      const max = attr.validation?.maxLength
-      if (max != null && text.length > max) return `Must be ${max} characters or fewer`
-      return null
-    }
-    case "number": {
-      const raw = (v.number ?? "").trim()
-      if (!raw) return req ? "Required" : null
-      const n = Number(raw)
-      if (!Number.isFinite(n)) return "Must be a number"
-      if (attr.validation?.min != null && n < attr.validation.min) return `Must be at least ${attr.validation.min}`
-      if (attr.validation?.max != null && n > attr.validation.max) return `Must be at most ${attr.validation.max}`
-      return null
-    }
-    case "boolean":
-      return null
-    case "single_select": {
-      const sel = (v.text ?? "").trim()
-      if (!sel) return req ? "Required" : null
-      if (!attr.allowedValues.some((o) => o.value === sel)) return "Choose a valid option"
-      return null
-    }
-    case "multi_select": {
-      const opts = v.options ?? []
-      if (opts.length === 0) return req ? "Select at least one" : null
-      if (!opts.every((o) => attr.allowedValues.some((a) => a.value === o))) return "Contains an invalid option"
-      return null
-    }
-    default:
-      return null
-  }
-}
-
-export function attributeErrors(
-  type: ProductType,
-  values: Record<string, AttributeDraftValue>,
-): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const attr of type.attributes) {
-    const err = attributeError(attr, values[attr.attributeId])
-    if (err) out[attr.attributeId] = err
-  }
-  return out
-}
-
-export function attributesValid(type: ProductType, values: Record<string, AttributeDraftValue>): boolean {
-  return Object.keys(attributeErrors(type, values)).length === 0
-}
-
-export function toAttributeInput(
-  attr: ProductTypeAttribute,
-  value: AttributeDraftValue | undefined,
-): AttributeValueInputDTO | null {
-  const v = value ?? {}
-  switch (attr.dataType) {
-    case "short_text":
-    case "long_text":
-    case "single_select": {
-      const text = (v.text ?? "").trim()
-      return text ? { attributeId: attr.attributeId, valueText: text } : null
-    }
-    case "number": {
-      const raw = (v.number ?? "").trim()
-      if (!raw) return null
-      const n = Number(raw)
-      return Number.isFinite(n) ? { attributeId: attr.attributeId, valueNumber: n } : null
-    }
-    case "boolean":
-      return v.boolean == null ? null : { attributeId: attr.attributeId, valueBoolean: v.boolean }
-    case "multi_select": {
-      const opts = v.options ?? []
-      return opts.length ? { attributeId: attr.attributeId, valueOptions: opts } : null
-    }
-    default:
-      return null
-  }
-}
-
-export function collectAttributeInputs(
-  type: ProductType,
-  values: Record<string, AttributeDraftValue>,
-): AttributeValueInputDTO[] {
-  const out: AttributeValueInputDTO[] = []
-  for (const attr of type.attributes) {
-    const input = toAttributeInput(attr, values[attr.attributeId])
-    if (input) out.push(input)
-  }
-  return out
-}
-
+/** Name, category and a short description: the first step. */
 export function basicsComplete(draft: ProductDraft): boolean {
-  return (
-    draft.name.trim().length > 0 &&
-    !!draft.primaryCategoryId &&
-    draft.shortDescription.trim().length > 0 &&
-    // Every product is taxable or GST-free from the moment it exists.
-    (draft.gstStatus === "taxable" || draft.gstStatus === "gst_free")
-  )
+  return draft.name.trim().length > 0 && !!draft.primaryCategoryId && draft.shortDescription.trim().length > 0
+}
+
+/** Every product has a storage, a GST status and an 18+ answer from the moment it exists. */
+export function factsComplete(facts: ProductFacts): boolean {
+  return facts.storage !== null && facts.gstStatus !== null && facts.ageRestricted !== null
+}
+
+/** The draft's variants as the details rules see them (labelled through the leaf's form). */
+export function draftVariants(draft: ProductDraft, form: Pick<CategoryFormDTO, "sections">): DetailVariant[] {
+  return variantLabels(draft.variantSet, formRows(form))
+}
+
+/** Attributes that are this draft's variant options: their values come from the options, never the form. */
+export function optionAttributeIds(draft: ProductDraft): string[] {
+  return draft.variantSet.options.flatMap((o) => (o.kind === "attribute" && o.attributeId ? [o.attributeId] : []))
+}
+
+/** Problems with what was entered, keyed `details.<key>` (and `details.<key>[<variantId>]`). */
+export function detailErrors(form: Pick<CategoryFormDTO, "sections">, draft: ProductDraft): Record<string, string> {
+  const errors: DetailError[] = validateDetails(formRows(form), draft.details, draftVariants(draft, form), {
+    optionAttributeIds: optionAttributeIds(draft),
+  })
+  return Object.fromEntries(errors.map((e) => [e.field, e.message]))
+}
+
+/** Required details still empty ("Allergens", "Allergens (Mango)"). */
+export function draftMissing(form: Pick<CategoryFormDTO, "sections">, draft: ProductDraft): string[] {
+  return missingDetails(formRows(form), draft.details, draftVariants(draft, form), {
+    optionAttributeIds: optionAttributeIds(draft),
+  })
+}
+
+/** Replace one attribute's entry: `null` removes it (an emptied field is simply left out). */
+export function setDetail(
+  details: readonly DetailInput[],
+  next: DetailInput | null,
+  attributeId: string,
+): DetailInput[] {
+  const rest = details.filter((d) => d.attributeId !== attributeId)
+  return next ? [...rest, next] : rest
+}
+
+/** What is sent: a "differs by size" detail with no size filled in yet is left out. */
+export function sendableDetails(details: readonly DetailInput[]): DetailInput[] {
+  return details.filter((d) => d.value !== undefined || (d.perVariant?.length ?? 0) > 0)
 }

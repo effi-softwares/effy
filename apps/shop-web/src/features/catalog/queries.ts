@@ -17,7 +17,8 @@ import {
   deleteProduct,
   deleteProductMedia,
   deleteSection,
-  getCatalogSchema,
+  getCategoryForm,
+  getShopTaxonomy,
   getProduct,
   listProducts,
   listSections,
@@ -34,11 +35,22 @@ import type { ProductListParams } from "./model"
 
 const CATALOG_ROOT = ["shop", "catalog"] as const
 
-export const catalogSchemaQuery = queryOptions({
-  queryKey: [...CATALOG_ROOT, "schema"] as const,
-  queryFn: getCatalogSchema,
-  staleTime: 5 * 60_000,
+/** The category tree for the picker: it changes rarely, and a live `taxonomy` update re-reads it (101). */
+const TAXONOMY_ROOT = ["shop", "catalog", "taxonomy"] as const
+
+export const taxonomyQuery = queryOptions({
+  queryKey: TAXONOMY_ROOT,
+  queryFn: getShopTaxonomy,
+  staleTime: 30 * 60_000,
 })
+
+/** A leaf's form; re-read when the taxonomy changes. */
+export const categoryFormQuery = (categoryId: string) =>
+  queryOptions({
+    queryKey: [...TAXONOMY_ROOT, "form", categoryId] as const,
+    queryFn: () => getCategoryForm(categoryId),
+    staleTime: 30 * 60_000,
+  })
 
 export const productListQuery = (params: ProductListParams) =>
   queryOptions({

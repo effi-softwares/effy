@@ -1,6 +1,6 @@
 // GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
-// the wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
+// The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 
 package com.effyshopping.customer.mobile.commerce.contract
 
@@ -61,10 +61,10 @@ data class AddressDTO (
 /**
  * Who delivers to this address today: decided when read, never saved with it.
  *
- * Who delivers to an address:   Effy     the postcode is on Effy's list; Effy's drivers
- * deliver   courier  not on the list, and courier delivery is offered there   none
- * neither reaches it Decided only by `public.coverage_for_postcode`, when asked, never
- * stored against an address. A customer contract carries this value and nothing about why.
+ * Who delivers to an address:  effy the postcode is on Effy's list; Effy's drivers deliver
+ * courier not on the list, and courier delivery is offered there  none neither reaches it
+ * Decided only by `public.coverage_for_postcode`, when asked, never stored against an
+ * address. A customer contract carries this value and nothing about why.
  *
  * Who delivers to this address. `none` means not serviced; `courier` only when a courier
  * order can be placed.
@@ -295,6 +295,11 @@ data class CartLimitsDTO (
  */
 @Serializable
 data class CartLineDTO (
+    /**
+     * Sold to adults only: show the 18+ label.
+     */
+    val ageRestricted: Boolean,
+
     val available: Boolean,
 
     /**
@@ -505,14 +510,25 @@ data class CartPreviewRequest (
 )
 
 /**
- * A browse category, customer projection (GET /storefront/v1/categories); unlike
- * catalog.ts's `CategoryDTO` it carries no internal id, status or order.
+ * A browse category, customer projection (GET /storefront/v1/categories): no internal id,
+ * status or order.
  */
 @Serializable
 data class StorefrontCategoryDTO (
     /**
-     * A representative image derived from a product in the category (categories store none),
-     * chosen deterministically; null renders a brand tile.
+     * 1 for a department, up to 5.
+     */
+    val depth: Long,
+
+    /**
+     * A `CATEGORY_ICONS` key (a Lucide name); null shows the fallback glyph. Unknown keys also
+     * show it.
+     */
+    val icon: String? = null,
+
+    /**
+     * The category's own picture, else one derived from a product in it, chosen
+     * deterministically; null renders a brand tile.
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,
@@ -522,6 +538,11 @@ data class StorefrontCategoryDTO (
      * `imageUrl`. Build each with `renditionUrl`.
      */
     val imageWidths: List<Double>? = null,
+
+    /**
+     * No sub-categories: its page lists products only.
+     */
+    val isLeaf: Boolean,
 
     val key: String,
     val name: String,
@@ -790,10 +811,10 @@ data class DeliveryFeeLineDTO (
 )
 
 /**
- * One line of what a customer is charged for delivery:   delivery          the fee for
- * distance and weight, before any window surcharge   window_surcharge  what the chosen
- * window adds   small_order       the extra fee under the small-order amount
- * free_delivery     the saving at the free-delivery amount (negative)
+ * One line of what a customer is charged for delivery:  delivery the fee for distance and
+ * weight, before any window surcharge  window_surcharge what the chosen window adds
+ * small_order the extra fee under the small-order amount  free_delivery the saving at the
+ * free-delivery amount (negative)
  */
 @Serializable
 enum class DeliveryFeeLineKind(val value: String) {
@@ -1134,12 +1155,24 @@ enum class DeliveryNoteLineStatus(val value: String) {
 @Serializable
 data class FacetDTO (
     /**
-     * `"category"`, `"brand"`, `"offers"`, or an attribute-definition key (e.g. `"diet"`).
+     * `"category"`, `"brand"`, `"offers"`, or an attribute key (e.g. `"allergens"`). Choice
+     * values are allowed-value ids.
      */
     val key: String,
 
     val label: String,
+
+    /**
+     * Empty for a `range` facet.
+     */
     val options: List<FacetOptionDTO>,
+
+    /**
+     * `range` facets only: the smallest and largest value in view, in `unit` (null when the
+     * attribute has none).
+     */
+    val range: Range? = null,
+
     val type: FacetType
 )
 
@@ -1159,14 +1192,27 @@ data class FacetOptionDTO (
 )
 
 /**
+ * `range` facets only: the smallest and largest value in view, in `unit` (null when the
+ * attribute has none).
+ */
+@Serializable
+data class Range (
+    val max: String,
+    val min: String,
+    val unit: String? = null
+)
+
+/**
  * The control a facet drives: `single_select` pick one (category; reuses the `categoryKey`
- * filter). `multi_select`  tick many, OR within (brand, select and boolean attributes).
- * `toggle`        on/off (offers). A client meeting an unknown value renders nothing for
- * that facet.
+ * filter). `multi_select` tick many, OR within one facet, AND across facets (brand, choice
+ * and yes/no attributes). `toggle` on/off (offers). `range` a minimum and maximum (number
+ * attributes), sent as `range.<key>=<min>..<max>` in `range.unit`. A client meeting an
+ * unknown value renders nothing for that facet.
  */
 @Serializable
 enum class FacetType(val value: String) {
     @SerialName("multi_select") MultiSelect("multi_select"),
+    @SerialName("range") Range("range"),
     @SerialName("single_select") SingleSelect("single_select"),
     @SerialName("toggle") Toggle("toggle");
 }
@@ -1210,6 +1256,11 @@ data class StorefrontRailDTO (
  */
 @Serializable
 data class StorefrontProductCardDTO (
+    /**
+     * Sold to adults only: show the 18+ label.
+     */
+    val ageRestricted: Boolean,
+
     /**
      * Some variant can be bought now (the one availability rule).
      */
@@ -1381,7 +1432,18 @@ data class MergeCartRequest (
 
 @Serializable
 data class OptionDTO (
+    /**
+     * The library attribute (attribute options); null for Pack size.
+     */
+    @SerialName("attributeId")
+    val attributeID: String? = null,
+
     val id: String,
+    val kind: OptionKind,
+
+    /**
+     * The attribute's name, or "Pack size".
+     */
     val name: String,
 
     /**
@@ -1393,9 +1455,25 @@ data class OptionDTO (
 )
 
 @Serializable
+enum class OptionKind(val value: String) {
+    @SerialName("attribute") Attribute("attribute"),
+    @SerialName("pack_size") PackSize("pack_size");
+}
+
+@Serializable
 data class OptionValueDTO (
+    /**
+     * The library value it is (attribute options); null for a pack size.
+     */
+    @SerialName("allowedValueId")
+    val allowedValueID: String? = null,
+
     val id: String,
     val position: Long,
+
+    /**
+     * The label shoppers see: the attribute value's label, or a pack size ("500 g").
+     */
     val value: String
 )
 
@@ -1728,6 +1806,11 @@ data class OrderShortfallDTO (
 @Serializable
 data class OrderItemDTO (
     /**
+     * Sold to adults only (from the live catalogue): show the 18+ label.
+     */
+    val ageRestricted: Boolean,
+
+    /**
      * What promotions took off this line, as sold. Absent or "0.00" when none.
      */
     val discountAmount: String? = null,
@@ -2025,11 +2108,15 @@ data class Totals (
 )
 
 /**
- * Full product detail (gallery, description, grouped attributes, category path).
+ * Full product detail (gallery, description, category path; each variant carries its own
+ * details).
  */
 @Serializable
 data class StorefrontProductDetailDTO (
-    val attributes: List<ProductAttributeGroupDTO>,
+    /**
+     * Sold to adults only: show the 18+ label.
+     */
+    val ageRestricted: Boolean,
 
     /**
      * Some variant can be bought now (the one availability rule).
@@ -2133,6 +2220,13 @@ data class StorefrontVariantDTO (
     val available: Boolean,
 
     val compareAtAmount: String? = null,
+
+    /**
+     * Customer-visible details for this variant (the product's merged with its own), grouped by
+     * section.
+     */
+    val details: List<ProductAttributeGroupDTO>,
+
     val id: String,
 
     /**
@@ -2891,8 +2985,8 @@ data class SavedItemDTO (
 
 /**
  * Whether the shopper can buy a saved item now, each value implying a next action:
- * purchasable             → buy now   temporarily_unavailable → sold, not in stock: wait
- * no_longer_sold          → withdrawn: give up
+ * purchasable → buy now  temporarily_unavailable → sold, not in stock: wait  no_longer_sold
+ * → withdrawn: give up
  */
 @Serializable
 enum class SavedVerdict(val value: String) {

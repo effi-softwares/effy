@@ -19,6 +19,8 @@ export const LIVE_KINDS = [
   "pricing",
   // A promotion or display group changed. Back-office only: customers re-read a group whenever shown.
   "promotions",
+  // The category tree, the attribute library or an attachment changed (101). Back-office and every shop.
+  "taxonomy",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

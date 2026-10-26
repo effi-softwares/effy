@@ -6,7 +6,7 @@ import { CATEGORY_RAIL_MAX, createHomeService, RAIL_PRODUCT_LIMIT } from "./serv
 
 const card = (id: string, available = true): CardRow => ({
   id, name: id, brand: null, price_amount: "1.00", currency: "AUD", compare_at_amount: null, storage_key: null,
-  alt_text: null, image_widths: null, created_at: new Date("2020-01-01"), created_at_key: "k", available,
+  alt_text: null, image_widths: null, created_at: new Date("2020-01-01"), created_at_key: "k", available, age_restricted: false,
   price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, 
 });
 

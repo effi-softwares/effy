@@ -68,7 +68,7 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
 
   beforeEach(async () => {
     await pool.query(
-      `TRUNCATE public.customer, public.shop, public.product_type, public.category RESTART IDENTITY CASCADE`,
+      `TRUNCATE public.customer, public.shop, public.category RESTART IDENTITY CASCADE`,
     );
     await pool.query(`INSERT INTO public.customer (id, cognito_sub, email) VALUES ($1,'sub-c','a@b.c')`, [CUST]);
     await pool.query(
@@ -79,7 +79,6 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
       `INSERT INTO public.shop_staff (id, cognito_sub, name, shop_id) VALUES ($1,'sub-staff','Maya',$2)`,
       [STAFF, SHOP],
     );
-    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('grocery','Grocery')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
@@ -116,7 +115,7 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     const itemIds: string[] = [];
     for (const l of lines) {
       const p = await pool.query<{ id: string }>(
-        `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by) SELECT $1, pt.id, c.id, $2, 'x', 'seed' FROM public.product_type pt, public.category c RETURNING *),
+        `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, gst_status, age_restricted, name, short_description, created_by) SELECT $1, c.id, 'ambient', 'gst_free', false, $2, 'x', 'seed' FROM (SELECT id FROM public.category ORDER BY created_at, id LIMIT 1) c RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE($3, $3)::numeric, ($3)::numeric FROM p RETURNING id)
 SELECT id FROM p`,
         [shop, l.name, l.price],
@@ -256,7 +255,7 @@ SELECT id FROM p`,
       `SELECT product_id::text, variant_id::text FROM public.order_item WHERE id = $1`, [o.itemIds[0]],
     )).rows[0]!;
     const size = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product_option (product_id, position, name) VALUES ($1, 1, 'Size') RETURNING id`, [first.product_id],
+      `INSERT INTO public.product_option (product_id, position, kind) VALUES ($1, 1, 'pack_size') RETURNING id`, [first.product_id],
     )).rows[0]!.id;
     const [small, large] = (await pool.query<{ id: string }>(
       `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '500 g', 0), ($1, '1 kg', 1) RETURNING id`, [size],

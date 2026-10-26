@@ -8,7 +8,7 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { DeliveryChoiceError } from "./delivery-choice";
 import {
-  AddressNotFoundError, BelowMinimumError, EmptyCartError, ProductUnavailableError, NotServiceableError, OrderNotFoundError, PaymentInProgressError,
+  AddressNotFoundError, BelowMinimumError, EmptyCartError, NotServiceableError, OrderNotFoundError, PaymentInProgressError,
   PaymentMethodNotFoundError, PointsCardRemainderTooSmallError, PointsExceedTotalError,
 } from "./service";
 
@@ -64,9 +64,6 @@ export function checkoutError(scope: RequestScope, err: unknown, what: string): 
   if (err instanceof ConnectionLimitError) throw err;
 
   if (err instanceof EmptyCartError) return validationFailed(scope, "your cart has no items available to purchase");
-  if (err instanceof ProductUnavailableError) {
-    return refused(scope, 409, "product_unavailable", "something in your cart is no longer available", { code: "product_unavailable" });
-  }
   if (err instanceof AddressNotFoundError) return validationFailed(scope, "choose a valid delivery address");
   // The request is well formed, nobody delivers to the address.
   if (err instanceof NotServiceableError || err instanceof CourierNotPurchasableError) {

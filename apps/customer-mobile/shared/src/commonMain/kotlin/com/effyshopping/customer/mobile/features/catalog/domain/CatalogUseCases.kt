@@ -34,9 +34,10 @@ class SearchProducts(private val repo: CatalogRepository) {
         attributes: Map<String, List<String>> = emptyMap(),
         minPrice: String? = null,
         maxPrice: String? = null,
+        ranges: Map<String, NumberRange> = emptyMap(),
     ): ProductPage = repo.search(
         query = query, saleOnly = saleOnly, categoryKey = categoryKey, sort = sort, cursor = cursor,
-        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice,
+        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice, ranges = ranges,
     )
 }
 
@@ -50,8 +51,9 @@ class GetFacets(private val repo: CatalogRepository) {
         attributes: Map<String, List<String>> = emptyMap(),
         minPrice: String? = null,
         maxPrice: String? = null,
+        ranges: Map<String, NumberRange> = emptyMap(),
     ): FacetSet = repo.facets(
         query = query, saleOnly = saleOnly, categoryKey = categoryKey,
-        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice,
+        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice, ranges = ranges,
     )
 }

@@ -51,11 +51,13 @@ fun FilterSheet(
     onToggleBrand: (String) -> Unit,
     onToggleAttribute: (key: String, value: String) -> Unit,
     onApplyPrice: (String?, String?) -> Unit,
+    onApplyRange: (key: String, min: String, max: String) -> Unit,
     onClearAll: () -> Unit,
 ) {
     val facetSet = state.facetSet
     val category = facetSet?.facets?.firstOrNull { it.key == "category" && it.control == FacetControl.SINGLE_SELECT }
-    val multiFacets = facetSet?.facets?.filter { it.control == FacetControl.MULTI_SELECT }.orEmpty()
+    // Choice facets as ticks, number facets as from–to, in the server's order (101).
+    val facets = facetSet?.facets?.filter { it.control == FacetControl.MULTI_SELECT || (it.control == FacetControl.RANGE && it.range != null) }.orEmpty()
 
     EffySheet(
         title = "Filters",
@@ -97,7 +99,22 @@ fun FilterSheet(
         }
 
         // Brand + characteristic facets — multi-select, OR within.
-        multiFacets.forEach { facet ->
+        facets.forEach { facet ->
+            val range = facet.range
+            if (facet.control == FacetControl.RANGE && range != null) {
+                SectionTitle(facet.label)
+                val chosen = state.ranges[facet.key]
+                PriceRangeRow(
+                    min = chosen?.min.orEmpty(),
+                    max = chosen?.max.orEmpty(),
+                    hintMin = range.min,
+                    hintMax = range.max,
+                    minLabel = range.unit?.let { "From ($it)" } ?: "From",
+                    maxLabel = range.unit?.let { "To ($it)" } ?: "To",
+                    onApply = { a, b -> onApplyRange(facet.key, a.orEmpty(), b.orEmpty()) },
+                )
+                return@forEach
+            }
             val selectedValues = if (facet.key == "brand") state.brands else state.attributes[facet.key].orEmpty()
             FacetSection(
                 facet = facet,
@@ -161,6 +178,8 @@ private fun PriceRangeRow(
     max: String,
     hintMin: String?,
     hintMax: String?,
+    minLabel: String = "Min",
+    maxLabel: String = "Max",
     onApply: (String?, String?) -> Unit,
 ) {
     var lo by remember(min) { mutableStateOf(min) }
@@ -177,7 +196,7 @@ private fun PriceRangeRow(
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
         EffyField(
-            label = "Min",
+            label = minLabel,
             value = lo,
             onValueChange = { lo = it },
             placeholder = hintMin ?: "Min",
@@ -185,7 +204,7 @@ private fun PriceRangeRow(
             modifier = Modifier.weight(1f),
         )
         EffyField(
-            label = "Max",
+            label = maxLabel,
             value = hi,
             onValueChange = { hi = it },
             placeholder = hintMax ?: "Max",

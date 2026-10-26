@@ -4,6 +4,49 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**101-category-driven-catalogue — Category-Driven Catalogue.** 🔨 **BUILT 2026-10-26; NOT YET MIGRATED, DEPLOYED OR
+WALKED.** Spec, plan, tasks: [specs/101-category-driven-catalogue/](specs/101-category-driven-catalogue/tasks.md).
+A clean rebuild (no legacy support, operator's call): product types, their forms and the old schema routes are gone.
+- **One tree**: up to five levels, staff-managed (back-office › Categories & attributes: drag or "Move to…", icon from
+  `CATEGORY_ICONS`, picture, synonyms, storage/GST/18+ defaults, retire bottom-up). Every product sits in ONE home
+  leaf; staff may add up to five extra placements. Seeded: 755 categories, 583 leaves, 25 departments, 90
+  attributes, 361 attachments (`db/migrations/20261026094826_catalogue_taxonomy.sql`, generated).
+- **One definition of inheritance**: `public.rebuild_category_derived()` → `category_ancestor`, `category_resolved`,
+  `category_form` (set / tighten / hide down the tree, never loosen). ONE taxonomy writer
+  (`@effy/edge-shared/catalog` `taxonomy.ts`); audit `taxonomy.*`; live kind `taxonomy` to back-office and shops.
+- **Facts are columns**: `product.storage`, `gst_status` (NOT NULL), `age_restricted`, defaulted from the leaf. The
+  GST "missing" queue and bulk routes are gone (no product can lack one). 18+ is a label on every customer surface.
+- **Details**: typed values (`value_base` in base units), per variant where an attribute may differ by size; ONE
+  writer `writeProductDetails`; submission and approval refuse `missing_required_details`; a later requirement leaves
+  products on sale and lists them (Missing details, both consoles).
+- **Options from the library**: Pack size, or an attribute the leaf offers as a variant option; the option's values
+  are each variant's filterable detail; the label copy on `product_option_value.value` follows a rename.
+- **Shop-web**: Name & category (suggestions from the name, search, column browse, recently used) → Sizes & prices →
+  Image → Details (the leaf's form, facts "from category") → Review; moving category warns which details drop.
+- **Storefront / customer-web / app**: category facets drill down; filters only where values exist; number ranges
+  (`range.<key>=a..b`, converted to base units); details follow the selected size; a filtered tile opens on its
+  matching size; aisle pages and the app's Category browse reach all five levels.
+- **Gateways**: staff 191 → 187/300 (admin −18 schema routes, catalog +14 taxonomy +2 −2 GST), shared 164 → 165/300.
+- **Observability**: EMF `TaxonomyChanged{kind}`, `TaxonomyRebuildMs`, `ProductSubmitRefused{reason}`; alarm
+  `catalogue-submit-missing-details` (> 20 in 15 min, `infra/envs/dev/catalogue-alarms.tf`); PostHog `filter_applied`.
+- **Defects caught while building**: the taxonomy generator refused a loosening attachment (Non-Alcoholic Drinks);
+  per-variant values were cascaded away before they could be reported dropped (captured before the delete); a
+  `storefront.ts` ⇄ `variants.ts` type cycle (customer-web depcruise); `updateAttribute` judged a new shape before
+  refusing a type change on a used attribute; a key slug lost an accent (`dips-and-p-te` → `dips-and-pate`).
+- **Gates (2026-10-26)**: typecheck clean across the workspace; every package's tests pass except two that were
+  already failing on a clean tree — `shared-types/package-status.guard.test.ts` (073) — and one 097 back-office test
+  (`CoveragePanel.test.tsx`) that passes alone and failed once under the full parallel run. Container suites
+  (`CONTAINER_TESTS=1`, every edge service): all pass except one run of driver's 065 manifest test, whose
+  `body.includes("4.5")` matches a timestamp like `…:14.512Z` — it passes alone; pre-existing, not 101's. Customer app host tests and `mobile-guard` pass; `allTests` still cannot build its iOS test
+  target (comma-named tests, pre-existing). Prettier warns on three files this feature did not touch.
+- **Operator steps (in order)**: commit; `terraform apply` (dev: `categories/` media prefix, its renditions queue, the
+  new alarm); `make purge-orders ENV=dev`; `psql "$(infra/scripts/db-dsn.sh dev)" -f db/reset/101_purge_catalogue_dev.sql`;
+  `make db-up ENV=dev`; `make edge-deploy SERVICE=admin` FIRST (frees `/admin/v1/catalog/*`), then every other
+  service (`catalog`, `shop`, `storefront`, `commerce`, `fleet`, `orders`, `driver`, `notifications`,
+  `admin-promotions`, `media`, and the rest — all bundle the changed shared library); then shop-web, back-office,
+  customer-web; then the customer app build; then `db/seeds/101_catalogue_products_dev.sql` (58 products, 100
+  variants, 25 departments; needs an active shop) and walk [quickstart.md](specs/101-category-driven-catalogue/quickstart.md).
+
 **099-shop-floor-signals — Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
 2026-10-24 — SPEC SIGNED OFF BY THE OPERATOR 2026-10-24; NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".
 Spec, plan, tasks: [specs/099-shop-floor-signals/](specs/099-shop-floor-signals/tasks.md).

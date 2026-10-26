@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.produceState
 import com.effyshopping.customer.mobile.resources.lucide_coins
 import com.effyshopping.customer.mobile.resources.lucide_truck
-import com.effyshopping.customer.mobile.resources.lucide_gift
 import com.effyshopping.customer.mobile.features.checkout.presentation.orderArrivalLine
 import com.effyshopping.customer.mobile.features.checkout.presentation.orderStageWord
 import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
@@ -366,9 +365,8 @@ private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
     }
 }
 
-/** An offer's glyph: the aisle rule over its words (fruit → apple, dairy → milk), else a gift. */
-private fun bannerIcon(banner: Banner) =
-    categoryIcon("${banner.title} ${banner.subtitle.orEmpty()}").takeIf { it != CATEGORY_FALLBACK_ICON } ?: Res.drawable.lucide_gift
+/** An offer's glyph: from its words (fruit → apple, dairy → milk), else a gift. */
+private fun bannerIcon(banner: Banner) = offerIcon("${banner.title} ${banner.subtitle.orEmpty()}")
 
 /** What "Your Effy" shows: the order in progress and the points balance, either or both. */
 internal data class YourEffy(val order: OrderSummary?, val points: PointsBalance?)
@@ -437,7 +435,7 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
         items(items, key = { it.key }) { shortcut ->
             EffyCategoryShortcut(
                 label = shortcut.label,
-                icon = categoryIcon("${shortcut.key} ${shortcut.label}"),
+                icon = categoryIcon(shortcut.icon),
                 onClick = { onCategoryClick(shortcut) },
             )
         }

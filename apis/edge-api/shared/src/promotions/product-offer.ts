@@ -1,11 +1,12 @@
 import type { ProductOfferDTO } from "@effy/shared-types";
 
+import { categoryMembershipSql } from "../catalog/form";
 import { offerLabelOf } from "./terms";
 
 /**
  * The offer a product shows: the oldest active, automatic, everyone-audience item or buy-X-get-Y
- * promotion covering it (directly, by category or ancestor, or by brand). Personal and code offers are
- * left to the cart. `PRODUCT_OFFER_SQL(alias, at)` is a scalar subquery, so a listing adds one column.
+ * promotion covering it: directly, by a category it is in (home leaf, extra placement or one above them),
+ * or by brand. Personal and code offers are left to the cart. `PRODUCT_OFFER_SQL(alias, at)` is a scalar subquery, so a listing adds one column.
  */
 export const PRODUCT_OFFER_SQL = (product: string, at: string): string => `(
   SELECT json_build_object('id', po.id, 'kind', po.kind, 'valueType', po.value_type, 'percentOff', po.percent_off, 'amountOff', po.amount_off, 'buy', po.bxgy_buy_qty, 'get', po.bxgy_get_qty, 'label', po.label) FROM public.promotion po
@@ -17,12 +18,7 @@ export const PRODUCT_OFFER_SQL = (product: string, at: string): string => `(
         WHERE t.promotion_id = po.id AND (
               t.product_id = ${product}.id
            OR (t.brand IS NOT NULL AND ${product}.brand IS NOT NULL AND lower(btrim(t.brand)) = lower(btrim(${product}.brand)))
-           OR (t.category_id IS NOT NULL AND t.category_id IN (
-                 WITH RECURSIVE up AS (
-                   SELECT c.id, c.parent_id FROM public.category c WHERE c.id = ${product}.primary_category_id
-                   UNION ALL
-                   SELECT c.id, c.parent_id FROM public.category c JOIN up ON c.id = up.parent_id
-                 ) SELECT up.id FROM up))))
+           OR (t.category_id IS NOT NULL AND ${categoryMembershipSql(product, "t.category_id")})))
    ORDER BY po.created_at LIMIT 1)`;
 
 /** The row `PRODUCT_OFFER_SQL` yields. */

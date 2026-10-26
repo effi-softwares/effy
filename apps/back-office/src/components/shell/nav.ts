@@ -94,8 +94,17 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "Catalogue",
     items: [
-      { key: "review", label: "Product review", to: "/product-review", icon: ClipboardCheck, count: "review" },
-      { key: "schema", label: "Catalogue schema", to: "/catalog", icon: ListTree },
+      {
+        key: "review-group",
+        label: "Product review",
+        to: "/product-review",
+        icon: ClipboardCheck,
+        subs: [
+          { key: "review", label: "Queue", to: "/product-review", count: "review" },
+          { key: "missing-details", label: "Missing details", to: "/product-review/missing-details" },
+        ],
+      },
+      { key: "taxonomy", label: "Categories & attributes", to: "/taxonomy", icon: ListTree },
       {
         key: "promotions-group",
         label: "Promotions",

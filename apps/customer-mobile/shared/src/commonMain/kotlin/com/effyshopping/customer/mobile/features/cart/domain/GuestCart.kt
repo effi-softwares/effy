@@ -20,6 +20,8 @@ data class GuestCartLine(
     val name: String,
     /** The size's words ("1 kg"); null for a product sold one way. */
     val variantLabel: String? = null,
+    /** Sold to adults only: the line says 18+ (101). */
+    val ageRestricted: Boolean = false,
     /** The comparison price, as the platform gave it. */
     val unitPrice: UnitPrice? = null,
     val imageUrl: String?,

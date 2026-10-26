@@ -550,6 +550,10 @@
       "additionalProperties": false,
       "description": "A cart line, or a set-aside line — the same shape; re-priced against the catalog on every read.",
       "properties": {
+        "ageRestricted": {
+          "description": "Sold to adults only: show the 18+ label.",
+          "type": "boolean"
+        },
         "available": {
           "type": "boolean"
         },
@@ -628,6 +632,7 @@
         "variantId",
         "name",
         "variantLabel",
+        "ageRestricted",
         "imageUrl",
         "unitPriceAmount",
         "quantity",
@@ -894,7 +899,7 @@
       "type": "string"
     },
     "CoverageKind": {
-      "description": "Who delivers to an address:   effy     the postcode is on Effy's list; Effy's drivers deliver   courier  not on the list, and courier delivery is offered there   none     neither reaches it Decided only by `public.coverage_for_postcode`, when asked, never stored against an address. A customer contract carries this value and nothing about why.",
+      "description": "Who delivers to an address:  effy the postcode is on Effy's list; Effy's drivers deliver  courier not on the list, and courier delivery is offered there  none neither reaches it Decided only by `public.coverage_for_postcode`, when asked, never stored against an address. A customer contract carries this value and nothing about why.",
       "enum": [
         "effy",
         "courier",
@@ -1352,7 +1357,7 @@
       "type": "object"
     },
     "DeliveryFeeLineKind": {
-      "description": "One line of what a customer is charged for delivery:   delivery          the fee for distance and weight, before any window surcharge   window_surcharge  what the chosen window adds   small_order       the extra fee under the small-order amount   free_delivery     the saving at the free-delivery amount (negative)",
+      "description": "One line of what a customer is charged for delivery:  delivery the fee for distance and weight, before any window surcharge  window_surcharge what the chosen window adds  small_order the extra fee under the small-order amount  free_delivery the saving at the free-delivery amount (negative)",
       "enum": [
         "delivery",
         "window_surcharge",
@@ -1479,7 +1484,7 @@
       "properties": {
         "courier": {
           "$ref": "#/definitions/CourierQuoteDTO",
-          "description": "PRESENT EXACTLY WHEN `coverage` is `\"courier\"`: nothing to choose; show \"Courier delivery\", the estimate and the fee, and send `deliveryType: \"courier\"`. No distance, company or supplier count."
+          "description": "Present exactly when `coverage` is `\"courier\"`: nothing to choose; show \"Courier delivery\", the estimate and the fee, and send `deliveryType: \"courier\"`. No distance, company or supplier count."
         },
         "coverage": {
           "$ref": "#/definitions/CoverageKind",
@@ -1494,7 +1499,7 @@
               "type": "null"
             }
           ],
-          "description": "PRESENT EXACTLY WHEN `coverage` is `\"effy\"`: today's windows (\"Same-day delivery\") and later days' (\"Standard delivery\"). The choice goes back as `deliveryWindow`."
+          "description": "Present exactly when `coverage` is `\"effy\"`: today's windows (\"Same-day delivery\") and later days' (\"Standard delivery\"). The choice goes back as `deliveryWindow`."
         },
         "expiresAt": {
           "description": "ISO datetime with the Australia/Melbourne offset; \"\" when not serviced.",
@@ -1696,17 +1701,42 @@
       "description": "One refinable dimension: category, brand, an attribute key, or `offers`.",
       "properties": {
         "key": {
-          "description": "`\"category\"`, `\"brand\"`, `\"offers\"`, or an attribute-definition key (e.g. `\"diet\"`).",
+          "description": "`\"category\"`, `\"brand\"`, `\"offers\"`, or an attribute key (e.g. `\"allergens\"`). Choice values are allowed-value ids.",
           "type": "string"
         },
         "label": {
           "type": "string"
         },
         "options": {
+          "description": "Empty for a `range` facet.",
           "items": {
             "$ref": "#/definitions/FacetOptionDTO"
           },
           "type": "array"
+        },
+        "range": {
+          "additionalProperties": false,
+          "description": "`range` facets only: the smallest and largest value in view, in `unit` (null when the attribute has none).",
+          "properties": {
+            "max": {
+              "type": "string"
+            },
+            "min": {
+              "type": "string"
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "min",
+            "max",
+            "unit"
+          ],
+          "type": "object"
         },
         "type": {
           "$ref": "#/definitions/FacetType"
@@ -1783,11 +1813,12 @@
       "type": "object"
     },
     "FacetType": {
-      "description": "The control a facet drives: `single_select` pick one (category; reuses the `categoryKey` filter). `multi_select`  tick many, OR within (brand, select and boolean attributes). `toggle`        on/off (offers). A client meeting an unknown value renders nothing for that facet.",
+      "description": "The control a facet drives: `single_select` pick one (category; reuses the `categoryKey` filter). `multi_select` tick many, OR within one facet, AND across facets (brand, choice and yes/no attributes). `toggle` on/off (offers). `range` a minimum and maximum (number attributes), sent as `range.<key>=<min>..<max>` in `range.unit`. A client meeting an unknown value renders nothing for that facet.",
       "enum": [
         "single_select",
         "multi_select",
-        "toggle"
+        "toggle",
+        "range"
       ],
       "type": "string"
     },
@@ -1874,10 +1905,21 @@
     "OptionDTO": {
       "additionalProperties": false,
       "properties": {
+        "attributeId": {
+          "description": "The library attribute (attribute options); null for Pack size.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "type": "string"
         },
+        "kind": {
+          "$ref": "#/definitions/OptionKind"
+        },
         "name": {
+          "description": "The attribute's name, or \"Pack size\".",
           "type": "string"
         },
         "position": {
@@ -1894,14 +1936,30 @@
       "required": [
         "id",
         "position",
+        "kind",
+        "attributeId",
         "name",
         "values"
       ],
       "type": "object"
     },
+    "OptionKind": {
+      "enum": [
+        "attribute",
+        "pack_size"
+      ],
+      "type": "string"
+    },
     "OptionValueDTO": {
       "additionalProperties": false,
       "properties": {
+        "allowedValueId": {
+          "description": "The library value it is (attribute options); null for a pack size.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "type": "string"
         },
@@ -1909,13 +1967,15 @@
           "$ref": "#/definitions/WireInt"
         },
         "value": {
+          "description": "The label shoppers see: the attribute value's label, or a pack size (\"500 g\").",
           "type": "string"
         }
       },
       "required": [
         "id",
         "value",
-        "position"
+        "position",
+        "allowedValueId"
       ],
       "type": "object"
     },
@@ -2298,6 +2358,10 @@
       "additionalProperties": false,
       "description": "A line on the receipt: a product snapshot, never a shop.",
       "properties": {
+        "ageRestricted": {
+          "description": "Sold to adults only (from the live catalogue): show the 18+ label.",
+          "type": "boolean"
+        },
         "discountAmount": {
           "description": "What promotions took off this line, as sold. Absent or \"0.00\" when none.",
           "type": "string"
@@ -2353,6 +2417,7 @@
         "variantId",
         "productName",
         "variantLabel",
+        "ageRestricted",
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount"
@@ -2511,7 +2576,7 @@
         },
         "stage": {
           "$ref": "#/definitions/OrderStage",
-          "description": "The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order."
+          "description": "The one word for where a paid order is. Absent on an unpaid, failed or cancelled order."
         },
         "status": {
           "$ref": "#/definitions/OrderStatus"
@@ -2600,7 +2665,7 @@
           "type": "boolean"
         },
         "last4": {
-          "description": "The ONLY part of a card number that may leave the provider.",
+          "description": "The only part of a card number that may leave the provider.",
           "type": "string"
         },
         "unusableReason": {
@@ -2781,7 +2846,7 @@
       "description": "One promotion in full, the destination of a tap (`GET /storefront/v1/promotions/{id}`). Served through the same visibility rule as Home, so one that ended meanwhile is 404, not stale terms (hence uncached).",
       "properties": {
         "code": {
-          "description": "NON-nullable: a screen whose purpose is to hand over a code must have one.",
+          "description": "Non-nullable: a screen whose purpose is to hand over a code must have one.",
           "type": "string"
         },
         "id": {
@@ -3047,7 +3112,7 @@
       "description": "PUT /commerce/v1/saved/{productId}: save (idempotent). `variantId` remembers the selected variant; saving again updates it.",
       "properties": {
         "restoreSavedAt": {
-          "description": "Set ONLY by undo.",
+          "description": "Set only by undo.",
           "type": "string"
         },
         "variantId": {
@@ -3438,7 +3503,7 @@
       "type": "object"
     },
     "SavedVerdict": {
-      "description": "Whether the shopper can buy a saved item now, each value implying a next action:   purchasable             → buy now   temporarily_unavailable → sold, not in stock: wait   no_longer_sold          → withdrawn: give up",
+      "description": "Whether the shopper can buy a saved item now, each value implying a next action:  purchasable → buy now  temporarily_unavailable → sold, not in stock: wait  no_longer_sold → withdrawn: give up",
       "enum": [
         "purchasable",
         "temporarily_unavailable",
@@ -4056,10 +4121,21 @@
     },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
-      "description": "A browse category, customer projection (GET /storefront/v1/categories); unlike catalog.ts's `CategoryDTO` it carries no internal id, status or order.",
+      "description": "A browse category, customer projection (GET /storefront/v1/categories): no internal id, status or order.",
       "properties": {
+        "depth": {
+          "$ref": "#/definitions/WireInt",
+          "description": "1 for a department, up to 5."
+        },
+        "icon": {
+          "description": "A `CATEGORY_ICONS` key (a Lucide name); null shows the fallback glyph. Unknown keys also show it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "imageUrl": {
-          "description": "A representative image derived from a product in the category (categories store none), chosen deterministically; null renders a brand tile.",
+          "description": "The category's own picture, else one derived from a product in it, chosen deterministically; null renders a brand tile.",
           "type": [
             "string",
             "null"
@@ -4071,6 +4147,10 @@
             "type": "number"
           },
           "type": "array"
+        },
+        "isLeaf": {
+          "description": "No sub-categories: its page lists products only.",
+          "type": "boolean"
         },
         "key": {
           "type": "string"
@@ -4093,6 +4173,9 @@
         "key",
         "name",
         "parentKey",
+        "depth",
+        "isLeaf",
+        "icon",
         "productCount",
         "imageUrl"
       ],
@@ -4118,6 +4201,10 @@
       "additionalProperties": false,
       "description": "The product card used in rails, search results, saved items and recently viewed.",
       "properties": {
+        "ageRestricted": {
+          "description": "Sold to adults only: show the 18+ label.",
+          "type": "boolean"
+        },
         "available": {
           "description": "Some variant can be bought now (the one availability rule).",
           "type": "boolean"
@@ -4212,6 +4299,7 @@
         "compareAtAmount",
         "badges",
         "available",
+        "ageRestricted",
         "priceVaries",
         "variantId",
         "variantCount",
@@ -4221,13 +4309,11 @@
     },
     "StorefrontProductDetailDTO": {
       "additionalProperties": false,
-      "description": "Full product detail (gallery, description, grouped attributes, category path).",
+      "description": "Full product detail (gallery, description, category path; each variant carries its own details).",
       "properties": {
-        "attributes": {
-          "items": {
-            "$ref": "#/definitions/ProductAttributeGroupDTO"
-          },
-          "type": "array"
+        "ageRestricted": {
+          "description": "Sold to adults only: show the 18+ label.",
+          "type": "boolean"
         },
         "available": {
           "description": "Some variant can be bought now (the one availability rule).",
@@ -4364,7 +4450,7 @@
         }
       },
       "required": [
-        "attributes",
+        "ageRestricted",
         "available",
         "badges",
         "brand",
@@ -4427,6 +4513,13 @@
             "null"
           ]
         },
+        "details": {
+          "description": "Customer-visible details for this variant (the product's merged with its own), grouped by section.",
+          "items": {
+            "$ref": "#/definitions/ProductAttributeGroupDTO"
+          },
+          "type": "array"
+        },
         "id": {
           "type": "string"
         },
@@ -4476,7 +4569,8 @@
         "compareAtAmount",
         "unitPrice",
         "available",
-        "imageUrl"
+        "imageUrl",
+        "details"
       ],
       "type": "object"
     },

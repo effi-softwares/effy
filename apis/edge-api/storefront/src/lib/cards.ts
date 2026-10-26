@@ -29,6 +29,7 @@ export const CARD_COLUMNS = `p.id::text                 AS id,
        -- BELOW the row it was taken from, and every product sharing its millisecond but an earlier
        -- microsecond would be silently skipped at the page boundary.
        to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_key,
+       p.age_restricted           AS age_restricted,
        -- ⚠ availability (of any variant) is PROJECTED here, never used to filter this read.
        (${productAvailableSql("p")}) AS available,
        -- An item or buy-X-get-Y offer open to everyone that covers this product.
@@ -74,6 +75,7 @@ export interface CardRow {
   created_at: Date;
   created_at_key: string;
   available: boolean;
+  age_restricted: boolean;
   /** The offer covering it, or null. */
   offer?: ProductOfferRow | null;
   price_varies: boolean;
@@ -117,6 +119,7 @@ export async function toCards(rows: readonly CardRow[], imageAddress: ImageAddre
       compareAtAmount: row.compare_at_amount,
       badges: deriveBadges(row),
       available: row.available,
+      ageRestricted: row.age_restricted,
       ...(row.offer ? { offer: productOffer(row.offer) } : {}),
       priceVaries: row.price_varies,
       variantId: row.matched_variant_id ?? row.variant_id ?? "",

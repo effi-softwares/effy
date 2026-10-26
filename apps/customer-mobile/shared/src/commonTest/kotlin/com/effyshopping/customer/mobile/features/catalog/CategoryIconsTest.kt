@@ -1,39 +1,32 @@
 package com.effyshopping.customer.mobile.features.catalog
 
 import com.effyshopping.customer.mobile.features.catalog.presentation.CATEGORY_FALLBACK_ICON
+import com.effyshopping.customer.mobile.features.catalog.presentation.CATEGORY_ICONS
 import com.effyshopping.customer.mobile.features.catalog.presentation.categoryIcon
 import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.lucide_apple
 import com.effyshopping.customer.mobile.resources.lucide_milk
-import com.effyshopping.customer.mobile.resources.lucide_spray_can
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 
-/** Aisle glyphs follow the website's word rules; pinned against the seed's top-level aisles (`db/seeds/084_storefront_catalogue_dev.sql`). */
+/** 101 — a category's glyph is the key staff chose, the same set the website and the database know. */
 class CategoryIconsTest {
+    private val fixture = Json.parseToJsonElement(CATEGORY_ICONS_FIXTURE).jsonObject
+    private val keys = fixture.getValue("icons").jsonArray.map { it.jsonPrimitive.content }
 
     @Test
-    fun `every 084 top-level aisle gets real artwork`() {
-        val seeded = listOf(
-            "fruit_veg", "dairy_eggs", "milk", "cheese", "plant_milk", "fruit", "vegetables",
-            "organic_produce", "pasta_rice_pasta", "cleaning_laundry", "paper_goods_toilet_paper",
-            "coffee_tea_cold_coffee", "biscuits_sweet_biscuits", "juice_fruit_juice",
-        )
-        seeded.forEach { key ->
-            assertNotEquals(CATEGORY_FALLBACK_ICON, categoryIcon(key), "$key exists in the catalogue but has no icon")
-        }
+    fun `the map is exactly the shared icon keys`() {
+        assertEquals(keys, CATEGORY_ICONS.keys.toList())
     }
 
     @Test
-    fun `the rules match the website's order`() {
-        assertEquals(Res.drawable.lucide_apple, categoryIcon("fruit_veg"))
-        assertEquals(Res.drawable.lucide_milk, categoryIcon("dairy_eggs"))
-        assertEquals(Res.drawable.lucide_spray_can, categoryIcon("cleaning_dishwashing"))
-    }
-
-    @Test
-    fun `an unknown aisle gets the neutral glyph rather than nothing`() {
-        assertEquals(CATEGORY_FALLBACK_ICON, categoryIcon("garden_tools"))
+    fun `a key is its own glyph, and none or an unknown one is the neutral box`() {
+        assertEquals(Res.drawable.lucide_milk, categoryIcon("milk"))
+        assertEquals(CATEGORY_FALLBACK_ICON, categoryIcon(null))
+        assertEquals(CATEGORY_FALLBACK_ICON, categoryIcon("rocket"))
+        assertEquals(CATEGORY_ICONS.getValue(fixture.getValue("fallback").jsonPrimitive.content), CATEGORY_FALLBACK_ICON)
     }
 }

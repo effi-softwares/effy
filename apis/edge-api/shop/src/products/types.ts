@@ -1,68 +1,8 @@
 import type { OptionRow, VariantRow } from "@effy/edge-shared/catalog";
-import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
+import type { DetailInput, FactDefaults, GstStatus, OptionInputDTO, Storage, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
 export type ProductStatus = "draft" | "active" | "unavailable" | "archived";
 export const PRODUCT_STATUSES: readonly ProductStatus[] = ["draft", "active", "unavailable", "archived"];
-
-export type AttributeDataType =
-  | "short_text"
-  | "long_text"
-  | "number"
-  | "boolean"
-  | "single_select"
-  | "multi_select";
-
-export interface AttributeValidation {
-  min?: number | null;
-  max?: number | null;
-  maxLength?: number | null;
-}
-
-export interface AllowedValue {
-  id: string;
-  value: string;
-  label: string;
-  displayOrder: number;
-}
-
-export interface SchemaAttribute {
-  attributeId: string;
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit: string | null;
-  helpText: string | null;
-  validation: AttributeValidation | null;
-  allowedValues: AllowedValue[];
-  isMandatory: boolean;
-  displayOrder: number;
-  groupLabel: string | null;
-}
-
-export interface SchemaProductType {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  status: "active" | "retired";
-  attributes: SchemaAttribute[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface SchemaCategory {
-  id: string;
-  parentId: string | null;
-  key: string;
-  name: string;
-  displayOrder: number;
-  status: "active" | "retired";
-}
-
-export interface CatalogSchema {
-  productTypes: SchemaProductType[];
-  categories: SchemaCategory[];
-}
 
 export interface Paged<T> {
   items: T[];
@@ -76,7 +16,7 @@ export interface ProductListItem {
   name: string;
   brand: string | null;
   primaryImageUrl: string | null;
-  typeName: string;
+  /** The home leaf's name. */
   categoryName: string;
   /** The lowest shop price among active variants. */
   priceAmount: string;
@@ -91,6 +31,8 @@ export interface ProductListItem {
   priceVaries: boolean;
   /** Variants that are not removed. */
   variantCount: number;
+  /** Required details still empty. */
+  missingRequired: number;
 }
 
 /** See `REVIEW_STATE_SQL` in repository.ts. */
@@ -109,9 +51,11 @@ export interface ProductChangeProposal {
   longDescription?: string | null;
   brand?: string | null;
   primaryCategoryId?: string;
-  productTypeId?: string;
   gstStatus?: GstStatus;
-  attributes?: AttributeValueInput[];
+  storage?: Storage;
+  ageRestricted?: boolean;
+  /** The complete proposed details, only when they differ from live. */
+  details?: DetailInput[];
   unitBasis?: UnitBasis | null;
   /** The complete proposed option set, only when it differs from live. */
   options?: OptionInputDTO[];
@@ -128,18 +72,6 @@ export interface ProductPendingChange {
   media: ProductMedia[] | null;
 }
 
-export interface ProductAttributeValue {
-  attributeId: string;
-  key: string;
-  name: string;
-  dataType: AttributeDataType;
-  unit: string | null;
-  valueText: string | null;
-  valueNumber: number | null;
-  valueBoolean: boolean | null;
-  valueOptions: string[] | null;
-}
-
 export interface ProductMedia {
   id: string;
   url: string;
@@ -152,17 +84,20 @@ export interface ProductMedia {
 export interface ProductDetail {
   id: string;
   shopId: string;
-  productTypeId: string;
-  typeName: string;
+  /** The home leaf. */
   primaryCategoryId: string;
   categoryName: string;
+  categoryPath: string[];
   name: string;
   brand: string | null;
   currency: string;
   shortDescription: string;
   longDescription: string | null;
-  /** null until classified. */
-  gstStatus: GstStatus | null;
+  gstStatus: GstStatus;
+  storage: Storage;
+  ageRestricted: boolean;
+  /** The home leaf's resolved defaults for the three facts. */
+  factDefaults: FactDefaults;
   /** How sizes are compared; null = no unit price. */
   unitBasis: UnitBasis | null;
   /** Every variant (active, inactive, removed); price, codes, weight and stock live on them. */
@@ -171,10 +106,14 @@ export interface ProductDetail {
   /** The shop's default low-stock threshold. */
   shopDefaultThreshold: number | null;
   status: ProductStatus;
-  attributes: ProductAttributeValue[];
+  /** Values for the leaf's form; the product's option attributes are set through its options, not here. */
+  details: DetailInput[];
   media: ProductMedia[];
   sections: string[];
-  missingMandatoryAttributes: string[];
+  /** Required details still empty ("Allergens (Mango)" for one variant). */
+  missingRequired: string[];
+  /** On the response to a save only: details that no longer had a place (a new category, one variant left). */
+  droppedDetails?: string[];
   createdAt: string;
   updatedAt: string;
 
@@ -185,28 +124,22 @@ export interface ProductDetail {
   pendingChange: ProductPendingChange | null;
 }
 
-/** Only the field matching the data type is meaningful. */
-export interface AttributeValueInput {
-  attributeId: string;
-  valueText?: string | null;
-  valueNumber?: number | null;
-  valueBoolean?: boolean | null;
-  valueOptions?: string[] | null;
-}
-
 export interface CreateProductInput {
-  productTypeId: string;
+  /** An active leaf. */
   primaryCategoryId: string;
   name: string;
   brand: string | null;
   shortDescription: string;
   longDescription: string | null;
+  /** Resolved: as sent, else the leaf's default. */
   gstStatus: GstStatus;
+  storage: Storage;
+  ageRestricted: boolean;
   unitBasis: UnitBasis | null;
   /** Validated by `validateVariantSet` inside `applyVariantSet`. */
   options: OptionInputDTO[];
   variants: VariantInputDTO[];
-  attributes: AttributeValueInput[];
+  details: DetailInput[];
   sectionIds: string[];
   media: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number }[];
 }
@@ -215,7 +148,6 @@ export interface ListParams {
   page: number;
   pageSize: number;
   q: string | null;
-  type: string | null;
   category: string | null;
   section: string | null;
   status: ProductStatus | null;
@@ -223,6 +155,8 @@ export interface ListParams {
   reviewState: ShopReviewState | null;
   priceMin: string | null;
   priceMax: string | null;
+  /** Only products missing a required detail. */
+  missing: boolean;
   sort: "name" | "price" | "recent";
   order: "asc" | "desc";
 }

@@ -1,16 +1,17 @@
 import { Image as ImageIcon } from "lucide-react"
 
 import type { ProductDraft } from "../draft"
-import type { ProductType } from "../model"
+import { pathText } from "../model"
 import { previewPrice } from "./steps"
 
 interface Props {
   draft: ProductDraft
-  type: ProductType | undefined
+  /** The chosen leaf's path, department first. */
+  path: string[] | null
   imageUrl: string | null
 }
 
-export function ShopperPreview({ draft, type, imageUrl }: Props) {
+export function ShopperPreview({ draft, path, imageUrl }: Props) {
   const sizes = draft.variantSet.variants.length
   return (
     <section className="ef-panel">
@@ -42,9 +43,15 @@ export function ShopperPreview({ draft, type, imageUrl }: Props) {
             <dd className="tabular-nums">{previewPrice(draft)}</dd>
           </div>
           <div className="ef-dl__row">
-            <dt>Type</dt>
-            <dd>{type?.name ?? "—"}</dd>
+            <dt>Found under</dt>
+            <dd>{path ? pathText(path) : "—"}</dd>
           </div>
+          {draft.facts.ageRestricted ? (
+            <div className="ef-dl__row">
+              <dt>Age</dt>
+              <dd>18+ only</dd>
+            </div>
+          ) : null}
         </dl>
         <p className="text-sm text-muted-foreground">Customers&apos; price is set by Effy when approved.</p>
       </div>

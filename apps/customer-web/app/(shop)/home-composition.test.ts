@@ -11,6 +11,7 @@ function product(id = "p1"): StorefrontProductCardDTO {
     id,
     name: "Tomatoes",
     brand: null,
+    ageRestricted: false,
     imageUrl: null,
     priceAmount: "4.50",
     currency: "AUD",
@@ -33,7 +34,7 @@ function rail(key: string, n = 1): StorefrontRailDTO {
 }
 
 function category(key: string, productCount = 5): StorefrontCategoryDTO {
-  return { key, name: key, parentKey: null, productCount, imageUrl: null }
+  return { key, name: key, parentKey: null, depth: 1, isLeaf: false, icon: null, productCount, imageUrl: null }
 }
 
 function banner(key: string): Banner {

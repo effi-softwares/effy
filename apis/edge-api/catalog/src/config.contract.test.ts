@@ -34,9 +34,12 @@ describe("catalog deployment contract — serverless.yml declares what the servi
     }
   });
 
-  it("may read product images and nothing more", () => {
+  it("reads product images, and writes only category pictures (101)", () => {
     expect(yaml).toContain("s3:GetObject");
-    expect(yaml).not.toMatch(/s3:(PutObject|DeleteObject|\*)/);
+    expect(yaml).not.toMatch(/s3:(DeleteObject|\*)/);
+    // The only write: presigned uploads under categories/.
+    const puts = [...yaml.matchAll(/Action: s3:PutObject\s*\n\s*Resource: (\S+)/g)].map((m) => m[1]);
+    expect(puts).toEqual(["arn:aws:s3:::effy-${sls:stage}-product-media/categories/*"]);
   });
 
   it("⚠ puts every HTTP route except healthz behind the BACK-OFFICE authorizer, and none behind the shop's", () => {

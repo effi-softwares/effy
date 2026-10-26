@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.app
 
+import com.effyshopping.customer.mobile.features.catalog.presentation.CategoryBrowseScreen
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.LocalEffySharedTransition
 import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
@@ -297,16 +298,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                                 ),
                             )
                         },
-                        // A category shortcut opens that category's products, and the
-                        // destination states the scope — a filtered list that does not say what it
-                        // is filtered to looks like a broken search.
+                        // A department shortcut opens its aisles (101): the tree is browsed level by level,
+                        // and a leaf or "All in …" opens the products, the destination stating the scope.
                         onCategoryClick = { shortcut ->
-                            navState.push(
-                                CustomerNavKey.Results(
-                                    title = shortcut.label,
-                                    categoryKey = shortcut.key,
-                                ),
-                            )
+                            navState.push(CustomerNavKey.CategoryBrowse(parentKey = shortcut.key, title = shortcut.label))
                         },
                         // Where a banner leads: a promotion leads to itself ([CustomerNavKey.Promotion]). The other branches are
                         // the vocabulary for product-scoped promotions. Exhaustive over a sealed interface; a target the app does
@@ -338,11 +333,20 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
                 // A scoped result set — the ordinary Search screen with an entry refinement. One
                 // results implementation in the app, not two.
+                entry<CustomerNavKey.CategoryBrowse> { key ->
+                    CategoryBrowseScreen(
+                        container = container,
+                        parentKey = key.parentKey,
+                        title = key.title,
+                        onLevel = { navState.push(CustomerNavKey.CategoryBrowse(parentKey = it.key, title = it.name)) },
+                        onProducts = { navState.push(CustomerNavKey.Results(title = it.name, categoryKey = it.key)) },
+                    )
+                }
                 entry<CustomerNavKey.Results> { key ->
                     SearchScreen(
                         container,
                         onRequireSignIn = { requireSignIn() },
-                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onProductClick = { id, variantId -> navState.push(CustomerNavKey.Product(id, variantId)) },
                         onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         entryCategoryKey = key.categoryKey,
                         entrySaleOnly = key.saleOnly,
@@ -371,12 +375,17 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     SearchScreen(
                         container,
                         onRequireSignIn = { requireSignIn() },
-                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onProductClick = { id, variantId -> navState.push(CustomerNavKey.Product(id, variantId)) },
                         onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         autoFocus = autoFocus,
                         // 087 (Search board): the start page's aisles, "All products" and "On sale"
                         // open Results ON the Search tab, so Back returns to the start page.
-                        onAisle = { navState.push(CustomerNavKey.Results(title = it.name, categoryKey = it.key)) },
+                        onAisle = {
+                            navState.push(
+                                if (it.isLeaf) CustomerNavKey.Results(title = it.name, categoryKey = it.key)
+                                else CustomerNavKey.CategoryBrowse(parentKey = it.key, title = it.name),
+                            )
+                        },
                         onAllProducts = { navState.push(CustomerNavKey.Results(title = "All products")) },
                         onSale = { navState.push(CustomerNavKey.Results(title = "On sale", saleOnly = true)) },
                     )
@@ -426,6 +435,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     ProductDetailScreen(
                         container = container,
                         productId = key.productId,
+                        variantId = key.variantId,
                         session = session,
                         onRequireSignIn = ::requireSignIn,
                         onBack = { navState.pop() },

@@ -17,7 +17,7 @@ const one = async <T,>(sql: string, p: unknown[] = []) => (await pool.query(sql,
 
 async function product(name: string, gst: string) {
   return (await one<{ id: string }>(
-    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now(), $3) RETURNING *),
+    `WITH p AS (INSERT INTO public.product (shop_id, primary_category_id, storage, age_restricted, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.category LIMIT 1), 'ambient', false, $2, 'A thing', 'test', 'active', now(), $3) RETURNING *),
      pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(5.50, 5.50)::numeric, (5.50)::numeric FROM p RETURNING id)
 SELECT id FROM p`, [shopId, name, gst])).id;
 }

@@ -14,6 +14,7 @@ address. The customer is associated by the auth **subject id** alone (`identifyC
 |---|---|---|
 | `storefront_viewed` | — | Home / storefront opened |
 | `search_performed` | — | A search query is run |
+| `filter_applied` | `{ facet, kind }` | A listing filter is applied (101): `kind` is `choice` or `range`; no values are sent |
 | `product_viewed` | `{ productId }` | A product detail page opens |
 | `product_added_to_cart` | `{ productId, quantity }` | Add-to-cart |
 | `cart_viewed` | — | Cart opened |

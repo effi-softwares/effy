@@ -13,12 +13,17 @@ import {
   SelectValue,
 } from "@effy/design-system/ui"
 import {
+  PACK_SIZE_OPTION_NAME,
   PACK_UNIT_LABELS,
+  PACK_UNITS,
   UNIT_BASES,
   UNIT_BASIS_LABELS,
   VARIANT_LIMITS,
+  packLabel,
   unitPriceText,
+  type CategoryFormRow,
   type OptionInputDTO,
+  type PackUnit,
   type UnitBasis,
 } from "@effy/shared-types"
 
@@ -27,11 +32,15 @@ import { MicroLabel, TableFrame, Td, Th } from "@/components/console/primitives"
 import {
   addMissingRows,
   applyToAll,
+  labelledOptions,
   newId,
+  optionAttributes,
+  packIndex,
   previewUnitPrice,
   rowLabel,
   syncRows,
   unitsFor,
+  type PackSizeDraft,
   type VariantRowDraft,
   type VariantSetDraft,
 } from "./variants"
@@ -39,6 +48,8 @@ import {
 interface VariantEditorProps {
   value: VariantSetDraft
   onChange: (next: VariantSetDraft) => void
+  /** The leaf's form: which attributes may be options, and their values' labels. */
+  rows: readonly CategoryFormRow[]
   errors: Record<string, string>
   showErrors: boolean
   media?: { storageKey: string; url: string; altText: string | null }[]
@@ -47,15 +58,23 @@ interface VariantEditorProps {
 
 const NONE = "__none__"
 
-export function VariantEditor({ value, onChange, errors, showErrors, media, disabled }: VariantEditorProps) {
+export function VariantEditor({ value, onChange, rows, errors, showErrors, media, disabled }: VariantEditorProps) {
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set())
   const leave = (path: string) => () => setLeft((s) => (s.has(path) ? s : new Set(s).add(path)))
   const err = (path: string) => (showErrors || left.has(path) ? errors[path] : undefined)
 
-  function setOptions(next: OptionInputDTO[]) {
+  function setOptions(next: OptionInputDTO[], packs: Record<string, PackSizeDraft> = value.packs) {
     const options = next.map((o, i) => ({ ...o, position: i + 1 }))
-    onChange({ ...value, options, variants: syncRows(value.options, options, value.variants) })
+    onChange({ ...value, options, packs, variants: syncRows(value.options, options, value.variants) })
   }
+  const label = (r: VariantRowDraft) => rowLabel(value, r, rows)
+  const packK = packIndex(value)
+  const offered = optionAttributes(rows)
+  const used = new Set(value.options.map((o) => (o.kind === "pack_size" ? "pack" : o.attributeId)))
+  const choices = [
+    ...(used.has("pack") ? [] : [{ key: "pack", label: PACK_SIZE_OPTION_NAME }]),
+    ...offered.filter((r) => !used.has(r.attributeId)).map((r) => ({ key: r.attributeId, label: r.name })),
+  ]
   function patchRow(i: number, patch: Partial<VariantRowDraft>) {
     onChange({ ...value, variants: value.variants.map((r, j) => (j === i ? { ...r, ...patch } : r)) })
   }
@@ -84,30 +103,60 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
             key={o.id}
             option={o}
             index={i}
+            row={o.attributeId ? rows.find((r) => r.attributeId === o.attributeId) : undefined}
+            packs={value.packs}
+            unitBasis={value.unitBasis}
             errors={showErrors ? errors : {}}
             disabled={disabled}
-            onChange={(next) => setOptions(value.options.map((x, j) => (j === i ? next : x)))}
+            onChange={(next, packs) =>
+              setOptions(
+                value.options.map((x, j) => (j === i ? next : x)),
+                packs,
+              )
+            }
             onRemove={() => setOptions(value.options.filter((_, j) => j !== i))}
           />
         ))}
         {err("options") ? <p className="text-sm font-medium">{err("options")}</p> : null}
 
-        {value.options.length < VARIANT_LIMITS.options ? (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
+        {value.options.length < VARIANT_LIMITS.options && choices.length > 0 ? (
+          <div className="flex max-w-90 flex-col gap-2">
+            <Label htmlFor="v-add-option">{hasOptions ? "Add a second option" : "Add an option"}</Label>
+            <Select
+              value=""
               disabled={disabled}
-              onClick={() =>
+              onValueChange={(k) =>
                 setOptions([
                   ...value.options,
-                  { id: newId(), position: value.options.length + 1, name: "", values: [] },
+                  k === "pack"
+                    ? {
+                        id: newId(),
+                        position: value.options.length + 1,
+                        kind: "pack_size",
+                        attributeId: null,
+                        values: [],
+                      }
+                    : {
+                        id: newId(),
+                        position: value.options.length + 1,
+                        kind: "attribute",
+                        attributeId: k,
+                        values: [],
+                      },
                 ])
               }
             >
-              <Plus /> {hasOptions ? "Add a second option" : "Add an option"}
-            </Button>
+              <SelectTrigger id="v-add-option">
+                <SelectValue placeholder="What do shoppers choose?" />
+              </SelectTrigger>
+              <SelectContent>
+                {choices.map((c) => (
+                  <SelectItem key={c.key} value={c.key}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ) : null}
       </div>
@@ -205,14 +254,14 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                 <tr key={r.id} className="border-border border-t align-top">
                   {hasOptions ? (
                     <Td>
-                      <span className="font-medium">{rowLabel(value, r)}</span>
+                      <span className="font-medium">{label(r)}</span>
                       <span className="text-muted-foreground block font-mono text-sm">{r.code ?? "New"}</span>
                       {cell("optionValueIds") ? <CellError text={cell("optionValueIds")!} /> : null}
                     </Td>
                   ) : null}
                   <Td>
                     <Input
-                      aria-label={`Price for ${rowLabel(value, r)}`}
+                      aria-label={`Price for ${label(r)}`}
                       inputMode="decimal"
                       placeholder="0.00"
                       value={r.shopPriceAmount}
@@ -228,7 +277,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   </Td>
                   <Td>
                     <Input
-                      aria-label={`Was-price for ${rowLabel(value, r)}`}
+                      aria-label={`Was-price for ${label(r)}`}
                       inputMode="decimal"
                       value={r.shopCompareAtAmount}
                       disabled={disabled}
@@ -240,7 +289,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   </Td>
                   <Td>
                     <Input
-                      aria-label={`Your code for ${rowLabel(value, r)}`}
+                      aria-label={`Your code for ${label(r)}`}
                       className="font-mono"
                       value={r.sku}
                       disabled={disabled}
@@ -252,7 +301,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   </Td>
                   <Td>
                     <Input
-                      aria-label={`Barcode for ${rowLabel(value, r)}`}
+                      aria-label={`Barcode for ${label(r)}`}
                       className="font-mono"
                       inputMode="numeric"
                       value={r.gtin}
@@ -265,7 +314,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   </Td>
                   <Td>
                     <Input
-                      aria-label={`Shipping weight in grams for ${rowLabel(value, r)}`}
+                      aria-label={`Shipping weight in grams for ${label(r)}`}
                       inputMode="numeric"
                       placeholder="assumed"
                       value={r.weightGrams}
@@ -277,37 +326,44 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                     {cell("weightGrams") ? <CellError text={cell("weightGrams")!} /> : null}
                   </Td>
                   <Td>
-                    <div className="flex gap-2">
-                      <Input
-                        aria-label={`Pack quantity for ${rowLabel(value, r)}`}
-                        inputMode="decimal"
-                        className="w-18"
-                        value={r.packQuantity}
-                        disabled={disabled}
-                        aria-invalid={!!cell("packQuantity")}
-                        onBlur={leave(`variants[${i}].packQuantity`)}
-                        onChange={(e) => patchRow(i, { packQuantity: e.target.value })}
-                      />
-                      <Select
-                        value={r.packUnit === "" ? NONE : r.packUnit}
-                        onValueChange={(v) =>
-                          patchRow(i, { packUnit: v === NONE ? "" : (v as VariantRowDraft["packUnit"]) })
-                        }
-                        disabled={disabled}
-                      >
-                        <SelectTrigger aria-label={`Pack unit for ${rowLabel(value, r)}`} className="w-22">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE}>—</SelectItem>
-                          {unitsFor(value.unitBasis).map((u) => (
-                            <SelectItem key={u} value={u}>
-                              {PACK_UNIT_LABELS[u]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {packK >= 0 ? (
+                      <span className="text-sm">
+                        {labelledOptions(value, rows)[packK]?.values.find((v) => v.id === r.optionValueIds[packK])
+                          ?.value ?? "—"}
+                      </span>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          aria-label={`Pack quantity for ${label(r)}`}
+                          inputMode="decimal"
+                          className="w-18"
+                          value={r.packQuantity}
+                          disabled={disabled}
+                          aria-invalid={!!cell("packQuantity")}
+                          onBlur={leave(`variants[${i}].packQuantity`)}
+                          onChange={(e) => patchRow(i, { packQuantity: e.target.value })}
+                        />
+                        <Select
+                          value={r.packUnit === "" ? NONE : r.packUnit}
+                          onValueChange={(v) =>
+                            patchRow(i, { packUnit: v === NONE ? "" : (v as VariantRowDraft["packUnit"]) })
+                          }
+                          disabled={disabled}
+                        >
+                          <SelectTrigger aria-label={`Pack unit for ${label(r)}`} className="w-22">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NONE}>—</SelectItem>
+                            {unitsFor(value.unitBasis).map((u) => (
+                              <SelectItem key={u} value={u}>
+                                {PACK_UNIT_LABELS[u]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     {cell("packQuantity") || cell("packUnit") ? (
                       <CellError text={(cell("packQuantity") ?? cell("packUnit"))!} />
                     ) : null}
@@ -319,7 +375,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                         onValueChange={(v) => patchRow(i, { mediaStorageKey: v === NONE ? null : v })}
                         disabled={disabled}
                       >
-                        <SelectTrigger aria-label={`Picture for ${rowLabel(value, r)}`}>
+                        <SelectTrigger aria-label={`Picture for ${label(r)}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -341,7 +397,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label={`Don't sell ${rowLabel(value, r)}`}
+                          aria-label={`Don't sell ${label(r)}`}
                           disabled={disabled}
                           onClick={() => removeRow(i)}
                         >
@@ -398,6 +454,9 @@ function CellError({ text }: { text: string }) {
 function OptionRow({
   option,
   index,
+  row,
+  packs,
+  unitBasis,
   errors,
   disabled,
   onChange,
@@ -405,44 +464,68 @@ function OptionRow({
 }: {
   option: OptionInputDTO
   index: number
+  /** The library attribute for an attribute option. */
+  row: CategoryFormRow | undefined
+  packs: Record<string, PackSizeDraft>
+  unitBasis: "" | UnitBasis
   errors: Record<string, string>
   disabled?: boolean
-  onChange: (next: OptionInputDTO) => void
+  onChange: (next: OptionInputDTO, packs?: Record<string, PackSizeDraft>) => void
   onRemove: () => void
 }) {
-  const [adding, setAdding] = useState("")
+  const [qty, setQty] = useState("")
+  const [unit, setUnit] = useState<"" | PackUnit>("")
   const f = `options[${index}]`
-  const addValue = () => {
-    const value = adding.trim()
-    if (!value) return
-    if (option.values.some((v) => v.value.trim().toLowerCase() === value.toLowerCase())) {
-      setAdding("")
-      return
-    }
-    onChange({ ...option, values: [...option.values, { id: newId(), value, position: option.values.length }] })
-    setAdding("")
-  }
+  const isPack = option.kind === "pack_size"
+  const name = isPack ? PACK_SIZE_OPTION_NAME : (row?.name ?? "This option is no longer offered here")
+  const full = option.values.length >= VARIANT_LIMITS.valuesPerOption
   const valueError = Object.entries(errors).find(([k]) => k.startsWith(`${f}.values`))?.[1]
+  const labelOf = (v: OptionInputDTO["values"][number]) => {
+    if (isPack) {
+      const p = packs[v.id]
+      return (p && p.unit !== "" && packLabel(p.quantity, p.unit)) || "Size not set"
+    }
+    return row?.values.find((x) => x.id === v.allowedValueId)?.label ?? "No longer offered"
+  }
+  const removeValue = (id: string) => {
+    const nextPacks = { ...packs }
+    delete nextPacks[id]
+    onChange(
+      { ...option, values: option.values.filter((x) => x.id !== id).map((x, i) => ({ ...x, position: i })) },
+      isPack ? nextPacks : undefined,
+    )
+  }
+
+  function addPack() {
+    const label = unit !== "" ? packLabel(qty.trim(), unit) : null
+    if (!label) return
+    if (option.values.some((v) => labelOf(v) === label)) return
+    const id = newId()
+    onChange(
+      { ...option, values: [...option.values, { id, allowedValueId: null, position: option.values.length }] },
+      {
+        ...packs,
+        [id]: { quantity: qty.trim(), unit },
+      },
+    )
+    setQty("")
+  }
+
+  const chosen = new Set(option.values.map((v) => v.allowedValueId))
+  const remaining = row ? row.values.filter((v) => !chosen.has(v.id)) : []
+  const packUnits = unitBasis === "" ? PACK_UNITS : unitsFor(unitBasis)
 
   return (
     <div className="border-border grid gap-3 rounded-[var(--radius)] border p-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid min-w-50 flex-1 gap-2">
-          <Label htmlFor={`opt-${option.id}`}>Option {index + 1}</Label>
-          <Input
-            id={`opt-${option.id}`}
-            placeholder={index === 0 ? "Size" : "Flavour"}
-            value={option.name}
-            disabled={disabled}
-            aria-invalid={!!errors[`${f}.name`]}
-            onChange={(e) => onChange({ ...option, name: e.target.value })}
-          />
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-medium">
+          Option {index + 1}: {name}
+        </p>
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onRemove}>
           Remove option
         </Button>
       </div>
-      {errors[`${f}.name`] ? <p className="text-sm font-medium">{errors[`${f}.name`]}</p> : null}
+      {errors[`${f}.attributeId`] ? <p className="text-sm font-medium">{errors[`${f}.attributeId`]}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
         {option.values.map((v) => (
@@ -450,53 +533,94 @@ function OptionRow({
             key={v.id}
             className="border-border bg-muted inline-flex h-9 items-center gap-1 rounded-md border py-1 pr-1 pl-3 text-sm"
           >
-            {v.value}
+            {labelOf(v)}
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="size-6"
-              aria-label={`Remove ${v.value}`}
+              aria-label={`Remove ${labelOf(v)}`}
               disabled={disabled}
-              onClick={() =>
-                onChange({
-                  ...option,
-                  values: option.values.filter((x) => x.id !== v.id).map((x, i) => ({ ...x, position: i })),
-                })
-              }
+              onClick={() => removeValue(v.id)}
             >
               <X className="size-4" />
             </Button>
           </span>
         ))}
-        {option.values.length < VARIANT_LIMITS.valuesPerOption ? (
+        {!full && isPack ? (
           <div className="flex items-center gap-2">
             <Input
-              aria-label={`Add a value to ${option.name || `option ${index + 1}`}`}
-              placeholder={index === 0 ? "500 g" : "Plain"}
-              className="w-40"
-              value={adding}
+              aria-label="Pack size quantity"
+              inputMode="decimal"
+              placeholder="500"
+              className="w-24"
+              value={qty}
               disabled={disabled}
-              onChange={(e) => setAdding(e.target.value)}
+              onChange={(e) => setQty(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  addValue()
+                  addPack()
                 }
               }}
             />
+            <Select
+              value={unit === "" ? NONE : unit}
+              onValueChange={(v) => setUnit(v === NONE ? "" : (v as PackUnit))}
+              disabled={disabled}
+            >
+              <SelectTrigger aria-label="Pack size unit" className="w-24">
+                <SelectValue placeholder="unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>unit</SelectItem>
+                {packUnits.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {PACK_UNIT_LABELS[u]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={disabled || adding.trim() === ""}
-              onClick={addValue}
+              disabled={disabled || unit === "" || !packLabel(qty.trim(), unit as PackUnit)}
+              onClick={addPack}
             >
-              Add
+              Add size
             </Button>
           </div>
         ) : null}
+        {!full && !isPack && remaining.length > 0 ? (
+          <Select
+            value=""
+            disabled={disabled}
+            onValueChange={(allowedValueId) =>
+              onChange({
+                ...option,
+                values: [...option.values, { id: newId(), allowedValueId, position: option.values.length }],
+              })
+            }
+          >
+            <SelectTrigger aria-label={`Add a ${name.toLowerCase()}`} className="w-48">
+              <SelectValue placeholder={`Add a ${name.toLowerCase()}…`} />
+            </SelectTrigger>
+            <SelectContent>
+              {remaining.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
       </div>
+      {!isPack ? (
+        <p className="text-xs text-muted-foreground">
+          The list is Effy's, so every product says {name.toLowerCase()} the same way.
+        </p>
+      ) : null}
       {errors[`${f}.values`] || valueError ? (
         <p className="text-sm font-medium">{errors[`${f}.values`] ?? valueError}</p>
       ) : null}

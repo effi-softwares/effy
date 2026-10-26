@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { binder, cursorPredicate, filters, orderClause, TRIGRAM_EXPR, type SearchParams } from "./filters";
 
 const base: SearchParams = {
-  q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {},
+  q: "", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, ranges: {},
   sort: "newest", cursor: null, limit: 25,
 };
 
@@ -38,26 +38,37 @@ describe("filters", () => {
   it("numbers placeholders in order across category, price, sale and brand", () => {
     const { sql, args } = build({ categoryKey: "dairy", minPrice: "1.50", maxPrice: "9", saleOnly: true, brands: ["A", "B"] });
     expect(args).toEqual(["dairy", "1.50", "9", ["A", "B"]]);
-    expect(sql).toContain("WHERE key = $1 ");
+    expect(sql).toContain("mc.key = $1 ");
     expect(sql).toContain("p.list_price_amount >= $2::numeric");
     expect(sql).toContain("p.list_price_amount <= $3::numeric");
     expect(sql).toContain("p.list_compare_at_amount > p.list_price_amount");
     expect(sql).toContain("p.brand = ANY($4::text[])");
   });
 
-  it("⚠ a category means the category AND everything filed under it", () => {
-    // An aisle's products are filed in its leaves.
-    const { sql } = build({ categoryKey: "dairy_eggs" });
-    expect(sql).toContain("p.primary_category_id IN (WITH RECURSIVE sub AS (");
-    expect(sql).toContain("JOIN sub ON child.parent_id = sub.id");
+  it("⚠ a category means the category AND everything beneath it, home leaf or extra placement (101)", () => {
+    const { sql } = build({ categoryKey: "dairy-eggs-and-fridge" });
+    expect(sql).toContain("public.category_ancestor cma");
+    expect(sql).toContain("cma.category_id = p.primary_category_id");
+    expect(sql).toContain("public.product_placement cmp");
     expect(sql).not.toContain("p.primary_category_id = (");
   });
 
-  it("an attribute facet is one EXISTS covering text, multi-select and boolean values", () => {
-    const { sql, args } = build({ attributes: { dietary: ["vegan", "halal"], organic: ["true"] } });
-    expect(args).toEqual(["dietary", ["vegan", "halal"], "organic", ["true"]]);
-    expect(sql.match(/AND EXISTS/g)).toHaveLength(2); // And across keys
-    expect(sql).toContain("pav.value_text = ANY($2::text[]) OR pav.value_options && $2::text[] OR pav.value_boolean::text = ANY($2::text[])");
+  it("an attribute filter is one EXISTS per key — AND across keys, OR within — over active variants and the leaf's form", () => {
+    const VEGAN = "00000000-0000-4000-8000-000000000001";
+    const { sql, args } = build({ attributes: { dietary: [VEGAN, "not-a-uuid"], organic: ["true"] } });
+    expect(args).toEqual(["dietary", [VEGAN], [], "organic", [], ["true"]]);
+    expect(sql.match(/AND EXISTS/g)).toHaveLength(2);
+    expect(sql).toContain("fpav.allowed_value_ids && $2::uuid[] OR fpav.value_boolean::text = ANY($3::text[])");
+    expect(sql).toContain("fcf.category_id = p.primary_category_id");
+    expect(sql).toContain("fpv.state = 'active'");
+    expect(sql).toContain("fad.customer_visible");
+  });
+
+  it("a range filter compares base-unit values", () => {
+    const { sql, args } = build({ ranges: { weight: { min: 500, max: null } } });
+    expect(args).toEqual(["weight", 500]);
+    expect(sql).toContain("fpav.value_base >= $2::numeric");
+    expect(sql).not.toContain("value_base <=");
   });
 
   it("skips an attribute with no values rather than matching nothing", () => {

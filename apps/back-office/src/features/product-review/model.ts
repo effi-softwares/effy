@@ -1,4 +1,11 @@
-import type { MarginDTO, ReviewKind } from "@effy/shared-types"
+import {
+  GST_STATUS_WORDS,
+  STORAGE_WORDS,
+  type FactKey,
+  type MarginDTO,
+  type ReviewItemDetailDTO,
+  type ReviewKind,
+} from "@effy/shared-types"
 
 export const KIND_LABEL: Record<ReviewKind, string> = {
   new_product: "New product",
@@ -42,4 +49,33 @@ export type MarginEntry = { kind: "percent" | "amount"; value: string }
 export function toMargin(entry: MarginEntry): MarginDTO | null {
   const v = entry.value.trim()
   return /^\d+(\.\d+)?$/.test(v) ? { kind: entry.kind, value: v } : null
+}
+
+/**
+ * What a reviewer should look at first (101): facts the shop changed from its category's defaults, required
+ * details still empty (approval is refused), and recommended ones left empty (never blocking).
+ */
+export function attentionLines(
+  item: Pick<ReviewItemDetailDTO, "facts" | "factOverrides" | "missingRequired" | "missingRecommended">,
+): {
+  blocking: string[]
+  notes: string[]
+} {
+  const fact: Record<FactKey, string> = {
+    storage: `Storage is ${STORAGE_WORDS[item.facts.storage].toLowerCase()}, not its category's default.`,
+    gstStatus: `GST is ${GST_STATUS_WORDS[item.facts.gstStatus]}, not its category's default.`,
+    ageRestricted: item.facts.ageRestricted
+      ? "Marked 18+, which its category is not."
+      : "Not marked 18+, though its category is.",
+  }
+  return {
+    blocking:
+      item.missingRequired.length > 0 ? [`Required details are empty: ${item.missingRequired.join(", ")}.`] : [],
+    notes: [
+      ...item.factOverrides.map((k) => fact[k]),
+      ...(item.missingRecommended.length > 0
+        ? [`Recommended details left empty: ${item.missingRecommended.join(", ")}.`]
+        : []),
+    ],
+  }
 }

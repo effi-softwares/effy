@@ -36,8 +36,6 @@ export interface CheckoutLine {
   storageClass: string;
   /** What the shop is owed per unit. */
   shopUnitCents: number;
-  /** False for a product with no GST class. */
-  gstClassified?: boolean;
 }
 
 export interface PackageDelivery {
@@ -117,10 +115,7 @@ interface LineRow {
   requested_quantity: number;
   weight_grams: number;
   storage_class: string;
-  gst_classified: boolean;
 }
-
-const storageClassOrAmbient = (c: string) => (c === "frozen" || c === "chilled" ? c : "ambient");
 
 /** `EFY-` + six characters with no look-alikes (no I, L, O, U). */
 export function generateOrderNumber(): string {
@@ -130,8 +125,6 @@ export function generateOrderNumber(): string {
 
 export interface CheckoutStore {
   cartLines(customerId: string): Promise<CheckoutLine[]>;
-  /** False while tax details are unset. */
-  invoicesEnabled(): Promise<boolean>;
   addressSnapshot(customerId: string, addressId: string): Promise<Record<string, unknown> | null>;
   paymentProfile(customerId: string): Promise<PaymentProfile>;
   setProviderCustomerId(customerId: string, providerCustomerId: string): Promise<void>;
@@ -165,11 +158,6 @@ export async function findOrderByIntent(q: Queryable, intentId: string): Promise
 export function createCheckoutStore(db: Queryable = pooled, transact: Transactor = withTransaction): CheckoutStore {
   return {
     /** Payable lines, already capped at stock. */
-    async invoicesEnabled() {
-      const r = await db.query<{ on: boolean }>(`SELECT invoices_enabled AS on FROM public.business_tax LIMIT 1`);
-      return r.rows[0]?.on === true;
-    },
-
     async cartLines(customerId) {
       const rows = (
         await db.query<LineRow>(
@@ -193,16 +181,7 @@ SELECT ci.product_id::text AS product_id,
              CASE WHEN v.stock_tracked THEN v.stock_on_hand ELSE ci.quantity END) AS quantity,
        ci.quantity         AS requested_quantity,
        v.weight_grams      AS weight_grams,
-       -- ⚠ storage is a product ATTRIBUTE, not a column. Anything that is not exactly frozen
-       -- or chilled is ambient, INCLUDING a value the back office adds later: the order line's
-       -- CHECK admits three values, and an unrecognised fourth must not fail a shopper's payment.
-       COALESCE((
-           SELECT CASE WHEN pav.value_text IN ('frozen', 'chilled') THEN pav.value_text END
-             FROM public.product_attribute_value pav
-             JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
-            WHERE pav.product_id = p.id AND ad.key = 'storage'
-            LIMIT 1), 'ambient') AS storage_class,
-       p.gst_status IS NOT NULL AS gst_classified
+       p.storage           AS storage_class
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -217,7 +196,7 @@ ORDER BY ci.added_at ASC`,
         shopId: r.shop_id, name: r.name,
         unitCents: parseCents(r.unit_price_amount), shopUnitCents: parseCents(r.shop_unit_price_amount),
         quantity: r.quantity, requestedQuantity: r.requested_quantity,
-        weightGrams: r.weight_grams, storageClass: r.storage_class, gstClassified: r.gst_classified,
+        weightGrams: r.weight_grams, storageClass: r.storage_class,
       }));
     },
 
@@ -346,7 +325,7 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
         (SELECT v.code FROM public.product_variant v WHERE v.id = $11))`,
             [
               orderId, l.productId, l.shopId, l.name, formatCents(l.unitCents), l.quantity, formatCents(l.unitCents * l.quantity),
-              storageClassOrAmbient(l.storageClass), formatCents(l.shopUnitCents), formatCents(l.shopUnitCents * l.quantity),
+              l.storageClass, formatCents(l.shopUnitCents), formatCents(l.shopUnitCents * l.quantity),
               l.variantId, l.variantLabel, l.sku, l.gtin,
             ],
           );

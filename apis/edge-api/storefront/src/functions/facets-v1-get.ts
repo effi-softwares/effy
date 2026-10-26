@@ -4,6 +4,7 @@ import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } fro
 import { cacheable } from "../lib/cache";
 import { attributeFacets, badRequest, nonEmptyValues, queryOf, validPrice } from "../lib/request";
 import { facetService } from "../lib/wiring";
+import { rangeParams } from "../search/ranges";
 
 export const handler = shopperHandler(async (event, context) => {
   const scope = preamble(event, context);
@@ -12,6 +13,8 @@ export const handler = shopperHandler(async (event, context) => {
   const minPrice = q.get("minPrice") ?? "";
   const maxPrice = q.get("maxPrice") ?? "";
   if (!validPrice(minPrice) || !validPrice(maxPrice)) return badRequest("invalid_price", scope.requestId);
+  const ranges = rangeParams(q);
+  if (ranges === "invalid") return badRequest("invalid_range", scope.requestId);
 
   try {
     const facets = await facetService.facets({
@@ -22,6 +25,7 @@ export const handler = shopperHandler(async (event, context) => {
       saleOnly: q.get("saleOnly") === "true",
       brands: nonEmptyValues(q.getAll("brand")) ?? [],
       attributes: attributeFacets(q) ?? {},
+      ranges: ranges ?? {},
     });
     return cacheable(json(200, facets, scope), "listing");
   } catch (err) {

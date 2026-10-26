@@ -4,6 +4,9 @@
  */
 
 import type { WireInt } from "./cart";
+import type { GstStatus } from "./documents";
+import type { FactKey } from "./product-form";
+import type { Storage } from "./taxonomy";
 
 export type ReviewKind = "new_product" | "change";
 
@@ -87,6 +90,8 @@ export interface ReviewVariantDTO {
   state: "active" | "inactive" | "removed";
   /** For a change: whether this variant is new, dropped, changed or unchanged by it. */
   change: "added" | "removed" | "changed" | "unchanged";
+  /** Details this variant holds itself (they differ by variant), as the decision would make them live. */
+  details: ReviewDetailRowDTO[];
 }
 
 export interface ReviewDetailRowDTO {
@@ -117,6 +122,18 @@ export interface ReviewItemDetailDTO {
   currentMargin: MarginDTO | null;
   /** True when approving requires a margin in the request (new product, a shop price changed, or none set). */
   marginRequired: boolean;
+  /** The home leaf, department first, as the decision would make it live (101). */
+  categoryPath: string[];
+  /** Storage, GST and 18+ as the decision would make them live. */
+  facts: { storage: Storage; gstStatus: GstStatus; ageRestricted: boolean };
+  /** Facts that differ from the leaf's defaults: shown to the reviewer first. */
+  factOverrides: FactKey[];
+  /** Required details still empty: approval is refused while any are (`missing_required_details`). */
+  missingRequired: string[];
+  /** Recommended details left empty: shown first, never blocking. */
+  missingRecommended: string[];
+  /** Staff-made extra placements (never the shop's). */
+  placements: { categoryId: string; path: string[] }[];
 }
 
 export interface ApproveReviewRequest {
