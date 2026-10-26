@@ -28,7 +28,7 @@ Two platform-wide rules were first written down here because this feature is whe
 
 ### User Story 1 - Back office defines the catalog schema (Priority: P1)
 
-A back-office administrator maintains the **shared vocabulary** that every shop's catalog is built from: the list of **product types** (e.g., *Prepared Food*, *Packaged Grocery*, *Beverage*, *Household*), the reusable **attribute definitions** (e.g., *Brand*, *Net weight*, *Allergens*, *Dietary labels*, *Spice level*, *Preparation time*, *Storage*), and the **platform category taxonomy** (food categories, grocery aisles, household). For each product type they choose which attributes apply and whether each is **mandatory or optional**. This library is the source of truth that drives what a shop is asked for when it creates a product.
+A back-office administrator maintains the **shared vocabulary** that every shop's catalog is built from: the list of **product types** (e.g., *Prepared Food*, *Packaged Grocery*, *Beverage*, *Household*), the reusable **attribute definitions** (e.g., *Brand*, *Allergens*, *Dietary labels*, *Spice level*, *Preparation time*, *Storage*), and the **platform category taxonomy** (food categories, grocery aisles, household). For each product type they choose which attributes apply and whether each is **mandatory or optional**. This library is the source of truth that drives what a shop is asked for when it creates a product.
 
 **Why this priority**: Nothing else in the feature can exist without it — the product-creation form, the table's filters, and the details page are all *generated from* this schema. It is the foundation, and it is independently demonstrable.
 
@@ -207,7 +207,7 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 ### Key Entities *(include if feature involves data)*
 
 - **Product Type**: A back-office-defined classification (e.g., *Prepared Food*, *Packaged Grocery*, *Beverage*, *Household*) that determines which attributes a product carries. Has a name, description, status, and an ordered set of attribute assignments.
-- **Attribute Definition**: A reusable, back-office-defined attribute (e.g., *Brand*, *Net weight*, *Allergens*, *Dietary labels*, *Spice level*, *Preparation time*, *Storage temperature*, *Country of origin*, *Ingredients*, *Material*, *Dimensions*). Carries a data type, optional unit, optional allowed values, optional validation, and help text. Reusable across many product types.
+- **Attribute Definition**: A reusable, back-office-defined attribute (e.g., *Brand*, *Allergens*, *Dietary labels*, *Spice level*, *Preparation time*, *Storage temperature*, *Country of origin*, *Ingredients*, *Material*, *Dimensions*). Carries a data type, optional unit, optional allowed values, optional validation, and help text. Reusable across many product types.
 - **Attribute Assignment**: The link between an Attribute Definition and a Product Type, carrying the **mandatory/optional** flag, display order, and grouping/section hint. This is what makes creation "type-driven."
 - **Product**: A **shop-owned** catalog item. Carries universal fields (name/title, owning shop, product type, primary category, price + currency, optional compare-at/sale price, short + long description, lifecycle status, optional **brand** (a first-class searchable field, not a dynamic attribute — FR-010a), GTIN/barcode, and an optional **SKU** that — when set — is **unique within the owning shop**) plus a set of attribute values keyed to its type's schema, plus media and section memberships. GTIN/barcode is captured to enable a **future** cross-shop master-catalog dedupe without committing to it now (and is not itself a uniqueness key).
 - **Product Attribute Value**: The value a specific product holds for a specific assigned attribute (the dynamic, schema-driven data).
@@ -246,7 +246,7 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 - **Currency**: A single platform currency is assumed for pricing at this stage; multi-currency is out of scope.
 - **Representative seed attributes (informative, back-office-managed, Uber Eats + eBay-informed)** — not a hardcoded schema, but the starting library the plan will seed:
   - *Food / Prepared*: dietary labels (veg/vegan/halal/etc.), allergens, spice level, portion/serving size, calories/nutrition, ingredients, preparation/lead time, served hot/cold, contains-alcohol.
-  - *Packaged grocery*: brand, GTIN/barcode, net weight/volume + unit, units per pack, storage (ambient/chilled/frozen), country of origin, nutritional info, best-before handling.
+  - *Packaged grocery*: brand, GTIN/barcode, units per pack, storage (ambient/chilled/frozen), country of origin, nutritional info, best-before handling.
   - *Household / general*: brand, material, dimensions, weight, hazardous flag.
   - *Universal*: name/title, product type, primary category, price + currency, primary image + gallery, short description, long description, status.
 

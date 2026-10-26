@@ -107,7 +107,7 @@ prompted) and see it reflected in favorites.
 
 1. **Given** a product with multiple images, **When** the shopper opens its page, **Then** they see an
    image gallery they can swipe/step through, with the primary image first.
-2. **Given** a product with attributes (e.g. allergens, dietary labels, net weight), **When** the page
+2. **Given** a product with attributes (e.g. allergens, dietary labels, storage), **When** the page
    renders, **Then** those attributes appear as grouped, labeled detail rows/sections (or tabs), not as
    card tiles or top-of-page metric cards.
 3. **Given** a shopper on a product page, **When** they choose a quantity and tap "Add to cart",

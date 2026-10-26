@@ -301,7 +301,7 @@ native PG enums, no `updated_by`, no triggers — plain `created_at`/`updated_at
 the partial-unique SKU index, the `pg_trgm` search index, and `COMMENT ON` for each table/column.
 **Seed** a minimal starter schema via `INSERT … ON CONFLICT DO NOTHING`: product types (Prepared Food,
 Packaged Grocery, Beverage, Household), a starter attribute library (dietary labels, allergens, spice
-level, prep time, brand, net weight/unit, storage, country of origin, material, dimensions), their
+level, prep time, brand, storage, country of origin, material, dimensions), their
 type assignments, and a small category taxonomy — so the feature is usable day one while remaining
 fully back-office-editable (SC-001). Add `admin.audit_log` actions
 (`product_type.*`, `attribute.*`, `category.*`) written inside each schema mutation's transaction.

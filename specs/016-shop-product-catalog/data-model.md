@@ -60,7 +60,7 @@ Legend: **PK** primary key · **FK** foreign key · `∎` platform-owned (never 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
-| `key` | `text NOT NULL UNIQUE` | slug (e.g. `net_weight`) |
+| `key` | `text NOT NULL UNIQUE` | slug (e.g. `prep_time`) |
 | `name` | `text NOT NULL` | |
 | `data_type` ∎ | `text NOT NULL CHECK (data_type IN ('short_text','long_text','number','boolean','single_select','multi_select'))` | |
 | `unit` | `text` | nullable (e.g. `g`, `ml`, `min`) |
@@ -270,9 +270,9 @@ narrowing helper (the `toShopRoles` pattern) for values authored by the back off
 Inserted `ON CONFLICT (key) DO NOTHING`: product types `prepared_food`, `packaged_grocery`,
 `beverage`, `household`; a starter attribute library (`dietary_labels` multi_select,
 `allergens` multi_select, `spice_level` single_select, `prep_time` number/min,
-`net_weight` number/g, `net_volume` number/ml, `storage` single_select, `country_of_origin` short_text,
+`storage` single_select, `country_of_origin` short_text,
 `ingredients` long_text, `material` short_text, `dimensions` short_text); their type assignments
-(food gets dietary/allergens/spice/prep; grocery gets net_weight/storage/origin; etc.); and a
+(food gets dietary/allergens/spice/prep; grocery gets storage/origin; etc.); and a
 small category tree (Food → {Meals, Bakery, …}, Grocery → {Pantry, Chilled, Frozen, …}, Household).
 
 > **Brand is deliberately NOT seeded as an attribute (F1 / FR-010a).** Brand has a **single
