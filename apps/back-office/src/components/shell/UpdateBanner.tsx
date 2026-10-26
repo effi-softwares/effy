@@ -6,7 +6,6 @@ import { Button } from "@effy/design-system/ui"
 import { applyUpdate, pwaStore } from "@/lib/pwa"
 import { track } from "@/lib/telemetry"
 
-/** "A new version is ready" — the waiting service worker takes over only when staff say so. */
 export function UpdateBanner() {
   const updateReady = useStore(pwaStore, (s) => s.updateReady)
   if (!updateReady) return null
@@ -14,20 +13,23 @@ export function UpdateBanner() {
   return (
     <div
       role="status"
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 rounded-xl border bg-popover px-4 py-3 text-sm text-popover-foreground shadow-lg"
+      className="flex min-h-12 items-center gap-3 rounded-lg bg-muted px-4 py-3 text-sm text-foreground"
     >
       <RefreshCw aria-hidden="true" className="size-4 shrink-0" />
-      <span className="font-medium">A new version of back-office is ready.</span>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          track({ name: "sw_update_applied" })
-          applyUpdate()
-        }}
-      >
-        Reload
-      </Button>
+      <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-medium">A new version of the console is ready.</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto"
+          onClick={() => {
+            track({ name: "sw_update_applied" })
+            applyUpdate()
+          }}
+        >
+          Reload
+        </Button>
+      </div>
     </div>
   )
 }

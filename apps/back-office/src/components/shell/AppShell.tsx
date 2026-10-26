@@ -100,13 +100,13 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
       overlays={
         <>
           <ScanBox />
-          <UpdateBanner />
           <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} groups={groups} roles={roles} />
           <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
           <StaffRecordDialog open={recordOpen} onOpenChange={setRecordOpen} />
         </>
       }
     >
+      <UpdateBanner />
       {children}
     </StaffShell>
   )
