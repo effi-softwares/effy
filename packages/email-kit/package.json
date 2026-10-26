@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy email system — the SSOT for every message the platform sends (specs/038-email-template-system). Templates are authored in MJML and compiled AT BUILD TIME into committed, drift-guarded artifacts; the palette is GENERATED from @effy/design-system's tokens.css. The `.` entrypoint is pure (catalogue + render, no AWS, no I/O) so preview and every test run with zero cloud access; `./send` is the only place an SES client exists.",
+  "description": "Every email the platform sends: a typed catalogue, MJML templates compiled at build time from the design-system tokens, and a renderer and SES sender.",
   "exports": {
     ".": "./src/index.ts",
     "./send": "./src/send.ts"

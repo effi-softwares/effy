@@ -1,6 +1,6 @@
 // Every money value, quantity and date is formatted here: SES templates cannot format.
 import {
-  ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, distinctArrivals, formatArrival,
+  ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, formatArrival,
   type DeliveryFeeLineKind,
 } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
@@ -65,41 +65,32 @@ function formatPlacedAt(iso: string | null): string {
   }).format(d);
 }
 
-function methodLabel(method: string): string {
-  if (method === "same_day") return "Same-day";
-  if (method === "scheduled") return "Scheduled";
-  return "Standard";
-}
+/** The customer's words for a window today / on a later day. */
+const METHOD_LABEL: Record<string, string> = { same_day: "Same-day", standard: "Standard" };
 
 /**
- * Worded by `formatArrival`, as the confirmation and order pages are. Each distinct promise is said
- * once, joined with "and"; with none it says so rather than inventing a date.
+ * An Effy order has one window, so every package carries the same promise; the rows come promised
+ * first. Worded by `formatArrival`, as the confirmation and order pages are; with no promise it says
+ * so rather than inventing a date.
  */
 export function arrivalText(
   arrivals: ReceiptArrivalRow[],
   now: Date = new Date(),
 ): { estimate: string; method: string } {
-  if (arrivals.length === 0) return { estimate: UNCONFIRMED, method: "Delivery" };
+  const first = arrivals[0];
+  if (!first) return { estimate: UNCONFIRMED, method: "" };
 
-  // Counted as promises, not packages.
-  const promises = distinctArrivals(arrivals.map((a) => ({
-    method: a.method,
-    promisedFrom: a.promised_from,
-    promisedTo: a.promised_to,
-    windowStart: a.window_start ? a.window_start.toISOString() : null,
-    windowEnd: a.window_end ? a.window_end.toISOString() : null,
-  })));
-  const method = promises.length > 1 ? "Multiple deliveries" : methodLabel(promises[0]!.method);
-
-  const said: string[] = [];
-  for (const p of promises) {
-    const text = formatArrival(p, now);
-    if (text !== ARRIVAL_UNCONFIRMED && !said.includes(text)) said.push(text);
-  }
-  if (said.length === 0) return { estimate: UNCONFIRMED, method };
+  const method = METHOD_LABEL[first.method] ?? "";
+  const text = formatArrival({
+    promisedFrom: first.promised_from,
+    promisedTo: first.promised_to,
+    windowStart: first.window_start ? first.window_start.toISOString() : null,
+    windowEnd: first.window_end ? first.window_end.toISOString() : null,
+  }, now);
+  if (text === ARRIVAL_UNCONFIRMED) return { estimate: UNCONFIRMED, method };
 
   // Mid-sentence ("Arriving …"), so "Today" reads as "today".
-  return { estimate: said.map(midSentence).join(" and "), method };
+  return { estimate: midSentence(text), method };
 }
 
 /**

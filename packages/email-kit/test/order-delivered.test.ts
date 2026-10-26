@@ -8,8 +8,6 @@ import type { MailIdentity } from "../src/audience.js";
 import { CATALOG, validateVars } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
-/** The order arrived: the only delivery message a web-only shopper gets. It discloses no fulfilment structure, and its text part is readable. */
-
 const here = dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name: string) =>
   JSON.parse(readFileSync(resolve(here, "../src/fixtures", name), "utf8"));
@@ -23,7 +21,6 @@ const identity: MailIdentity = {
 
 const vars = loadFixture("order-delivered.json");
 
-/** The entities Handlebars' escaper emits, to compare a URL honestly. */
 const decodeEntities = (s: string) =>
   s
     .replace(/&#x3D;/g, "=")
@@ -45,7 +42,6 @@ describe("order-delivered — what it says", () => {
     expect(out.text).toContain(vars.orderUrl);
   });
 
-  /** The text part is not HTML-escaped, so its URL works. */
   it("does not HTML-escape the URL in the plain-text part", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).not.toContain("&#x3D;");
@@ -53,14 +49,12 @@ describe("order-delivered — what it says", () => {
   });
 
   it("gives the recipient somewhere to go when it did NOT arrive", () => {
-    // "Delivered" is a person's assertion, so the message offers a way to say it did not arrive.
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).toContain(identity.replyToPublic);
   });
 });
 
 describe("order-delivered — what it must NEVER say", () => {
-  /** No shop and no package count: the catalogue gives this template no var to say them with. */
   it("has no var that could carry a shop, a package count, or a tracking reference", () => {
     const declared = Object.keys(CATALOG["order-delivered"].vars);
     expect(declared.sort()).toEqual(["deliveredOn", "orderNumber", "orderUrl"]);
@@ -68,7 +62,7 @@ describe("order-delivered — what it must NEVER say", () => {
     for (const forbidden of ["shop", "package", "parcel", "count", "items", "reference", "tracking"]) {
       expect(
         declared.some((v) => v.toLowerCase().includes(forbidden)),
-        `"${forbidden}" must not be a variable on a customer-facing delivery notice (FR-021)`,
+        `"${forbidden}" must not be a variable on a customer-facing delivery notice`,
       ).toBe(false);
     }
   });
@@ -81,7 +75,6 @@ describe("order-delivered — what it must NEVER say", () => {
     }
   });
 
-  /** Not a second receipt: no total. */
   it("restates no amount", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.text).not.toMatch(/\$\s?\d/);
@@ -89,15 +82,12 @@ describe("order-delivered — what it must NEVER say", () => {
 });
 
 describe("order-delivered — catalogue rules", () => {
-  it("is transactional, so it cannot carry an unsubscribe", () => {
-    // The `Category` union already makes an unsubscribable notice a compile error.
-    expect(CATALOG["order-delivered"].category).toBe("transactional");
+  it("carries no unsubscribe", () => {
     const out = render("order-delivered", vars, "customer", identity);
     expect(out.html.toLowerCase()).not.toContain("unsubscribe");
   });
 
   it("swallows a send failure, because the package already arrived", () => {
-    // Swallow: the arrival is committed; the notification row records a failed send.
     expect(CATALOG["order-delivered"].onSendFailure).toBe("swallow");
   });
 

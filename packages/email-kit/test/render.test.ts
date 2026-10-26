@@ -22,7 +22,6 @@ describe("render", () => {
   });
 
   it("puts the code in the subject but NOT in the preheader", () => {
-    // The subject carries the code (readable from a lock screen); the preheader must not repeat it.
     const m = render("auth-sign-in-code", vars, "customer", identity);
     expect(m.subject).toBe("482917 is your Effy sign-in code");
     expect(m.preheader).not.toContain("482917");
@@ -41,20 +40,18 @@ describe("render", () => {
   });
 
   it("refuses a message that is not addressed to that audience", () => {
-    // account-password-changed is customer-only.
     expect(() => render("account-password-changed", { isFirstPassword: false }, "driver", identity))
       .toThrow(/not addressed to the 'driver' audience/);
   });
 
   it("refuses invalid variables with the template id attached", () => {
-    // @ts-expect-error: wrong at compile time too; this proves the runtime half.
+    // @ts-expect-error
     expect(() => render("auth-sign-in-code", { code: "1" }, "customer", identity))
       .toThrow(/auth-sign-in-code/);
   });
 
   describe("escaping", () => {
     it("escapes markup in a substituted value", () => {
-      // Ses's own engine does not escape, and names here are user-influenced.
       const hostile = { code: '<script>alert(1)</script>', expiryMinutes: 5, isInternal: false };
       const m = render("auth-sign-in-code", hostile, "customer", identity);
       expect(m.html).not.toContain("<script>");
@@ -72,7 +69,7 @@ describe("render", () => {
     it("injects the footer values and lets no call site override them", () => {
       const m = render(
         "auth-sign-in-code",
-        // @ts-expect-error: a call site must not be able to name the support address.
+        // @ts-expect-error
         { ...vars, effySupportEmail: "attacker@example.com" },
         "customer",
         identity,
@@ -82,18 +79,13 @@ describe("render", () => {
     });
 
     it("derives the reply address from the audience", () => {
-      // Derived, never a parameter, so a third mailbox cannot be introduced.
       expect(replyAddressFor(profileFor("customer"), identity)).toBe("hello@effyshopping.com");
       expect(replyAddressFor(profileFor("shop"), identity)).toBe("workspace-admin@effyshopping.com");
       expect(replyAddressFor(profileFor("back-office"), identity)).toBe("workspace-admin@effyshopping.com");
     });
   });
 
-  /**
-   * The text part must not be HTML-escaped: `=` would become `&#x3D;` and every URL with a query string
-   * would break in text/plain, where nothing decodes it. A property of the engine, so it lives here.
-   */
-  describe("text/plain is not HTML (039)", () => {
+  describe("text/plain is not HTML", () => {
     const url = "https://x.test/newsletter/confirm?token=ABC123&src=email";
 
     it("renders a query-string URL verbatim in the text part", () => {
@@ -122,7 +114,6 @@ describe("render", () => {
   });
 
   it("leaves Cognito's {####} placeholder untouched", async () => {
-    // Proven by rendering: an engine that ate {####} would ship every Cognito message without its code.
     const Handlebars = (await import("handlebars")).default;
     const out = Handlebars.compile("code {####} and {{code}}")({ code: "482917" });
     expect(out).toBe("code {####} and 482917");

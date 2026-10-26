@@ -51,26 +51,14 @@ describe("arrivalText — one wording with the page", () => {
   }
 });
 
-describe("arrivalText — more than one delivery", () => {
+describe("arrivalText — one window per order", () => {
   const now = new Date("2026-10-08T09:00:00+11:00");
   const sameDay: Case["input"] = {
     promisedFrom: "2026-10-08", promisedTo: "2026-10-08",
     windowStart: "2026-10-08T17:00:00+11:00", windowEnd: "2026-10-08T19:00:00+11:00",
   };
-  const standard: Case["input"] = { promisedFrom: "2026-10-13", promisedTo: "2026-10-13", windowStart: null, windowEnd: null };
 
-  it("says a same-day window and a chosen day, each once", () => {
-    const got = arrivalText([row(sameDay), row(standard, "standard")], now);
-    expect(got).toEqual({ estimate: "today, 5 pm – 7 pm and Tue 13 Oct", method: "Multiple deliveries" });
-  });
-
-  it("says one promise once when two packages share it — and names no count of shops", () => {
-    const got = arrivalText([row(sameDay), row(sameDay)], now);
-    expect(got.estimate).toBe("today, 5 pm – 7 pm");
-  });
-
-  it("078 — one window for an order from three suppliers is ONE delivery, named by its method", () => {
-    // One promise is one delivery, however many suppliers.
+  it("an order from three suppliers is ONE delivery, named by its method — no count of shops", () => {
     expect(arrivalText([row(sameDay), row(sameDay), row(sameDay)], now)).toEqual({ estimate: "today, 5 pm – 7 pm", method: "Same-day" });
     const later: Case["input"] = {
       promisedFrom: "2026-10-13", promisedTo: "2026-10-13",
@@ -79,15 +67,10 @@ describe("arrivalText — more than one delivery", () => {
     expect(arrivalText([row(later, "standard"), row(later, "standard")], now)).toEqual({ estimate: "Tue 13 Oct, 4 pm – 6 pm", method: "Standard" });
   });
 
-  it("an order placed before 069 still says the date will be confirmed", () => {
+  it("with no promise it says the date will be confirmed, and names no method", () => {
     const none: Case["input"] = { promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null };
-    expect(arrivalText([row(none, "standard"), row(none, "standard")], now).estimate).toBe("a date we'll confirm");
-    expect(arrivalText([], now)).toEqual({ estimate: "a date we'll confirm", method: "Delivery" });
-  });
-
-  it("a promised package beside an unpromised one says only what was promised", () => {
-    const none: Case["input"] = { promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null };
-    expect(arrivalText([row(standard, "standard"), row(none, "standard")], now).estimate).toBe("Tue 13 Oct");
+    expect(arrivalText([row(none, "standard")], now)).toEqual({ estimate: "a date we'll confirm", method: "Standard" });
+    expect(arrivalText([], now)).toEqual({ estimate: "a date we'll confirm", method: "" });
   });
 });
 

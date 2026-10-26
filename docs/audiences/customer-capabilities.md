@@ -1300,7 +1300,6 @@ by a screen whose own copy admitted no money could move.
 | See what was refunded and what they actually paid | ✅ | ✅ | The receipt itself is **unchanged** (FR-024) |
 | Cancel an order themselves | ✅ | ✅ | Only while no shop has begun preparing (FR-012) |
 | Ask for a refund, attached to the order | ✅ | ✅ | Replaces "Get help" → a generic form with no order reference |
-| Emailed when a refund is on its way | ✅ | ✅ | 12th template, `order-refunded` |
 
 ### The decisions worth knowing
 

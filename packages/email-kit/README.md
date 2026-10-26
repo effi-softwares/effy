@@ -1,93 +1,102 @@
 # `@effy/email-kit`
 
-The one place every email the platform sends is defined, designed, and rendered.
+Every email the platform sends is defined, designed and rendered here.
 
-Before this package, email was plain-text strings assembled inside two Lambdas. Now every message
-lives in a **typed catalogue**, is authored in **MJML**, compiled at build time to **committed
-artifacts**, and rendered with **Handlebars** at send. The design is **generated from the
-design-system tokens**, so it matches the app and updates when the palette does — no hand edits.
+- **`src/catalog.ts`** lists every email: its id, variables, subject, preview line, audiences, who
+  sends it and what happens when sending fails. An id or variable that isn't in the catalogue does
+  not compile.
+- **Templates** are written in [MJML](https://mjml.io) (the HTML part) and Handlebars (the plain-text
+  part). A generator compiles them into email-safe HTML, with colours taken from
+  `packages/design-system/src/tokens.css`.
+- At send time the compiled template is filled with the values and sent through Amazon SES.
 
-> **New to this?** Run `make email-preview` from the repo root, then open
-> `packages/email-kit/dist/preview/index.html` in a browser. You'll see every template rendered. That
-> is the fastest way to understand what this package produces.
+> To see every email, run `make email-preview` and open `packages/email-kit/dist/preview/index.html`.
 
----
-
-## The 30-second mental model
+## How it fits together
 
 ```
 design-system/tokens.css ─┐
-                          ├─(make email-gen)─→  dist/*.html   ← committed, drift-guarded
-src/templates/*.mjml ─────┘                     dist/*.txt
-                                                dist/templates.generated.ts  ← what the app ships
+src/templates/*.mjml ─────┼─ make email-gen ─→ dist/<id>.html, dist/<id>.txt   (committed, reviewed)
+src/text/*.txt.hbs ───────┘                     dist/templates.generated.ts      (what services bundle)
+                                                dist/manifest.json               (sizes)
 
-app code ──sendEmail("id", vars, {to, audience})──→ renders the committed artifact + sends via SES
+sendEmail("id", vars, { to, audience }) ─→ checks vars ─→ fills the template ─→ SES
 ```
 
-Two rules that explain almost everything:
+## Add a new email
 
-1. **You author templates; a generator compiles them.** You never hand-write the final HTML. You edit
-   `.mjml` source and run `make email-gen`. The compiled output in `dist/` is committed and checked.
-2. **A message that isn't in the catalogue can't be sent.** `src/catalog.ts` is the single source of
-   truth. The template id, its variables, and who it's for are all typed — a wrong call won't compile.
+Example: an `order-ready` email telling the customer their order is packed.
 
----
+### 1. Declare it in the catalogue
 
-## Common tasks
-
-### ➕ Add a new email
-
-Adding a message is **four files, nothing else** — no layout, no styling, no footer. If you find
-yourself writing a colour or a font size, stop: something is wrong (see [Design rules](#design-rules)).
-
-Say you want a `welcome` email. From `packages/email-kit/`:
-
-**1. The catalogue entry** — `src/catalog.ts`, add to the `CATALOG` object:
+Add an entry to `CATALOG` in `src/catalog.ts`:
 
 ```ts
-"welcome": {
-  vars: { firstName: "string" },              // the data this email needs (typed)
-  subject: (v, p) => `Welcome to ${p.productName}`,
-  preheader: () => "Your account is ready.",  // ⚠ must NOT repeat the subject or restate a code
-  audiences: CUSTOMER_ONLY,                    // or ALL_AUDIENCES
-  sentBy: "platform",                          // "platform" = we send it; "cognito" = see below
-  category: "transactional",
-  onSendFailure: "swallow",                    // "throw" (a lockout if unsent) or "swallow" (log + continue)
+"order-ready": {
+  vars: { orderNumber: "string", orderUrl: "string" },
+  subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} is ready`,
+  preheader: () => "It's packed and waiting for its delivery round.",
+  audiences: CUSTOMER_ONLY,
+  sentBy: "platform",
+  onSendFailure: "swallow",
 },
 ```
 
-**2. The HTML** — `src/templates/welcome.mjml`. Copy an existing one (e.g. `account-password-changed.mjml`)
-and change the content. Use only the shared blocks (see [Building blocks](#building-blocks)):
+| Field | Meaning |
+|---|---|
+| id (`"order-ready"`) | Lowercase words joined by `-`. Permanent once sent — delivery records keep it. A message that changes meaning gets a new id. |
+| `vars` | The values the email needs: `"string"`, `"number"`, `"boolean"`, or a list of rows `{ of: { name: "string", … } }`. Format money and dates before passing them. |
+| `subject`, `preheader` | Built from the vars and the audience (`p.productName`). The preheader is the inbox preview line; it must not repeat the subject. |
+| `audiences` | Who may receive it: `CUSTOMER_ONLY` or `ALL_AUDIENCES`. |
+| `sentBy` | `"platform"` (we send it) or `"cognito"` (Cognito sends it; see below). |
+| `onSendFailure` | `"throw"` when an unsent email must stop the request (a sign-in code); `"swallow"` when the change already happened and the failure is only logged. |
+
+### 2. Write the HTML part — `src/templates/order-ready.mjml`
+
+Copy a similar template (e.g. `order-delivered.mjml`) and change the content:
 
 ```xml
 <mjml lang="en" dir="ltr">
   <mj-head>
     <mj-include path="../generated/theme.mjml" />
-    <mj-title>Welcome to {{effyProductName}}</mj-title>
-    <mj-preview>Your account is ready.</mj-preview>
+    <mj-title>Your {{effyProductName}} order {{orderNumber}} is ready</mj-title>
+    <mj-preview>It's packed and waiting for its delivery round.</mj-preview>
   </mj-head>
-  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+
+  <mj-body width="600px">
     <mj-include path="../components/header.mjml" />
+
     <mj-section padding="0 32px 32px 32px">
       <mj-column>
-        <mj-text mj-class="h1" css-class="e-ink e-h1">Welcome, {{firstName}}</mj-text>
-        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
-          Your {{effyProductName}} account is ready.
+        <mj-text mj-class="h1" css-class="e-ink e-h1">Your order is ready</mj-text>
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 24px 0">
+          Order {{orderNumber}} is packed and waiting for its delivery round.
         </mj-text>
+        <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg">View your order</mj-button>
       </mj-column>
     </mj-section>
+
     <mj-include path="../components/footer.mjml" />
   </mj-body>
 </mjml>
 ```
 
-**3. The plain-text version** — `src/text/welcome.txt.hbs`. Hand-written, not stripped from the HTML.
-Same variables, no markup:
+- Keep `<mj-title>` and `<mj-preview>` the same as `subject` and `preheader` in the catalogue.
+- Exactly one heading: `mj-class="h1"` with `css-class="e-ink e-h1"`.
+- Style text only with the recipes below — never write a colour, font or font size.
+- Every value is HTML-escaped. Never use `{{{ }}}`.
+- No HTML comments.
 
-```hbs
-Welcome, {{firstName}}
+### 3. Write the plain-text part — `src/text/order-ready.txt.hbs`
 
-Your {{effyProductName}} account is ready.
+Hand-written, no markup, at least 80 characters. Values are not escaped here, so links work:
+
+```
+Your order is ready
+
+Order {{orderNumber}} is packed and waiting for its delivery round.
+
+View your order: {{orderUrl}}
 
 --
 {{effyProductName}}{{#if effyPostalAddress}}
@@ -95,171 +104,147 @@ Your {{effyProductName}} account is ready.
 Questions? Reply to this email or write to {{effySupportEmail}}.
 ```
 
-**4. The example data** — `src/fixtures/welcome.json`, used for preview and the size/render checks:
+### 4. Add example data — `src/fixtures/order-ready.json`
+
+Used by the preview and the tests, never by a real send:
 
 ```json
-{ "firstName": "Alex" }
+{ "orderNumber": "EFY-10234", "orderUrl": "https://dev.effyshopping.com/orders/abc" }
 ```
 
-Then:
+### 5. Generate, check and look
+
+From the repo root:
 
 ```bash
-make email-gen      # compile — creates dist/welcome.html, .txt, updates the bundle + manifest
-make email-check    # verify — drift, size, contrast, structure, text part, placeholders
-make email-preview  # look at it — dist/preview/welcome.html
+make email-gen       # compile into dist/
+make email-check     # fails and names the problem if a rule is broken
+make email-preview   # open packages/email-kit/dist/preview/index.html
 ```
 
-To actually **send** it from app code:
+Commit the source files **and** the regenerated `dist/` files together.
+
+### 6. Add a test — `test/order-ready.test.ts`
+
+Copy `test/order-delivered.test.ts`: render the fixture, check the values appear in both parts and
+that nothing the email must never say is there. Run `pnpm --filter @effy/email-kit test`.
+
+### 7. Send it
+
+Directly, from the service that owns the change:
 
 ```ts
 import { sendEmail } from "@effy/email-kit/send";
 
-await sendEmail("welcome", { firstName: "Alex" }, { to: user.email, audience: "customer" });
-//                  ^ id       ^ vars (typed)          ^ recipient + which audience
+await sendEmail("order-ready", { orderNumber, orderUrl }, { to: customer.email, audience: "customer" }, logger);
 ```
 
-If you get the id wrong, the variables wrong, or the audience wrong, **it won't compile.** That's the
-point.
+The service needs the `MAIL_*` settings in its `serverless.yml` (its config-contract test checks
+them). For an email that follows an order event, queue a `notification_request` row with
+`channel = 'email'` in the same transaction as the change (see
+`apis/edge-api/shared/src/delivery/consignment.ts`), then add the type to `EMAIL_TEMPLATES` and a
+branch in `apis/edge-api/notifications/src/worker/email-sender.ts`.
 
----
+Every service that sends email bundles the compiled templates, so redeploy it to ship the change.
 
-### ✏️ Modify an existing email
+## Change or remove an email
 
-Edit the `.mjml` (design/content), the `.txt.hbs` (plain-text), and/or the catalogue entry
-(subject, variables). Then:
+- **Change:** edit the `.mjml`, the `.txt.hbs` or the catalogue entry, then
+  `make email-gen && make email-check`. Changing `vars` makes every call site that no longer matches
+  fail to compile.
+- **Remove:** delete `src/templates/<id>.mjml`, `src/text/<id>.txt.hbs`, `src/fixtures/<id>.json`,
+  its test and its catalogue entry, then `make email-gen`. Any remaining `sendEmail("<id>", …)` stops
+  compiling.
 
-```bash
-make email-gen && make email-check
-```
+## What `make email-gen` writes
 
-⚠ **`make email-check` will fail if you forget `make email-gen`** — the committed `dist/` would be
-stale. That's the drift guard; it names the template that's out of date. Just run `email-gen` and
-commit the result alongside your source change.
+| File | Use |
+|---|---|
+| `src/generated/theme.mjml` | Colours, text recipes, dark-mode rules and Outlook fixes, built from the tokens. Every template includes it. |
+| `dist/<id>.html` | The compiled HTML part, placeholders intact. Reviewed in diffs and checked by `email-check`. |
+| `dist/<id>.txt` | A copy of the text part. |
+| `dist/templates.generated.ts` | Every compiled email as strings. This is what the services import and bundle. |
+| `dist/manifest.json` | The size of each email, used by the preview. |
 
-**Changing what data an email uses?** Edit `vars` in the catalogue entry. TypeScript then forces every
-call site to match — you'll see the compile errors telling you exactly what to fix.
+`make email-preview` writes `dist/preview/` (git-ignored): each email filled with its fixture.
 
----
-
-### 🗑️ Remove an email
-
-Delete its four files and the catalogue entry:
-
-```bash
-rm src/templates/<id>.mjml src/text/<id>.txt.hbs src/fixtures/<id>.json
-# remove the "<id>": { … } block from src/catalog.ts
-make email-gen && make email-check
-```
-
-⚠ If any app code still calls `sendEmail("<id>", …)`, it **won't compile** — the closed `TemplateId`
-union no longer includes it. Fix or remove those call sites first. (Again: the point.)
-
-⚠ **Never rename an id in place.** Ids are written into delivery-tracking records; renaming orphans the
-history. A message that changes meaning gets a *new* id.
-
----
+All generated files are committed. `email-check` regenerates them and fails if anything changes, so a
+forgotten `email-gen` is caught by the tests.
 
 ## Building blocks
 
-A template composes these and **authors no layout of its own.** Two kinds:
+**Components** — `<mj-include path="../components/<name>.mjml" />`:
 
-**Includes** (structure) — `<mj-include path="../components/X.mjml" />`:
-
-| Block | What it is |
+| Component | What it is |
 |---|---|
-| `header.mjml` | The Effy wordmark (live text, never an image) |
-| `footer.mjml` | The one footer — sender, address, support contact. Same on every email. |
+| `header.mjml` | The product name as the wordmark |
+| `footer.mjml` | Product name, postal address and support contact |
 | `divider.mjml` | A hairline rule |
-| `line-items.mjml` | A receipt's item table (`{{#each items}}`) — see `order-confirmation` |
-| `rows.mjml` | A totals block (subtotal / delivery / total) |
+| `line-items.mjml` | A receipt's item rows (`items`) |
+| `rows.mjml` | A receipt's totals |
 
-**Text recipes** (`mj-class`) — pick one, never write a size or colour:
+**Text recipes** — `mj-class="…"`:
 
-| `mj-class="…"` | Use for |
-|---|---|
-| `wordmark` | The brand mark |
-| `h1` | The one heading (also add `css-class="e-ink e-h1"`) |
-| `body` | Normal paragraph text |
-| `muted` | Secondary text (also add `css-class="e-muted"`) |
-| `small` | Fine print |
-| `code` | A large one-time code |
+| Recipe | Use for | Also add |
+|---|---|---|
+| `h1` | The one heading | `css-class="e-ink e-h1"` |
+| `body` | Normal text | `css-class="e-ink"` |
+| `muted` | Secondary text | `css-class="e-muted"` |
+| `small` | Fine print | `css-class="e-muted"` |
+| `code` | A one-time code | `css-class="e-ink e-bg-code"` |
+| `wordmark` | The header's product name | — |
 
-> **Why `mj-class` instead of writing styles?** The sizes and colours live in one generated file
-> (`src/generated/theme.mjml`), built from the design tokens. That's how every email stays consistent
-> and updates when the palette does. Writing your own would break both.
+The `css-class` values are what dark mode recolours, so keep them. Buttons take
+`css-class="e-btn-bg e-btn-fg"`.
 
----
+Raw HTML inside `mj-table` (as in `line-items.mjml`) cannot use a recipe: write its colour as a role,
+e.g. `color:%ink%` or `color:%mutedInk%`, and the generator fills in the token.
 
-## Design rules
+**Values every template gets** (set by the platform, never by the caller): `{{effyProductName}}`,
+`{{effySupportEmail}}` (the reply address for the audience) and `{{effyPostalAddress}}` (may be empty).
 
-These are enforced by `make email-check`, which **fails and names the template**. You don't have to
-memorise them — the check will tell you. The important ones:
+## Rules `email-check` enforces
 
-- **No colours or font sizes in templates.** Use `mj-class` recipes. The palette is generated from
-  `design-system/tokens.css`.
-- **Every email has a plain-text version** (`.txt.hbs`), hand-written, no markup.
-- **Size budgets.** Gmail clips at ~102 KB. Messages sent by Cognito (see below) have a *much* tighter
-  ~20,000-character limit — the check enforces the right one per message.
-- **Preheader must not repeat the subject** or restate a code/amount.
-- **No unsubscribe link on transactional mail** — the type system makes it impossible anyway.
-- **Interpolated values are auto-escaped**, so a product name containing `<script>` renders as text,
-  not markup. (Don't use Handlebars' triple-brace `{{{ }}}`, which would disable that.)
+- Generated files match the sources (no drift).
+- Templates and components have no colour, font, `{{{ }}}` or HTML comment of their own.
+- The HTML has the doctype, `lang`/`dir`, the colour-scheme and Outlook tags, exactly one `<h1>` and
+  only layout tables; no flex/grid, floats, positioning, CSS variables, SVG, web fonts or external
+  stylesheets.
+- The HTML stays under Gmail's ~102 KB clip.
+- The text part has at least 80 characters and no markup or HTML entities.
+- Every template has a valid fixture.
+- The colours pass WCAG AA in light, dark and force-inverted light.
 
-Dark mode, the Word-engine (Outlook) fallbacks, and colour contrast are all handled by the generated
-theme and checked automatically — you don't author any of it.
+`pnpm --filter @effy/email-kit test` runs the unit tests and then `email-check`. The tests also check
+that every placeholder is declared and every declared variable is used, the size budgets, and that no
+email offers an unsubscribe.
 
----
+## Cognito-sent emails
 
-## ⚠ The two message kinds: `platform` vs `cognito`
+`auth-sign-up-code`, `auth-password-reset-code`, `auth-email-verification-code` and
+`auth-step-up-code` have `sentBy: "cognito"`. Cognito sends them; the auth service's `custom-message`
+trigger only renders them (`apis/edge-api/auth/src/functions/custom-message.ts`).
 
-Every catalogue entry declares `sentBy`. It matters:
-
-- **`sentBy: "platform"`** — the platform sends it (via `sendEmail(...)`). Normal. Full attribution,
-  the Gmail size budget. Examples: `auth-sign-in-code`, `account-password-changed`, `order-confirmation`.
-
-- **`sentBy: "cognito"`** — **AWS Cognito sends it**, not us. These are sign-up confirmation, password
-  reset, email verification, and MFA. We only supply the *design*; Cognito substitutes the code and
-  sends. Consequences you must respect:
-  - The template emits the literal `{####}` where the code goes — **Cognito fills it in, we never see
-    the real code.** Declare **no `code` variable.**
-  - The ~20,000-character size limit applies (five times tighter than Gmail's).
-  - These get no delivery attribution (Cognito owns the send).
-  - You do **not** call `sendEmail` for these — the `custom-message` Lambda trigger renders them
-    automatically. (See `apis/edge-api/auth/src/functions/custom-message.ts`.)
-
-If you're adding an ordinary email the platform sends itself, you want `"platform"`.
-
----
-
-## Commands
-
-| Command | What it does |
-|---|---|
-| `make email-gen` | Compile every `.mjml` → committed `dist/` artifacts. Run after any source change. |
-| `make email-check` | Verify: drift, size, contrast, structure, text part, placeholders. Fails and names the template. |
-| `make email-preview` | Render every template against its fixture → `dist/preview/index.html`. No cloud, no send. |
-
-`make email-check` also runs automatically as part of `pnpm test`.
-
----
+- Write `{####}` where the code goes; Cognito fills it in. Declare no `code` variable.
+- Keep the HTML under ~20,000 characters (Cognito's limit).
+- Never pass them to `sendEmail` — it refuses.
 
 ## Where things live
 
 ```
 packages/email-kit/
 ├── src/
-│   ├── catalog.ts              ← THE catalogue. Add/remove/modify a message's definition here.
-│   ├── templates/<id>.mjml     ← the HTML source you author
-│   ├── text/<id>.txt.hbs       ← the plain-text version you author
-│   ├── fixtures/<id>.json      ← example data for preview + checks
-│   ├── components/*.mjml        ← the shared building blocks (includes)
-│   ├── generated/              ← ⚠ GENERATED from tokens — never hand-edit
-│   ├── render.ts               ← (id, vars) → { subject, html, text }. Pure.
-│   ├── send.ts                 ← the SES sender (`@effy/email-kit/send`)
-│   └── config.ts               ← reads MAIL_* env from SSM
-├── dist/                       ← ⚠ COMMITTED, drift-guarded. Regenerate with make email-gen.
-└── scripts/                    ← gen-email / check-email / preview
+│   ├── catalog.ts            the catalogue and variable validation
+│   ├── audience.ts           audiences, reply address, platform values
+│   ├── config.ts             MAIL_* settings
+│   ├── render.ts             fills a compiled template (no AWS, no I/O)
+│   ├── send.ts               sends through SES (`@effy/email-kit/send`)
+│   ├── templates/<id>.mjml   HTML parts
+│   ├── text/<id>.txt.hbs     plain-text parts
+│   ├── fixtures/<id>.json    example data
+│   ├── components/*.mjml     shared blocks
+│   └── generated/theme.mjml  generated — do not edit
+├── dist/                     generated — do not edit, but commit
+├── scripts/                  gen-email, check-email, preview
+└── test/
 ```
-
-The full design rationale, the client-compatibility research, and the operator deploy runbook are in
-[`specs/038-email-template-system/`](../../specs/038-email-template-system/).

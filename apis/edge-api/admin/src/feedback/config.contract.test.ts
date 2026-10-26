@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
+import { MAIL_ENV_KEYS } from "@effy/email-kit"
 
 /** The real serverless.yml declares the MAIL_* keys a reply needs, and every route is behind the back-office authorizer. */
 

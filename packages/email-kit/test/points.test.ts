@@ -8,11 +8,6 @@ import type { MailIdentity } from "../src/audience.js";
 import { CATALOG } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
-/**
- * Store credit, said as store credit: never "refund", and nothing a staff member typed (there is no var
- * for the internal note).
- */
-
 const here = dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name: string) => JSON.parse(readFileSync(resolve(here, "../src/fixtures", name), "utf8"));
 
@@ -23,7 +18,7 @@ const identity: MailIdentity = {
   postalAddress: "1 Test St, Sydney NSW",
 };
 
-describe("074 — points emails", () => {
+describe("points emails", () => {
   it("points-credited states the points, their value, why and until when — in both parts", () => {
     const vars = loadFixture("points-credited.json");
     const out = render("points-credited", vars, "customer", identity);

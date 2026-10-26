@@ -1,6 +1,6 @@
 <mj-attributes>
   <mj-all font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
-
+  <mj-body background-color="#f4f4f5" css-class="e-bg-page" />
   <mj-text font-size="16px" line-height="24px" font-weight="400" color="#09090b" padding="0" align="left" css-class="e-ink" />
   <mj-section background-color="#ffffff" css-class="e-bg-canvas" padding="0" />
   <mj-column padding="0" />
@@ -13,22 +13,17 @@
   <mj-class name="body" font-size="16px" line-height="24px" font-weight="400" color="#09090b" />
   <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#52525b" />
   <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#52525b" />
-  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#52525b" />
-  <mj-class name="code" font-size="36px" line-height="44px" font-weight="500" letter-spacing="0.15em" color="#09090b" />
+  <mj-class name="code" font-size="36px" line-height="44px" font-weight="500" letter-spacing="0.15em" color="#09090b" container-background-color="#f4f4f5" />
 </mj-attributes>
 
 <mj-style>
   :root { color-scheme: light dark; supported-color-schemes: light dark; }
 
-  /* ⚠ Apple's data detectors re-colour phone numbers, dates and addresses in their own blue —
-     a third hue the constitution forbids. This is the only way to refuse it. */
   a[x-apple-data-detectors] {
     color: inherit !important; text-decoration: none !important; font-size: inherit !important;
     font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important;
   }
 
-  /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
-     NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
       .e-bg-page { background-color: #18181b !important; }
       .e-bg-canvas { background-color: #09090b !important; }
@@ -46,6 +41,7 @@
       .e-muted a,
       .e-muted h1 { color: #a1a1aa !important; }
       .e-rule p { border-top-color: #27272a !important; }
+      .e-bg-rule { background-color: #27272a !important; }
       .e-btn-bg td { background-color: #2563eb !important; }
       .e-btn-fg,
       .e-btn-fg div,
@@ -53,19 +49,10 @@
       .e-btn-fg span,
       .e-btn-fg a,
       .e-btn-fg h1 { color: #ffffff !important; }
-      .e-error,
-      .e-error div,
-      .e-error p,
-      .e-error span,
-      .e-error a,
-      .e-error h1 { color: #fb7185 !important; }
   }
 </mj-style>
 
 <mj-style>
-  /* Dark, mechanism 2 of 2 — the SAME rules as the media query above, for Outlook.com and the
-     Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
-     (DARK_RULES) so they cannot drift. */
     [data-ogsc] .e-bg-page,
     [data-ogsb] .e-bg-page { background-color: #18181b !important; }
     [data-ogsc] .e-bg-canvas,
@@ -85,6 +72,8 @@
     [data-ogsc] .e-muted a,
     [data-ogsc] .e-muted h1 { color: #a1a1aa !important; }
     [data-ogsc] .e-rule p { border-top-color: #27272a !important; }
+    [data-ogsc] .e-bg-rule,
+    [data-ogsb] .e-bg-rule { background-color: #27272a !important; }
     [data-ogsc] .e-btn-bg td,
     [data-ogsb] .e-btn-bg td { background-color: #2563eb !important; }
     [data-ogsc] .e-btn-fg,
@@ -93,12 +82,6 @@
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
     [data-ogsc] .e-btn-fg h1 { color: #ffffff !important; }
-    [data-ogsc] .e-error,
-    [data-ogsc] .e-error div,
-    [data-ogsc] .e-error p,
-    [data-ogsc] .e-error span,
-    [data-ogsc] .e-error a,
-    [data-ogsc] .e-error h1 { color: #fb7185 !important; }
 </mj-style>
 
 <mj-raw>

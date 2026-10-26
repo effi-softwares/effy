@@ -1,85 +1,59 @@
-#!/usr/bin/env node
-// `make email-preview`: renders every catalogued message against its committed fixture into
-// dist/preview/ (gitignored), with an index. Uses the production substitution; the catalogue's
-// subject/preheader functions are covered by test/catalog.test.ts. No cloud access, no send.
-
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import Handlebars from "handlebars";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const PKG = resolve(here, "..");
+const PKG = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = resolve(PKG, "dist");
-const SRC = resolve(PKG, "src");
 const OUT = resolve(DIST, "preview");
 
-// Values the layout injects at runtime, as placeholders: the postal address is operator-supplied.
 const PLATFORM = {
   effyProductName: "Effy",
   effySupportEmail: "hello@effyshopping.com",
-  effyPostalAddress: "[postal address — operator-supplied]",
+  effyPostalAddress: "[postal address]",
 };
 
-function main() {
-  if (!existsSync(resolve(DIST, "manifest.json"))) {
-    console.error("✗ nothing to preview — run `make email-gen` first");
-    process.exit(1);
-  }
-  const manifest = JSON.parse(readFileSync(resolve(DIST, "manifest.json"), "utf8"));
-  const ids = Object.keys(manifest).sort();
+const read = (path) => readFileSync(path, "utf8");
+const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
-  if (existsSync(OUT)) rmSync(OUT, { recursive: true });
-  mkdirSync(OUT, { recursive: true });
+const manifestPath = resolve(DIST, "manifest.json");
+if (!existsSync(manifestPath)) {
+  console.error("✗ nothing to preview — run `make email-gen` first");
+  process.exit(1);
+}
+const manifest = JSON.parse(read(manifestPath));
 
-  const rows = [];
-  for (const id of ids) {
-    const fixturePath = resolve(SRC, "fixtures", `${id}.json`);
-    if (!existsSync(fixturePath)) {
-      console.error(`✗ ${id}: no fixture at src/fixtures/${id}.json`);
-      process.exit(1);
-    }
-    const vars = { ...JSON.parse(readFileSync(fixturePath, "utf8")), ...PLATFORM };
+rmSync(OUT, { recursive: true, force: true });
+mkdirSync(OUT, { recursive: true });
 
-    const html = Handlebars.compile(readFileSync(resolve(DIST, `${id}.html`), "utf8"))(vars);
-    const text = Handlebars.compile(readFileSync(resolve(DIST, `${id}.txt`), "utf8"))(vars);
-
-    writeFileSync(resolve(OUT, `${id}.html`), html);
-    writeFileSync(resolve(OUT, `${id}.txt.html`), `<pre style="font:14px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${escapeHtml(text)}</pre>`);
-
-    const m = manifest[id];
-    rows.push(
-      `<tr><td><a href="./${id}.html">${id}</a></td>` +
-        `<td><a href="./${id}.txt.html">text</a></td>` +
-        `<td style="text-align:right">${m.htmlBytes.toLocaleString()} B</td>` +
-        `<td style="text-align:right">${m.htmlChars.toLocaleString()}</td></tr>`,
-    );
-  }
-
+const rows = Object.entries(manifest).map(([id, { htmlBytes, htmlChars }]) => {
+  const vars = { ...JSON.parse(read(resolve(PKG, "src", "fixtures", `${id}.json`))), ...PLATFORM };
+  const html = Handlebars.compile(read(resolve(DIST, `${id}.html`)))(vars);
+  const text = Handlebars.compile(read(resolve(DIST, `${id}.txt`)), { noEscape: true })(vars);
+  writeFileSync(resolve(OUT, `${id}.html`), html);
   writeFileSync(
-    resolve(OUT, "index.html"),
-    `<!doctype html><meta charset="utf-8"><title>Effy email preview</title>
+    resolve(OUT, `${id}.txt.html`),
+    `<pre style="font:14px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
+  );
+  return (
+    `<tr><td><a href="./${id}.html">${id}</a></td><td><a href="./${id}.txt.html">text</a></td>` +
+    `<td align="right">${htmlBytes.toLocaleString()} B</td><td align="right">${htmlChars.toLocaleString()}</td></tr>`
+  );
+});
+
+writeFileSync(
+  resolve(OUT, "index.html"),
+  `<!doctype html><meta charset="utf-8"><title>Effy email preview</title>
 <style>
- body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:48px auto;padding:0 24px;color:#1a1a1a}
- table{border-collapse:collapse;width:100%;margin-top:24px}
- th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e6e6e6}
- th{font-weight:600;color:#666} a{color:#1a1a1a}
- p{color:#666}
+ body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:48px auto;padding:0 24px}
+ table{border-collapse:collapse;width:100%}
+ th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e4e4e7}
 </style>
 <h1>Effy email preview</h1>
-<p>${ids.length} template(s), rendered against their committed fixtures. Nothing here was sent.</p>
-<p>⚠ Budgets: Gmail clips at ~104,448 B. Messages routed through Cognito must also stay under
-   ~20,000 <em>characters</em> — a separate, much tighter limit.</p>
-<table><tr><th>Template</th><th>Text</th><th>HTML size</th><th>Chars</th></tr>
+<p>${rows.length} template(s), rendered with their fixtures. Nothing was sent.</p>
+<table><tr><th>Template</th><th>Text</th><th>HTML</th><th>Characters</th></tr>
 ${rows.join("\n")}
 </table>`,
-  );
+);
 
-  console.log(`✓ email-preview — ${ids.length} template(s) → dist/preview/index.html`);
-}
-
-function escapeHtml(s) {
-  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-}
-
-main();
+console.log(`✓ email-preview — ${rows.length} template(s) → dist/preview/index.html`);

@@ -1,5 +1,3 @@
-/** Catalogue guards that need the catalogue's TypeScript (the rest are in scripts/check-email.mjs). */
-
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -8,10 +6,8 @@ import { describe, expect, it } from "vitest";
 import {
   CATALOG,
   TEMPLATE_ID_GRAMMAR,
-  messageTagFor,
   templateIds,
   validateVars,
-  type Category,
   type SentBy,
   type TemplateId,
 } from "../src/catalog.js";
@@ -21,11 +17,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(here, "..");
 const dist = (f: string) => readFileSync(resolve(PKG, "dist", f), "utf8");
 
-// Read through the declared type: these guard union arms that have no entry yet.
 const sentByOf = (id: TemplateId): SentBy => CATALOG[id].sentBy;
-const categoryOf = (id: TemplateId): Category["category"] => CATALOG[id].category;
 
-/** Cognito's message limit, five times tighter than Gmail's. */
 const COGNITO_CHAR_LIMIT = 20_000;
 
 describe("template ids", () => {
@@ -35,14 +28,8 @@ describe("template ids", () => {
     }
   });
 
-  it("are unique, and unique AS SES MESSAGE TAGS", () => {
-    // SES tag values allow only [A-Za-z0-9_-], so the id-to-tag mapping must be the identity.
-    const ids = templateIds();
-    const tags = ids.map(messageTagFor);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(new Set(tags).size).toBe(ids.length);
-    expect(tags).toEqual([...ids]);
-    for (const tag of tags) expect(/^[A-Za-z0-9_-]+$/.test(tag)).toBe(true);
+  it("are valid SES message tag values, since the id is the tag", () => {
+    for (const id of templateIds()) expect(/^[A-Za-z0-9_-]+$/.test(id)).toBe(true);
   });
 });
 
@@ -57,7 +44,6 @@ describe("catalogue completeness", () => {
   });
 
   it("compiles no template that the catalogue does not name", () => {
-    // The reverse direction: an orphaned.mjml would ship an artifact nothing can send.
     for (const id of Object.keys(COMPILED_TEMPLATES)) {
       expect(templateIds(), `${id} is compiled but not catalogued`).toContain(id);
     }
@@ -73,19 +59,16 @@ describe("catalogue completeness", () => {
 
 describe("placeholder integrity", () => {
   it("declares every placeholder that appears in the HTML or the text part", () => {
-    // A template using an undeclared variable renders empty, invisibly.
     const platform = new Set(["effyProductName", "effySupportEmail", "effyPostalAddress"]);
     for (const id of templateIds()) {
       const spec = CATALOG[id].vars as Record<string, unknown>;
       const declared = new Set(Object.keys(spec));
-      // Object-array vars contribute their field names (used inside `{{#each}}`), learned from the schema.
       for (const value of Object.values(spec)) {
         if (value && typeof value === "object" && "of" in value) {
           for (const field of Object.keys((value as { of: object }).of)) declared.add(field);
         }
       }
       const source = dist(`${id}.html`) + dist(`${id}.txt`);
-      // Block helpers are syntax: `{{/if}}` is not a variable named "if".
       const HELPERS = new Set(["if", "unless", "each", "with", "else", "log"]);
       const used = new Set(
         [...source.matchAll(/\{\{\s*[#/]?\s*(?:(?:if|unless|each|with)\s+)?([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g)]
@@ -99,7 +82,6 @@ describe("placeholder integrity", () => {
   });
 
   it("uses every variable it declares", () => {
-    // A declared-but-unused variable forces a call site to supply something that reaches nobody.
     for (const id of templateIds()) {
       const source = dist(`${id}.html`) + dist(`${id}.txt`);
       for (const name of Object.keys(CATALOG[id].vars)) {
@@ -121,7 +103,6 @@ describe("size budgets", () => {
   });
 
   it("keeps every platform-sent template's artifact inside Gmail's clip budget", () => {
-    // The unrendered artifact only; order-confirmation.test.ts tests the rendered size with a large basket.
     const GMAIL_FAIL = 102 * 1024;
     for (const id of templateIds()) {
       if (sentByOf(id) !== "platform") continue;
@@ -144,7 +125,6 @@ describe("the code placeholder", () => {
   });
 
   it("never declares a `code` variable on a Cognito-sent message", () => {
-    // Cognito substitutes the code after the trigger returns: a `code` variable would be a misunderstanding.
     for (const id of templateIds()) {
       if (sentByOf(id) !== "cognito") continue;
       expect(Object.keys(CATALOG[id].vars)).not.toContain("code");
@@ -152,16 +132,11 @@ describe("the code placeholder", () => {
   });
 });
 
-describe("category", () => {
-  it("carries no unsubscribe affordance on a transactional message", () => {
-    // The types already forbid it; this catches a link smuggled into the copy.
+describe("transactional mail", () => {
+  it("offers no unsubscribe", () => {
     for (const id of templateIds()) {
-      if (categoryOf(id) !== "transactional") continue;
       const source = (dist(`${id}.html`) + dist(`${id}.txt`)).toLowerCase();
-      expect(source.includes("unsubscribe"), `${id}: transactional mail must not offer unsubscribe`).toBe(
-        false,
-      );
-      expect(source.includes("list-unsubscribe")).toBe(false);
+      expect(source.includes("unsubscribe"), `${id}: transactional mail must not offer unsubscribe`).toBe(false);
     }
   });
 });

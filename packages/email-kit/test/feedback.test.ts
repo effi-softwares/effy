@@ -7,11 +7,6 @@ import { render } from "../src/render.js";
 import { CATALOG, validateVars } from "../src/catalog.js";
 import type { MailIdentity } from "../src/audience.js";
 
-/**
- * The two feedback messages, with opposite failure policies; both expose only what the shopper gave
- * and render pasted markup as inert text.
- */
-
 const here = dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name: string) =>
   JSON.parse(readFileSync(resolve(here, "../src/fixtures", name), "utf8"));
@@ -39,11 +34,8 @@ describe("feedback-received — acknowledgement", () => {
     }
   });
 
-  /** Swallow: the submission is stored and the shopper was told "received". Transactional. */
-  it("swallows on send failure and carries no unsubscribe URL", () => {
+  it("swallows on send failure", () => {
     expect(CATALOG["feedback-received"].onSendFailure).toBe("swallow");
-    expect(CATALOG["feedback-received"].category).toBe("transactional");
-    expect(CATALOG["feedback-received"]).not.toHaveProperty("unsubscribeUrl");
   });
 
   it("promises no reply timeline or reward", () => {
@@ -61,20 +53,16 @@ describe("feedback-reply — staff reply", () => {
 
   it("carries the reply body and quotes the original in both parts", () => {
     const m = render("feedback-reply", reply, "customer", identity);
-    // Punctuation-free substrings: the HTML render escapes apostrophes and dashes.
     for (const part of [m.html, m.text]) {
       expect(part).toContain("moved it to the top of the results");
       expect(part).toContain("The category filter on the search page is really hard to find");
     }
   });
 
-  /** Throw: a swallowed failure would mark the submission replied while the shopper got nothing. */
   it("throws on send failure", () => {
     expect(CATALOG["feedback-reply"].onSendFailure).toBe("throw");
-    expect(CATALOG["feedback-reply"].category).toBe("transactional");
   });
 
-  /** Pasted markup renders inert. */
   it("renders pasted markup as inert text (no live script tag)", () => {
     const hostile = {
       ...reply,
@@ -87,7 +75,6 @@ describe("feedback-reply — staff reply", () => {
     expect(m.html).toContain("&lt;script&gt;");
   });
 
-  /** The reply exposes only its declared vars: no internal note or id can reach it. */
   it("declares only whitelisted, non-internal variables", () => {
     const declared = Object.keys(CATALOG["feedback-reply"].vars);
     expect(declared.sort()).toEqual(

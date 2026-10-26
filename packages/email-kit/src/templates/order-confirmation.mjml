@@ -1,13 +1,3 @@
-<!-- order-confirmation — the customer's emailed receipt (052 US3).
-     ⚠ NO LONGER TEMPLATE-ONLY. 038 authored this as the data-heavy proof with deliberately no call
-     site (its FR-062); 052 wires it to the paid transition and to the resend route. The id is KEPT —
-     it had never been sent, so no delivery record references it (research R8).
-
-     ⚠ Platform-sent (not Cognito), so the budget is Gmail's ~102 KB, not the ~20,000-char Cognito one.
-     ⚠ Money, quantities and the delivery estimate arrive PRE-FORMATTED as strings (FR-048).
-     ⚠ The delivery estimate is a DATE or DATE RANGE, never a time: the platform has no delivery
-     window and cannot derive one (research R4). -->
-
 <mjml lang="en" dir="ltr">
   <mj-head>
     <mj-include path="../generated/theme.mjml" />
@@ -15,7 +5,7 @@
     <mj-preview>{{deliveryPreheader}}</mj-preview>
   </mj-head>
 
-  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+  <mj-body width="600px">
     <mj-include path="../components/header.mjml" />
 
     <mj-section padding="0 32px 8px 32px">
@@ -27,7 +17,6 @@
       </mj-column>
     </mj-section>
 
-    <!-- The two facts that matter most, as a labelled detail block. Authored inline: order-specific. -->
     <mj-section padding="16px 32px 0 32px">
       <mj-column>
         <mj-text mj-class="small" css-class="e-muted">{{deliveryLabel}}</mj-text>
@@ -45,7 +34,6 @@
 
     <mj-include path="../components/divider.mjml" />
 
-    <!-- The items. A REAL mj-include; the {{#each items}} iterates at render time. -->
     <mj-section padding="8px 32px 0 32px">
       <mj-column>
         <mj-text mj-class="small" css-class="e-muted" padding="0 0 4px 0">What you ordered</mj-text>
@@ -55,22 +43,18 @@
 
     <mj-include path="../components/divider.mjml" />
 
-    <!-- The totals. Also a real mj-include. Every line adds up to what was charged (FR-004). -->
     <mj-section padding="16px 32px 0 32px">
       <mj-column>
         <mj-include path="../components/rows.mjml" />
       </mj-column>
     </mj-section>
 
-    <!-- The primary action. mj-button emits the bulletproof VML+<a> pattern itself, so no hand-rolled
-         button component is needed. Both dark classes named so the label inverts with the fill. -->
     <mj-section padding="24px 32px 8px 32px">
       <mj-column>
         <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg" align="left">View your order</mj-button>
       </mj-column>
     </mj-section>
 
-    <!-- Addresses, as labelled detail blocks (authored inline — order-specific). -->
     <mj-section padding="8px 32px 0 32px">
       <mj-column>
         <mj-text mj-class="small" css-class="e-muted">Delivering to</mj-text>
@@ -89,24 +73,6 @@
       </mj-column>
     </mj-section>
 
-    <!--
-      ⚠ THE RESERVED TAX-INVOICE BLOCK (FR-033/FR-034) — deliberately NOT RENDERED. It would sit
-      between the totals and the addresses, carrying the legal entity, the ABN, and the taxable /
-      GST-free / GST-included split. TWO prerequisites block it, neither engineering work in this
-      slice (research R13): the ABN is an unsupplied operator identifier, and per-item GST treatment
-      is unmodelled — basic food is GST-free in Australia, so a grocery basket is a MIXED SUPPLY.
-      ⚠ Supplying the ABN alone is not enough.
-    -->
-
-    <!--
-      ⚠ WHAT THIS DOCUMENT IS — and is not (FR-032).
-
-      Effy sells in Australia and prices GST-inclusive, so a shopper may want this for their records.
-      It is NOT a tax invoice: the ABN is an unsupplied operator identifier, and per-item GST treatment
-      is unmodelled (basic food is GST-free, so a grocery basket is a MIXED supply and the 1/11
-      shorthand would be false). ⚠ The tax fields are therefore ABSENT — not blank, not placeholder
-      (FR-031). Research R13 records both prerequisites.
-    -->
     <mj-section padding="0 32px 8px 32px">
       <mj-column>
         <mj-text mj-class="small" css-class="e-muted">

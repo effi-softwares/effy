@@ -52,10 +52,8 @@ afterEach(() => {
 
 describe("MAIL_ENV_KEYS", () => {
   it("⚠ names EXACTLY the environment variables the mail path reads — self-check, so it cannot drift", async () => {
-    // The services' config-contract tests trust this list; this keeps it honest against the source.
-    const { MAIL_ENV_KEYS } = await import("../src/send.js");
+    const { MAIL_ENV_KEYS } = await import("../src/config.js");
     const here = dirname(fileURLToPath(import.meta.url));
-    // Both files that read the mail environment: config.ts (identity) and send.ts (configuration set).
     const read = new Set<string>();
     for (const file of ["../src/config.ts", "../src/send.ts"]) {
       const src = readFileSync(resolve(here, file), "utf8");
@@ -86,7 +84,6 @@ describe("sendEmail", () => {
 
   it("derives the reply address from the audience", async () => {
     const { sendEmail } = await loadSend();
-    // Internal reply falls back to the public address until MAIL_REPLY_TO_INTERNAL is set.
     await sendEmail(
       "auth-sign-in-code",
       { code: "1", expiryMinutes: 5, isInternal: true },
@@ -161,8 +158,6 @@ describe("sendEmail", () => {
   });
 
   it("⚠ refuses to send a Cognito-owned message through this path (it would double-deliver)", async () => {
-    // No Cognito-sent template is sent this way: the `entry.sentBy !== "platform"` check rejects one.
-    // This asserts the shipping templates are platform-sent.
     const { sendEmail } = await loadSend();
     await expect(
       sendEmail(

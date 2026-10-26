@@ -7,11 +7,6 @@ import { render } from "../src/render.js";
 import { CATALOG, validateVars } from "../src/catalog.js";
 import type { MailIdentity } from "../src/audience.js";
 
-/**
- * The double opt-in step. This message is the consent: nobody is subscribed until its link is followed,
- * so a stranger's address typed into the form costs its owner one ignorable email.
- */
-
 const here = dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name: string) =>
   JSON.parse(readFileSync(resolve(here, "../src/fixtures", name), "utf8"));
@@ -25,7 +20,6 @@ const identity: MailIdentity = {
 
 const vars = loadFixture("newsletter-confirmation.json");
 
-/** The entities Handlebars' escaper emits, to compare an href honestly. */
 const decodeEntities = (s: string) =>
   s
     .replace(/&#x3D;/g, "=")
@@ -38,12 +32,9 @@ describe("newsletter-confirmation — the confirm link", () => {
     expect(validateVars("newsletter-confirmation", vars)).toEqual([]);
   });
 
-  /** The URL must appear in both parts, or a text-only reader can never confirm. */
   it("carries the confirm URL in the HTML *and* the text part", () => {
     const m = render("newsletter-confirmation", vars, "customer", identity);
 
-    // HTML hrefs are entity-escaped (clients decode them), so they are decoded before comparing; the
-    // text part is compared raw, since nothing decodes it.
     const href = /href="([^"]*confirm[^"]*)"/.exec(m.html)?.[1] ?? "";
     expect(decodeEntities(href)).toBe(vars.confirmUrl);
 
@@ -58,7 +49,6 @@ describe("newsletter-confirmation — the confirm link", () => {
     expect(m.text).toContain(vars.expiresIn);
   });
 
-  /** The line that makes an unrequested email harmless. */
   it("tells a recipient who never signed up that ignoring it is enough", () => {
     const m = render("newsletter-confirmation", vars, "customer", identity);
 
@@ -67,8 +57,7 @@ describe("newsletter-confirmation — the confirm link", () => {
   });
 });
 
-describe("newsletter-confirmation — no unbacked claim (FR-034)", () => {
-  /** No discount claim: Effy has no such promotion to honour. */
+describe("newsletter-confirmation — no unbacked claim", () => {
   it("promises no discount, incentive or reward", () => {
     const m = render("newsletter-confirmation", vars, "customer", identity);
     const body = `${m.html} ${m.text} ${m.subject}`.toLowerCase();
@@ -79,16 +68,7 @@ describe("newsletter-confirmation — no unbacked claim (FR-034)", () => {
   });
 });
 
-describe("newsletter-confirmation — category and footer (038 doctrine)", () => {
-  /** Transactional, so no unsubscribe footer: there is nothing to unsubscribe from yet. */
-  it("is transactional, so it carries no unsubscribe URL", () => {
-    const entry = CATALOG["newsletter-confirmation"];
-
-    expect(entry.category).toBe("transactional");
-    expect(entry).not.toHaveProperty("unsubscribeUrl");
-  });
-
-  /** Throw: the row is written before the send, so a swallowed failure strands a subscriber at `pending`. */
+describe("newsletter-confirmation — catalogue rules", () => {
   it("throws on send failure, so the visitor can retry", () => {
     expect(CATALOG["newsletter-confirmation"].onSendFailure).toBe("throw");
   });

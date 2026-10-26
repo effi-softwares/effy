@@ -8,10 +8,6 @@ import type { MailIdentity } from "../src/audience.js";
 import { CATALOG } from "../src/catalog.js";
 import { render } from "../src/render.js";
 
-/**
- * Back-office moved the order to courier delivery, or back to Effy. It may say what changed, when it
- * arrives and what the customer received; never why, the courier fee or Effy's cost.
- */
 const here = dirname(fileURLToPath(import.meta.url));
 const vars = JSON.parse(readFileSync(resolve(here, "../src/fixtures/order-delivery-changed.json"), "utf8"));
 

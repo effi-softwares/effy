@@ -47,15 +47,11 @@
     <style type="text/css">
 :root { color-scheme: light dark; supported-color-schemes: light dark; }
 
-  /* ⚠ Apple's data detectors re-colour phone numbers, dates and addresses in their own blue —
-     a third hue the constitution forbids. This is the only way to refuse it. */
   a[x-apple-data-detectors] {
     color: inherit !important; text-decoration: none !important; font-size: inherit !important;
     font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important;
   }
 
-  /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
-     NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
       .e-bg-page { background-color: #18181b !important; }
       .e-bg-canvas { background-color: #09090b !important; }
@@ -73,6 +69,7 @@
       .e-muted a,
       .e-muted h1 { color: #a1a1aa !important; }
       .e-rule p { border-top-color: #27272a !important; }
+      .e-bg-rule { background-color: #27272a !important; }
       .e-btn-bg td { background-color: #2563eb !important; }
       .e-btn-fg,
       .e-btn-fg div,
@@ -80,17 +77,8 @@
       .e-btn-fg span,
       .e-btn-fg a,
       .e-btn-fg h1 { color: #ffffff !important; }
-      .e-error,
-      .e-error div,
-      .e-error p,
-      .e-error span,
-      .e-error a,
-      .e-error h1 { color: #fb7185 !important; }
   }
-/* Dark, mechanism 2 of 2 — the SAME rules as the media query above, for Outlook.com and the
-     Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
-     (DARK_RULES) so they cannot drift. */
-    [data-ogsc] .e-bg-page,
+[data-ogsc] .e-bg-page,
     [data-ogsb] .e-bg-page { background-color: #18181b !important; }
     [data-ogsc] .e-bg-canvas,
     [data-ogsb] .e-bg-canvas { background-color: #09090b !important; }
@@ -109,6 +97,8 @@
     [data-ogsc] .e-muted a,
     [data-ogsc] .e-muted h1 { color: #a1a1aa !important; }
     [data-ogsc] .e-rule p { border-top-color: #27272a !important; }
+    [data-ogsc] .e-bg-rule,
+    [data-ogsb] .e-bg-rule { background-color: #27272a !important; }
     [data-ogsc] .e-btn-bg td,
     [data-ogsb] .e-btn-bg td { background-color: #2563eb !important; }
     [data-ogsc] .e-btn-fg,
@@ -117,12 +107,6 @@
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
     [data-ogsc] .e-btn-fg h1 { color: #ffffff !important; }
-    [data-ogsc] .e-error,
-    [data-ogsc] .e-error div,
-    [data-ogsc] .e-error p,
-    [data-ogsc] .e-error span,
-    [data-ogsc] .e-error a,
-    [data-ogsc] .e-error h1 { color: #fb7185 !important; }
     </style>
     <meta name="color-scheme" content="light dark" />
   <meta name="supported-color-schemes" content="light dark" />
@@ -135,13 +119,13 @@
   </style>
   <![endif]-->
   </head>
-  <body style="word-spacing:normal;background-color:#f5f5f5;">
+  <body style="word-spacing:normal;background-color:#f4f4f5;">
     
     <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Thanks for taking the time &mdash; here&rsquo;s your reference.</div>
   
     
       <div
-         class="e-bg-page" style="background-color:#f5f5f5;" lang="en" dir="ltr"
+         class="e-bg-page" style="background-color:#f4f4f5;" lang="en" dir="ltr"
       >
         
       

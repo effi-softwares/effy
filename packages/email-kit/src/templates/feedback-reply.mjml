@@ -1,18 +1,3 @@
-<!-- feedback-reply — a staff reply to a shopper's feedback (046 US3).
-
-     ⚠ The staff message is the whole point, so it leads and is set in the primary ink. The shopper's
-     original is quoted UNDER a hairline, in muted ink, so they have context without it competing with
-     the reply.
-
-     ⚠ Identifies Effy via the approved customer-facing reply identity ({{effySupportEmail}} → hello@)
-     and NEVER a staff member's personal contact (FR-032). Carries no internal notes or ids (FR-038):
-     only the reply body, a quote of what the shopper themselves sent, the category, and the reference.
-
-     ⚠ TRANSACTIONAL — a direct reply to the shopper, no unsubscribe footer.
-
-     ⚠ Both `replyBody` and `originalMessage` are shopper/staff free text: the render path escapes them,
-     so pasted markup renders as inert text (FR-017). newlines are preserved by the muted block styling. -->
-
 <mjml lang="en" dir="ltr">
   <mj-head>
     <mj-include path="../generated/theme.mjml" />
@@ -20,7 +5,7 @@
     <mj-preview>A reply from the {{effyProductName}} team.</mj-preview>
   </mj-head>
 
-  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+  <mj-body width="600px">
     <mj-include path="../components/header.mjml" />
 
     <mj-section padding="0 32px 8px 32px">

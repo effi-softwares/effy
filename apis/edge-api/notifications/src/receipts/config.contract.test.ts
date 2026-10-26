@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { MAIL_ENV_KEYS } from "@effy/email-kit/send";
+import { MAIL_ENV_KEYS } from "@effy/email-kit";
 
 /** Reads the real serverless.yml and source: a missing MAIL_* key means receipts silently never send. */
 

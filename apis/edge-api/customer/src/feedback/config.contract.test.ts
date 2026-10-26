@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
+import { MAIL_ENV_KEYS } from "@effy/email-kit"
 
 /** Reads the real serverless.yml and source: missing FEEDBACK_RATE_* or MAIL_* keys would silently disable rate limits or the email. */
 
