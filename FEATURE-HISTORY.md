@@ -44,8 +44,8 @@ A clean rebuild (no legacy support, operator's call): product types, their forms
   `make db-up ENV=dev`; `make edge-deploy SERVICE=admin` FIRST (frees `/admin/v1/catalog/*`), then every other
   service (`catalog`, `shop`, `storefront`, `commerce`, `fleet`, `orders`, `driver`, `notifications`,
   `admin-promotions`, `media`, and the rest — all bundle the changed shared library); then shop-web, back-office,
-  customer-web; then the customer app build; then `db/seeds/101_catalogue_products_dev.sql` (58 products, 100
-  variants, 25 departments; needs an active shop) and walk [quickstart.md](specs/101-category-driven-catalogue/quickstart.md).
+  customer-web; then the customer app build; then `db/reset/101_minimal_catalogue_dev.sql` (replaces the seeded tree
+  with Dairy & Eggs › Milk, two attributes and one product; needs an active shop, refuses while orders exist) and walk [quickstart.md](specs/101-category-driven-catalogue/quickstart.md).
 
 **099-shop-floor-signals — Shop Floor Signals: Collection, Pick Order, Availability and Quality.** 🔨 **BUILT
 2026-10-24 — SPEC SIGNED OFF BY THE OPERATOR 2026-10-24; NOT YET MIGRATED, DEPLOYED OR WALKED.** The four parts the shop-console redesign drew as "Needs backend".

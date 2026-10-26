@@ -16,7 +16,8 @@ in [data-model.md](data-model.md).
      `storefront`, `commerce`, `fleet`, `orders`, `driver`, `notifications`, `admin-promotions`;
    - then shop-web, back-office and customer-web;
    - then the customer app build.
-6. `psql … -f db/seeds/101_catalogue_products_dev.sql` (needs an active shop).
+6. `psql … -f db/reset/101_minimal_catalogue_dev.sql` (needs an active shop). It replaces the seeded tree with
+   Dairy & Eggs › Milk, two attributes (Country of origin, Organic) and one product.
 
 ## Automated checks
 
