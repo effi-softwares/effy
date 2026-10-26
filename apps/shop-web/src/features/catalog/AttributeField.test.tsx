@@ -82,13 +82,13 @@ describe("AttributeField data-type → control mapping", () => {
   it("shows the unit, help text, and a mandatory marker", () => {
     render(
       <AttributeField
-        attr={attr({ unit: "g", helpText: "Net weight", isMandatory: true, name: "Weight" })}
+        attr={attr({ unit: "min", helpText: "Preparation time in minutes", isMandatory: true, name: "Prep Time" })}
         value={undefined}
         onChange={noop}
       />,
     )
-    expect(screen.getByText("(g)")).toBeInTheDocument()
-    expect(screen.getByText("Net weight")).toBeInTheDocument()
+    expect(screen.getByText("(min)")).toBeInTheDocument()
+    expect(screen.getByText("Preparation time in minutes")).toBeInTheDocument()
     expect(screen.getByText("*")).toBeInTheDocument()
   })
 })

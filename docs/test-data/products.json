@@ -281,10 +281,6 @@
           ],
           "attributes": [
             {
-              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
-              "valueNumber": 750
-            },
-            {
               "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
               "valueText": "ambient"
             },
@@ -459,10 +455,6 @@
           ],
           "attributes": [
             {
-              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
-              "valueNumber": 500
-            },
-            {
               "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
               "valueText": "chilled"
             },
@@ -624,10 +616,6 @@
           ],
           "attributes": [
             {
-              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
-              "valueNumber": 460
-            },
-            {
               "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
               "valueText": "ambient"
             },
@@ -759,10 +747,6 @@
           ],
           "attributes": [
             {
-              "attributeId": "68d05001-331c-4089-99f0-cadca5e3af69",
-              "valueNumber": 1250
-            },
-            {
               "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
               "valueText": "ambient"
             },
@@ -855,10 +839,6 @@
             }
           ],
           "attributes": [
-            {
-              "attributeId": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
-              "valueNumber": 500
-            },
             {
               "attributeId": "1a8a01f0-3574-48a2-8712-c4df2cf25d99",
               "valueText": "frozen"

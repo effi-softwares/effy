@@ -110,7 +110,6 @@
       "id": "c16203dc-dff8-43c0-b77e-38d1b52b254d",
       "key": "packaged_grocery",
       "mandatory": [
-        "net_weight",
         "storage"
       ],
       "optional": [
@@ -122,9 +121,7 @@
     {
       "id": "eefee447-c3a6-4003-829d-ea62cf695bb5",
       "key": "beverage",
-      "mandatory": [
-        "net_volume"
-      ],
+      "mandatory": [],
       "optional": [
         "storage",
         "country_of_origin"
@@ -155,14 +152,6 @@
     },
     "prep_time": {
       "id": "67cf567a-ff9a-4d8d-b95a-70840d49c451",
-      "kind": "number"
-    },
-    "net_weight": {
-      "id": "4a8597d9-fabc-4a5e-aa1a-e0f8a8788eb2",
-      "kind": "number"
-    },
-    "net_volume": {
-      "id": "68d05001-331c-4089-99f0-cadca5e3af69",
       "kind": "number"
     },
     "storage": {

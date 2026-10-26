@@ -31,11 +31,11 @@ async function kindOf(p: Promise<unknown>): Promise<string> {
 }
 
 const numberAttr: SchemaAttribute = {
-  attributeId: "attr-weight",
-  key: "net_weight",
-  name: "Net Weight",
+  attributeId: "attr-prep",
+  key: "prep_time",
+  name: "Prep Time",
   dataType: "number",
-  unit: "g",
+  unit: "min",
   helpText: null,
   validation: { min: 0, max: 1000 },
   allowedValues: [],
@@ -103,23 +103,23 @@ describe("createProduct (validation, draft-first)", () => {
 
   it("enforces attribute value TYPING (a string for a number attribute is rejected)", async () => {
     repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-weight", valueText: "heavy" }] };
+    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueText: "heavy" }] };
     expect(await kindOf(createProduct("shop-1", body, "sub"))).toBe("validation");
   });
 
   it("enforces number range from the attribute validation", async () => {
     repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-weight", valueNumber: 5000 }] };
+    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueNumber: 5000 }] };
     expect(await kindOf(createProduct("shop-1", body, "sub"))).toBe("validation");
   });
 
   it("accepts a well-typed attribute value and writes it", async () => {
     repo.assignmentsForType.mockResolvedValue([numberAttr]);
-    const body = { ...baseBody, attributes: [{ attributeId: "attr-weight", valueNumber: 250 }] };
+    const body = { ...baseBody, attributes: [{ attributeId: "attr-prep", valueNumber: 250 }] };
     await createProduct("shop-1", body, "sub");
     expect(repo.createProduct).toHaveBeenCalledWith(
       "shop-1",
-      expect.objectContaining({ attributes: [expect.objectContaining({ attributeId: "attr-weight", valueNumber: 250 })] }),
+      expect.objectContaining({ attributes: [expect.objectContaining({ attributeId: "attr-prep", valueNumber: 250 })] }),
       "sub",
     );
   });
