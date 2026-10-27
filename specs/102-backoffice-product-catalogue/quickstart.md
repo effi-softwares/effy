@@ -6,8 +6,8 @@ How to prove 102 works. Contracts: [contracts/api.md](contracts/api.md). Data:
 ## Operator steps (the user runs these — Claude does not)
 
 1. Terraform (`infra/envs/dev`): the `product-import` SQS queue + DLQ + alarm, the `imports/` lifecycle
-   rule on the media bucket, the worker's IAM. `make apply ENV=dev`.
-2. Migration: `make migrate ENV=dev` (`20261027090000_backoffice_product_catalogue.sql`).
+   rule on the media bucket, the worker's IAM. `make plan ENV=dev` then `make apply ENV=dev`.
+2. Migration: `make db-up ENV=dev` (commit it first — `db-up` refuses an uncommitted migration) (`20261027090000_backoffice_product_catalogue.sql`).
 3. Deploy, in this order (the shop must refuse held products before back-office can hold them; the catalog stack
    reads the new queue's SSM parameters, so Terraform first): `SERVICE=shop`, `SERVICE=notifications`,
    `SERVICE=catalog`, then back-office and shop-web.

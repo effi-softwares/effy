@@ -42,7 +42,7 @@ Decisions: research R1–R12 and its "Implementation notes".
   web-kit 170, design-system guards OK, refresh-timer and delivery-word scripts OK. Pre-existing, not 102's:
   `shared-types/package-status.guard.test.ts` (flags shop-web `fulfillment/collection.ts`, `OrderQueue.tsx`) and a
   Prettier warning on back-office `orders/components/PackageRows.tsx`.
-- **Operator, in order**: `make apply ENV=dev` (queue, DLQ, alarms, `imports/` lifecycle) → `make migrate ENV=dev`
+- **Operator, in order**: `make apply ENV=dev` (queue, DLQ, alarms, `imports/` lifecycle) → `make db-up ENV=dev`
   (`20261027090000_backoffice_product_catalogue.sql`) → deploy `SERVICE=shop`, `SERVICE=notifications`,
   `SERVICE=catalog`, then back-office and shop-web → walk [quickstart](specs/102-backoffice-product-catalogue/quickstart.md).
 
