@@ -55,15 +55,19 @@ describe("⚠ every 059 handler is actually registered", () => {
 });
 
 describe("⚠ the notification type catalogue has one source", () => {
-  it("the seven shop types and their keys agree", () => {
+  it("the eleven shop types and their keys agree", () => {
     // Written out, not derived from the export.
     expect([...KNOWN_SHOP_NOTIFICATION_TYPES].sort()).toEqual([
       "shop_awaiting_pick",
       "shop_low_stock",
       "shop_new_order",
       "shop_out_of_stock",
+      "shop_product_added_by_effy",
       "shop_product_approved",
+      "shop_product_held",
+      "shop_product_released",
       "shop_product_sent_back",
+      "shop_products_imported",
       "shop_refund_proposed",
     ]);
   });

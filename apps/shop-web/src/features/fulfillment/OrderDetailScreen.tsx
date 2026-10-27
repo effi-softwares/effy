@@ -297,22 +297,22 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       </div>
 
       {nextTransition(detail.status) || detail.status === "ready_for_pickup" ? (
-        <div className="actionbar">
-          <div className="actionbar__text">
-            <div className="actionbar__title">
+        <div className="ef-actionbar">
+          <div className="ef-actionbar__text">
+            <div className="ef-actionbar__title">
               {detail.status === "ready_for_pickup"
                 ? "Ready — waiting for collection"
                 : toGo > 0
                   ? `${toGo} ${toGo === 1 ? "line" : "lines"} to go`
                   : "Every line is accounted for"}
             </div>
-            <div className="actionbar__desc">
+            <div className="ef-actionbar__desc">
               {detail.status === "ready_for_pickup"
                 ? `${detail.deliveredBy === "courier" ? "A courier" : "An Effy driver"} collects it. Reopen picking only if something has to change.`
                 : `When every line is picked and every bag labelled, mark it ready. ${detail.deliveredBy === "courier" ? "A courier" : "The Effy driver"} collects it.`}
             </div>
           </div>
-          <div className="actionbar__actions">
+          <div className="ef-actionbar__actions">
             <StateActions detail={detail} />
           </div>
         </div>

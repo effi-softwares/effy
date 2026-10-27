@@ -190,7 +190,7 @@ function labelledOptions(set: SetInput, rows: readonly CategoryFormRow[]): Label
 }
 
 /** The live set (removed variants excluded) in the shape a proposal carries. */
-function liveSetOf(set: VariantSet): SetInput {
+export function liveSetOf(set: VariantSet): SetInput {
   return {
     options: set.options.map((o) => ({
       id: o.id, position: o.position, kind: o.kind, attributeId: o.attributeId,
@@ -579,6 +579,32 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
     currentMargin: marginOf(p),
     marginRequired: priceChanges || p.margin_kind === null,
     ...live101,
+  };
+}
+
+/** The live product as review renders it, for back-office's product page (102): no proposal, the current margin. */
+export async function liveView(p: repo.ProductRow): Promise<{
+  details: ReviewDetailRowDTO[];
+  images: ReviewImageDTO[];
+  variants: ReviewVariantDTO[];
+  margin: MarginDTO | null;
+  categoryPath: string[];
+  facts: { storage: Storage; gstStatus: "taxable" | "gst_free"; ageRestricted: boolean };
+  missingRequired: string[];
+  placements: { categoryId: string; path: string[] }[];
+}> {
+  const [liveMedia, placements, x] = await Promise.all([repo.readLiveMedia(p.id), repo.readPlacements(p.id), prepare(p, null)]);
+  const options = labelledOptions(liveSetOf(x.live), x.liveRows);
+  const rendered = renderDetails(x.liveRows, x.liveDetails, new Map(x.live.variants.map((v) => [v.id, v.label])));
+  return {
+    details: detailsOf(p, rendered.product, options),
+    images: await images(liveMedia, null),
+    variants: reviewVariants(x.live, null, marginOf(p), x.liveRows, rendered.byVariant),
+    margin: marginOf(p),
+    categoryPath: x.path,
+    facts: x.facts,
+    missingRequired: (await missingRequired(pooled, [p.id])).get(p.id) ?? [],
+    placements: placements.map((pl) => ({ categoryId: pl.category_id, path: pl.path })),
   };
 }
 

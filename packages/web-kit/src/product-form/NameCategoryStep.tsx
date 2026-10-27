@@ -1,25 +1,40 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 
-import { Input, Label, Textarea } from "@effy/design-system/ui"
+import { Input, Label, Textarea } from "@effy/design-system/ui";
 
-import type { ProductDraft } from "../draft"
-import type { ShopTaxonomy } from "../model"
-import { CategoryPicker } from "./CategoryPicker"
+import type { ProductDraft } from "./draft";
+import type { ShopTaxonomy } from "./model";
+import { CategoryPicker, type CategoryPickerEvent } from "./CategoryPicker";
 
 interface Props {
-  draft: ProductDraft
-  taxonomy: ShopTaxonomy
-  onField: (patch: Partial<Pick<ProductDraft, "name" | "brand" | "shortDescription">>) => void
+  draft: ProductDraft;
+  taxonomy: ShopTaxonomy;
+  onField: (
+    patch: Partial<Pick<ProductDraft, "name" | "brand" | "shortDescription">>,
+  ) => void;
   /** Choosing a leaf; the flow warns first when details would be dropped. */
-  onCategory: (leafId: string) => void
-  disabled?: boolean
+  onCategory: (leafId: string) => void;
+  disabled?: boolean;
+  onPickerEvent?: (event: CategoryPickerEvent) => void;
 }
 
-export function NameCategoryStep({ draft, taxonomy, onField, onCategory, disabled }: Props) {
+export function NameCategoryStep({
+  draft,
+  taxonomy,
+  onField,
+  onCategory,
+  disabled,
+  onPickerEvent,
+}: Props) {
   return (
     <div className="space-y-5">
       <Field id="p-name" label="Name" required>
-        <Input id="p-name" value={draft.name} disabled={disabled} onChange={(e) => onField({ name: e.target.value })} />
+        <Input
+          id="p-name"
+          value={draft.name}
+          disabled={disabled}
+          onChange={(e) => onField({ name: e.target.value })}
+        />
       </Field>
 
       <div className="space-y-2">
@@ -33,6 +48,7 @@ export function NameCategoryStep({ draft, taxonomy, onField, onCategory, disable
           value={draft.primaryCategoryId}
           onChange={onCategory}
           disabled={disabled}
+          onEvent={onPickerEvent}
         />
       </div>
 
@@ -54,7 +70,7 @@ export function NameCategoryStep({ draft, taxonomy, onField, onCategory, disable
         />
       </Field>
     </div>
-  )
+  );
 }
 
 function Field({
@@ -63,18 +79,20 @@ function Field({
   required,
   children,
 }: {
-  id: string
-  label: string
-  required?: boolean
-  children: ReactNode
+  id: string;
+  label: string;
+  required?: boolean;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {required ? <span className="ml-1 text-muted-foreground">*</span> : null}
+        {required ? (
+          <span className="ml-1 text-muted-foreground">*</span>
+        ) : null}
       </Label>
       {children}
     </div>
-  )
+  );
 }

@@ -11,7 +11,7 @@ import { track } from "@/lib/telemetry"
 
 import { productMutationError } from "./errorText"
 import { ReceiveStockButton, SizePicker } from "./InventorySection"
-import { sizeLabelOf } from "./variants"
+import { sizeLabelOf } from "@effy/web-kit/product-form"
 import type { ProductDetail } from "./model"
 import { useChangeStatus, useDeleteProduct, useSubmitForReview, useWithdrawReview } from "./queries"
 import { ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs"
@@ -42,7 +42,7 @@ export function ProductHeaderActions({
 
   const submit = useSubmitForReview(detail.id)
   const withdraw = useWithdrawReview(detail.id)
-  const action = visibilityAction(detail.status, detail.reviewState)
+  const action = visibilityAction(detail.status, detail.reviewState, detail.hold !== null)
   const busy = changeStatus.isPending || submit.isPending || withdraw.isPending
 
   function review(kind: "submit" | "withdraw") {
@@ -166,7 +166,7 @@ function ProductRemovalControl({ detail, onDeleted }: { detail: ProductDetail; o
   const [confirm, setConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const action = removalAction(detail.status)
+  const action = removalAction(detail.status, detail.reviewState, detail.hold !== null)
   if (!action) return null
 
   const busy = changeStatus.isPending || deleteProduct.isPending

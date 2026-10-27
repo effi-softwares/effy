@@ -25,6 +25,10 @@ const ALL: NotificationType[] = [
   "shop_refund_proposed",
   "shop_product_approved",
   "shop_product_sent_back",
+  "shop_product_held",
+  "shop_product_released",
+  "shop_product_added_by_effy",
+  "shop_products_imported",
   "points_credited",
   "points_expiring",
   "order_with_courier",
@@ -128,7 +132,7 @@ describe("notification copy + wire contract", () => {
 
   // The payload carries the product id, so the tap lands on the product.
   it("a review decision opens the product it is about, on both surfaces (067)", () => {
-    for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
+    for (const t of ["shop_product_approved", "shop_product_sent_back", "shop_product_held", "shop_product_released", "shop_product_added_by_effy"] as const) {
       expect(webPathFor(t, "p1")).toBe("/catalog/p1");
       expect(deepLinkFor(t, "p1")).toBe("effy://product/p1");
     }
@@ -136,7 +140,7 @@ describe("notification copy + wire contract", () => {
 
   // A send-back reason is read in the console, never on a lock screen.
   it("never puts a product name, a price or the send-back reason in the push text (067)", () => {
-    for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
+    for (const t of ["shop_product_approved", "shop_product_sent_back", "shop_product_held", "shop_product_released"] as const) {
       const c = copyFor(t);
       expect(`${c.title} ${c.body}`).not.toMatch(/\$|\d|because|reason:/i);
     }

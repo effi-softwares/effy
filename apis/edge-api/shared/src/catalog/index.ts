@@ -5,3 +5,4 @@ export * from "./listing";
 export * from "./read";
 export * from "./variants";
 export * from "./taxonomy";
+export * from "./authoring";

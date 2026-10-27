@@ -38,6 +38,10 @@ export interface ProductListItemDTO {
   updatedAt: string;
   /** Where the product stands with Effy's review. */
   reviewState?: ShopReviewState;
+  /** Effy's hold, or null (102). */
+  hold: ProductHoldShownDTO | null;
+  /** Who made the product: the shop, or Effy for the shop (102). */
+  createdBy: "shop" | "effy";
   /** The lowest shop price among active variants. */
   shopPriceAmount?: string;
   /** The lowest customer price among active variants; null until first approved. */
@@ -105,6 +109,10 @@ export interface ProductDetailDTO {
   // Review. Nothing here names or derives from Effy's margin: a shop sees what it is paid and what the
   // customer pays.
   reviewState?: ShopReviewState;
+  /** Effy's hold, or null (102). The shop cannot put a held product on sale. */
+  hold: ProductHoldShownDTO | null;
+  /** Who made the product: the shop, or Effy for the shop (102). */
+  createdBy: "shop" | "effy";
   /** Why Effy last sent this product (or its pending change) back. Carries no staff identity. */
   reviewReason?: string | null;
   /** The shop's proposed new version of an approved product, or null. Customers see the fields above until it is approved. */
@@ -121,7 +129,15 @@ export type ShopReviewState =
   | "sent_back"
   | "live"
   | "live_change_pending"
-  | "live_change_sent_back";
+  | "live_change_sent_back"
+  // Effy created it and is still finishing it (102): read-only to the shop until it goes on sale.
+  | "effy_setup";
+
+/** Effy holding a product off sale (102): shown to the shop as from Effy, never a person. */
+export interface ProductHoldShownDTO {
+  reason: string;
+  heldAt: string;
+}
 
 /** What a pending change proposes: only the details that differ from the live product. */
 export interface ProductChangeProposalDTO {

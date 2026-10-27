@@ -175,6 +175,17 @@ back-office › Categories & attributes, the `catalog` service on the staff gate
   the shop's Missing details filter). Category icons are keys from `CATEGORY_ICONS` (one list: the migration CHECK,
   `@effy/web-kit/category-icon`, the app's `CategoryIcons.kt`, all pinned to `category-icons.fixtures.json`).
 
+### Back-office products (102)
+- ⚠ **A HOLD IS A STATUS, GUARDED BY A CHECK** — Effy's hold sets `status = 'unavailable'` and
+  `product_held_not_active_ck` keeps a held product off sale whichever route writes; no storefront reader knows holds.
+- ⚠ **ONE WRITER OF A NEW PRODUCT** — `@effy/edge-shared/catalog` `authoring.ts` (`insertProduct`; shop form, Effy's
+  form, imports). `authoring.guard.test.ts` fails an `INSERT INTO public.product` elsewhere.
+- ⚠ **AN EFFY-CREATED PRODUCT IS EFFY'S DRAFT UNTIL COMPLETE** (`content_owner = 'effy'`): never in the queue, the shop
+  can only see it; `completeIfReady` approves it and hands it to the shop. The product form lives in
+  `@effy/web-kit/product-form` for both consoles.
+- ⚠ **AN IMPORT FETCHES UNTRUSTED LINKS ONLY THROUGH `fetchPicture`** (`@effy/edge-shared`, address checked in the DNS
+  lookup) into private `imports/` — never a public prefix.
+
 ## Platform shape (the vision)
 The full platform is **five active client surfaces + one backend + DB migrations + infrastructure**.
 The customer audience gets **two surfaces kept at parity** (a native mobile build and a native web
@@ -615,6 +626,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **102-backoffice-product-catalogue** — Back-Office Product Catalogue (every shop's products in one list; holds; Effy creates products for a shop and imports a shop's list; one writer of a new product) — built 2026-10-27; not applied, migrated, deployed or walked
 - **101-category-driven-catalogue** — Category-Driven Catalogue (no product types; one ≤5-level tree; attribute library and attachments; facts as columns; per-variant details; library options; placements; 18+ label) — built 2026-10-26; not migrated, deployed or walked
 - **099-shop-floor-signals** — Shop Floor Signals (next collection per shop and order, pick list in walking order, Availability, quality figures on Insights) — built 2026-10-24, spec signed off; not migrated, deployed or walked
 - **098-product-variants** — Product Variants (up to two options, per-variant price/codes/weight/stock, one margin per product, unit pricing, sizes on every surface; carts from before 098 dropped) — complete in dev (migrated, deployed, walked)
@@ -693,5 +705,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/101-category-driven-catalogue/plan.md
+at specs/102-backoffice-product-catalogue/plan.md
 <!-- SPECKIT END -->

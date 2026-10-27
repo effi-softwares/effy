@@ -15,7 +15,7 @@ import type { ProductDetail } from "./model"
 import { useSetVariantState } from "./queries"
 import { isApproved } from "./review"
 
-export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onEdit: () => void }) {
+export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onEdit?: () => void }) {
   const approved = isApproved(detail)
   const setState = useSetVariantState(detail.id)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +44,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
           ? "A new size or price is reviewed by Effy before it applies. Switching a size off sale is immediate."
           : "What you are paid for each size. Effy sets what customers pay when it approves the product."
       }
-      action={<SectionAction onClick={onEdit}>Edit sizes</SectionAction>}
+      action={onEdit ? <SectionAction onClick={onEdit}>Edit sizes</SectionAction> : undefined}
     >
       {detail.unitBasis ? (
         <p className="px-5 pt-3 text-sm text-muted-foreground">Unit pricing: {UNIT_BASIS_LABELS[detail.unitBasis]}</p>
@@ -114,8 +114,17 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                       <Switch
                         checked={v.state === "active"}
                         aria-label={`${v.label ?? "This size"} on sale`}
-                        disabled={setState.isPending || last}
-                        title={last ? "The last size on sale — make the product unavailable instead" : undefined}
+                        // Held by Effy (102): a size may come off sale, never back on. Read-only while Effy sets it up.
+                        disabled={
+                          setState.isPending || last || !onEdit || (detail.hold !== null && v.state !== "active")
+                        }
+                        title={
+                          detail.hold !== null && v.state !== "active"
+                            ? "Effy is holding this product — no size can go back on sale until Effy releases it"
+                            : last
+                              ? "The last size on sale — make the product unavailable instead"
+                              : undefined
+                        }
                         onCheckedChange={(on) => void change(v, on ? "active" : "inactive")}
                       />
                     ) : v.state === "active" ? (

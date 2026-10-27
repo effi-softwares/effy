@@ -11,10 +11,10 @@ import { signPublish } from "./sign";
 
 /** Whose change and what kind. No field for an id, status or amount; the customer variant has none for a shop id. */
 export type LiveChange =
-  | { scope: "shop"; shopId: string; kind: "orders" | "stock" | "attention" | "taxonomy" }
+  | { scope: "shop"; shopId: string; kind: "orders" | "stock" | "attention" | "taxonomy" | "products" }
   | { scope: "customer"; sub: string; kind: "orders" | "points" }
   | { scope: "driver"; driverId: string; kind: "work" }
-  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" | "coverage" | "pricing" | "promotions" | "taxonomy" };
+  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" | "coverage" | "pricing" | "promotions" | "taxonomy" | "products" };
 
 /** One namespace for the platform. */
 export const LIVE_METRIC_NAMESPACE = "Effy/Live";

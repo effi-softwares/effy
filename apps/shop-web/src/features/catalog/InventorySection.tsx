@@ -23,7 +23,7 @@ import { InventoryRulesDialog } from "./InventoryRulesDialog"
 import { StockHistory } from "./StockHistory"
 import { StockTable } from "./StockTable"
 import { variantStockQuery } from "./stockQueries"
-import { sizeLabelOf } from "./variants"
+import { sizeLabelOf } from "@effy/web-kit/product-form"
 
 export function InventorySection({
   detail,

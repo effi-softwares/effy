@@ -1,56 +1,93 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState } from "react";
 
-import { Check, ChevronRight, Search } from "lucide-react"
+import { Check, ChevronRight, Search } from "lucide-react";
 
-import { cn } from "@effy/design-system"
-import { Input } from "@effy/design-system/ui"
-import { searchLeaves, suggestCategories, type SuggestLeaf } from "@effy/shared-types"
-import { CategoryGlyph } from "@effy/web-kit/category-icon"
+import { cn } from "@effy/design-system";
+import { Input } from "@effy/design-system/ui";
+import {
+  searchLeaves,
+  suggestCategories,
+  type SuggestLeaf,
+} from "@effy/shared-types";
 
-import { track } from "@/lib/telemetry"
+import { CategoryGlyph } from "../category-icon";
 
-import { pathText, type ShopCategory } from "../model"
+import { pathText, type ShopCategory } from "./model";
 
 interface Props {
-  categories: readonly ShopCategory[]
-  recentLeafIds: readonly string[]
+  categories: readonly ShopCategory[];
+  recentLeafIds: readonly string[];
   /** The product's name so far: suggestions come from it. */
-  productName: string
-  value: string | null
-  onChange: (leafId: string) => void
-  disabled?: boolean
+  productName: string;
+  value: string | null;
+  onChange: (leafId: string) => void;
+  disabled?: boolean;
+  /** How the leaf was found, for the console's analytics. */
+  onEvent?: (event: CategoryPickerEvent) => void;
 }
 
-type Mode = "suggested" | "search" | "browse"
+export type CategoryPickerEvent =
+  | { name: "category_suggestion_chosen"; rank: number }
+  | { name: "category_searched" }
+  | { name: "category_browsed"; depth: number };
+
+type Mode = "suggested" | "search" | "browse";
 
 /**
  * The home category: suggested from the product's name, found by search, or browsed column by column.
  * Only a category with no sub-categories (a leaf) can be chosen; its full path stays in view.
  */
-export function CategoryPicker({ categories, recentLeafIds, productName, value, onChange, disabled }: Props) {
+export function CategoryPicker({
+  categories,
+  recentLeafIds,
+  productName,
+  value,
+  onChange,
+  disabled,
+  onEvent,
+}: Props) {
+  const track = (e: CategoryPickerEvent) => onEvent?.(e);
   const leaves = useMemo<SuggestLeaf[]>(
     () =>
-      categories.filter((c) => c.isLeaf).map((c) => ({ id: c.id, name: c.name, path: c.path, synonyms: c.synonyms })),
+      categories
+        .filter((c) => c.isLeaf)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          path: c.path,
+          synonyms: c.synonyms,
+        })),
     [categories],
-  )
-  const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
-  const suggestions = useMemo(() => suggestCategories(productName, leaves), [productName, leaves])
-  const recent = recentLeafIds.map((id) => byId.get(id)).filter((c): c is ShopCategory => !!c && c.isLeaf)
-  const [mode, setMode] = useState<Mode>("suggested")
-  const [q, setQ] = useState("")
-  const found = useMemo(() => searchLeaves(q, leaves, 40), [q, leaves])
-  const chosen = value ? byId.get(value) : undefined
+  );
+  const byId = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+  const suggestions = useMemo(
+    () => suggestCategories(productName, leaves),
+    [productName, leaves],
+  );
+  const recent = recentLeafIds
+    .map((id) => byId.get(id))
+    .filter((c): c is ShopCategory => !!c && c.isLeaf);
+  const [mode, setMode] = useState<Mode>("suggested");
+  const [q, setQ] = useState("");
+  const found = useMemo(() => searchLeaves(q, leaves, 40), [q, leaves]);
+  const chosen = value ? byId.get(value) : undefined;
 
   const choose = (id: string) => {
-    if (!disabled) onChange(id)
-  }
+    if (!disabled) onChange(id);
+  };
 
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-2 text-sm" aria-live="polite">
         {chosen ? (
           <>
-            <CategoryGlyph icon={chosen.icon ?? rootOf(chosen, byId)?.icon} className="size-4 text-muted-foreground" />
+            <CategoryGlyph
+              icon={chosen.icon ?? rootOf(chosen, byId)?.icon}
+              className="size-4 text-muted-foreground"
+            />
             <span>
               <span className="text-muted-foreground">Filed in </span>
               <span className="font-medium">{pathText(chosen.path)}</span>
@@ -58,7 +95,8 @@ export function CategoryPicker({ categories, recentLeafIds, productName, value, 
           </>
         ) : (
           <span className="text-muted-foreground">
-            Choose where shoppers find it. Only the most specific categories can be chosen.
+            Choose where shoppers find it. Only the most specific categories can
+            be chosen.
           </span>
         )}
       </div>
@@ -97,8 +135,8 @@ export function CategoryPicker({ categories, recentLeafIds, productName, value, 
             value={value}
             disabled={disabled}
             onPick={(id, rank) => {
-              track({ name: "category_suggestion_chosen", rank })
-              choose(id)
+              track({ name: "category_suggestion_chosen", rank });
+              choose(id);
             }}
           />
           {recent.length > 0 ? (
@@ -135,23 +173,32 @@ export function CategoryPicker({ categories, recentLeafIds, productName, value, 
               value={value}
               disabled={disabled}
               onPick={(id) => {
-                track({ name: "category_searched" })
-                choose(id)
+                track({ name: "category_searched" });
+                choose(id);
               }}
             />
           ) : null}
         </div>
       ) : (
-        <Columns categories={categories} value={value} disabled={disabled} onPick={choose} />
+        <Columns
+          categories={categories}
+          value={value}
+          disabled={disabled}
+          onPick={choose}
+          onBrowse={(depth) => track({ name: "category_browsed", depth })}
+        />
       )}
     </div>
-  )
+  );
 }
 
-function rootOf(c: ShopCategory, byId: Map<string, ShopCategory>): ShopCategory | undefined {
-  let at: ShopCategory | undefined = c
-  while (at?.parentId) at = byId.get(at.parentId)
-  return at
+function rootOf(
+  c: ShopCategory,
+  byId: Map<string, ShopCategory>,
+): ShopCategory | undefined {
+  let at: ShopCategory | undefined = c;
+  while (at?.parentId) at = byId.get(at.parentId);
+  return at;
 }
 
 function LeafList({
@@ -162,16 +209,20 @@ function LeafList({
   disabled,
   onPick,
 }: {
-  title?: string
-  items: { id: string; path: string[] }[]
-  empty?: string
-  value: string | null
-  disabled?: boolean
-  onPick: (id: string, rank: number) => void
+  title?: string;
+  items: { id: string; path: string[] }[];
+  empty?: string;
+  value: string | null;
+  disabled?: boolean;
+  onPick: (id: string, rank: number) => void;
 }) {
   return (
     <div className="grid gap-1.5">
-      {title ? <p className="text-xs font-medium text-muted-foreground uppercase">{title}</p> : null}
+      {title ? (
+        <p className="text-xs font-medium text-muted-foreground uppercase">
+          {title}
+        </p>
+      ) : null}
       {items.length === 0 ? (
         empty ? (
           <p className="text-sm text-muted-foreground">{empty}</p>
@@ -183,7 +234,7 @@ function LeafList({
           aria-label={title ?? "Categories"}
         >
           {items.map((it, i) => {
-            const selected = it.id === value
+            const selected = it.id === value;
             return (
               <li key={it.id} role="option" aria-selected={selected}>
                 <button
@@ -200,17 +251,21 @@ function LeafList({
                       {it.path.slice(0, -1).join(" › ")}
                       {it.path.length > 1 ? " › " : ""}
                     </span>
-                    <span className="font-medium">{it.path[it.path.length - 1]}</span>
+                    <span className="font-medium">
+                      {it.path[it.path.length - 1]}
+                    </span>
                   </span>
-                  {selected ? <Check aria-hidden className="size-4 text-primary" /> : null}
+                  {selected ? (
+                    <Check aria-hidden className="size-4 text-primary" />
+                  ) : null}
                 </button>
               </li>
-            )
+            );
           })}
         </ul>
       )}
     </div>
-  )
+  );
 }
 
 /** Department → … → leaf, one column per level; a category with sub-categories opens the next column. */
@@ -219,28 +274,45 @@ function Columns({
   value,
   disabled,
   onPick,
+  onBrowse,
 }: {
-  categories: readonly ShopCategory[]
-  value: string | null
-  disabled?: boolean
-  onPick: (id: string) => void
+  categories: readonly ShopCategory[];
+  value: string | null;
+  disabled?: boolean;
+  onPick: (id: string) => void;
+  onBrowse: (depth: number) => void;
 }) {
   const byParent = useMemo(() => {
-    const m = new Map<string | null, ShopCategory[]>()
-    for (const c of categories) m.set(c.parentId, [...(m.get(c.parentId) ?? []), c])
-    return m
-  }, [categories])
-  const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
+    const m = new Map<string | null, ShopCategory[]>();
+    for (const c of categories)
+      m.set(c.parentId, [...(m.get(c.parentId) ?? []), c]);
+    return m;
+  }, [categories]);
+  const byId = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
   // The open trail starts at the chosen leaf's ancestors.
   const [trail, setTrail] = useState<string[]>(() => {
-    const out: string[] = []
-    for (let c = value ? byId.get(value) : undefined; c?.parentId; c = byId.get(c.parentId)) out.unshift(c.parentId)
-    return out
-  })
-  const columns = [null, ...trail].map((parentId) => byParent.get(parentId) ?? [])
+    const out: string[] = [];
+    for (
+      let c = value ? byId.get(value) : undefined;
+      c?.parentId;
+      c = byId.get(c.parentId)
+    )
+      out.unshift(c.parentId);
+    return out;
+  });
+  const columns = [null, ...trail].map(
+    (parentId) => byParent.get(parentId) ?? [],
+  );
 
   return (
-    <div className="flex snap-x gap-2 overflow-x-auto pb-1" role="group" aria-label="Browse categories">
+    <div
+      className="flex snap-x gap-2 overflow-x-auto pb-1"
+      role="group"
+      aria-label="Browse categories"
+    >
       {columns.map((col, depth) => (
         <ul
           key={depth}
@@ -248,8 +320,8 @@ function Columns({
           style={{ maxHeight: 360 }}
         >
           {col.map((c) => {
-            const open = trail[depth] === c.id
-            const selected = c.id === value
+            const open = trail[depth] === c.id;
+            const selected = c.id === value;
             return (
               <li key={c.id}>
                 <button
@@ -262,15 +334,18 @@ function Columns({
                     (open || selected) && "bg-muted font-medium",
                   )}
                   onClick={() => {
-                    if (c.isLeaf) onPick(c.id)
+                    if (c.isLeaf) onPick(c.id);
                     else {
-                      setTrail([...trail.slice(0, depth), c.id])
-                      track({ name: "category_browsed", depth: depth + 1 })
+                      setTrail([...trail.slice(0, depth), c.id]);
+                      onBrowse(depth + 1);
                     }
                   }}
                 >
                   {depth === 0 ? (
-                    <CategoryGlyph icon={c.icon} className="size-4 shrink-0 text-muted-foreground" />
+                    <CategoryGlyph
+                      icon={c.icon}
+                      className="size-4 shrink-0 text-muted-foreground"
+                    />
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">{c.name}</span>
                   {c.isLeaf ? (
@@ -278,14 +353,17 @@ function Columns({
                       <Check aria-hidden className="size-4 text-primary" />
                     ) : null
                   ) : (
-                    <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+                    <ChevronRight
+                      aria-hidden
+                      className="size-4 text-muted-foreground"
+                    />
                   )}
                 </button>
               </li>
-            )
+            );
           })}
         </ul>
       ))}
     </div>
-  )
+  );
 }

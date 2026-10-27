@@ -14,10 +14,9 @@ import {
 
 import { CatalogModal } from "./CatalogModal"
 import type { ProductDetail } from "./model"
-import { wholeNumber } from "./numberInput"
+import { sizeLabelOf, wholeNumber } from "@effy/web-kit/product-form"
 import { stockErrorText } from "./stockErrorText"
 import { useSetStockThreshold, useSetStockTracking } from "./stockQueries"
-import { sizeLabelOf } from "./variants"
 
 interface Props {
   detail: ProductDetail

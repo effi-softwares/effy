@@ -31,7 +31,7 @@ import { categoryFormQuery, productDetailQuery } from "./queries"
 import { reviewChip, workingDetail } from "./review"
 import { ReviewPanel } from "./ReviewPanel"
 import { SectionAssignment } from "./SectionAssignment"
-import { defaultStockVariantId, shopPriceSummary } from "./variants"
+import { defaultStockVariantId, shopPriceSummary } from "@effy/web-kit/product-form"
 import { VariantsSection } from "./VariantsSection"
 
 type EditTarget = "basics" | "sizes" | "category" | "facts" | { section: string } | null
@@ -89,6 +89,8 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
   const price = shopPriceSummary(detail)
   const onSale = detail.variants.filter((v) => v.state === "active")
   const soldOut = onSale.length > 0 && onSale.every((v) => v.stock.outOfStock)
+  // Effy is still setting this product up (102): the shop sees it, and changes it once it is on sale.
+  const readOnly = detail.reviewState === "effy_setup"
   const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target)
   const editingSection = editing !== null && typeof editing === "object" ? editing.section : null
 
@@ -108,6 +110,12 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                   status={detail.status}
                   stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined}
                 />
+                {detail.hold ? (
+                  <span className="ef-st ef-st--problem">
+                    <CircleAlert aria-hidden="true" />
+                    Held by Effy
+                  </span>
+                ) : null}
                 {chip ? (
                   <span className={cn("ef-st", chip.tone === "warning" ? "ef-st--problem" : "ef-st--moving")}>
                     {chip.tone === "warning" ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
@@ -187,12 +195,12 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
         </div>
 
         <TabsContent value="details" className="ef-tabpanel">
-          <VariantsSection detail={detail} onEdit={edit("sizes")} />
+          <VariantsSection detail={detail} onEdit={readOnly ? undefined : edit("sizes")} />
 
           <DetailSection
             title="Product details"
             subtitle="Name, brand and descriptions. Codes and weights are each size's."
-            action={<SectionAction onClick={edit("basics")}>Edit</SectionAction>}
+            action={readOnly ? undefined : <SectionAction onClick={edit("basics")}>Edit</SectionAction>}
           >
             <DetailRows
               rows={[
@@ -210,7 +218,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           <DetailSection
             title="Storage, GST and age"
             subtitle="Fixed facts Effy acts on. Each starts from the category's default."
-            action={<SectionAction onClick={edit("facts")}>Edit</SectionAction>}
+            action={readOnly ? undefined : <SectionAction onClick={edit("facts")}>Edit</SectionAction>}
           >
             <DetailRows
               rows={[
@@ -221,7 +229,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
             />
           </DetailSection>
 
-          <FormSections detail={detail} onEdit={(section) => setEditing({ section })} />
+          <FormSections detail={detail} onEdit={readOnly ? undefined : (section) => setEditing({ section })} />
         </TabsContent>
 
         <TabsContent value="inventory" className="ef-tabpanel">
@@ -236,7 +244,7 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
           <DetailSection
             title="Visibility and placement"
             subtitle="Whether shoppers can see this product, and where it is filed."
-            action={<SectionAction onClick={edit("category")}>Change category</SectionAction>}
+            action={readOnly ? undefined : <SectionAction onClick={edit("category")}>Change category</SectionAction>}
           >
             <DetailRows
               rows={[
@@ -311,7 +319,7 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
 }
 
 /** The category's form, section by section, with this product's values; each section edits on its own. */
-function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit: (section: string) => void }) {
+function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit?: (section: string) => void }) {
   const form = useQuery(categoryFormQuery(detail.primaryCategoryId))
   if (form.isError) return <ErrorState error={form.error} onRetry={() => void form.refetch()} />
   if (!form.data) return <Skeleton className="h-32 w-full rounded-lg" />
@@ -327,7 +335,7 @@ function FormSections({ detail, onEdit }: { detail: ProductDetail; onEdit: (sect
           key={s.title}
           title={s.title}
           subtitle={`What ${detail.categoryPath[detail.categoryPath.length - 1]} asks for.`}
-          action={<SectionAction onClick={() => onEdit(s.title)}>Edit</SectionAction>}
+          action={onEdit ? <SectionAction onClick={() => onEdit(s.title)}>Edit</SectionAction> : undefined}
         >
           <DetailRows
             rows={s.rows.map((row) => ({

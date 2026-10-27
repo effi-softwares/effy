@@ -2,10 +2,10 @@
 // storage keys; the service swaps them for presigned URLs before the DTO leaves the process.
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import {
-  applyVariantSet, DetailsInvalid, missingRequired, readProductDetails, readResolved, readVariantSets, reconcileDetails,
+  applyVariantSet, DetailsInvalid, insertProduct, type LeafCheck, missingRequired, readProductDetails, readResolved, readVariantSets, reconcileDetails,
   VariantSetInvalid, writeProductDetails,
 } from "@effy/edge-shared/catalog";
-import { recordGstOnCreate, setGstStatus } from "@effy/edge-shared/documents";
+import { setGstStatus } from "@effy/edge-shared/documents";
 import type {
   CategoryIcon, DetailInput, GstStatus, OptionInputDTO, ShopTaxonomyDTO, Storage, UnitBasis, VariantInputDTO,
 } from "@effy/shared-types";
@@ -64,10 +64,7 @@ export async function readShopTaxonomy(shopId: string): Promise<ShopTaxonomyDTO>
   };
 }
 
-export type LeafCheck =
-  | { kind: "leaf"; defaults: { storage: Storage | null; gstStatus: GstStatus | null; ageRestricted: boolean | null } }
-  | { kind: "not_leaf" }
-  | { kind: "unknown" };
+export type { LeafCheck };
 
 /** An active category, and whether a product may be filed in it (only a leaf). */
 export async function checkLeaf(categoryId: string, db: Queryable = { query }): Promise<LeafCheck> {
@@ -77,63 +74,19 @@ export async function checkLeaf(categoryId: string, db: Queryable = { query }): 
   return { kind: "leaf", defaults: resolved.defaults };
 }
 
-/** One transaction: the product, its variants, its details, media and sections. A duplicate SKU is 409. */
+/** One transaction through the one writer (`authoring.ts`). A duplicate SKU is 409. */
 export async function createProduct(
   shopId: string,
   input: CreateProductInput,
   createdBy: string,
 ): Promise<string> {
   return withTransaction(async (client) => {
-    let productId: string;
     try {
-      // Prices, codes, weight and stock are the variants' (written below).
-      const ins = await client.query<{ id: string }>(
-        `INSERT INTO public.product
-             (shop_id, primary_category_id, name, brand, short_description, long_description, created_by, unit_basis,
-              gst_status, storage, age_restricted)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          RETURNING id`,
-        [
-          shopId,
-          input.primaryCategoryId,
-          input.name,
-          input.brand,
-          input.shortDescription,
-          input.longDescription,
-          createdBy,
-          input.unitBasis,
-          input.gstStatus,
-          input.storage,
-          input.ageRestricted,
-        ],
-      );
-      productId = ins.rows[0]!.id;
+      return await insertProduct(client, shopId, input, { kind: "shop", sub: createdBy });
     } catch (err) {
+      if (err instanceof VariantSetInvalid || err instanceof DetailsInvalid) asWriterError(err);
       throw asConflict(err, "this product could not be created");
     }
-    await recordGstOnCreate(client, productId, { kind: "shop_staff", sub: createdBy });
-
-    for (const m of input.media) {
-      await client.query(
-        `INSERT INTO public.product_media (product_id, storage_key, is_primary, display_order, alt_text)
-              VALUES ($1, $2, $3, $4, $5)`,
-        [productId, m.storageKey, m.isPrimary, m.displayOrder, m.altText],
-      );
-    }
-    for (const sectionId of input.sectionIds) {
-      await client.query(
-        `INSERT INTO public.product_section (product_id, shop_section_id)
-              VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [productId, sectionId],
-      );
-    }
-    // Variants through the one writer, after the pictures (a variant may name one); details after the
-    // variants (a detail may name one).
-    await applyVariantSet(client, {
-      productId, shopId, options: input.options, variants: input.variants, unitBasis: input.unitBasis, mode: "draft",
-    }).catch(asWriterError);
-    await writeProductDetails(client, productId, input.details).catch(asWriterError);
-    return productId;
   });
 }
 
@@ -231,14 +184,22 @@ export async function changeStatus(shopId: string, id: string, status: ProductSt
     `UPDATE public.product SET status = $3, updated_at = now()
       WHERE id = $1 AND shop_id = $2
         AND ($3 <> 'active' OR approved_at IS NOT NULL)
+        -- Effy's hold and Effy's unfinished product are not the shop's to change (102).
+        AND held_at IS NULL AND content_owner = 'shop'
       RETURNING id`,
     [id, shopId, status],
   );
   return (res.rowCount ?? 0) > 0;
 }
 
+/** Effy's hold as the shop sees it: the reason and when, never who (102). */
+function holdOf(r: { held_reason: string | null; held_at: Date | null }): { reason: string; heldAt: string } | null {
+  return r.held_at && r.held_reason ? { reason: r.held_reason, heldAt: r.held_at.toISOString() } : null;
+}
+
 /** From two facts: ever approved, and something waiting. Needs `p` and a left join `product_change pc`. */
 export const REVIEW_STATE_SQL = `CASE
+    WHEN p.content_owner = 'effy' THEN 'effy_setup'
     WHEN p.approved_at IS NULL THEN
       CASE p.review_state WHEN 'in_review' THEN 'in_review' WHEN 'sent_back' THEN 'sent_back' ELSE 'draft' END
     WHEN pc.state = 'in_review' THEN 'live_change_pending'
@@ -250,16 +211,23 @@ export interface ReviewFacts {
   approved: boolean;
   reviewState: "none" | "in_review" | "sent_back";
   status: ProductStatus;
+  /** Effy holds it off sale (102): the shop cannot change its status. */
+  held: boolean;
+  /** Effy is still finishing a product it created (102): the shop cannot change it yet. */
+  effyOwned: boolean;
 }
 
 export async function reviewFacts(shopId: string, id: string): Promise<ReviewFacts | null> {
-  const res = await query<{ approved: boolean; review_state: ReviewFacts["reviewState"]; status: ProductStatus }>(
-    `SELECT approved_at IS NOT NULL AS approved, review_state, status
+  const res = await query<{ approved: boolean; review_state: ReviewFacts["reviewState"]; status: ProductStatus; held: boolean; effy_owned: boolean }>(
+    `SELECT approved_at IS NOT NULL AS approved, review_state, status,
+            held_at IS NOT NULL AS held, content_owner = 'effy' AS effy_owned
        FROM public.product WHERE id = $1 AND shop_id = $2`,
     [id, shopId],
   );
   const r = res.rows[0];
-  return r ? { approved: r.approved, reviewState: r.review_state, status: r.status } : null;
+  return r
+    ? { approved: r.approved, reviewState: r.review_state, status: r.status, held: r.held, effyOwned: r.effy_owned }
+    : null;
 }
 
 /** Bumps the version so a photo swapped after the reviewer looked invalidates their decision. */
@@ -450,6 +418,9 @@ interface ProductListRow {
   variant_count: number;
   missing_required: number;
   review_state_shown: ShopReviewState;
+  held_reason: string | null;
+  held_at: Date | null;
+  created_via: "shop" | "effy" | "import";
   currency: string;
   status: ProductStatus;
   updated_at: Date;
@@ -485,6 +456,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
               WHERE v.product_id = p.id AND v.state <> 'removed') AS variant_count,
             (SELECT count(*)::int FROM public.product_missing_required(p.id)) AS missing_required,
             ${REVIEW_STATE_SQL} AS review_state_shown,
+            p.held_reason, p.held_at, p.created_via,
             p.currency, p.status, p.updated_at,
             count(*) OVER() AS total
        FROM public.product p
@@ -540,6 +512,8 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       priceVaries: r.price_varies === true,
       variantCount: Number(r.variant_count),
       missingRequired: Number(r.missing_required),
+      hold: holdOf(r),
+      createdBy: r.created_via === "shop" ? "shop" : "effy",
     })),
     total,
     page: params.page,
@@ -570,6 +544,9 @@ interface ProductRow {
   created_at: Date;
   updated_at: Date;
   review_state_shown: ShopReviewState;
+  held_reason: string | null;
+  held_at: Date | null;
+  created_via: "shop" | "effy" | "import";
   review_reason: string | null;
   approved: boolean;
 }
@@ -598,6 +575,7 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
             p.status,
             p.created_at, p.updated_at,
             ${REVIEW_STATE_SQL} AS review_state_shown,
+            p.held_reason, p.held_at, p.created_via,
             COALESCE(pc.reason, p.review_reason) AS review_reason,
             p.approved_at IS NOT NULL AS approved
        FROM public.product p
@@ -665,6 +643,8 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     reviewState: row.review_state_shown,
+    hold: holdOf(row),
+    createdBy: row.created_via === "shop" ? "shop" : "effy",
     reviewReason: row.review_reason,
     approved: row.approved,
     // Filled by the service from./change.ts; the live product is always the approved one.

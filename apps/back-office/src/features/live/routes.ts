@@ -11,6 +11,7 @@ const PRICING: QueryKey = ["back-office", "delivery", "plans"]
 const REVIEW: QueryKey = ["product-review"]
 const CUSTOMERS: QueryKey = ["customers"]
 const TAXONOMY: QueryKey = ["taxonomy"]
+const PRODUCTS: QueryKey = ["products"]
 
 export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   orders: [ORDERS],
@@ -22,6 +23,8 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   pricing: [PRICING],
   // The category tree, a form or the attribute library changed (101).
   taxonomy: [TAXONOMY],
+  // A hold, a release, an Effy-created product or an import's progress (102); a change also leaves review.
+  products: [PRODUCTS, REVIEW],
   // A promotion or a display group changed: open promotion screens re-read.
   promotions: [
     ["back-office", "promotions"],

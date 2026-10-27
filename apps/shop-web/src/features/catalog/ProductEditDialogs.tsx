@@ -15,19 +15,25 @@ import {
 } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { CategoryPicker } from "./create/CategoryPicker"
-import { RecategoriseDialog } from "./create/RecategoriseDialog"
-import { DetailField } from "./DetailField"
-import { FactsSection } from "./FactsSection"
+import {
+  CategoryPicker,
+  DetailField,
+  draftFromDetail,
+  FactsSection,
+  RecategoriseDialog,
+  sendableDetails,
+  setDetail,
+  toInputs,
+  VariantEditor,
+  type VariantSetDraft,
+  variantSetErrors,
+} from "@effy/web-kit/product-form"
 import { FocusedEditDialog, FocusedEditForm } from "./FocusedEditDialog"
 import { buildProductUpdate, diffScalarFields } from "./focusedEdit"
 import { pathText, type ProductDetail } from "./model"
 import { categoryFormQuery, taxonomyQuery } from "./queries"
 import { isApproved } from "./review"
 import { useFocusedEdit } from "./useFocusedEdit"
-import { sendableDetails, setDetail } from "./validation"
-import { VariantEditor } from "./VariantEditor"
-import { draftFromDetail, toInputs, variantSetErrors, type VariantSetDraft } from "./variants"
 import { track } from "@/lib/telemetry"
 
 interface EditProps {
@@ -276,6 +282,7 @@ function CategoryForm({ detail, onClose, onDropped }: FormProps) {
         <ErrorState error={taxonomy.error} onRetry={() => void taxonomy.refetch()} />
       ) : taxonomy.data ? (
         <CategoryPicker
+          onEvent={track}
           categories={taxonomy.data.categories}
           recentLeafIds={taxonomy.data.recentLeafIds}
           productName={detail.name}

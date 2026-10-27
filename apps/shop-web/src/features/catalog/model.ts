@@ -41,4 +41,4 @@ export interface ProductListParams {
 }
 
 /** "Dairy, Eggs & Fridge › Yoghurt" — the one way a category path is written. */
-export const pathText = (path: readonly string[]) => path.join(" › ")
+export { pathText } from "@effy/web-kit/product-form"

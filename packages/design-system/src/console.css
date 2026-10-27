@@ -153,6 +153,18 @@ html * { @apply overscroll-x-none; }
     .ef-tabpanel { @apply gap-4; }
   }
 
+  /* A form's sticky foot: what happens next, and its buttons (both consoles' product form, 102). */
+  .ef-actionbar { @apply sticky bottom-0 z-30 -mx-(--pad) mt-0 -mb-(--pad) flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-t-border bg-background px-(--pad) pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]; }
+  .ef-actionbar__text { @apply flex min-w-0 flex-[1_1_260px] flex-col gap-1; }
+  .ef-actionbar__title { @apply text-base leading-6 font-semibold; }
+  .ef-actionbar__desc { @apply text-sm leading-5 text-muted-foreground; }
+  .ef-actionbar__actions { @apply flex flex-wrap gap-3; }
+  @media (max-width: 767px) {
+    .ef-actionbar__actions { @apply w-full; }
+    .ef-actionbar__actions > [data-slot="button"] { @apply flex-auto; }
+    .ef-actionbar__desc { @apply hidden; }
+  }
+
   .ef-toolbar { @apply flex flex-wrap items-center gap-3; }
   .ef-toolbar__search { @apply relative flex w-85 max-w-full items-center; }
   .ef-toolbar__search > svg { @apply pointer-events-none absolute left-3 size-5 text-muted-foreground; }

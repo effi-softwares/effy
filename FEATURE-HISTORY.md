@@ -4,6 +4,48 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**102-backoffice-product-catalogue — Back-Office Product Catalogue.** 🔨 **BUILT 2026-10-27; NOT YET APPLIED, MIGRATED,
+DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/102-backoffice-product-catalogue/](specs/102-backoffice-product-catalogue/tasks.md).
+Decisions: research R1–R12 and its "Implementation notes".
+- **See**: back-office › Catalogue › Products — every shop's products, server-side search (name, SKU any case,
+  barcode, Effy code), filters (shop, aisle with its descendants, storage, margin, missing details, low stock), state
+  tabs with counts from one expression (`BACKOFFICE_STATE_SQL`), filters in the URL; a product page (Overview · Sizes
+  & stock · Details · Aisles · History). csa sees everything and is offered nothing. 50 000 products < 1 s (perf test).
+- **Hold**: four columns on `product`; a hold sets `unavailable` (no storefront reader changed) and
+  `product_held_not_active_ck` makes "held ⇒ never active" true for every route. The shop's status route refuses any
+  change while held, the shared `setVariantState` refuses a size back on (`held`), approving a held product leaves it
+  off sale (release then puts it on). Release returns the prior status unless there is no main picture or the shop
+  is not active. Shop-web shows "Held by Effy" + reason; push `shop_product_held` / `_released`.
+- **Other controls**: margin inline and in bulk, size on/off sale, stock count (inventory-staff), placements; bulk hold
+  / release / margin, ≤ 200, each product in its own transaction, refusals listed (FR-028).
+- **Effy creates**: `@effy/edge-shared/catalog` `authoring.ts` is now the ONE writer of a new product
+  (`insertProduct`; `authoring.guard.test.ts`) — the shop's create parsing moved there unchanged. Effy's product is a
+  draft Effy finishes (`content_owner = 'effy'`, margin set, never queued); `completeIfReady` approves it and puts it
+  on sale the moment it is complete, then it is the shop's. While Effy owns it every shop write is 409
+  `effy_setting_up`; shop-web shows it read-only ("Effy is setting this up"). The shop's product form moved to
+  `@effy/web-kit/product-form` (shared with back-office's New product / Finish); `ef-actionbar` moved to `console.css`.
+- **Import**: the browser parses .xlsx/.csv (`read-excel-file`, `write-excel-file`, `papaparse`, back-office only);
+  `catalog` stores the import and SQS `product-import` drives a route-less worker: check (every row judged by the
+  form's own rules + SKU/barcode uniqueness + required details; picture links fetched by `fetchPicture` — https only,
+  private addresses refused inside the connection's DNS lookup, 10 MB, sniffed — into private `imports/`, 7-day
+  expiry), then create (one transaction per product through `insertProduct`, pictures copied to `products/`). SKU is
+  required; the same file twice creates nothing. One `shop_products_imported` push per import.
+- **Live**: new kind `products` (back-office + the product's shop; not in the send-failure alarm). Mobile `LiveKind`
+  twin updated.
+- **Defects caught while building**: `Number("")` read an empty cursor as 0 (now digits only); the IPv4-mapped IPv6
+  BlockList rule blocked every IPv4 address (now checked as IPv4); the shop's create path accepts missing required
+  details as a draft, so an import let them through (now not ready); a `pnpm add` in one package pruned another's
+  links (hoisted linker — `pnpm install`); the effy-owned test created its promises eagerly (unhandled rejections).
+- **Gates (2026-10-27)**: typecheck clean in every edge service, shared-types, web-kit, back-office, shop-web.
+  Container suites: catalog 104/104, shop 481/481, notifications 70/70; shared passes except 088/096 parcel and bag
+  suites that time out (10 s) under the full parallel run and pass alone (14/14). back-office 371, shop-web 478,
+  web-kit 170, design-system guards OK, refresh-timer and delivery-word scripts OK. Pre-existing, not 102's:
+  `shared-types/package-status.guard.test.ts` (flags shop-web `fulfillment/collection.ts`, `OrderQueue.tsx`) and a
+  Prettier warning on back-office `orders/components/PackageRows.tsx`.
+- **Operator, in order**: `make apply ENV=dev` (queue, DLQ, alarms, `imports/` lifecycle) → `make migrate ENV=dev`
+  (`20261027090000_backoffice_product_catalogue.sql`) → deploy `SERVICE=shop`, `SERVICE=notifications`,
+  `SERVICE=catalog`, then back-office and shop-web → walk [quickstart](specs/102-backoffice-product-catalogue/quickstart.md).
+
 **101-category-driven-catalogue — Category-Driven Catalogue.** 🔨 **BUILT 2026-10-26; NOT YET MIGRATED, DEPLOYED OR
 WALKED.** Spec, plan, tasks: [specs/101-category-driven-catalogue/](specs/101-category-driven-catalogue/tasks.md).
 A clean rebuild (no legacy support, operator's call): product types, their forms and the old schema routes are gone.

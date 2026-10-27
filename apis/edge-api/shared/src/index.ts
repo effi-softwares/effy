@@ -9,6 +9,7 @@ export * from "./lib/rds-ca";
 export * from "./lib/password";
 export * from "./lib/media";
 export * from "./lib/media-public";
+export * from "./lib/safe-fetch";
 export * from "./lib/image-dimensions";
 export * from "./lib/devices";
 export * from "./lib/notification-types";

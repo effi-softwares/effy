@@ -37,6 +37,14 @@ import {
   promotionSkinsRoute,
   promotionsIndexRoute,
 } from "./routes/promotions"
+import {
+  productDetailRoute,
+  productFinishRoute,
+  productImportRoute,
+  productImportsRoute,
+  productNewRoute,
+  productsIndexRoute,
+} from "./routes/products"
 import { handoverReportRoute } from "./routes/reports"
 import { taxSettingsRoute } from "./routes/settings"
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops"
@@ -66,6 +74,12 @@ const routeTree = rootRoute.addChildren([
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     deliveryIndexRoute,
+    productsIndexRoute,
+    productNewRoute,
+    productImportsRoute,
+    productImportRoute,
+    productDetailRoute,
+    productFinishRoute,
     productReviewIndexRoute,
     productReviewMissingDetailsRoute,
     productReviewItemRoute,

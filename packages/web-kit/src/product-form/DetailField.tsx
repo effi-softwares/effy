@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState } from "react";
 
-import { cn } from "@effy/design-system"
+import { cn } from "@effy/design-system";
 import {
   Checkbox,
   Input,
@@ -11,57 +11,87 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-} from "@effy/design-system/ui"
-import type { CategoryFormRow, DetailInput, DetailValue, DetailVariant } from "@effy/shared-types"
+} from "@effy/design-system/ui";
+import type {
+  CategoryFormRow,
+  DetailInput,
+  DetailValue,
+  DetailVariant,
+} from "@effy/shared-types";
 
 interface Props {
-  row: CategoryFormRow
+  row: CategoryFormRow;
   /** What is entered now; undefined when nothing is. */
-  entry: DetailInput | undefined
+  entry: DetailInput | undefined;
   /** The product's sizes: a detail that may differ by size can be entered per size. */
-  variants: readonly DetailVariant[]
+  variants: readonly DetailVariant[];
   /** `null` leaves the detail out. */
-  onChange: (next: DetailInput | null) => void
+  onChange: (next: DetailInput | null) => void;
   /** Messages keyed `details.<key>` and `details.<key>[<variantId>]`. */
-  errors: Record<string, string>
-  disabled?: boolean
+  errors: Record<string, string>;
+  disabled?: boolean;
 }
 
-const CLEAR = "__clear__"
+const CLEAR = "__clear__";
 
 /** One detail of the leaf's form, by its input type. Required is marked; recommended is nudged. */
-export function DetailField({ row, entry, variants, onChange, errors, disabled }: Props) {
-  const canDiffer = row.variesByVariant && variants.length > 1
-  const perSize = canDiffer && entry?.perVariant !== undefined
-  const id = `detail-${row.key}`
-  const productError = errors[`details.${row.key}`]
+export function DetailField({
+  row,
+  entry,
+  variants,
+  onChange,
+  errors,
+  disabled,
+}: Props) {
+  const canDiffer = row.variesByVariant && variants.length > 1;
+  const perSize = canDiffer && entry?.perVariant !== undefined;
+  const id = `detail-${row.key}`;
+  const productError = errors[`details.${row.key}`];
 
   function setWhole(value: DetailValue | undefined) {
-    onChange(value === undefined ? null : { attributeId: row.attributeId, value })
+    onChange(
+      value === undefined ? null : { attributeId: row.attributeId, value },
+    );
   }
 
   function setFor(variantId: string, value: DetailValue | undefined) {
-    const rest = (entry?.perVariant ?? []).filter((p) => p.variantId !== variantId)
-    const perVariant = value === undefined ? rest : [...rest, { variantId, value }]
+    const rest = (entry?.perVariant ?? []).filter(
+      (p) => p.variantId !== variantId,
+    );
+    const perVariant =
+      value === undefined ? rest : [...rest, { variantId, value }];
     onChange(
       perVariant.length === 0
         ? { attributeId: row.attributeId, perVariant: [] }
         : { attributeId: row.attributeId, perVariant },
-    )
+    );
   }
 
   return (
-    <fieldset className="grid gap-2" aria-describedby={row.helpText ? `${id}-help` : undefined}>
+    <fieldset
+      className="grid gap-2"
+      aria-describedby={row.helpText ? `${id}-help` : undefined}
+    >
       <legend className="flex flex-wrap items-baseline gap-2 text-sm font-medium">
         <span id={`${id}-label`}>{row.name}</span>
-        {row.level === "required" ? <span className="text-xs font-normal text-muted-foreground">Required</span> : null}
+        {row.level === "required" ? (
+          <span className="text-xs font-normal text-muted-foreground">
+            Required
+          </span>
+        ) : null}
         {row.level === "recommended" ? (
-          <span className="text-xs font-normal text-primary">Helps shoppers find this</span>
+          <span className="text-xs font-normal text-primary">
+            Helps shoppers find this
+          </span>
         ) : null}
       </legend>
 
       {canDiffer ? (
-        <div role="group" aria-label={`${row.name}: one value or one per size`} className="ef-seg w-fit">
+        <div
+          role="group"
+          aria-label={`${row.name}: one value or one per size`}
+          className="ef-seg w-fit"
+        >
           <button
             type="button"
             className={!perSize ? "is-active" : undefined}
@@ -76,7 +106,10 @@ export function DetailField({ row, entry, variants, onChange, errors, disabled }
             className={perSize ? "is-active" : undefined}
             aria-pressed={perSize}
             disabled={disabled}
-            onClick={() => !perSize && onChange({ attributeId: row.attributeId, perVariant: [] })}
+            onClick={() =>
+              !perSize &&
+              onChange({ attributeId: row.attributeId, perVariant: [] })
+            }
           >
             Differs by size
           </button>
@@ -86,11 +119,16 @@ export function DetailField({ row, entry, variants, onChange, errors, disabled }
       {perSize ? (
         <div className="grid gap-3 border-l-2 border-border pl-3">
           {variants.map((v) => {
-            const value = entry?.perVariant?.find((p) => p.variantId === v.id)?.value
-            const err = errors[`details.${row.key}[${v.id}]`]
+            const value = entry?.perVariant?.find(
+              (p) => p.variantId === v.id,
+            )?.value;
+            const err = errors[`details.${row.key}[${v.id}]`];
             return (
               <div key={v.id} className="grid gap-1.5">
-                <Label htmlFor={`${id}-${v.id}`} className="text-xs text-muted-foreground">
+                <Label
+                  htmlFor={`${id}-${v.id}`}
+                  className="text-xs text-muted-foreground"
+                >
                   {v.label}
                 </Label>
                 <Control
@@ -103,7 +141,7 @@ export function DetailField({ row, entry, variants, onChange, errors, disabled }
                 />
                 {err ? <p className="text-sm font-medium">{err}</p> : null}
               </div>
-            )
+            );
           })}
         </div>
       ) : (
@@ -123,9 +161,11 @@ export function DetailField({ row, entry, variants, onChange, errors, disabled }
           {row.helpText}
         </p>
       ) : null}
-      {productError ? <p className="text-sm font-medium">{productError}</p> : null}
+      {productError ? (
+        <p className="text-sm font-medium">{productError}</p>
+      ) : null}
     </fieldset>
-  )
+  );
 }
 
 function Control({
@@ -137,22 +177,24 @@ function Control({
   disabled,
   invalid,
 }: {
-  row: CategoryFormRow
-  id: string
+  row: CategoryFormRow;
+  id: string;
   /** The legend's id, for the whole-product control (a per-size one has its own label). */
-  labelledBy?: string
-  value: DetailValue | undefined
-  onChange: (next: DetailValue | undefined) => void
-  disabled?: boolean
-  invalid: boolean
+  labelledBy?: string;
+  value: DetailValue | undefined;
+  onChange: (next: DetailValue | undefined) => void;
+  disabled?: boolean;
+  invalid: boolean;
 }) {
-  const named = labelledBy ? { "aria-labelledby": labelledBy } : {}
-  const [unit, setUnit] = useState<string>(() => (value && "number" in value && value.unit) || row.units[0] || "")
+  const named = labelledBy ? { "aria-labelledby": labelledBy } : {};
+  const [unit, setUnit] = useState<string>(
+    () => (value && "number" in value && value.unit) || row.units[0] || "",
+  );
   switch (row.inputType) {
     case "short_text":
     case "long_text": {
-      const text = value && "text" in value ? value.text : ""
-      const Field = row.inputType === "long_text" ? Textarea : Input
+      const text = value && "text" in value ? value.text : "";
+      const Field = row.inputType === "long_text" ? Textarea : Input;
       return (
         <Field
           id={id}
@@ -161,14 +203,26 @@ function Control({
           maxLength={row.maxLength ?? undefined}
           disabled={disabled}
           aria-invalid={invalid}
-          onChange={(e) => onChange(e.target.value.trim() === "" ? undefined : { text: e.target.value })}
+          onChange={(e) =>
+            onChange(
+              e.target.value.trim() === ""
+                ? undefined
+                : { text: e.target.value },
+            )
+          }
         />
-      )
+      );
     }
     case "number": {
-      const number = value && "number" in value ? value.number : ""
+      const number = value && "number" in value ? value.number : "";
       const send = (n: string, u: string) =>
-        onChange(n.trim() === "" ? undefined : row.unitFamily ? { number: n, unit: u || null } : { number: n })
+        onChange(
+          n.trim() === ""
+            ? undefined
+            : row.unitFamily
+              ? { number: n, unit: u || null }
+              : { number: n },
+        );
       return (
         <div className="flex max-w-xs gap-2">
           <Input
@@ -182,14 +236,16 @@ function Control({
           />
           {row.unitFamily && row.units.length > 0 ? (
             row.units.length === 1 ? (
-              <span className="self-center text-sm text-muted-foreground">{row.units[0]}</span>
+              <span className="self-center text-sm text-muted-foreground">
+                {row.units[0]}
+              </span>
             ) : (
               <Select
                 value={unit}
                 disabled={disabled}
                 onValueChange={(u) => {
-                  setUnit(u)
-                  if (number.trim() !== "") send(number, u)
+                  setUnit(u);
+                  if (number.trim() !== "") send(number, u);
                 }}
               >
                 <SelectTrigger aria-label="Unit" className="w-24">
@@ -206,12 +262,17 @@ function Control({
             )
           ) : null}
         </div>
-      )
+      );
     }
     case "boolean": {
-      const b = value && "boolean" in value ? value.boolean : undefined
+      const b = value && "boolean" in value ? value.boolean : undefined;
       return (
-        <div role="radiogroup" aria-labelledby={labelledBy} className="ef-seg w-fit" id={id}>
+        <div
+          role="radiogroup"
+          aria-labelledby={labelledBy}
+          className="ef-seg w-fit"
+          id={id}
+        >
           {([true, false] as const).map((choice) => (
             <button
               key={String(choice)}
@@ -220,23 +281,33 @@ function Control({
               aria-checked={b === choice}
               className={b === choice ? "is-active" : undefined}
               disabled={disabled}
-              onClick={() => onChange(b === choice ? undefined : { boolean: choice })}
+              onClick={() =>
+                onChange(b === choice ? undefined : { boolean: choice })
+              }
             >
               {choice ? "Yes" : "No"}
             </button>
           ))}
         </div>
-      )
+      );
     }
     case "single_select": {
-      const chosen = value && "valueIds" in value ? (value.valueIds[0] ?? "") : ""
+      const chosen =
+        value && "valueIds" in value ? (value.valueIds[0] ?? "") : "";
       return (
         <Select
           value={chosen}
           disabled={disabled}
-          onValueChange={(v) => onChange(v === CLEAR ? undefined : { valueIds: [v] })}
+          onValueChange={(v) =>
+            onChange(v === CLEAR ? undefined : { valueIds: [v] })
+          }
         >
-          <SelectTrigger id={id} {...named} className="max-w-sm" aria-invalid={invalid}>
+          <SelectTrigger
+            id={id}
+            {...named}
+            className="max-w-sm"
+            aria-invalid={invalid}
+          >
             <SelectValue placeholder="Choose…" />
           </SelectTrigger>
           <SelectContent>
@@ -248,39 +319,49 @@ function Control({
             ))}
           </SelectContent>
         </Select>
-      )
+      );
     }
     case "multi_select": {
-      const selected = new Set(value && "valueIds" in value ? value.valueIds : [])
+      const selected = new Set(
+        value && "valueIds" in value ? value.valueIds : [],
+      );
       return (
         <div
           id={id}
           role="group"
           {...named}
-          className={cn("grid gap-2", row.values.length > 6 && "sm:grid-cols-2 lg:grid-cols-3")}
+          className={cn(
+            "grid gap-2",
+            row.values.length > 6 && "sm:grid-cols-2 lg:grid-cols-3",
+          )}
         >
           {row.values.map((o) => (
-            <label key={o.id} className="flex min-h-9 items-center gap-2 text-sm">
+            <label
+              key={o.id}
+              className="flex min-h-9 items-center gap-2 text-sm"
+            >
               <Checkbox
                 checked={selected.has(o.id)}
                 disabled={disabled}
                 onCheckedChange={(next) => {
-                  const set = new Set(selected)
-                  if (next === true) set.add(o.id)
-                  else set.delete(o.id)
+                  const set = new Set(selected);
+                  if (next === true) set.add(o.id);
+                  else set.delete(o.id);
                   // Kept in the list's order.
-                  const ids = row.values.map((x) => x.id).filter((x) => set.has(x))
-                  onChange(ids.length === 0 ? undefined : { valueIds: ids })
+                  const ids = row.values
+                    .map((x) => x.id)
+                    .filter((x) => set.has(x));
+                  onChange(ids.length === 0 ? undefined : { valueIds: ids });
                 }}
               />
               {o.label}
             </label>
           ))}
         </div>
-      )
+      );
     }
     case "date": {
-      const date = value && "date" in value ? value.date : ""
+      const date = value && "date" in value ? value.date : "";
       return (
         <Input
           id={id}
@@ -290,12 +371,14 @@ function Control({
           value={date}
           disabled={disabled}
           aria-invalid={invalid}
-          onChange={(e) => onChange(e.target.value ? { date: e.target.value } : undefined)}
+          onChange={(e) =>
+            onChange(e.target.value ? { date: e.target.value } : undefined)
+          }
         />
-      )
+      );
     }
     case "time": {
-      const time = value && "time" in value ? value.time : ""
+      const time = value && "time" in value ? value.time : "";
       return (
         <Input
           id={id}
@@ -305,9 +388,11 @@ function Control({
           value={time}
           disabled={disabled}
           aria-invalid={invalid}
-          onChange={(e) => onChange(e.target.value ? { time: e.target.value } : undefined)}
+          onChange={(e) =>
+            onChange(e.target.value ? { time: e.target.value } : undefined)
+          }
         />
-      )
+      );
     }
   }
 }

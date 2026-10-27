@@ -12,7 +12,12 @@ export type ShopNotificationType =
   | "shop_refund_proposed"
   // Effy's review decision on a submitted or changed product.
   | "shop_product_approved"
-  | "shop_product_sent_back";
+  | "shop_product_sent_back"
+  // Effy's own handling of the shop's products (102).
+  | "shop_product_held"
+  | "shop_product_released"
+  | "shop_product_added_by_effy"
+  | "shop_products_imported";
 
 export interface ShopNotificationTypeInfo {
   type: ShopNotificationType;
@@ -38,6 +43,10 @@ export const SHOP_NOTIFICATION_TYPES: readonly ShopNotificationTypeInfo[] = [
   // Raised by a review decision; grouped with attention because they coalesce the same way.
   { type: "shop_product_approved", label: "Products approved by Effy", group: "attention" },
   { type: "shop_product_sent_back", label: "Products sent back by Effy", group: "attention" },
+  { type: "shop_product_held", label: "Products held by Effy", group: "attention" },
+  { type: "shop_product_released", label: "Products released by Effy", group: "attention" },
+  { type: "shop_product_added_by_effy", label: "Products added by Effy", group: "attention" },
+  { type: "shop_products_imported", label: "Product lists imported by Effy", group: "attention" },
 ];
 
 export const KNOWN_SHOP_NOTIFICATION_TYPES: readonly ShopNotificationType[] =

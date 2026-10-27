@@ -18,7 +18,7 @@ import {
 } from "@effy/design-system/ui"
 
 import { CatalogModal } from "./CatalogModal"
-import { signedNumber, wholeNumber } from "./numberInput"
+import { signedNumber, wholeNumber } from "@effy/web-kit/product-form"
 import { stockErrorText } from "./stockErrorText"
 import { useAdjustStock, useSetStockCount, useSetStockTracking } from "./stockQueries"
 

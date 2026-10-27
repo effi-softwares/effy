@@ -43,6 +43,8 @@ provider:
     # Reviewers see the shop's images, so this service presigns reads; staff upload category pictures (101).
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
     MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
+    # 102: imports go to their worker through this queue.
+    PRODUCT_IMPORT_QUEUE_URL: ${ssm:/effy/${sls:stage}/catalog/product_import_queue_url}
   iam:
     role:
       statements:
@@ -55,10 +57,17 @@ provider:
         - Effect: Allow
           Action: s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
-        # Presigned PUTs of category pictures only (101).
+        # Presigned PUTs of category pictures (101), and of pictures for products Effy is finishing (102).
         - Effect: Allow
           Action: s3:PutObject
-          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/categories/*
+          Resource:
+            - arn:aws:s3:::effy-${sls:stage}-product-media/categories/*
+            - arn:aws:s3:::effy-${sls:stage}-product-media/products/*
+            # The import worker stages fetched pictures here (private, never notified), then copies them to products/.
+            - arn:aws:s3:::effy-${sls:stage}-product-media/imports/*
+        - Effect: Allow
+          Action: sqs:SendMessage
+          Resource: ${ssm:/effy/${sls:stage}/catalog/product_import_queue_arn}
   layers:
     - ${param:secretsExtensionArn}
 
@@ -327,6 +336,174 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # 102 — every shop's products for back-office.
+  productsListV1:
+    handler: src/functions/products-list-v1-get.handler
+    description: Every shop's products — search, filters, state tabs with counts (102). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productGetV1:
+    handler: src/functions/product-get-v1-get.handler
+    description: One product with its sizes, stock, details, aisles and history (102). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/products/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productHoldV1:
+    handler: src/functions/product-hold-v1-post.handler
+    description: Hold a product off sale with a reason; the shop cannot undo it (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/{productId}/hold
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productReleaseV1:
+    handler: src/functions/product-release-v1-post.handler
+    description: Release a held product to the state the hold found it in (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/{productId}/release
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productVariantStateV1:
+    handler: src/functions/product-variant-state-v1-post.handler
+    description: Put one size on or off sale; never on while the product is held (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/{productId}/variants/{variantId}/state
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productsBulkV1:
+    handler: src/functions/products-bulk-v1-post.handler
+    description: Hold, release or set the margin of up to 200 products, each on its own (102). Decide = admin/manager.
+    timeout: 29
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/bulk
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productCreateV1:
+    handler: src/functions/product-create-v1-post.handler
+    description: Effy creates a product for a shop; it is Effy's to finish and goes on sale once complete (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productUpdateV1:
+    handler: src/functions/product-update-v1-patch.handler
+    description: Effy edits a product it is still finishing — the complete form, under a version (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /catalog/v1/products/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  productMediaV1:
+    handler: src/functions/product-media-v1-post.handler
+    description: Presign a picture upload for a product Effy is finishing (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/{productId}/media
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  importsStartV1:
+    handler: src/functions/imports-start-v1-post.handler
+    description: Start an import of a shop's list; the worker checks it (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/imports
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  importsListV1:
+    handler: src/functions/imports-list-v1-get.handler
+    description: Imports, newest first (102). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/imports
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  importsTemplateV1:
+    handler: src/functions/imports-template-v1-get.handler
+    description: The import template's columns (102). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/imports/template
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  importGetV1:
+    handler: src/functions/import-get-v1-get.handler
+    description: One import, product by product (102). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/imports/{importId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  importCreateV1:
+    handler: src/functions/import-create-v1-post.handler
+    description: Create an import's ready products; the worker does it (102). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/imports/{importId}/create
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # No route: one step of one import per message. 15 minutes covers 500 rows and their pictures.
+  productImportWorker:
+    handler: src/functions/product-import-worker.handler
+    description: Check an import's rows, or create its ready products (102). Fed by the product-import queue.
+    timeout: 900
+    memorySize: 512
+    events:
+      - sqs:
+          arn: ${ssm:/effy/${sls:stage}/catalog/product_import_queue_arn}
+          # One step per invocation: a failing import never holds up another.
+          batchSize: 1
 
   reviewQueueAge:
     handler: src/functions/review-queue-age-scheduled.handler

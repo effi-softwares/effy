@@ -56,10 +56,6 @@
     @apply min-w-12 text-center text-xl font-semibold tabular-nums;
   }
 
-  .actionbar {
-    @apply sticky bottom-0 z-30 -mx-(--pad) mt-0 -mb-(--pad) flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-t-border bg-background px-(--pad) pt-3 pb-[calc(12px+env(safe-area-inset-bottom))];
-  }
-
   .kpis {
     @apply grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] overflow-hidden rounded-lg border border-solid border-border bg-card;
   }
@@ -123,29 +119,6 @@
   }
   .scan__state svg {
     @apply size-5;
-  }
-  .actionbar__text {
-    @apply flex min-w-0 flex-[1_1_260px] flex-col gap-1;
-  }
-  .actionbar__title {
-    @apply text-base leading-6 font-semibold;
-  }
-  .actionbar__desc {
-    @apply text-sm leading-5 text-muted-foreground;
-  }
-  .actionbar__actions {
-    @apply flex flex-wrap gap-3;
-  }
-  @media (max-width: 767px) {
-    .actionbar__actions {
-      @apply w-full;
-    }
-    .actionbar__actions > [data-slot="button"] {
-      @apply flex-auto;
-    }
-    .actionbar__desc {
-      @apply hidden;
-    }
   }
   .kpi__label {
     @apply flex items-center gap-2 text-sm text-muted-foreground;

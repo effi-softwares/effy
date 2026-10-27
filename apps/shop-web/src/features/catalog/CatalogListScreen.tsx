@@ -432,7 +432,12 @@ function ProductRow({ product }: { product: ProductListItem }) {
       </Td>
       <Td>
         <div className="flex flex-wrap items-center gap-2">
-          <ProductStatusBadge status={product.status} />
+          {product.hold ? (
+            <span className="ef-st ef-st--problem">Held by Effy</span>
+          ) : (
+            <ProductStatusBadge status={product.status} />
+          )}
+          {product.createdBy === "effy" ? <span className="ef-st ef-st--muted">Added by Effy</span> : null}
           {chip ? (
             <span className={cn("ef-st", sentBack ? "ef-st--problem" : "ef-st--moving")}>
               {sentBack ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}

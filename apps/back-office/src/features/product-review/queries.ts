@@ -59,7 +59,12 @@ export function useSetMargin() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: { productId: string; body: SetMarginRequest }) => setMargin(v.productId, v.body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.all }),
+    // Catalogue › Products shows the margin too (102).
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: reviewKeys.all }),
+        qc.invalidateQueries({ queryKey: ["products"] }),
+      ]),
   })
 }
 
@@ -70,6 +75,10 @@ export function useSetPlacements(productId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (categoryIds: string[]) => setPlacements(productId, categoryIds),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.item(productId) }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: reviewKeys.item(productId) }),
+        qc.invalidateQueries({ queryKey: ["products", "detail", productId] }),
+      ]),
   })
 }

@@ -19,6 +19,8 @@ export function reviewChip(state: ShopReviewState | undefined): ReviewChip | nul
       return { label: "Change in review", tone: "brand" }
     case "live_change_sent_back":
       return { label: "Change sent back", tone: "warning" }
+    case "effy_setup":
+      return { label: "Effy setting up", tone: "brand" }
     default:
       return null
   }

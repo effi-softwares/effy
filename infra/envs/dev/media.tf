@@ -103,6 +103,26 @@ resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
       days_after_initiation = 7
     }
   }
+
+  # 102 — pictures fetched for a product import wait under imports/ until the products are created, when
+  # they are copied to products/. A staged copy is never read again after that, so it goes after a week;
+  # on this versioned bucket the expiration writes a delete marker and the old version goes a day later.
+  rule {
+    id     = "import-staging-expiry"
+    status = "Enabled"
+
+    filter {
+      prefix = "imports/"
+    }
+
+    expiration {
+      days = 7
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
 }
 
 # ══ 086 — shopper pictures: one permanent public address, smaller copies made at upload ══════════

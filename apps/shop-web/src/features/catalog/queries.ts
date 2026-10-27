@@ -34,6 +34,9 @@ import {
 import type { ProductListParams } from "./model"
 
 const CATALOG_ROOT = ["shop", "catalog"] as const
+/** The list and one product: a live `products` update (an Effy hold or release, 102) re-reads both. */
+const PRODUCTS_ROOT = ["shop", "catalog", "products"] as const
+const PRODUCT_ROOT = ["shop", "catalog", "product"] as const
 
 /** The category tree for the picker: it changes rarely, and a live `taxonomy` update re-reads it (101). */
 const TAXONOMY_ROOT = ["shop", "catalog", "taxonomy"] as const
@@ -54,13 +57,13 @@ export const categoryFormQuery = (categoryId: string) =>
 
 export const productListQuery = (params: ProductListParams) =>
   queryOptions({
-    queryKey: [...CATALOG_ROOT, "products", params] as const,
+    queryKey: [...PRODUCTS_ROOT, params] as const,
     queryFn: () => listProducts(params),
   })
 
 export const productDetailQuery = (id: string) =>
   queryOptions({
-    queryKey: [...CATALOG_ROOT, "product", id] as const,
+    queryKey: [...PRODUCT_ROOT, id] as const,
     queryFn: () => getProduct(id),
   })
 
@@ -71,11 +74,11 @@ export const sectionsQuery = queryOptions({
 })
 
 function invalidateProducts(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: [...CATALOG_ROOT, "products"] })
+  void queryClient.invalidateQueries({ queryKey: PRODUCTS_ROOT })
 }
 
 function invalidateDetail(queryClient: ReturnType<typeof useQueryClient>, id: string) {
-  void queryClient.invalidateQueries({ queryKey: [...CATALOG_ROOT, "product", id] })
+  void queryClient.invalidateQueries({ queryKey: [...PRODUCT_ROOT, id] })
 }
 
 export function useCreateProduct() {

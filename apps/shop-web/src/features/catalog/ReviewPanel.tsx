@@ -15,7 +15,32 @@ import type { ProductDetail } from "./model"
 import { taxonomyQuery, useWithdrawReview } from "./queries"
 import { proposedRows } from "./review"
 
+/** Effy's hold first (102): it decides whether the product sells, whatever review says. */
 export function ReviewPanel({ detail }: { detail: ProductDetail }) {
+  return (
+    <>
+      {detail.hold ? (
+        <section aria-label="Held by Effy" className="ef-alert ef-alert--destructive gap-y-3!">
+          <CircleAlert aria-hidden="true" className="mt-1" />
+          <div className="grid gap-1">
+            <h2 className="text-base font-semibold">Held by Effy</h2>
+            <p className="text-muted-foreground">
+              Effy has taken this product off sale. Customers cannot find or buy it, and it cannot go back on sale until
+              Effy releases it. You can still edit it — changes go to Effy for review as usual.
+            </p>
+          </div>
+          <div className="col-start-2 grid gap-1">
+            <span className="text-sm font-medium">Why</span>
+            <p className="break-words whitespace-pre-line">{detail.hold.reason}</p>
+          </div>
+        </section>
+      ) : null}
+      <ReviewState detail={detail} />
+    </>
+  )
+}
+
+function ReviewState({ detail }: { detail: ProductDetail }) {
   const taxonomy = useQuery(taxonomyQuery)
   const withdraw = useWithdrawReview(detail.id)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +53,7 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
   const sentBack = state === "sent_back" || state === "live_change_sent_back"
 
   const title = {
+    effy_setup: "Effy is setting this product up",
     in_review: "Waiting for Effy to review",
     sent_back: "Effy sent this back",
     live_change_pending: "Your change is waiting for Effy to review",
@@ -35,6 +61,8 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
   }[state]
 
   const body = {
+    effy_setup:
+      "Effy added this product for you and is finishing it. It goes on sale by itself once it is complete, and from then on it is yours to change like any other product.",
     in_review:
       "This product is not on sale yet. It goes on sale when Effy approves it. You can still edit it and adjust its stock while you wait.",
     sent_back: "It is not on sale. Fix what is described below, then submit it again.",

@@ -24,6 +24,6 @@ describe("LIVE_ROUTES", () => {
   })
 
   it("covers what the shop is told about (FR-026)", () => {
-    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["attention", "orders", "stock", "taxonomy"])
+    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["attention", "orders", "products", "stock", "taxonomy"])
   })
 })

@@ -118,6 +118,8 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     // Review state.
     reviewState: d.reviewState,
     reviewReason: d.reviewReason,
+    hold: d.hold,
+    createdBy: d.createdBy,
     pendingChange: d.pendingChange
       ? {
           state: d.pendingChange.state,
@@ -164,6 +166,8 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
         priceVaries: i.priceVaries,
         variantCount: i.variantCount,
         missingRequired: i.missingRequired,
+        hold: i.hold,
+        createdBy: i.createdBy,
       }),
     ),
     total: p.total,

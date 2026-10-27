@@ -12,24 +12,39 @@ import { Page } from "@/components/console/primitives"
 import { sessionQuery } from "@/features/auth/queries"
 import { meQuery } from "@/features/shop-identity/queries"
 import { track } from "@/lib/telemetry"
-import { useObjectUrl } from "@/lib/useObjectUrl"
+import {
+  canAdvance,
+  clearDraft,
+  detailErrors,
+  DETAILS_STEP,
+  DetailsStep,
+  draftMissing,
+  draftVariants,
+  emptyDraft,
+  ImageDropzone,
+  loadDraft,
+  NameCategoryStep,
+  optionAttributeIds,
+  type ProductDraft,
+  RecategoriseDialog,
+  ReviewStep,
+  saveDraft,
+  sendableDetails,
+  setDetail,
+  ShopperPreview,
+  SIZES_STEP,
+  STEPS,
+  StepTabs,
+  toInputs,
+  useObjectUrl,
+  VariantEditor,
+  variantSetErrors,
+} from "@effy/web-kit/product-form"
 
-import { DetailsStep } from "./create/DetailsStep"
-import { NameCategoryStep } from "./create/NameCategoryStep"
-import { RecategoriseDialog } from "./create/RecategoriseDialog"
-import { ReviewStep } from "./create/ReviewStep"
-import { ShopperPreview } from "./create/ShopperPreview"
-import { StepTabs } from "./create/StepTabs"
-import { canAdvance, DETAILS_STEP, SIZES_STEP, STEPS } from "./create/steps"
-import { clearDraft, emptyDraft, loadDraft, saveDraft, type ProductDraft } from "./draft"
 import { productMutationError } from "./errorText"
-import { ImageDropzone } from "./ImageDropzone"
 import { pathText } from "./model"
 import { categoryFormQuery, taxonomyQuery, useCreateProduct } from "./queries"
 import { submitProductForReview, uploadProductMedia } from "./repo"
-import { detailErrors, draftMissing, draftVariants, optionAttributeIds, sendableDetails, setDetail } from "./validation"
-import { VariantEditor } from "./VariantEditor"
-import { toInputs, variantSetErrors } from "./variants"
 
 interface Props {
   onCancel: () => void
@@ -217,6 +232,7 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
       case 0:
         return (
           <NameCategoryStep
+            onPickerEvent={track}
             draft={draft}
             taxonomy={taxonomy.data}
             onField={update}
@@ -323,14 +339,16 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
         />
       ) : null}
 
-      <div className="actionbar">
-        <div className="actionbar__text">
-          <div className="actionbar__title">{last ? "Ready to send to Effy" : `Next: ${STEPS[step + 1]!.title}`}</div>
-          <div className="actionbar__desc">
+      <div className="ef-actionbar">
+        <div className="ef-actionbar__text">
+          <div className="ef-actionbar__title">
+            {last ? "Ready to send to Effy" : `Next: ${STEPS[step + 1]!.title}`}
+          </div>
+          <div className="ef-actionbar__desc">
             {last ? "It goes on sale once Effy approves it." : "Your draft saves as you go."}
           </div>
         </div>
-        <div className="actionbar__actions">
+        <div className="ef-actionbar__actions">
           {step > 0 ? (
             <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
               <ArrowLeft aria-hidden="true" />

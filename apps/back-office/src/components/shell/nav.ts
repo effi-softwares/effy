@@ -1,6 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router"
 import {
   BadgePercent,
+  Boxes,
   ClipboardCheck,
   Contact,
   LayoutDashboard,
@@ -94,6 +95,16 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "Catalogue",
     items: [
+      {
+        key: "products-group",
+        label: "Products",
+        to: "/products",
+        icon: Boxes,
+        subs: [
+          { key: "products", label: "All products", to: "/products" },
+          { key: "product-imports", label: "Imports", to: "/products/imports", requiredAnyRole: ["admin", "manager"] },
+        ],
+      },
       {
         key: "review-group",
         label: "Product review",

@@ -20,6 +20,11 @@ export type NotificationType =
   // Push-only.
   | "shop_product_approved"
   | "shop_product_sent_back"
+  // Push-only (102): Effy held, released or finished one of the shop's products, or imported a list.
+  | "shop_product_held"
+  | "shop_product_released"
+  | "shop_product_added_by_effy"
+  | "shop_products_imported"
   // `points_credited` is push + email; `points_expiring` is email only.
   | "points_credited"
   | "points_expiring"
@@ -150,6 +155,41 @@ const COPY: Record<NotificationType, NotificationCopy> = {
     webPath: "/catalog",
     tag: "shop-product-review",
     group: "attention",
+  },
+
+  // Effy's own handling (102): the reason is read in the console, never on a lock screen.
+  shop_product_held: {
+    title: "Product held by Effy",
+    body: "Effy took a product off sale. Open it to see why.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-effy",
+    group: "attention",
+  },
+  shop_product_released: {
+    title: "Product released",
+    body: "Effy released a product it was holding.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-effy",
+    group: "attention",
+  },
+  shop_product_added_by_effy: {
+    title: "Product added by Effy",
+    body: "Effy added a product for you. It is now on sale.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-effy",
+    group: "attention",
+  },
+  shop_products_imported: {
+    title: "Products added by Effy",
+    body: "Effy added products from your list.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-effy",
+    group: "attention",
+    entityInLink: false,
   },
 
   // Points: no number in the banner.

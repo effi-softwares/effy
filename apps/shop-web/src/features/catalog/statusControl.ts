@@ -46,7 +46,17 @@ interface VisibilityAction {
   confirmLabel: string
 }
 
-export function visibilityAction(status: ProductStatus, reviewState?: ShopReviewState): VisibilityAction | null {
+/** Effy's hold, and a product Effy is still setting up, leave the shop no status to change (102). */
+export function effyHasIt(reviewState: ShopReviewState | undefined, held: boolean): boolean {
+  return held || reviewState === "effy_setup"
+}
+
+export function visibilityAction(
+  status: ProductStatus,
+  reviewState?: ShopReviewState,
+  held = false,
+): VisibilityAction | null {
+  if (effyHasIt(reviewState, held)) return null
   switch (status) {
     case "draft":
       if (reviewState === "in_review") {
@@ -111,8 +121,12 @@ interface RemovalAction {
   confirmLabel: string
 }
 
-export function removalAction(status: ProductStatus): RemovalAction | null {
-  if (status === "archived") return null
+export function removalAction(
+  status: ProductStatus,
+  reviewState?: ShopReviewState,
+  held = false,
+): RemovalAction | null {
+  if (status === "archived" || effyHasIt(reviewState, held)) return null
   if (canHardDelete(status)) {
     return {
       kind: "delete",

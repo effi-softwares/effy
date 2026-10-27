@@ -256,9 +256,12 @@ export async function priceVariants(tx: Queryable, productId: string, margin: Ma
   await refreshListing(tx, productId);
 }
 
-export type SetVariantStateOutcome = "ok" | "unchanged" | "not_found" | "last_variant";
+export type SetVariantStateOutcome = "ok" | "unchanged" | "not_found" | "last_variant" | "held";
 
-/** Immediately; never reviewed. The last active variant cannot go (`last_variant`). `removed` is terminal. */
+/**
+ * Immediately; never reviewed. The last active variant cannot go (`last_variant`). `removed` is terminal.
+ * While Effy holds the product (102) no size goes on sale (`held`); taking one off sale is still allowed.
+ */
 export async function setVariantState(
   tx: Queryable,
   args: { productId: string; shopId: string; variantId: string; state: VariantState },
@@ -270,6 +273,13 @@ export async function setVariantState(
   const target = rows.rows.find((r) => r.id === args.variantId);
   if (!target || target.state === "removed") return "not_found";
   if (target.state === args.state) return "unchanged";
+  if (args.state === "active") {
+    const held = await tx.query<{ held: boolean }>(
+      `SELECT held_at IS NOT NULL AS held FROM public.product WHERE id = $1 FOR SHARE`,
+      [args.productId],
+    );
+    if (held.rows[0]?.held) return "held";
+  }
 
   const activeAfter = rows.rows.filter((r) => (r.id === args.variantId ? args.state : r.state) === "active").length;
   if (activeAfter === 0) return "last_variant";

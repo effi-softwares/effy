@@ -294,7 +294,13 @@ export async function audit(
  */
 export async function notifyShop(
   tx: pg.PoolClient,
-  type: "shop_product_approved" | "shop_product_sent_back",
+  type:
+    | "shop_product_approved"
+    | "shop_product_sent_back"
+    | "shop_product_held"
+    | "shop_product_released"
+    | "shop_product_added_by_effy"
+    | "shop_products_imported",
   shopId: string,
   productId: string,
   decisionKey: string,
@@ -327,7 +333,10 @@ export async function approveNewProduct(
 ): Promise<boolean> {
   const res = await tx.query(
     `UPDATE public.product
-        SET approved_at = now(), status = 'active',
+        -- A product Effy holds stays off sale; approval only decides where its release returns it (102).
+        SET approved_at = now(),
+            status = CASE WHEN held_at IS NULL THEN 'active' ELSE status END,
+            held_prior_status = CASE WHEN held_at IS NULL THEN NULL ELSE 'active' END,
             review_state = 'none', review_reason = NULL, submitted_at = NULL,
             margin_kind = $3, margin_value = $4::numeric,
             updated_at = now()

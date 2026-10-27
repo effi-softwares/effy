@@ -132,9 +132,20 @@ describe("changeStatus — back on sale (FR-010, 101 FR-016)", () => {
 
   /** Off sale never waits, approved or not. */
   it("takes a never-approved product off the shelf without asking about review", async () => {
+    repo.reviewFacts.mockResolvedValue({ approved: false, reviewState: "none", status: "draft", held: false, effyOwned: false });
     await changeStatus("shop-1", "p1", { status: "unavailable" });
-    expect(repo.reviewFacts).not.toHaveBeenCalled();
     expect(repo.changeStatus).toHaveBeenCalledWith("shop-1", "p1", "unavailable");
+  });
+
+  /** Effy's hold, and a product Effy is still setting up, are not the shop's to change (102). */
+  it("refuses every status change while Effy holds the product or is still setting it up", async () => {
+    for (const facts of [{ held: true, effyOwned: false }, { held: false, effyOwned: true }]) {
+      repo.reviewFacts.mockResolvedValue({ approved: true, reviewState: "none", status: "unavailable", ...facts });
+      for (const status of ["active", "unavailable", "archived"]) {
+        expect(await kindOf(changeStatus("shop-1", "p1", { status }))).toBe("conflict");
+      }
+    }
+    expect(repo.changeStatus).not.toHaveBeenCalled();
   });
 
   it("a required detail staff added after approval does not keep an approved product off sale", async () => {

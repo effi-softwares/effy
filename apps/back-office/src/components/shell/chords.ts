@@ -9,4 +9,5 @@ export const CHORDS: readonly { keys: Sequence; label: string; navKey: string }[
   { keys: ["G", "E"], label: "G E", navKey: "exceptions" },
   { keys: ["G", "C"], label: "G C", navKey: "customers" },
   { keys: ["G", "R"], label: "G R", navKey: "review" },
+  { keys: ["G", "P"], label: "G P", navKey: "products" },
 ]

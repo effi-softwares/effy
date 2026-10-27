@@ -1,8 +1,8 @@
 import { useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
-import { Pencil, ScanLine, UserPlus, Users } from "lucide-react"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { Boxes, Pencil, ScanLine, UserPlus, Users } from "lucide-react"
 
 import type { ShopLifecycleStatus } from "@effy/shared-types"
 import { Button, Skeleton, Switch, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui"
@@ -97,18 +97,27 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
           </>
         }
         actions={
-          canManage ? (
-            <>
-              <Button variant="outline" onClick={() => setEditOpen(true)}>
-                <Pencil aria-hidden="true" />
-                Edit details
-              </Button>
-              <Button onClick={() => setAddUserOpen(true)}>
-                <UserPlus aria-hidden="true" />
-                Add user
-              </Button>
-            </>
-          ) : null
+          <>
+            {/* Every product of this shop, in Catalogue › Products (102). Read by anyone who sees the shop. */}
+            <Button variant="outline" asChild>
+              <Link to="/products" search={{ shopId: shop.id }}>
+                <Boxes aria-hidden="true" />
+                Products
+              </Link>
+            </Button>
+            {canManage ? (
+              <>
+                <Button variant="outline" onClick={() => setEditOpen(true)}>
+                  <Pencil aria-hidden="true" />
+                  Edit details
+                </Button>
+                <Button onClick={() => setAddUserOpen(true)}>
+                  <UserPlus aria-hidden="true" />
+                  Add user
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
 

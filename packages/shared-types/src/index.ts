@@ -15,6 +15,7 @@ export * from "./category-suggest";
 export * from "./variants";
 export * from "./unit-price";
 export * from "./product-review";
+export * from "./backoffice-products";
 export * from "./storefront";
 export * from "./cart";
 export * from "./address";

@@ -1,4 +1,4 @@
-import type { OptionRow, VariantRow } from "@effy/edge-shared/catalog";
+import type { OptionRow, ProductContentInput, VariantRow } from "@effy/edge-shared/catalog";
 import type { DetailInput, FactDefaults, GstStatus, OptionInputDTO, Storage, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
 export type ProductStatus = "draft" | "active" | "unavailable" | "archived";
@@ -33,6 +33,8 @@ export interface ProductListItem {
   variantCount: number;
   /** Required details still empty. */
   missingRequired: number;
+  hold: ProductHoldShown | null;
+  createdBy: "shop" | "effy";
 }
 
 /** See `REVIEW_STATE_SQL` in repository.ts. */
@@ -42,7 +44,14 @@ export type ShopReviewState =
   | "sent_back"
   | "live"
   | "live_change_pending"
-  | "live_change_sent_back";
+  | "live_change_sent_back"
+  | "effy_setup";
+
+/** Effy's hold as the shop sees it (102). */
+export interface ProductHoldShown {
+  reason: string;
+  heldAt: string;
+}
 
 /** Only the details that differ from the live product. */
 export interface ProductChangeProposal {
@@ -120,29 +129,14 @@ export interface ProductDetail {
   // Each variant carries the shop's and the customer's price; never Effy's margin as a figure.
   reviewState: ShopReviewState;
   reviewReason: string | null;
+  hold: ProductHoldShown | null;
+  createdBy: "shop" | "effy";
   approved: boolean;
   pendingChange: ProductPendingChange | null;
 }
 
-export interface CreateProductInput {
-  /** An active leaf. */
-  primaryCategoryId: string;
-  name: string;
-  brand: string | null;
-  shortDescription: string;
-  longDescription: string | null;
-  /** Resolved: as sent, else the leaf's default. */
-  gstStatus: GstStatus;
-  storage: Storage;
-  ageRestricted: boolean;
-  unitBasis: UnitBasis | null;
-  /** Validated by `validateVariantSet` inside `applyVariantSet`. */
-  options: OptionInputDTO[];
-  variants: VariantInputDTO[];
-  details: DetailInput[];
-  sectionIds: string[];
-  media: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number }[];
-}
+/** The parsed form, shared with Effy's own authoring (102). */
+export type CreateProductInput = ProductContentInput;
 
 export interface ListParams {
   page: number;

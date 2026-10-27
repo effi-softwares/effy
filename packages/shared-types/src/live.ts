@@ -21,6 +21,9 @@ export const LIVE_KINDS = [
   "promotions",
   // The category tree, the attribute library or an attachment changed (101). Back-office and every shop.
   "taxonomy",
+  // A product's sale state or Effy's handling of it changed (102): a hold, a release, an Effy-created product,
+  // an import's progress. Back-office and the product's shop.
+  "products",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

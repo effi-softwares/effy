@@ -24,12 +24,7 @@ interface DialogProps {
 export function FocusedEditDialog({ open, onOpenChange, size = "default", children }: DialogProps) {
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent
-        className={cn(
-          "max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh]",
-          WIDTH[size],
-        )}
-      >
+      <ResponsiveModalContent className={cn("max-h-[90vh] overflow-y-auto max-md:max-h-[92dvh]", WIDTH[size])}>
         {children}
       </ResponsiveModalContent>
     </ResponsiveModal>

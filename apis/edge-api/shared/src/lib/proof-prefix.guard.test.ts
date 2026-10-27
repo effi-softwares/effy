@@ -46,10 +46,21 @@ describe("proof prefix ↔ the S3 lifecycle rule", () => {
     expect(lifecycle).not.toMatch(/storage_class\s*=\s*"DEEP_ARCHIVE"/);
   });
 
+  /** Each `rule { … }` of the lifecycle, so a rule for another prefix cannot satisfy or break proof's. */
+  const rules = lifecycle.split(/\n\s*rule\s*\{/).slice(1);
+  const proofRule = rules.find((r) => r.includes(`prefix = "${PROOF_MEDIA_PREFIX}/"`)) ?? "";
+
   /** No expiration: proof is kept (and on a versioned bucket an expiration would only write a delete marker). */
   it("never expires proof", () => {
-    expect(lifecycle).not.toMatch(/^\s*expiration\s*\{/m);
-    expect(lifecycle).not.toMatch(/noncurrent_version_expiration/);
+    expect(proofRule, "no lifecycle rule for proof").not.toBe("");
+    expect(proofRule).not.toMatch(/^\s*expiration\s*\{/m);
+    expect(proofRule).not.toMatch(/noncurrent_version_expiration/);
+  });
+
+  /** The one rule that expires anything is the import staging prefix (102): pictures already copied to products/. */
+  it("expires nothing but the import staging prefix", () => {
+    const expiring = rules.filter((r) => /^\s*expiration\s*\{/m.test(r) || /noncurrent_version_expiration/.test(r));
+    expect(expiring.map((r) => /prefix\s*=\s*"([^"]+)"/.exec(r)?.[1])).toEqual(["imports/"]);
   });
 
   it("cleans up abandoned uploads, which are billable and unreadable", () => {

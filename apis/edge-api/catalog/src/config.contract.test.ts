@@ -34,12 +34,19 @@ describe("catalog deployment contract — serverless.yml declares what the servi
     }
   });
 
-  it("reads product images, and writes only category pictures (101)", () => {
+  it("reads product images, and writes only category pictures (101), Effy's product pictures and import staging (102)", () => {
     expect(yaml).toContain("s3:GetObject");
     expect(yaml).not.toMatch(/s3:(DeleteObject|\*)/);
-    // The only write: presigned uploads under categories/.
-    const puts = [...yaml.matchAll(/Action: s3:PutObject\s*\n\s*Resource: (\S+)/g)].map((m) => m[1]);
-    expect(puts).toEqual(["arn:aws:s3:::effy-${sls:stage}-product-media/categories/*"]);
+    // The only writes: presigned uploads under categories/ and products/, and the import worker's imports/.
+    const block = /Action: s3:PutObject\s*\n\s*Resource:\s*\n((?:\s*(?:#.*|- \S+)\n)+)/.exec(yaml)?.[1] ?? "";
+    const puts = [...block.matchAll(/- (\S+)/g)].map((m) => m[1]);
+    expect(puts).toEqual([
+      "arn:aws:s3:::effy-${sls:stage}-product-media/categories/*",
+      "arn:aws:s3:::effy-${sls:stage}-product-media/products/*",
+      "arn:aws:s3:::effy-${sls:stage}-product-media/imports/*",
+    ]);
+    // Never the private prefixes: delivery proof and courier labels.
+    expect(yaml).not.toMatch(/product-media\/(proof|courier-label)\//);
   });
 
   it("⚠ puts every HTTP route except healthz behind the BACK-OFFICE authorizer, and none behind the shop's", () => {

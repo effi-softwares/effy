@@ -48,6 +48,8 @@ const ONE_PAGE: ProductList = {
       priceVaries: false,
       variantCount: 1,
       missingRequired: 0,
+      hold: null,
+      createdBy: "shop",
       updatedAt: "2026-07-16T00:00:00Z",
     },
   ],

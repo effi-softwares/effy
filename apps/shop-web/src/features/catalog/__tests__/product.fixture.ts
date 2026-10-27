@@ -25,6 +25,8 @@ export function productDetail(over: Partial<ProductDetail> = {}): ProductDetail 
     media: [],
     sections: [],
     missingRequired: [],
+    hold: null,
+    createdBy: "shop",
     createdAt: "2026-07-16T00:00:00Z",
     updatedAt: "2026-07-16T10:00:00Z",
     ...over,

@@ -99,6 +99,12 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 > and lists stay keyed by `{productId}`. One new shop route: `POST /shop/v1/products/{id}/variants/{variantId}/state`
 > (`shop`, shared gateway). Renames replaced routes one for one — no gateway integrations were added by them.
 
+> **102 — the back-office product catalogue.** `catalog` (staff) gained 14 routes: `GET /catalog/v1/products`,
+> `GET`/`PATCH /catalog/v1/products/{productId}`, `POST /catalog/v1/products` (Effy creates for a shop),
+> `POST …/{productId}/media`, `…/hold`, `…/release`, `…/variants/{variantId}/state`, `POST /catalog/v1/products/bulk`,
+> and `POST`/`GET /catalog/v1/imports`, `GET /catalog/v1/imports/template`, `GET /catalog/v1/imports/{importId}`,
+> `POST /catalog/v1/imports/{importId}/create` — plus the route-less `productImportWorker` (SQS). Staff 189 → 203/300.
+
 > **101 — the category-driven catalogue.** Product types are gone. `admin`'s 18 `/admin/v1/catalog/…` schema routes
 > were deleted; `catalog` (staff) gained 14 `/catalog/v1/taxonomy/…` routes (categories, move, status, picture,
 > resolved form, attachments, attribute library), `PUT /catalog/v1/products/{productId}/placements` and
@@ -108,7 +114,7 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) — split out at CloudFormation's 500-resource limit |
-| `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`) |
+| `catalog` | **staff** | back-office | the catalogue taxonomy (categories, attribute library, attachments, `/catalog/v1/taxonomy/…`), extra placements, product review and margin (101 moved the taxonomy here from `admin`); every shop's products, holds, Effy-created products and imports (`/catalog/v1/products…`, `/catalog/v1/imports…`, 102) |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation |
 | `notifications` | shared | none (workers) | push and receipt drains |
