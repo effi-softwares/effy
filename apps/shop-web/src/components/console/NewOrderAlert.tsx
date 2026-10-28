@@ -54,16 +54,16 @@ export function NewOrderAlert() {
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg bg-primary-fill py-4 pr-4 pl-5 text-primary-foreground"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl bg-primary-fill py-3 pr-3 pl-4 text-primary-foreground"
     >
       <span
-        className="grid size-11 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-6"
+        className="grid size-10 flex-none animate-[sh-ring_1.6s_var(--ease-move)_infinite] place-items-center rounded-full bg-primary-foreground/16 motion-reduce:animate-none [&_svg]:size-5"
         aria-hidden="true"
       >
         <BellRing />
       </span>
       <div className="min-w-0 flex-[1_1_240px]">
-        <p className="text-lg leading-6 font-semibold">
+        <p className="text-base leading-6 font-semibold">
           New order · <span className="font-mono">{first.orderNumber}</span>
           {more > 0 ? ` and ${more} more` : ""}
         </p>
@@ -74,6 +74,7 @@ export function NewOrderAlert() {
       </div>
       <Button
         variant="ghost"
+        className="hover:bg-primary-foreground/15 hover:text-primary-foreground"
         onClick={() =>
           setSnoozed((s) => ({ ...s, ...Object.fromEntries(waiting.map((o) => [o.id, Date.now() + SNOOZE_MS])) }))
         }

@@ -6,9 +6,21 @@ import { Link } from "@tanstack/react-router"
 import { ArrowDown, CircleAlert, CircleSlash, ImageOff, Search, SearchX, ToggleRight } from "lucide-react"
 
 import type { AvailabilityFilter, ShopAvailabilityDTO, ShopAvailabilityRowDTO } from "@effy/shared-types"
-import { Button, Input, Skeleton, Switch, Tabs, TabsCount, TabsList, TabsTrigger, toast } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Input,
+  Label,
+  Skeleton,
+  Switch,
+  Tabs,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+  toast,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { EmptyState, PageHeader } from "@effy/web-kit/patterns"
 
 import { Page } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
@@ -63,25 +75,24 @@ export function AvailabilityScreen() {
         </TabsList>
       </Tabs>
 
-      <div className="ef-toolbar">
-        <label className="ef-toolbar__search">
-          <Search aria-hidden="true" />
-          <Input
-            aria-label="Search sizes"
-            type="search"
-            placeholder="Product, size or barcode…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-        </label>
-      </div>
+      <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+        <Input
+          aria-label="Search sizes"
+          type="search"
+          placeholder="Product, size or barcode…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="pl-9"
+        />
+      </label>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <div className="ef-table-wrap" aria-busy="true" aria-label="Loading sizes">
+        <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading sizes">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
+            <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
               <Skeleton className="size-12 rounded-lg" />
               <div className="grid flex-1 gap-2">
                 <Skeleton className="h-4 w-48" />
@@ -92,24 +103,25 @@ export function AvailabilityScreen() {
           ))}
         </div>
       ) : data.items.length === 0 ? (
-        <div className="ef-empty">
-          <span className="ef-empty__icon" aria-hidden="true">
-            {q ? <SearchX /> : <ToggleRight />}
-          </span>
-          <h3>
-            {q ? "No sizes match that search" : filter === "needs_look" ? "Nothing needs a look" : "No sizes here"}
-          </h3>
-          <p>
-            {q
+        <EmptyState
+          icon={q ? SearchX : ToggleRight}
+          title={q ? "No sizes match that search" : filter === "needs_look" ? "Nothing needs a look" : "No sizes here"}
+          description={
+            q
               ? "Try the product's name, the size, its code or its barcode."
               : filter === "needs_look"
                 ? "No size is out of stock or running low. Sizes appear here the moment they do."
-                : "Sizes of your live and unavailable products are listed here."}
-          </p>
-        </div>
+                : "Sizes of your live and unavailable products are listed here."
+          }
+        />
       ) : (
         <>
-          <ul className={cn("ef-table-wrap transition-opacity", isPlaceholderData && "opacity-60")}>
+          <ul
+            className={cn(
+              "overflow-hidden rounded-xl border bg-card transition-opacity",
+              isPlaceholderData && "opacity-60",
+            )}
+          >
             {data.items.map((row) => (
               <SizeRow key={row.variantId} row={row} />
             ))}
@@ -148,24 +160,24 @@ export function AvailabilityScreen() {
 function StockWord({ row }: { row: ShopAvailabilityRowDTO }) {
   if (!row.onSale)
     return (
-      <span className="ef-st ef-st--quiet">
+      <Badge variant="quiet">
         <CircleSlash aria-hidden="true" />
         Off sale
-      </span>
+      </Badge>
     )
   if (row.stock.outOfStock)
     return (
-      <span className="ef-st ef-st--problem">
+      <Badge variant="destructive">
         <CircleAlert aria-hidden="true" />
         Out of stock
-      </span>
+      </Badge>
     )
   if (row.stock.low)
     return (
-      <span className="ef-st ef-st--waiting">
+      <Badge variant="warning">
         <ArrowDown aria-hidden="true" />
         Low stock
-      </span>
+      </Badge>
     )
   return null
 }
@@ -175,12 +187,12 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
   const name = row.label ? `${row.productName} · ${row.label}` : row.productName
   const count = row.stock.tracked ? `${row.stock.onHand ?? 0} in stock` : "Not counted"
   return (
-    <li className="flex min-h-20 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-3 last:border-b-0 max-md:px-3">
+    <li className="flex min-h-18 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3 text-sm last:border-b-0 max-md:px-3">
       {row.imageUrl ? (
-        <img src={row.imageUrl} alt="" className="size-12 shrink-0 rounded-lg border border-border object-cover" />
+        <img src={row.imageUrl} alt="" className="size-12 shrink-0 rounded-lg border object-cover" />
       ) : (
-        <div className="ef-img size-12 rounded-lg">
-          <ImageOff aria-hidden="true" />
+        <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+          <ImageOff aria-hidden="true" className="size-5" />
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -200,8 +212,8 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
           {row.lastOnSale ? <span>· The last size on sale — make the product unavailable instead</span> : null}
         </div>
       </div>
-      <label className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
+      <Label className="gap-3 font-normal">
+        <span className="text-muted-foreground">{row.onSale ? "On sale" : "Off sale"}</span>
         <Switch
           checked={row.onSale}
           aria-label={`${name} on sale`}
@@ -219,7 +231,7 @@ function SizeRow({ row }: { row: ShopAvailabilityRowDTO }) {
             )
           }
         />
-      </label>
+      </Label>
     </li>
   )
 }

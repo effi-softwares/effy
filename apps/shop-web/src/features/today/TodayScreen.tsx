@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useStore } from "@tanstack/react-store"
 
 import { ErrorState } from "@effy/web-kit/console"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Card, Skeleton } from "@effy/design-system/ui"
 import { PageHeader } from "@effy/web-kit/patterns"
 import { History, Printer, Zap } from "lucide-react"
 
@@ -109,15 +109,13 @@ export function TodayScreen() {
 
 function PanelSkeleton({ rows }: { rows: number }) {
   return (
-    <section className="ef-panel" aria-busy="true" aria-label="Loading">
-      <div className="ef-panel__head">
-        <div className="grid flex-1 gap-2">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </div>
+    <Card className="gap-0 py-0" aria-busy="true" aria-label="Loading">
+      <div className="grid gap-2 border-b px-5 py-4">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-64" />
       </div>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="ef-attn">
+        <div key={i} className="flex min-h-16 items-center gap-4 px-5 py-3">
           <Skeleton className="size-9 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-2/3" />
@@ -125,6 +123,6 @@ function PanelSkeleton({ rows }: { rows: number }) {
           </div>
         </div>
       ))}
-    </section>
+    </Card>
   )
 }

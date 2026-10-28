@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router"
 
 import type { InsightsRange, InsightsTopProductDTO } from "@effy/shared-types"
-import { Progress } from "@effy/design-system/ui"
+import { Button, Progress, Table, TableBody, TableCell, TableRow } from "@effy/design-system/ui"
+import { Panel } from "@effy/web-kit/patterns"
 
 import { money, RANGE_PERIOD } from "./model"
 
@@ -15,32 +16,31 @@ export function TopProducts({
   currency: string
 }) {
   return (
-    <section className="ef-panel min-w-0">
-      <header className="ef-panel__head">
-        <div className="grid gap-1">
-          <h2 className="ef-panel__title">Top products</h2>
-          <p className="ef-panel__desc">By revenue, {RANGE_PERIOD[range]}</p>
-        </div>
-        <Link to="/catalog" className="text-sm font-medium text-foreground no-underline hover:underline">
-          Catalog →
-        </Link>
-      </header>
-
+    <Panel
+      flush
+      title="Top products"
+      description={`By revenue, ${RANGE_PERIOD[range]}`}
+      actions={
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/catalog">Catalog →</Link>
+        </Button>
+      }
+    >
       {products.length === 0 ? (
-        <p className="px-5 py-8 text-muted-foreground">Nothing sold in this window yet.</p>
+        <p className="px-5 py-8 text-sm text-muted-foreground">Nothing sold in this window yet.</p>
       ) : (
-        <table className="ef-table">
-          <tbody>
+        <Table>
+          <TableBody>
             {products.map((p) => (
-              <tr key={p.productId}>
-                <td className="w-16">
+              <TableRow key={p.productId}>
+                <TableCell className="w-16">
                   {p.thumbnailUrl ? (
-                    <img src={p.thumbnailUrl} alt="" className="size-10 rounded-md border border-border object-cover" />
+                    <img src={p.thumbnailUrl} alt="" className="size-10 rounded-md border object-cover" />
                   ) : (
-                    <div className="ef-img size-10" />
+                    <div className="size-10 rounded-md bg-muted" />
                   )}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell className="max-w-0">
                   <Link
                     to="/catalog/$productId"
                     params={{ productId: p.productId }}
@@ -48,9 +48,9 @@ export function TopProducts({
                   >
                     {p.name}
                   </Link>
-                  <span className="ef-sub font-mono">{p.sku ?? "—"}</span>
-                </td>
-                <td className="w-[34%]">
+                  <span className="mt-0.5 block font-mono text-muted-foreground">{p.sku ?? "—"}</span>
+                </TableCell>
+                <TableCell className="w-[34%]">
                   <div className="flex items-center gap-3">
                     <Progress
                       className="min-w-10 flex-1"
@@ -63,13 +63,15 @@ export function TopProducts({
                       {p.units} units
                     </span>
                   </div>
-                </td>
-                <td className="is-num w-28 font-semibold whitespace-nowrap">{money(p.revenue, currency)}</td>
-              </tr>
+                </TableCell>
+                <TableCell numeric className="w-28 font-semibold">
+                  {money(p.revenue, currency)}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
-    </section>
+    </Panel>
   )
 }

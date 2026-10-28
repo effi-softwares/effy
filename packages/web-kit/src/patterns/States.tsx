@@ -3,7 +3,17 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { CircleAlert, Info } from "lucide-react";
 
-import { cn } from "@effy/design-system";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@effy/design-system/ui";
 
 /**
  * Every state says what happens next (Patterns board, "States"). An empty list names why it is empty
@@ -22,14 +32,16 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="ef-empty">
-      <span className="ef-empty__icon" aria-hidden="true">
-        <Icon />
-      </span>
-      <h3>{title}</h3>
-      {description ? <p>{description}</p> : null}
-      {action ? <div className="mt-2">{action}</div> : null}
-    </div>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        {description ? <EmptyDescription>{description}</EmptyDescription> : null}
+      </EmptyHeader>
+      {action ? <EmptyContent>{action}</EmptyContent> : null}
+    </Empty>
   );
 }
 
@@ -41,7 +53,7 @@ const CALLOUT_ICON: Record<CalloutTone, LucideIcon> = {
 
 type CalloutTone = "destructive" | "info" | "muted";
 
-/** A note in the page: a problem (black edge, an icon — no red), information (blue), done (green). */
+/** A note in the page: a problem (an edge and an icon), information (blue) or an aside (grey). */
 export function Callout({
   tone,
   title,
@@ -55,10 +67,10 @@ export function Callout({
 }) {
   const Icon = CALLOUT_ICON[tone];
   return (
-    <div className={cn("ef-alert", `ef-alert--${tone}`)} role={role ?? (tone === "destructive" ? "alert" : undefined)}>
+    <Alert variant={tone} role={role ?? (tone === "destructive" ? "alert" : "status")}>
       <Icon aria-hidden="true" />
-      <div className="ef-alert__title">{title}</div>
-      {children ? <div className="ef-alert__description">{children}</div> : null}
-    </div>
+      <AlertTitle>{title}</AlertTitle>
+      {children ? <AlertDescription>{children}</AlertDescription> : null}
+    </Alert>
   );
 }

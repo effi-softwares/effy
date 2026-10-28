@@ -42,7 +42,7 @@ export function MetricStrip({ dto, backlog }: { dto: ShopInsightsDTO; backlog: S
       {cells.map((c, i) => (
         <div key={c.label} className={cn("kpi", i >= 3 && "is-live")}>
           <dt className="kpi__label">
-            {i >= 3 ? <span aria-hidden="true" className="ef-dot ef-dot--busy" /> : null}
+            {i >= 3 ? <span aria-hidden="true" className="inline-block size-2 rounded-full bg-primary-fill" /> : null}
             {c.label}
           </dt>
           <dd className="kpi__value">{c.value}</dd>

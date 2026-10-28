@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 
-import { Card, CardContent, CardDescription, CardHeader, CardHeading, CardTitle } from "@effy/design-system/ui"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { track } from "@/lib/telemetry"
@@ -20,12 +20,10 @@ export function ProvingScreen() {
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardHeading>
-          <CardTitle>Your shop record</CardTitle>
-          <CardDescription>
-            The platform's own record of you — proves this console reaches the backend as you.
-          </CardDescription>
-        </CardHeading>
+        <CardTitle>Your shop record</CardTitle>
+        <CardDescription>
+          The platform's own record of you — proves this console reaches the backend as you.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isPending ? (

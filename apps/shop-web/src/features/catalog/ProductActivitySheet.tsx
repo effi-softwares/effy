@@ -4,9 +4,7 @@ import type { StockMovementDTO } from "@effy/shared-types"
 import { Minus, Plus } from "lucide-react"
 
 import { Skeleton } from "@effy/design-system/ui"
-import { ResponsiveSheet } from "@effy/web-kit/patterns"
-
-import { cn } from "@/lib/utils"
+import { DetailRows, ResponsiveSheet, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge"
 
@@ -35,37 +33,27 @@ export function ProductActivitySheet({
       description="Where this product stands, and every change made to its stock."
     >
       <section className="grid gap-2">
-        <h3 className="ef-eyebrow">Summary</h3>
-        <dl className="ef-dl ef-dl--tight">
-          <div className="ef-dl__row">
-            <dt>Status</dt>
-            <dd>
-              <ProductStatusBadge status={detail.status} />
-            </dd>
-          </div>
-          <div className="ef-dl__row">
-            <dt>Sections</dt>
-            <dd className="tabular-nums">{detail.sections.length}</dd>
-          </div>
-          <div className="ef-dl__row">
-            <dt>Images</dt>
-            <dd className="tabular-nums">{detail.media.length}</dd>
-          </div>
-          <div className="ef-dl__row">
-            <dt>Updated</dt>
-            <dd>
-              {new Date(detail.updatedAt).toLocaleDateString(undefined, {
+        <h3 className="text-xs font-medium text-muted-foreground">Summary</h3>
+        <DetailRows
+          tight
+          rows={[
+            { label: "Status", value: <ProductStatusBadge status={detail.status} /> },
+            { label: "Sections", value: <span className="tabular-nums">{detail.sections.length}</span> },
+            { label: "Images", value: <span className="tabular-nums">{detail.media.length}</span> },
+            {
+              label: "Updated",
+              value: new Date(detail.updatedAt).toLocaleDateString(undefined, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
-              })}
-            </dd>
-          </div>
-        </dl>
+              }),
+            },
+          ]}
+        />
       </section>
 
       <section className="grid gap-2">
-        <h3 className="ef-eyebrow">Change log</h3>
+        <h3 className="text-xs font-medium text-muted-foreground">Change log</h3>
         {stock.isPending ? (
           <div className="grid gap-3" aria-busy="true" aria-label="Loading change log">
             <Skeleton className="h-4 w-3/4" />
@@ -73,17 +61,17 @@ export function ProductActivitySheet({
             <Skeleton className="h-4 w-1/2" />
           </div>
         ) : stock.isError ? (
-          <p className="text-muted-foreground">The change log couldn&apos;t be loaded.</p>
+          <p className="text-sm text-muted-foreground">The change log couldn&apos;t be loaded.</p>
         ) : stock.data.movements.length === 0 ? (
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             No changes recorded yet. Every change to the stock count appears here, with who made it.
           </p>
         ) : (
-          <ol className="ef-tl">
+          <Timeline>
             {stock.data.movements.map((m) => (
               <ChangeLogEntry key={m.id} movement={m} />
             ))}
-          </ol>
+          </Timeline>
         )}
       </section>
     </ResponsiveSheet>
@@ -98,14 +86,12 @@ function ChangeLogEntry({ movement }: { movement: StockMovementDTO }) {
   })
   const down = movement.quantityDelta < 0
   return (
-    <li className="ef-tl__item">
-      <span aria-hidden="true" className={cn("ef-tl__mark", down && "ef-tl__mark--problem")}>
-        {down ? <Minus /> : <Plus />}
-      </span>
-      <span className="min-w-0">
-        <span className="ef-tl__title block">{stockChangeTitle(movement)}</span>
-        <span className="ef-tl__body block">{who && who !== "—" ? `${when} · ${who}` : when}</span>
-      </span>
-    </li>
+    <TimelineItem
+      icon={down ? <Minus /> : <Plus />}
+      tone={down ? "problem" : "default"}
+      title={stockChangeTitle(movement)}
+    >
+      {who && who !== "—" ? `${when} · ${who}` : when}
+    </TimelineItem>
   )
 }

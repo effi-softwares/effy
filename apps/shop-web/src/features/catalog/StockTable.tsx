@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import { ArrowDown, PackageX } from "lucide-react"
 
-import { Button, Input, Label, toast } from "@effy/design-system/ui"
+import { Badge, Button, Input, Label, Table, TableBody, TableHeader, TableRow, toast } from "@effy/design-system/ui"
 
 import { DetailSection, Segmented, Td, Th } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
@@ -94,90 +94,86 @@ export function StockTable({
       }
     >
       <div className="grid">
-        <div className="ef-table-scroll">
-          <table className="ef-table ef-table--plain">
-            <thead>
-              <tr>
-                <Th>{named ? "Size" : "Item"}</Th>
-                <Th align="right">On hand</Th>
-                <Th>Status</Th>
-                <Th align="right">Low at</Th>
-                <Th width="160px">{mode === "receive" ? "Received" : "Counted"}</Th>
-                <Th align="right">After</Th>
-                <Th />
-              </tr>
-            </thead>
-            <tbody>
-              {sizes.map((v) => {
-                const plan = planRow(v.stock, inputs[v.id] ?? "", mode)
-                const after = plan.kind === "adjust" || plan.kind === "set" || plan.kind === "start" ? plan.after : null
-                const label = v.label ?? detail.name
-                return (
-                  <tr key={v.id} className="align-top">
-                    <Td>
-                      <span className="font-medium">{label}</span>
-                      <span className="ef-sub">
-                        <span className="font-mono">{v.code}</span>
-                        {v.state === "inactive" ? " · Off sale" : ""}
-                      </span>
-                    </Td>
-                    <Td align="right" className="tabular-nums">
-                      {v.stock.tracked ? (v.stock.onHand ?? 0) : "—"}
-                    </Td>
-                    <Td>
-                      <StockBadge stock={v.stock} />
-                    </Td>
-                    <Td align="right" className="text-muted-foreground tabular-nums">
-                      {v.stock.tracked ? (v.stock.effectiveThreshold ?? "—") : "—"}
-                    </Td>
-                    <Td>
-                      <Input
-                        aria-label={`${mode === "receive" ? "Units received" : "Units counted"} for ${label}`}
-                        inputMode="numeric"
-                        placeholder={mode === "receive" ? "0" : String(v.stock.onHand ?? 0)}
-                        value={inputs[v.id] ?? ""}
-                        disabled={saving}
-                        aria-invalid={plan.kind === "invalid" || v.id in errors}
-                        onChange={(e) => setInput(v.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") void save()
-                        }}
-                      />
-                      {plan.kind === "invalid" ? (
-                        <p className="mt-1 text-sm font-medium">Enter {plan.message}</p>
-                      ) : null}
-                      {errors[v.id] ? (
-                        <p role="alert" className="mt-1 text-sm leading-tight font-medium">
-                          {errors[v.id]}
-                        </p>
-                      ) : null}
-                      {!v.stock.tracked && after !== null ? (
-                        <p className="mt-1 text-sm text-muted-foreground">Starts counting this size</p>
-                      ) : null}
-                    </Td>
-                    <Td align="right" className="font-medium tabular-nums">
-                      {after ?? ""}
-                    </Td>
-                    <Td>
-                      <div className="flex justify-end gap-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => onRules(v.id)}>
-                          Rules
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <Th>{named ? "Size" : "Item"}</Th>
+              <Th align="right">On hand</Th>
+              <Th>Status</Th>
+              <Th align="right">Low at</Th>
+              <Th width="160px">{mode === "receive" ? "Received" : "Counted"}</Th>
+              <Th align="right">After</Th>
+              <Th />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sizes.map((v) => {
+              const plan = planRow(v.stock, inputs[v.id] ?? "", mode)
+              const after = plan.kind === "adjust" || plan.kind === "set" || plan.kind === "start" ? plan.after : null
+              const label = v.label ?? detail.name
+              return (
+                <TableRow key={v.id} className="align-top">
+                  <Td>
+                    <span className="font-medium">{label}</span>
+                    <span className="mt-0.5 block text-muted-foreground">
+                      <span className="font-mono">{v.code}</span>
+                      {v.state === "inactive" ? " · Off sale" : ""}
+                    </span>
+                  </Td>
+                  <Td align="right" className="tabular-nums">
+                    {v.stock.tracked ? (v.stock.onHand ?? 0) : "—"}
+                  </Td>
+                  <Td>
+                    <StockBadge stock={v.stock} />
+                  </Td>
+                  <Td align="right" className="text-muted-foreground tabular-nums">
+                    {v.stock.tracked ? (v.stock.effectiveThreshold ?? "—") : "—"}
+                  </Td>
+                  <Td>
+                    <Input
+                      aria-label={`${mode === "receive" ? "Units received" : "Units counted"} for ${label}`}
+                      inputMode="numeric"
+                      placeholder={mode === "receive" ? "0" : String(v.stock.onHand ?? 0)}
+                      value={inputs[v.id] ?? ""}
+                      disabled={saving}
+                      aria-invalid={plan.kind === "invalid" || v.id in errors}
+                      onChange={(e) => setInput(v.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void save()
+                      }}
+                    />
+                    {plan.kind === "invalid" ? <p className="mt-1 text-sm font-medium">Enter {plan.message}</p> : null}
+                    {errors[v.id] ? (
+                      <p role="alert" className="mt-1 text-sm leading-tight font-medium">
+                        {errors[v.id]}
+                      </p>
+                    ) : null}
+                    {!v.stock.tracked && after !== null ? (
+                      <p className="mt-1 text-sm text-muted-foreground">Starts counting this size</p>
+                    ) : null}
+                  </Td>
+                  <Td align="right" className="font-medium tabular-nums">
+                    {after ?? ""}
+                  </Td>
+                  <Td>
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => onRules(v.id)}>
+                        Rules
+                      </Button>
+                      {v.stock.tracked ? (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onHistory(v.id)}>
+                          History
                         </Button>
-                        {v.stock.tracked ? (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => onHistory(v.id)}>
-                            History
-                          </Button>
-                        ) : null}
-                      </div>
-                    </Td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      ) : null}
+                    </div>
+                  </Td>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
 
-        <div className="ef-panel__foot flex-wrap items-end! justify-between!">
+        <div className="flex flex-wrap items-end justify-between gap-2 border-t bg-muted/40 px-5 py-3 max-md:px-4">
           <div className="grid min-w-65 flex-1 gap-2">
             <Label htmlFor="stock-note">Note (optional)</Label>
             <Input
@@ -217,20 +213,20 @@ export function StockTable({
 }
 
 function StockBadge({ stock }: { stock: ProductDetail["variants"][number]["stock"] }) {
-  if (!stock.tracked) return <span className="ef-st ef-st--quiet">Not counted</span>
+  if (!stock.tracked) return <Badge variant="quiet">Not counted</Badge>
   if (stock.outOfStock)
     return (
-      <span className="ef-st ef-st--problem">
+      <Badge variant="destructive">
         <PackageX aria-hidden="true" />
         Out of stock
-      </span>
+      </Badge>
     )
   if (stock.low)
     return (
-      <span className="ef-st ef-st--waiting">
+      <Badge variant="warning">
         <ArrowDown aria-hidden="true" />
         Low
-      </span>
+      </Badge>
     )
-  return <span className="ef-st ef-st--done">In stock</span>
+  return <Badge variant="success">In stock</Badge>
 }

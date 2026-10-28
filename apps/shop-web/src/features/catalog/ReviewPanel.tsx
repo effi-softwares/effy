@@ -4,9 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { CircleAlert, Hourglass } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui"
-
-import { cn } from "@/lib/utils"
+import { Alert, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
 
 import { track } from "@/lib/telemetry"
 
@@ -20,10 +18,10 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
   return (
     <>
       {detail.hold ? (
-        <section aria-label="Held by Effy" className="ef-alert ef-alert--destructive gap-y-3!">
-          <CircleAlert aria-hidden="true" className="mt-1" />
+        <Alert role="region" aria-label="Held by Effy" variant="destructive" className="gap-y-3">
+          <CircleAlert aria-hidden="true" />
           <div className="grid gap-1">
-            <h2 className="text-base font-semibold">Held by Effy</h2>
+            <h2 className="font-semibold">Held by Effy</h2>
             <p className="text-muted-foreground">
               Effy has taken this product off sale. Customers cannot find or buy it, and it cannot go back on sale until
               Effy releases it. You can still edit it — changes go to Effy for review as usual.
@@ -33,7 +31,7 @@ export function ReviewPanel({ detail }: { detail: ProductDetail }) {
             <span className="text-sm font-medium">Why</span>
             <p className="break-words whitespace-pre-line">{detail.hold.reason}</p>
           </div>
-        </section>
+        </Alert>
       ) : null}
       <ReviewState detail={detail} />
     </>
@@ -83,13 +81,10 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
 
   const Icon = sentBack ? CircleAlert : Hourglass
   return (
-    <section
-      aria-label="Review"
-      className={cn("ef-alert gap-y-3!", sentBack ? "ef-alert--destructive" : "ef-alert--info")}
-    >
-      <Icon aria-hidden="true" className="mt-1" />
+    <Alert role="region" aria-label="Review" variant={sentBack ? "destructive" : "info"} className="gap-y-3">
+      <Icon aria-hidden="true" />
       <div className="grid gap-1">
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="font-semibold">{title}</h2>
         <p className="text-muted-foreground">{body}</p>
       </div>
 
@@ -101,35 +96,33 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
       ) : null}
 
       {isChange && rows.length > 0 ? (
-        <div className="ef-table-wrap col-start-2">
-          <div className="ef-table-scroll">
-            <table className="ef-table ef-table--compact">
-              <thead>
-                <tr>
-                  <th>Detail</th>
-                  <th>On sale now</th>
-                  <th>Your change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.label} className="align-top">
-                    <th scope="row" className="h-auto! py-3! text-left font-medium text-foreground">
-                      {r.label}
-                    </th>
-                    <td className="break-words whitespace-pre-line text-muted-foreground">
-                      <span className="sr-only">on sale now: </span>
-                      {r.now}
-                    </td>
-                    <td className="font-medium break-words whitespace-pre-line">
-                      <span className="sr-only">your change: </span>
-                      {r.proposed}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="col-start-2 overflow-hidden rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Detail</TableHead>
+                <TableHead>On sale now</TableHead>
+                <TableHead>Your change</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.label} className="align-top">
+                  <TableHead scope="row" className="h-auto py-3 font-medium text-foreground">
+                    {r.label}
+                  </TableHead>
+                  <TableCell className="break-words whitespace-pre-line text-muted-foreground">
+                    <span className="sr-only">on sale now: </span>
+                    {r.now}
+                  </TableCell>
+                  <TableCell className="font-medium break-words whitespace-pre-line">
+                    <span className="sr-only">your change: </span>
+                    {r.proposed}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
@@ -145,6 +138,6 @@ function ReviewState({ detail }: { detail: ProductDetail }) {
           ) : null}
         </div>
       ) : null}
-    </section>
+    </Alert>
   )
 }

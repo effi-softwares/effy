@@ -1,5 +1,22 @@
 @import "./tokens.css";
 
+/* A tap area of at least 44px on a touch screen, without changing how the control looks: an invisible
+   layer centred on the control, never smaller than the control itself. With a mouse it does nothing. */
+@utility touch-hit {
+  position: relative;
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 @keyframes effy-fade {
   from {
     opacity: 0;
@@ -54,7 +71,7 @@
     @apply antialiased;
   }
   body {
-    @apply bg-background font-sans text-base leading-6 text-pretty text-foreground;
+    @apply bg-background font-sans text-sm leading-5 text-pretty text-foreground;
     -webkit-tap-highlight-color: transparent;
   }
   /* Everything clickable shows the pointer; anything disabled shows not-allowed. :where() keeps it at zero
@@ -86,19 +103,19 @@ html,
 html * { @apply overscroll-x-none; }
 
 [data-slot="dialog-content"] {
-  @apply gap-4 rounded-lg border border-solid border-border bg-background p-6;
+  @apply gap-4 rounded-xl border border-solid border-border bg-background p-6;
   box-shadow: var(--shadow-lg);
 }
 [data-slot="dialog-content"][data-state="open"] { animation: ef-dialog-in var(--dur-standard) var(--ease-move); }
 [data-slot="dialog-content"][data-state="closed"] { animation: ef-dialog-out var(--dur-fast) ease-in; }
-[data-slot="dialog-title"] { @apply text-xl leading-7 font-semibold; }
-[data-slot="drawer-title"] { @apply text-xl leading-7; }
-[data-slot="dialog-description"] { @apply text-base leading-6 text-muted-foreground; }
-[data-slot="drawer-description"] { @apply text-base leading-6; }
-[data-slot="dialog-close"] { @apply grid size-11 place-items-center; }
+[data-slot="dialog-title"] { @apply text-lg leading-7 font-semibold; }
+[data-slot="drawer-title"] { @apply text-lg leading-7; }
+[data-slot="dialog-description"] { @apply text-sm leading-5 text-muted-foreground; }
+[data-slot="drawer-description"] { @apply text-sm leading-5; }
+[data-slot="dialog-close"] { @apply grid size-9 place-items-center rounded-lg; }
 
 [data-sonner-toast] {
-  @apply rounded-lg! border! border-solid! border-border! bg-background! px-4! py-4! font-sans! text-sm! text-foreground!;
+  @apply rounded-xl! border! border-solid! border-border! bg-background! px-4! py-4! font-sans! text-sm! text-foreground!;
   box-shadow: var(--shadow-lg) !important;
 }
 [data-sonner-toast] [data-title] { @apply font-medium; }
@@ -417,7 +434,7 @@ html * { @apply overscroll-x-none; }
 .ef-sb-rule { @apply hidden; }
 
 .ef-sb-btn {
-  @apply relative h-10 gap-3 rounded-md px-3 py-0 text-sm whitespace-nowrap text-sidebar-foreground;
+  @apply relative h-10 gap-3 rounded-md px-3 py-0 text-sm whitespace-nowrap text-sidebar-foreground pointer-coarse:h-11;
   transition: background-color var(--dur-fast) ease;
 }
 .ef-sb-btn:hover { @apply bg-sidebar-accent text-sidebar-foreground; }
@@ -452,7 +469,7 @@ html * { @apply overscroll-x-none; }
   transform: none;
 }
 .ef-sb-subbtn {
-  @apply h-9 gap-2 rounded-md px-3 py-0 text-sm text-sidebar-muted;
+  @apply h-9 gap-2 rounded-md px-3 py-0 text-sm text-sidebar-muted pointer-coarse:h-10;
   transform: none;
 }
 .ef-sb-subbtn:hover { @apply bg-sidebar-accent text-sidebar-foreground; }

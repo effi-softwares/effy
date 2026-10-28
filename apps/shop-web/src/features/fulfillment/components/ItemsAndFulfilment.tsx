@@ -2,7 +2,7 @@ import { useState } from "react"
 import { CircleAlert, CircleCheck, Package, Snowflake, Thermometer, type LucideIcon } from "lucide-react"
 
 import { STORAGE_CLASSES, STORAGE_CLASS_WORDS, type StorageClass } from "@effy/shared-types"
-import { Button, toast } from "@effy/design-system/ui"
+import { Button, Card, Progress, toast } from "@effy/design-system/ui"
 import { ScanField } from "@effy/web-kit/scanner"
 
 import {
@@ -82,126 +82,131 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
   const pct = detail.lines.length > 0 ? (pickedFull / detail.lines.length) * 100 : 0
 
   return (
-    <section className="ef-panel min-w-0">
-      <div className="ef-panel__head">
-        <div className="grid min-w-0 flex-1 gap-2">
-          <h2 className="ef-panel__title">Items and fulfilment</h2>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <div className="ef-meter ef-meter--lg w-full max-w-65" aria-hidden="true">
-              <i className="ef-meter__booked" style={{ width: `${pct}%` }} />
+    <section className="min-w-0">
+      <Card className="gap-0 overflow-hidden py-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-4 max-md:px-4">
+          <div className="grid min-w-0 flex-1 gap-2">
+            <h2 className="leading-6 font-semibold">Items and fulfilment</h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <Progress aria-hidden="true" className="max-w-65" height={8} value={pct} />
+              <p className="text-sm text-muted-foreground">
+                {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
+              </p>
             </div>
-            <p className="ef-panel__desc">
-              {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
-            </p>
           </div>
+          {editable ? (
+            <Button variant="ghost" size="sm" onClick={toggleAll} disabled={busy}>
+              {allPicked ? "Clear all" : "Select all"}
+            </Button>
+          ) : null}
         </div>
+
         {editable ? (
-          <Button variant="ghost" onClick={toggleAll} disabled={busy}>
-            {allPicked ? "Clear all" : "Select all"}
-          </Button>
-        ) : null}
-      </div>
-
-      {editable ? (
-        <div className="flex flex-wrap items-center gap-3 border-b border-b-border px-5 py-3 max-md:px-4">
-          <div className="min-w-0 flex-1">
-            <ScanField
-              accept={(t) => /^\d{8,14}$/.test(t.trim())}
-              onRead={({ raw }) => onScan(raw)}
-              placeholder="Scan a product barcode, or type it"
-              label="Scan a product barcode"
-            />
+          <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 max-md:px-4">
+            <div className="min-w-0 flex-1">
+              <ScanField
+                accept={(t) => /^\d{8,14}$/.test(t.trim())}
+                onRead={({ raw }) => onScan(raw)}
+                placeholder="Scan a product barcode, or type it"
+                label="Scan a product barcode"
+              />
+            </div>
+            {scan ? (
+              <p role="status" className="flex basis-full items-center gap-2 text-sm font-medium [&_svg]:size-4">
+                {scan.ok ? (
+                  <CircleCheck aria-hidden="true" className="text-success" />
+                ) : (
+                  <CircleAlert aria-hidden="true" />
+                )}
+                {scan.text}
+              </p>
+            ) : (
+              <p className="basis-full text-sm text-muted-foreground">
+                A scanner types here. It ticks the line when the barcode matches.
+              </p>
+            )}
           </div>
-          {scan ? (
-            <p role="status" className="scan__state basis-full">
-              {scan.ok ? (
-                <CircleCheck aria-hidden="true" className="text-success" />
-              ) : (
-                <CircleAlert aria-hidden="true" />
-              )}
-              {scan.text}
-            </p>
-          ) : (
-            <p className="basis-full text-sm text-muted-foreground">
-              A scanner types here. It ticks the line when the barcode matches.
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      <div className="flex flex-col">
-        {zonesOf(detail.lines).map(({ zone, lines }) => {
-          const Z = ZONE[zone]
-          return (
-            <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
-              <h3 className="flex items-center gap-2 border-b border-b-border bg-muted/55 px-5 py-3 text-sm font-semibold tracking-[0.02em] max-md:px-4 max-md:py-3 [&_svg]:size-4">
-                <Z.icon aria-hidden="true" />
-                {STORAGE_CLASS_WORDS[zone].toUpperCase()}
-                <span className="font-normal tracking-normal text-muted-foreground">· {Z.hint}</span>
-              </h3>
-              <ul>
-                {lines.map((l) => (
-                  <LineRow
-                    key={l.orderItemId}
-                    line={l}
-                    currency={m.currency}
-                    editable={editable}
-                    busy={busy}
-                    scanned={scan?.lineId === l.orderItemId}
-                    onToggle={() => toggleLine(l)}
-                    onAdjust={() => setAdjusting({ line: l })}
-                    onCantFind={() => setAdjusting({ line: l, preset: "unavailable" })}
-                  />
-                ))}
-              </ul>
-            </section>
-          )
-        })}
-      </div>
-
-      <div className="border-t border-border px-5 py-3 max-md:px-4">
-        <TotalRow label="Your items" value={formatMoney(m.shopSubtotal, m.currency)} />
-        {Number(m.discount) > 0 ? (
-          <TotalRow label="Discount" value={`−${formatMoney(m.discount, m.currency)}`} />
         ) : null}
-        <TotalRow label="Total" value={formatMoney(m.total, m.currency)} strong />
-        {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
-      </div>
 
-      {editable ? (
-        <div className="ef-panel__foot ef-panel__foot--between">
-          <p className="min-w-0 flex-1 text-sm text-muted-foreground text-pretty">
-            {pickedAny
-              ? "Marks everything ticked above ready for an Effy driver to collect."
-              : "Tick the items you have picked, or use Adjust for part-picked and unavailable lines."}
-          </p>
-          <Button variant={pickedAny ? "default" : "secondary"} onClick={fulfil} aria-disabled={!pickedAny}>
-            {pickedAny ? `Fulfil ${pickedFull} ${pickedFull === 1 ? "item" : "items"}` : "Fulfil picked items"}
-          </Button>
+        <div className="flex flex-col">
+          {zonesOf(detail.lines).map(({ zone, lines }) => {
+            const Z = ZONE[zone]
+            return (
+              <section key={zone} aria-label={STORAGE_CLASS_WORDS[zone]}>
+                <h3 className="flex items-center gap-2 border-b bg-muted/50 px-5 py-2 text-xs font-semibold tracking-[0.02em] max-md:px-4 [&_svg]:size-4">
+                  <Z.icon aria-hidden="true" />
+                  {STORAGE_CLASS_WORDS[zone].toUpperCase()}
+                  <span className="font-normal tracking-normal text-muted-foreground">· {Z.hint}</span>
+                </h3>
+                <ul>
+                  {lines.map((l) => (
+                    <LineRow
+                      key={l.orderItemId}
+                      line={l}
+                      currency={m.currency}
+                      editable={editable}
+                      busy={busy}
+                      scanned={scan?.lineId === l.orderItemId}
+                      onToggle={() => toggleLine(l)}
+                      onAdjust={() => setAdjusting({ line: l })}
+                      onCantFind={() => setAdjusting({ line: l, preset: "unavailable" })}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )
+          })}
         </div>
-      ) : null}
 
-      <Shipments detail={detail} />
+        <div className="border-t px-5 py-3 max-md:px-4">
+          <TotalRow label="Your items" value={formatMoney(m.shopSubtotal, m.currency)} />
+          {Number(m.discount) > 0 ? (
+            <TotalRow label="Discount" value={`−${formatMoney(m.discount, m.currency)}`} />
+          ) : null}
+          <TotalRow label="Total" value={formatMoney(m.total, m.currency)} strong />
+          {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
+        </div>
 
-      <AdjustLineDialog
-        line={adjusting?.line ?? null}
-        preset={adjusting?.preset}
-        onClose={() => setAdjusting(null)}
-        saving={busy}
-        onSave={(mode, units, note) => {
-          const l = adjusting!.line
-          picks.mutate(
-            {
-              lines: [
-                { orderItemId: l.orderItemId, mode, ...(mode === "part" ? { units } : {}), ...(note ? { note } : {}) },
-              ],
-              toast: pickToast(l.name, mode, units, l.orderedQuantity),
-            },
-            { onSuccess: () => setAdjusting(null) },
-          )
-        }}
-      />
-      <FulfilDialog detail={detail} open={fulfilOpen} onOpenChange={setFulfilOpen} />
+        {editable ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/40 px-5 py-3 max-md:px-4">
+            <p className="min-w-0 flex-1 text-sm text-muted-foreground text-pretty">
+              {pickedAny
+                ? "Marks everything ticked above ready for an Effy driver to collect."
+                : "Tick the items you have picked, or use Adjust for part-picked and unavailable lines."}
+            </p>
+            <Button variant={pickedAny ? "default" : "secondary"} onClick={fulfil} aria-disabled={!pickedAny}>
+              {pickedAny ? `Fulfil ${pickedFull} ${pickedFull === 1 ? "item" : "items"}` : "Fulfil picked items"}
+            </Button>
+          </div>
+        ) : null}
+
+        <Shipments detail={detail} />
+
+        <AdjustLineDialog
+          line={adjusting?.line ?? null}
+          preset={adjusting?.preset}
+          onClose={() => setAdjusting(null)}
+          saving={busy}
+          onSave={(mode, units, note) => {
+            const l = adjusting!.line
+            picks.mutate(
+              {
+                lines: [
+                  {
+                    orderItemId: l.orderItemId,
+                    mode,
+                    ...(mode === "part" ? { units } : {}),
+                    ...(note ? { note } : {}),
+                  },
+                ],
+                toast: pickToast(l.name, mode, units, l.orderedQuantity),
+              },
+              { onSuccess: () => setAdjusting(null) },
+            )
+          }}
+        />
+        <FulfilDialog detail={detail} open={fulfilOpen} onOpenChange={setFulfilOpen} />
+      </Card>
     </section>
   )
 }

@@ -32,7 +32,7 @@ import {
   DrawerTitle,
 } from "@effy/design-system/ui"
 import { visibleNav } from "@effy/web-kit/console"
-import { Kbd } from "@effy/web-kit/patterns"
+import { Kbd } from "@effy/design-system/ui"
 
 import { NAV } from "@/components/layout/nav"
 import { productListQuery } from "@/features/catalog/queries"
@@ -194,8 +194,8 @@ export function CommandPalette({
 
   const body: ReactNode = (
     <>
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4">
-        <Search aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        <Search aria-hidden="true" className="size-4 shrink-0 opacity-50" />
         <input
           autoFocus
           value={query}
@@ -207,7 +207,7 @@ export function CommandPalette({
           aria-activedescendant={flat[focus] ? `sh-palette-${focus}` : undefined}
           aria-label="Search"
           placeholder="Search orders and products, or type a command"
-          className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+          className="flex h-10 min-w-0 flex-1 bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground"
         />
         <Kbd className="max-xl:hidden">esc</Kbd>
       </div>
@@ -216,16 +216,16 @@ export function CommandPalette({
         id="sh-palette-list"
         role="listbox"
         aria-label="Results"
-        className="max-h-120 overflow-y-auto px-2 pt-1 pb-2 max-md:max-h-none max-md:flex-1"
+        className="max-h-100 overflow-x-hidden overflow-y-auto p-1 max-md:max-h-none max-md:flex-1"
       >
         {sections.length === 0 ? (
-          <p className="px-2 py-8 text-center text-muted-foreground">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             {loading ? "Searching…" : "Nothing matches that."}
           </p>
         ) : (
           sections.map((section) => (
-            <div key={section.label} role="group" aria-label={section.label} className="pt-1">
-              <div className="ef-eyebrow px-2 py-2">{section.label}</div>
+            <div key={section.label} role="group" aria-label={section.label} className="p-1 text-foreground">
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{section.label}</div>
               {section.items.map((item) => {
                 index += 1
                 const i = index
@@ -239,14 +239,21 @@ export function CommandPalette({
                     data-index={i}
                     onMouseMove={() => setFocus(i)}
                     onClick={item.run}
-                    className={cn("ef-cmd-item", i === focus && "is-focus")}
+                    className={cn(
+                      "relative flex min-h-10 w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+                      i === focus && "bg-accent text-accent-foreground",
+                    )}
                   >
                     <item.icon aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">
                       <span className={cn(item.mono && "font-mono tracking-[-0.01em]")}>{item.label}</span>
                       {item.meta ? <span className="text-muted-foreground"> {item.meta}</span> : null}
                     </span>
-                    {item.hint ? <span className="text-sm text-muted-foreground tabular-nums">{item.hint}</span> : null}
+                    {item.hint ? (
+                      <span className="ml-auto text-xs tracking-widest text-muted-foreground tabular-nums">
+                        {item.hint}
+                      </span>
+                    ) : null}
                   </button>
                 )
               })}
@@ -257,7 +264,7 @@ export function CommandPalette({
           <p className="px-2 pt-2 text-sm text-muted-foreground">Type two characters to search orders and products.</p>
         ) : null}
       </div>
-      <div className="flex h-10 shrink-0 items-center gap-4 border-t border-border px-4 text-sm whitespace-nowrap text-muted-foreground max-xl:hidden">
+      <div className="flex h-10 shrink-0 items-center gap-4 border-t px-3 text-xs whitespace-nowrap text-muted-foreground max-xl:hidden">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> move
@@ -289,7 +296,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] flex max-w-160 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-160"
+        className="top-[12%] flex max-w-140 translate-y-0 flex-col gap-0! overflow-hidden p-0! sm:max-w-140"
       >
         <DialogTitle className="sr-only">Search and commands</DialogTitle>
         <DialogDescription className="sr-only">Search orders and products, or go to a page.</DialogDescription>

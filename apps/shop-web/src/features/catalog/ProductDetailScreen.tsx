@@ -4,13 +4,23 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { Boxes, CircleAlert, Eye, FileText, Hourglass, ImageOff, Images, type LucideIcon } from "lucide-react"
 
-import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 import { formatAttributeValue, GST_STATUS_WORDS, STORAGE_WORDS, type CategoryFormDTO } from "@effy/shared-types"
 import { ErrorState } from "@effy/web-kit/console"
 import { DetailRows, PageHeader } from "@effy/web-kit/patterns"
 
 import { DetailSection, Page, SectionAction } from "@/components/console/primitives"
-import { cn } from "@/lib/utils"
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge"
 import { formatMoney, orderedMedia, storefrontText } from "./detailFormat"
@@ -111,16 +121,16 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
                   stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined}
                 />
                 {detail.hold ? (
-                  <span className="ef-st ef-st--problem">
+                  <Badge variant="destructive">
                     <CircleAlert aria-hidden="true" />
                     Held by Effy
-                  </span>
+                  </Badge>
                 ) : null}
                 {chip ? (
-                  <span className={cn("ef-st", chip.tone === "warning" ? "ef-st--problem" : "ef-st--moving")}>
+                  <Badge variant={chip.tone === "warning" ? "destructive" : "default"}>
                     {chip.tone === "warning" ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
                     {chip.label}
-                  </span>
+                  </Badge>
                 ) : null}
               </>
             }
@@ -128,11 +138,11 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
               <>
                 {detail.brand ? <span>{detail.brand}</span> : null}
                 <span>{pathText(detail.categoryPath)}</span>
-                {detail.ageRestricted ? <span className="ef-st ef-st--muted">18+</span> : null}
+                {detail.ageRestricted ? <Badge variant="muted">18+</Badge> : null}
                 <span>{sizes.length === 1 ? "One size" : `${sizes.length} sizes`}</span>
                 {sizes.length === 1 && sizes[0]?.code ? (
                   <span>
-                    Effy code <span className="ef-code">{sizes[0].code}</span>
+                    Effy code <span className="font-mono">{sizes[0].code}</span>
                   </span>
                 ) : null}
                 <span className="font-medium text-foreground tabular-nums">
@@ -155,29 +165,29 @@ function ProductDetailBody({ productId, initialSize }: { productId: string; init
       <ReviewPanel detail={detail} />
 
       {detail.missingRequired.length > 0 ? (
-        <div role="status" className="ef-alert ef-alert--destructive">
+        <Alert role="status" variant="destructive">
           <CircleAlert aria-hidden="true" />
-          <div className="ef-alert__title">Missing required details</div>
-          <div className="ef-alert__description">
+          <AlertTitle>Missing required details</AlertTitle>
+          <AlertDescription>
             Its category asks for {detail.missingRequired.join(", ")}. It stays on sale — fill{" "}
             {detail.missingRequired.length === 1 ? "it" : "them"} in under Details; your next change can't be sent to
             Effy without {detail.missingRequired.length === 1 ? "it" : "them"}.
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {dropped.length > 0 ? (
-        <div role="status" className="ef-alert ef-alert--info">
+        <Alert role="status" variant="info">
           <CircleAlert aria-hidden="true" />
-          <div className="ef-alert__title">Some details were removed</div>
-          <div className="ef-alert__description">
+          <AlertTitle>Some details were removed</AlertTitle>
+          <AlertDescription className="block">
             {dropped.join(", ")} no longer had a place: the new category doesn't ask for{" "}
             {dropped.length === 1 ? "it" : "them"}, or it only differed between sizes.{" "}
-            <button type="button" className="underline" onClick={() => setDropped([])}>
+            <Button variant="link" className="h-auto p-0" onClick={() => setDropped([])}>
               Dismiss
-            </button>
-          </div>
-        </div>
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)} className="gap-6">
@@ -309,11 +319,11 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
     <img
       src={primary.url}
       alt={primary.altText ?? ""}
-      className="size-24 shrink-0 rounded-lg border border-border object-cover max-md:size-20"
+      className="size-20 shrink-0 rounded-xl border object-cover max-md:size-16"
     />
   ) : (
-    <div className="ef-img size-24 rounded-lg max-md:size-20">
-      <ImageOff aria-hidden="true" />
+    <div className="grid size-20 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground max-md:size-16">
+      <ImageOff aria-hidden="true" className="size-6" />
     </div>
   )
 }

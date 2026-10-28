@@ -2,7 +2,17 @@ import { Link } from "@tanstack/react-router"
 import { ArrowDown, ArrowUp, BellRing, ChevronLeft, ChevronRight, CircleAlert } from "lucide-react"
 
 import type { ShopOrderSort } from "@effy/shared-types"
-import { Button, Checkbox } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { PackageStatusPill } from "@effy/web-kit/console"
 
 import { cn } from "@/lib/utils"
@@ -59,106 +69,104 @@ export function OrderTable({
   }
 
   return (
-    <div className={cn("ef-table-wrap transition-opacity", stale && "opacity-60")}>
-      <div className="ef-table-scroll">
-        <table className="ef-table ef-rtable min-w-225 max-md:min-w-0">
-          <thead>
-            <tr>
-              <th className="is-check">
-                <Checkbox
-                  aria-label="Select all on this page"
-                  checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
-                  onCheckedChange={(v) => onSelect(v === true ? new Set(rows.map((r) => r.id)) : new Set())}
-                />
-              </th>
-              <SortTh label="Order" sortKey="number" search={search} onSort={update} />
-              <SortTh label="Customer" sortKey="customer" search={search} onSort={update} />
-              <SortTh label="Placed" sortKey="placed" search={search} onSort={update} />
-              <SortTh label="Status" search={search} onSort={update} />
-              <SortTh label="Goes with" search={search} onSort={update} />
-              <SortTh label="Payment" search={search} onSort={update} />
-              <SortTh label="Total" sortKey="total" align="right" search={search} onSort={update} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((o) => {
-              const sel = selected.has(o.id)
-              const tone = orderRowTone(o, now)
-              return (
-                <tr
-                  key={o.id}
-                  onClick={() => onOpenOrder(o.id)}
-                  data-state={sel ? "selected" : undefined}
-                  data-tone={tone ?? undefined}
-                  className={cn(
-                    "cursor-pointer",
-                    !sel && tone === "recent" && "is-recent",
-                    !sel && tone === "unopened" && "is-unopened",
-                    sel && "is-selected",
-                  )}
-                >
-                  <td className="is-check" data-m="check" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      aria-label={`Select ${o.orderNumber}`}
-                      checked={sel}
-                      onCheckedChange={(v) => toggle(o.id, v === true)}
-                    />
-                  </td>
-                  <td data-m="primary">
-                    <Link
-                      to="/orders/$fulfillmentId"
-                      params={{ fulfillmentId: o.id }}
-                      search={search}
-                      onClick={(e) => e.stopPropagation()}
-                      className="ef-code font-mono font-medium text-foreground no-underline hover:underline"
-                    >
-                      {o.orderNumber}
-                    </Link>
-                    <span className="ef-sub max-w-[22ch] truncate">{o.itemsSummary}</span>
-                  </td>
-                  <td data-m="meta">
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-medium break-words">{o.customerName || "—"}</span>
-                      <RowFlag row={o} tone={tone} />
+    <div className={cn("overflow-hidden rounded-xl border bg-card transition-opacity", stale && "opacity-60")}>
+      <Table className="ef-rtable min-w-225 max-md:min-w-0">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12 pr-0">
+              <Checkbox
+                aria-label="Select all on this page"
+                checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
+                onCheckedChange={(v) => onSelect(v === true ? new Set(rows.map((r) => r.id)) : new Set())}
+              />
+            </TableHead>
+            <SortTh label="Order" sortKey="number" search={search} onSort={update} />
+            <SortTh label="Customer" sortKey="customer" search={search} onSort={update} />
+            <SortTh label="Placed" sortKey="placed" search={search} onSort={update} />
+            <SortTh label="Status" search={search} onSort={update} />
+            <SortTh label="Goes with" search={search} onSort={update} />
+            <SortTh label="Payment" search={search} onSort={update} />
+            <SortTh label="Total" sortKey="total" align="right" search={search} onSort={update} />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((o) => {
+            const sel = selected.has(o.id)
+            const tone = orderRowTone(o, now)
+            return (
+              <TableRow
+                key={o.id}
+                onClick={() => onOpenOrder(o.id)}
+                data-state={sel ? "selected" : undefined}
+                data-tone={tone ?? undefined}
+                className={cn(
+                  "cursor-pointer",
+                  !sel && tone === "recent" && "is-recent",
+                  !sel && tone === "unopened" && "is-unopened",
+                  sel && "is-selected",
+                )}
+              >
+                <TableCell className="w-12 pr-0" data-m="check" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    aria-label={`Select ${o.orderNumber}`}
+                    checked={sel}
+                    onCheckedChange={(v) => toggle(o.id, v === true)}
+                  />
+                </TableCell>
+                <TableCell data-m="primary">
+                  <Link
+                    to="/orders/$fulfillmentId"
+                    params={{ fulfillmentId: o.id }}
+                    search={search}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-mono font-medium text-foreground no-underline hover:underline"
+                  >
+                    {o.orderNumber}
+                  </Link>
+                  <span className="mt-0.5 block max-w-[22ch] truncate text-muted-foreground">{o.itemsSummary}</span>
+                </TableCell>
+                <TableCell data-m="meta">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-medium break-words">{o.customerName || "—"}</span>
+                    <RowFlag row={o} tone={tone} />
+                  </span>
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-muted-foreground" data-m="meta">
+                  <OrderWait row={o} now={now} />
+                </TableCell>
+                <TableCell data-m="badge">
+                  <PackageStatusPill view={o.statusView} showDetail={false} />
+                </TableCell>
+                <TableCell data-m="meta">
+                  {deliveredByText(o.deliveredBy)}
+                  {o.courierPickup ? (
+                    <span className="mt-0.5 block text-muted-foreground" data-testid="row-courier-pickup">
+                      {courierPickupLine(o.courierPickup)}
                     </span>
-                  </td>
-                  <td data-m="meta" className="whitespace-nowrap text-muted-foreground">
-                    <OrderWait row={o} now={now} />
-                  </td>
-                  <td data-m="badge">
-                    <PackageStatusPill view={o.statusView} showDetail={false} />
-                  </td>
-                  <td data-m="meta">
-                    {deliveredByText(o.deliveredBy)}
-                    {o.courierPickup ? (
-                      <span className="ef-sub" data-testid="row-courier-pickup">
-                        {courierPickupLine(o.courierPickup)}
-                      </span>
-                    ) : o.collection ? (
-                      <span className="ef-sub">{runTime(o.collection)} run</span>
-                    ) : null}
-                  </td>
-                  <td data-m="hide" className={cn("whitespace-nowrap", paymentTextClass(o.payment))}>
-                    {PAYMENT_LABEL[o.payment]}
-                  </td>
-                  <td data-m="trail" className="is-num font-semibold whitespace-nowrap">
-                    {formatMoney(o.total, o.currency)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="ef-pager">
+                  ) : o.collection ? (
+                    <span className="mt-0.5 block text-muted-foreground">{runTime(o.collection)} run</span>
+                  ) : null}
+                </TableCell>
+                <TableCell data-m="hide" className={cn("whitespace-nowrap", paymentTextClass(o.payment))}>
+                  {PAYMENT_LABEL[o.payment]}
+                </TableCell>
+                <TableCell numeric className="font-semibold whitespace-nowrap" data-m="trail">
+                  {formatMoney(o.total, o.currency)}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 text-sm text-muted-foreground">
         <span className="tabular-nums" aria-live="polite">
           {countLabel}
         </span>
-        <div className="ef-pager__right">
+        <div className="flex items-center gap-4">
           <span className="tabular-nums whitespace-nowrap">
             Page {page} of {pageCount}
           </span>
-          <div className="ef-pager__btns">
+          <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => update({ page: page - 1 }, true)}>
               <ChevronLeft aria-hidden="true" />
               Previous
@@ -183,19 +191,19 @@ function RowFlag({ row, tone }: { row: OrderRow; tone: OrderRowTone | null }) {
   return (
     <>
       {tone === "recent" ? (
-        <span className="ef-st ef-st--info">
+        <Badge variant="info">
           <BellRing aria-hidden="true" />
           New
-        </span>
+        </Badge>
       ) : null}
-      {tone === "unopened" ? <span className="ef-tag">Not opened</span> : null}
+      {tone === "unopened" ? <Badge variant="outline">Not opened</Badge> : null}
       {row.atRisk ? (
-        <span className="ef-st ef-st--problem">
+        <Badge variant="destructive">
           <CircleAlert aria-hidden="true" />
           At risk
-        </span>
+        </Badge>
       ) : null}
-      {row.unavailableCount > 0 ? <span className="ef-tag">{row.unavailableCount} short</span> : null}
+      {row.unavailableCount > 0 ? <Badge variant="outline">{row.unavailableCount} short</Badge> : null}
     </>
   )
 }
@@ -216,8 +224,8 @@ function SortTh({
   const current = !!sortKey && (search.sort ?? "placed") === sortKey
   const dir = search.dir ?? "desc"
   return (
-    <th
-      className={cn(align === "right" && "is-num")}
+    <TableHead
+      numeric={align === "right"}
       aria-sort={current ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <button
@@ -225,9 +233,9 @@ function SortTh({
         disabled={!sortKey}
         onClick={() => sortKey && onSort({ sort: sortKey, dir: current ? (dir === "asc" ? "desc" : "asc") : "desc" })}
         className={cn(
-          "flex min-h-11 w-full items-center gap-1 border-none bg-transparent p-0 font-[inherit] text-[inherit] whitespace-nowrap text-muted-foreground",
+          "flex h-10 w-full items-center gap-1 font-medium whitespace-nowrap outline-none disabled:cursor-default",
           align === "right" ? "justify-end" : "justify-start",
-          sortKey ? "cursor-pointer hover:text-foreground" : "cursor-default",
+          sortKey && "hover:text-foreground",
         )}
       >
         {label}
@@ -239,6 +247,6 @@ function SortTh({
           )
         ) : null}
       </button>
-    </th>
+    </TableHead>
   )
 }

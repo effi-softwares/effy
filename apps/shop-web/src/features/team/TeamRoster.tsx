@@ -4,6 +4,7 @@ import { UserPlus } from "lucide-react"
 
 import { isShopManager, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
+  Badge,
   Skeleton,
   InitialsAvatar,
   Button,
@@ -71,9 +72,9 @@ export function TeamRoster() {
           forbiddenMessage="Your account can't see this shop's team."
         />
       ) : isPending ? (
-        <div className="ef-table-wrap" aria-busy="true" aria-label="Loading the team">
+        <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading the team">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0">
+            <div key={i} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
               <Skeleton className="size-8 rounded-full" />
               <Skeleton className="h-4 w-40" />
               <Skeleton className="ml-auto h-6 w-20 rounded-md" />
@@ -81,7 +82,7 @@ export function TeamRoster() {
           ))}
         </div>
       ) : (
-        <div className="ef-table-wrap overflow-x-auto">
+        <div className="overflow-hidden rounded-xl border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -136,7 +137,7 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
               )
             }
           >
-            <SelectTrigger className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
+            <SelectTrigger size="sm" className="w-40" aria-label={`Role for ${member.name ?? member.email}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -158,9 +159,9 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
       </TableCell>
       <TableCell>
         {member.status === "active" ? (
-          <span className="ef-st ef-st--done">Active</span>
+          <Badge variant="success">Active</Badge>
         ) : (
-          <span className="ef-st ef-st--quiet">Stood down</span>
+          <Badge variant="quiet">Stood down</Badge>
         )}
       </TableCell>
       {canManage ? (

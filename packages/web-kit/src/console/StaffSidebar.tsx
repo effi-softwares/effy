@@ -5,6 +5,7 @@ import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import {
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -67,9 +68,15 @@ export function StaffSidebar({ brand, groups, defaultTabs, counts }: StaffSideba
   return (
     <Sidebar collapsible="icon" className="ef-sidebar">
       {isMobile && openMobile ? (
-        <button type="button" className="ef-iconbtn absolute top-3 left-[calc(100%+10px)] z-1 bg-background! shadow-md" aria-label="Close menu" onClick={() => setOpenMobile(false)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute top-3 left-[calc(100%+10px)] z-1 rounded-full shadow-md"
+          aria-label="Close menu"
+          onClick={() => setOpenMobile(false)}
+        >
           <X aria-hidden="true" />
-        </button>
+        </Button>
       ) : null}
       <SidebarHeader className="ef-sb-head">
         <SidebarMenu>

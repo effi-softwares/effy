@@ -20,12 +20,15 @@ export function ChoiceCards<T extends string>({
   const id = useId()
   return (
     <div className={cn("grid gap-2", className)}>
-      <div id={id} className="text-base font-medium">
+      <div id={id} className="text-sm font-medium">
         {label}
       </div>
       <RadioGroup aria-labelledby={id} value={value} onValueChange={(v) => onChange(v as T)} className="grid gap-2">
         {options.map((o) => (
-          <label key={o.value} className={cn("ef-choice-card", o.value === value && "is-checked")}>
+          <label
+            key={o.value}
+            className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border bg-background px-4 py-3 transition-colors hover:bg-accent/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted/40"
+          >
             <RadioGroupItem value={o.value} />
             <span className="grid gap-1">
               <span className="font-medium">{o.label}</span>

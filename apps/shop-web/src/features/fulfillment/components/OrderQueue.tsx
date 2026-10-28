@@ -5,7 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowRight, BellRing, Loader2, PackageCheck, Truck } from "lucide-react"
 
 import type { ShopOrderTab } from "@effy/shared-types"
-import { Button, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
+import { Badge, Button, Progress, Skeleton, TabsCount, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { cn } from "@/lib/utils"
@@ -83,11 +83,11 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
           <div key={i} className="ticket" aria-busy="true">
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-4 w-44" />
-            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
         ))
       ) : rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed px-4 py-5 text-center text-sm text-muted-foreground">
           {EMPTY[lane.tab] ?? "Nothing here"}
         </p>
       ) : (
@@ -99,7 +99,7 @@ function Lane({ lane, q, now }: { lane: (typeof LANES)[number]; q: string | unde
             <Link
               to="/orders"
               search={{ tab: lane.tab, q }}
-              className="inline-flex min-h-11 items-center gap-2 px-4 font-medium text-foreground no-underline hover:underline"
+              className="inline-flex min-h-10 items-center gap-2 px-4 text-sm font-medium text-foreground no-underline hover:underline"
             >
               All {total} in the table
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -163,10 +163,10 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
           {row.status === "ready_for_pickup" ? (
             <ReadyWord />
           ) : tone === "recent" && row.status === "pending" ? (
-            <span className="ef-st ef-st--info">
+            <Badge variant="info">
               <BellRing aria-hidden="true" />
               New
-            </span>
+            </Badge>
           ) : (
             <OrderWait row={row} now={now} />
           )}
@@ -180,13 +180,12 @@ function Ticket({ row, now }: { row: OrderRow; now: number }) {
 
       {row.status === "picking" ? (
         <>
-          <div className="flex items-center gap-3 text-sm tabular-nums text-muted-foreground [&_.ef-meter]:flex-auto">
-            <div className="ef-meter" role="img" aria-label={`${row.gatheredCount} of ${row.itemCount} picked`}>
-              <i
-                className="ef-meter__booked"
-                style={{ width: `${row.itemCount > 0 ? (row.gatheredCount / row.itemCount) * 100 : 0}%` }}
-              />
-            </div>
+          <div className="flex items-center gap-3 text-sm tabular-nums text-muted-foreground">
+            <Progress
+              className="flex-auto"
+              label={`${row.gatheredCount} of ${row.itemCount} picked`}
+              value={row.itemCount > 0 ? (row.gatheredCount / row.itemCount) * 100 : 0}
+            />
             {row.gatheredCount} of {row.itemCount}
           </div>
           <Button variant="outline" onClick={open}>
@@ -224,9 +223,9 @@ function QuietTicket({ row }: { row: OrderRow }) {
 
 function ReadyWord() {
   return (
-    <span className="ef-st ef-st--moving">
+    <Badge>
       <PackageCheck aria-hidden="true" />
       Ready
-    </span>
+    </Badge>
   )
 }

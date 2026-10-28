@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react"
 
 import {
   Button,
+  Label,
   ResponsiveModal,
   ResponsiveModalContent,
   ResponsiveModalDescription,
@@ -112,10 +113,10 @@ function SheetBody({
       {...(phone ? {} : { showCloseButton: false })}
       className={cn(
         "flex flex-col gap-0 overflow-hidden p-0",
-        phone ? "max-h-[92dvh]" : cn("max-h-[86vh]", wide ? "sm:max-w-155" : "sm:max-w-125"),
+        phone ? "max-h-[92dvh]" : cn("max-h-[86vh]", wide ? "sm:max-w-150" : "sm:max-w-120"),
       )}
     >
-      <div className={cn("grid gap-1", phone ? "px-4 pt-3 pb-2" : "px-6 pt-6 pb-2")}>
+      <div className={cn("grid gap-1.5", phone ? "px-4 pt-3 pb-2" : "px-6 pt-5 pb-2")}>
         <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
         <ResponsiveModalDescription>{description}</ResponsiveModalDescription>
       </div>
@@ -131,8 +132,8 @@ function SheetBody({
 
       <div
         className={cn(
-          "flex gap-3 border-t border-border bg-background",
-          phone ? "flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" : "justify-end px-6 py-4",
+          "flex gap-2 border-t bg-background",
+          phone ? "flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]" : "justify-end px-6 py-3",
         )}
       >
         {phone ? (
@@ -164,9 +165,7 @@ export function SheetField({
 }) {
   return (
     <div className="grid gap-2">
-      <label htmlFor={htmlFor} className="text-base font-medium">
-        {label}
-      </label>
+      <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {hint ? <div className="text-sm text-muted-foreground">{hint}</div> : null}
     </div>
@@ -183,9 +182,9 @@ export function SheetToggleRow({
   control: ReactNode
 }) {
   return (
-    <div className="ef-switch-row">
+    <div className="flex items-center justify-between gap-4 border-b py-3 last:border-b-0">
       <div className="grid gap-1">
-        <div className="text-base font-medium">{title}</div>
+        <div className="text-sm font-medium">{title}</div>
         <div className="text-sm text-muted-foreground">{detail}</div>
       </div>
       {control}

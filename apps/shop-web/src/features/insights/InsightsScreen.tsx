@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { InsightsRange } from "@effy/shared-types"
 import { Download } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton, ToggleGroup, ToggleGroupItem } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 
@@ -50,22 +50,23 @@ export function InsightsScreen() {
         description={dto ? windowSubtitle(dto, now) : "\u00a0"}
         actions={
           <>
-            <div className="ef-seg" role="group" aria-label="Range">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              aria-label="Range"
+              value={range}
+              onValueChange={(v) => {
+                if (!v) return
+                setRange(v as InsightsRange)
+                track({ name: "insights_range_changed", range: v as InsightsRange })
+              }}
+            >
               {RANGES.map((r) => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => {
-                    setRange(r.value)
-                    track({ name: "insights_range_changed", range: r.value })
-                  }}
-                  className={r.value === range ? "is-active" : undefined}
-                  aria-pressed={r.value === range}
-                >
+                <ToggleGroupItem key={r.value} value={r.value} className="px-4">
                   {r.label}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
             <Button
               variant="outline"
               disabled={!dto}
@@ -122,7 +123,7 @@ export function InsightsScreen() {
           <TopProducts products={dto.topProducts} range={dto.range} currency={dto.currency} />
 
           <section className="grid gap-3">
-            <h2 className="ef-section-title">Behind the numbers</h2>
+            <h2 className="text-base font-semibold">Behind the numbers</h2>
             <SecondaryStrip dto={dto} backlog={today.data?.backlog} />
           </section>
         </>

@@ -21,11 +21,11 @@ export function CourierPickup({
 
   return (
     <div className="grid gap-3 px-5 py-4 max-md:px-4" data-testid="courier-pickup">
-      <p className="flex items-center gap-2 font-medium">
+      <p className="flex items-center gap-2 text-sm font-medium">
         <Truck aria-hidden="true" className="size-4 text-muted-foreground" />
         {courierPickupLine(pickup)}
       </p>
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
+      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
         {service ? (
           <>
             <dt className="text-muted-foreground">Courier</dt>
@@ -41,7 +41,7 @@ export function CourierPickup({
         {pickup.reference ? (
           <>
             <dt className="text-muted-foreground">Reference</dt>
-            <dd className="ef-code">{pickup.reference}</dd>
+            <dd className="font-mono">{pickup.reference}</dd>
           </>
         ) : null}
         {pickup.labelUrl ? (

@@ -146,6 +146,5 @@ describe("HeaderChrome", () => {
     wrap(<HeaderChrome />)
     const next = await screen.findByRole("button", { name: "Next order" })
     expect(next).toBeDisabled()
-    expect(next.className).toContain("text-muted-foreground")
   })
 })

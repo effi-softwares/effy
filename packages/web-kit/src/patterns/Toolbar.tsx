@@ -4,6 +4,7 @@ import { Check, CirclePlus, Search, X } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import {
+  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +13,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
+  Kbd,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
 } from "@effy/design-system/ui";
-
-import { Kbd } from "./Kbd";
 
 /** The row above a list: search, faceted filters, and the list's own controls (Patterns board). */
 export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("ef-toolbar", className)}>{children}</div>;
+  return <div className={cn("flex flex-wrap items-center gap-2", className)}>{children}</div>;
 }
 
 export function ToolbarSpacer() {
@@ -50,8 +56,8 @@ export function SearchBox({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className="ef-toolbar__search">
-      <Search aria-hidden="true" />
+    <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+      <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <span className="sr-only">{label}</span>
       <Input
         ref={ref}
@@ -59,7 +65,7 @@ export function SearchBox({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8! pr-8! pl-9! text-sm!"
+        className="pr-9 pl-9"
       />
       {value ? null : <Kbd className="absolute right-2 max-md:hidden">/</Kbd>}
     </label>
@@ -90,23 +96,18 @@ export function Facet<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-input bg-background px-4 text-sm font-medium whitespace-nowrap text-foreground hover:bg-accent max-md:flex-none [&_svg]:size-4 [&_svg]:text-muted-foreground",
-            chosen && "border-solid",
-            className,
-          )}
-        >
-          <CirclePlus aria-hidden="true" />
+        <Button variant="outline" className={cn(!chosen && "border-dashed", className)}>
+          <CirclePlus aria-hidden="true" className="text-muted-foreground" />
           {label}
           {chosen ? (
             <>
-              <span className="h-4 w-px bg-border" aria-hidden="true" />
-              <span className="inline-flex h-6 items-center rounded-sm bg-secondary px-2 text-sm font-medium">{chosen.label}</span>
+              <Separator orientation="vertical" className="mx-0.5 data-[orientation=vertical]:h-4" />
+              <Badge variant="secondary" className="rounded-sm px-1.5 font-normal">
+                {chosen.label}
+              </Badge>
             </>
           ) : null}
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-56">
         <DropdownMenuItem onSelect={() => onChange(null)}>
@@ -161,27 +162,27 @@ export function Pager({
   onRows?: (n: number) => void;
 }) {
   return (
-    <div className="ef-pager">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-3 text-sm text-muted-foreground">
       <span>{summary}</span>
-      <div className="ef-pager__right">
+      <div className="flex items-center gap-4">
         {rows !== undefined && onRows ? (
-          <label className="flex items-center gap-2 max-md:hidden">
+          <div className="flex items-center gap-2 max-md:hidden">
             Rows
-            <select
-              aria-label="Rows per page"
-              value={rows}
-              onChange={(e) => onRows(Number(e.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs"
-            >
-              {[25, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select value={String(rows)} onValueChange={(v) => onRows(Number(v))}>
+              <SelectTrigger size="sm" aria-label="Rows per page" className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[25, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         ) : null}
-        <div className="ef-pager__btns">
+        <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled={!canBack} onClick={onBack}>
             Back
           </Button>

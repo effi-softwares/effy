@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
+import { Button, Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui"
 
 import { PageHeader } from "@effy/web-kit/patterns"
 import { Printer, RefreshCw } from "lucide-react"
@@ -45,7 +45,7 @@ export function PrintingSettingsScreen() {
         title="Printing"
         description="Choose how this computer prints bag labels; each computer keeps its own setting."
       />
-      <section className="ef-panel max-w-3xl">
+      <Card className="max-w-3xl gap-0 overflow-hidden py-0">
         <div>
           <Row
             label="Printer"
@@ -83,7 +83,7 @@ export function PrintingSettingsScreen() {
             </Button>
           </Row>
           {zebras === null ? (
-            <p className="border-b border-border px-5 py-4 text-sm text-muted-foreground">
+            <p className="border-b px-5 py-4 text-sm text-muted-foreground">
               No Zebra Browser Print on this computer. To print straight to a Zebra label printer, install Zebra Browser
               Print from Zebra's website, start it, then open{" "}
               <a className="text-primary underline" href={BROWSER_PRINT_URL} target="_blank" rel="noreferrer">
@@ -150,16 +150,16 @@ export function PrintingSettingsScreen() {
             ) : null}
           </Row>
         </div>
-      </section>
+      </Card>
     </Page>
   )
 }
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-x-6 gap-y-2 border-b border-border px-5 py-4 last:border-b-0 min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-center max-md:px-4">
+    <div className="grid gap-x-6 gap-y-2 border-b px-5 py-4 last:border-b-0 min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-center max-md:px-4">
       <div className="grid gap-1">
-        <div className="font-medium">{label}</div>
+        <div className="text-sm font-medium">{label}</div>
         <p className="text-sm text-muted-foreground">{hint}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{children}</div>

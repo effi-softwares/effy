@@ -15,12 +15,12 @@ export function Shipments({ detail }: { detail: OrderDetail }) {
         ? `Collected · ${formatWhen(detail.stateChangedAt)}`
         : `Ready for pickup · ${formatWhen(detail.stateChangedAt)}`
   return (
-    <div className="border-t border-border px-5 py-4 max-md:px-4">
-      <div className="ef-eyebrow pb-2">Shipments</div>
+    <div className="border-t px-5 py-4 max-md:px-4">
+      <div className="pb-2 text-xs font-medium text-muted-foreground">Shipments</div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="grid min-w-0 gap-1">
           <div className="font-medium">
-            {deliveredByText(detail.deliveredBy)} · <span className="ef-code">{detail.orderNumber}</span>
+            {deliveredByText(detail.deliveredBy)} · <span className="font-mono text-sm">{detail.orderNumber}</span>
           </div>
           <div className="text-sm text-muted-foreground">{items || "Nothing picked"}</div>
         </div>

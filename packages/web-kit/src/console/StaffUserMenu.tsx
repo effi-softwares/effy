@@ -2,7 +2,10 @@ import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
 import {
+  Avatar,
+  AvatarFallback,
   Badge,
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -55,25 +58,18 @@ export function StaffUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="ef-iconbtn group ml-1 rounded-full hover:bg-transparent data-[state=open]:bg-transparent"
-          aria-label={`Account and appearance — ${name}`}
-        >
-          <span
-            aria-hidden="true"
-            className="ef-account-avatar group-hover:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--border)] group-data-[state=open]:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--border)]"
-          >
-            {initialsOf(name)}
-          </span>
-        </button>
+        <Button variant="ghost" size="icon" className="ml-1 rounded-full" aria-label={`Account and appearance — ${name}`}>
+          <Avatar aria-hidden="true" className="size-8">
+            <AvatarFallback className="bg-primary-muted text-xs font-semibold text-primary">{initialsOf(name)}</AvatarFallback>
+          </Avatar>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-70" side="bottom" align="end" sideOffset={8}>
         <DropdownMenuLabel className="p-0">
           <div className="flex items-center gap-3 px-2 py-2">
-            <span aria-hidden="true" className="ef-account-avatar">
-              {initialsOf(name)}
-            </span>
+            <Avatar aria-hidden="true" className="size-9">
+              <AvatarFallback className="bg-primary-muted text-sm font-semibold text-primary">{initialsOf(name)}</AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">{name}</div>
               <div className="truncate text-xs text-muted-foreground">{email}</div>

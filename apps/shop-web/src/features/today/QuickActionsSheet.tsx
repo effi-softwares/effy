@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { BarChart3, ChevronRight, Download, Inbox, PackagePlus, Plus, Printer, type LucideIcon } from "lucide-react"
 
-import { toast } from "@effy/design-system/ui"
+import { Button, toast } from "@effy/design-system/ui"
 import { ResponsiveSheet } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
@@ -115,16 +115,22 @@ export function QuickActionsSheet({
     >
       {groups.map((group) => (
         <section key={group.label} className="grid gap-1">
-          <h3 className="ef-eyebrow px-2 pt-1">{group.label}</h3>
+          <h3 className="px-2 pt-1 text-xs font-medium text-muted-foreground">{group.label}</h3>
           {group.items.map((item) => (
-            <button key={item.title} type="button" onClick={item.run} className="ef-cmd-item h-auto! min-h-14 py-2">
-              <item.icon aria-hidden="true" />
+            <Button
+              key={item.title}
+              type="button"
+              variant="ghost"
+              onClick={item.run}
+              className="h-auto min-h-14 justify-start gap-3 px-2 py-2 text-left whitespace-normal"
+            >
+              <item.icon aria-hidden="true" className="text-muted-foreground" />
               <span className="min-w-0 flex-1">
                 <span className="block font-medium">{item.title}</span>
-                <span className="block text-sm text-muted-foreground">{item.description}</span>
+                <span className="block font-normal text-muted-foreground">{item.description}</span>
               </span>
-              <ChevronRight aria-hidden="true" />
-            </button>
+              <ChevronRight aria-hidden="true" className="text-muted-foreground" />
+            </Button>
           ))}
         </section>
       ))}

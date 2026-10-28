@@ -1,7 +1,7 @@
 import type { ProductStatus, ProductStockDTO } from "@effy/shared-types"
 import { Archive, ArrowDown, CircleCheck, CircleSlash, PackageX, Pencil, type LucideIcon } from "lucide-react"
 
-import { cn } from "@effy/design-system"
+import { Badge } from "@effy/design-system/ui"
 
 const PRODUCT_STATUS_WORD: Record<ProductStatus, string> = {
   active: "Live",
@@ -10,19 +10,21 @@ const PRODUCT_STATUS_WORD: Record<ProductStatus, string> = {
   archived: "Archived",
 }
 
-const LOOK: Record<ProductStatus, { tone: string; icon: LucideIcon }> = {
-  active: { tone: "ef-st--done", icon: CircleCheck },
-  draft: { tone: "ef-st--waiting", icon: Pencil },
-  unavailable: { tone: "ef-st--quiet", icon: CircleSlash },
-  archived: { tone: "ef-st--quiet", icon: Archive },
+type Tone = "success" | "warning" | "quiet" | "destructive"
+
+const LOOK: Record<ProductStatus, { tone: Tone; icon: LucideIcon }> = {
+  active: { tone: "success", icon: CircleCheck },
+  draft: { tone: "warning", icon: Pencil },
+  unavailable: { tone: "quiet", icon: CircleSlash },
+  archived: { tone: "quiet", icon: Archive },
 }
 
-function Word({ tone, icon: Icon, children }: { tone: string; icon: LucideIcon; children: string }) {
+function Word({ tone, icon: Icon, children }: { tone: Tone; icon: LucideIcon; children: string }) {
   return (
-    <span className={cn("ef-st", tone)}>
+    <Badge variant={tone}>
       <Icon aria-hidden="true" />
       {children}
-    </span>
+    </Badge>
   )
 }
 
@@ -30,13 +32,13 @@ export function ProductStatusBadge({ status, stock }: { status: ProductStatus; s
   if (status === "active" && stock?.tracked) {
     if (stock.outOfStock)
       return (
-        <Word tone="ef-st--problem" icon={PackageX}>
+        <Word tone="destructive" icon={PackageX}>
           Out of stock
         </Word>
       )
     if (stock.low)
       return (
-        <Word tone="ef-st--waiting" icon={ArrowDown}>
+        <Word tone="warning" icon={ArrowDown}>
           Low stock
         </Word>
       )

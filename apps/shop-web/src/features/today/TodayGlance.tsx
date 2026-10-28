@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 
 import type { ShopBacklogDTO } from "@effy/shared-types"
 import { cn } from "@effy/design-system"
-import { Skeleton } from "@effy/design-system/ui"
+import { Button, Skeleton } from "@effy/design-system/ui"
+import { DetailRows, Panel } from "@effy/web-kit/patterns"
 
 import { deltaText, money } from "@/features/insights/model"
 import { insightsQuery } from "@/features/insights/queries"
@@ -39,33 +40,32 @@ export function TodayGlance({ backlog }: { backlog: ShopBacklogDTO | undefined }
   ]
 
   return (
-    <section className="ef-panel min-w-0">
-      <div className="ef-panel__head">
-        <div className="min-w-0 flex-1">
-          <h2 className="ef-panel__title">Today at a glance</h2>
-          <p className="ef-panel__desc">Your goods only, since midnight.</p>
-        </div>
-        <Link to="/insights" className="text-sm font-medium text-foreground no-underline hover:underline">
-          Full insights →
-        </Link>
-      </div>
-      <div className="ef-panel__body py-1!">
-        <dl className="ef-dl ef-dl--tight">
-          {rows.map((r) => (
-            <div key={r.label} className="ef-dl__row items-baseline">
-              <dt>{r.label}</dt>
-              <dd className="min-w-0">
-                {r.value === null ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : (
-                  <span className={cn("font-semibold tabular-nums", r.live && "text-primary")}>{r.value}</span>
-                )}
-                {r.note ? <span className="ef-sub">{r.note}</span> : null}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
+    <Panel
+      title="Today at a glance"
+      description="Your goods only, since midnight."
+      actions={
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/insights">Full insights →</Link>
+        </Button>
+      }
+    >
+      <DetailRows
+        tight
+        rows={rows.map((r) => ({
+          key: r.label,
+          label: r.label,
+          value: (
+            <>
+              {r.value === null ? (
+                <Skeleton className="h-5 w-20" />
+              ) : (
+                <span className={cn("font-semibold tabular-nums", r.live && "text-primary")}>{r.value}</span>
+              )}
+              {r.note ? <span className="mt-0.5 block text-muted-foreground">{r.note}</span> : null}
+            </>
+          ),
+        }))}
+      />
+    </Panel>
   )
 }

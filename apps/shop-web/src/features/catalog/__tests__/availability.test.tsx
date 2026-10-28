@@ -67,7 +67,7 @@ describe("Availability (099)", () => {
   it("opens on the sizes that need a look, with each view's count", async () => {
     get.mockResolvedValue(page([row()]))
     wrap()
-    expect(await screen.findByText("Out of stock", { selector: ".ef-st" })).toBeInTheDocument()
+    expect(await screen.findByText("Out of stock", { selector: "[data-slot=badge]" })).toBeInTheDocument()
     expect(get).toHaveBeenCalledWith("/shop/v1/availability?filter=needs_look")
     expect(screen.getByRole("tab", { name: /Everything/ })).toHaveTextContent("9")
   })

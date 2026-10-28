@@ -1,10 +1,19 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@effy/design-system";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@effy/design-system/ui";
 
 /**
- * A titled section, flat with a hairline — never a metric tile (Patterns board, "Detail rows and
- * panels"). Head, body and an optional muted foot for the panel's own Cancel / Save.
+ * A titled section: shadcn's Card with a ruled head, a body and an optional foot for the panel's own
+ * Cancel / Save — never a metric tile.
  */
 export function Panel({
   title,
@@ -29,26 +38,37 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className={cn("ef-panel", className)}>
-      {title ? (
-        <div className="ef-panel__head">
-          <div className="min-w-0 flex-1">
-            <h2 className="ef-panel__title">
-              {icon}
-              {title}
-            </h2>
-            {description ? <p className="ef-panel__desc">{description}</p> : null}
-          </div>
-          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-        </div>
-      ) : null}
-      {flush ? children : <div className="ef-panel__body">{children}</div>}
-      {footer ? <div className={cn("ef-panel__foot", footerBetween && "ef-panel__foot--between")}>{footer}</div> : null}
+    <section className={cn("min-w-0", className)}>
+      <Card className="gap-0 overflow-hidden py-0">
+        {title ? (
+          <CardHeader className="border-b py-4 [.border-b]:pb-4">
+            <CardTitle className="leading-6">
+              <h2 className="flex items-center gap-2 [&_svg]:size-4 [&_svg]:text-muted-foreground">
+                {icon}
+                {title}
+              </h2>
+            </CardTitle>
+            {description ? <CardDescription>{description}</CardDescription> : null}
+            {actions ? <CardAction className="flex-wrap">{actions}</CardAction> : null}
+          </CardHeader>
+        ) : null}
+        {flush ? children : <CardContent className="py-4">{children}</CardContent>}
+        {footer ? (
+          <CardFooter
+            className={cn(
+              "flex-wrap gap-2 border-t bg-muted/40 py-3 [.border-t]:pt-3",
+              footerBetween ? "justify-between" : "justify-end",
+            )}
+          >
+            {footer}
+          </CardFooter>
+        ) : null}
+      </Card>
     </section>
   );
 }
 
-/** Label / value rows: 180px labels, wrapping to one column on a phone. */
+/** Label / value rows: a fixed label column, wrapping to one column on a phone. */
 export function DetailRows({
   rows,
   tight = false,
@@ -57,11 +77,17 @@ export function DetailRows({
   tight?: boolean;
 }) {
   return (
-    <dl className={cn("ef-dl", tight && "ef-dl--tight")}>
+    <dl className="flex flex-col">
       {rows.map((r, i) => (
-        <div key={r.key ?? i} className="ef-dl__row">
-          <dt>{r.label}</dt>
-          <dd>{r.value}</dd>
+        <div
+          key={r.key ?? i}
+          className={cn(
+            "grid gap-x-4 gap-y-1 border-b py-2.5 text-sm last:border-b-0 max-sm:grid-cols-1",
+            tight ? "grid-cols-[112px_minmax(0,1fr)]" : "grid-cols-[160px_minmax(0,1fr)]",
+          )}
+        >
+          <dt className="text-muted-foreground">{r.label}</dt>
+          <dd className="m-0 min-w-0">{r.value}</dd>
         </div>
       ))}
     </dl>

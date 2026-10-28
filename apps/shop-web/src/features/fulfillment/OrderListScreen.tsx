@@ -11,7 +11,7 @@ import {
 } from "@effy/shared-types"
 import { Button, Skeleton, Tabs, TabsCount, TabsList, TabsTrigger, toast } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { Facet, PageHeader } from "@effy/web-kit/patterns"
+import { EmptyState as PatternEmptyState, Facet, PageHeader } from "@effy/web-kit/patterns"
 
 import { track } from "@/lib/telemetry"
 
@@ -177,7 +177,7 @@ export function OrderListScreen({
             </TabsList>
           </Tabs>
 
-          <div className="ef-toolbar">
+          <div className="flex flex-wrap items-center gap-2">
             <OrderSearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
             <Facet
               label="Placed"
@@ -267,30 +267,30 @@ export function OrderListScreen({
 
 function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
   return (
-    <div className="ef-empty">
-      <span className="ef-empty__icon" aria-hidden="true">
-        {filtered ? <SearchX /> : <Inbox />}
-      </span>
-      <h3>{filtered ? "No orders match these filters" : "No orders yet"}</h3>
-      <p>
-        {filtered
+    <PatternEmptyState
+      icon={filtered ? SearchX : Inbox}
+      title={filtered ? "No orders match these filters" : "No orders yet"}
+      description={
+        filtered
           ? "Widen the date range, clear the search, or reset everything and start again."
-          : "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself."}
-      </p>
-      {filtered ? (
-        <Button variant="outline" className="mt-2" onClick={onReset}>
-          Reset filters
-        </Button>
-      ) : null}
-    </div>
+          : "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself."
+      }
+      action={
+        filtered ? (
+          <Button variant="outline" onClick={onReset}>
+            Reset filters
+          </Button>
+        ) : undefined
+      }
+    />
   )
 }
 
 function ListLoading() {
   return (
-    <div className="ef-table-wrap" aria-busy="true" aria-label="Loading orders">
+    <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading orders">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
+        <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
           <Skeleton className="size-5 rounded" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-32" />

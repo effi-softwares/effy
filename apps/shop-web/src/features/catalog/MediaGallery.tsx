@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 
 import { ArrowLeft, ArrowRight, ImageOff, Star, Trash2 } from "lucide-react"
 
-import { Badge, Button } from "@effy/design-system/ui"
+import { Badge, Button, Progress } from "@effy/design-system/ui"
 
 import { DetailSection, SectionAction } from "@/components/console/primitives"
 
@@ -85,22 +85,11 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
         onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
       />
 
-      <div className="grid gap-4 pt-5">
-        {progress != null ? (
-          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
-            <div
-              className="bg-primary-fill h-full transition-all"
-              style={{ width: `${progress}%` }}
-              role="progressbar"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
-          </div>
-        ) : null}
+      <div className="grid gap-4">
+        {progress != null ? <Progress value={progress} height={8} label="Upload progress" /> : null}
 
         {media.length === 0 ? (
-          <div className="text-muted-foreground flex items-center gap-2 rounded-md border border-dashed px-4 py-6 text-sm">
+          <div className="text-muted-foreground flex items-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm">
             <ImageOff className="size-4" />
             No images yet. Add one to give this product a picture.
           </div>
@@ -112,7 +101,7 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
                   <img
                     src={m.url}
                     alt={m.altText ?? ""}
-                    className="border-border bg-muted size-28 rounded-[var(--radius)] border object-cover"
+                    className="border-border bg-muted size-28 rounded-lg border object-cover"
                   />
                   {m.isPrimary ? (
                     <Badge variant="success" className="absolute top-2 left-2">

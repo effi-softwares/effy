@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 
 import type { TeamActivityEntryDTO } from "@effy/shared-types"
-import { cn } from "@effy/design-system"
 import { Skeleton } from "@effy/design-system/ui"
-import { ResponsiveSheet } from "@effy/web-kit/patterns"
+import { ResponsiveSheet, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 import { Check, CircleAlert, Dot } from "lucide-react"
 
 import { relativeTime } from "./model"
@@ -33,33 +32,23 @@ export function TeamActivitySheet({ open, onOpenChange }: { open: boolean; onOpe
           ))}
         </div>
       ) : activity.data && activity.data.entries.length > 0 ? (
-        <ul className="ef-tl">
+        <Timeline>
           {activity.data.entries.map((entry) => {
             const Mark = entry.tone === "problem" ? CircleAlert : entry.tone === "done" ? Check : Dot
             return (
-              <li key={entry.id} className="ef-tl__item">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "ef-tl__mark",
-                    entry.tone === "problem" && "ef-tl__mark--problem",
-                    entry.tone === "done" && "ef-tl__mark--done",
-                  )}
-                >
-                  <Mark />
-                </span>
-                <span className="min-w-0">
-                  <span className="ef-tl__title block text-pretty">{describe(entry)}</span>
-                  <span className="ef-tl__body block">
-                    {relativeTime(entry.at, now)} · {who(entry.actor)}
-                  </span>
-                </span>
-              </li>
+              <TimelineItem
+                key={entry.id}
+                icon={<Mark />}
+                tone={entry.tone === "problem" ? "problem" : entry.tone === "done" ? "done" : "default"}
+                title={describe(entry)}
+              >
+                {relativeTime(entry.at, now)} · {who(entry.actor)}
+              </TimelineItem>
             )
           })}
-        </ul>
+        </Timeline>
       ) : (
-        <p className="py-6 text-muted-foreground">Nothing has been recorded in the last two weeks.</p>
+        <p className="py-6 text-sm text-muted-foreground">Nothing has been recorded in the last two weeks.</p>
       )}
     </ResponsiveSheet>
   )

@@ -87,7 +87,7 @@ function InstallBanner({ method }: { method: "prompt" | "ios-manual" }) {
           <span className="opacity-90">
             Open it from the home screen, and receive notifications when new orders arrive.
           </span>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2">
             <Button
               size="sm"
               variant="outline"

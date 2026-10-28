@@ -3,9 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Check, CircleAlert, Dot } from "lucide-react"
 
 import { Skeleton } from "@effy/design-system/ui"
-import { ResponsiveSheet } from "@effy/web-kit/patterns"
-
-import { cn } from "@/lib/utils"
+import { ResponsiveSheet, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 
 import { formatWhen } from "../orderConsole"
 import { orderActivityQuery } from "../queries"
@@ -41,32 +39,22 @@ export function OrderActivitySheet({
           ))}
         </div>
       ) : log.isError ? (
-        <p className="text-muted-foreground">The activity couldn&apos;t be loaded.</p>
+        <p className="text-sm text-muted-foreground">The activity couldn&apos;t be loaded.</p>
       ) : log.data.entries.length === 0 ? (
-        <p className="text-muted-foreground">Nothing recorded yet.</p>
+        <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>
       ) : (
-        <ol className="ef-tl">
+        <Timeline>
           {log.data.entries.map((e) => (
-            <li key={e.id} className="ef-tl__item">
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "ef-tl__mark",
-                  e.tone === "negative" && "ef-tl__mark--problem",
-                  e.tone === "strong" && "ef-tl__mark--primary",
-                )}
-              >
-                {e.tone === "negative" ? <CircleAlert /> : e.tone === "strong" ? <Check /> : <Dot />}
-              </span>
-              <span className="min-w-0">
-                <span className="ef-tl__title block text-pretty">{e.title}</span>
-                <span className="ef-tl__body block">
-                  {e.actorLabel ? `${e.actorLabel} · ${formatWhen(e.at)}` : formatWhen(e.at)}
-                </span>
-              </span>
-            </li>
+            <TimelineItem
+              key={e.id}
+              icon={e.tone === "negative" ? <CircleAlert /> : e.tone === "strong" ? <Check /> : <Dot />}
+              tone={e.tone === "negative" ? "problem" : e.tone === "strong" ? "primary" : "default"}
+              title={e.title}
+            >
+              {e.actorLabel ? `${e.actorLabel} · ${formatWhen(e.at)}` : formatWhen(e.at)}
+            </TimelineItem>
           ))}
-        </ol>
+        </Timeline>
       )}
     </ResponsiveSheet>
   )

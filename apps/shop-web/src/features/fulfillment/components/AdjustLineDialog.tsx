@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
-import { Input, Textarea } from "@effy/design-system/ui"
+import { Button, Input, Label, Textarea } from "@effy/design-system/ui"
 
 import { ChoiceCards } from "@/components/console/ChoiceCards"
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
@@ -67,7 +67,7 @@ export function AdjustLineDialog({
       }}
     >
       {line ? (
-        <p className="font-medium">
+        <p className="text-sm font-medium">
           {line.name}
           {line.variantLabel ? ` · ${line.variantLabel}` : ""}
           <span className="block text-sm font-normal text-muted-foreground">
@@ -78,14 +78,19 @@ export function AdjustLineDialog({
       <ChoiceCards label="Availability" value={mode} options={AVAILABILITY} onChange={setMode} />
       {mode === "part" ? (
         <div className="grid gap-2">
-          <label htmlFor="adjust-units" className="text-base font-medium">
-            Units picked
-          </label>
+          <Label htmlFor="adjust-units">Units picked</Label>
           <div className="flex items-center gap-3">
-            <div className="stepper">
-              <button type="button" aria-label="One fewer" onClick={() => step(-1)} disabled={n <= 0}>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label="One fewer"
+                onClick={() => step(-1)}
+                disabled={n <= 0}
+              >
                 <Minus aria-hidden="true" />
-              </button>
+              </Button>
               <Input
                 id="adjust-units"
                 inputMode="numeric"
@@ -95,11 +100,18 @@ export function AdjustLineDialog({
                   setUnits(e.target.value)
                   setTouched(true)
                 }}
-                className="h-full! w-14 rounded-none! border-0! bg-transparent! text-center text-xl! font-semibold tabular-nums shadow-none!"
+                className="h-11 w-16 text-center text-lg font-semibold tabular-nums md:text-lg"
               />
-              <button type="button" aria-label="One more" onClick={() => step(1)} disabled={n >= ordered}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label="One more"
+                onClick={() => step(1)}
+                disabled={n >= ordered}
+              >
                 <Plus aria-hidden="true" />
-              </button>
+              </Button>
             </div>
             <span className={cn("text-sm", showErr ? "font-medium text-foreground" : "text-muted-foreground")}>
               {showErr ? err : `Out of ${ordered} ordered.`}

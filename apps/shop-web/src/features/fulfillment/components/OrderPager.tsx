@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { Button } from "@effy/design-system/ui"
 
 import type { OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
@@ -50,10 +50,10 @@ export function OrderPager({
         {(page - 1) * pageSize + index + 1} of {total}
       </span>
       <PagerButton label="Previous order" target={prev} onNavigate={onNavigate}>
-        <ChevronLeft aria-hidden="true" className="size-5" />
+        <ChevronLeft aria-hidden="true" />
       </PagerButton>
       <PagerButton label="Next order" target={next} onNavigate={onNavigate}>
-        <ChevronRight aria-hidden="true" className="size-5" />
+        <ChevronRight aria-hidden="true" />
       </PagerButton>
     </div>
   )
@@ -71,18 +71,16 @@ function PagerButton({
   children: ReactNode
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       aria-label={label}
       title={label}
       disabled={!target}
       onClick={() => target && onNavigate(target.id, target.search)}
-      className={cn(
-        "grid size-11 place-items-center rounded-lg border border-input bg-background p-0 shadow-xs",
-        target ? "text-foreground hover:bg-accent cursor-pointer" : "text-muted-foreground cursor-default",
-      )}
     >
       {children}
-    </button>
+    </Button>
   )
 }

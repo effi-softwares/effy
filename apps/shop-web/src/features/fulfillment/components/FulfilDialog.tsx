@@ -1,3 +1,5 @@
+import { Alert, AlertDescription } from "@effy/design-system/ui"
+
 import { DesignSheet } from "@/components/console/DesignSheet"
 
 import { lineCodes } from "../codes"
@@ -42,12 +44,9 @@ export function FulfilDialog({
       onSave={() => void save().catch(() => undefined)}
     >
       <div className="grid">
-        <div className="ef-eyebrow border-b border-border pb-2">In this parcel</div>
+        <div className="border-b pb-2 text-xs font-medium text-muted-foreground">In this parcel</div>
         {inParcel.map((l) => (
-          <div
-            key={l.orderItemId}
-            className="flex min-h-14 items-center justify-between gap-3 border-b border-border py-3"
-          >
+          <div key={l.orderItemId} className="flex min-h-14 items-center justify-between gap-3 border-b py-3 text-sm">
             <div className="grid min-w-0 flex-1 gap-1">
               <div className="font-medium">
                 {l.name}
@@ -62,13 +61,15 @@ export function FulfilDialog({
         ))}
       </div>
       {short > 0 ? (
-        <p className="ef-alert ef-alert--muted grid-cols-1! text-sm">
-          {short} {short === 1 ? "unit is" : "units are"} not in the package and {short === 1 ? "is" : "are"} recorded
-          as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
-        </p>
+        <Alert variant="muted">
+          <AlertDescription className="text-foreground">
+            {short} {short === 1 ? "unit is" : "units are"} not in the package and {short === 1 ? "is" : "are"} recorded
+            as unavailable{untouched.length > 0 ? ", including every item not ticked" : ""}.
+          </AlertDescription>
+        </Alert>
       ) : null}
       <div className="grid gap-1">
-        <div className="font-medium">The customer is told</div>
+        <div className="text-sm font-medium">The customer is told</div>
         <div className="text-sm text-muted-foreground">They get a notification as soon as it&apos;s ready.</div>
       </div>
     </DesignSheet>

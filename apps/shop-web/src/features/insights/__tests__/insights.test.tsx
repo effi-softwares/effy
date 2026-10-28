@@ -125,7 +125,7 @@ describe("Insights (US3)", () => {
   it("restates the window in each metric label", async () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Revenue today")
-    await userEvent.click(screen.getByRole("button", { name: "7 days" }))
+    await userEvent.click(screen.getByRole("radio", { name: "7 days" }))
 
     expect(await screen.findByText("Revenue, 7 days")).toBeInTheDocument()
     expect(screen.getByText("Orders, 7 days")).toBeInTheDocument()
@@ -144,7 +144,7 @@ describe("Insights (US3)", () => {
     wrap(<InsightsScreen />)
     await screen.findByText("Revenue today")
 
-    await userEvent.click(screen.getByRole("button", { name: "30 days" }))
+    await userEvent.click(screen.getByRole("radio", { name: "30 days" }))
     expect(await screen.findByRole("heading", { name: "Last 30 days" })).toBeInTheDocument()
     expect(screen.getByText(/By week · Goods · AUD/)).toBeInTheDocument()
     expect(screen.getByText(/By week · paid orders/)).toBeInTheDocument()

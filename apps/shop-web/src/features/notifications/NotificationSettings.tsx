@@ -1,6 +1,6 @@
 import { Bell, BellOff, Share } from "lucide-react"
 
-import { Button, Switch } from "@effy/design-system/ui"
+import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, Label, Switch } from "@effy/design-system/ui"
 
 import { PageHeader } from "@effy/web-kit/patterns"
 
@@ -25,12 +25,12 @@ export function NotificationSettingsScreen() {
           ) : null
         }
       />
-      <section className="ef-panel max-w-3xl">
-        <div className="ef-panel__body">
+      <Card className="max-w-3xl gap-0 overflow-hidden py-0">
+        <CardContent className="py-4">
           <StateBlock state={n} />
-        </div>
+        </CardContent>
         {n.status === "on" ? <TypeToggles state={n} /> : null}
-      </section>
+      </Card>
     </Page>
   )
 }
@@ -38,7 +38,7 @@ export function NotificationSettingsScreen() {
 type State = ReturnType<typeof useNotifications>
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[70ch] text-muted-foreground">{children}</p>
+  return <p className="max-w-[70ch] text-sm text-muted-foreground">{children}</p>
 }
 
 function StateBlock({ state }: { state: State }) {
@@ -65,14 +65,14 @@ function StateBlock({ state }: { state: State }) {
 
     case "blocked":
       return (
-        <div role="status" className="ef-alert ef-alert--destructive">
+        <Alert role="status" variant="destructive">
           <BellOff aria-hidden="true" />
-          <div className="ef-alert__title">Notifications are blocked in your browser.</div>
-          <div className="ef-alert__description">
+          <AlertTitle>Notifications are blocked in your browser.</AlertTitle>
+          <AlertDescription>
             The console cannot turn them back on for you. Allow notifications for this site in your browser&apos;s
             settings, then return here.
-          </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       )
 
     case "off":
@@ -83,7 +83,7 @@ function StateBlock({ state }: { state: State }) {
             attention. Nothing about a customer is ever included.
           </Note>
           <Note>You can turn any of these off individually once they are on.</Note>
-          {state.hint && <p className="max-w-[70ch] font-medium">{state.hint}</p>}
+          {state.hint && <p className="max-w-[70ch] text-sm font-medium">{state.hint}</p>}
           <div>
             <Button disabled={state.busy} onClick={() => void state.enable()}>
               <Bell aria-hidden="true" />
@@ -95,8 +95,8 @@ function StateBlock({ state }: { state: State }) {
 
     case "on":
       return (
-        <p className="flex items-center gap-2 font-medium">
-          <span aria-hidden="true" className="ef-dot ef-dot--on" />
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <span aria-hidden="true" className="inline-block size-2 rounded-full bg-success" />
           This device is receiving notifications for this shop.
         </p>
       )
@@ -106,17 +106,14 @@ function StateBlock({ state }: { state: State }) {
 function TypeToggles({ state }: { state: State }) {
   if (state.availableTypes.length === 0) return null
   return (
-    <div className="border-t border-border">
+    <div className="border-t">
       {state.availableTypes.map((t) => {
         const muted = state.mutedTypes.includes(t.type)
         return (
-          <div
-            key={t.type}
-            className="flex min-h-18 items-center gap-4 border-b border-b-border px-5 py-3 last:border-b-0"
-          >
-            <label htmlFor={`notif-${t.type}`} className="min-w-0 flex-auto font-medium">
+          <div key={t.type} className="flex min-h-14 items-center gap-4 border-b px-5 py-3 last:border-b-0">
+            <Label htmlFor={`notif-${t.type}`} className="min-w-0 flex-auto">
               {t.label}
-            </label>
+            </Label>
             <Switch
               id={`notif-${t.type}`}
               checked={!muted}

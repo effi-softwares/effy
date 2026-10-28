@@ -2,16 +2,16 @@ import type { ReactNode } from "react"
 import { CircleAlert, CircleCheck, Hourglass, type LucideIcon } from "lucide-react"
 
 import { type OrderRow, PAYMENT_LABEL } from "../orderConsole"
-import { cn } from "@/lib/utils"
+import { Badge } from "@effy/design-system/ui"
 
 type Tone = "warn" | "info" | "pos" | "neg" | "muted"
 
-const TONE_CLASS: Record<Tone, string> = {
-  warn: "ef-st--waiting",
-  info: "ef-st--moving",
-  pos: "ef-st--done",
-  neg: "ef-st--problem",
-  muted: "ef-st--muted",
+const TONE_VARIANT: Record<Tone, "warning" | "default" | "success" | "destructive" | "muted"> = {
+  warn: "warning",
+  info: "default",
+  pos: "success",
+  neg: "destructive",
+  muted: "muted",
 }
 
 const TONE_ICON: Record<Tone, LucideIcon | null> = {
@@ -25,10 +25,10 @@ const TONE_ICON: Record<Tone, LucideIcon | null> = {
 function TonePill({ tone, children }: { tone: Tone; children: ReactNode }) {
   const Icon = TONE_ICON[tone]
   return (
-    <span className={cn("ef-st", TONE_CLASS[tone])}>
+    <Badge variant={TONE_VARIANT[tone]}>
       {Icon ? <Icon aria-hidden="true" /> : null}
       {children}
-    </span>
+    </Badge>
   )
 }
 

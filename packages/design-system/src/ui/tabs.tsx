@@ -33,9 +33,8 @@ function TabsList({
       <TabsPrimitive.List
         data-slot="tabs-list"
         className={cn(
-          // shadcn's list at touch size (48 bar, 40 tabs — the console's small button); it scrolls
-          // sideways (no bar) rather than overflow a narrow page.
-          "inline-flex h-12 w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          // shadcn's list one step taller (40, 44 on a touch screen); it scrolls sideways (no bar) rather than overflow a narrow page.
+          "inline-flex h-10 pointer-coarse:h-11 w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg bg-muted p-[3px] text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           className,
         )}
         {...props}
@@ -52,9 +51,8 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        // Inactive tabs are muted until hovered; the active one is a raised chip — white on the
-        // light trough, a solid zinc-700 in dark (no outline: shadcn's dark border read as a box).
-        "group/tab inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-1 text-base font-medium whitespace-nowrap text-muted-foreground no-underline transition-[color,background-color,box-shadow] duration-(--dur-fast) hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-input [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        // shadcn's trigger: muted until hovered, the active one raised on the trough.
+        "group/tab inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap text-muted-foreground no-underline transition-[color,background-color,box-shadow] duration-(--dur-fast) hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-input [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -89,8 +87,8 @@ function TabsCount({
     <span
       data-slot="tabs-count"
       className={cn(
-        "inline-flex items-center justify-center rounded-sm font-medium tabular-nums",
-        inList ? "h-6 min-w-6 px-1.5 text-xs" : "h-6 px-2 text-sm",
+        "inline-flex items-center justify-center rounded-md font-medium tabular-nums",
+        inList ? "h-5 min-w-5 px-1.5 text-xs" : "h-6 px-2 text-xs",
         tone === "primary"
           ? "bg-primary-muted text-primary"
           : inList

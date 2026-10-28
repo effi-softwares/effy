@@ -10,4 +10,5 @@ export * from "./Panel";
 export * from "./ResponsiveSheet";
 export * from "./States";
 export * from "./StatusWord";
+export * from "./Timeline";
 export * from "./Toolbar";

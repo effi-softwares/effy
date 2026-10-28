@@ -1,6 +1,6 @@
 import { Check, ImageOff, Minus, Pencil, X } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui"
+import { Badge, Button } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
 
@@ -19,8 +19,10 @@ function PickBox({
   name: string
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon-lg"
       role="checkbox"
       aria-checked={mode === "full" ? true : mode === "part" ? "mixed" : false}
       aria-label={`Mark ${name} picked`}
@@ -28,10 +30,11 @@ function PickBox({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-input bg-background p-0 text-primary-foreground transition-[background-color,border-color] duration-(--dur-fast) ease-[ease] disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-6",
-        mode === "full" && "border-primary bg-primary-fill",
-        mode === "part" && "border-primary bg-primary-muted text-primary",
-        mode === "unavailable" && "border-dashed text-foreground",
+        "border-2 [&_svg:not([class*='size-'])]:size-5",
+        mode === "full" &&
+          "border-primary bg-primary-fill text-primary-foreground hover:bg-primary-fill/90 hover:text-primary-foreground",
+        mode === "part" && "border-primary bg-primary-muted text-primary hover:bg-primary-muted",
+        mode === "unavailable" && "border-dashed",
       )}
     >
       {mode === "full" ? (
@@ -41,15 +44,14 @@ function PickBox({
       ) : mode === "unavailable" ? (
         <X aria-hidden="true" />
       ) : null}
-    </button>
+    </Button>
   )
 }
 
-const STATUS_CLASS: Record<PickMode, string> = {
-  full: "ef-st ef-st--done",
-  part: "ef-st ef-st--moving",
-  unavailable: "ef-st ef-st--problem",
-  none: "text-muted-foreground",
+const STATUS_VARIANT: Record<Exclude<PickMode, "none">, "success" | "default" | "destructive"> = {
+  full: "success",
+  part: "default",
+  unavailable: "destructive",
 }
 
 export function LineRow({
@@ -76,28 +78,32 @@ export function LineRow({
     <li className={cn("pick", mode === "unavailable" && "is-short", scanned && "is-scanned")}>
       <PickBox mode={mode} onClick={onToggle} disabled={!editable || busy} name={line.name} />
       {line.imageUrl ? (
-        <img src={line.imageUrl} alt="" className="pick__img rounded-md border border-border object-cover" />
+        <img src={line.imageUrl} alt="" className="pick__img rounded-lg border object-cover" />
       ) : (
-        <div className="pick__img ef-img">
-          <ImageOff aria-hidden="true" />
+        <div className="pick__img grid place-items-center rounded-lg bg-muted text-muted-foreground">
+          <ImageOff aria-hidden="true" className="size-5" />
         </div>
       )}
       <div className="min-w-0">
-        <div className={cn("text-base leading-6 font-medium", mode === "full" && "text-muted-foreground")}>
+        <div className={cn("text-sm leading-5 font-medium", mode === "full" && "text-muted-foreground")}>
           {line.name}
           {line.variantLabel ? <span className="text-muted-foreground"> · {line.variantLabel}</span> : null}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-5 text-muted-foreground">
           <span className="font-mono text-sm whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
           {line.gtin ? <span className="font-mono text-sm whitespace-nowrap">{line.gtin}</span> : null}
-          <span className={cn("whitespace-nowrap", STATUS_CLASS[mode])}>{pickLabel(line)}</span>
+          {mode === "none" ? (
+            <span className="whitespace-nowrap">{pickLabel(line)}</span>
+          ) : (
+            <Badge variant={STATUS_VARIANT[mode]}>{pickLabel(line)}</Badge>
+          )}
           {line.refundedQuantity > 0 ? (
             <span className="whitespace-nowrap">{line.refundedQuantity} refunded</span>
           ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-3 max-md:col-span-full max-md:justify-between max-md:pl-14">
-        <div className="min-w-14 text-right text-xl font-semibold tracking-[-0.01em] tabular-nums [&_small]:block [&_small]:text-xs [&_small]:font-normal [&_small]:tracking-normal [&_small]:text-muted-foreground">
+      <div className="flex items-center gap-2 max-md:col-span-full max-md:justify-between max-md:pl-14">
+        <div className="min-w-14 text-right text-lg font-semibold tracking-[-0.01em] tabular-nums [&_small]:block [&_small]:text-xs [&_small]:font-normal [&_small]:tracking-normal [&_small]:text-muted-foreground">
           ×&nbsp;{line.orderedQuantity}
           <small>
             {formatMoney(line.unitPrice, currency)} · {formatMoney(line.lineTotal, currency)}

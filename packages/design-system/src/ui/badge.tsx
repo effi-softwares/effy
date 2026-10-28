@@ -4,40 +4,38 @@ import { Slot } from "radix-ui"
 
 import { cn } from "../cn"
 
-// The status tag: 6px corners, like the controls. The status mapping is closed:
+// shadcn's badge with the platform's closed status tones:
 //
-//  in-progress / active → primary
+//  in-progress / active → default (brand is an alias)
 //  positive / complete → success
 //  waiting / at-risk → warning
 //  failed / refunded → destructive
-//  inert / not-applicable → muted
+//  inert / not-applicable → muted (secondary is an alias)
 //
-// Anything else is `muted`. Every tone is a solid foreground on its own `-soft` tint, contrast-checked
-// by check-tokens.mjs.
+// Every tone is a solid foreground on its own `-soft` tint, contrast-checked by check-tokens.mjs.
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 py-1 text-xs leading-4 font-semibold transition-[color,box-shadow] [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:border-ring aria-invalid:border-destructive",
+  "inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 text-xs font-medium transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        // In progress. `default` and `brand` are the same tone.
         default: "bg-primary-muted text-primary",
         brand: "bg-primary-muted text-primary",
         success: "bg-success-soft text-success",
-        // Waiting: an outlined tag.
         warning: "border-input bg-background text-foreground",
-        // Failed: the foreground as a fill (black, white in dark).
         destructive: "bg-foreground text-background",
-        // Inert: the default for anything that does not map. `secondary` is an alias.
         muted: "bg-secondary text-secondary-foreground",
         secondary: "bg-secondary text-secondary-foreground",
-        // No tint, for where the surrounding row already carries the meaning.
-        outline: "border-border bg-transparent font-medium text-foreground",
+        outline: "border-border text-foreground",
+        // A solid blue tag, for the one thing on a row that needs a person now.
+        info: "bg-primary-fill text-primary-foreground",
+        // A grey word that steps back further than `muted`.
+        quiet: "bg-secondary text-muted-foreground",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 )
 
 function Badge({

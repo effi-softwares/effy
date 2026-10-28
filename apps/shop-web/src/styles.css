@@ -6,7 +6,7 @@
 
 @layer components {
   .ticket {
-    @apply flex flex-col gap-3 rounded-lg border border-solid border-border bg-card p-4 text-inherit no-underline;
+    @apply flex flex-col gap-3 rounded-xl border border-solid border-border bg-card p-4 text-sm text-inherit no-underline;
   }
   .ticket.is-new {
     @apply border-primary;
@@ -22,7 +22,7 @@
     @apply w-full;
   }
   .pick {
-    @apply grid min-h-20 grid-cols-[44px_56px_minmax(0,1fr)_auto] items-center gap-4 border-b border-b-border px-5 py-3;
+    @apply grid min-h-18 grid-cols-[44px_48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-b-border px-5 py-3;
   }
   .pick:last-child {
     @apply border-b-0;
@@ -39,29 +39,12 @@
     }
   }
 
-  .stepper {
-    @apply inline-flex h-13 items-center rounded-lg border border-solid border-input bg-background;
-    box-shadow: var(--shadow-xs);
-  }
-  .stepper button {
-    @apply grid h-full w-13 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-inherit;
-  }
-  .stepper button:disabled {
-    @apply cursor-not-allowed opacity-40;
-  }
-  .stepper button svg {
-    @apply size-5;
-  }
-  .stepper output {
-    @apply min-w-12 text-center text-xl font-semibold tabular-nums;
-  }
-
   .kpis {
-    @apply grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] overflow-hidden rounded-lg border border-solid border-border bg-card;
+    @apply grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] overflow-hidden rounded-xl border border-solid border-border bg-card;
   }
   .kpi {
     font: inherit;
-    @apply flex min-w-0 flex-col gap-1 border-l border-l-border bg-transparent px-5 py-4 text-left text-inherit no-underline;
+    @apply flex min-w-0 flex-col gap-1 border-l border-l-border bg-transparent px-4 py-3 text-left text-inherit no-underline;
   }
   .kpi:first-child {
     @apply border-l-0;
@@ -88,43 +71,37 @@
     }
   }
 
-  .ef-table tr.is-recent td:first-child {
+  tr.is-recent td:first-child {
     box-shadow: inset 3px 0 0 var(--primary);
   }
-  .ef-table tr.is-unopened td {
+  tr.is-unopened td {
     @apply font-semibold;
   }
-  .ef-table tr.is-unopened td .ef-sub {
+  tr.is-unopened td .text-muted-foreground {
     @apply font-normal;
   }
   .ticket__top {
     @apply flex items-center gap-2;
   }
   .ticket__code {
-    @apply font-mono text-base font-semibold tracking-[-0.01em];
+    @apply font-mono text-sm font-semibold tracking-[-0.01em];
   }
   .ticket__meta {
     @apply text-sm leading-5 text-muted-foreground;
   }
   .pick__img {
-    @apply size-14;
+    @apply size-12;
   }
   @media (max-width: 767px) {
     .pick__img {
       @apply hidden;
     }
   }
-  .scan__state {
-    @apply flex items-center gap-2 text-sm font-medium;
-  }
-  .scan__state svg {
-    @apply size-5;
-  }
   .kpi__label {
     @apply flex items-center gap-2 text-sm text-muted-foreground;
   }
   .kpi__value {
-    @apply text-2xl leading-7 font-semibold tracking-[-0.02em] tabular-nums;
+    @apply text-xl leading-7 font-semibold tracking-[-0.02em] tabular-nums;
   }
   .kpi__sub {
     @apply text-sm text-muted-foreground;

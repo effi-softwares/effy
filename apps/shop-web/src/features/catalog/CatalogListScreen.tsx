@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 
 import {
+  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -29,12 +30,18 @@ import {
   DropdownMenuTrigger,
   Input,
   Skeleton,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHeader,
+  TableRow,
   Tabs,
+  TabsCount,
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
-import { Facet, PageHeader, ToolbarSpacer } from "@effy/web-kit/patterns"
+import { EmptyState, Facet, PageHeader, ToolbarSpacer } from "@effy/web-kit/patterns"
 
 import { Page, TableFrame, Td, Th, Tr } from "@/components/console/primitives"
 import { cn } from "@/lib/utils"
@@ -186,15 +193,16 @@ export function CatalogListScreen() {
         </TabsList>
       </Tabs>
 
-      <div className="ef-toolbar">
-        <label className="ef-toolbar__search">
-          <Search aria-hidden="true" />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
           <Input
             aria-label="Search products"
             type="search"
             placeholder="Name, brand, SKU or barcode…"
             value={q}
             onChange={(e) => onSearch(e.target.value)}
+            className="pl-9"
           />
         </label>
         <Facet
@@ -220,7 +228,7 @@ export function CatalogListScreen() {
           >
             <CircleAlert aria-hidden="true" />
             Missing details
-            <span className="ef-count ml-0">{missingCount}</span>
+            <TabsCount tone="primary">{missingCount}</TabsCount>
           </Button>
         ) : null}
         <Facet
@@ -295,49 +303,49 @@ export function CatalogListScreen() {
       ) : isPending ? (
         <CatalogLoading />
       ) : data.items.length === 0 ? (
-        <div className="ef-empty">
-          <span className="ef-empty__icon" aria-hidden="true">
-            {hasFilters ? <SearchX /> : <Package />}
-          </span>
-          <h3>{hasFilters ? "No products match your filter" : "No products yet"}</h3>
-          <p>
-            {hasFilters
+        <EmptyState
+          icon={hasFilters ? SearchX : Package}
+          title={hasFilters ? "No products match your filter" : "No products yet"}
+          description={
+            hasFilters
               ? "Clear a filter, or search for something else."
-              : "Add your first product to get started. Effy reviews it before customers see it."}
-          </p>
-          <Button asChild className="mt-2">
-            <Link to="/catalog/new">
-              <Plus aria-hidden="true" />
-              New product
-            </Link>
-          </Button>
-        </div>
+              : "Add your first product to get started. Effy reviews it before customers see it."
+          }
+          action={
+            <Button asChild>
+              <Link to="/catalog/new">
+                <Plus aria-hidden="true" />
+                New product
+              </Link>
+            </Button>
+          }
+        />
       ) : (
         <TableFrame>
-          <thead>
-            <tr>
+          <TableHeader>
+            <TableRow>
               <Th>Product</Th>
               <Th>Sizes</Th>
               <Th>Category</Th>
               <Th>Status</Th>
               <Th>On the storefront</Th>
               <Th align="right">Your price</Th>
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.items.map((p) => (
               <ProductRow key={p.id} product={p} />
             ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={6} className="p-0!">
-                <div className="ef-pager border-t-0">
+          </TableBody>
+          <TableFooter className="bg-transparent font-normal">
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={6} className="p-0">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 text-sm text-muted-foreground">
                   <span className="tabular-nums">
                     {from}–{to} of {data.total} {data.total === 1 ? "product" : "products"} · page {data.page} of{" "}
                     {totalPages}
                   </span>
-                  <div className="ef-pager__btns">
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -358,9 +366,9 @@ export function CatalogListScreen() {
                     </Button>
                   </div>
                 </div>
-              </td>
-            </tr>
-          </tfoot>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </TableFrame>
       )}
 
@@ -393,14 +401,10 @@ function ProductRow({ product }: { product: ProductListItem }) {
       <Td>
         <div className="flex min-w-0 items-center gap-3">
           {product.primaryImageUrl ? (
-            <img
-              src={product.primaryImageUrl}
-              alt=""
-              className="size-12 shrink-0 rounded-lg border border-border object-cover"
-            />
+            <img src={product.primaryImageUrl} alt="" className="size-10 shrink-0 rounded-lg border object-cover" />
           ) : (
-            <div className="ef-img size-12 rounded-lg">
-              <ImageOff aria-hidden="true" />
+            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+              <ImageOff aria-hidden="true" className="size-4" />
             </div>
           )}
           <div className="min-w-0">
@@ -412,7 +416,9 @@ function ProductRow({ product }: { product: ProductListItem }) {
             >
               {product.name}
             </Link>
-            {product.brand ? <span className="ef-sub truncate">{product.brand}</span> : null}
+            {product.brand ? (
+              <span className="mt-0.5 block truncate text-muted-foreground">{product.brand}</span>
+            ) : null}
           </div>
         </div>
       </Td>
@@ -431,22 +437,25 @@ function ProductRow({ product }: { product: ProductListItem }) {
       <Td>
         <div className="flex flex-wrap items-center gap-2">
           {product.hold ? (
-            <span className="ef-st ef-st--problem">Held by Effy</span>
+            <Badge variant="destructive">Held by Effy</Badge>
           ) : (
             <ProductStatusBadge status={product.status} />
           )}
-          {product.createdBy === "effy" ? <span className="ef-st ef-st--muted">Added by Effy</span> : null}
+          {product.createdBy === "effy" ? <Badge variant="muted">Added by Effy</Badge> : null}
           {chip ? (
-            <span className={cn("ef-st", sentBack ? "ef-st--problem" : "ef-st--moving")}>
+            <Badge variant={sentBack ? "destructive" : "default"}>
               {sentBack ? <CircleAlert aria-hidden="true" /> : <Hourglass aria-hidden="true" />}
               {chip.label}
-            </span>
+            </Badge>
           ) : null}
         </div>
       </Td>
       <Td>
         <span className="flex items-center gap-2 whitespace-nowrap">
-          <span aria-hidden="true" className={cn("ef-dot", available ? "ef-dot--on" : "ef-dot--off")} />
+          <span
+            aria-hidden="true"
+            className={cn("inline-block size-2 rounded-full", available ? "bg-success" : "bg-input")}
+          />
           {available ? "Buyable" : "Not buyable"}
         </span>
       </Td>
@@ -460,9 +469,9 @@ function ProductRow({ product }: { product: ProductListItem }) {
 
 function CatalogLoading() {
   return (
-    <div className="ef-table-wrap" aria-busy="true" aria-label="Loading products">
+    <div className="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Loading products">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-4 last:border-b-0">
+        <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
           <Skeleton className="size-12 rounded-lg" />
           <div className="grid flex-1 gap-2">
             <Skeleton className="h-4 w-48" />

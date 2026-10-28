@@ -1,6 +1,6 @@
 import { BellRing, Clock, Timer } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { Badge } from "@effy/design-system/ui"
 
 import { formatPlacedShort, type OrderRow } from "../orderConsole"
 
@@ -20,18 +20,17 @@ export function OrderWait({ row, now }: { row: Pick<OrderRow, "placedAt" | "stat
   }
   const fresh = now - placed < 15 * 60_000
   return (
-    <time
-      dateTime={row.placedAt}
-      className={cn("ef-st", row.atRisk ? "ef-st--problem" : fresh ? "ef-st--info" : "ef-st--muted")}
-    >
-      {row.atRisk ? (
-        <Clock aria-hidden="true" />
-      ) : fresh ? (
-        <BellRing aria-hidden="true" />
-      ) : (
-        <Timer aria-hidden="true" />
-      )}
-      {waitText(row.placedAt, now)}
-    </time>
+    <Badge asChild variant={row.atRisk ? "destructive" : fresh ? "info" : "muted"}>
+      <time dateTime={row.placedAt}>
+        {row.atRisk ? (
+          <Clock aria-hidden="true" />
+        ) : fresh ? (
+          <BellRing aria-hidden="true" />
+        ) : (
+          <Timer aria-hidden="true" />
+        )}
+        {waitText(row.placedAt, now)}
+      </time>
+    </Badge>
   )
 }

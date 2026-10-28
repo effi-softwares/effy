@@ -2,8 +2,8 @@ import * as React from "react"
 
 import { cn } from "../cn"
 
-// The table, the platform's default layout for records: a `--muted` header, hairline rules, `--accent`
-// hover. Numbers go right and monospace (`TableCell numeric`) so they can be compared down a column.
+// shadcn's table with roomier rows. Numbers go right and tabular (`TableCell numeric`) so they can be
+// compared down a column.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
@@ -12,7 +12,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-base leading-[1.42857] tabular-nums", className)}
+        className={cn("w-full caption-bottom text-sm tabular-nums", className)}
         {...props}
       />
     </div>
@@ -23,7 +23,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("bg-card [&_tr]:border-b [&_tr]:border-border", className)}
+      className={cn("[&_tr]:border-b", className)}
       {...props}
     />
   )
@@ -57,8 +57,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        // `--accent` on hover, not a translucent overlay that would compound with a tinted row.
-        "border-b border-border transition-colors hover:bg-(--row-hover) data-[state=selected]:bg-(--row-selected)",
+        "border-b transition-colors hover:bg-(--row-hover) data-[state=selected]:bg-(--row-selected)",
         className
       )}
       {...props}
@@ -66,7 +65,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-/** A column header: 11.5px/500 uppercase at.04em, muted. `numeric` must match its cells. */
+/** A column header. `numeric` must match its cells. */
 function TableHead({
   className,
   numeric,
@@ -77,7 +76,7 @@ function TableHead({
       data-slot="table-head"
       data-numeric={numeric ? "" : undefined}
       className={cn(
-        "h-11 whitespace-nowrap bg-card px-3 first:pl-4 last:pr-4 align-middle text-sm font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-1",
+        "h-10 whitespace-nowrap px-3 first:pl-4 last:pr-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         numeric ? "text-right" : "text-left",
         className
       )}
@@ -110,7 +109,7 @@ function TableSortHead({
         type="button"
         onClick={onSort}
         className={cn(
-          "flex h-9 w-full items-center gap-1 px-3 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground transition-colors outline-none hover:text-foreground",
+          "flex h-10 w-full items-center gap-1 px-3 font-medium text-muted-foreground transition-colors outline-none hover:text-foreground",
           numeric ? "justify-end" : "justify-start"
         )}
       >
@@ -126,8 +125,8 @@ function TableSortHead({
 }
 
 /**
- * A body cell: 12px (`--rowpad`) vertical, 13.5px. `numeric` right-aligns with tabular monospace (amounts,
- * counts); `mono` is monospace on the left (identifiers, SKUs, dates).
+ * A body cell. `numeric` right-aligns with tabular figures (amounts, counts); `mono` is monospace on the
+ * left (identifiers, SKUs).
  */
 function TableCell({
   className,
@@ -139,8 +138,8 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "whitespace-nowrap px-3 py-4 first:pl-4 last:pr-4 align-middle text-base [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-1",
-        numeric && "text-right font-mono tabular-nums",
+        "whitespace-nowrap px-3 py-3 first:pl-4 last:pr-4 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        numeric && "text-right tabular-nums",
         mono && !numeric && "font-mono",
         className
       )}

@@ -5,6 +5,7 @@ import { ArrowDown, ChevronRight, ClipboardList, PackageX, ReceiptText, type Luc
 
 import { cn } from "@effy/design-system"
 import { Button, TabsCount } from "@effy/design-system/ui"
+import { Panel } from "@effy/web-kit/patterns"
 
 import { TodayEmptyState } from "./EmptyState"
 import { track } from "@/lib/telemetry"
@@ -25,46 +26,41 @@ export function NeedsAttention({
   const openCount = items.length + more
 
   return (
-    <section className="ef-panel min-w-0">
-      <div className="ef-panel__head">
-        <div className="min-w-0 flex-1">
-          <h2 className="ef-panel__title">
-            Needs attention
-            {openCount > 0 ? <TabsCount tone="primary">{openCount}</TabsCount> : null}
-          </h2>
-          <p className="ef-panel__desc">
-            {oldestWaitingAt ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}` : "Nothing is waiting"}
+    <Panel
+      flush
+      title={
+        <>
+          Needs attention
+          {openCount > 0 ? <TabsCount tone="primary">{openCount}</TabsCount> : null}
+        </>
+      }
+      description={oldestWaitingAt ? `Oldest item waiting ${formatAge(oldestWaitingAt, now)}` : "Nothing is waiting"}
+      footerBetween
+      footer={
+        <>
+          <p className="text-sm text-muted-foreground">
+            {more > 0 ? `Cleared items drop off automatically · ${more} more` : "Cleared items drop off automatically"}
           </p>
-        </div>
-      </div>
-
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/orders" search={{ attention: "at_risk", sort: "placed", dir: "asc" }}>
+              Open queue →
+            </Link>
+          </Button>
+        </>
+      }
+    >
       {items.length === 0 ? (
-        <div className="ef-panel__body">
-          <TodayEmptyState />
-        </div>
+        <TodayEmptyState />
       ) : (
-        <ul>
+        <ul className="divide-y">
           {items.map((item) => (
-            <li key={keyOf(item)} className="border-b border-border">
+            <li key={keyOf(item)}>
               <AttentionRow item={item} now={now} />
             </li>
           ))}
         </ul>
       )}
-
-      <div className="ef-panel__foot ef-panel__foot--between">
-        <p className="text-sm text-muted-foreground">
-          {more > 0 ? `Cleared items drop off automatically · ${more} more` : "Cleared items drop off automatically"}
-        </p>
-        <Link
-          to="/orders"
-          search={{ attention: "at_risk", sort: "placed", dir: "asc" }}
-          className="text-sm font-medium text-foreground no-underline hover:underline"
-        >
-          Open queue →
-        </Link>
-      </div>
-    </section>
+    </Panel>
   )
 }
 
@@ -79,20 +75,20 @@ function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }
   const row = attentionRow(item, now)
   const Icon = ROW_ICON[item.kind]
   return (
-    <div className="ef-attn flex-wrap">
+    <div className="flex min-h-16 flex-wrap items-center gap-4 px-5 py-3 max-md:gap-3 max-md:px-4">
       <span
         aria-hidden="true"
         className={cn(
-          "ef-icon-tile",
-          row.tone === "problem" && "ef-icon-tile--problem",
-          item.kind === "awaiting_pick" && "ef-icon-tile--primary",
+          "grid size-9 flex-none place-items-center rounded-lg bg-muted text-foreground [&_svg]:size-4",
+          row.tone === "problem" && "bg-foreground text-background",
+          item.kind === "awaiting_pick" && "bg-primary-muted text-primary",
         )}
       >
         <Icon />
       </span>
-      <div className="ef-attn__text min-w-40">
-        <p className="ef-attn__title text-pretty">{row.title}</p>
-        <p className="ef-attn__desc">{row.detail}</p>
+      <div className="min-w-40 flex-auto">
+        <p className="text-sm font-medium text-pretty">{row.title}</p>
+        <p className="text-sm text-muted-foreground">{row.detail}</p>
       </div>
       <Button asChild variant="outline" size="sm">
         <Link to={attentionHref(item)} onClick={() => track({ name: "today_attention_acted", kind: item.kind })}>

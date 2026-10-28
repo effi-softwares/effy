@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { X } from "lucide-react"
 
-import { Button, Input, toast } from "@effy/design-system/ui"
+import { Button, Input, Separator, toast } from "@effy/design-system/ui"
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
@@ -116,10 +116,10 @@ export function BulkActions({
     <div
       role="region"
       aria-label="Selected orders"
-      className="ef-bulkbar sticky bottom-4 z-20 flex-wrap max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
+      className="sticky bottom-4 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl border bg-popover py-2 pr-2 pl-4 text-sm font-medium text-popover-foreground shadow-lg max-[1099px]:bottom-[calc(80px+env(safe-area-inset-bottom))]"
     >
       <div className="whitespace-nowrap tabular-nums">{selected.size} selected</div>
-      <div aria-hidden="true" className="ef-bulkbar__sep" />
+      <Separator orientation="vertical" className="data-[orientation=vertical]:h-5" />
       <div className="flex flex-wrap gap-2">
         <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
           Start picking
@@ -140,8 +140,8 @@ export function BulkActions({
           Can&apos;t supply
         </BarButton>
       </div>
-      <div aria-hidden="true" className="ef-bulkbar__sep" />
-      <Button type="button" variant="ghost" disabled={running} onClick={onClear}>
+      <Separator orientation="vertical" className="data-[orientation=vertical]:h-5" />
+      <Button type="button" variant="ghost" size="sm" disabled={running} onClick={onClear}>
         Clear
         <X aria-hidden="true" />
       </Button>
@@ -178,7 +178,7 @@ export function BulkActions({
 
 function BarButton({ children, onClick, disabled }: { children: ReactNode; onClick: () => void; disabled?: boolean }) {
   return (
-    <Button type="button" variant="outline" disabled={disabled} onClick={onClick}>
+    <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onClick}>
       {children}
     </Button>
   )

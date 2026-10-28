@@ -47,7 +47,7 @@ export function QualityStrip({ dto }: { dto: ShopInsightsDTO }) {
   ]
   return (
     <section className="grid gap-3" aria-labelledby="quality-heading">
-      <h2 id="quality-heading" className="ef-section-title">
+      <h2 id="quality-heading" className="text-base font-semibold">
         How well you fulfil
       </h2>
       <dl className="kpis">

@@ -14,27 +14,27 @@ export function OrderSearchBox({ value, onChange }: { value: string; onChange: (
   }, [text])
 
   return (
-    <label className="ef-toolbar__search">
-      <Search aria-hidden="true" />
+    <label className="relative flex w-80 max-w-full items-center max-md:w-full">
+      <Search aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
       <Input
         aria-label="Search"
         type="search"
         placeholder="Order, customer or SKU…"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="pr-11!"
+        className="pr-10 pl-9"
       />
       {text ? (
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label="Clear search"
           onClick={() => {
             setText("")
             onChange("")
           }}
-          className="absolute right-2"
+          className="absolute right-0.5"
         >
           <X className="size-4" />
         </Button>

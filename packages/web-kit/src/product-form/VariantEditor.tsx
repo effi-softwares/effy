@@ -690,7 +690,7 @@ function OptionRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-6"
+              className="touch-hit size-6 pointer-coarse:min-h-0 pointer-coarse:min-w-0"
               aria-label={`Remove ${labelOf(v)}`}
               disabled={disabled}
               onClick={() => removeValue(v.id)}

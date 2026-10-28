@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CircleAlert } from "lucide-react"
 
 import { formRows, recategorise, type CreateProductRequest, type FactKey, type ProductFacts } from "@effy/shared-types"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Alert, AlertTitle, Button, Card, CardContent, Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 import { PageHeader } from "@effy/web-kit/patterns"
 
@@ -310,21 +310,19 @@ function CreateFlow({ shopId, subject, onCancel, onCreated }: Props & { shopId: 
       <StepTabs step={step} disabled={busy} onStep={goToStep} />
 
       <div className="ef-detail">
-        <section className="ef-panel ef-detail__main">
-          <div className="ef-panel__body min-h-70">
-            <div className="flex h-full flex-col gap-4">{stepBody()}</div>
-          </div>
-        </section>
+        <Card className="ef-detail__main min-h-70 py-5">
+          <CardContent className="flex h-full flex-col gap-4">{stepBody()}</CardContent>
+        </Card>
         <aside className="ef-detail__aside">
           <ShopperPreview draft={draft} path={form.data?.path ?? null} imageUrl={imageUrl} />
         </aside>
       </div>
 
       {formError ? (
-        <div role="alert" className="ef-alert ef-alert--destructive">
+        <Alert variant="destructive">
           <CircleAlert aria-hidden="true" />
-          <div className="ef-alert__title">{formError}</div>
-        </div>
+          <AlertTitle>{formError}</AlertTitle>
+        </Alert>
       ) : null}
 
       {pendingMove ? (

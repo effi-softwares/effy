@@ -16,13 +16,12 @@ import {
   Truck,
 } from "lucide-react"
 
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Alert, AlertTitle, Badge, Button, Card, Skeleton } from "@effy/design-system/ui"
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console"
-import { PageHeader } from "@effy/web-kit/patterns"
+import { DetailRows, PageHeader, Panel, Timeline, TimelineItem } from "@effy/web-kit/patterns"
 
 import { sessionQuery } from "@/features/auth/queries"
 import { track } from "@/lib/telemetry"
-import { cn } from "@/lib/utils"
 
 import { CourierPickup } from "./components/CourierPickup"
 import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment"
@@ -94,10 +93,10 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <span className="font-mono tracking-[-.02em]">{detail.orderNumber}</span>
             <PackageStatusPill view={detail.statusView} />
             {detail.atRisk ? (
-              <span className="ef-st ef-st--problem">
+              <Badge variant="destructive">
                 <CircleAlert aria-hidden="true" />
                 At risk
-              </span>
+              </Badge>
             ) : null}
           </>
         }
@@ -141,13 +140,10 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
       />
 
       {note ? (
-        <div
-          className={cn("ef-alert", detail.status === "unfulfillable" ? "ef-alert--destructive" : "ef-alert--muted")}
-          role="status"
-        >
+        <Alert variant={detail.status === "unfulfillable" ? "destructive" : "muted"} role="status">
           <Info aria-hidden="true" />
-          <div className="ef-alert__title">{note}</div>
-        </div>
+          <AlertTitle>{note}</AlertTitle>
+        </Alert>
       ) : null}
 
       <div className="ef-detail">
@@ -156,143 +152,153 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
 
           <PackBags detail={detail} />
 
-          <section className="ef-panel">
-            <div className="ef-panel__head">
-              <div className="min-w-0 flex-1">
-                <h2 className="ef-panel__title">Internal notes</h2>
-                <p className="ef-panel__desc">Only your team sees notes. They can&apos;t be edited once added.</p>
-              </div>
+          <Panel
+            title="Internal notes"
+            description="Only your team sees notes. They can't be edited once added."
+            actions={
               <Button variant="outline" size="sm" onClick={() => setNoteOpen(true)}>
                 <Plus aria-hidden="true" />
                 Add note
               </Button>
-            </div>
-            <div className="ef-panel__body">
-              {detail.notes.length === 0 ? (
-                <p className="text-muted-foreground">No notes on this order yet.</p>
-              ) : (
-                <ul className="ef-tl">
-                  {detail.notes.map((n) => (
-                    <li key={n.id} className="ef-tl__item">
-                      <span className="ef-tl__mark" aria-hidden="true">
-                        <MessageSquare />
+            }
+          >
+            {detail.notes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No notes on this order yet.</p>
+            ) : (
+              <Timeline>
+                {detail.notes.map((n) => (
+                  <TimelineItem
+                    key={n.id}
+                    icon={<MessageSquare />}
+                    title={
+                      <span className="flex items-baseline justify-between gap-3">
+                        {n.authorLabel || "Your team"}
+                        <time
+                          className="text-xs font-normal whitespace-nowrap text-muted-foreground"
+                          dateTime={n.createdAt}
+                        >
+                          {formatWhen(n.createdAt)}
+                        </time>
                       </span>
-                      <div className="min-w-0">
-                        <div className="ef-tl__title">{n.authorLabel || "Your team"}</div>
-                        <div className="ef-tl__note whitespace-pre-line text-pretty">{n.body}</div>
-                      </div>
-                      <time className="ef-tl__time" dateTime={n.createdAt}>
-                        {formatWhen(n.createdAt)}
-                      </time>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
+                    }
+                  >
+                    <span className="mt-1 block rounded-lg bg-muted px-3 py-2 whitespace-pre-line text-foreground text-pretty">
+                      {n.body}
+                    </span>
+                  </TimelineItem>
+                ))}
+              </Timeline>
+            )}
+          </Panel>
         </div>
 
         <aside className="ef-detail__aside">
-          <section className="ef-panel">
-            <div className="ef-panel__head">
-              <h2 className="ef-panel__title">Payment</h2>
-              <PaymentPill state={detail.payment.state} />
-            </div>
-            <div className="ef-panel__body grid gap-3">
-              <dl className="ef-dl ef-dl--tight">
-                <div className="ef-dl__row">
-                  <dt>Your items</dt>
-                  <dd className="tabular-nums">{formatMoney(detail.money.shopSubtotal, currency)}</dd>
+          <Panel
+            title="Payment"
+            actions={<PaymentPill state={detail.payment.state} />}
+            footer={
+              refundable || canDeclareUnfulfillable(detail.status) ? (
+                <div className="grid w-full gap-2">
+                  {refundable ? (
+                    <Button variant="outline" onClick={() => setRefundOpen(true)}>
+                      <ReceiptText aria-hidden="true" />
+                      Refund
+                    </Button>
+                  ) : null}
+                  {canDeclareUnfulfillable(detail.status) ? (
+                    <Button variant="ghost" onClick={() => setCancelOpen(true)}>
+                      Can&apos;t supply it…
+                    </Button>
+                  ) : null}
                 </div>
-                <div className="ef-dl__row">
-                  <dt>Refunded</dt>
-                  <dd className="tabular-nums">{formatMoney(detail.money.refunded, currency)}</dd>
-                </div>
-                <div className="ef-dl__row">
-                  <dt>Net</dt>
-                  <dd className="font-semibold tabular-nums">{formatMoney(detail.money.net, currency)}</dd>
-                </div>
-              </dl>
+              ) : undefined
+            }
+          >
+            <div className="grid gap-3">
+              <DetailRows
+                tight
+                rows={[
+                  {
+                    label: "Your items",
+                    value: <span className="tabular-nums">{formatMoney(detail.money.shopSubtotal, currency)}</span>,
+                  },
+                  {
+                    label: "Refunded",
+                    value: <span className="tabular-nums">{formatMoney(detail.money.refunded, currency)}</span>,
+                  },
+                  {
+                    label: "Net",
+                    value: (
+                      <span className="font-semibold tabular-nums">{formatMoney(detail.money.net, currency)}</span>
+                    ),
+                  },
+                ]}
+              />
               <p className="text-sm text-muted-foreground">
                 {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at
                 checkout
               </p>
             </div>
-            {refundable || canDeclareUnfulfillable(detail.status) ? (
-              <div className="ef-panel__foot grid! justify-stretch!">
-                {refundable ? (
-                  <Button variant="outline" onClick={() => setRefundOpen(true)}>
-                    <ReceiptText aria-hidden="true" />
-                    Refund
-                  </Button>
-                ) : null}
-                {canDeclareUnfulfillable(detail.status) ? (
-                  <Button variant="ghost" onClick={() => setCancelOpen(true)}>
-                    Can&apos;t supply it…
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
+          </Panel>
 
-          <section className="ef-panel">
-            <div className="ef-panel__head">
-              <div className="min-w-0 flex-1">
-                <h2 className="ef-panel__title">Customer and delivery</h2>
-                <p className="ef-panel__desc">
-                  {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
-                </p>
-              </div>
-            </div>
-            <div className="ef-panel__body">
-              <dl className="ef-dl ef-dl--tight">
-                <div className="ef-dl__row">
-                  <dt>Customer</dt>
-                  <dd>
-                    <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
-                    {detail.delivery.phone ? (
-                      <a
-                        href={`tel:${detail.delivery.phone}`}
-                        className="text-muted-foreground no-underline hover:underline"
-                      >
-                        {detail.delivery.phone}
-                      </a>
-                    ) : null}
-                  </dd>
-                </div>
-                <div className="ef-dl__row">
-                  <dt>Ship to</dt>
-                  <dd className="whitespace-pre-line">{addressText(detail)}</dd>
-                </div>
-                <div className="ef-dl__row">
-                  <dt>Bill to</dt>
-                  <dd className="text-muted-foreground">Held by Effy with the payment.</dd>
-                </div>
-                <div className="ef-dl__row">
-                  <dt>Tags</dt>
-                  <dd className="flex flex-wrap items-center gap-2">
-                    {detail.tags.length > 0 ? (
-                      detail.tags.map((t) => (
-                        <span key={t} className="ef-tag">
-                          {t}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-muted-foreground">No tags.</span>
-                    )}
-                    <Button variant="link" className="ml-auto" onClick={() => setTagsOpen(true)}>
-                      Edit
-                    </Button>
-                  </dd>
-                </div>
-              </dl>
+          <Panel
+            flush
+            title="Customer and delivery"
+            description={`${deliveredByText(detail.deliveredBy)} · ready by ${formatWhen(detail.readyBy)}`}
+          >
+            <div className="px-5 py-2">
+              <DetailRows
+                tight
+                rows={[
+                  {
+                    label: "Customer",
+                    value: (
+                      <>
+                        <div className="font-medium">{detail.delivery.recipientName || "—"}</div>
+                        {detail.delivery.phone ? (
+                          <a
+                            href={`tel:${detail.delivery.phone}`}
+                            className="text-muted-foreground no-underline hover:underline"
+                          >
+                            {detail.delivery.phone}
+                          </a>
+                        ) : null}
+                      </>
+                    ),
+                  },
+                  { label: "Ship to", value: <span className="whitespace-pre-line">{addressText(detail)}</span> },
+                  {
+                    label: "Bill to",
+                    value: <span className="text-muted-foreground">Held by Effy with the payment.</span>,
+                  },
+                  {
+                    label: "Tags",
+                    value: (
+                      <span className="flex flex-wrap items-center gap-2">
+                        {detail.tags.length > 0 ? (
+                          detail.tags.map((t) => (
+                            <Badge key={t} variant="outline">
+                              {t}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">No tags.</span>
+                        )}
+                        <Button variant="link" className="ml-auto" onClick={() => setTagsOpen(true)}>
+                          Edit
+                        </Button>
+                      </span>
+                    ),
+                  },
+                ]}
+              />
             </div>
             {detail.courierPickup ? (
-              <div className="border-t border-border">
+              <div className="border-t">
                 <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
               </div>
             ) : null}
-          </section>
+          </Panel>
         </aside>
       </div>
 
@@ -349,10 +355,10 @@ function DetailSkeleton() {
       </div>
       <div className="ef-detail">
         <div className="ef-detail__main">
-          <div className="ef-panel">
+          <Card className="gap-0 py-0">
             {Array.from({ length: 4 }, (_, i) => (
               <div key={i} className="pick">
-                <Skeleton className="size-11 rounded-xl" />
+                <Skeleton className="size-11 rounded-lg" />
                 <Skeleton className="pick__img" />
                 <div className="grid gap-2">
                   <Skeleton className="h-4 w-2/3" />
@@ -361,11 +367,11 @@ function DetailSkeleton() {
                 <Skeleton className="h-6 w-10" />
               </div>
             ))}
-          </div>
+          </Card>
         </div>
         <div className="ef-detail__aside">
-          <Skeleton className="h-48 w-full rounded-lg" />
-          <Skeleton className="h-56 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
         </div>
       </div>
     </div>

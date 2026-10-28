@@ -159,7 +159,7 @@ export function CantSupplyDialog({
       {!single ? (
         <div className="grid">
           {eligible.map((t) => (
-            <div key={t.id} className="ef-code border-b border-border py-3">
+            <div key={t.id} className="border-b py-3 font-mono text-sm">
               {t.orderNumber}
             </div>
           ))}

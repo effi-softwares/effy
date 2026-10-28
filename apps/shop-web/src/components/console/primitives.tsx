@@ -1,6 +1,21 @@
 import type { ReactNode } from "react"
 
-import { Tabs, TabsList, TabsTrigger } from "@effy/design-system/ui"
+import {
+  Button,
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
 
@@ -24,15 +39,17 @@ export function DetailSection({
   flush?: boolean
 }) {
   return (
-    <section className={cn("ef-panel min-w-0", className)}>
-      <div className="ef-panel__head">
-        <div className="min-w-0 flex-1">
-          <h2 className="ef-panel__title">{title}</h2>
-          <p className="ef-panel__desc">{subtitle}</p>
-        </div>
-        {action}
-      </div>
-      {flush ? children : <div className="ef-panel__body">{children}</div>}
+    <section className={cn("min-w-0", className)}>
+      <Card className="gap-0 overflow-hidden py-0">
+        <CardHeader className="border-b py-4 [.border-b]:pb-4">
+          <CardTitle className="leading-6">
+            <h2>{title}</h2>
+          </CardTitle>
+          <CardDescription>{subtitle}</CardDescription>
+          {action ? <CardAction>{action}</CardAction> : null}
+        </CardHeader>
+        {flush ? children : <CardContent className="py-4">{children}</CardContent>}
+      </Card>
     </section>
   )
 }
@@ -47,17 +64,9 @@ export function SectionAction({
   disabled?: boolean
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-slot="button"
-      data-variant="ghost"
-      data-size="sm"
-      className="inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
-    >
+    <Button type="button" variant="ghost" size="sm" onClick={onClick} disabled={disabled}>
       {children}
-    </button>
+    </Button>
   )
 }
 
@@ -67,10 +76,8 @@ export function MicroLabel({ children, className }: { children: ReactNode; class
 
 export function TableFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("ef-table-wrap", className)}>
-      <div className="ef-table-scroll">
-        <table className="ef-table">{children}</table>
-      </div>
+    <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
+      <Table>{children}</Table>
     </div>
   )
 }
@@ -85,9 +92,9 @@ export function Th({
   width?: string
 }) {
   return (
-    <th style={width ? { width } : undefined} className={cn(align === "right" && "is-num")}>
+    <TableHead numeric={align === "right"} style={width ? { width } : undefined}>
       {children}
-    </th>
+    </TableHead>
   )
 }
 
@@ -100,7 +107,11 @@ export function Td({
   align?: "left" | "right"
   className?: string
 }) {
-  return <td className={cn(align === "right" && "is-num", className)}>{children}</td>
+  return (
+    <TableCell numeric={align === "right"} className={className}>
+      {children}
+    </TableCell>
+  )
 }
 
 export function Tr({
@@ -113,9 +124,9 @@ export function Tr({
   onClick?: () => void
 }) {
   return (
-    <tr onClick={onClick} className={cn(interactive && "cursor-pointer")}>
+    <TableRow onClick={onClick} className={cn(interactive && "cursor-pointer")}>
       {children}
-    </tr>
+    </TableRow>
   )
 }
 

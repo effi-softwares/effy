@@ -2,7 +2,17 @@ import { useState } from "react"
 
 import { PackageX } from "lucide-react"
 
-import { Button, Switch } from "@effy/design-system/ui"
+import {
+  Badge,
+  Button,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { UNIT_BASIS_LABELS, unitPrice, unitPriceText, type ShopVariantDTO } from "@effy/shared-types"
 
 import { DesignSheet } from "@/components/console/DesignSheet"
@@ -49,111 +59,110 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
       {detail.unitBasis ? (
         <p className="px-5 pt-3 text-sm text-muted-foreground">Unit pricing: {UNIT_BASIS_LABELS[detail.unitBasis]}</p>
       ) : null}
-      <div className="ef-table-scroll">
-        <table className="ef-table ef-table--plain">
-          <thead>
-            <tr>
-              <th>{hasOptions ? "Size" : "Item"}</th>
-              <th className="is-num">Your price</th>
-              <th className="is-num">Customers pay</th>
-              <th>Your code</th>
-              <th>Barcode</th>
-              <th className="is-num">Weight</th>
-              <th className="is-num">In stock</th>
-              <th>On sale</th>
-              {hasOptions ? <th className="is-actions" /> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {live.map((v) => {
-              const unit = unitPrice(v.customerPriceAmount, v.packQuantity, v.packUnit, detail.unitBasis)
-              const last = v.state === "active" && activeCount <= 1
-              return (
-                <tr key={v.id}>
-                  <td>
-                    <span className="font-medium">{v.label ?? detail.name}</span>
-                    <span className="ef-sub">
-                      {v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit} · ` : ""}
-                      <span className="font-mono">{v.code}</span>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{hasOptions ? "Size" : "Item"}</TableHead>
+            <TableHead numeric>Your price</TableHead>
+            <TableHead numeric>Customers pay</TableHead>
+            <TableHead>Your code</TableHead>
+            <TableHead>Barcode</TableHead>
+            <TableHead numeric>Weight</TableHead>
+            <TableHead numeric>In stock</TableHead>
+            <TableHead>On sale</TableHead>
+            {hasOptions ? <TableHead className="text-right" /> : null}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {live.map((v) => {
+            const unit = unitPrice(v.customerPriceAmount, v.packQuantity, v.packUnit, detail.unitBasis)
+            const last = v.state === "active" && activeCount <= 1
+            return (
+              <TableRow key={v.id}>
+                <TableCell>
+                  <span className="font-medium">{v.label ?? detail.name}</span>
+                  <span className="mt-0.5 block text-muted-foreground">
+                    {v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit} · ` : ""}
+                    <span className="font-mono">{v.code}</span>
+                  </span>
+                </TableCell>
+                <TableCell numeric>
+                  {formatMoney(v.shopPriceAmount, detail.currency)}
+                  {v.shopCompareAtAmount ? (
+                    <span className="mt-0.5 block text-muted-foreground line-through">
+                      {formatMoney(v.shopCompareAtAmount, detail.currency)}
                     </span>
-                  </td>
-                  <td className="is-num">
-                    {formatMoney(v.shopPriceAmount, detail.currency)}
-                    {v.shopCompareAtAmount ? (
-                      <span className="ef-sub line-through">{formatMoney(v.shopCompareAtAmount, detail.currency)}</span>
-                    ) : null}
-                  </td>
-                  <td className="is-num">
-                    {approved && v.customerPriceAmount ? (
-                      formatMoney(v.customerPriceAmount, detail.currency)
-                    ) : (
-                      <span className="text-muted-foreground">Set when approved</span>
-                    )}
-                    {unit ? <span className="ef-sub">{unitPriceText(unit)}</span> : null}
-                  </td>
-                  <td className="ef-code">{v.sku ?? "—"}</td>
-                  <td className="ef-code">{v.gtin ?? "—"}</td>
-                  <td className="is-num whitespace-nowrap">
-                    {v.weightGrams} g{v.weightIsAssumed ? <span className="ef-sub">assumed</span> : null}
-                  </td>
-                  <td className="is-num">
-                    {v.stock.tracked ? (
-                      v.stock.outOfStock ? (
-                        <span className="ef-st ef-st--problem">
-                          <PackageX aria-hidden="true" />0
-                        </span>
-                      ) : (
-                        (v.stock.onHand ?? 0)
-                      )
-                    ) : (
-                      <span className="text-muted-foreground">Not counted</span>
-                    )}
-                  </td>
-                  <td>
-                    {hasOptions ? (
-                      <Switch
-                        checked={v.state === "active"}
-                        aria-label={`${v.label ?? "This size"} on sale`}
-                        // Held by Effy (102): a size may come off sale, never back on. Read-only while Effy sets it up.
-                        disabled={
-                          setState.isPending || last || !onEdit || (detail.hold !== null && v.state !== "active")
-                        }
-                        title={
-                          detail.hold !== null && v.state !== "active"
-                            ? "Effy is holding this product — no size can go back on sale until Effy releases it"
-                            : last
-                              ? "The last size on sale — make the product unavailable instead"
-                              : undefined
-                        }
-                        onCheckedChange={(on) => void change(v, on ? "active" : "inactive")}
-                      />
-                    ) : v.state === "active" ? (
-                      <span className="ef-st ef-st--done">On sale</span>
-                    ) : (
-                      <span className="ef-st ef-st--quiet">Off sale</span>
-                    )}
-                  </td>
-                  {hasOptions ? (
-                    <td className="is-actions">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={setState.isPending || last}
-                        onClick={() => setRemoving(v)}
-                      >
-                        Remove
-                      </Button>
-                    </td>
                   ) : null}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                </TableCell>
+                <TableCell numeric>
+                  {approved && v.customerPriceAmount ? (
+                    formatMoney(v.customerPriceAmount, detail.currency)
+                  ) : (
+                    <span className="text-muted-foreground">Set when approved</span>
+                  )}
+                  {unit ? <span className="mt-0.5 block text-muted-foreground">{unitPriceText(unit)}</span> : null}
+                </TableCell>
+                <TableCell mono>{v.sku ?? "—"}</TableCell>
+                <TableCell mono>{v.gtin ?? "—"}</TableCell>
+                <TableCell numeric className="whitespace-nowrap">
+                  {v.weightGrams} g
+                  {v.weightIsAssumed ? <span className="mt-0.5 block text-muted-foreground">assumed</span> : null}
+                </TableCell>
+                <TableCell numeric>
+                  {v.stock.tracked ? (
+                    v.stock.outOfStock ? (
+                      <Badge variant="destructive">
+                        <PackageX aria-hidden="true" />0
+                      </Badge>
+                    ) : (
+                      (v.stock.onHand ?? 0)
+                    )
+                  ) : (
+                    <span className="text-muted-foreground">Not counted</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {hasOptions ? (
+                    <Switch
+                      checked={v.state === "active"}
+                      aria-label={`${v.label ?? "This size"} on sale`}
+                      // Held by Effy (102): a size may come off sale, never back on. Read-only while Effy sets it up.
+                      disabled={setState.isPending || last || !onEdit || (detail.hold !== null && v.state !== "active")}
+                      title={
+                        detail.hold !== null && v.state !== "active"
+                          ? "Effy is holding this product — no size can go back on sale until Effy releases it"
+                          : last
+                            ? "The last size on sale — make the product unavailable instead"
+                            : undefined
+                      }
+                      onCheckedChange={(on) => void change(v, on ? "active" : "inactive")}
+                    />
+                  ) : v.state === "active" ? (
+                    <Badge variant="success">On sale</Badge>
+                  ) : (
+                    <Badge variant="quiet">Off sale</Badge>
+                  )}
+                </TableCell>
+                {hasOptions ? (
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={setState.isPending || last}
+                      onClick={() => setRemoving(v)}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                ) : null}
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
       {removed.length > 0 || error ? (
-        <div className="grid gap-1 border-t border-border px-5 py-3">
+        <div className="grid gap-1 border-t px-5 py-3">
           {removed.length > 0 ? (
             <p className="text-sm text-muted-foreground">
               Removed: {removed.map((v) => v.label ?? "a size").join(", ")} — kept for past orders and stock history.

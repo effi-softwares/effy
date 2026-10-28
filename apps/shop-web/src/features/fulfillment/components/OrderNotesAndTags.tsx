@@ -3,7 +3,7 @@ import { X } from "lucide-react"
 
 import { SHOP_ORDER_NOTE_MAX_LENGTH, SHOP_ORDER_TAG_MAX, SHOP_ORDER_TAG_MAX_LENGTH } from "@effy/shared-types"
 
-import { Button, Input, Textarea } from "@effy/design-system/ui"
+import { Badge, Button, Input, Textarea } from "@effy/design-system/ui"
 
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 
@@ -59,18 +59,19 @@ export function OrderTagsDialog({
       {draft.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {draft.map((t) => (
-            <span key={t} className="ef-tag h-9! gap-1 pr-1 text-sm!">
+            <Badge key={t} variant="outline" className="h-8 gap-1 overflow-visible pr-0.5 pl-2.5 text-sm">
               {t}
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="xs"
+                className="touch-hit size-7 p-0 pointer-coarse:min-h-0"
                 aria-label={`Remove ${t}`}
                 onClick={() => setDraft(draft.filter((x) => x !== t))}
               >
-                <X className="size-4" />
+                <X />
               </Button>
-            </span>
+            </Badge>
           ))}
         </div>
       ) : null}
