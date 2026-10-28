@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import type { DeliveryDaysDTO } from "@effy/shared-types"
-import { Button, Checkbox, Input, Label, Toggle } from "@effy/design-system/ui"
+import { Button, Checkbox, DateField, Input, Label, Toggle } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText"
@@ -306,7 +306,7 @@ function ClosedDates({ value, canManage }: { value: DeliveryDaysDTO; canManage: 
         <form onSubmit={submit} className="flex items-end gap-2" noValidate>
           <div className="space-y-2">
             <Label htmlFor="closed-day">Date</Label>
-            <Input id="closed-day" type="date" className="w-44" value={day} onChange={(e) => setDay(e.target.value)} />
+            <DateField id="closed-day" className="w-44" value={day} onChange={(v) => setDay(v)} />
           </div>
           <div className="flex-1 space-y-2">
             <Label htmlFor="closed-label">Reason (optional)</Label>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { cn } from "@effy/design-system";
 import {
   Checkbox,
+  DateField,
   Input,
   Label,
   Select,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  TimeField,
   ToggleGroup,
   ToggleGroupItem,
 } from "@effy/design-system/ui";
@@ -358,34 +360,28 @@ function Control({
     case "date": {
       const date = value && "date" in value ? value.date : "";
       return (
-        <Input
+        <DateField
           id={id}
           {...named}
-          type="date"
           className="max-w-xs"
           value={date}
           disabled={disabled}
           aria-invalid={invalid}
-          onChange={(e) =>
-            onChange(e.target.value ? { date: e.target.value } : undefined)
-          }
+          onChange={(v) => onChange(v ? { date: v } : undefined)}
         />
       );
     }
     case "time": {
       const time = value && "time" in value ? value.time : "";
       return (
-        <Input
+        <TimeField
           id={id}
           {...named}
-          type="time"
           className="max-w-xs"
           value={time}
           disabled={disabled}
           aria-invalid={invalid}
-          onChange={(e) =>
-            onChange(e.target.value ? { time: e.target.value } : undefined)
-          }
+          onChange={(v) => onChange(v ? { time: v } : undefined)}
         />
       );
     }

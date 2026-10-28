@@ -14,6 +14,7 @@ import {
   Skeleton,
   Switch,
   Textarea,
+  TimeField,
   ToggleGroup,
   ToggleGroupItem,
 } from "@effy/design-system/ui"
@@ -430,15 +431,10 @@ function Editor({ current }: { current: Promotion | null }) {
               </div>
               <div className="grid max-w-md gap-4 sm:grid-cols-2">
                 <Field id="promo-from" label="From (optional)" invalid={bad.has("timeFrom")}>
-                  <Input
-                    id="promo-from"
-                    type="time"
-                    value={d.timeFrom}
-                    onChange={(e) => set("timeFrom", e.target.value)}
-                  />
+                  <TimeField id="promo-from" value={d.timeFrom} onChange={(v) => set("timeFrom", v)} />
                 </Field>
                 <Field id="promo-to" label="Until" invalid={bad.has("timeTo")}>
-                  <Input id="promo-to" type="time" value={d.timeTo} onChange={(e) => set("timeTo", e.target.value)} />
+                  <TimeField id="promo-to" value={d.timeTo} onChange={(v) => set("timeTo", v)} />
                 </Field>
               </div>
             </div>

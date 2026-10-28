@@ -15,6 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TimeField,
 } from "@effy/design-system/ui"
 
 import { courierServiceError, courierServiceFieldErrors } from "../errorText"
@@ -268,12 +269,11 @@ export function CourierServicesPanel({ canManage }: { canManage: boolean }) {
               {fields.pickupWeekdays ? <p className="text-sm text-destructive">{fields.pickupWeekdays}</p> : null}
             </fieldset>
             <Field id="cs-cutoff" label="Pickup by" error={fields.pickupCutoff}>
-              <Input
+              <TimeField
                 id="cs-cutoff"
-                type="time"
                 className="w-28"
                 value={draft.pickupCutoff}
-                onChange={(e) => setDraft({ ...draft, pickupCutoff: e.target.value })}
+                onChange={(v) => setDraft({ ...draft, pickupCutoff: v })}
               />
             </Field>
             <label className="flex items-center gap-2 self-end pb-2 text-sm">

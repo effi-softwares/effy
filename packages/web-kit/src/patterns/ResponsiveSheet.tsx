@@ -3,7 +3,7 @@ import { XIcon } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import { useIsMobile } from "@effy/design-system/hooks/use-mobile";
-import { Button, Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from "@effy/design-system/ui";
+import { Button, Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHandle, DrawerTitle } from "@effy/design-system/ui";
 
 export function ResponsiveSheet({
   open,
@@ -35,7 +35,7 @@ export function ResponsiveSheet({
               )
         }
       >
-        {isMobile ? <span aria-hidden="true" className="mx-auto mt-3 h-2 w-12 shrink-0 rounded-full bg-muted" /> : null}
+        {isMobile ? <DrawerHandle /> : null}
         <div className={cn("flex flex-col gap-1", isMobile ? "px-4 pt-3 pb-2" : "px-5 pt-4 pb-3 pr-12")}>
           <DrawerTitle>{title}</DrawerTitle>
           {description ? <DrawerDescription>{description}</DrawerDescription> : <DrawerDescription className="sr-only">{title}</DrawerDescription>}

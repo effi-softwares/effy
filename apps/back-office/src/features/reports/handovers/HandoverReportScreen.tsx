@@ -3,7 +3,16 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { PARCEL_MISSING_REASON_WORDS, READ_OUTCOME_WORDS, type HandoverMixDTO } from "@effy/shared-types"
-import { Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@effy/design-system/ui"
+import {
+  DateField,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { PageHeader, DetailRows, Panel } from "@effy/web-kit/patterns"
@@ -33,24 +42,11 @@ export function HandoverReportScreen() {
           <div className="flex flex-wrap items-end gap-2">
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">From</span>
-              <Input
-                type="date"
-                value={from}
-                max={to}
-                onChange={(e) => e.target.value && setFrom(e.target.value)}
-                className="w-40"
-              />
+              <DateField value={from} max={to} onChange={(v) => v && setFrom(v)} className="w-40" />
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">To</span>
-              <Input
-                type="date"
-                value={to}
-                min={from}
-                max={today}
-                onChange={(e) => e.target.value && setTo(e.target.value)}
-                className="w-40"
-              />
+              <DateField value={to} min={from} max={today} onChange={(v) => v && setTo(v)} className="w-40" />
             </label>
           </div>
         }

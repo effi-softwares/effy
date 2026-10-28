@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { ConsignmentDTO, ConsignmentEventInput, ConsignmentState } from "@effy/shared-types"
 import {
   Button,
+  DateField,
   Input,
   Label,
   Select,
@@ -12,6 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TimeField,
 } from "@effy/design-system/ui"
 
 import { courierServicesQuery } from "../../delivery/queries"
@@ -237,32 +239,29 @@ export function ConsignmentBlock({
             <>
               <div className="space-y-1">
                 <Label htmlFor={`day-${pkg.fulfillmentId}`}>Pickup day</Label>
-                <Input
+                <DateField
                   id={`day-${pkg.fulfillmentId}`}
-                  type="date"
                   className="w-40"
                   value={pickupDate}
-                  onChange={(e) => setPickupDate(e.target.value)}
+                  onChange={(v) => setPickupDate(v)}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor={`from-${pkg.fulfillmentId}`}>From</Label>
-                <Input
+                <TimeField
                   id={`from-${pkg.fulfillmentId}`}
-                  type="time"
                   className="w-28"
                   value={pickupFrom}
-                  onChange={(e) => setPickupFrom(e.target.value)}
+                  onChange={(v) => setPickupFrom(v)}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor={`to-${pkg.fulfillmentId}`}>To</Label>
-                <Input
+                <TimeField
                   id={`to-${pkg.fulfillmentId}`}
-                  type="time"
                   className="w-28"
                   value={pickupTo}
-                  onChange={(e) => setPickupTo(e.target.value)}
+                  onChange={(v) => setPickupTo(v)}
                 />
               </div>
             </>

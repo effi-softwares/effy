@@ -116,12 +116,25 @@ function DrawerDescription({
   )
 }
 
+/** The grab bar at the top of a bottom sheet. */
+function DrawerHandle({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      aria-hidden="true"
+      data-slot="drawer-handle"
+      className={cn("mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted", className)}
+      {...props}
+    />
+  )
+}
+
 export {
   Drawer,
   DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
+  DrawerHandle,
   DrawerHeader,
   DrawerOverlay,
   DrawerPortal,

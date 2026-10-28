@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "@ncdai/react-wheel-picker/style.css";
 
 /* A tap area of at least 44px on a touch screen, without changing how the control looks: an invisible
    layer centred on the control, never smaller than the control itself. With a mouse it does nothing. */

@@ -3,6 +3,7 @@ import { useState } from "react"
 import type { AdminDriverProfile, AdminDriverUpdateRequest } from "@effy/shared-types"
 import {
   Button,
+  DateField,
   Input,
   Label,
   Select,
@@ -76,7 +77,7 @@ export function ProfileEditForm({ driver, onDone }: { driver: AdminDriverProfile
         </Field>
 
         <Field id="f-started" label="Started on">
-          <Input id="f-started" type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} />
+          <DateField id="f-started" value={startedOn} onChange={(v) => setStartedOn(v)} />
         </Field>
 
         <Field id="f-licence-class" label="Licence class">
@@ -113,12 +114,7 @@ export function ProfileEditForm({ driver, onDone }: { driver: AdminDriverProfile
         </Field>
 
         <Field id="f-licence-exp" label="Licence expires">
-          <Input
-            id="f-licence-exp"
-            type="date"
-            value={licenceExpiresOn}
-            onChange={(e) => setLicenceExpiresOn(e.target.value)}
-          />
+          <DateField id="f-licence-exp" value={licenceExpiresOn} onChange={(v) => setLicenceExpiresOn(v)} />
           <p className="text-xs text-muted-foreground">Once this date passes, the driver cannot be given work.</p>
         </Field>
 

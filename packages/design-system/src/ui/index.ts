@@ -39,3 +39,5 @@ export * from "./textarea";
 export * from "./toggle";
 export * from "./toggle-group";
 export * from "./tooltip";
+export * from "./wheel-field";
+export * from "./wheel-picker";

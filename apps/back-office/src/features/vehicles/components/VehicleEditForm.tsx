@@ -3,6 +3,7 @@ import { useState } from "react"
 import {
   Button,
   Checkbox,
+  DateField,
   Input,
   Label,
   Select,
@@ -137,16 +138,16 @@ export function VehicleEditForm({ vehicle }: { vehicle: VehicleDetail }) {
           <Input id="ve-odo" inputMode="numeric" value={odometerKm} onChange={(e) => setOdo(e.target.value)} />
         </Field>
         <Field id="ve-reg" label="Registration expires">
-          <Input id="ve-reg" type="date" value={registrationExpiresOn} onChange={(e) => setReg(e.target.value)} />
+          <DateField id="ve-reg" value={registrationExpiresOn} onChange={(v) => setReg(v)} />
         </Field>
         <Field id="ve-policy" label="Insurance policy">
           <Input id="ve-policy" value={insurancePolicyReference} onChange={(e) => setPolicy(e.target.value)} />
         </Field>
         <Field id="ve-ins" label="Insurance expires">
-          <Input id="ve-ins" type="date" value={insuranceExpiresOn} onChange={(e) => setIns(e.target.value)} />
+          <DateField id="ve-ins" value={insuranceExpiresOn} onChange={(v) => setIns(v)} />
         </Field>
         <Field id="ve-rwc" label="Roadworthy expires">
-          <Input id="ve-rwc" type="date" value={roadworthyExpiresOn} onChange={(e) => setRwc(e.target.value)} />
+          <DateField id="ve-rwc" value={roadworthyExpiresOn} onChange={(v) => setRwc(v)} />
         </Field>
       </div>
 

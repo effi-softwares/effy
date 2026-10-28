@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
-import { Button, Input, Label, Textarea } from "@effy/design-system/ui"
+import { Button, CountField, Label, Textarea } from "@effy/design-system/ui"
 
 import { ChoiceCards } from "@/components/console/ChoiceCards"
 import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
@@ -91,13 +91,14 @@ export function AdjustLineDialog({
               >
                 <Minus aria-hidden="true" />
               </Button>
-              <Input
+              <CountField
                 id="adjust-units"
-                inputMode="numeric"
+                min={0}
+                max={ordered}
                 value={units}
                 aria-invalid={showErr}
-                onChange={(e) => {
-                  setUnits(e.target.value)
+                onChange={(v) => {
+                  setUnits(v)
                   setTouched(true)
                 }}
                 className="h-11 w-16 text-center text-lg font-semibold tabular-nums md:text-lg"

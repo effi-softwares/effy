@@ -11,6 +11,7 @@ import {
   Drawer,
   DrawerContent,
   DrawerDescription,
+  DrawerHandle,
   DrawerTitle,
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +77,7 @@ export function MoreActions({
       <Drawer open={open} onOpenChange={setOpen} onAnimationEnd={(o) => !o && runPending()}>
         {trigger(() => setOpen(true))}
         <DrawerContent className="px-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
-          <span aria-hidden="true" className="mx-auto mt-3 mb-1 h-1.5 w-12 shrink-0 rounded-full bg-muted" />
+          <DrawerHandle className="mb-1" />
           <DrawerTitle className="sr-only">{label}</DrawerTitle>
           <DrawerDescription className="sr-only">Choose what to do.</DrawerDescription>
           <ul className="flex flex-col py-1">

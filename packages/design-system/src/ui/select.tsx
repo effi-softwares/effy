@@ -1,18 +1,86 @@
 import * as React from "react"
 import { Select as SelectPrimitive } from "radix-ui"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon } from "lucide-react"
 
 import { cn } from "../cn"
+import { useIsMobile } from "../hooks/use-mobile"
+import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerTitle } from "./drawer"
+
+/*
+ * shadcn's Select. On a phone the same parts open a bottom sheet instead of the dropdown: Radix still
+ * holds the value (so `SelectValue` reads as ever) but never opens; the items render a second time as
+ * full-width rows in the sheet, one tap to choose. A long list gets a search field. Nothing a caller
+ * writes changes.
+ */
+const SEARCH_FROM = 9
+
+type SheetState = {
+  value: string
+  choose: (value: string) => void
+  open: boolean
+  setOpen: (open: boolean) => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+}
+const SheetContext = React.createContext<SheetState | null>(null)
+/** Set inside the sheet's list: parts render as rows there, as Radix parts everywhere else. */
+const RowContext = React.createContext<{ query: string; register: () => () => void } | null>(null)
 
 function Select({
+  value: valueProp,
+  defaultValue,
+  onValueChange,
+  open: _open,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  const isMobile = useIsMobile()
+  const [own, setOwn] = React.useState(defaultValue ?? "")
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
+  const value = valueProp ?? own
+  const choose = React.useCallback(
+    (next: string) => {
+      if (valueProp === undefined) setOwn(next)
+      onValueChange?.(next)
+      setSheetOpen(false)
+    },
+    [valueProp, onValueChange]
+  )
+
+  if (!isMobile) {
+    return (
+      <SelectPrimitive.Root
+        data-slot="select"
+        value={valueProp}
+        defaultValue={defaultValue}
+        onValueChange={onValueChange}
+        open={_open}
+        onOpenChange={onOpenChange}
+        {...props}
+      />
+    )
+  }
+  return (
+    <SheetContext.Provider value={{ value, choose, open: sheetOpen, setOpen: setSheetOpen, triggerRef }}>
+      <SelectPrimitive.Root
+        data-slot="select"
+        value={value}
+        onValueChange={choose}
+        open={false}
+        onOpenChange={(o) => {
+          if (o) setSheetOpen(true)
+          onOpenChange?.(o)
+        }}
+        {...props}
+      />
+    </SheetContext.Provider>
+  )
 }
 
 function SelectGroup({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
+  if (React.useContext(RowContext)) return <div role="group" data-slot="select-group" {...(props as React.ComponentProps<"div">)} />
   return <SelectPrimitive.Group data-slot="select-group" {...props} />
 }
 
@@ -30,8 +98,10 @@ function SelectTrigger({
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default"
 }) {
+  const sheet = React.useContext(SheetContext)
   return (
     <SelectPrimitive.Trigger
+      ref={sheet?.triggerRef}
       data-slot="select-trigger"
       data-size={size}
       className={cn(
@@ -55,6 +125,18 @@ function SelectContent({
   position = "popper",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const sheet = React.useContext(SheetContext)
+  if (sheet) {
+    return (
+      <>
+        {/* Closed, Radix keeps its items in a fragment, which is how the trigger shows the chosen words. */}
+        <SelectPrimitive.Content data-slot="select-content" position={position}>
+          <SelectPrimitive.Viewport>{children}</SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+        <SelectSheet sheet={sheet}>{children}</SelectSheet>
+      </>
+    )
+  }
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -88,6 +170,9 @@ function SelectLabel({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Label>) {
+  if (React.useContext(RowContext)) {
+    return <div className={cn("px-3 pt-3 pb-1 text-xs font-medium text-muted-foreground", className)}>{props.children}</div>
+  }
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
@@ -97,11 +182,102 @@ function SelectLabel({
   )
 }
 
+/** The phone's sheet: a title from the field's label, a search on a long list, then one row per item. */
+function SelectSheet({ sheet, children }: { sheet: SheetState; children: React.ReactNode }) {
+  const [query, setQuery] = React.useState("")
+  const [count, setCount] = React.useState(0)
+  const register = React.useCallback(() => {
+    setCount((n) => n + 1)
+    return () => setCount((n) => n - 1)
+  }, [])
+  const trigger = sheet.triggerRef.current
+  const title =
+    trigger?.getAttribute("aria-label") ??
+    (trigger?.id ? document.querySelector(`label[for="${CSS.escape(trigger.id)}"]`)?.textContent : null) ??
+    "Choose one"
+
+  return (
+    <Drawer
+      open={sheet.open}
+      onOpenChange={(o) => {
+        sheet.setOpen(o)
+        if (!o) setQuery("")
+      }}
+    >
+      <DrawerContent className="max-h-[85dvh] pb-[calc(8px+env(safe-area-inset-bottom))]">
+        <DrawerHandle />
+        <DrawerTitle className="px-4 pt-3 pb-2 text-base font-semibold">{title}</DrawerTitle>
+        <DrawerDescription className="sr-only">Tap one to choose it.</DrawerDescription>
+        {count >= SEARCH_FROM ? (
+          <label className="relative mx-4 mb-2 flex items-center">
+            <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+            <span className="sr-only">Search</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search"
+              className="h-11 w-full rounded-lg border border-input bg-transparent pr-3 pl-9 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+            />
+          </label>
+        ) : null}
+        <div role="listbox" aria-label={title} className="min-h-0 flex-1 overflow-y-auto px-2 pb-1">
+          <RowContext.Provider value={{ query: query.trim().toLowerCase(), register }}>{children}</RowContext.Provider>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+function textOf(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join(" ")
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) return textOf(node.props.children)
+  return ""
+}
+
+function SelectRow({
+  value,
+  disabled,
+  textValue,
+  children,
+}: Pick<React.ComponentProps<typeof SelectPrimitive.Item>, "value" | "disabled" | "textValue" | "children">) {
+  const sheet = React.useContext(SheetContext)!
+  const row = React.useContext(RowContext)!
+  React.useEffect(() => row.register(), [row.register])
+  if (row.query && !(textValue ?? textOf(children)).toLowerCase().includes(row.query)) return null
+  const selected = sheet.value === value
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      disabled={disabled}
+      onClick={() => sheet.choose(value)}
+      className={cn(
+        "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-base outline-none active:bg-accent disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        selected && "bg-accent font-medium"
+      )}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2">{children}</span>
+      {selected ? <CheckIcon aria-hidden="true" className="size-5 text-primary" /> : null}
+    </button>
+  )
+}
+
 function SelectItem({
   className,
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  if (React.useContext(RowContext)) {
+    return (
+      <SelectRow value={props.value} disabled={props.disabled} textValue={props.textValue}>
+        {children}
+      </SelectRow>
+    )
+  }
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -125,6 +301,7 @@ function SelectSeparator({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Separator>) {
+  if (React.useContext(RowContext)) return <div aria-hidden="true" className="mx-1 my-1 h-px bg-border" />
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
